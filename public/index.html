@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arcane — Переводчик новелл</title>
+  <link rel="icon" type="image/png" href="/arcane_icon.png">
+  <link rel="apple-touch-icon" href="/arcane_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --bg-hover: #22222e;
+      --accent: #8b5cf6;
+      --accent-dim: #6d28d9;
+      --accent-glow: rgba(139, 92, 246, 0.3);
+      --text-primary: #e8e6f0;
+      --text-secondary: #9ca3af;
+      --text-dim: #6b7280;
+      --border: #2a2a3a;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --font-display: 'Cormorant Garamond', serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Background pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse at 20% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(109, 40, 217, 0.06) 0%, transparent 50%),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 100px,
+          rgba(139, 92, 246, 0.02) 100px,
+          rgba(139, 92, 246, 0.02) 101px
+        );
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-icon-img {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      object-fit: cover;
+    }
+
+    .logo-text {
+      font-size: 1.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    /* Main layout */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 2rem;
+      min-height: calc(100vh - 100px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--accent-dim);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    /* Project list */
+    .project-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .project-item {
+      padding: 0.75rem 1rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .project-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--border);
+    }
+
+    .project-item.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+
+    .project-name {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .project-meta {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+      color: white;
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-dim);
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .btn-full {
+      width: 100%;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Content area */
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Welcome screen */
+    .welcome {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .welcome-logo {
+      width: 140px;
+      height: 140px;
+      margin-bottom: 1.5rem;
+      border-radius: 50%;
+      box-shadow: 0 8px 40px var(--accent-glow);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .welcome h2 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .welcome p {
+      color: var(--text-secondary);
+      max-width: 500px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+
+    /* Chapter view */
+    .chapter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .chapter-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .chapter-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .chapter-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+
+    .status-pending {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+
+    .status-translating {
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--accent);
+    }
+
+    .status-completed {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    /* Text panels */
+    .text-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      flex: 1;
+    }
+
+    .text-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 400px;
+    }
+
+    .panel-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-secondary);
+    }
+
+    .panel-content {
+      padding: 1.5rem;
+      flex: 1;
+      overflow-y: auto;
+      font-size: 1.05rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    .panel-content.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    /* Upload area */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 2rem 1rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--accent);
+      background: rgba(139, 92, 246, 0.05);
+    }
+
+    .upload-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.6;
+    }
+
+    .upload-area p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    /* Chapter list */
+    .chapter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .chapter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chapter-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .chapter-item.active {
+      background: var(--accent-dim);
+    }
+
+    /* Glossary */
+    .glossary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .glossary-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .glossary-original {
+      color: var(--text-secondary);
+    }
+
+    .glossary-arrow {
+      color: var(--accent);
+      margin: 0 0.5rem;
+    }
+
+    .glossary-translated {
+      color: var(--text-primary);
+    }
+
+    .glossary-type {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      background: var(--bg-hover);
+      color: var(--text-dim);
+      margin-left: 0.5rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      min-width: 400px;
+      max-width: 90vw;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: var(--font-display);
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-select {
+      cursor: pointer;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    /* Stats */
+    .stats {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* Loading spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-dim);
+    }
+
+    /* Settings panel */
+    .settings-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .setting-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .setting-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .setting-select {
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .setting-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      background: var(--bg-secondary);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 8px var(--accent-glow);
+      transition: transform 0.2s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .slider-value {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent);
+      min-width: 2.5rem;
+      text-align: right;
+    }
+
+    .setting-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    /* API Status */
+    .api-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--warning);
+    }
+
+    .api-status.connected .status-dot {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .api-status.disconnected .status-dot {
+      background: var(--error);
+    }
+
+    .status-text {
+      color: var(--text-secondary);
+    }
+
+    /* Alert banner */
+    .alert-banner {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert-banner.visible {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .alert-icon {
+      font-size: 1.5rem;
+    }
+
+    .alert-content h4 {
+      color: var(--error);
+      margin-bottom: 0.25rem;
+    }
+
+    .alert-content p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .alert-content code {
+      background: var(--bg-secondary);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .text-panels {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="logo">
+        <img src="/arcane_icon.png" alt="Arcane" class="logo-icon-img">
+        <div>
+          <div class="logo-text">ARCANE</div>
+          <div class="logo-subtitle">AI Переводчик новелл</div>
+        </div>
+      </div>
+      <div id="apiStatus" class="api-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Проверка...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <aside class="sidebar">
+      <div class="card">
+        <div class="card-title">📁 Проекты</div>
+        <div id="projectList" class="project-list">
+          <div class="empty-state" style="text-align: center; padding: 1rem; color: var(--text-dim);">
+            Нет проектов
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" style="margin-top: 1rem;" onclick="showNewProjectModal()">
+          ＋ Новый проект
+        </button>
+      </div>
+
+      <div class="card" id="chaptersCard" style="display: none;">
+        <div class="card-title">📖 Главы</div>
+        <div id="chapterList" class="chapter-list"></div>
+        <div class="upload-area" id="uploadArea" style="margin-top: 1rem;">
+          <div class="upload-icon">📄</div>
+          <p>Перетащите .txt файл<br>или нажмите</p>
+          <input type="file" id="fileInput" accept=".txt" style="display: none;">
+        </div>
+      </div>
+
+      <div class="card" id="glossaryCard" style="display: none;">
+        <div class="card-title">📝 Глоссарий</div>
+        <div id="glossaryList" class="glossary-list"></div>
+        <button class="btn btn-secondary btn-sm btn-full" style="margin-top: 1rem;" onclick="showAddGlossaryModal()">
+          ＋ Добавить запись
+        </button>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div id="alertBanner" class="alert-banner">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <h4>API ключ не настроен</h4>
+          <p>Для перевода добавьте <code>OPENAI_API_KEY</code> в файл <code>.env</code></p>
+        </div>
+      </div>
+
+      <div id="welcomeScreen" class="card welcome">
+        <img src="/arcane_icon.png" alt="Arcane" class="welcome-logo">
+        <h2>Добро пожаловать в Arcane</h2>
+        <p>Интеллектуальный переводчик новелл с английского на русский с сохранением контекста и стилистики.</p>
+        <button class="btn btn-primary" onclick="showNewProjectModal()">
+          Создать первый проект
+        </button>
+      </div>
+
+      <div id="projectInfo" class="card" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2 id="projectTitle" style="font-size: 1.5rem; margin-bottom: 0.25rem;">Название проекта</h2>
+            <span style="color: var(--text-dim);">EN → RU</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="deleteProject()">🗑️ Удалить</button>
+        </div>
+        <div class="stats">
+          <div class="stat-item">
+            <div class="stat-value" id="statChapters">0</div>
+            <div class="stat-label">Глав</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statTranslated">0</div>
+            <div class="stat-label">Переведено</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statGlossary">0</div>
+            <div class="stat-label">В глоссарии</div>
+          </div>
+        </div>
+        
+        <!-- Settings Panel -->
+        <div class="settings-panel">
+          <div class="setting-group">
+            <label class="setting-label">🤖 Модель</label>
+            <select class="setting-select" id="modelSelect" onchange="updateProjectSettings()">
+              <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-4o-mini">GPT-4o Mini (быстрая)</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (экономная)</option>
+            </select>
+            <span class="setting-hint">Влияет на качество и стоимость</span>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label">🎨 Креативность</label>
+            <div class="slider-container">
+              <input type="range" class="slider" id="temperatureSlider" 
+                     min="0" max="100" value="70" 
+                     oninput="updateTemperatureDisplay()" 
+                     onchange="updateProjectSettings()">
+              <span class="slider-value" id="temperatureValue">0.7</span>
+            </div>
+            <span class="setting-hint">0 = точный, 1 = творческий</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="chapterView" style="display: none;">
+        <div class="card">
+          <div class="chapter-header">
+            <h2 class="chapter-title" id="currentChapterTitle">Глава 1</h2>
+            <div class="chapter-actions">
+              <span class="chapter-status status-pending" id="chapterStatus">
+                ⏳ Ожидает
+              </span>
+              <button class="btn btn-primary btn-sm" id="translateBtn" onclick="translateChapter()">
+                🔮 Перевести
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-panels">
+          <div class="text-panel">
+            <div class="panel-header">
+              🇬🇧 Оригинал (English)
+            </div>
+            <div class="panel-content" id="originalText">
+              Выберите главу для просмотра текста...
+            </div>
+          </div>
+          <div class="text-panel">
+            <div class="panel-header">
+              🇷🇺 Перевод (Русский)
+            </div>
+            <div class="panel-content empty" id="translatedText">
+              Перевод появится здесь...
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- New Project Modal -->
+  <div class="modal-overlay" id="newProjectModal">
+    <div class="modal">
+      <h3 class="modal-title">📁 Новый проект</h3>
+      <div class="form-group">
+        <label class="form-label">Название проекта</label>
+        <input type="text" class="form-input" id="projectNameInput" placeholder="Например: Властелин колец">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="hideNewProjectModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="createProject()">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Glossary Modal -->
+  <div class="modal-overlay" id="glossaryModal">
+    <div class="modal">
+      <h3 class="modal-title">📝 Новая запись глоссария</h3>
+      <div class="form-group">
+        <label class="form-label">Тип</label>
+        <select class="form-select" id="glossaryType">
+          <option value="character">👤 Персонаж</option>
+          <option value="location">📍 Локация</option>
+          <option value="term">📖 Термин</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Оригинал (EN)</label>
+        <input type="text" class="form-input" id="glossaryOriginal" placeholder="Например: The Dark Lord">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Перевод (RU)</label>
+        <input type="text" class="form-input" id="glossaryTranslated" placeholder="Например: Тёмный Властелин">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Заметки (опционально)</label>
+        <input type="text" class="form-input" id="glossaryNotes" placeholder="Дополнительный контекст...">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="hideGlossaryModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="addGlossaryEntry()">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentProject = null;
+    let currentChapter = null;
+    let projects = [];
+    let systemStatus = null;
+
+    // API calls
+    const api = {
+      async getStatus() {
+        const res = await fetch('/api/status');
+        return res.json();
+      },
+      async getProjects() {
+        const res = await fetch('/api/projects');
+        return res.json();
+      },
+      async createProject(name) {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        return res.json();
+      },
+      async getProject(id) {
+        const res = await fetch(`/api/projects/${id}`);
+        return res.json();
+      },
+      async deleteProject(id) {
+        await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      },
+      async uploadChapter(projectId, file, title) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', title);
+        const res = await fetch(`/api/projects/${projectId}/chapters`, {
+          method: 'POST',
+          body: formData
+        });
+        return res.json();
+      },
+      async translateChapter(projectId, chapterId) {
+        const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/translate`, {
+          method: 'POST'
+        });
+        return res.json();
+      },
+      async addGlossary(projectId, entry) {
+        const res = await fetch(`/api/projects/${projectId}/glossary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entry)
+        });
+        return res.json();
+      },
+      async updateSettings(projectId, settings) {
+        const res = await fetch(`/api/projects/${projectId}/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+        return res.json();
+      }
+    };
+
+    // Initialize
+    async function init() {
+      await checkSystemStatus();
+      await loadProjects();
+      setupDragDrop();
+    }
+
+    async function checkSystemStatus() {
+      try {
+        systemStatus = await api.getStatus();
+        updateStatusIndicator();
+      } catch (e) {
+        console.error('Не удалось получить статус системы:', e);
+      }
+    }
+
+    function updateStatusIndicator() {
+      const statusEl = document.getElementById('apiStatus');
+      const alertEl = document.getElementById('alertBanner');
+      
+      if (!systemStatus) {
+        statusEl.innerHTML = `
+          <span class="status-dot"></span>
+          <span class="status-text">Ошибка</span>
+        `;
+        statusEl.classList.add('disconnected');
+        return;
+      }
+      
+      if (systemStatus.ai.configured) {
+        statusEl.innerHTML = `
+          <span class="status-dot"></span>
+          <span class="status-text">${systemStatus.ai.provider} • ${systemStatus.ai.model}</span>
+        `;
+        statusEl.classList.add('connected');
+        alertEl.classList.remove('visible');
+      } else {
+        statusEl.innerHTML = `
+          <span class="status-dot"></span>
+          <span class="status-text">API не настроен</span>
+        `;
+        statusEl.classList.add('disconnected');
+        alertEl.classList.add('visible');
+      }
+    }
+
+    async function loadProjects() {
+      projects = await api.getProjects();
+      renderProjectList();
+    }
+
+    function renderProjectList() {
+      const container = document.getElementById('projectList');
+      if (projects.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 1rem; color: var(--text-dim);">
+            Нет проектов
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = projects.map(p => `
+        <div class="project-item ${currentProject?.id === p.id ? 'active' : ''}" 
+             onclick="selectProject('${p.id}')">
+          <div class="project-name">${p.name}</div>
+          <div class="project-meta">${p.chapterCount} ${declension(p.chapterCount, ['глава', 'главы', 'глав'])}</div>
+        </div>
+      `).join('');
+    }
+
+    function declension(n, forms) {
+      const n10 = n % 10;
+      const n100 = n % 100;
+      if (n10 === 1 && n100 !== 11) return forms[0];
+      if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return forms[1];
+      return forms[2];
+    }
+
+    async function selectProject(id) {
+      currentProject = await api.getProject(id);
+      currentChapter = null;
+      
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('projectInfo').style.display = 'block';
+      document.getElementById('chapterView').style.display = 'none';
+      document.getElementById('chaptersCard').style.display = 'block';
+      document.getElementById('glossaryCard').style.display = 'block';
+      
+      // Update project info
+      document.getElementById('projectTitle').textContent = currentProject.name;
+      updateStats();
+      loadProjectSettings();
+      updateStatusWithProjectModel();
+      
+      renderProjectList();
+      renderChapterList();
+      renderGlossary();
+    }
+
+    function updateStats() {
+      const translated = currentProject.chapters.filter(ch => ch.status === 'completed').length;
+      document.getElementById('statChapters').textContent = currentProject.chapters.length;
+      document.getElementById('statTranslated').textContent = translated;
+      document.getElementById('statGlossary').textContent = currentProject.glossary.length;
+    }
+
+    function loadProjectSettings() {
+      if (!currentProject) return;
+      
+      const settings = currentProject.settings || {};
+      
+      // Set model
+      const modelSelect = document.getElementById('modelSelect');
+      modelSelect.value = settings.model || 'gpt-4-turbo-preview';
+      
+      // Set temperature
+      const temp = settings.temperature ?? 0.7;
+      document.getElementById('temperatureSlider').value = temp * 100;
+      document.getElementById('temperatureValue').textContent = temp.toFixed(1);
+    }
+
+    function updateTemperatureDisplay() {
+      const slider = document.getElementById('temperatureSlider');
+      const value = (slider.value / 100).toFixed(1);
+      document.getElementById('temperatureValue').textContent = value;
+    }
+
+    async function updateProjectSettings() {
+      if (!currentProject) return;
+      
+      const model = document.getElementById('modelSelect').value;
+      const temperature = document.getElementById('temperatureSlider').value / 100;
+      
+      const settings = {
+        model,
+        temperature,
+        skipEditing: currentProject.settings?.skipEditing || false
+      };
+      
+      await api.updateSettings(currentProject.id, settings);
+      currentProject.settings = settings;
+      
+      // Update status bar to show current project model
+      updateStatusWithProjectModel();
+    }
+
+    function updateStatusWithProjectModel() {
+      if (!currentProject || !systemStatus?.ai?.configured) return;
+      
+      const statusEl = document.getElementById('apiStatus');
+      const model = currentProject.settings?.model || systemStatus.ai.model;
+      
+      statusEl.innerHTML = `
+        <span class="status-dot"></span>
+        <span class="status-text">OpenAI • ${model}</span>
+      `;
+    }
+
+    async function deleteProject() {
+      if (!currentProject) return;
+      if (!confirm(`Удалить проект "${currentProject.name}"?`)) return;
+      
+      await api.deleteProject(currentProject.id);
+      currentProject = null;
+      currentChapter = null;
+      
+      document.getElementById('welcomeScreen').style.display = 'block';
+      document.getElementById('projectInfo').style.display = 'none';
+      document.getElementById('chapterView').style.display = 'none';
+      document.getElementById('chaptersCard').style.display = 'none';
+      document.getElementById('glossaryCard').style.display = 'none';
+      
+      await loadProjects();
+    }
+
+    function renderChapterList() {
+      const container = document.getElementById('chapterList');
+      if (!currentProject || currentProject.chapters.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 1rem; color: var(--text-dim);">
+            Нет глав
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = currentProject.chapters.map(ch => `
+        <div class="chapter-item ${currentChapter?.id === ch.id ? 'active' : ''}"
+             onclick="selectChapter('${ch.id}')">
+          <span>${ch.title}</span>
+          <span class="chapter-status status-${ch.status}">
+            ${ch.status === 'pending' ? '⏳' : ch.status === 'translating' ? '🔄' : '✅'}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    function selectChapter(id) {
+      currentChapter = currentProject.chapters.find(ch => ch.id === id);
+      
+      document.getElementById('chapterView').style.display = 'flex';
+      document.getElementById('chapterView').style.flexDirection = 'column';
+      document.getElementById('chapterView').style.gap = '1.5rem';
+      
+      document.getElementById('currentChapterTitle').textContent = currentChapter.title;
+      document.getElementById('originalText').textContent = currentChapter.originalText;
+      
+      updateChapterStatus();
+      renderChapterList();
+    }
+
+    function updateChapterStatus() {
+      const statusEl = document.getElementById('chapterStatus');
+      const translateBtn = document.getElementById('translateBtn');
+      const translatedText = document.getElementById('translatedText');
+
+      const statusMap = {
+        pending: { class: 'status-pending', text: '⏳ Ожидает', btnDisabled: false },
+        translating: { class: 'status-translating', text: '🔄 Перевод...', btnDisabled: true },
+        completed: { class: 'status-completed', text: '✅ Готово', btnDisabled: true }
+      };
+
+      const status = statusMap[currentChapter.status];
+      statusEl.className = `chapter-status ${status.class}`;
+      statusEl.textContent = status.text;
+      translateBtn.disabled = status.btnDisabled;
+
+      if (currentChapter.translatedText) {
+        translatedText.textContent = currentChapter.translatedText;
+        translatedText.classList.remove('empty');
+      } else {
+        translatedText.textContent = 'Перевод появится здесь...';
+        translatedText.classList.add('empty');
+      }
+    }
+
+    async function translateChapter() {
+      if (!currentProject || !currentChapter) return;
+
+      currentChapter.status = 'translating';
+      updateChapterStatus();
+
+      await api.translateChapter(currentProject.id, currentChapter.id);
+
+      // Poll for completion
+      const poll = setInterval(async () => {
+        const project = await api.getProject(currentProject.id);
+        const chapter = project.chapters.find(ch => ch.id === currentChapter.id);
+        
+        if (chapter.status === 'completed') {
+          clearInterval(poll);
+          currentProject = project;
+          currentChapter = chapter;
+          updateChapterStatus();
+          renderChapterList();
+          updateStats();
+        }
+      }, 1000);
+    }
+
+    function renderGlossary() {
+      const container = document.getElementById('glossaryList');
+      if (!currentProject || currentProject.glossary.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 0.5rem; color: var(--text-dim); font-size: 0.9rem;">
+            Глоссарий пуст
+          </div>
+        `;
+        return;
+      }
+
+      const typeLabels = {
+        character: '👤',
+        location: '📍',
+        term: '📖'
+      };
+
+      container.innerHTML = currentProject.glossary.map(entry => `
+        <div class="glossary-item">
+          <div>
+            <span class="glossary-original">${entry.original}</span>
+            <span class="glossary-arrow">→</span>
+            <span class="glossary-translated">${entry.translated}</span>
+          </div>
+          <span class="glossary-type">${typeLabels[entry.type] || '📖'}</span>
+        </div>
+      `).join('');
+    }
+
+    // File upload
+    function setupDragDrop() {
+      const uploadArea = document.getElementById('uploadArea');
+      const fileInput = document.getElementById('fileInput');
+
+      uploadArea.addEventListener('click', () => fileInput.click());
+      
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) await handleFileUpload(file);
+      });
+
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) await handleFileUpload(file);
+        fileInput.value = '';
+      });
+    }
+
+    async function handleFileUpload(file) {
+      if (!currentProject) return;
+      
+      const title = file.name.replace('.txt', '');
+      const chapter = await api.uploadChapter(currentProject.id, file, title);
+      currentProject.chapters.push(chapter);
+      renderChapterList();
+      updateStats();
+      selectChapter(chapter.id);
+    }
+
+    // Modals
+    function showNewProjectModal() {
+      document.getElementById('newProjectModal').classList.add('active');
+      document.getElementById('projectNameInput').focus();
+    }
+
+    function hideNewProjectModal() {
+      document.getElementById('newProjectModal').classList.remove('active');
+      document.getElementById('projectNameInput').value = '';
+    }
+
+    async function createProject() {
+      const name = document.getElementById('projectNameInput').value || 'Новый проект';
+      const project = await api.createProject(name);
+      await loadProjects();
+      hideNewProjectModal();
+      selectProject(project.id);
+    }
+
+    function showAddGlossaryModal() {
+      document.getElementById('glossaryModal').classList.add('active');
+      document.getElementById('glossaryOriginal').focus();
+    }
+
+    function hideGlossaryModal() {
+      document.getElementById('glossaryModal').classList.remove('active');
+      document.getElementById('glossaryType').value = 'character';
+      document.getElementById('glossaryOriginal').value = '';
+      document.getElementById('glossaryTranslated').value = '';
+      document.getElementById('glossaryNotes').value = '';
+    }
+
+    async function addGlossaryEntry() {
+      if (!currentProject) return;
+      
+      const type = document.getElementById('glossaryType').value;
+      const original = document.getElementById('glossaryOriginal').value;
+      const translated = document.getElementById('glossaryTranslated').value;
+      const notes = document.getElementById('glossaryNotes').value;
+      
+      if (!original || !translated) return;
+      
+      const entry = await api.addGlossary(currentProject.id, {
+        type,
+        original,
+        translated,
+        notes: notes || undefined
+      });
+      
+      currentProject.glossary.push(entry);
+      renderGlossary();
+      updateStats();
+      hideGlossaryModal();
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        hideNewProjectModal();
+        hideGlossaryModal();
+      }
+      if (e.key === 'Enter' && document.getElementById('newProjectModal').classList.contains('active')) {
+        createProject();
+      }
+    });
+
+    // Init
+    init();
+  </script>
+</body>
+</html>
