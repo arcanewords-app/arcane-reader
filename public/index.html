@@ -8,9 +8,13 @@
   <link rel="apple-touch-icon" href="/arcane_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- UI Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Reader Fonts: Literata (literary), Inter (sans) -->
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
+      /* Base UI colors (always dark theme for UI) */
       --bg-primary: #0a0a0f;
       --bg-secondary: #12121a;
       --bg-card: #1a1a24;
@@ -27,6 +31,67 @@
       --error: #ef4444;
       --font-display: 'Cormorant Garamond', serif;
       --font-mono: 'JetBrains Mono', monospace;
+      
+      /* Reader settings (customizable) */
+      --reader-font: 'Literata', Georgia, serif;
+      --reader-font-size: 18px;
+      --reader-line-height: 1.7;
+      --reader-paragraph-spacing: 1.2em;
+      --reader-bg: #1a1a2e;
+      --reader-text: #e4e4e7;
+      --reader-text-dim: #9ca3af;
+    }
+    
+    /* ============ Reader Color Schemes ============ */
+    
+    /* Dark (default) */
+    [data-reader-theme="dark"] {
+      --reader-bg: #1a1a2e;
+      --reader-text: #e4e4e7;
+      --reader-text-dim: #9ca3af;
+      --reader-accent: #8b5cf6;
+    }
+    
+    /* Light */
+    [data-reader-theme="light"] {
+      --reader-bg: #fafafa;
+      --reader-text: #1f1f1f;
+      --reader-text-dim: #6b7280;
+      --reader-accent: #7c3aed;
+    }
+    
+    /* Sepia */
+    [data-reader-theme="sepia"] {
+      --reader-bg: #f4ecd8;
+      --reader-text: #5c4b37;
+      --reader-text-dim: #8b7355;
+      --reader-accent: #8b6914;
+    }
+    
+    /* High Contrast */
+    [data-reader-theme="contrast"] {
+      --reader-bg: #000000;
+      --reader-text: #ffffff;
+      --reader-text-dim: #cccccc;
+      --reader-accent: #ffcc00;
+    }
+    
+    /* ============ Reader Font Families ============ */
+    
+    [data-reader-font="literary"] {
+      --reader-font: 'Literata', Georgia, serif;
+    }
+    
+    [data-reader-font="serif"] {
+      --reader-font: 'Charter', 'Bitstream Charter', Cambria, serif;
+    }
+    
+    [data-reader-font="sans"] {
+      --reader-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    [data-reader-font="mono"] {
+      --reader-font: 'JetBrains Mono', 'Fira Code', monospace;
     }
 
     * {
@@ -290,6 +355,39 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 1rem;
+      gap: 1rem;
+    }
+
+    .chapter-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .chapter-nav-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .chapter-nav-btn:hover:not(:disabled) {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .chapter-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
     }
 
     .chapter-title {
@@ -328,49 +426,12 @@
       color: var(--success);
     }
 
-    /* Text panels */
+    /* Text panels - legacy support */
     .text-panels {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
       flex: 1;
-    }
-
-    .text-panel {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-height: 400px;
-    }
-
-    .panel-header {
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--bg-secondary);
-    }
-
-    .panel-content {
-      padding: 1.5rem;
-      flex: 1;
-      overflow-y: auto;
-      font-size: 1.05rem;
-      line-height: 1.8;
-      white-space: pre-wrap;
-    }
-
-    .panel-content.empty {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-dim);
-      font-style: italic;
     }
 
     /* Upload area */
@@ -404,14 +465,98 @@
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
-      max-height: 250px;
+      min-height: 100px;
+      max-height: calc(100vh - 450px); /* Adaptive: viewport minus header/footer */
       overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent-dim) transparent;
+    }
+
+    .chapter-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chapter-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chapter-list::-webkit-scrollbar-thumb {
+      background: var(--accent-dim);
+      border-radius: 3px;
+    }
+
+    .chapter-list::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* Chapter filters */
+    .chapter-filters {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chapter-filter-btn {
+      flex: 1;
+      padding: 0.4rem 0.5rem;
+      background: var(--bg-secondary);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chapter-filter-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .chapter-filter-btn.active {
+      background: var(--accent-dim);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .chapter-count-badge {
+      font-size: 0.8rem;
+      font-weight: normal;
+      color: var(--text-dim);
+      margin-left: 0.5rem;
+    }
+
+    .chapter-search {
+      margin-bottom: 0.75rem;
+    }
+
+    .chapter-search-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    .chapter-search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .chapter-search-input::placeholder {
+      color: var(--text-dim);
     }
 
     .chapter-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 0.5rem;
       padding: 0.75rem 1rem;
       background: var(--bg-secondary);
       border-radius: 8px;
@@ -425,6 +570,59 @@
 
     .chapter-item.active {
       background: var(--accent-dim);
+    }
+
+    .chapter-number {
+      min-width: 1.75rem;
+      height: 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-hover);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .chapter-item.active .chapter-number {
+      background: var(--accent);
+      color: white;
+    }
+
+    .chapter-item-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chapter-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .chapter-delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      padding: 0.2rem;
+      border-radius: 4px;
+    }
+
+    .chapter-item:hover .chapter-delete-btn {
+      opacity: 0.6;
+    }
+
+    .chapter-delete-btn:hover {
+      opacity: 1 !important;
+      background: rgba(239, 68, 68, 0.2);
+      transform: scale(1.1);
     }
 
     /* Glossary */
@@ -444,6 +642,31 @@
       background: var(--bg-secondary);
       border-radius: 6px;
       font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .glossary-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .glossary-content {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex: 1;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .glossary-content:hover {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .glossary-type-icon {
+      font-size: 0.85rem;
+      opacity: 0.7;
     }
 
     .glossary-original {
@@ -452,20 +675,390 @@
 
     .glossary-arrow {
       color: var(--accent);
-      margin: 0 0.5rem;
     }
 
     .glossary-translated {
       color: var(--text-primary);
+      font-weight: 500;
     }
 
-    .glossary-type {
-      font-size: 0.7rem;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      background: var(--bg-hover);
+    .glossary-auto {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      background: var(--accent-dim);
+      color: var(--text-primary);
+      opacity: 0.7;
+    }
+
+    .glossary-delete-btn {
+      background: none;
+      border: none;
       color: var(--text-dim);
-      margin-left: 0.5rem;
+      font-size: 1.1rem;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s, color 0.2s;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .glossary-item:hover .glossary-delete-btn {
+      opacity: 0.6;
+    }
+
+    .glossary-delete-btn:hover {
+      opacity: 1;
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .glossary-item.has-image {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .glossary-image {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      object-fit: cover;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 2px solid var(--border);
+    }
+
+    .glossary-image:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .image-upload-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+    }
+
+    .current-image-preview {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid var(--border);
+    }
+
+    .image-upload-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .image-upload-btn {
+      padding: 0.5rem 1rem;
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .image-upload-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .image-delete-btn {
+      padding: 0.4rem 0.75rem;
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .image-delete-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* Image Viewer Modal */
+    .image-viewer-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      cursor: zoom-out;
+    }
+
+    .image-viewer-modal.active {
+      display: flex;
+    }
+
+    .image-viewer-modal img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .image-viewer-title {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 1.2rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Glossary Button */
+    .btn-glossary {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .btn-glossary:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .glossary-count {
+      background: var(--accent);
+      color: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    /* Glossary Modal */
+    .glossary-modal-overlay {
+      z-index: 1500;
+    }
+
+    .glossary-modal {
+      width: 90vw;
+      max-width: 900px;
+      height: 80vh;
+      max-height: 700px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .glossary-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .modal-close-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .glossary-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .glossary-search input {
+      width: 100%;
+    }
+
+    .glossary-filters {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 0.4rem 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .filter-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .filter-btn span {
+      font-size: 0.75rem;
+      opacity: 0.8;
+    }
+
+    .glossary-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+      align-content: start;
+    }
+
+    .glossary-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .glossary-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .glossary-card-image {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .glossary-card-placeholder {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--bg-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .glossary-card-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .glossary-card-names {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .glossary-card-original {
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .glossary-card-arrow {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+
+    .glossary-card-translated {
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .glossary-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .glossary-card-type {
+      padding: 0.15rem 0.4rem;
+      background: var(--bg-hover);
+      border-radius: 4px;
+    }
+
+    .glossary-card-notes {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 150px;
+    }
+
+    .glossary-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-dim);
+    }
+
+    .glossary-empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .glossary-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
     }
 
     /* Modal */
@@ -693,6 +1286,445 @@
       font-style: italic;
     }
 
+    /* Pipeline stages toggle */
+    .stages-panel {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .stages-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stages-grid {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .stage-toggle {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.75rem 0.5rem;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .stage-toggle:hover {
+      border-color: var(--accent-dim);
+      background: var(--bg-hover);
+    }
+
+    .stage-toggle.active {
+      border-color: var(--accent);
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .stage-toggle.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stage-toggle.disabled:hover {
+      border-color: var(--border);
+      background: var(--bg-secondary);
+    }
+
+    .stage-icon {
+      font-size: 1.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .stage-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .stage-arrow {
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .stage-checkbox {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: transparent;
+      transition: all 0.2s;
+    }
+
+    .stage-toggle.active .stage-checkbox {
+      background: var(--success);
+      color: white;
+    }
+
+    /* ============ Unified Paragraph Panel ============ */
+    
+    .text-panel-unified {
+      background: var(--reader-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s ease;
+    }
+
+    .panel-headers {
+      display: flex;
+      background: var(--bg-secondary);
+    }
+
+    .panel-header-left,
+    .panel-header-right {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-header-left {
+      /* No border - cleaner look */
+    }
+
+    .paragraphs-unified {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Paragraph Row */
+    .paragraph-row {
+      display: flex;
+      transition: background 0.2s;
+      margin-bottom: calc(var(--reader-paragraph-spacing, 1.2em) * 0.5);
+    }
+
+    .paragraph-row:hover {
+      background: rgba(139, 92, 246, 0.04);
+    }
+
+    .paragraph-row.highlighted {
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    /* Paragraph Cells */
+    .paragraph-cell {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      padding-left: 2.75rem;
+      position: relative;
+    }
+
+    .paragraph-cell-original {
+      background: transparent;
+    }
+
+    .paragraph-cell-translation {
+      /* Clean background, only hover effect */
+    }
+
+    .paragraph-cell-translation:hover {
+      background: rgba(139, 92, 246, 0.05);
+    }
+
+    .paragraph-index {
+      position: absolute;
+      top: 1.25rem;
+      left: 0.75rem;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    .paragraph-text {
+      white-space: pre-wrap;
+      font-family: var(--reader-font);
+      font-size: var(--reader-font-size);
+      line-height: var(--reader-line-height);
+      color: var(--reader-text);
+      transition: all 0.3s ease;
+    }
+
+    .paragraph-text.editable {
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .paragraph-text.editable:hover {
+      background: rgba(139, 92, 246, 0.1);
+      margin: -0.35rem;
+      padding: 0.35rem;
+    }
+
+    .paragraph-text.empty {
+      color: var(--text-dim);
+      font-style: italic;
+      cursor: pointer;
+    }
+
+    /* Inline editor */
+    .paragraph-editor {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--reader-bg);
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      color: var(--reader-text);
+      font-family: var(--reader-font);
+      font-size: var(--reader-font-size);
+      line-height: var(--reader-line-height);
+      resize: none;
+      overflow: hidden;
+      min-height: 2.5em;
+    }
+
+    .paragraph-editor:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .paragraph-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .paragraph-actions .btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+    }
+
+    /* ============ Reader Settings Panel ============ */
+    
+    .reader-settings-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .settings-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .settings-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    
+    .font-selector {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .font-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-hover);
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 60px;
+    }
+    
+    .font-option:hover {
+      border-color: var(--accent-dim);
+    }
+    
+    .font-option.active {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+    
+    .font-preview {
+      font-size: 1.4rem;
+      color: var(--text-primary);
+    }
+    
+    .font-name {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+    
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .slider-label {
+      color: var(--text-dim);
+      min-width: 1rem;
+      text-align: center;
+    }
+    
+    .settings-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      background: var(--bg-hover);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    .settings-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .settings-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    
+    .slider-value {
+      min-width: 40px;
+      text-align: right;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+    
+    .theme-selector {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .theme-option {
+      padding: 0.5rem;
+      background: transparent;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .theme-option:hover {
+      border-color: var(--accent-dim);
+    }
+    
+    .theme-option.active {
+      border-color: var(--accent);
+    }
+    
+    .theme-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      font-size: 1.2rem;
+    }
+    
+    .theme-preview-dark {
+      background: #1a1a2e;
+      border: 1px solid #2a2a3a;
+    }
+    
+    .theme-preview-light {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+    }
+    
+    .theme-preview-sepia {
+      background: #f4ecd8;
+      border: 1px solid #d4c4a8;
+    }
+    
+    .theme-preview-contrast {
+      background: #000000;
+      border: 1px solid #333;
+    }
+
+    /* Progress bar for chapter */
+    .chapter-progress {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-secondary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--success) 100%);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+      min-width: 4rem;
+      text-align: right;
+    }
+
+    /* Panel headers with stats */
+    .panel-header-with-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-stats {
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+    }
+
     /* API Status */
     .api-status {
       display: flex;
@@ -807,7 +1839,24 @@
       </div>
 
       <div class="card" id="chaptersCard" style="display: none;">
-        <div class="card-title">📖 Главы</div>
+        <div class="card-title">📖 Главы <span id="chapterCountBadge" class="chapter-count-badge"></span></div>
+        <div class="chapter-search">
+          <input type="text" id="chapterSearchInput" class="chapter-search-input" placeholder="🔍 Поиск..." oninput="onChapterSearch()">
+        </div>
+        <div class="chapter-filters" id="chapterFilters">
+          <button class="chapter-filter-btn active" data-filter="all" onclick="setChapterFilter('all')">
+            Все
+          </button>
+          <button class="chapter-filter-btn" data-filter="pending" onclick="setChapterFilter('pending')">
+            ⏳
+          </button>
+          <button class="chapter-filter-btn" data-filter="completed" onclick="setChapterFilter('completed')">
+            ✅
+          </button>
+          <button class="chapter-filter-btn" data-filter="error" onclick="setChapterFilter('error')">
+            ❌
+          </button>
+        </div>
         <div id="chapterList" class="chapter-list"></div>
         <div class="upload-area" id="uploadArea" style="margin-top: 1rem;">
           <div class="upload-icon">📄</div>
@@ -816,13 +1865,9 @@
         </div>
       </div>
 
-      <div class="card" id="glossaryCard" style="display: none;">
-        <div class="card-title">📝 Глоссарий</div>
-        <div id="glossaryList" class="glossary-list"></div>
-        <button class="btn btn-secondary btn-sm btn-full" style="margin-top: 1rem;" onclick="showAddGlossaryModal()">
-          ＋ Добавить запись
-        </button>
-      </div>
+      <button class="btn btn-glossary" id="glossaryBtn" style="display: none;" onclick="showGlossaryModal()">
+        📝 Глоссарий <span id="glossaryCount" class="glossary-count">0</span>
+      </button>
     </aside>
 
     <section class="content">
@@ -890,39 +1935,146 @@
             <span class="setting-hint">0 = точный, 1 = творческий</span>
           </div>
         </div>
+
+        <!-- Pipeline Stages -->
+        <div class="stages-panel">
+          <div class="stages-title">⚙️ Этапы перевода</div>
+          <div class="stages-grid">
+            <div class="stage-toggle active" id="stageAnalysis" onclick="toggleStage('analysis')">
+              <span class="stage-checkbox">✓</span>
+              <span class="stage-icon">🔍</span>
+              <span class="stage-name">Анализ</span>
+            </div>
+            <span class="stage-arrow">→</span>
+            <div class="stage-toggle active disabled" id="stageTranslation">
+              <span class="stage-checkbox">✓</span>
+              <span class="stage-icon">🔮</span>
+              <span class="stage-name">Перевод</span>
+            </div>
+            <span class="stage-arrow">→</span>
+            <div class="stage-toggle active" id="stageEditing" onclick="toggleStage('editing')">
+              <span class="stage-checkbox">✓</span>
+              <span class="stage-icon">✨</span>
+              <span class="stage-name">Редактура</span>
+            </div>
+          </div>
+          <span class="setting-hint" style="display: block; margin-top: 0.5rem;">
+            Нажмите, чтобы включить/выключить этапы. Перевод всегда обязателен.
+          </span>
+        </div>
       </div>
 
       <div id="chapterView" style="display: none;">
         <div class="card">
           <div class="chapter-header">
-            <h2 class="chapter-title" id="currentChapterTitle">Глава 1</h2>
+            <div class="chapter-nav">
+              <button class="chapter-nav-btn" id="prevChapterBtn" onclick="goToPrevChapter()" title="Предыдущая глава">
+                ◀
+              </button>
+              <h2 class="chapter-title" id="currentChapterTitle">Глава 1</h2>
+              <button class="chapter-nav-btn" id="nextChapterBtn" onclick="goToNextChapter()" title="Следующая глава">
+                ▶
+              </button>
+            </div>
             <div class="chapter-actions">
               <span class="chapter-status status-pending" id="chapterStatus">
                 ⏳ Ожидает
               </span>
+              <button class="btn btn-secondary btn-sm" id="approveAllBtn" onclick="approveAllParagraphs()" style="display: none;">
+                ✅ Одобрить всё
+              </button>
               <button class="btn btn-primary btn-sm" id="translateBtn" onclick="translateChapter()">
                 🔮 Перевести
               </button>
+              <button class="btn btn-secondary btn-sm" id="readerSettingsBtn" onclick="toggleReaderSettings()" title="Настройки отображения">
+                ⚙️
+              </button>
             </div>
+          </div>
+          
+          <!-- Reader Settings Panel -->
+          <div class="reader-settings-panel" id="readerSettingsPanel" style="display: none;">
+            <div class="settings-section">
+              <label class="settings-label">Шрифт</label>
+              <div class="font-selector">
+                <button class="font-option" data-font="literary" onclick="setReaderFont('literary')">
+                  <span class="font-preview" style="font-family: 'Literata', serif;">Аа</span>
+                  <span class="font-name">Literata</span>
+                </button>
+                <button class="font-option" data-font="serif" onclick="setReaderFont('serif')">
+                  <span class="font-preview" style="font-family: Charter, serif;">Аа</span>
+                  <span class="font-name">Charter</span>
+                </button>
+                <button class="font-option" data-font="sans" onclick="setReaderFont('sans')">
+                  <span class="font-preview" style="font-family: Inter, sans-serif;">Аа</span>
+                  <span class="font-name">Inter</span>
+                </button>
+                <button class="font-option" data-font="mono" onclick="setReaderFont('mono')">
+                  <span class="font-preview" style="font-family: 'JetBrains Mono', monospace;">Аа</span>
+                  <span class="font-name">Mono</span>
+                </button>
+              </div>
+            </div>
+            
+            <div class="settings-section">
+              <label class="settings-label">Размер текста</label>
+              <div class="slider-row">
+                <span class="slider-label">A</span>
+                <input type="range" class="settings-slider" id="fontSizeSlider" min="14" max="24" value="18" oninput="setReaderFontSize(this.value)">
+                <span class="slider-label" style="font-size: 1.2em;">A</span>
+                <span class="slider-value" id="fontSizeValue">18px</span>
+              </div>
+            </div>
+            
+            <div class="settings-section">
+              <label class="settings-label">Межстрочный интервал</label>
+              <div class="slider-row">
+                <span class="slider-label">≡</span>
+                <input type="range" class="settings-slider" id="lineHeightSlider" min="140" max="200" value="170" oninput="setReaderLineHeight(this.value)">
+                <span class="slider-label">⋮</span>
+                <span class="slider-value" id="lineHeightValue">1.7</span>
+              </div>
+            </div>
+            
+            <div class="settings-section">
+              <label class="settings-label">Тема</label>
+              <div class="theme-selector">
+                <button class="theme-option" data-theme="dark" onclick="setReaderTheme('dark')" title="Тёмная">
+                  <span class="theme-preview theme-preview-dark">🌙</span>
+                </button>
+                <button class="theme-option" data-theme="light" onclick="setReaderTheme('light')" title="Светлая">
+                  <span class="theme-preview theme-preview-light">☀️</span>
+                </button>
+                <button class="theme-option" data-theme="sepia" onclick="setReaderTheme('sepia')" title="Сепия">
+                  <span class="theme-preview theme-preview-sepia">📜</span>
+                </button>
+                <button class="theme-option" data-theme="contrast" onclick="setReaderTheme('contrast')" title="Контраст">
+                  <span class="theme-preview theme-preview-contrast">🔳</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="chapter-progress" id="chapterProgress" style="display: none;">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="progressText">0/0</span>
           </div>
         </div>
 
-        <div class="text-panels">
-          <div class="text-panel">
-            <div class="panel-header">
+        <div class="text-panel-unified">
+          <div class="panel-headers">
+            <div class="panel-header-left">
               🇬🇧 Оригинал (English)
+              <span class="panel-stats" id="originalStats"></span>
             </div>
-            <div class="panel-content" id="originalText">
-              Выберите главу для просмотра текста...
+            <div class="panel-header-right">
+              🇷🇺 Перевод (Русский)
+              <span class="panel-stats" id="translationStats"></span>
             </div>
           </div>
-          <div class="text-panel">
-            <div class="panel-header">
-              🇷🇺 Перевод (Русский)
-            </div>
-            <div class="panel-content empty" id="translatedText">
-              Перевод появится здесь...
-            </div>
+          <div class="paragraphs-unified" id="paragraphsContainer">
+            <!-- Unified paragraph rows will be rendered here -->
           </div>
         </div>
       </div>
@@ -945,7 +2097,7 @@
   </div>
 
   <!-- Add Glossary Modal -->
-  <div class="modal-overlay" id="glossaryModal">
+  <div class="modal-overlay" id="addGlossaryModal">
     <div class="modal">
       <h3 class="modal-title">📝 Новая запись глоссария</h3>
       <div class="form-group">
@@ -969,8 +2121,106 @@
         <input type="text" class="form-input" id="glossaryNotes" placeholder="Дополнительный контекст...">
       </div>
       <div class="form-actions">
-        <button class="btn btn-secondary" onclick="hideGlossaryModal()">Отмена</button>
+        <button class="btn btn-secondary" onclick="hideAddGlossaryModal()">Отмена</button>
         <button class="btn btn-primary" onclick="addGlossaryEntry()">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Glossary Modal -->
+  <div class="modal-overlay" id="editGlossaryModal">
+    <div class="modal">
+      <h3 class="modal-title">✏️ Редактировать запись</h3>
+      <div class="form-group">
+        <label class="form-label">Тип</label>
+        <select class="form-select" id="editGlossaryType" onchange="onEditGlossaryTypeChange()">
+          <option value="character">👤 Персонаж</option>
+          <option value="location">📍 Локация</option>
+          <option value="term">📖 Термин</option>
+        </select>
+      </div>
+      <div class="form-group" id="editGlossaryGenderGroup">
+        <label class="form-label">Пол (для склонения)</label>
+        <select class="form-select" id="editGlossaryGender">
+          <option value="male">Мужской</option>
+          <option value="female">Женский</option>
+          <option value="neutral">Средний</option>
+          <option value="unknown">Неизвестно</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Оригинал (EN)</label>
+        <input type="text" class="form-input" id="editGlossaryOriginal">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Перевод (RU)</label>
+        <input type="text" class="form-input" id="editGlossaryTranslated">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Заметки</label>
+        <input type="text" class="form-input" id="editGlossaryNotes">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Изображение</label>
+        <div class="image-upload-section" id="glossaryImageSection">
+          <img id="glossaryImagePreview" class="current-image-preview" style="display: none;">
+          <div class="image-upload-actions">
+            <label class="image-upload-btn">
+              📷 Загрузить изображение
+              <input type="file" id="glossaryImageInput" accept="image/*" style="display: none;" onchange="uploadGlossaryImage(event)">
+            </label>
+            <button type="button" class="image-delete-btn" id="glossaryImageDeleteBtn" style="display: none;" onclick="deleteGlossaryImage()">
+              🗑️ Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="hideEditGlossaryModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="saveGlossaryEntry()">💾 Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Viewer Modal -->
+  <div class="image-viewer-modal" id="imageViewerModal" onclick="hideImageViewer()">
+    <img id="imageViewerImg" src="" alt="">
+    <div class="image-viewer-title" id="imageViewerTitle"></div>
+  </div>
+
+  <!-- Glossary Modal -->
+  <div class="modal-overlay glossary-modal-overlay" id="glossaryModal">
+    <div class="modal glossary-modal">
+      <div class="glossary-modal-header">
+        <h3 class="modal-title">📝 Глоссарий</h3>
+        <button class="modal-close-btn" onclick="hideGlossaryModal()">×</button>
+      </div>
+      
+      <div class="glossary-toolbar">
+        <div class="glossary-search">
+          <input type="text" id="glossarySearch" class="form-input" placeholder="🔍 Поиск..." oninput="filterGlossary()">
+        </div>
+        <div class="glossary-filters">
+          <button class="filter-btn active" data-filter="all" onclick="setGlossaryFilter('all')">
+            Все <span id="filterCountAll">0</span>
+          </button>
+          <button class="filter-btn" data-filter="character" onclick="setGlossaryFilter('character')">
+            👤 Персонажи <span id="filterCountCharacter">0</span>
+          </button>
+          <button class="filter-btn" data-filter="location" onclick="setGlossaryFilter('location')">
+            📍 Локации <span id="filterCountLocation">0</span>
+          </button>
+          <button class="filter-btn" data-filter="term" onclick="setGlossaryFilter('term')">
+            📖 Термины <span id="filterCountTerm">0</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="glossary-grid" id="glossaryGrid"></div>
+      
+      <div class="glossary-modal-footer">
+        <button class="btn btn-secondary" onclick="hideGlossaryModal()">Закрыть</button>
+        <button class="btn btn-primary" onclick="hideGlossaryModal(); showAddGlossaryModal();">＋ Добавить запись</button>
       </div>
     </div>
   </div>
@@ -1038,8 +2288,51 @@
           body: JSON.stringify(settings)
         });
         return res.json();
+      },
+      async updateParagraph(projectId, chapterId, paragraphId, updates) {
+        const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/paragraphs/${paragraphId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        return res.json();
+      },
+      async bulkUpdateParagraphs(projectId, chapterId, paragraphIds, status) {
+        const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/paragraphs/bulk-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paragraphIds, status })
+        });
+        return res.json();
+      },
+      async getChapterStats(projectId, chapterId) {
+        const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/stats`);
+        return res.json();
+      },
+      async deleteChapter(projectId, chapterId) {
+        const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}`, {
+          method: 'DELETE'
+        });
+        return res.json();
+      },
+      async updateGlossaryEntry(projectId, entryId, data) {
+        const res = await fetch(`/api/projects/${projectId}/glossary/${entryId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        return res.json();
+      },
+      async deleteGlossaryEntry(projectId, entryId) {
+        const res = await fetch(`/api/projects/${projectId}/glossary/${entryId}`, {
+          method: 'DELETE'
+        });
+        return res.json();
       }
     };
+    
+    // State for editing
+    let editingParagraphId = null;
 
     // Initialize
     async function init() {
@@ -1128,7 +2421,7 @@
       document.getElementById('projectInfo').style.display = 'block';
       document.getElementById('chapterView').style.display = 'none';
       document.getElementById('chaptersCard').style.display = 'block';
-      document.getElementById('glossaryCard').style.display = 'block';
+      document.getElementById('glossaryBtn').style.display = 'flex';
       
       // Update project info
       document.getElementById('projectTitle').textContent = currentProject.name;
@@ -1161,6 +2454,54 @@
       const temp = settings.temperature ?? 0.7;
       document.getElementById('temperatureSlider').value = temp * 100;
       document.getElementById('temperatureValue').textContent = temp.toFixed(1);
+      
+      // Set pipeline stages
+      const enableAnalysis = settings.enableAnalysis ?? true;
+      const enableEditing = settings.enableEditing ?? true;
+      
+      updateStageToggle('stageAnalysis', enableAnalysis);
+      updateStageToggle('stageEditing', enableEditing);
+      
+      // Initialize reader settings with defaults if missing (migration)
+      if (!settings.reader) {
+        settings.reader = {
+          fontFamily: 'literary',
+          fontSize: 18,
+          lineHeight: 1.7,
+          colorScheme: 'dark',
+          paragraphSpacing: 1.2
+        };
+      }
+      
+      // Apply reader settings
+      applyReaderSettings();
+    }
+    
+    function updateStageToggle(elementId, isActive) {
+      const el = document.getElementById(elementId);
+      if (isActive) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    }
+    
+    function toggleStage(stage) {
+      if (!currentProject) return;
+      
+      const elementId = stage === 'analysis' ? 'stageAnalysis' : 'stageEditing';
+      const el = document.getElementById(elementId);
+      const isActive = el.classList.contains('active');
+      
+      // Toggle
+      if (isActive) {
+        el.classList.remove('active');
+      } else {
+        el.classList.add('active');
+      }
+      
+      // Save settings
+      updateProjectSettings();
     }
 
     function updateTemperatureDisplay() {
@@ -1174,11 +2515,15 @@
       
       const model = document.getElementById('modelSelect').value;
       const temperature = document.getElementById('temperatureSlider').value / 100;
+      const enableAnalysis = document.getElementById('stageAnalysis').classList.contains('active');
+      const enableEditing = document.getElementById('stageEditing').classList.contains('active');
       
       const settings = {
         model,
         temperature,
-        skipEditing: currentProject.settings?.skipEditing || false
+        enableAnalysis,
+        enableTranslation: true, // Always required
+        enableEditing,
       };
       
       await api.updateSettings(currentProject.id, settings);
@@ -1212,13 +2557,129 @@
       document.getElementById('projectInfo').style.display = 'none';
       document.getElementById('chapterView').style.display = 'none';
       document.getElementById('chaptersCard').style.display = 'none';
-      document.getElementById('glossaryCard').style.display = 'none';
+      document.getElementById('glossaryBtn').style.display = 'none';
       
       await loadProjects();
     }
 
+    // ============ Chapter List Utilities ============
+    
+    let chapterFilter = 'all'; // 'all' | 'pending' | 'completed' | 'error'
+    let chapterSearchQuery = '';
+    
+    /**
+     * Get chapters sorted by number, filtered by status and search query
+     */
+    function getFilteredChapters() {
+      if (!currentProject) return [];
+      
+      let chapters = [...currentProject.chapters];
+      
+      // Apply status filter
+      if (chapterFilter !== 'all') {
+        chapters = chapters.filter(ch => ch.status === chapterFilter);
+      }
+      
+      // Apply search filter
+      if (chapterSearchQuery) {
+        const query = chapterSearchQuery.toLowerCase();
+        chapters = chapters.filter(ch => 
+          ch.title.toLowerCase().includes(query) ||
+          ch.number.toString() === query
+        );
+      }
+      
+      // Sort by number
+      return chapters.sort((a, b) => a.number - b.number);
+    }
+    
+    /**
+     * Handle chapter search input
+     */
+    function onChapterSearch() {
+      chapterSearchQuery = document.getElementById('chapterSearchInput').value.trim();
+      renderChapterList();
+    }
+    
+    /**
+     * Navigate to previous chapter
+     */
+    function goToPrevChapter() {
+      if (!currentChapter || !currentProject) return;
+      
+      const sortedChapters = [...currentProject.chapters].sort((a, b) => a.number - b.number);
+      const currentIndex = sortedChapters.findIndex(ch => ch.id === currentChapter.id);
+      
+      if (currentIndex > 0) {
+        selectChapter(sortedChapters[currentIndex - 1].id);
+      }
+    }
+    
+    /**
+     * Navigate to next chapter
+     */
+    function goToNextChapter() {
+      if (!currentChapter || !currentProject) return;
+      
+      const sortedChapters = [...currentProject.chapters].sort((a, b) => a.number - b.number);
+      const currentIndex = sortedChapters.findIndex(ch => ch.id === currentChapter.id);
+      
+      if (currentIndex < sortedChapters.length - 1) {
+        selectChapter(sortedChapters[currentIndex + 1].id);
+      }
+    }
+    
+    /**
+     * Update navigation buttons state
+     */
+    function updateChapterNavButtons() {
+      if (!currentChapter || !currentProject) return;
+      
+      const sortedChapters = [...currentProject.chapters].sort((a, b) => a.number - b.number);
+      const currentIndex = sortedChapters.findIndex(ch => ch.id === currentChapter.id);
+      
+      const prevBtn = document.getElementById('prevChapterBtn');
+      const nextBtn = document.getElementById('nextChapterBtn');
+      
+      if (prevBtn) prevBtn.disabled = currentIndex <= 0;
+      if (nextBtn) nextBtn.disabled = currentIndex >= sortedChapters.length - 1;
+    }
+    
+    /**
+     * Set chapter filter and re-render
+     */
+    function setChapterFilter(filter) {
+      chapterFilter = filter;
+      
+      // Update active button
+      document.querySelectorAll('.chapter-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      
+      renderChapterList();
+    }
+    
+    /**
+     * Update chapter count badge
+     */
+    function updateChapterCountBadge() {
+      if (!currentProject) return;
+      
+      const total = currentProject.chapters.length;
+      const completed = currentProject.chapters.filter(ch => ch.status === 'completed').length;
+      
+      const badge = document.getElementById('chapterCountBadge');
+      badge.textContent = `(${completed}/${total})`;
+    }
+    
+    /**
+     * Render chapter list with sorting and filtering
+     */
     function renderChapterList() {
       const container = document.getElementById('chapterList');
+      
+      updateChapterCountBadge();
+      
       if (!currentProject || currentProject.chapters.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; padding: 1rem; color: var(--text-dim);">
@@ -1228,53 +2689,308 @@
         return;
       }
 
-      container.innerHTML = currentProject.chapters.map(ch => `
+      const filteredChapters = getFilteredChapters();
+      
+      if (filteredChapters.length === 0) {
+        let message = 'Нет глав';
+        
+        if (chapterSearchQuery) {
+          message = `Ничего не найдено по запросу "${chapterSearchQuery}"`;
+        } else if (chapterFilter !== 'all') {
+          const filterLabels = {
+            pending: 'ожидающих перевода',
+            completed: 'переведённых',
+            error: 'с ошибками'
+          };
+          message = `Нет ${filterLabels[chapterFilter]} глав`;
+        }
+        
+        container.innerHTML = `
+          <div style="text-align: center; padding: 1rem; color: var(--text-dim);">
+            ${message}
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = filteredChapters.map(ch => `
         <div class="chapter-item ${currentChapter?.id === ch.id ? 'active' : ''}"
-             onclick="selectChapter('${ch.id}')">
-          <span>${ch.title}</span>
-          <span class="chapter-status status-${ch.status}">
-            ${ch.status === 'pending' ? '⏳' : ch.status === 'translating' ? '🔄' : '✅'}
-          </span>
+             onclick="selectChapter('${ch.id}')"
+             data-chapter-id="${ch.id}"
+             data-chapter-number="${ch.number}">
+          <span class="chapter-number">${ch.number}</span>
+          <span class="chapter-item-title">${escapeHtml(ch.title)}</span>
+          <div class="chapter-item-actions">
+            <span class="chapter-status status-${ch.status}">
+              ${ch.status === 'pending' ? '⏳' : ch.status === 'translating' ? '🔄' : ch.status === 'error' ? '❌' : '✅'}
+            </span>
+            <button class="chapter-delete-btn" 
+                    onclick="event.stopPropagation(); deleteChapterHandler('${ch.id}', '${escapeHtml(ch.title)}')"
+                    title="Удалить главу">
+              🗑️
+            </button>
+          </div>
         </div>
       `).join('');
     }
 
     function selectChapter(id) {
       currentChapter = currentProject.chapters.find(ch => ch.id === id);
+      editingParagraphId = null;
       
       document.getElementById('chapterView').style.display = 'flex';
       document.getElementById('chapterView').style.flexDirection = 'column';
       document.getElementById('chapterView').style.gap = '1.5rem';
       
       document.getElementById('currentChapterTitle').textContent = currentChapter.title;
-      document.getElementById('originalText').textContent = currentChapter.originalText;
       
       updateChapterStatus();
+      updateChapterNavButtons();
+      renderParagraphs();
       renderChapterList();
     }
 
     function updateChapterStatus() {
       const statusEl = document.getElementById('chapterStatus');
       const translateBtn = document.getElementById('translateBtn');
-      const translatedText = document.getElementById('translatedText');
+      const approveAllBtn = document.getElementById('approveAllBtn');
+      const progressEl = document.getElementById('chapterProgress');
 
       const statusMap = {
         pending: { class: 'status-pending', text: '⏳ Ожидает', btnDisabled: false },
         translating: { class: 'status-translating', text: '🔄 Перевод...', btnDisabled: true },
-        completed: { class: 'status-completed', text: '✅ Готово', btnDisabled: true }
+        completed: { class: 'status-completed', text: '✅ Готово', btnDisabled: true },
+        error: { class: 'status-error', text: '❌ Ошибка', btnDisabled: false }
       };
 
-      const status = statusMap[currentChapter.status];
+      const status = statusMap[currentChapter.status] || statusMap.pending;
       statusEl.className = `chapter-status ${status.class}`;
       statusEl.textContent = status.text;
       translateBtn.disabled = status.btnDisabled;
-
-      if (currentChapter.translatedText) {
-        translatedText.textContent = currentChapter.translatedText;
-        translatedText.classList.remove('empty');
-      } else {
-        translatedText.textContent = 'Перевод появится здесь...';
-        translatedText.classList.add('empty');
+      
+      // Show/hide approve button and progress
+      const paragraphs = currentChapter.paragraphs || [];
+      const hasTranslations = paragraphs.some(p => p.translatedText);
+      const allApproved = paragraphs.length > 0 && paragraphs.every(p => p.status === 'approved');
+      
+      approveAllBtn.style.display = hasTranslations && !allApproved ? 'inline-flex' : 'none';
+      progressEl.style.display = paragraphs.length > 0 ? 'flex' : 'none';
+      
+      // Update progress bar
+      if (paragraphs.length > 0) {
+        const completed = paragraphs.filter(p => 
+          p.status === 'translated' || p.status === 'edited' || p.status === 'approved'
+        ).length;
+        const progress = Math.round((completed / paragraphs.length) * 100);
+        
+        document.getElementById('progressFill').style.width = `${progress}%`;
+        document.getElementById('progressText').textContent = `${completed}/${paragraphs.length}`;
+      }
+    }
+    
+    // ============ Paragraph Rendering ============
+    
+    function renderParagraphs() {
+      const container = document.getElementById('paragraphsContainer');
+      const paragraphs = currentChapter.paragraphs || [];
+      
+      if (paragraphs.length === 0) {
+        // Fallback to raw text display
+        container.innerHTML = `
+          <div class="paragraph-row">
+            <div class="paragraph-cell paragraph-cell-original">
+              <div class="paragraph-text">${escapeHtml(currentChapter.originalText)}</div>
+            </div>
+            <div class="paragraph-cell paragraph-cell-translation">
+              <div class="paragraph-text ${currentChapter.translatedText ? '' : 'empty'}">
+                ${currentChapter.translatedText ? escapeHtml(currentChapter.translatedText) : 'Перевод появится здесь...'}
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      // Render unified paragraph rows
+      container.innerHTML = paragraphs.map((p, idx) => `
+        <div class="paragraph-row" data-id="${p.id}">
+          <div class="paragraph-cell paragraph-cell-original">
+            <span class="paragraph-index">${idx + 1}</span>
+            <div class="paragraph-text">${escapeHtml(p.originalText)}</div>
+          </div>
+          <div class="paragraph-cell paragraph-cell-translation">
+            <span class="paragraph-index">${idx + 1}</span>
+            ${renderParagraphTranslation(p)}
+          </div>
+        </div>
+      `).join('');
+      
+      // Update stats
+      const translatedCount = paragraphs.filter(p => p.translatedText).length;
+      document.getElementById('originalStats').textContent = `${paragraphs.length} абз.`;
+      document.getElementById('translationStats').textContent = `${translatedCount}/${paragraphs.length}`;
+    }
+    
+    function renderParagraphTranslation(paragraph) {
+      if (editingParagraphId === paragraph.id) {
+        return `<textarea class="paragraph-editor" id="editor-${paragraph.id}" onkeydown="handleEditorKeydown(event, '${paragraph.id}')" oninput="autoResizeTextarea(this)">${escapeHtml(paragraph.translatedText || '')}</textarea><div class="paragraph-actions"><button class="btn btn-secondary" onclick="cancelEditing()">Отмена</button><button class="btn btn-primary" onclick="saveParagraph('${paragraph.id}')">💾 Сохранить</button></div>`;
+      }
+      
+      if (paragraph.translatedText) {
+        return `<div class="paragraph-text editable" onclick="startEditing('${paragraph.id}')" title="Нажмите для редактирования">${escapeHtml(paragraph.translatedText.trim())}</div>`;
+      }
+      
+      // Empty state - just show dash, clickable for manual entry
+      return `<div class="paragraph-text empty" onclick="startEditing('${paragraph.id}')" title="Нажмите для ввода">—</div>`;
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    
+    // ============ Paragraph Interactions ============
+    
+    function highlightParagraph(id) {
+      const row = document.querySelector(`.paragraph-row[data-id="${id}"]`);
+      if (row) row.classList.add('highlighted');
+    }
+    
+    function unhighlightParagraph(id) {
+      const row = document.querySelector(`.paragraph-row[data-id="${id}"]`);
+      if (row) row.classList.remove('highlighted');
+    }
+    
+    function startEditing(paragraphId) {
+      if (editingParagraphId) {
+        // Save current if any
+        cancelEditing();
+      }
+      editingParagraphId = paragraphId;
+      renderParagraphs();
+      
+      // Focus the editor and auto-resize
+      setTimeout(() => {
+        const editor = document.getElementById(`editor-${paragraphId}`);
+        if (editor) {
+          autoResizeTextarea(editor);
+          editor.focus();
+          editor.setSelectionRange(editor.value.length, editor.value.length);
+        }
+      }, 50);
+    }
+    
+    function autoResizeTextarea(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+    
+    function cancelEditing() {
+      editingParagraphId = null;
+      renderParagraphs();
+    }
+    
+    function handleEditorKeydown(event, paragraphId) {
+      if (event.key === 'Escape') {
+        cancelEditing();
+      } else if (event.key === 'Enter' && event.ctrlKey) {
+        saveParagraph(paragraphId);
+      }
+    }
+    
+    async function saveParagraph(paragraphId) {
+      const editor = document.getElementById(`editor-${paragraphId}`);
+      if (!editor) return;
+      
+      const translatedText = editor.value.trim();
+      
+      try {
+        const updated = await api.updateParagraph(
+          currentProject.id,
+          currentChapter.id,
+          paragraphId,
+          { translatedText, status: translatedText ? 'edited' : 'pending' }
+        );
+        
+        // Update local state
+        const paragraph = currentChapter.paragraphs.find(p => p.id === paragraphId);
+        if (paragraph) {
+          Object.assign(paragraph, updated);
+        }
+        
+        editingParagraphId = null;
+        renderParagraphs();
+        updateChapterStatus();
+      } catch (error) {
+        console.error('Failed to save paragraph:', error);
+        alert('Ошибка сохранения');
+      }
+    }
+    
+    async function approveAllParagraphs() {
+      if (!currentChapter.paragraphs) return;
+      
+      const paragraphIds = currentChapter.paragraphs
+        .filter(p => p.translatedText && p.status !== 'approved')
+        .map(p => p.id);
+      
+      if (paragraphIds.length === 0) return;
+      
+      try {
+        await api.bulkUpdateParagraphs(
+          currentProject.id,
+          currentChapter.id,
+          paragraphIds,
+          'approved'
+        );
+        
+        // Update local state
+        for (const p of currentChapter.paragraphs) {
+          if (paragraphIds.includes(p.id)) {
+            p.status = 'approved';
+          }
+        }
+        
+        renderParagraphs();
+        updateChapterStatus();
+      } catch (error) {
+        console.error('Failed to approve paragraphs:', error);
+      }
+    }
+    
+    // ============ Chapter Management ============
+    
+    async function deleteChapterHandler(chapterId, chapterTitle) {
+      if (!currentProject) return;
+      
+      if (!confirm(`Удалить главу "${chapterTitle}"?\n\nЭто действие нельзя отменить.`)) {
+        return;
+      }
+      
+      try {
+        await api.deleteChapter(currentProject.id, chapterId);
+        
+        // Update local state
+        currentProject.chapters = currentProject.chapters.filter(ch => ch.id !== chapterId);
+        
+        // If deleted chapter was selected, clear view
+        if (currentChapter?.id === chapterId) {
+          currentChapter = null;
+          document.getElementById('chapterView').style.display = 'none';
+        }
+        
+        renderChapterList();
+        updateStats();
+        
+        console.log(`Глава "${chapterTitle}" удалена`);
+      } catch (error) {
+        console.error('Failed to delete chapter:', error);
+        alert('Ошибка удаления главы');
       }
     }
 
@@ -1283,6 +2999,7 @@
 
       currentChapter.status = 'translating';
       updateChapterStatus();
+      renderParagraphs();
 
       await api.translateChapter(currentProject.id, currentChapter.id);
 
@@ -1291,11 +3008,12 @@
         const project = await api.getProject(currentProject.id);
         const chapter = project.chapters.find(ch => ch.id === currentChapter.id);
         
-        if (chapter.status === 'completed') {
+        if (chapter.status === 'completed' || chapter.status === 'error') {
           clearInterval(poll);
           currentProject = project;
           currentChapter = chapter;
           updateChapterStatus();
+          renderParagraphs();
           renderChapterList();
           updateStats();
         }
@@ -1303,32 +3021,309 @@
     }
 
     function renderGlossary() {
-      const container = document.getElementById('glossaryList');
-      if (!currentProject || currentProject.glossary.length === 0) {
+      // Update counter on button
+      if (currentProject) {
+        document.getElementById('glossaryCount').textContent = currentProject.glossary.length;
+      }
+      
+      // Re-render grid if modal is open
+      if (document.getElementById('glossaryModal').classList.contains('active')) {
+        renderGlossaryGrid();
+      }
+    }
+    
+    // ============ Glossary Modal ============
+    
+    let glossaryFilter = 'all';
+    let glossarySearchQuery = '';
+    
+    function showGlossaryModal() {
+      glossaryFilter = 'all';
+      glossarySearchQuery = '';
+      document.getElementById('glossarySearch').value = '';
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === 'all');
+      });
+      renderGlossaryGrid();
+      document.getElementById('glossaryModal').classList.add('active');
+    }
+    
+    function hideGlossaryModal() {
+      document.getElementById('glossaryModal').classList.remove('active');
+    }
+    
+    function setGlossaryFilter(filter) {
+      glossaryFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderGlossaryGrid();
+    }
+    
+    function filterGlossary() {
+      glossarySearchQuery = document.getElementById('glossarySearch').value.toLowerCase();
+      renderGlossaryGrid();
+    }
+    
+    function getFilteredGlossary() {
+      if (!currentProject) return [];
+      
+      let entries = currentProject.glossary;
+      
+      // Filter by type
+      if (glossaryFilter !== 'all') {
+        entries = entries.filter(e => e.type === glossaryFilter);
+      }
+      
+      // Filter by search query
+      if (glossarySearchQuery) {
+        entries = entries.filter(e => 
+          e.original.toLowerCase().includes(glossarySearchQuery) ||
+          e.translated.toLowerCase().includes(glossarySearchQuery) ||
+          (e.notes && e.notes.toLowerCase().includes(glossarySearchQuery))
+        );
+      }
+      
+      return entries;
+    }
+    
+    function updateGlossaryCounts() {
+      if (!currentProject) return;
+      
+      const all = currentProject.glossary.length;
+      const characters = currentProject.glossary.filter(e => e.type === 'character').length;
+      const locations = currentProject.glossary.filter(e => e.type === 'location').length;
+      const terms = currentProject.glossary.filter(e => e.type === 'term').length;
+      
+      document.getElementById('filterCountAll').textContent = all;
+      document.getElementById('filterCountCharacter').textContent = characters;
+      document.getElementById('filterCountLocation').textContent = locations;
+      document.getElementById('filterCountTerm').textContent = terms;
+      document.getElementById('glossaryCount').textContent = all;
+    }
+    
+    function renderGlossaryGrid() {
+      const container = document.getElementById('glossaryGrid');
+      const entries = getFilteredGlossary();
+      
+      updateGlossaryCounts();
+      
+      if (entries.length === 0) {
+        const emptyMessage = glossarySearchQuery 
+          ? 'Ничего не найдено' 
+          : (glossaryFilter !== 'all' ? 'Нет записей этого типа' : 'Глоссарий пуст');
+        
         container.innerHTML = `
-          <div style="text-align: center; padding: 0.5rem; color: var(--text-dim); font-size: 0.9rem;">
-            Глоссарий пуст
+          <div class="glossary-empty">
+            <div class="glossary-empty-icon">${glossarySearchQuery ? '🔍' : '📝'}</div>
+            <p>${emptyMessage}</p>
           </div>
         `;
         return;
       }
-
-      const typeLabels = {
-        character: '👤',
-        location: '📍',
-        term: '📖'
-      };
-
-      container.innerHTML = currentProject.glossary.map(entry => `
-        <div class="glossary-item">
-          <div>
-            <span class="glossary-original">${entry.original}</span>
-            <span class="glossary-arrow">→</span>
-            <span class="glossary-translated">${entry.translated}</span>
+      
+      const typeIcons = { character: '👤', location: '📍', term: '📖' };
+      const typeLabels = { character: 'Персонаж', location: 'Локация', term: 'Термин' };
+      
+      container.innerHTML = entries.map(entry => `
+        <div class="glossary-card" onclick="editGlossaryEntry('${entry.id}'); hideGlossaryModal();">
+          ${entry.imageUrl 
+            ? `<img src="${entry.imageUrl}" class="glossary-card-image" alt="">` 
+            : `<div class="glossary-card-placeholder">${typeIcons[entry.type] || '📖'}</div>`
+          }
+          <div class="glossary-card-content">
+            <div class="glossary-card-names">
+              <span class="glossary-card-original">${escapeHtml(entry.original)}</span>
+              <span class="glossary-card-arrow">→</span>
+              <span class="glossary-card-translated">${escapeHtml(entry.translated)}</span>
+            </div>
+            <div class="glossary-card-meta">
+              <span class="glossary-card-type">${typeLabels[entry.type] || 'Термин'}</span>
+              ${entry.notes ? `<span class="glossary-card-notes">${escapeHtml(entry.notes)}</span>` : ''}
+              ${entry.autoDetected ? '<span>авто</span>' : ''}
+            </div>
           </div>
-          <span class="glossary-type">${typeLabels[entry.type] || '📖'}</span>
         </div>
       `).join('');
+    }
+    
+    // ============ Glossary Editing ============
+    
+    let editingGlossaryEntry = null;
+    
+    function editGlossaryEntry(entryId) {
+      editingGlossaryEntry = currentProject.glossary.find(e => e.id === entryId);
+      if (!editingGlossaryEntry) return;
+      
+      document.getElementById('editGlossaryType').value = editingGlossaryEntry.type;
+      document.getElementById('editGlossaryOriginal').value = editingGlossaryEntry.original;
+      document.getElementById('editGlossaryTranslated').value = editingGlossaryEntry.translated;
+      document.getElementById('editGlossaryNotes').value = editingGlossaryEntry.notes || '';
+      
+      // Show/hide gender field based on type
+      const genderGroup = document.getElementById('editGlossaryGenderGroup');
+      if (editingGlossaryEntry.type === 'character') {
+        genderGroup.style.display = 'block';
+        document.getElementById('editGlossaryGender').value = editingGlossaryEntry.gender || 'unknown';
+      } else {
+        genderGroup.style.display = 'none';
+      }
+      
+      // Show/hide image preview
+      const imagePreview = document.getElementById('glossaryImagePreview');
+      const imageDeleteBtn = document.getElementById('glossaryImageDeleteBtn');
+      if (editingGlossaryEntry.imageUrl) {
+        imagePreview.src = editingGlossaryEntry.imageUrl;
+        imagePreview.style.display = 'block';
+        imageDeleteBtn.style.display = 'block';
+      } else {
+        imagePreview.style.display = 'none';
+        imageDeleteBtn.style.display = 'none';
+      }
+      
+      // Reset file input
+      document.getElementById('glossaryImageInput').value = '';
+      
+      document.getElementById('editGlossaryModal').classList.add('active');
+    }
+    
+    function hideEditGlossaryModal() {
+      document.getElementById('editGlossaryModal').classList.remove('active');
+      editingGlossaryEntry = null;
+    }
+    
+    // Upload image for glossary entry
+    async function uploadGlossaryImage(event) {
+      if (!editingGlossaryEntry || !currentProject) return;
+      
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      try {
+        const res = await fetch(`/api/projects/${currentProject.id}/glossary/${editingGlossaryEntry.id}/image`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) throw new Error('Upload failed');
+        
+        const { imageUrl, entry } = await res.json();
+        
+        // Update local state
+        editingGlossaryEntry.imageUrl = imageUrl;
+        const idx = currentProject.glossary.findIndex(e => e.id === editingGlossaryEntry.id);
+        if (idx !== -1) {
+          currentProject.glossary[idx] = entry;
+        }
+        
+        // Update preview
+        const imagePreview = document.getElementById('glossaryImagePreview');
+        imagePreview.src = imageUrl;
+        imagePreview.style.display = 'block';
+        document.getElementById('glossaryImageDeleteBtn').style.display = 'block';
+        
+        renderGlossary();
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        alert('Ошибка загрузки изображения');
+      }
+    }
+    
+    // Delete image from glossary entry
+    async function deleteGlossaryImage() {
+      if (!editingGlossaryEntry || !currentProject) return;
+      
+      try {
+        const res = await fetch(`/api/projects/${currentProject.id}/glossary/${editingGlossaryEntry.id}/image`, {
+          method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error('Delete failed');
+        
+        // Update local state
+        delete editingGlossaryEntry.imageUrl;
+        const idx = currentProject.glossary.findIndex(e => e.id === editingGlossaryEntry.id);
+        if (idx !== -1) {
+          delete currentProject.glossary[idx].imageUrl;
+        }
+        
+        // Hide preview
+        document.getElementById('glossaryImagePreview').style.display = 'none';
+        document.getElementById('glossaryImageDeleteBtn').style.display = 'none';
+        
+        renderGlossary();
+      } catch (error) {
+        console.error('Failed to delete image:', error);
+        alert('Ошибка удаления изображения');
+      }
+    }
+    
+    // Show full-size image
+    function showGlossaryImage(imageUrl, title) {
+      const modal = document.getElementById('imageViewerModal');
+      document.getElementById('imageViewerImg').src = imageUrl;
+      document.getElementById('imageViewerTitle').textContent = title;
+      modal.classList.add('active');
+    }
+    
+    function hideImageViewer() {
+      document.getElementById('imageViewerModal').classList.remove('active');
+    }
+    
+    async function saveGlossaryEntry() {
+      if (!editingGlossaryEntry || !currentProject) return;
+      
+      const type = document.getElementById('editGlossaryType').value;
+      const original = document.getElementById('editGlossaryOriginal').value.trim();
+      const translated = document.getElementById('editGlossaryTranslated').value.trim();
+      const notes = document.getElementById('editGlossaryNotes').value.trim();
+      const gender = type === 'character' ? document.getElementById('editGlossaryGender').value : undefined;
+      
+      if (!original || !translated) return;
+      
+      try {
+        const updated = await api.updateGlossaryEntry(currentProject.id, editingGlossaryEntry.id, {
+          type, original, translated, notes, gender
+        });
+        
+        // Update local state
+        const idx = currentProject.glossary.findIndex(e => e.id === editingGlossaryEntry.id);
+        if (idx !== -1) {
+          currentProject.glossary[idx] = updated;
+        }
+        
+        hideEditGlossaryModal();
+        renderGlossary();
+      } catch (error) {
+        console.error('Failed to update glossary entry:', error);
+        alert('Ошибка сохранения');
+      }
+    }
+    
+    async function deleteGlossaryEntryHandler(entryId) {
+      const entry = currentProject.glossary.find(e => e.id === entryId);
+      if (!entry) return;
+      
+      if (!confirm(`Удалить "${entry.original}" из глоссария?`)) return;
+      
+      try {
+        await api.deleteGlossaryEntry(currentProject.id, entryId);
+        currentProject.glossary = currentProject.glossary.filter(e => e.id !== entryId);
+        renderGlossary();
+        updateStats();
+      } catch (error) {
+        console.error('Failed to delete glossary entry:', error);
+      }
+    }
+    
+    // Handle type change in edit modal
+    function onEditGlossaryTypeChange() {
+      const type = document.getElementById('editGlossaryType').value;
+      const genderGroup = document.getElementById('editGlossaryGenderGroup');
+      genderGroup.style.display = type === 'character' ? 'block' : 'none';
     }
 
     // File upload
@@ -1392,12 +3387,12 @@
     }
 
     function showAddGlossaryModal() {
-      document.getElementById('glossaryModal').classList.add('active');
+      document.getElementById('addGlossaryModal').classList.add('active');
       document.getElementById('glossaryOriginal').focus();
     }
 
-    function hideGlossaryModal() {
-      document.getElementById('glossaryModal').classList.remove('active');
+    function hideAddGlossaryModal() {
+      document.getElementById('addGlossaryModal').classList.remove('active');
       document.getElementById('glossaryType').value = 'character';
       document.getElementById('glossaryOriginal').value = '';
       document.getElementById('glossaryTranslated').value = '';
@@ -1424,17 +3419,135 @@
       currentProject.glossary.push(entry);
       renderGlossary();
       updateStats();
-      hideGlossaryModal();
+      hideAddGlossaryModal();
+    }
+
+    // ============ Reader Settings ============
+    
+    let readerSettingsPanelOpen = false;
+    
+    function toggleReaderSettings() {
+      readerSettingsPanelOpen = !readerSettingsPanelOpen;
+      const panel = document.getElementById('readerSettingsPanel');
+      panel.style.display = readerSettingsPanelOpen ? 'grid' : 'none';
+      
+      if (readerSettingsPanelOpen) {
+        updateReaderSettingsUI();
+      }
+    }
+    
+    function updateReaderSettingsUI() {
+      if (!currentProject?.settings?.reader) return;
+      
+      const reader = currentProject.settings.reader;
+      
+      // Update font buttons
+      document.querySelectorAll('.font-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.font === reader.fontFamily);
+      });
+      
+      // Update theme buttons
+      document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === reader.colorScheme);
+      });
+      
+      // Update sliders
+      document.getElementById('fontSizeSlider').value = reader.fontSize;
+      document.getElementById('fontSizeValue').textContent = reader.fontSize + 'px';
+      
+      document.getElementById('lineHeightSlider').value = Math.round(reader.lineHeight * 100);
+      document.getElementById('lineHeightValue').textContent = reader.lineHeight.toFixed(1);
+    }
+    
+    function applyReaderSettings() {
+      if (!currentProject?.settings?.reader) return;
+      
+      const reader = currentProject.settings.reader;
+      const root = document.documentElement;
+      const textPanel = document.querySelector('.text-panel-unified');
+      
+      // Apply font
+      textPanel?.setAttribute('data-reader-font', reader.fontFamily);
+      root.style.setProperty('--reader-font-size', reader.fontSize + 'px');
+      root.style.setProperty('--reader-line-height', reader.lineHeight);
+      root.style.setProperty('--reader-paragraph-spacing', reader.paragraphSpacing + 'em');
+      
+      // Apply theme
+      textPanel?.setAttribute('data-reader-theme', reader.colorScheme);
+    }
+    
+    async function saveReaderSettings(updates) {
+      if (!currentProject) return;
+      
+      try {
+        const response = await fetch(`/api/projects/${currentProject.id}/settings/reader`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        
+        if (response.ok) {
+          const reader = await response.json();
+          currentProject.settings.reader = reader;
+          applyReaderSettings();
+        }
+      } catch (error) {
+        console.error('Failed to save reader settings:', error);
+      }
+    }
+    
+    function setReaderFont(fontFamily) {
+      document.querySelectorAll('.font-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.font === fontFamily);
+      });
+      saveReaderSettings({ fontFamily });
+    }
+    
+    function setReaderFontSize(size) {
+      const fontSize = parseInt(size);
+      document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+      saveReaderSettings({ fontSize });
+    }
+    
+    function setReaderLineHeight(value) {
+      const lineHeight = parseFloat(value) / 100;
+      document.getElementById('lineHeightValue').textContent = lineHeight.toFixed(1);
+      saveReaderSettings({ lineHeight });
+    }
+    
+    function setReaderTheme(colorScheme) {
+      document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === colorScheme);
+      });
+      saveReaderSettings({ colorScheme });
     }
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+      // Don't trigger if typing in an input
+      const isTyping = ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
+      
       if (e.key === 'Escape') {
         hideNewProjectModal();
+        hideAddGlossaryModal();
         hideGlossaryModal();
+        hideEditGlossaryModal();
       }
+      
       if (e.key === 'Enter' && document.getElementById('newProjectModal').classList.contains('active')) {
         createProject();
+      }
+      
+      // Chapter navigation with arrow keys (only when not typing)
+      if (!isTyping && currentChapter) {
+        if (e.key === 'ArrowLeft' || e.key === '[') {
+          e.preventDefault();
+          goToPrevChapter();
+        }
+        if (e.key === 'ArrowRight' || e.key === ']') {
+          e.preventDefault();
+          goToNextChapter();
+        }
       }
     });
 

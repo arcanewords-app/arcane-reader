@@ -122,7 +122,8 @@ export async function translateChapterWithPipeline(
   if (result.stage1.success && result.stage1.data) {
     const analysis = result.stage1.data;
     
-    glossaryUpdates = analysis.foundCharacters
+    // Add new characters
+    const newCharacters = analysis.foundCharacters
       .filter(c => c.isNew)
       .map(c => ({
         id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -131,6 +132,33 @@ export async function translateChapterWithPipeline(
         translated: c.suggestedTranslation || c.name,
         autoDetected: true,
       }));
+    
+    // Add new locations
+    const newLocations = analysis.foundLocations
+      .filter(l => l.isNew)
+      .map(l => ({
+        id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        type: 'location' as const,
+        original: l.name,
+        translated: l.suggestedTranslation || l.name,
+        autoDetected: true,
+      }));
+    
+    // Add new terms
+    const newTerms = analysis.foundTerms
+      .filter(t => t.isNew)
+      .map(t => ({
+        id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        type: 'term' as const,
+        original: t.term,
+        translated: t.suggestedTranslation || t.term,
+        notes: t.category,
+        autoDetected: true,
+      }));
+    
+    glossaryUpdates = [...newCharacters, ...newLocations, ...newTerms];
+    
+    console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов`);
   }
   
   // Update agent cache
