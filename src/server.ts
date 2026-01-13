@@ -45,6 +45,7 @@ import {
   getNameDeclensions,
   clearAgentCache,
 } from './services/engine-integration.js';
+import { exportProject } from './services/export/index.js';
 
 // Load configuration
 const config = loadConfig();
@@ -74,6 +75,12 @@ const upload = multer({
 const imagesDir = path.join(__dirname, '../data/images');
 if (!fs.existsSync(imagesDir)) {
   fs.mkdirSync(imagesDir, { recursive: true });
+}
+
+// Storage for exported files
+const exportsDir = path.join(__dirname, '../data/exports');
+if (!fs.existsSync(exportsDir)) {
+  fs.mkdirSync(exportsDir, { recursive: true });
 }
 
 const imageStorage = multer.diskStorage({
@@ -109,6 +116,7 @@ const clientPath = fs.existsSync(distClientPath) ? distClientPath : publicPath;
 
 app.use(express.static(clientPath));
 app.use('/images', express.static(imagesDir)); // Serve uploaded images
+app.use('/exports', express.static(exportsDir)); // Serve exported files
 
 // ============ API Routes ============
 
@@ -828,6 +836,49 @@ app.post('/api/projects/:projectId/chapters/:chapterId/paragraphs/bulk-status', 
     res.json({ updated: results.length, paragraphs: results });
   } catch (error) {
     res.status(500).json({ error: 'Failed to bulk update paragraphs' });
+  }
+});
+
+// ============ Export ============
+
+// Export project to EPUB or FB2
+app.post('/api/projects/:id/export', async (req, res) => {
+  try {
+    const { format, author } = req.body;
+    const projectId = req.params.id;
+
+    if (!format || (format !== 'epub' && format !== 'fb2')) {
+      return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
+    }
+
+    const project = await getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Export project
+    const filePath = await exportProject(project, {
+      format,
+      outputDir: exportsDir,
+      author,
+    });
+
+    // Get relative path for download
+    const relativePath = path.relative(exportsDir, filePath);
+    const filename = path.basename(filePath);
+
+    console.log(`📤 Экспорт проекта: ${project.name} -> ${format.toUpperCase()} (${filename})`);
+
+    res.json({
+      success: true,
+      format,
+      filename,
+      url: `/exports/${relativePath.replace(/\\/g, '/')}`,
+      path: relativePath,
+    });
+  } catch (error: any) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: error.message || 'Failed to export project' });
   }
 });
 

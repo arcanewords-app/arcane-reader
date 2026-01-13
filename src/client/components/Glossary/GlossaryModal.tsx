@@ -148,6 +148,16 @@ export function GlossaryModal({
                     )}
                   </div>
                 </div>
+                <button
+                  class="glossary-card-delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirmEntry(entry);
+                  }}
+                  title="Удалить запись"
+                >
+                  🗑️
+                </button>
               </div>
             ))
           )}

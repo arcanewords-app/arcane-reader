@@ -9,6 +9,7 @@ interface ModalProps {
   footer?: preact.ComponentChildren;
   size?: 'default' | 'large';
   className?: string;
+  preventClose?: boolean; // Prevent closing on overlay click or Escape
 }
 
 export function Modal({
@@ -19,15 +20,16 @@ export function Modal({
   footer,
   size = 'default',
   className = '',
+  preventClose = false,
 }: ModalProps) {
   // Close on Escape key
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !preventClose) {
         onClose();
       }
     },
-    [onClose]
+    [onClose, preventClose]
   );
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function Modal({
 
   // Handle overlay click
   const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !preventClose) {
       onClose();
     }
   };

@@ -263,6 +263,19 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  // === Export ===
+
+  async exportProject(
+    projectId: string,
+    format: 'epub' | 'fb2',
+    author?: string
+  ): Promise<{ success: boolean; format: string; filename: string; url: string; path: string }> {
+    return fetchJson(`/api/projects/${projectId}/export`, {
+      method: 'POST',
+      body: JSON.stringify({ format, author }),
+    });
+  },
 };
 
 export default api;

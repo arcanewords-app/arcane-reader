@@ -14,6 +14,7 @@ interface ChapterViewProps {
   onPrev: () => void;
   onNext: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
+  onEnterReadingMode?: () => void;
 }
 
 const defaultReaderSettings: ReaderSettings = {
@@ -31,6 +32,7 @@ export function ChapterView({
   onPrev,
   onNext,
   onChapterUpdate,
+  onEnterReadingMode,
 }: ChapterViewProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
@@ -127,6 +129,7 @@ export function ChapterView({
           onTranslate={handleTranslate}
           onApproveAll={handleApproveAll}
           onToggleSettings={() => setShowSettings(!showSettings)}
+          onEnterReadingMode={onEnterReadingMode}
           translating={translating || chapter.status === 'translating'}
         />
 

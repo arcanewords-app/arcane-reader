@@ -10,6 +10,7 @@ interface ChapterHeaderProps {
   onTranslate: () => void;
   onApproveAll: () => void;
   onToggleSettings: () => void;
+  onEnterReadingMode?: () => void;
   translating: boolean;
 }
 
@@ -22,10 +23,13 @@ export function ChapterHeader({
   onTranslate,
   onApproveAll,
   onToggleSettings,
+  onEnterReadingMode,
   translating,
 }: ChapterHeaderProps) {
   const hasTranslations = chapter.paragraphs?.some((p) => p.translatedText);
+  const hasTranslatedText = !!chapter.translatedText;
   const isCompleted = chapter.status === 'completed';
+  const canRead = hasTranslations || hasTranslatedText;
 
   return (
     <div class="chapter-header">
@@ -52,20 +56,28 @@ export function ChapterHeader({
       <div class="chapter-actions">
         <StatusBadge status={chapter.status} />
         
+        {canRead && onEnterReadingMode && (
+          <Button variant="secondary" size="sm" onClick={onEnterReadingMode} title="Режим чтения">
+            📖 Читать
+          </Button>
+        )}
+        
         {hasTranslations && !isCompleted && (
           <Button variant="secondary" size="sm" onClick={onApproveAll}>
             ✅ Одобрить всё
           </Button>
         )}
         
-        <Button
-          size="sm"
-          onClick={onTranslate}
-          loading={translating}
-          disabled={translating || chapter.status === 'translating'}
-        >
-          🔮 Перевести
-        </Button>
+        {!isCompleted && (
+          <Button
+            size="sm"
+            onClick={onTranslate}
+            loading={translating}
+            disabled={translating || chapter.status === 'translating'}
+          >
+            🔮 Перевести
+          </Button>
+        )}
         
         <Button
           variant="secondary"

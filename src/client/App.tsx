@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ProjectInfo } from './components/ProjectInfo';
 import { ChapterView } from './components/ChapterView';
+import { ReadingMode } from './components/ReadingMode';
 import { GlossaryModal } from './components/Glossary';
 import { Card, Button, Modal } from './components/ui';
 
@@ -25,6 +26,47 @@ export function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [deleteChapterId, setDeleteChapterId] = useState<string | null>(null);
   const [deletingChapter, setDeletingChapter] = useState(false);
+  const [readingMode, setReadingMode] = useState(false);
+
+  // Read URL parameters on mount (only once)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project');
+    const chapterId = params.get('chapter');
+    const reading = params.get('reading') === 'true';
+
+    if (projectId) {
+      setSelectedProjectId(projectId);
+      if (chapterId) {
+        setSelectedChapterId(chapterId);
+      }
+      if (reading) {
+        setReadingMode(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Update URL when state changes
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedProjectId) {
+      params.set('project', selectedProjectId);
+      if (selectedChapterId) {
+        params.set('chapter', selectedChapterId);
+      }
+      if (readingMode) {
+        params.set('reading', 'true');
+      }
+    }
+
+    const newUrl = params.toString() 
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    
+    // Use replaceState to avoid adding history entries on every change
+    window.history.replaceState({}, '', newUrl);
+  }, [selectedProjectId, selectedChapterId, readingMode]);
 
   // Initialize
   useEffect(() => {
@@ -41,6 +83,7 @@ export function App() {
     if (!selectedProjectId) {
       setProject(null);
       setSelectedChapterId(null);
+      // Don't reset reading mode here - it will be reset by URL update effect
       return;
     }
 
@@ -190,17 +233,28 @@ export function App() {
             </Card>
           )}
 
+          {/* Reading Mode */}
+          {project && readingMode && (
+            <ReadingMode
+              project={project}
+              initialChapterId={selectedChapterId || undefined}
+              onExit={() => setReadingMode(false)}
+            />
+          )}
+
           {/* Project info */}
-          {project && !currentChapter && (
+          {project && !currentChapter && !readingMode && (
             <ProjectInfo
               project={project}
               onSettingsChange={handleSettingsChange}
               onDelete={handleDeleteProject}
+              onRefreshProject={handleRefreshProject}
+              onEnterReadingMode={() => setReadingMode(true)}
             />
           )}
 
           {/* Chapter view */}
-          {project && currentChapter && (
+          {project && currentChapter && !readingMode && (
             <ChapterView
               project={project}
               chapter={currentChapter}
@@ -209,6 +263,7 @@ export function App() {
               onPrev={handlePrevChapter}
               onNext={handleNextChapter}
               onChapterUpdate={handleChapterUpdate}
+              onEnterReadingMode={() => setReadingMode(true)}
             />
           )}
         </section>
