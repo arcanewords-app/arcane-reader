@@ -52,38 +52,97 @@ export function ChapterView({
 
   // Poll for chapter updates during translation
   useEffect(() => {
-    if (chapter.status === 'translating' && !pollingInterval) {
+    console.log('🔄 Polling effect triggered, chapter status:', chapter.status, 'has interval:', !!pollingInterval);
+    
+    if (chapter.status === 'translating') {
+      // Clear any existing interval first
+      if (pollingInterval) {
+        console.log('🧹 Clearing existing polling interval');
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+      
+      console.log('▶️ Starting polling for chapter:', chapter.id);
       const interval = window.setInterval(async () => {
         try {
+          console.log('📡 Polling chapter status...');
           const updated = await api.getChapter(project.id, chapter.id);
+          console.log('📥 Chapter status update:', updated.status);
           onChapterUpdate(updated);
+          
+          // Stop polling if translation is complete or failed
           if (updated.status !== 'translating') {
+            console.log('🛑 Translation finished, stopping polling. Final status:', updated.status);
             clearInterval(interval);
             setPollingInterval(null);
             setTranslating(false);
+            
+            if (updated.status === 'completed') {
+              console.log('✅ Translation completed successfully');
+            } else if (updated.status === 'error') {
+              console.error('❌ Translation failed with error status');
+            }
           }
         } catch (error) {
-          console.error('Polling error:', error);
+          console.error('⚠️ Polling error:', error);
+          // Continue polling on error (network issues might be temporary)
         }
       }, 2000);
+      
       setPollingInterval(interval);
-    }
-
-    return () => {
+      
+      return () => {
+        console.log('🧹 Cleanup: clearing polling interval');
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    } else {
+      // Clear interval if not translating
       if (pollingInterval) {
+        console.log('🛑 Not translating, clearing polling interval');
         clearInterval(pollingInterval);
+        setPollingInterval(null);
       }
-    };
-  }, [chapter.status, chapter.id, project.id]);
+      if (translating && chapter.status !== 'translating') {
+        setTranslating(false);
+      }
+    }
+  }, [chapter.status, chapter.id, project.id, translating]);
 
   const handleTranslate = async () => {
+    // Prevent double-translation
+    if (chapter.status === 'translating' || translating) {
+      console.warn('⚠️ Translation already in progress, status:', chapter.status);
+      return;
+    }
+
+    console.log('🔮 Starting translation for chapter:', chapter.id, chapter.title);
     setTranslating(true);
+    
     try {
-      await api.translateChapter(project.id, chapter.id);
-      // Polling will handle the rest
+      const response = await api.translateChapter(project.id, chapter.id);
+      console.log('✅ Translation request sent, response:', response);
+      
+      // Immediately update chapter status to translating to trigger polling
+      const updatedChapter = { ...chapter, status: 'translating' as const };
+      onChapterUpdate(updatedChapter);
+      
+      console.log('📊 Chapter status updated to "translating", polling should start');
+      
+      // Polling will handle the rest via useEffect
     } catch (error) {
-      console.error('Translation error:', error);
+      console.error('❌ Translation error:', error);
       setTranslating(false);
+      
+      // Update chapter status to error if translation failed
+      const errorChapter = { ...chapter, status: 'error' as const };
+      onChapterUpdate(errorChapter);
+      
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Ошибка запуска перевода: ${errorMessage}`);
+      console.error('Full error details:', error);
     }
   };
 
@@ -122,6 +181,7 @@ export function ChapterView({
       <Card>
         <ChapterHeader
           chapter={chapter}
+          projectId={project.id}
           canPrev={chapterIndex > 0}
           canNext={chapterIndex < totalChapters - 1}
           onPrev={onPrev}
@@ -130,6 +190,7 @@ export function ChapterView({
           onApproveAll={handleApproveAll}
           onToggleSettings={() => setShowSettings(!showSettings)}
           onEnterReadingMode={onEnterReadingMode}
+          onChapterUpdate={onChapterUpdate}
           translating={translating || chapter.status === 'translating'}
         />
 

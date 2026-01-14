@@ -54,10 +54,26 @@ export function getAgentForProject(project: Project): NovelAgent {
           translatedName: entry.translated || translatedName,
           declensions: entry.declensions || declensions,
           gender,
-          description: entry.notes || '',
+          description: entry.description || '', // Use description field
           aliases: [],
-          firstAppearance: 1,
+          firstAppearance: entry.firstAppearance || 1,
           isMainCharacter: false,
+        });
+      } else if (entry.type === 'location') {
+        glossaryManager.locations.push({
+          id: entry.id,
+          originalName: entry.original,
+          translatedName: entry.translated,
+          description: entry.description || '',
+          type: 'other',
+        });
+      } else if (entry.type === 'term') {
+        glossaryManager.terms.push({
+          id: entry.id,
+          originalTerm: entry.original,
+          translatedTerm: entry.translated,
+          description: entry.description || '',
+          category: 'other',
         });
       }
     }
@@ -69,23 +85,137 @@ export function getAgentForProject(project: Project): NovelAgent {
 }
 
 /**
+ * Get model for a specific stage, with fallbacks
+ */
+function getStageModel(
+  project: Project,
+  stage: 'analysis' | 'translation' | 'editing',
+  defaultModel: string
+): string {
+  // Use per-stage models if available
+  if (project.settings.stageModels) {
+    return project.settings.stageModels[stage];
+  }
+  
+  // Fallback to legacy model if available
+  if (project.settings.model) {
+    return project.settings.model;
+  }
+  
+  // Final fallback to config default
+  return defaultModel;
+}
+
+/**
  * Create translation pipeline for a project
  */
 export function createPipeline(
   config: AppConfig,
   project: Project
 ): TranslationPipeline {
-  const provider = new OpenAIProvider({
-    apiKey: config.openai.apiKey,
-    model: config.openai.model,
-  });
+  // Validate API key
+  if (!config.openai.apiKey) {
+    throw new Error('OpenAI API key is not configured');
+  }
+  
+  // Create separate providers for each stage with their respective models
+  // Defaults optimized for promotional models with fallback
+  const analysisModel = getStageModel(project, 'analysis', 'gpt-4.1-mini') || 'gpt-4o-mini';
+  // Fallback: use gpt-4.1-mini if gpt-5-mini not available
+  const translationModel = getStageModel(project, 'translation', 'gpt-5-mini') || getStageModel(project, 'translation', 'gpt-4.1-mini') || config.openai.model;
+  const editingModel = getStageModel(project, 'editing', 'gpt-4.1-mini') || 'gpt-4o-mini';
+  
+  console.log(`[Pipeline] Creating providers: analysis=${analysisModel}, translation=${translationModel}, editing=${editingModel}`);
+  console.log(`[Pipeline] API key present: ${!!config.openai.apiKey}, length: ${config.openai.apiKey?.length || 0}`);
+  
+  let analysisProvider: OpenAIProvider;
+  let translationProvider: OpenAIProvider;
+  let editingProvider: OpenAIProvider;
+  
+  try {
+    analysisProvider = new OpenAIProvider({
+      apiKey: config.openai.apiKey,
+      model: analysisModel,
+    });
+    console.log(`[Pipeline] ✅ Analysis provider created: ${!!analysisProvider}, has completeJSON: ${typeof analysisProvider.completeJSON}`);
+  } catch (error) {
+    console.error(`[Pipeline] ❌ Failed to create analysis provider:`, error);
+    throw new Error(`Failed to create analysis provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  try {
+    translationProvider = new OpenAIProvider({
+      apiKey: config.openai.apiKey,
+      model: translationModel,
+    });
+    console.log(`[Pipeline] ✅ Translation provider created: ${!!translationProvider}, has complete: ${typeof translationProvider.complete}`);
+  } catch (error) {
+    console.error(`[Pipeline] ❌ Failed to create translation provider:`, error);
+    throw new Error(`Failed to create translation provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  try {
+    editingProvider = new OpenAIProvider({
+      apiKey: config.openai.apiKey,
+      model: editingModel,
+    });
+    console.log(`[Pipeline] ✅ Editing provider created: ${!!editingProvider}, has complete: ${typeof editingProvider.complete}`);
+  } catch (error) {
+    console.error(`[Pipeline] ❌ Failed to create editing provider:`, error);
+    throw new Error(`Failed to create editing provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  const providers = {
+    analysis: analysisProvider,
+    translation: translationProvider,
+    editing: editingProvider,
+  };
+  
+  // Validate providers were created
+  if (!providers.analysis || !providers.translation || !providers.editing) {
+    console.error(`[Pipeline] ❌ Provider validation failed:`, {
+      analysis: !!providers.analysis,
+      translation: !!providers.translation,
+      editing: !!providers.editing,
+    });
+    throw new Error('Failed to create LLM providers');
+  }
+  
+  // Validate providers have required methods
+  if (typeof providers.analysis.completeJSON !== 'function') {
+    throw new Error('Analysis provider is missing completeJSON method (needed for structured output)');
+  }
+  if (typeof providers.translation.complete !== 'function') {
+    throw new Error('Translation provider is missing complete method');
+  }
+  if (typeof providers.editing.complete !== 'function') {
+    throw new Error('Editing provider is missing complete method');
+  }
+  // Editing stage also needs completeJSON for quality check (optional)
+  if (typeof providers.editing.completeJSON !== 'function') {
+    console.warn('[Pipeline] Editing provider missing completeJSON - quality check will be skipped');
+  }
   
   const agent = getAgentForProject(project);
   
-  return new TranslationPipeline({
-    provider,
-    agent,
-  });
+  console.log(`[Pipeline] About to create TranslationPipeline with providers:`);
+  console.log(`  - analysis: ${!!providers.analysis}, model: ${(providers.analysis as any)?.model || 'unknown'}`);
+  console.log(`  - translation: ${!!providers.translation}, model: ${(providers.translation as any)?.model || 'unknown'}`);
+  console.log(`  - editing: ${!!providers.editing}, model: ${(providers.editing as any)?.model || 'unknown'}`);
+  console.log(`  - agent: ${!!agent}`);
+  
+  try {
+    const pipeline = new TranslationPipeline({
+      providers,
+      agent,
+    });
+    
+    console.log(`[Pipeline] TranslationPipeline created successfully`);
+    return pipeline;
+  } catch (error) {
+    console.error(`[Pipeline] ❌ Failed to create TranslationPipeline:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -102,74 +232,102 @@ export async function translateChapterWithPipeline(
   duration: number;
   glossaryUpdates?: GlossaryEntry[];
 }> {
-  const pipeline = createPipeline(config, project);
-  
-  console.log(`🔮 [Engine] Запуск TranslationPipeline...`);
-  console.log(`   Этапы: ${options.skipAnalysis ? '❌' : '✅'} Анализ | ✅ Перевод | ${options.skipEditing ? '❌' : '✅'} Редактура`);
-  
-  const result = await pipeline.translateChapter(
-    chapter.originalText,
-    chapter.number,
-    {
-      skipAnalysis: options.skipAnalysis ?? true, // Skip for now, can enable later
-      skipEditing: options.skipEditing ?? config.translation.skipEditing,
-      chunkSize: config.translation.maxTokensPerChunk,
+  try {
+    console.log(`[translateChapterWithPipeline] Creating pipeline...`);
+    const pipeline = createPipeline(config, project);
+    console.log(`[translateChapterWithPipeline] Pipeline created: ${!!pipeline}`);
+    
+    // Verify pipeline has stages
+    console.log(`[translateChapterWithPipeline] Verifying pipeline stages...`);
+    console.log(`  - Pipeline object: ${!!pipeline}, type: ${typeof pipeline}`);
+    
+    console.log(`🔮 [Engine] Запуск TranslationPipeline...`);
+    console.log(`   Этапы: ${options.skipAnalysis ? '❌' : '✅'} Анализ | ✅ Перевод | ${options.skipEditing ? '❌' : '✅'} Редактура`);
+    
+    const result = await pipeline.translateChapter(
+      chapter.originalText,
+      chapter.number,
+      {
+        skipAnalysis: options.skipAnalysis ?? true, // Skip for now, can enable later
+        skipEditing: options.skipEditing ?? config.translation.skipEditing,
+        chunkSize: config.translation.maxTokensPerChunk,
+      }
+    );
+    
+    // Check if translation failed
+    if (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]')) {
+      throw new Error(result.finalTranslation || 'Translation returned empty result');
     }
-  );
   
   // Extract glossary updates from analysis stage
   let glossaryUpdates: GlossaryEntry[] = [];
   if (result.stage1.success && result.stage1.data) {
     const analysis = result.stage1.data;
+    const glossaryUpdate = analysis.glossaryUpdate;
     
-    // Add new characters
-    const newCharacters = analysis.foundCharacters
-      .filter(c => c.isNew)
-      .map(c => ({
-        id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        type: 'character' as const,
-        original: c.name,
-        translated: c.suggestedTranslation || c.name,
-        autoDetected: true,
-      }));
+    // Add new characters (use glossaryUpdate which contains description)
+    const newCharacters = glossaryUpdate.newCharacters.map((c, idx) => ({
+      id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+      type: 'character' as const,
+      original: c.originalName,
+      translated: c.translatedName,
+      description: c.description || undefined, // Save character description
+      gender: c.gender,
+      declensions: c.declensions,
+      firstAppearance: chapter.number,
+      autoDetected: true,
+    }));
     
-    // Add new locations
-    const newLocations = analysis.foundLocations
-      .filter(l => l.isNew)
-      .map(l => ({
-        id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        type: 'location' as const,
-        original: l.name,
-        translated: l.suggestedTranslation || l.name,
-        autoDetected: true,
-      }));
+    // Add new locations (use glossaryUpdate which contains description)
+    const newLocations = glossaryUpdate.newLocations.map((l, idx) => ({
+      id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+      type: 'location' as const,
+      original: l.originalName,
+      translated: l.translatedName,
+      description: l.description || undefined, // Save location description
+      firstAppearance: chapter.number,
+      autoDetected: true,
+    }));
     
-    // Add new terms
-    const newTerms = analysis.foundTerms
-      .filter(t => t.isNew)
-      .map(t => ({
-        id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        type: 'term' as const,
-        original: t.term,
-        translated: t.suggestedTranslation || t.term,
-        notes: t.category,
-        autoDetected: true,
-      }));
+    // Add new terms (use glossaryUpdate which contains description)
+    const newTerms = glossaryUpdate.newTerms.map((t, idx) => ({
+      id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+      type: 'term' as const,
+      original: t.originalTerm,
+      translated: t.translatedTerm,
+      description: t.description || undefined, // Save term description
+      notes: t.category, // Category goes to notes
+      firstAppearance: chapter.number,
+      autoDetected: true,
+    }));
     
     glossaryUpdates = [...newCharacters, ...newLocations, ...newTerms];
     
-    console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов`);
+    console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов (Глава ${chapter.number})`);
   }
   
-  // Update agent cache
-  agentCache.set(project.id, pipeline.getAgent());
-  
-  return {
-    translatedText: result.finalTranslation,
-    tokensUsed: result.totalTokensUsed,
-    duration: result.totalDuration,
-    glossaryUpdates,
-  };
+    // Check if translation failed
+    if (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]')) {
+      throw new Error(result.finalTranslation || 'Translation returned empty result');
+    }
+    
+    // Update agent cache
+    agentCache.set(project.id, pipeline.getAgent());
+    
+    return {
+      translatedText: result.finalTranslation,
+      tokensUsed: result.totalTokensUsed,
+      duration: result.totalDuration,
+      glossaryUpdates,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`❌ [Engine] Translation failed: ${errorMessage}`);
+    console.error('Full error:', error);
+    
+    // Re-throw with more context
+    throw new Error(`Translation failed: ${errorMessage}`);
+  }
 }
 
 /**
@@ -193,6 +351,7 @@ export async function translateSimple(
       original: e.original,
       translated: e.translated,
       declensions: e.declensions,
+      description: e.description,
     }));
   
   const locations = glossary
@@ -200,6 +359,7 @@ export async function translateSimple(
     .map(e => ({
       original: e.original,
       translated: e.translated,
+      description: e.description,
     }));
   
   const terms = glossary
@@ -207,6 +367,7 @@ export async function translateSimple(
     .map(e => ({
       original: e.original,
       translated: e.translated,
+      description: e.description,
     }));
   
   const glossarySection = createGlossaryPromptSection(characters, locations, terms);

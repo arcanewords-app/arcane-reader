@@ -26,9 +26,13 @@ export interface GlossaryEntry {
   translated: string;
   gender?: Gender;
   declensions?: Declensions;
-  notes?: string;
-  imageUrl?: string;
+  description?: string; // Character/location/term description (from analysis or manual)
+  notes?: string; // User notes (separate from description)
+  firstAppearance?: number; // Chapter number where this entry was first mentioned
+  imageUrls?: string[]; // Array of image URLs for gallery
   autoDetected?: boolean;
+  // Legacy support: keep imageUrl for backward compatibility
+  imageUrl?: string;
 }
 
 // === Paragraphs ===
@@ -85,7 +89,16 @@ export interface ReaderSettings {
 // === Project Settings ===
 
 export interface ProjectSettings {
-  model: string;
+  // Legacy: single model (for backward compatibility)
+  model?: string;
+  
+  // Per-stage model configuration
+  stageModels?: {
+    analysis: string;    // Stage 1: Extract entities, analyze style
+    translation: string;  // Stage 2: Translate (required)
+    editing: string;     // Stage 3: Polish and refine
+  };
+  
   temperature: number;
   enableAnalysis?: boolean;
   enableTranslation?: boolean;

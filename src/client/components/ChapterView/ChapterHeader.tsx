@@ -1,8 +1,11 @@
+import { useState } from 'preact/hooks';
 import type { Chapter } from '../../types';
 import { Button, StatusBadge } from '../ui';
+import { api } from '../../api/client';
 
 interface ChapterHeaderProps {
   chapter: Chapter;
+  projectId: string;
   canPrev: boolean;
   canNext: boolean;
   onPrev: () => void;
@@ -11,11 +14,13 @@ interface ChapterHeaderProps {
   onApproveAll: () => void;
   onToggleSettings: () => void;
   onEnterReadingMode?: () => void;
+  onChapterUpdate: (chapter: Chapter) => void;
   translating: boolean;
 }
 
 export function ChapterHeader({
   chapter,
+  projectId,
   canPrev,
   canNext,
   onPrev,
@@ -24,12 +29,64 @@ export function ChapterHeader({
   onApproveAll,
   onToggleSettings,
   onEnterReadingMode,
+  onChapterUpdate,
   translating,
 }: ChapterHeaderProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(chapter.title);
+  const [savingTitle, setSavingTitle] = useState(false);
+
   const hasTranslations = chapter.paragraphs?.some((p) => p.translatedText);
   const hasTranslatedText = !!chapter.translatedText;
   const isCompleted = chapter.status === 'completed';
   const canRead = hasTranslations || hasTranslatedText;
+
+  const handleStartEdit = () => {
+    setIsEditingTitle(true);
+    setEditedTitle(chapter.title);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!editedTitle.trim() || editedTitle.trim() === chapter.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    setSavingTitle(true);
+    try {
+      const updated = await api.updateChapterTitle(projectId, chapter.id, editedTitle.trim());
+      onChapterUpdate(updated);
+      setIsEditingTitle(false);
+    } catch (error) {
+      console.error('Failed to update chapter title:', error);
+      setEditedTitle(chapter.title); // Reset on error
+    } finally {
+      setSavingTitle(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingTitle(false);
+    setEditedTitle(chapter.title);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
+  const handleCancelTranslation = async () => {
+    try {
+      await api.cancelTranslation(projectId, chapter.id);
+      const updated = await api.getChapter(projectId, chapter.id);
+      onChapterUpdate(updated);
+    } catch (error) {
+      console.error('Failed to cancel translation:', error);
+    }
+  };
 
   return (
     <div class="chapter-header">
@@ -42,7 +99,49 @@ export function ChapterHeader({
         >
           ◀
         </button>
-        <h2 class="chapter-title">{chapter.title}</h2>
+        {isEditingTitle ? (
+          <div class="chapter-title-edit">
+            <input
+              type="text"
+              class="chapter-title-input"
+              value={editedTitle}
+              onInput={(e) => setEditedTitle((e.target as HTMLInputElement).value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleSaveTitle}
+              disabled={savingTitle}
+              autoFocus
+            />
+            <div class="chapter-title-edit-actions">
+              <button
+                class="chapter-title-save-btn"
+                onClick={handleSaveTitle}
+                disabled={savingTitle}
+                title="Сохранить (Enter)"
+              >
+                ✓
+              </button>
+              <button
+                class="chapter-title-cancel-btn"
+                onClick={handleCancelEdit}
+                disabled={savingTitle}
+                title="Отмена (Esc)"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div class="chapter-title-wrapper">
+            <h2 class="chapter-title">{chapter.title}</h2>
+            <button
+              class="chapter-title-edit-btn"
+              onClick={handleStartEdit}
+              title="Редактировать название"
+            >
+              ✏️
+            </button>
+          </div>
+        )}
         <button
           class="chapter-nav-btn"
           disabled={!canNext}
@@ -68,16 +167,52 @@ export function ChapterHeader({
           </Button>
         )}
         
-        {!isCompleted && (
+        {chapter.status === 'translating' && (
           <Button
+            variant="secondary"
             size="sm"
-            onClick={onTranslate}
-            loading={translating}
-            disabled={translating || chapter.status === 'translating'}
+            onClick={handleCancelTranslation}
+            title="Отменить перевод"
           >
-            🔮 Перевести
+            ⏹️ Отменить
           </Button>
         )}
+        
+        {/* Show translate button if: not completed, not translating, or completed but empty/invalid translation */}
+        {(() => {
+          const hasEmptyTranslation = isCompleted && (!hasTranslatedText || !hasTranslations);
+          const canRetranslate = chapter.status === 'error' || hasEmptyTranslation;
+          
+          if (!isCompleted && chapter.status !== 'translating') {
+            return (
+              <Button
+                size="sm"
+                onClick={onTranslate}
+                loading={translating || chapter.status === 'translating'}
+                disabled={translating || chapter.status === 'translating'}
+                title="Начать перевод"
+              >
+                🔮 Перевести
+              </Button>
+            );
+          }
+          
+          if (canRetranslate && chapter.status !== 'translating') {
+            return (
+              <Button
+                size="sm"
+                onClick={onTranslate}
+                loading={translating || chapter.status === 'translating'}
+                disabled={translating || chapter.status === 'translating'}
+                title={chapter.status === 'error' ? 'Повторить перевод после ошибки' : 'Перевести заново (перевод пуст)'}
+              >
+                {chapter.status === 'error' ? '🔄 Повторить' : '🔄 Перевести заново'}
+              </Button>
+            );
+          }
+          
+          return null;
+        })()}
         
         <Button
           variant="secondary"

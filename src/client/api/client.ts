@@ -146,6 +146,26 @@ export const api = {
     });
   },
 
+  async updateChapterTitle(
+    projectId: string,
+    chapterId: string,
+    title: string
+  ): Promise<Chapter> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+  },
+
+  async cancelTranslation(
+    projectId: string,
+    chapterId: string
+  ): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate/cancel`, {
+      method: 'POST',
+    });
+  },
+
   async getChapterStats(
     projectId: string,
     chapterId: string
@@ -235,7 +255,7 @@ export const api = {
     projectId: string,
     entryId: string,
     file: File
-  ): Promise<{ imageUrl: string; entry: GlossaryEntry }> {
+  ): Promise<{ imageUrl: string; imageUrls: string[]; entry: GlossaryEntry }> {
     const formData = new FormData();
     formData.append('image', file);
 
@@ -257,9 +277,14 @@ export const api = {
 
   async deleteGlossaryImage(
     projectId: string,
-    entryId: string
-  ): Promise<{ success: boolean }> {
-    return fetchJson(`/api/projects/${projectId}/glossary/${entryId}/image`, {
+    entryId: string,
+    imageIndex?: number
+  ): Promise<{ success: boolean; imageUrls?: string[] }> {
+    const url = imageIndex !== undefined
+      ? `/api/projects/${projectId}/glossary/${entryId}/image/${imageIndex}`
+      : `/api/projects/${projectId}/glossary/${entryId}/image`;
+    
+    return fetchJson(url, {
       method: 'DELETE',
     });
   },

@@ -72,9 +72,13 @@ export interface GlossaryEntry {
     instrumental: string;
     prepositional: string;
   };
-  notes?: string;
+  description?: string; // Character/location/term description (from analysis or manual)
+  notes?: string; // User notes (separate from description)
   autoDetected?: boolean;
-  imageUrl?: string; // Path to image file for visual reference
+  firstAppearance?: number; // Chapter number where this entry was first mentioned
+  imageUrls?: string[]; // Array of image file paths for gallery
+  // Legacy support: keep imageUrl for backward compatibility
+  imageUrl?: string;
 }
 
 /** Font family options for reader */
@@ -107,7 +111,16 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 };
 
 export interface ProjectSettings {
-  model: string;
+  // Legacy: single model (for backward compatibility)
+  model?: string;
+  
+  // Per-stage model configuration
+  stageModels?: {
+    analysis: string;    // Stage 1: Extract entities, analyze style
+    translation: string; // Stage 2: Translate (required)
+    editing: string;     // Stage 3: Polish and refine
+  };
+  
   temperature: number;
   // Pipeline stages control
   enableAnalysis: boolean;   // Stage 1: Extract entities, analyze style
@@ -175,9 +188,132 @@ export async function getAllProjects(): Promise<Project[]> {
   return db.data.projects;
 }
 
+/**
+ * Migrate legacy glossary entry data
+ */
+function migrateGlossaryEntry(entry: GlossaryEntry): GlossaryEntry {
+  // Migrate imageUrl to imageUrls array
+  if (entry.imageUrl && (!entry.imageUrls || entry.imageUrls.length === 0)) {
+    entry.imageUrls = [entry.imageUrl];
+  }
+  return entry;
+}
+
+/**
+ * Migrate project settings from legacy single model to per-stage models
+ */
+function migrateProjectSettings(settings: ProjectSettings): ProjectSettings {
+  // If stageModels already exists, no migration needed
+  if (settings.stageModels) {
+    return settings;
+  }
+  
+  // Migrate from legacy model field
+  const legacyModel = settings.model || 'gpt-4-turbo-preview';
+  
+  // Create stageModels with sensible defaults based on legacy model
+  // If legacy model was cheap, use it for all stages
+  // If legacy model was expensive, use cheaper alternatives for analysis/editing
+  const isCheapModel = legacyModel.includes('3.5') || legacyModel.includes('mini');
+  
+  settings.stageModels = {
+    analysis: isCheapModel ? legacyModel : 'gpt-4o-mini',
+    translation: legacyModel, // Keep original model for translation
+    editing: isCheapModel ? legacyModel : 'gpt-4-turbo-preview',
+  };
+  
+  // Remove legacy model field (but keep it for backward compatibility in type)
+  // Don't delete it, just ensure stageModels is set
+  
+  return settings;
+}
+
+/**
+ * Reset stuck chapters (translating status for too long)
+ * This is a fallback mechanism for when translation is cancelled or interrupted
+ */
+export async function resetStuckChapters(projectId?: string): Promise<number> {
+  const db = getDb();
+  const STUCK_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  let resetCount = 0;
+  
+  const projects = projectId 
+    ? db.data.projects.filter(p => p.id === projectId)
+    : db.data.projects;
+  
+  for (const project of projects) {
+    for (const chapter of project.chapters) {
+      if (chapter.status === 'translating') {
+        let isStuck = false;
+        
+        // If translationMeta exists with translatedAt, check if it's old
+        // (translatedAt should not exist for active translations, but check anyway)
+        if (chapter.translationMeta?.translatedAt) {
+          const translatedAt = new Date(chapter.translationMeta.translatedAt).getTime();
+          isStuck = (Date.now() - translatedAt) > STUCK_TIMEOUT;
+        } else {
+          // If no translationMeta, this means translation just started
+          // Check project updatedAt - if it's old, translation is likely stuck
+          // Also reset if project wasn't updated in last 30 minutes
+          const projectUpdated = new Date(project.updatedAt).getTime();
+          const timeSinceUpdate = Date.now() - projectUpdated;
+          
+          // If project wasn't updated recently (more than timeout), assume stuck
+          // This handles cases where translation was cancelled/interrupted
+          isStuck = timeSinceUpdate > STUCK_TIMEOUT;
+        }
+        
+        if (isStuck) {
+          chapter.status = 'pending';
+          resetCount++;
+          console.log(`🔄 Сброшен застрявший статус: ${chapter.title} (проект: ${project.name})`);
+        }
+      }
+    }
+  }
+  
+  if (resetCount > 0) {
+    await db.write();
+  }
+  
+  return resetCount;
+}
+
 export async function getProject(id: string): Promise<Project | undefined> {
   const db = getDb();
-  return db.data.projects.find(p => p.id === id);
+  const project = db.data.projects.find(p => p.id === id);
+  
+  if (project) {
+    // Check and reset stuck chapters for this project
+    await resetStuckChapters(id);
+    
+    // Migrate glossary entries
+    let needsSave = false;
+    for (const entry of project.glossary) {
+      const before = JSON.stringify(entry);
+      migrateGlossaryEntry(entry);
+      const after = JSON.stringify(entry);
+      if (before !== after) {
+        needsSave = true;
+      }
+    }
+    
+    // Migrate project settings (legacy model -> stageModels)
+    const beforeSettings = JSON.stringify(project.settings);
+    migrateProjectSettings(project.settings);
+    const afterSettings = JSON.stringify(project.settings);
+    if (beforeSettings !== afterSettings) {
+      needsSave = true;
+    }
+    
+    // Save if migration occurred
+    if (needsSave) {
+      project.updatedAt = new Date().toISOString();
+      await db.write();
+    }
+  }
+  
+  return project;
 }
 
 export async function createProject(data: {
@@ -195,7 +331,12 @@ export async function createProject(data: {
     chapters: [],
     glossary: [],
     settings: {
-      model: 'gpt-4-turbo-preview',
+      // Default models: optimized for cost/quality using promotional models
+      stageModels: {
+        analysis: 'gpt-4.1-mini',     // Best price/quality for structured JSON output
+        translation: 'gpt-5-mini',     // Best quality for main translation (if available)
+        editing: 'gpt-4.1-mini',       // Good balance for polishing
+      },
       temperature: 0.7,
       enableAnalysis: true,
       enableTranslation: true,
@@ -407,6 +548,11 @@ export async function updateGlossaryEntry(
   
   const entry = project.glossary.find(e => e.id === entryId);
   if (!entry) return undefined;
+  
+  // Migrate legacy imageUrl to imageUrls if needed
+  if (updates.imageUrls === undefined && entry.imageUrl && !entry.imageUrls) {
+    entry.imageUrls = [entry.imageUrl];
+  }
   
   Object.assign(entry, updates);
   project.updatedAt = new Date().toISOString();

@@ -34,6 +34,7 @@ import {
   mergeParagraphsToText,
   updateReaderSettings,
   getReaderSettings,
+  resetStuckChapters,
   type Chapter,
   type GlossaryEntry,
   type Project,
@@ -143,6 +144,12 @@ app.get('/api/status', (_req, res) => {
 // Get all projects
 app.get('/api/projects', async (_req, res) => {
   try {
+    // Reset stuck chapters across all projects on startup/refresh
+    const resetCount = await resetStuckChapters();
+    if (resetCount > 0) {
+      console.log(`🔄 Сброшено застрявших глав: ${resetCount}`);
+    }
+    
     const projects = await getAllProjects();
     const projectList = projects.map(p => ({
       id: p.id,
@@ -177,6 +184,10 @@ app.get('/api/projects/:id', async (req, res) => {
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
+    
+    // Reset stuck chapters is called inside getProject
+    // This ensures chapters are checked every time project is loaded
+    
     res.json(project);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get project' });
@@ -204,13 +215,20 @@ app.put('/api/projects/:id/settings', async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
-    const { model, temperature, enableAnalysis, enableEditing } = req.body;
+    const { 
+      model, // Legacy: single model
+      stageModels, // New: per-stage models
+      temperature, 
+      enableAnalysis, 
+      enableEditing 
+    } = req.body;
     
     // Preserve existing reader settings
     const existingReader = project.settings.reader;
     
-    project.settings = {
-      model: model || project.settings.model,
+    // Update settings, preserving existing stageModels if not provided
+    const updatedSettings: typeof project.settings = {
+      ...project.settings,
       temperature: temperature ?? project.settings.temperature,
       enableAnalysis: enableAnalysis ?? project.settings.enableAnalysis ?? true,
       enableTranslation: true, // Always required
@@ -218,7 +236,19 @@ app.put('/api/projects/:id/settings', async (req, res) => {
       reader: existingReader,
     };
     
-    await updateProject(req.params.id, { settings: project.settings });
+    // Handle model updates
+    if (stageModels) {
+      // Update per-stage models
+      updatedSettings.stageModels = {
+        ...(project.settings.stageModels || {}),
+        ...stageModels,
+      };
+    } else if (model) {
+      // Legacy: update single model (will be migrated to stageModels on next load)
+      updatedSettings.model = model;
+    }
+    
+    await updateProject(req.params.id, { settings: updatedSettings });
     
     const stagesStatus = [
       project.settings.enableAnalysis ? '✅ Анализ' : '⏭️ Анализ',
@@ -318,6 +348,30 @@ app.delete('/api/projects/:projectId/chapters/:chapterId', async (req, res) => {
 
 // ============ Translation ============
 
+// Cancel translation (reset stuck status)
+app.post('/api/projects/:projectId/chapters/:chapterId/translate/cancel', async (req, res) => {
+  try {
+    const chapter = await getChapter(req.params.projectId, req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    
+    // Only reset if status is translating
+    if (chapter.status === 'translating') {
+      await updateChapter(req.params.projectId, req.params.chapterId, { 
+        status: 'pending' 
+      });
+      console.log(`⏹️  Перевод отменён: ${chapter.title}`);
+      res.json({ success: true, message: 'Translation cancelled' });
+    } else {
+      res.json({ success: false, message: 'Chapter is not being translated' });
+    }
+  } catch (error) {
+    console.error('Failed to cancel translation:', error);
+    res.status(500).json({ error: 'Failed to cancel translation' });
+  }
+});
+
 // Translation endpoint with logging
 app.post('/api/projects/:projectId/chapters/:chapterId/translate', async (req, res) => {
   try {
@@ -338,13 +392,25 @@ app.post('/api/projects/:projectId/chapters/:chapterId/translate', async (req, r
     const textLength = chapter.originalText.length;
     const wordCount = chapter.originalText.split(/\s+/).length;
     
+    // Get models for each stage
+    const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
+      if (project.settings?.stageModels) {
+        return project.settings.stageModels[stage];
+      }
+      return project.settings?.model || config.openai.model;
+    };
+    
+    const analysisModel = getStageModel('analysis');
+    const translationModel = getStageModel('translation');
+    const editingModel = getStageModel('editing');
+    
     console.log(`\n${'═'.repeat(60)}`);
     console.log(`🔮 ЗАПРОС НА ПЕРЕВОД`);
     console.log(`${'─'.repeat(60)}`);
     console.log(`📖 Глава: ${chapter.title}`);
     console.log(`📊 Размер: ${textLength} символов, ~${wordCount} слов`);
     console.log(`🔑 API ключ: ${config.openai.apiKey ? '✅ Настроен' : '❌ Не настроен'}`);
-    console.log(`🤖 Модель: ${project.settings?.model || config.openai.model}`);
+    console.log(`🤖 Модели: Анализ=${analysisModel} | Перевод=${translationModel} | Редактура=${editingModel}`);
     console.log(`🎨 Креативность: ${project.settings?.temperature ?? config.translation.temperature}`);
     console.log(`💾 Хранилище: LowDB (persistent)`);
     console.log(`${'─'.repeat(60)}`);
@@ -408,8 +474,18 @@ async function performTranslation(
       return;
     }
     
-    // Use project settings or fallback to config
-    const projectModel = project.settings?.model || config.openai.model;
+    // Get models for each stage
+    const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
+      if (project.settings?.stageModels) {
+        return project.settings.stageModels[stage];
+      }
+      return project.settings?.model || config.openai.model;
+    };
+    
+    const analysisModel = getStageModel('analysis');
+    const translationModel = getStageModel('translation');
+    const editingModel = getStageModel('editing');
+    
     const projectTemperature = project.settings?.temperature ?? config.translation.temperature;
     const enableAnalysis = project.settings?.enableAnalysis ?? true;
     const enableEditing = project.settings?.enableEditing ?? true;
@@ -421,15 +497,19 @@ async function performTranslation(
     ].join(' → ');
     
     console.log(`🚀 Запуск arcane-engine TranslationPipeline...`);
-    console.log(`   Модель: ${projectModel} | Креативность: ${projectTemperature}`);
+    console.log(`   Модели: Анализ=${analysisModel} | Перевод=${translationModel} | Редактура=${editingModel}`);
+    console.log(`   Креативность: ${projectTemperature}`);
     console.log(`   Стадии: ${stagesInfo}`);
     
     // Create project-specific config
+    // Note: Models are now passed per-stage via providers in createPipeline
+    // This config is used for other settings like temperature
     const projectConfig = {
       ...config,
       openai: {
         ...config.openai,
-        model: projectModel,
+        // Keep default model for compatibility, but actual models come from stageModels
+        model: translationModel, // Use translation model as default
       },
       translation: {
         ...config.translation,
@@ -439,15 +519,23 @@ async function performTranslation(
     };
     
     // Use arcane-engine for translation
-    const result = await translateChapterWithPipeline(
-      projectConfig,
-      project,
-      chapter,
-      {
-        skipAnalysis: !enableAnalysis,
-        skipEditing: !enableEditing,
-      }
-    );
+    let result;
+    try {
+      result = await translateChapterWithPipeline(
+        projectConfig,
+        project,
+        chapter,
+        {
+          skipAnalysis: !enableAnalysis,
+          skipEditing: !enableEditing,
+        }
+      );
+    } catch (pipelineError) {
+      // Pipeline error - rethrow to outer catch block
+      const errorMessage = pipelineError instanceof Error ? pipelineError.message : 'Unknown pipeline error';
+      console.error(`❌ [Pipeline] Ошибка в translateChapterWithPipeline: ${errorMessage}`);
+      throw pipelineError; // Re-throw to be caught by outer catch
+    }
     
     console.log(`${'─'.repeat(60)}`);
     console.log(`✅ ПЕРЕВОД ЗАВЕРШЁН (arcane-engine)`);
@@ -458,11 +546,45 @@ async function performTranslation(
     }
     console.log(`${'═'.repeat(60)}\n`);
     
+    // Validate translation result
+    const hasValidTranslation = result.translatedText && 
+      result.translatedText.trim().length > 0 && 
+      !result.translatedText.startsWith('[ERROR]');
+    
+    const hasValidTokens = result.tokensUsed > 0 || result.duration > 0;
+    
+    if (!hasValidTranslation || (!hasValidTokens && result.duration === 0)) {
+      // Translation failed or returned empty/invalid result
+      const errorMessage = !hasValidTranslation 
+        ? 'Перевод пустой или содержит ошибку'
+        : 'Перевод завершился без использования токенов (возможна ошибка)';
+      
+      console.log(`⚠️  ВАЛИДАЦИЯ НЕ ПРОЙДЕНА: ${errorMessage}`);
+      console.log(`   Текст перевода: ${result.translatedText ? `"${result.translatedText.substring(0, 100)}..."` : 'отсутствует'}`);
+      console.log(`   Токены: ${result.tokensUsed}, Время: ${result.duration}ms`);
+      
+      await updateChapter(projectId, chapterId, {
+        status: 'error',
+        translatedText: result.translatedText || `❌ Ошибка перевода: ${errorMessage}`,
+      });
+      
+      return;
+    }
+    
     // Sync translated text to paragraphs
     const translatedParagraphs = syncTranslationToParagraphs(
       chapter.paragraphs || [],
       result.translatedText
     );
+    
+    // Create model info string showing all models used
+    const modelInfo = enableAnalysis && enableEditing
+      ? `${analysisModel}/${translationModel}/${editingModel}`
+      : enableAnalysis
+      ? `${analysisModel}/${translationModel}`
+      : enableEditing
+      ? `${translationModel}/${editingModel}`
+      : translationModel;
     
     await updateChapter(projectId, chapterId, {
       paragraphs: translatedParagraphs,
@@ -471,7 +593,7 @@ async function performTranslation(
       translationMeta: {
         tokensUsed: result.tokensUsed,
         duration: result.duration,
-        model: projectModel,
+        model: modelInfo, // Store all models used (or single model if stages skipped)
         translatedAt: new Date().toISOString(),
       },
     });
@@ -629,8 +751,10 @@ app.post('/api/projects/:id/glossary', async (req, res) => {
       original: req.body.original,
       translated: translated,
       gender: req.body.gender,
-      notes: req.body.notes,
+      description: req.body.description, // Character/location/term description
+      notes: req.body.notes, // User notes (separate from description)
       declensions: declensions,
+      firstAppearance: req.body.firstAppearance, // Optional: chapter number
     });
     
     // Clear agent cache to reload glossary
@@ -649,7 +773,7 @@ app.post('/api/projects/:id/glossary', async (req, res) => {
 // Update glossary entry
 app.put('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
   try {
-    const { original, translated, type, gender, notes } = req.body;
+    const { original, translated, type, gender, description, notes } = req.body;
     
     let declensions = req.body.declensions;
     
@@ -664,7 +788,8 @@ app.put('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
       translated,
       type,
       gender,
-      notes,
+      description, // Character/location/term description
+      notes, // User notes (separate from description)
       declensions,
     });
     
@@ -699,33 +824,107 @@ app.delete('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
   }
 });
 
-// Upload image for glossary entry
+// Upload image to glossary entry gallery
 app.post('/api/projects/:projectId/glossary/:entryId/image', uploadImage.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
     
-    const imageUrl = `/images/${req.file.filename}`;
+    const project = await getProject(req.params.projectId);
+    if (!project) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Project not found' });
+    }
     
-    const entry = await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
-      imageUrl
-    });
-    
+    const entry = project.glossary.find(e => e.id === req.params.entryId);
     if (!entry) {
-      // Delete uploaded file if entry not found
       fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: 'Entry not found' });
     }
     
-    res.json({ imageUrl, entry });
+    const imageUrl = `/images/${req.file.filename}`;
+    
+    // Migrate legacy imageUrl to imageUrls array if needed
+    let imageUrls = entry.imageUrls || [];
+    if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
+      imageUrls = [entry.imageUrl, ...imageUrls];
+    }
+    
+    // Add new image to gallery
+    imageUrls = [...imageUrls, imageUrl];
+    
+    // Update entry with new gallery
+    const updatedEntry = await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
+      imageUrls,
+      // Keep legacy imageUrl for backward compatibility (use first image)
+      imageUrl: imageUrls[0],
+    });
+    
+    if (!updatedEntry) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Failed to update entry' });
+    }
+    
+    res.json({ imageUrl, imageUrls: updatedEntry.imageUrls, entry: updatedEntry });
   } catch (error) {
     console.error('Failed to upload image:', error);
     res.status(500).json({ error: 'Failed to upload image' });
   }
 });
 
-// Delete image from glossary entry
+// Delete specific image from glossary entry gallery
+app.delete('/api/projects/:projectId/glossary/:entryId/image/:imageIndex', async (req, res) => {
+  try {
+    const project = await getProject(req.params.projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    const entry = project.glossary.find(e => e.id === req.params.entryId);
+    if (!entry) {
+      return res.status(404).json({ error: 'Entry not found' });
+    }
+    
+    const imageIndex = parseInt(req.params.imageIndex, 10);
+    if (isNaN(imageIndex)) {
+      return res.status(400).json({ error: 'Invalid image index' });
+    }
+    
+    // Get current imageUrls (migrate from legacy if needed)
+    let imageUrls = entry.imageUrls || [];
+    if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
+      imageUrls = [entry.imageUrl, ...imageUrls];
+    }
+    
+    if (imageIndex < 0 || imageIndex >= imageUrls.length) {
+      return res.status(400).json({ error: 'Image index out of range' });
+    }
+    
+    // Delete the image file
+    const imageUrlToDelete = imageUrls[imageIndex];
+    const imagePath = path.join(imagesDir, path.basename(imageUrlToDelete));
+    if (fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
+    }
+    
+    // Remove from array
+    imageUrls = imageUrls.filter((_, idx) => idx !== imageIndex);
+    
+    // Update entry
+    const updatedEntry = await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
+      imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+      imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Legacy support
+    });
+    
+    res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
+  } catch (error) {
+    console.error('Failed to delete image:', error);
+    res.status(500).json({ error: 'Failed to delete image' });
+  }
+});
+
+// Legacy endpoint: delete all images (for backward compatibility)
 app.delete('/api/projects/:projectId/glossary/:entryId/image', async (req, res) => {
   try {
     const project = await getProject(req.params.projectId);
@@ -738,23 +937,30 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', async (req, res) 
       return res.status(404).json({ error: 'Entry not found' });
     }
     
-    // Delete the image file
-    if (entry.imageUrl) {
-      const imagePath = path.join(imagesDir, path.basename(entry.imageUrl));
+    // Get all image URLs (migrate from legacy if needed)
+    let imageUrls = entry.imageUrls || [];
+    if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
+      imageUrls = [entry.imageUrl, ...imageUrls];
+    }
+    
+    // Delete all image files
+    for (const imageUrl of imageUrls) {
+      const imagePath = path.join(imagesDir, path.basename(imageUrl));
       if (fs.existsSync(imagePath)) {
         fs.unlinkSync(imagePath);
       }
     }
     
-    // Update entry to remove imageUrl
+    // Update entry to remove all images
     await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
-      imageUrl: undefined
+      imageUrls: undefined,
+      imageUrl: undefined,
     });
     
     res.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete image:', error);
-    res.status(500).json({ error: 'Failed to delete image' });
+    console.error('Failed to delete images:', error);
+    res.status(500).json({ error: 'Failed to delete images' });
   }
 });
 
@@ -776,6 +982,32 @@ app.get('/api/projects/:projectId/chapters/:chapterId/stats', async (req, res) =
 });
 
 // Update single paragraph
+// Update chapter title
+app.put('/api/projects/:projectId/chapters/:chapterId/title', async (req, res) => {
+  try {
+    const { title } = req.body;
+    
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+    
+    const chapter = await updateChapter(req.params.projectId, req.params.chapterId, {
+      title: title.trim(),
+    });
+    
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    
+    console.log(`✏️ Название главы обновлено: "${chapter.title}"`);
+    
+    res.json(chapter);
+  } catch (error) {
+    console.error('Failed to update chapter title:', error);
+    res.status(500).json({ error: 'Failed to update chapter title' });
+  }
+});
+
 app.put('/api/projects/:projectId/chapters/:chapterId/paragraphs/:paragraphId', async (req, res) => {
   try {
     const { translatedText, status } = req.body;

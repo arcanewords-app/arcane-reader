@@ -49,9 +49,30 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
 
   const settings = project.settings;
 
-  const handleModelChange = async (e: Event) => {
-    const model = (e.target as HTMLSelectElement).value;
-    const updated = await api.updateSettings(project.id, { model });
+  // Get current model for a stage (with fallbacks)
+  const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
+    if (settings.stageModels) {
+      return settings.stageModels[stage];
+    }
+    return settings.model || 'gpt-4-turbo-preview';
+  };
+
+  const handleStageModelChange = async (
+    stage: 'analysis' | 'translation' | 'editing',
+    model: string
+  ) => {
+    const currentStageModels = settings.stageModels || {
+      analysis: settings.model || 'gpt-4.1-mini',
+      translation: settings.model || 'gpt-5-mini',
+      editing: settings.model || 'gpt-4.1-mini',
+    };
+    
+    const updated = await api.updateSettings(project.id, {
+      stageModels: {
+        ...currentStageModels,
+        [stage]: model,
+      },
+    });
     onSettingsChange(updated);
   };
 
@@ -390,18 +411,94 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         {/* Settings Panel */}
         <div class="settings-panel">
           <div class="setting-group">
-            <label class="setting-label">🤖 Модель</label>
-            <select
-              class="setting-select"
-              value={settings.model}
-              onChange={handleModelChange}
-            >
-              <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4o-mini">GPT-4o Mini (быстрая)</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (экономная)</option>
-            </select>
-            <span class="setting-hint">Влияет на качество и стоимость</span>
+            <label class="setting-label">🤖 Модели по стадиям</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {/* Analysis Model */}
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
+                  🔍 Анализ (точность структурированного вывода)
+                </label>
+                <select
+                  class="setting-select"
+                  value={getStageModel('analysis')}
+                  onChange={(e) => handleStageModelChange('analysis', (e.target as HTMLSelectElement).value)}
+                >
+                  <optgroup label="⭐ Рекомендуется (из акции)">
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini (лучшая цена/качество)</option>
+                    <option value="o3-mini">O3 Mini (reasoning, максимальная точность)</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini (быстрая и дешевая)</option>
+                  </optgroup>
+                  <optgroup label="Альтернативы">
+                    <option value="o4-mini">O4 Mini (reasoning, медленнее)</option>
+                    <option value="gpt-5-mini">GPT-5 Mini (новая модель)</option>
+                    <option value="gpt-4.1-nano">GPT-4.1 Nano (самая дешевая)</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                  </optgroup>
+                </select>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '0.25rem' }}>
+                  Нужна точность для структурированного JSON
+                </span>
+              </div>
+              
+              {/* Translation Model */}
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
+                  🔮 Перевод (максимальное качество)
+                </label>
+                <select
+                  class="setting-select"
+                  value={getStageModel('translation')}
+                  onChange={(e) => handleStageModelChange('translation', (e.target as HTMLSelectElement).value)}
+                >
+                  <optgroup label="⭐ Рекомендуется (из акции)">
+                    <option value="gpt-5-mini">GPT-5 Mini (лучшее качество)</option>
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini (отличный баланс)</option>
+                    <option value="o3-mini">O3 Mini (reasoning, точный перевод)</option>
+                  </optgroup>
+                  <optgroup label="Альтернативы">
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="o4-mini">O4 Mini (reasoning)</option>
+                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini (экономия)</option>
+                    <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+                  </optgroup>
+                </select>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '0.25rem' }}>
+                  Основная стадия - инвестируем в качество
+                </span>
+              </div>
+              
+              {/* Editing Model */}
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
+                  ✨ Редактура (полировка уже готового)
+                </label>
+                <select
+                  class="setting-select"
+                  value={getStageModel('editing')}
+                  onChange={(e) => handleStageModelChange('editing', (e.target as HTMLSelectElement).value)}
+                >
+                  <optgroup label="⭐ Рекомендуется (из акции)">
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini (лучший баланс)</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini (экономия, достаточно)</option>
+                    <option value="gpt-4.1-nano">GPT-4.1 Nano (максимальная экономия)</option>
+                  </optgroup>
+                  <optgroup label="Для лучшего качества">
+                    <option value="gpt-5-mini">GPT-5 Mini</option>
+                    <option value="o3-mini">O3 Mini (reasoning)</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                  </optgroup>
+                </select>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '0.25rem' }}>
+                  Улучшение уже переведенного текста
+                </span>
+              </div>
+            </div>
+            <span class="setting-hint" style={{ marginTop: '0.5rem', display: 'block' }}>
+              Разные модели для разных стадий снижают стоимость при сохранении качества
+            </span>
           </div>
           <div class="setting-group">
             <label class="setting-label">🎨 Креативность</label>
