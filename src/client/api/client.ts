@@ -157,6 +157,17 @@ export const api = {
     });
   },
 
+  async updateChapterNumber(
+    projectId: string,
+    chapterId: string,
+    number: number
+  ): Promise<Project> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/number`, {
+      method: 'PUT',
+      body: JSON.stringify({ number }),
+    });
+  },
+
   async cancelTranslation(
     projectId: string,
     chapterId: string
@@ -175,11 +186,15 @@ export const api = {
 
   async translateChapter(
     projectId: string,
-    chapterId: string
+    chapterId: string,
+    translateOnlyEmpty: boolean = false
   ): Promise<TranslateResponse> {
     return fetchJson(
       `/api/projects/${projectId}/chapters/${chapterId}/translate`,
-      { method: 'POST' }
+      {
+        method: 'POST',
+        body: JSON.stringify({ translateOnlyEmpty }),
+      }
     );
   },
 

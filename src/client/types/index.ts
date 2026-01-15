@@ -55,7 +55,12 @@ export interface Paragraph {
 export type ChapterStatus = 'pending' | 'translating' | 'completed' | 'error';
 
 export interface TranslationMeta {
-  tokensUsed: number;
+  tokensUsed: number; // Total tokens (for backward compatibility)
+  tokensByStage?: {
+    analysis?: number;
+    translation: number;
+    editing?: number;
+  };
   duration: number;
   model: string;
   translatedAt: string;
@@ -67,6 +72,7 @@ export interface Chapter {
   title: string;
   originalText: string;
   translatedText?: string;
+  translatedChunks?: string[]; // Parsed translation chunks for later sync with paragraphs
   paragraphs?: Paragraph[];
   status: ChapterStatus;
   translationMeta?: TranslationMeta;

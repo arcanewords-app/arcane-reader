@@ -15,12 +15,18 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showTranslateAllModal, setShowTranslateAllModal] = useState(false);
+  const [translateErrorsOnly, setTranslateErrorsOnly] = useState(false);
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
   interface ChapterProgress {
     chapterId: string;
     title: string;
     status: 'pending' | 'translating' | 'completed' | 'error';
     tokensUsed?: number;
+    tokensByStage?: {
+      analysis?: number;
+      translation: number;
+      editing?: number;
+    };
     duration?: number;
     glossaryEntries?: number;
   }
@@ -40,10 +46,47 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const cancelledRef = useRef(false);
   const initialGlossaryCountRef = useRef<number>(0);
 
+  // Helper function to check if chapter has valid translation (not error message)
+  const hasValidTranslation = (chapter: Chapter): boolean => {
+    // Check if translatedText exists and is not an error message
+    const translatedText = chapter.translatedText?.trim() || '';
+    if (translatedText.length === 0) return false;
+    
+    // Ignore error messages
+    if (translatedText.startsWith('❌ Ошибка перевода:') || 
+        translatedText.startsWith('[ERROR') ||
+        translatedText.startsWith('❌')) {
+      return false;
+    }
+    
+    // Check if paragraphs have valid translations
+    const hasValidParagraphs = chapter.paragraphs?.some(p => {
+      const pText = p.translatedText?.trim() || '';
+      return pText.length > 0 && 
+             !pText.startsWith('❌') && 
+             !pText.startsWith('[ERROR');
+    });
+    
+    return hasValidParagraphs || translatedText.length > 50; // Valid translation should be substantial
+  };
+
+  // Helper function to check if chapter is empty (no valid translation)
+  const isChapterEmpty = (chapter: Chapter): boolean => {
+    // If chapter has error status, it's considered empty (needs retranslation)
+    if (chapter.status === 'error') {
+      return !hasValidTranslation(chapter);
+    }
+    
+    // For other statuses, check if there's no valid translation
+    return !hasValidTranslation(chapter);
+  };
+
   const stats = {
     chapters: project.chapters.length,
     translated: project.chapters.filter((c) => c.status === 'completed').length,
     pending: project.chapters.filter((c) => c.status === 'pending').length,
+    error: project.chapters.filter((c) => c.status === 'error').length,
+    empty: project.chapters.filter(isChapterEmpty).length, // Chapters without valid translation
     glossary: project.glossary.length,
   };
 
@@ -162,30 +205,44 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     return { success: false, error: 'Превышено время ожидания' };
   };
 
-  // Translate all pending chapters sequentially
+  // Translate all empty chapters sequentially (chapters without translation)
   const handleTranslateAll = async () => {
-    const pendingChapters = project.chapters.filter((c) => c.status === 'pending');
+    let chaptersToTranslate: Chapter[];
     
-    if (pendingChapters.length === 0) {
+    if (translateErrorsOnly) {
+      // Translate only chapters with error status
+      chaptersToTranslate = project.chapters.filter(c => c.status === 'error');
+    } else {
+      // Translate all empty chapters (includes errors without valid translation)
+      chaptersToTranslate = project.chapters.filter(isChapterEmpty);
+    }
+    
+    if (chaptersToTranslate.length === 0) {
+      alert(translateErrorsOnly 
+        ? 'Нет глав с ошибками для перевода' 
+        : 'Нет пустых глав для перевода');
+      setShowTranslateAllModal(false);
+      setTranslateErrorsOnly(false);
       return;
     }
-
+    
     setShowTranslateAllModal(false);
+
     cancelledRef.current = false;
     
     // Store initial glossary count
     initialGlossaryCountRef.current = project.glossary.length;
     
     // Initialize chapters progress
-    const chaptersProgress: ChapterProgress[] = pendingChapters.map((ch) => ({
+    const chaptersProgress: ChapterProgress[] = emptyChapters.map((ch) => ({
       chapterId: ch.id,
       title: ch.title,
-      status: 'pending',
+      status: ch.status === 'error' ? 'error' : 'pending',
     }));
     
     setTranslationProgress({
       current: 0,
-      total: pendingChapters.length,
+      total: emptyChapters.length,
       currentChapter: null,
       currentChapterId: null,
       chapters: chaptersProgress,
@@ -199,12 +256,12 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     const startTime = Date.now();
 
     try {
-      for (let i = 0; i < pendingChapters.length; i++) {
+      for (let i = 0; i < emptyChapters.length; i++) {
         if (cancelledRef.current) {
           break;
         }
 
-        const chapter = pendingChapters[i];
+        const chapter = emptyChapters[i];
         const chapterStartTime = Date.now();
         
         // Update current chapter
@@ -239,6 +296,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
           if (result.success && updatedChapter) {
             const chapterDuration = updatedChapter.translationMeta?.duration || (Date.now() - chapterStartTime);
             const tokensUsed = updatedChapter.translationMeta?.tokensUsed || 0;
+            const tokensByStage = updatedChapter.translationMeta?.tokensByStage;
             
             // Calculate new glossary entries for this chapter
             const previousGlossaryCount = initialGlossaryCountRef.current;
@@ -259,6 +317,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                             ...ch,
                             status: 'completed',
                             tokensUsed,
+                            tokensByStage,
                             duration: chapterDuration,
                             glossaryEntries,
                           }
@@ -308,6 +367,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     } finally {
       // Don't auto-close - let user close manually to review the results
       cancelledRef.current = false;
+      setTranslateErrorsOnly(false); // Reset flag after translation
     }
   };
 
@@ -319,6 +379,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const handleCloseTranslation = useCallback(() => {
     setTranslationProgress(null);
     cancelledRef.current = false;
+    setTranslateErrorsOnly(false); // Reset flag when closing
   }, []);
 
   // Check if translation is completed
@@ -347,23 +408,48 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             <div class="stat-value">{stats.translated}</div>
             <div class="stat-label">Переведено</div>
           </div>
+          {stats.error > 0 && (
+            <div class="stat-item" style={{ color: 'var(--error)' }}>
+              <div class="stat-value">{stats.error}</div>
+              <div class="stat-label">Ошибок</div>
+            </div>
+          )}
           <div class="stat-item">
             <div class="stat-value">{stats.glossary}</div>
             <div class="stat-label">В глоссарии</div>
           </div>
         </div>
 
-        {/* Translate All Button */}
-        {stats.pending > 0 && (
-          <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-            <Button
-              variant="primary"
-              size="full"
-              onClick={() => setShowTranslateAllModal(true)}
-              disabled={translationProgress !== null}
-            >
-              🔮 Перевести все ({stats.pending} глав)
-            </Button>
+        {/* Mass Translation Buttons - only for translating all chapters in project */}
+        {(stats.empty > 0 || stats.error > 0) && (
+          <div style={{ marginTop: '1.5rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {stats.error > 0 && (
+              <Button
+                variant="primary"
+                size="full"
+                onClick={() => {
+                  setTranslateErrorsOnly(true);
+                  setShowTranslateAllModal(true);
+                }}
+                disabled={translationProgress !== null}
+                style={{ background: 'var(--error)', borderColor: 'var(--error)' }}
+              >
+                🔄 Перевести все главы с ошибками ({stats.error} глав)
+              </Button>
+            )}
+            {stats.empty > 0 && (
+              <Button
+                variant="primary"
+                size="full"
+                onClick={() => {
+                  setTranslateErrorsOnly(false);
+                  setShowTranslateAllModal(true);
+                }}
+                disabled={translationProgress !== null}
+              >
+                🔮 Перевести все пустые главы ({stats.empty} глав)
+              </Button>
+            )}
           </div>
         )}
 
@@ -579,14 +665,22 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         </p>
       </Modal>
 
-      {/* Translate All Confirmation Modal */}
+      {/* Translate Empty Chapters Confirmation Modal */}
       <Modal
         isOpen={showTranslateAllModal}
-        onClose={() => setShowTranslateAllModal(false)}
-        title="🔮 Перевести все главы?"
+        onClose={() => {
+          setTranslateErrorsOnly(false);
+          setShowTranslateAllModal(false);
+        }}
+        title={translateErrorsOnly 
+          ? '🔄 Перевести главы с ошибками?' 
+          : '🔮 Перевести пустые главы?'}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowTranslateAllModal(false)}>
+            <Button variant="secondary" onClick={() => {
+              setTranslateErrorsOnly(false);
+              setShowTranslateAllModal(false);
+            }}>
               Отмена
             </Button>
             <Button onClick={handleTranslateAll}>
@@ -596,9 +690,19 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         }
       >
         <p style={{ color: 'var(--text-secondary)' }}>
-          Будут переведены все <strong>{stats.pending}</strong> главы со статусом "Ожидает".
+          Будут переведены все <strong>{translateErrorsOnly ? stats.error : stats.empty}</strong> {translateErrorsOnly ? 'главы с ошибками' : 'главы без перевода'}.
           Перевод выполняется последовательно, одна глава за другой.
         </p>
+        {!translateErrorsOnly && (
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+            Это включает главы со статусом "Ожидает", "Ошибка" или те, у которых отсутствует переведенный текст.
+          </p>
+        )}
+        {translateErrorsOnly && (
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+            Будут переведены только главы со статусом "Ошибка". Это поможет исправить проблемы с предыдущими попытками перевода.
+          </p>
+        )}
       </Modal>
 
       {/* Translation Progress Modal */}
@@ -669,16 +773,36 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                   );
                   
                   if (currentChapterProgress?.tokensUsed || currentChapterProgress?.duration) {
+                    const tokensByStage = currentChapterProgress.tokensByStage;
+                    const stageTokens: string[] = [];
+                    
+                    if (tokensByStage) {
+                      if (tokensByStage.analysis) {
+                        stageTokens.push(`🔍 ${tokensByStage.analysis.toLocaleString()}`);
+                      }
+                      stageTokens.push(`🔮 ${tokensByStage.translation.toLocaleString()}`);
+                      if (tokensByStage.editing) {
+                        stageTokens.push(`✨ ${tokensByStage.editing.toLocaleString()}`);
+                      }
+                    }
+                    
                     return (
-                      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {currentChapterProgress.duration && (
-                          <span>⏱️ {(currentChapterProgress.duration / 1000).toFixed(1)}s</span>
-                        )}
-                        {currentChapterProgress.tokensUsed && (
-                          <span>📝 {currentChapterProgress.tokensUsed.toLocaleString()} токенов</span>
-                        )}
-                        {currentChapterProgress.glossaryEntries !== undefined && currentChapterProgress.glossaryEntries > 0 && (
-                          <span>📚 +{currentChapterProgress.glossaryEntries} в глоссарии</span>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.25rem' }}>
+                          {currentChapterProgress.duration && (
+                            <span>⏱️ {(currentChapterProgress.duration / 1000).toFixed(1)}s</span>
+                          )}
+                          {currentChapterProgress.tokensUsed && (
+                            <span>📝 Всего: {currentChapterProgress.tokensUsed.toLocaleString()}</span>
+                          )}
+                          {currentChapterProgress.glossaryEntries !== undefined && currentChapterProgress.glossaryEntries > 0 && (
+                            <span>📚 +{currentChapterProgress.glossaryEntries} в глоссарии</span>
+                          )}
+                        </div>
+                        {stageTokens.length > 0 && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
+                            Токены по стейджам: {stageTokens.join(' | ')}
+                          </div>
                         )}
                       </div>
                     );
@@ -692,17 +816,47 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             {(translationProgress.totalTokens > 0 || translationProgress.totalDuration > 0 || translationProgress.totalGlossaryEntries > 0) && (
               <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: '8px', fontSize: '0.9rem' }}>
                 <div style={{ color: 'var(--text-dim)', marginBottom: '0.5rem' }}>Общая статистика:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                   {translationProgress.totalDuration > 0 && (
                     <span>⏱️ {(translationProgress.totalDuration / 1000).toFixed(1)}s</span>
                   )}
                   {translationProgress.totalTokens > 0 && (
-                    <span>📝 {translationProgress.totalTokens.toLocaleString()} токенов</span>
+                    <span>📝 Всего: {translationProgress.totalTokens.toLocaleString()} токенов</span>
                   )}
                   {translationProgress.totalGlossaryEntries > 0 && (
                     <span>📚 +{translationProgress.totalGlossaryEntries} записей в глоссарии</span>
                   )}
                 </div>
+                {/* Calculate tokens by stage from all completed chapters */}
+                {(() => {
+                  const completedChapters = translationProgress.chapters.filter(ch => ch.status === 'completed' && ch.tokensByStage);
+                  if (completedChapters.length > 0) {
+                    const totalByStage = completedChapters.reduce((acc, ch) => {
+                      if (ch.tokensByStage) {
+                        acc.analysis = (acc.analysis || 0) + (ch.tokensByStage.analysis || 0);
+                        acc.translation = (acc.translation || 0) + ch.tokensByStage.translation;
+                        acc.editing = (acc.editing || 0) + (ch.tokensByStage.editing || 0);
+                      }
+                      return acc;
+                    }, { analysis: 0, translation: 0, editing: 0 } as { analysis: number; translation: number; editing: number });
+                    
+                    const stageTokens: string[] = [];
+                    if (totalByStage.analysis > 0) {
+                      stageTokens.push(`🔍 Анализ: ${totalByStage.analysis.toLocaleString()}`);
+                    }
+                    stageTokens.push(`🔮 Перевод: ${totalByStage.translation.toLocaleString()}`);
+                    if (totalByStage.editing > 0) {
+                      stageTokens.push(`✨ Редактура: ${totalByStage.editing.toLocaleString()}`);
+                    }
+                    
+                    return (
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
+                        Токены по стейджам: {stageTokens.join(' | ')}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
 

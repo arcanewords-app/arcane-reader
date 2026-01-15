@@ -13,6 +13,7 @@ interface SidebarProps {
   onUploadChapter: (file: File, title: string) => Promise<void>;
   onOpenGlossary: () => void;
   onProjectCreated?: () => void;
+  onChaptersUpdate?: () => void;
   refreshTrigger?: number;
 }
 
@@ -26,6 +27,7 @@ export function Sidebar({
   onUploadChapter,
   onOpenGlossary,
   onProjectCreated,
+  onChaptersUpdate,
   refreshTrigger,
 }: SidebarProps) {
   return (
@@ -42,9 +44,11 @@ export function Sidebar({
           <ChapterList
             chapters={project.chapters}
             selectedId={selectedChapterId}
+            projectId={project.id}
             onSelect={onSelectChapter}
             onDelete={onDeleteChapter}
             onUpload={onUploadChapter}
+            onChaptersUpdate={onChaptersUpdate}
           />
 
           <Button variant="glossary" onClick={onOpenGlossary}>

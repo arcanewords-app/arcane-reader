@@ -160,23 +160,28 @@ export function App() {
 
   const handlePrevChapter = useCallback(() => {
     if (!project || !selectedChapterId) return;
-    const idx = project.chapters.findIndex((c) => c.id === selectedChapterId);
+    // Sort chapters by number for navigation
+    const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
+    const idx = sortedChapters.findIndex((c) => c.id === selectedChapterId);
     if (idx > 0) {
-      setSelectedChapterId(project.chapters[idx - 1].id);
+      setSelectedChapterId(sortedChapters[idx - 1].id);
     }
   }, [project, selectedChapterId]);
 
   const handleNextChapter = useCallback(() => {
     if (!project || !selectedChapterId) return;
-    const idx = project.chapters.findIndex((c) => c.id === selectedChapterId);
-    if (idx < project.chapters.length - 1) {
-      setSelectedChapterId(project.chapters[idx + 1].id);
+    // Sort chapters by number for navigation
+    const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
+    const idx = sortedChapters.findIndex((c) => c.id === selectedChapterId);
+    if (idx < sortedChapters.length - 1) {
+      setSelectedChapterId(sortedChapters[idx + 1].id);
     }
   }, [project, selectedChapterId]);
 
-  // Get current chapter
-  const currentChapter = project?.chapters.find((c) => c.id === selectedChapterId);
-  const chapterIndex = project?.chapters.findIndex((c) => c.id === selectedChapterId) ?? -1;
+  // Get current chapter and index (sorted by number)
+  const sortedChapters = project ? [...project.chapters].sort((a, b) => a.number - b.number) : [];
+  const currentChapter = sortedChapters.find((c) => c.id === selectedChapterId);
+  const chapterIndex = sortedChapters.findIndex((c) => c.id === selectedChapterId);
 
   return (
     <div class="app">
@@ -193,6 +198,7 @@ export function App() {
           onUploadChapter={handleUploadChapter}
           onOpenGlossary={() => setShowGlossary(true)}
           onProjectCreated={handleRefreshProject}
+          onChaptersUpdate={handleRefreshProject}
           refreshTrigger={refreshTrigger}
         />
 
@@ -259,7 +265,7 @@ export function App() {
               project={project}
               chapter={currentChapter}
               chapterIndex={chapterIndex}
-              totalChapters={project.chapters.length}
+              totalChapters={sortedChapters.length}
               onPrev={handlePrevChapter}
               onNext={handleNextChapter}
               onChapterUpdate={handleChapterUpdate}

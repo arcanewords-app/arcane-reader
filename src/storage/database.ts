@@ -1,6 +1,6 @@
 /**
  * Database layer using LowDB
- * 
+ *
  * LowDB - простая JSON база данных для Node.js
  * Данные сохраняются в файл и переживают перезапуск сервера
  */
@@ -47,11 +47,18 @@ export interface Chapter {
   // Raw text (kept for compatibility and full-text operations)
   originalText: string;
   translatedText?: string;
+  // Translated chunks - parsed parts of translation for later sync with paragraphs
+  translatedChunks?: string[];
   // Structured paragraphs for editing
   paragraphs: Paragraph[];
   status: ChapterStatus;
   translationMeta?: {
-    tokensUsed: number;
+    tokensUsed: number; // Total tokens (for backward compatibility)
+    tokensByStage?: {
+      analysis?: number;
+      translation: number;
+      editing?: number;
+    };
     duration: number;
     model: string;
     translatedAt: string;
@@ -63,7 +70,7 @@ export interface GlossaryEntry {
   type: 'character' | 'location' | 'term';
   original: string;
   translated: string;
-  gender?: 'male' | 'female' | 'neutral';
+  gender?: 'male' | 'female' | 'neutral' | 'unknown';
   declensions?: {
     nominative: string;
     genitive: string;
@@ -91,14 +98,14 @@ export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast';
 export interface ReaderSettings {
   // Typography
   fontFamily: FontFamily;
-  fontSize: number;      // 14-24px
-  lineHeight: number;    // 1.4-2.0
-  
+  fontSize: number; // 14-24px
+  lineHeight: number; // 1.4-2.0
+
   // Colors
   colorScheme: ColorScheme;
-  
+
   // Spacing
-  paragraphSpacing: number;  // 0.5-2.0em
+  paragraphSpacing: number; // 0.5-2.0em
 }
 
 /** Default reader settings */
@@ -113,19 +120,19 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 export interface ProjectSettings {
   // Legacy: single model (for backward compatibility)
   model?: string;
-  
+
   // Per-stage model configuration
   stageModels?: {
-    analysis: string;    // Stage 1: Extract entities, analyze style
+    analysis: string; // Stage 1: Extract entities, analyze style
     translation: string; // Stage 2: Translate (required)
-    editing: string;     // Stage 3: Polish and refine
+    editing: string; // Stage 3: Polish and refine
   };
-  
+
   temperature: number;
   // Pipeline stages control
-  enableAnalysis: boolean;   // Stage 1: Extract entities, analyze style
+  enableAnalysis: boolean; // Stage 1: Extract entities, analyze style
   enableTranslation: boolean; // Stage 2: Translate (always true, required)
-  enableEditing: boolean;     // Stage 3: Polish and refine
+  enableEditing: boolean; // Stage 3: Polish and refine
   // Reader display settings
   reader: ReaderSettings;
 }
@@ -154,20 +161,20 @@ export async function initDatabase(dataDir: string = './data'): Promise<Low<Data
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-  
+
   const dbPath = path.join(dataDir, 'arcane-db.json');
   const adapter = new JSONFile<DatabaseSchema>(dbPath);
   db = new Low(adapter, defaultData);
-  
+
   // Read existing data
   await db.read();
-  
+
   // Initialize with defaults if empty
   db.data ||= defaultData;
-  
+
   console.log(`📦 База данных инициализирована: ${dbPath}`);
   console.log(`   Проектов: ${db.data.projects.length}`);
-  
+
   return db;
 }
 
@@ -207,24 +214,24 @@ function migrateProjectSettings(settings: ProjectSettings): ProjectSettings {
   if (settings.stageModels) {
     return settings;
   }
-  
+
   // Migrate from legacy model field
   const legacyModel = settings.model || 'gpt-4-turbo-preview';
-  
+
   // Create stageModels with sensible defaults based on legacy model
   // If legacy model was cheap, use it for all stages
   // If legacy model was expensive, use cheaper alternatives for analysis/editing
   const isCheapModel = legacyModel.includes('3.5') || legacyModel.includes('mini');
-  
+
   settings.stageModels = {
     analysis: isCheapModel ? legacyModel : 'gpt-4o-mini',
     translation: legacyModel, // Keep original model for translation
     editing: isCheapModel ? legacyModel : 'gpt-4-turbo-preview',
   };
-  
+
   // Remove legacy model field (but keep it for backward compatibility in type)
   // Don't delete it, just ensure stageModels is set
-  
+
   return settings;
 }
 
@@ -236,33 +243,33 @@ export async function resetStuckChapters(projectId?: string): Promise<number> {
   const db = getDb();
   const STUCK_TIMEOUT = 30 * 60 * 1000; // 30 minutes
   let resetCount = 0;
-  
-  const projects = projectId 
-    ? db.data.projects.filter(p => p.id === projectId)
+
+  const projects = projectId
+    ? db.data.projects.filter((p) => p.id === projectId)
     : db.data.projects;
-  
+
   for (const project of projects) {
     for (const chapter of project.chapters) {
       if (chapter.status === 'translating') {
         let isStuck = false;
-        
+
         // If translationMeta exists with translatedAt, check if it's old
         // (translatedAt should not exist for active translations, but check anyway)
         if (chapter.translationMeta?.translatedAt) {
           const translatedAt = new Date(chapter.translationMeta.translatedAt).getTime();
-          isStuck = (Date.now() - translatedAt) > STUCK_TIMEOUT;
+          isStuck = Date.now() - translatedAt > STUCK_TIMEOUT;
         } else {
           // If no translationMeta, this means translation just started
           // Check project updatedAt - if it's old, translation is likely stuck
           // Also reset if project wasn't updated in last 30 minutes
           const projectUpdated = new Date(project.updatedAt).getTime();
           const timeSinceUpdate = Date.now() - projectUpdated;
-          
+
           // If project wasn't updated recently (more than timeout), assume stuck
           // This handles cases where translation was cancelled/interrupted
           isStuck = timeSinceUpdate > STUCK_TIMEOUT;
         }
-        
+
         if (isStuck) {
           chapter.status = 'pending';
           resetCount++;
@@ -271,22 +278,22 @@ export async function resetStuckChapters(projectId?: string): Promise<number> {
       }
     }
   }
-  
+
   if (resetCount > 0) {
     await db.write();
   }
-  
+
   return resetCount;
 }
 
 export async function getProject(id: string): Promise<Project | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === id);
-  
+  const project = db.data.projects.find((p) => p.id === id);
+
   if (project) {
     // Check and reset stuck chapters for this project
     await resetStuckChapters(id);
-    
+
     // Migrate glossary entries
     let needsSave = false;
     for (const entry of project.glossary) {
@@ -297,7 +304,7 @@ export async function getProject(id: string): Promise<Project | undefined> {
         needsSave = true;
       }
     }
-    
+
     // Migrate project settings (legacy model -> stageModels)
     const beforeSettings = JSON.stringify(project.settings);
     migrateProjectSettings(project.settings);
@@ -305,14 +312,14 @@ export async function getProject(id: string): Promise<Project | undefined> {
     if (beforeSettings !== afterSettings) {
       needsSave = true;
     }
-    
+
     // Save if migration occurred
     if (needsSave) {
       project.updatedAt = new Date().toISOString();
       await db.write();
     }
   }
-  
+
   return project;
 }
 
@@ -322,7 +329,7 @@ export async function createProject(data: {
   targetLanguage?: string;
 }): Promise<Project> {
   const db = getDb();
-  
+
   const project: Project = {
     id: generateId(),
     name: data.name || 'Новый проект',
@@ -333,9 +340,9 @@ export async function createProject(data: {
     settings: {
       // Default models: optimized for cost/quality using promotional models
       stageModels: {
-        analysis: 'gpt-4.1-mini',     // Best price/quality for structured JSON output
-        translation: 'gpt-5-mini',     // Best quality for main translation (if available)
-        editing: 'gpt-4.1-mini',       // Good balance for polishing
+        analysis: 'gpt-4.1-mini', // Best price/quality for structured JSON output
+        translation: 'gpt-5-mini', // Best quality for main translation (if available)
+        editing: 'gpt-4.1-mini', // Good balance for polishing
       },
       temperature: 0.7,
       enableAnalysis: true,
@@ -346,24 +353,27 @@ export async function createProject(data: {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  
+
   db.data.projects.push(project);
   await db.write();
-  
+
   console.log(`📁 Создан проект: ${project.name} (${project.id})`);
-  
+
   return project;
 }
 
-export async function updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+export async function updateProject(
+  id: string,
+  updates: Partial<Project>
+): Promise<Project | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === id);
-  
+  const project = db.data.projects.find((p) => p.id === id);
+
   if (!project) return undefined;
-  
+
   Object.assign(project, updates, { updatedAt: new Date().toISOString() });
   await db.write();
-  
+
   return project;
 }
 
@@ -375,18 +385,18 @@ export async function updateReaderSettings(
   updates: Partial<ReaderSettings>
 ): Promise<ReaderSettings | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
-  
+  const project = db.data.projects.find((p) => p.id === projectId);
+
   if (!project) return undefined;
-  
+
   // Ensure reader settings exist (migration for old projects)
   if (!project.settings.reader) {
     project.settings.reader = { ...DEFAULT_READER_SETTINGS };
   }
-  
+
   // Merge updates with validation
   const reader = project.settings.reader;
-  
+
   if (updates.fontFamily) reader.fontFamily = updates.fontFamily;
   if (updates.fontSize !== undefined) {
     reader.fontSize = Math.max(14, Math.min(24, updates.fontSize));
@@ -398,10 +408,10 @@ export async function updateReaderSettings(
   if (updates.paragraphSpacing !== undefined) {
     reader.paragraphSpacing = Math.max(0.5, Math.min(2.0, updates.paragraphSpacing));
   }
-  
+
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   return reader;
 }
 
@@ -414,15 +424,15 @@ export function getReaderSettings(project: Project): ReaderSettings {
 
 export async function deleteProject(id: string): Promise<boolean> {
   const db = getDb();
-  const index = db.data.projects.findIndex(p => p.id === id);
-  
+  const index = db.data.projects.findIndex((p) => p.id === id);
+
   if (index === -1) return false;
-  
+
   const [removed] = db.data.projects.splice(index, 1);
   await db.write();
-  
+
   console.log(`🗑️ Удалён проект: ${removed.name}`);
-  
+
   return true;
 }
 
@@ -433,13 +443,13 @@ export async function addChapter(
   data: { title: string; originalText: string }
 ): Promise<Chapter | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
-  
+  const project = db.data.projects.find((p) => p.id === projectId);
+
   if (!project) return undefined;
-  
+
   // Parse text into paragraphs
   const paragraphs = parseTextToParagraphs(data.originalText);
-  
+
   const chapter: Chapter = {
     id: generateId(),
     number: project.chapters.length + 1,
@@ -448,13 +458,15 @@ export async function addChapter(
     paragraphs,
     status: 'pending',
   };
-  
+
   project.chapters.push(chapter);
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
-  console.log(`📖 Добавлена глава: ${chapter.title} -> ${project.name} (${paragraphs.length} абзацев)`);
-  
+
+  console.log(
+    `📖 Добавлена глава: ${chapter.title} -> ${project.name} (${paragraphs.length} абзацев)`
+  );
+
   return chapter;
 }
 
@@ -464,16 +476,16 @@ export async function updateChapter(
   updates: Partial<Chapter>
 ): Promise<Chapter | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
+  const project = db.data.projects.find((p) => p.id === projectId);
   if (!project) return undefined;
-  
-  const chapter = project.chapters.find(c => c.id === chapterId);
+
+  const chapter = project.chapters.find((c) => c.id === chapterId);
   if (!chapter) return undefined;
-  
+
   Object.assign(chapter, updates);
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   return chapter;
 }
 
@@ -482,36 +494,111 @@ export async function getChapter(
   chapterId: string
 ): Promise<Chapter | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
+  const project = db.data.projects.find((p) => p.id === projectId);
   if (!project) return undefined;
-  
-  return project.chapters.find(c => c.id === chapterId);
+
+  const chapter = project.chapters.find((c) => c.id === chapterId);
+
+  // Auto-sync: if chapter has translatedChunks but paragraphs are not synced,
+  // attempt to sync them automatically (recovery mechanism)
+  if (chapter && chapter.translatedChunks && chapter.translatedChunks.length > 0) {
+    const hasSyncedParagraphs = chapter.paragraphs?.some(
+      (p) => p.translatedText && p.translatedText.trim().length > 0
+    );
+
+    // If chunks exist but no paragraphs have translations, this is likely unsynced
+    // However, we don't auto-sync here to avoid side effects.
+    // Sync should happen automatically after translation, or manually via /sync endpoint.
+    // This is just a check - actual sync happens in server.ts after translation.
+  }
+
+  return chapter;
 }
 
-export async function deleteChapter(
-  projectId: string,
-  chapterId: string
-): Promise<boolean> {
+export async function deleteChapter(projectId: string, chapterId: string): Promise<boolean> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
+  const project = db.data.projects.find((p) => p.id === projectId);
   if (!project) return false;
-  
-  const index = project.chapters.findIndex(c => c.id === chapterId);
+
+  const index = project.chapters.findIndex((c) => c.id === chapterId);
   if (index === -1) return false;
-  
+
   const [removed] = project.chapters.splice(index, 1);
-  
+
   // Renumber remaining chapters
   project.chapters.forEach((ch, idx) => {
     ch.number = idx + 1;
   });
-  
+
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   console.log(`🗑️ Удалена глава: ${removed.title}`);
-  
+
   return true;
+}
+
+/**
+ * Update chapter number and renumber other chapters accordingly
+ * @param projectId Project ID
+ * @param chapterId Chapter ID to update
+ * @param newNumber New chapter number (1-based)
+ * @returns Updated chapter or undefined if not found
+ */
+export async function updateChapterNumber(
+  projectId: string,
+  chapterId: string,
+  newNumber: number
+): Promise<Chapter | undefined> {
+  const db = getDb();
+  const project = db.data.projects.find((p) => p.id === projectId);
+  if (!project) return undefined;
+
+  const chapter = project.chapters.find((c) => c.id === chapterId);
+  if (!chapter) return undefined;
+
+  const oldNumber = chapter.number;
+  const maxNumber = project.chapters.length;
+
+  // Validate new number
+  if (newNumber < 1 || newNumber > maxNumber) {
+    throw new Error(`Номер главы должен быть от 1 до ${maxNumber}`);
+  }
+
+  // If number hasn't changed, return early
+  if (newNumber === oldNumber) {
+    return chapter;
+  }
+
+  // Sort chapters by current number to maintain order
+  const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
+
+  // Remove chapter from its current position
+  const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
+  sortedChapters.splice(chapterIndex, 1);
+
+  // Insert chapter at new position
+  sortedChapters.splice(newNumber - 1, 0, chapter);
+
+  // Renumber all chapters sequentially
+  sortedChapters.forEach((ch, idx) => {
+    ch.number = idx + 1;
+  });
+
+  // Update project chapters array (maintain original order but update numbers)
+  project.chapters.forEach((ch) => {
+    const updated = sortedChapters.find((sc) => sc.id === ch.id);
+    if (updated) {
+      ch.number = updated.number;
+    }
+  });
+
+  project.updatedAt = new Date().toISOString();
+  await db.write();
+
+  console.log(`🔢 Номер главы изменён: "${chapter.title}" ${oldNumber} → ${newNumber}`);
+
+  return chapter;
 }
 
 // ============ Glossary Operations ============
@@ -521,19 +608,19 @@ export async function addGlossaryEntry(
   entry: Omit<GlossaryEntry, 'id'>
 ): Promise<GlossaryEntry | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
-  
+  const project = db.data.projects.find((p) => p.id === projectId);
+
   if (!project) return undefined;
-  
+
   const glossaryEntry: GlossaryEntry = {
     id: generateId(),
     ...entry,
   };
-  
+
   project.glossary.push(glossaryEntry);
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   return glossaryEntry;
 }
 
@@ -543,55 +630,68 @@ export async function updateGlossaryEntry(
   updates: Partial<GlossaryEntry>
 ): Promise<GlossaryEntry | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
+  const project = db.data.projects.find((p) => p.id === projectId);
   if (!project) return undefined;
-  
-  const entry = project.glossary.find(e => e.id === entryId);
+
+  const entry = project.glossary.find((e) => e.id === entryId);
   if (!entry) return undefined;
-  
+
   // Migrate legacy imageUrl to imageUrls if needed
   if (updates.imageUrls === undefined && entry.imageUrl && !entry.imageUrls) {
     entry.imageUrls = [entry.imageUrl];
   }
-  
+
   Object.assign(entry, updates);
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   return entry;
 }
 
-export async function deleteGlossaryEntry(
-  projectId: string,
-  entryId: string
-): Promise<boolean> {
+export async function deleteGlossaryEntry(projectId: string, entryId: string): Promise<boolean> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
+  const project = db.data.projects.find((p) => p.id === projectId);
   if (!project) return false;
-  
-  const index = project.glossary.findIndex(e => e.id === entryId);
+
+  const index = project.glossary.findIndex((e) => e.id === entryId);
   if (index === -1) return false;
-  
+
   project.glossary.splice(index, 1);
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   return true;
 }
 
 // ============ Paragraph Operations ============
 
 /**
+ * Check if a paragraph is a separator (e.g., ***, ---, ___, etc.)
+ * Separators are typically used to divide sections in text
+ */
+function isSeparatorParagraph(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return false;
+
+  // Check if paragraph contains only separator characters (repeated)
+  // Common separators: *, -, _, =, ~, #, etc.
+  const separatorPattern = /^[\s*\-_=~#]+$/;
+  return separatorPattern.test(trimmed);
+}
+
+/**
  * Parse text into paragraphs
- * Splits by double newlines, filters empty paragraphs
+ * Splits by double newlines, filters empty paragraphs and separators
  */
 export function parseTextToParagraphs(text: string): Paragraph[] {
   // Split by double newlines (standard paragraph separator)
   const rawParagraphs = text
     .split(/\n\s*\n/)
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
-  
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+    // Filter out separator paragraphs (e.g., ***, ---, etc.)
+    .filter((p) => !isSeparatorParagraph(p));
+
   return rawParagraphs.map((content, index) => ({
     id: generateId(),
     index,
@@ -609,8 +709,8 @@ export function mergeParagraphsToText(
 ): string {
   return paragraphs
     .sort((a, b) => a.index - b.index)
-    .map(p => p[field] || '')
-    .filter(text => text.length > 0)
+    .map((p) => p[field] || '')
+    .filter((text) => text.length > 0)
     .join('\n\n');
 }
 
@@ -624,25 +724,37 @@ export async function updateParagraph(
   updates: Partial<Paragraph>
 ): Promise<Paragraph | undefined> {
   const db = getDb();
-  const project = db.data.projects.find(p => p.id === projectId);
+  const project = db.data.projects.find((p) => p.id === projectId);
   if (!project) return undefined;
-  
-  const chapter = project.chapters.find(c => c.id === chapterId);
+
+  const chapter = project.chapters.find((c) => c.id === chapterId);
   if (!chapter) return undefined;
-  
-  const paragraph = chapter.paragraphs.find(p => p.id === paragraphId);
+
+  const paragraph = chapter.paragraphs.find((p) => p.id === paragraphId);
   if (!paragraph) return undefined;
-  
+
   Object.assign(paragraph, updates);
-  
+
   // If translated text updated, sync to chapter translatedText
+  // This keeps chapter.translatedText in sync with paragraphs for reading mode
   if (updates.translatedText !== undefined) {
-    chapter.translatedText = mergeParagraphsToText(chapter.paragraphs);
+    const mergedText = mergeParagraphsToText(chapter.paragraphs);
+    chapter.translatedText = mergedText;
+
+    // Also update translatedChunks to keep them in sync
+    // This ensures consistency between paragraphs and chunks
+    if (mergedText) {
+      const chunks = mergedText
+        .split(/\n\s*\n/)
+        .map((chunk) => chunk.trim())
+        .filter((chunk) => chunk.length > 0);
+      chapter.translatedChunks = chunks;
+    }
   }
-  
+
   project.updatedAt = new Date().toISOString();
   await db.write();
-  
+
   return paragraph;
 }
 
@@ -659,26 +771,26 @@ export function getChapterStats(chapter: Chapter): {
 } {
   const paragraphs = chapter.paragraphs || [];
   const total = paragraphs.length;
-  
+
   if (total === 0) {
     return { total: 0, pending: 0, translated: 0, edited: 0, approved: 0, progress: 0 };
   }
-  
+
   const counts = {
     pending: 0,
     translated: 0,
     edited: 0,
     approved: 0,
   };
-  
+
   for (const p of paragraphs) {
     counts[p.status]++;
   }
-  
+
   // Progress = (translated + edited + approved) / total
   const completed = counts.translated + counts.edited + counts.approved;
   const progress = Math.round((completed / total) * 100);
-  
+
   return { total, ...counts, progress };
 }
 
@@ -687,4 +799,3 @@ export function getChapterStats(chapter: Chapter): {
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
-

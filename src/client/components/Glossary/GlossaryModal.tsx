@@ -126,44 +126,53 @@ export function GlossaryModal({
                   class="glossary-card"
                   onClick={() => setEditingEntry(entry)}
                 >
-                  {firstImage ? (
-                    <img
-                      src={firstImage}
-                      alt={entry.translated}
-                      class="glossary-card-image"
-                    />
-                  ) : (
-                    <div class="glossary-card-placeholder">
-                      {typeIcons[entry.type]}
-                    </div>
-                  )}
-                  <div class="glossary-card-content">
-                    <div class="glossary-card-names">
-                      <span class="glossary-card-original">{entry.original}</span>
-                      <span class="glossary-card-arrow">→</span>
-                      <span class="glossary-card-translated">{entry.translated}</span>
-                    </div>
-                    {entry.description && (
-                      <div class="glossary-card-description" title={entry.description}>
-                        {entry.description.length > 60 
-                          ? `${entry.description.substring(0, 60)}...` 
-                          : entry.description}
+                  <div class="glossary-card-header">
+                    {firstImage ? (
+                      <img
+                        src={firstImage}
+                        alt={entry.translated}
+                        class="glossary-card-image"
+                      />
+                    ) : (
+                      <div class="glossary-card-placeholder">
+                        {typeIcons[entry.type]}
                       </div>
                     )}
-                    <div class="glossary-card-meta">
-                      <span class="glossary-card-type">
-                        {typeIcons[entry.type]} {entry.type}
-                      </span>
-                      {entry.firstAppearance && (
-                        <span class="glossary-card-chapter" title="Первое упоминание">
-                          📖 Гл. {entry.firstAppearance}
+                    <div class="glossary-card-header-content">
+                      <div class="glossary-card-names">
+                        <span class="glossary-card-original" title={entry.original}>
+                          {entry.original}
                         </span>
-                      )}
-                      {entry.notes && (
-                        <span class="glossary-card-notes">{entry.notes}</span>
-                      )}
+                        <span class="glossary-card-arrow">→</span>
+                        <span class="glossary-card-translated" title={entry.translated}>
+                          {entry.translated}
+                        </span>
+                      </div>
+                      <div class="glossary-card-type-badge">
+                        {typeIcons[entry.type]} {typeLabels[entry.type]}
+                      </div>
                     </div>
                   </div>
+                  
+                  {entry.description && (
+                    <div class="glossary-card-description" title={entry.description}>
+                      {entry.description}
+                    </div>
+                  )}
+                  
+                  <div class="glossary-card-footer">
+                    {entry.firstAppearance && (
+                      <span class="glossary-card-badge glossary-card-chapter" title="Первое упоминание">
+                        📖 Гл. {entry.firstAppearance}
+                      </span>
+                    )}
+                    {entry.notes && (
+                      <span class="glossary-card-badge glossary-card-notes" title={entry.notes}>
+                        📝 {entry.notes}
+                      </span>
+                    )}
+                  </div>
+                  
                   <button
                     class="glossary-card-delete"
                     onClick={(e) => {

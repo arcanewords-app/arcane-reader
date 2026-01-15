@@ -229,6 +229,11 @@ export async function translateChapterWithPipeline(
 ): Promise<{
   translatedText: string;
   tokensUsed: number;
+  tokensByStage?: {
+    analysis?: number;
+    translation: number;
+    editing?: number;
+  };
   duration: number;
   glossaryUpdates?: GlossaryEntry[];
 }> {
@@ -314,9 +319,17 @@ export async function translateChapterWithPipeline(
     // Update agent cache
     agentCache.set(project.id, pipeline.getAgent());
     
+    // Extract tokens by stage
+    const tokensByStage = {
+      translation: result.stage2.tokensUsed,
+      ...(result.stage1.success && result.stage1.tokensUsed > 0 ? { analysis: result.stage1.tokensUsed } : {}),
+      ...(result.stage3.success && result.stage3.tokensUsed > 0 ? { editing: result.stage3.tokensUsed } : {}),
+    };
+
     return {
       translatedText: result.finalTranslation,
       tokensUsed: result.totalTokensUsed,
+      tokensByStage,
       duration: result.totalDuration,
       glossaryUpdates,
     };

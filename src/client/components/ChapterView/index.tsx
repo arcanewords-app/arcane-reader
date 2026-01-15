@@ -146,6 +146,55 @@ export function ChapterView({
     }
   };
 
+  const handleTranslateEmptyParagraphs = async () => {
+    // Prevent double-translation
+    if (chapter.status === 'translating' || translating) {
+      console.warn('⚠️ Translation already in progress, status:', chapter.status);
+      return;
+    }
+
+    const emptyParagraphs = chapter.paragraphs?.filter((p) => {
+      const hasText = p.translatedText && p.translatedText.trim().length > 0;
+      const isError = p.translatedText?.trim().startsWith('❌') || 
+                      p.translatedText?.trim().startsWith('[ERROR');
+      return !hasText || isError;
+    }) || [];
+
+    if (emptyParagraphs.length === 0) {
+      alert('Нет пустых абзацев для перевода');
+      return;
+    }
+
+    console.log(`🔮 Starting translation for ${emptyParagraphs.length} empty paragraphs in chapter:`, chapter.id, chapter.title);
+    setTranslating(true);
+    
+    try {
+      // Translate only empty paragraphs using translateOnlyEmpty flag
+      const response = await api.translateChapter(project.id, chapter.id, true);
+      console.log('✅ Translation request sent, response:', response);
+      
+      // Immediately update chapter status to translating to trigger polling
+      const updatedChapter = { ...chapter, status: 'translating' as const };
+      onChapterUpdate(updatedChapter);
+      
+      console.log('📊 Chapter status updated to "translating", polling should start');
+      
+      // Polling will handle the rest via useEffect
+    } catch (error) {
+      console.error('❌ Translation error:', error);
+      setTranslating(false);
+      
+      // Update chapter status to error if translation failed
+      const errorChapter = { ...chapter, status: 'error' as const };
+      onChapterUpdate(errorChapter);
+      
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Ошибка запуска перевода: ${errorMessage}`);
+      console.error('Full error details:', error);
+    }
+  };
+
   const handleApproveAll = async () => {
     const paragraphIds = chapter.paragraphs
       ?.filter((p) => p.translatedText && p.status !== 'approved')
@@ -187,6 +236,7 @@ export function ChapterView({
           onPrev={onPrev}
           onNext={onNext}
           onTranslate={handleTranslate}
+          onTranslateEmpty={handleTranslateEmptyParagraphs}
           onApproveAll={handleApproveAll}
           onToggleSettings={() => setShowSettings(!showSettings)}
           onEnterReadingMode={onEnterReadingMode}

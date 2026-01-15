@@ -11,6 +11,7 @@ interface ChapterHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onTranslate: () => void;
+  onTranslateEmpty?: () => void; // New handler for translating empty paragraphs
   onApproveAll: () => void;
   onToggleSettings: () => void;
   onEnterReadingMode?: () => void;
@@ -26,6 +27,7 @@ export function ChapterHeader({
   onPrev,
   onNext,
   onTranslate,
+  onTranslateEmpty,
   onApproveAll,
   onToggleSettings,
   onEnterReadingMode,
@@ -40,6 +42,16 @@ export function ChapterHeader({
   const hasTranslatedText = !!chapter.translatedText;
   const isCompleted = chapter.status === 'completed';
   const canRead = hasTranslations || hasTranslatedText;
+  
+  // Check for empty paragraphs (need translation)
+  const emptyParagraphs = chapter.paragraphs?.filter((p) => {
+    const hasText = p.translatedText && p.translatedText.trim().length > 0;
+    const isError = p.translatedText?.trim().startsWith('❌') || 
+                    p.translatedText?.trim().startsWith('[ERROR');
+    return !hasText || isError;
+  }) || [];
+  
+  const hasEmptyParagraphs = emptyParagraphs.length > 0;
 
   const handleStartEdit = () => {
     setIsEditingTitle(true);
@@ -167,6 +179,19 @@ export function ChapterHeader({
           </Button>
         )}
         
+        {/* Translate empty paragraphs button - show if chapter has some translations but also empty paragraphs */}
+        {hasEmptyParagraphs && hasTranslations && chapter.status !== 'translating' && onTranslateEmpty && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onTranslateEmpty}
+            disabled={translating}
+            title={`Перевести ${emptyParagraphs.length} пустых абзацев`}
+          >
+            🔮 Перевести пустые абзацы ({emptyParagraphs.length})
+          </Button>
+        )}
+        
         {chapter.status === 'translating' && (
           <Button
             variant="secondary"
@@ -178,35 +203,56 @@ export function ChapterHeader({
           </Button>
         )}
         
-        {/* Show translate button if: not completed, not translating, or completed but empty/invalid translation */}
+        {/* Show translate button if: not completed, not translating, or completed (allow retranslation) */}
         {(() => {
-          const hasEmptyTranslation = isCompleted && (!hasTranslatedText || !hasTranslations);
-          const canRetranslate = chapter.status === 'error' || hasEmptyTranslation;
+          // Don't show translate button if currently translating
+          if (chapter.status === 'translating') {
+            return null;
+          }
           
-          if (!isCompleted && chapter.status !== 'translating') {
+          // For error status, show retry button (check this first)
+          if (chapter.status === 'error') {
             return (
               <Button
                 size="sm"
                 onClick={onTranslate}
-                loading={translating || chapter.status === 'translating'}
-                disabled={translating || chapter.status === 'translating'}
-                title="Начать перевод"
+                loading={translating}
+                disabled={translating}
+                title="Повторить перевод после ошибки"
               >
-                🔮 Перевести
+                🔄 Повторить
               </Button>
             );
           }
           
-          if (canRetranslate && chapter.status !== 'translating') {
+          // For completed chapters, always show "Перевести снова" button
+          // This allows retranslation even if the chapter has a valid translation
+          // Useful when paragraphs don't match due to past errors
+          if (isCompleted) {
             return (
               <Button
                 size="sm"
                 onClick={onTranslate}
-                loading={translating || chapter.status === 'translating'}
-                disabled={translating || chapter.status === 'translating'}
-                title={chapter.status === 'error' ? 'Повторить перевод после ошибки' : 'Перевести заново (перевод пуст)'}
+                loading={translating}
+                disabled={translating}
+                title="Перевести главу заново (полезно, если параграфы не совпадают из-за прошлых ошибок)"
               >
-                {chapter.status === 'error' ? '🔄 Повторить' : '🔄 Перевести заново'}
+                🔄 Перевести снова
+              </Button>
+            );
+          }
+          
+          // For non-completed chapters (pending), show "Перевести" button
+          if (!isCompleted) {
+            return (
+              <Button
+                size="sm"
+                onClick={onTranslate}
+                loading={translating}
+                disabled={translating}
+                title="Начать перевод"
+              >
+                🔮 Перевести
               </Button>
             );
           }
