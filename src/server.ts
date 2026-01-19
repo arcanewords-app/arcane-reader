@@ -2,7 +2,7 @@
  * Arcane Reader - Web server for novel translation UI
  *
  * Integrated with:
- * - LowDB for persistent storage
+ * - Supabase PostgreSQL for persistent storage
  * - OpenAI for translation
  */
 
@@ -14,8 +14,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
+// Database operations from Supabase
 import {
-  initDatabase,
   getAllProjects,
   getProject,
   createProject,
@@ -30,17 +30,22 @@ import {
   updateGlossaryEntry,
   deleteGlossaryEntry,
   updateParagraph,
-  getChapterStats,
-  parseTextToParagraphs,
-  mergeParagraphsToText,
   updateReaderSettings,
   getReaderSettings,
   resetStuckChapters,
+} from './services/supabaseDatabase.js';
+// Types and utilities from database.ts (still used for compatibility)
+import {
+  getChapterStats,
+  parseTextToParagraphs,
+  mergeParagraphsToText,
   type Chapter,
   type GlossaryEntry,
   type Project,
   type Paragraph,
 } from './storage/database.js';
+import { requireAuth } from './middleware/auth.js';
+import { requireToken } from './utils/requestHelpers.js';
 import {
   translateChapterWithPipeline,
   translateSimple,
@@ -48,6 +53,7 @@ import {
   clearAgentCache,
 } from './services/engine-integration.js';
 import { exportProject } from './services/export/index.js';
+import { authService } from './services/authService.js';
 
 // Load configuration
 const config = loadConfig();
@@ -122,6 +128,89 @@ app.use('/exports', express.static(exportsDir)); // Serve exported files
 
 // ============ API Routes ============
 
+// ============ Auth Routes ============
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await authService.register(email, password);
+    res.json({ user });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Registration failed';
+    res.status(400).json({ error: message });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await authService.login(email, password);
+
+    // Get session token to return to client
+    const session = await authService.getSession();
+
+    res.json({
+      user,
+      session: session
+        ? {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+          }
+        : null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Login failed';
+    res.status(401).json({ error: message });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    await authService.logout();
+    res.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Logout failed';
+    res.status(500).json({ error: message });
+  }
+});
+
+// Get current user
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    // Get JWT token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Verify token and get user using the same style as middleware
+    const user = await authService.getUserByToken(token);
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    res.json({ user });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get user';
+    res.status(500).json({ error: message });
+  }
+});
+
 // System status
 app.get('/api/status', (_req, res) => {
   res.json({
@@ -136,22 +225,27 @@ app.get('/api/status', (_req, res) => {
       valid: configValidation.valid,
       errors: configValidation.errors,
     },
-    storage: 'lowdb',
+    storage: 'supabase',
   });
 });
 
 // ============ Projects ============
 
-// Get all projects
-app.get('/api/projects', async (_req, res) => {
+// Get all projects (requires auth)
+app.get('/api/projects', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     // Reset stuck chapters across all projects on startup/refresh
-    const resetCount = await resetStuckChapters();
+    const token = requireToken(req);
+    const resetCount = await resetStuckChapters(token, undefined);
     if (resetCount > 0) {
       console.log(`🔄 Сброшено застрявших глав: ${resetCount}`);
     }
 
-    const projects = await getAllProjects();
+    const projects = await getAllProjects(req.user.id, token);
     const projectList = projects.map((p) => ({
       id: p.id,
       name: p.name,
@@ -167,21 +261,35 @@ app.get('/api/projects', async (_req, res) => {
   }
 });
 
-// Create new project
-app.post('/api/projects', async (req, res) => {
+// Create new project (requires auth)
+app.post('/api/projects', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const { name, sourceLanguage, targetLanguage } = req.body;
-    const project = await createProject({ name, sourceLanguage, targetLanguage });
+    const token = requireToken(req);
+    const project = await createProject(
+      { name, sourceLanguage, targetLanguage },
+      req.user.id,
+      token
+    );
     res.json(project);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create project' });
   }
 });
 
-// Get project by ID
-app.get('/api/projects/:id', async (req, res) => {
+// Get project by ID (requires auth)
+app.get('/api/projects/:id', requireAuth, async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -195,10 +303,14 @@ app.get('/api/projects/:id', async (req, res) => {
   }
 });
 
-// Delete project
-app.delete('/api/projects/:id', async (req, res) => {
+// Delete project (requires auth)
+app.delete('/api/projects/:id', requireAuth, async (req, res) => {
   try {
-    const success = await deleteProject(req.params.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const success = await deleteProject(req.params.id, req.user.id, requireToken(req));
     if (!success) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -208,10 +320,15 @@ app.delete('/api/projects/:id', async (req, res) => {
   }
 });
 
-// Update project settings
-app.put('/api/projects/:id/settings', async (req, res) => {
+// Update project settings (requires auth)
+app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -249,7 +366,7 @@ app.put('/api/projects/:id/settings', async (req, res) => {
       updatedSettings.model = model;
     }
 
-    await updateProject(req.params.id, { settings: updatedSettings });
+    await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);
 
     const stagesStatus = [
       project.settings.enableAnalysis ? '✅ Анализ' : '⏭️ Анализ',
@@ -266,10 +383,15 @@ app.put('/api/projects/:id/settings', async (req, res) => {
   }
 });
 
-// Get reader settings
-app.get('/api/projects/:id/settings/reader', async (req, res) => {
+// Get reader settings (requires auth)
+app.get('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -281,10 +403,15 @@ app.get('/api/projects/:id/settings/reader', async (req, res) => {
   }
 });
 
-// Update reader settings
-app.put('/api/projects/:id/settings/reader', async (req, res) => {
+// Update reader settings (requires auth)
+app.put('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
   try {
-    const reader = await updateReaderSettings(req.params.id, req.body);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const reader = await updateReaderSettings(req.params.id, req.body, req.user.id, token);
     if (!reader) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -301,10 +428,15 @@ app.put('/api/projects/:id/settings/reader', async (req, res) => {
 
 // ============ Chapters ============
 
-// Upload chapter to project
-app.post('/api/projects/:id/chapters', upload.single('file'), async (req, res) => {
+// Upload chapter to project (requires auth)
+app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -316,17 +448,33 @@ app.post('/api/projects/:id/chapters', upload.single('file'), async (req, res) =
     const text = req.file.buffer.toString('utf-8');
     const title = req.body.title || `Глава ${project.chapters.length + 1}`;
 
-    const chapter = await addChapter(req.params.id, { title, originalText: text });
+    const chapter = await addChapter(req.params.id, { title, originalText: text }, token);
     res.json(chapter);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to add chapter';
+    // Check if error is related to token validation
+    if (message.includes('Token is required') || message.includes('Invalid token')) {
+      return res.status(401).json({ error: message });
+    }
+    console.error('Failed to add chapter:', error);
     res.status(500).json({ error: 'Failed to add chapter' });
   }
 });
 
-// Get chapter
-app.get('/api/projects/:projectId/chapters/:chapterId', async (req, res) => {
+// Get chapter (requires auth)
+app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req, res) => {
   try {
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user (RLS will check automatically, but good to verify)
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const chapter = await getChapter(req.params.projectId, req.params.chapterId, requireToken(req));
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -336,10 +484,24 @@ app.get('/api/projects/:projectId/chapters/:chapterId', async (req, res) => {
   }
 });
 
-// Delete chapter
-app.delete('/api/projects/:projectId/chapters/:chapterId', async (req, res) => {
+// Delete chapter (requires auth)
+app.delete('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req, res) => {
   try {
-    const success = await deleteChapter(req.params.projectId, req.params.chapterId);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const success = await deleteChapter(
+      req.params.projectId,
+      req.params.chapterId,
+      requireToken(req)
+    );
     if (!success) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -351,175 +513,237 @@ app.delete('/api/projects/:projectId/chapters/:chapterId', async (req, res) => {
 
 // ============ Translation ============
 
-// Cancel translation (reset stuck status)
-app.post('/api/projects/:projectId/chapters/:chapterId/translate/cancel', async (req, res) => {
-  try {
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId);
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
-
-    // Only reset if status is translating
-    if (chapter.status === 'translating') {
-      await updateChapter(req.params.projectId, req.params.chapterId, {
-        status: 'pending',
-      });
-      console.log(`⏹️  Перевод отменён: ${chapter.title}`);
-      res.json({ success: true, message: 'Translation cancelled' });
-    } else {
-      res.json({ success: false, message: 'Chapter is not being translated' });
-    }
-  } catch (error) {
-    console.error('Failed to cancel translation:', error);
-    res.status(500).json({ error: 'Failed to cancel translation' });
-  }
-});
-
-// Manual sync translated chunks to paragraphs (recovery endpoint)
-// NOTE: Sync is now automatic after translation. This endpoint is for recovery only.
-app.post('/api/projects/:projectId/chapters/:chapterId/translate/sync', async (req, res) => {
-  try {
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId);
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
-
-    // Check if translatedChunks exist
-    if (!chapter.translatedChunks || chapter.translatedChunks.length === 0) {
-      return res
-        .status(400)
-        .json({ error: 'No translated chunks found. Please translate the chapter first.' });
-    }
-
-    // Check if paragraphs exist
-    if (!chapter.paragraphs || chapter.paragraphs.length === 0) {
-      return res.status(400).json({ error: 'No paragraphs found in chapter' });
-    }
-
-    console.log(`\n${'═'.repeat(60)}`);
-    console.log(`🔄 РУЧНАЯ СИНХРОНИЗАЦИЯ ПЕРЕВОДА С ПАРАГРАФАМИ (восстановление)`);
-    console.log(`${'─'.repeat(60)}`);
-    console.log(`📖 Глава: ${chapter.title}`);
-    console.log(`📦 Чанков для синхронизации: ${chapter.translatedChunks.length}`);
-    console.log(`📄 Параграфов: ${chapter.paragraphs.length}`);
-    console.log(`${'─'.repeat(60)}`);
-
-    // Determine if this is a partial translation (some paragraphs already have translations)
-    const hasExistingTranslations = chapter.paragraphs.some(
-      (p) => p.translatedText && p.translatedText.trim().length > 0
-    );
-    const partialTranslation = hasExistingTranslations;
-
-    // Perform synchronization
-    const syncedParagraphs = syncTranslationChunksToParagraphs(
-      chapter.paragraphs,
-      chapter.translatedChunks,
-      partialTranslation
-    );
-
-    // Update chapter with synced paragraphs
-    await updateChapter(req.params.projectId, req.params.chapterId, {
-      paragraphs: syncedParagraphs,
-    });
-
-    console.log(`${'═'.repeat(60)}\n`);
-
-    res.json({
-      success: true,
-      message: 'Translation synchronized',
-      syncedParagraphs: syncedParagraphs.filter(
-        (p) => p.translatedText && p.translatedText.trim().length > 0
-      ).length,
-      totalParagraphs: chapter.paragraphs.length,
-      recovered: true,
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Failed to sync translation:', error);
-    res.status(500).json({ error: `Failed to sync translation: ${errorMessage}` });
-  }
-});
-
-// Translation endpoint with logging
-app.post('/api/projects/:projectId/chapters/:chapterId/translate', async (req, res) => {
-  try {
-    const project = await getProject(req.params.projectId);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const chapter = project.chapters.find((c) => c.id === req.params.chapterId);
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
-
-    // Parse request body for translateOnlyEmpty flag
-    const body = req.body || {};
-    const translateOnlyEmpty = body.translateOnlyEmpty === true;
-
-    // Log chapter state before translation
-    const hasTranslatedText = !!chapter.translatedText && chapter.translatedText.trim().length > 0;
-    const hasTranslatedParagraphs = chapter.paragraphs?.some(
-      (p) => p.translatedText && p.translatedText.trim().length > 0
-    );
-    console.log(`📋 Состояние главы перед переводом: ${chapter.title}`);
-    console.log(`   ID: ${chapter.id}, Статус: ${chapter.status}`);
-    console.log(`   Есть переведенный текст: ${hasTranslatedText}`);
-    console.log(`   Есть переведенные параграфы: ${hasTranslatedParagraphs}`);
-    console.log(`   Количество параграфов: ${chapter.paragraphs?.length || 0}`);
-    console.log(
-      `   Режим перевода: ${translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
-    );
-
-    // Update status
-    await updateChapter(req.params.projectId, req.params.chapterId, { status: 'translating' });
-
-    const startTime = Date.now();
-    const textLength = chapter.originalText.length;
-    const wordCount = chapter.originalText.split(/\s+/).length;
-
-    // Get models for each stage
-    const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
-      if (project.settings?.stageModels) {
-        return project.settings.stageModels[stage];
+// Cancel translation (reset stuck status) (requires auth)
+app.post(
+  '/api/projects/:projectId/chapters/:chapterId/translate/cancel',
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
-      return project.settings?.model || config.openai.model;
-    };
 
-    const analysisModel = getStageModel('analysis');
-    const translationModel = getStageModel('translation');
-    const editingModel = getStageModel('editing');
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
-    console.log(`\n${'═'.repeat(60)}`);
-    console.log(`🔮 ЗАПРОС НА ПЕРЕВОД`);
-    console.log(`${'─'.repeat(60)}`);
-    console.log(`📖 Глава: ${chapter.title}`);
-    console.log(`📊 Размер: ${textLength} символов, ~${wordCount} слов`);
-    console.log(`🔑 API ключ: ${config.openai.apiKey ? '✅ Настроен' : '❌ Не настроен'}`);
-    console.log(
-      `🤖 Модели: Анализ=${analysisModel} | Перевод=${translationModel} | Редактура=${editingModel}`
-    );
-    console.log(
-      `🎨 Креативность: ${project.settings?.temperature ?? config.translation.temperature}`
-    );
-    console.log(`💾 Хранилище: LowDB (persistent)`);
-    console.log(`${'─'.repeat(60)}`);
+      const chapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        requireToken(req)
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
 
-    // Perform translation using arcane-engine
-    performTranslation(
-      req.params.projectId,
-      req.params.chapterId,
-      chapter,
-      project,
-      startTime,
-      translateOnlyEmpty
-    );
-
-    res.json({ status: 'started', chapterId: chapter.id });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to start translation' });
+      // Only reset if status is translating
+      if (chapter.status === 'translating') {
+        await updateChapter(
+          req.params.projectId,
+          req.params.chapterId,
+          {
+            status: 'pending',
+          },
+          requireToken(req)
+        );
+        console.log(`⏹️  Перевод отменён: ${chapter.title}`);
+        res.json({ success: true, message: 'Translation cancelled' });
+      } else {
+        res.json({ success: false, message: 'Chapter is not being translated' });
+      }
+    } catch (error) {
+      console.error('Failed to cancel translation:', error);
+      res.status(500).json({ error: 'Failed to cancel translation' });
+    }
   }
-});
+);
+
+// Manual sync translated chunks to paragraphs (recovery endpoint) (requires auth)
+// NOTE: Sync is now automatic after translation. This endpoint is for recovery only.
+app.post(
+  '/api/projects/:projectId/chapters/:chapterId/translate/sync',
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const chapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        requireToken(req)
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      // Check if translatedChunks exist
+      if (!chapter.translatedChunks || chapter.translatedChunks.length === 0) {
+        return res
+          .status(400)
+          .json({ error: 'No translated chunks found. Please translate the chapter first.' });
+      }
+
+      // Check if paragraphs exist
+      if (!chapter.paragraphs || chapter.paragraphs.length === 0) {
+        return res.status(400).json({ error: 'No paragraphs found in chapter' });
+      }
+
+      console.log(`\n${'═'.repeat(60)}`);
+      console.log(`🔄 РУЧНАЯ СИНХРОНИЗАЦИЯ ПЕРЕВОДА С ПАРАГРАФАМИ (восстановление)`);
+      console.log(`${'─'.repeat(60)}`);
+      console.log(`📖 Глава: ${chapter.title}`);
+      console.log(`📦 Чанков для синхронизации: ${chapter.translatedChunks.length}`);
+      console.log(`📄 Параграфов: ${chapter.paragraphs.length}`);
+      console.log(`${'─'.repeat(60)}`);
+
+      // Determine if this is a partial translation (some paragraphs already have translations)
+      const hasExistingTranslations = chapter.paragraphs.some(
+        (p) => p.translatedText && p.translatedText.trim().length > 0
+      );
+      const partialTranslation = hasExistingTranslations;
+
+      // Perform synchronization
+      const syncedParagraphs = syncTranslationChunksToParagraphs(
+        chapter.paragraphs,
+        chapter.translatedChunks,
+        partialTranslation
+      );
+
+      // Update chapter with synced paragraphs
+      await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        {
+          paragraphs: syncedParagraphs,
+        },
+        requireToken(req)
+      );
+
+      console.log(`${'═'.repeat(60)}\n`);
+
+      res.json({
+        success: true,
+        message: 'Translation synchronized',
+        syncedParagraphs: syncedParagraphs.filter(
+          (p) => p.translatedText && p.translatedText.trim().length > 0
+        ).length,
+        totalParagraphs: chapter.paragraphs.length,
+        recovered: true,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to sync translation:', error);
+      res.status(500).json({ error: `Failed to sync translation: ${errorMessage}` });
+    }
+  }
+);
+
+// Translation endpoint with logging (requires auth)
+app.post(
+  '/api/projects/:projectId/chapters/:chapterId/translate',
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const chapter = project.chapters.find((c) => c.id === req.params.chapterId);
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      // Parse request body for translateOnlyEmpty flag
+      const body = req.body || {};
+      const translateOnlyEmpty = body.translateOnlyEmpty === true;
+
+      // Log chapter state before translation
+      const hasTranslatedText =
+        !!chapter.translatedText && chapter.translatedText.trim().length > 0;
+      const hasTranslatedParagraphs = chapter.paragraphs?.some(
+        (p) => p.translatedText && p.translatedText.trim().length > 0
+      );
+      console.log(`📋 Состояние главы перед переводом: ${chapter.title}`);
+      console.log(`   ID: ${chapter.id}, Статус: ${chapter.status}`);
+      console.log(`   Есть переведенный текст: ${hasTranslatedText}`);
+      console.log(`   Есть переведенные параграфы: ${hasTranslatedParagraphs}`);
+      console.log(`   Количество параграфов: ${chapter.paragraphs?.length || 0}`);
+      console.log(
+        `   Режим перевода: ${translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
+      );
+
+      // Update status
+      const token = requireToken(req);
+      await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        { status: 'translating' },
+        token
+      );
+
+      const startTime = Date.now();
+      const textLength = chapter.originalText.length;
+      const wordCount = chapter.originalText.split(/\s+/).length;
+
+      // Get models for each stage
+      const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
+        if (project.settings?.stageModels) {
+          return project.settings.stageModels[stage];
+        }
+        return project.settings?.model || config.openai.model;
+      };
+
+      const analysisModel = getStageModel('analysis');
+      const translationModel = getStageModel('translation');
+      const editingModel = getStageModel('editing');
+
+      console.log(`\n${'═'.repeat(60)}`);
+      console.log(`🔮 ЗАПРОС НА ПЕРЕВОД`);
+      console.log(`${'─'.repeat(60)}`);
+      console.log(`📖 Глава: ${chapter.title}`);
+      console.log(`📊 Размер: ${textLength} символов, ~${wordCount} слов`);
+      console.log(`🔑 API ключ: ${config.openai.apiKey ? '✅ Настроен' : '❌ Не настроен'}`);
+      console.log(
+        `🤖 Модели: Анализ=${analysisModel} | Перевод=${translationModel} | Редактура=${editingModel}`
+      );
+      console.log(
+        `🎨 Креативность: ${project.settings?.temperature ?? config.translation.temperature}`
+      );
+      console.log(`💾 Хранилище: LowDB (persistent)`);
+      console.log(`${'─'.repeat(60)}`);
+
+      // Perform translation using arcane-engine
+      performTranslation(
+        req.params.projectId,
+        req.params.chapterId,
+        chapter,
+        project,
+        startTime,
+        translateOnlyEmpty,
+        token
+      );
+
+      res.json({ status: 'started', chapterId: chapter.id });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to start translation' });
+    }
+  }
+);
 
 // Translation logic - uses arcane-engine
 async function performTranslation(
@@ -528,7 +752,8 @@ async function performTranslation(
   chapter: Chapter,
   project: Project,
   startTime: number,
-  translateOnlyEmpty: boolean = false
+  translateOnlyEmpty: boolean = false,
+  token: string
 ): Promise<void> {
   try {
     // Validate input data
@@ -560,17 +785,22 @@ async function performTranslation(
 
       const demoText = updatedParagraphs.map((p) => p.translatedText).join('\n\n');
 
-      await updateChapter(projectId, chapterId, {
-        paragraphs: updatedParagraphs,
-        translatedText: demoText,
-        status: 'completed',
-        translationMeta: {
-          tokensUsed: 0,
-          duration: Date.now() - startTime,
-          model: 'demo',
-          translatedAt: new Date().toISOString(),
+      await updateChapter(
+        projectId,
+        chapterId,
+        {
+          paragraphs: updatedParagraphs,
+          translatedText: demoText,
+          status: 'completed',
+          translationMeta: {
+            tokensUsed: 0,
+            duration: Date.now() - startTime,
+            model: 'demo',
+            translatedAt: new Date().toISOString(),
+          },
         },
-      });
+        token
+      );
 
       console.log(
         `✅ Демо-перевод завершён за ${Date.now() - startTime}ms (${paragraphs.length} абзацев)`
@@ -670,7 +900,7 @@ async function performTranslation(
 
       if (emptyParagraphs.length === 0) {
         console.log(`ℹ️  Нет пустых параграфов для перевода. Перевод пропущен.`);
-        await updateChapter(projectId, chapterId, { status: 'completed' });
+        await updateChapter(projectId, chapterId, { status: 'completed' }, token);
         return;
       }
 
@@ -782,10 +1012,15 @@ async function performTranslation(
       );
       console.log(`   Токены: ${result.tokensUsed}, Время: ${result.duration}ms`);
 
-      await updateChapter(projectId, chapterId, {
-        status: 'error',
-        translatedText: result.translatedText || `❌ Ошибка перевода: ${errorMessage}`,
-      });
+      await updateChapter(
+        projectId,
+        chapterId,
+        {
+          status: 'error',
+          translatedText: result.translatedText || `❌ Ошибка перевода: ${errorMessage}`,
+        },
+        token
+      );
 
       return;
     }
@@ -842,7 +1077,7 @@ async function performTranslation(
     }
 
     // Get current chapter state for synchronization
-    const currentChapter = await getChapter(projectId, chapterId);
+    const currentChapter = await getChapter(projectId, chapterId, token);
     if (!currentChapter) {
       throw new Error('Не удалось получить главу для синхронизации');
     }
@@ -884,25 +1119,30 @@ async function performTranslation(
         : translatedChunks;
 
     // Save translation with synced paragraphs
-    await updateChapter(projectId, chapterId, {
-      translatedText: result.translatedText,
-      translatedChunks: chunksToSave,
-      paragraphs: syncedParagraphs, // Auto-synced paragraphs
-      status: 'completed',
-      translationMeta: {
-        tokensUsed: result.tokensUsed,
-        tokensByStage: result.tokensByStage,
-        duration: result.duration,
-        model: modelInfo, // Store all models used (or single model if stages skipped)
-        translatedAt: new Date().toISOString(),
+    await updateChapter(
+      projectId,
+      chapterId,
+      {
+        translatedText: result.translatedText,
+        translatedChunks: chunksToSave,
+        paragraphs: syncedParagraphs, // Auto-synced paragraphs
+        status: 'completed',
+        translationMeta: {
+          tokensUsed: result.tokensUsed,
+          tokensByStage: result.tokensByStage,
+          duration: result.duration,
+          model: modelInfo, // Store all models used (or single model if stages skipped)
+          translatedAt: new Date().toISOString(),
+        },
       },
-    });
+      token
+    );
 
     console.log(`📦 Сохранено ${chunksToSave.length} чанков перевода`);
     console.log(`✅ Глава успешно переведена и синхронизирована: ${chapter.title}`);
 
     // Verify the chapter was saved correctly
-    const savedChapter = await getChapter(projectId, chapterId);
+    const savedChapter = await getChapter(projectId, chapterId, token);
     if (savedChapter) {
       const savedHasText =
         !!savedChapter.translatedText && savedChapter.translatedText.trim().length > 0;
@@ -942,7 +1182,7 @@ async function performTranslation(
     // Auto-add detected glossary entries
     if (result.glossaryUpdates?.length) {
       for (const entry of result.glossaryUpdates) {
-        await addGlossaryEntry(projectId, entry);
+        await addGlossaryEntry(projectId, entry, token);
       }
     }
   } catch (error) {
@@ -955,13 +1195,18 @@ async function performTranslation(
     console.log(`${'═'.repeat(60)}\n`);
 
     // Try to preserve existing translation if any
-    const currentChapter = await getChapter(projectId, chapterId);
+    const currentChapter = await getChapter(projectId, chapterId, token);
     const existingTranslation = currentChapter?.translatedText;
 
-    await updateChapter(projectId, chapterId, {
-      translatedText: existingTranslation || `❌ Ошибка перевода: ${errorMessage}`,
-      status: 'error',
-    });
+    await updateChapter(
+      projectId,
+      chapterId,
+      {
+        translatedText: existingTranslation || `❌ Ошибка перевода: ${errorMessage}`,
+        status: 'error',
+      },
+      token
+    );
 
     console.log(`⚠️ Глава помечена как ошибка: ${chapter.title}`);
     console.log(`   Сохранен существующий перевод: ${!!existingTranslation}`);
@@ -1465,9 +1710,14 @@ async function translateWithOpenAI(
 
 // ============ Glossary ============
 
-app.get('/api/projects/:id/glossary', async (req, res) => {
+app.get('/api/projects/:id/glossary', requireAuth, async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -1477,8 +1727,19 @@ app.get('/api/projects/:id/glossary', async (req, res) => {
   }
 });
 
-app.post('/api/projects/:id/glossary', async (req, res) => {
+app.post('/api/projects/:id/glossary', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
     let declensions = req.body.declensions;
     let translated = req.body.translated;
 
@@ -1497,16 +1758,20 @@ app.post('/api/projects/:id/glossary', async (req, res) => {
       console.log(`📝 Auto-declension for "${req.body.original}":`, declensions);
     }
 
-    const entry = await addGlossaryEntry(req.params.id, {
-      type: req.body.type || 'term',
-      original: req.body.original,
-      translated: translated,
-      gender: req.body.gender,
-      description: req.body.description, // Character/location/term description
-      notes: req.body.notes, // User notes (separate from description)
-      declensions: declensions,
-      firstAppearance: req.body.firstAppearance, // Optional: chapter number
-    });
+    const entry = await addGlossaryEntry(
+      req.params.id,
+      {
+        type: req.body.type || 'term',
+        original: req.body.original,
+        translated: translated,
+        gender: req.body.gender,
+        description: req.body.description, // Character/location/term description
+        notes: req.body.notes, // User notes (separate from description)
+        declensions: declensions,
+        firstAppearance: req.body.firstAppearance, // Optional: chapter number
+      },
+      requireToken(req)
+    );
 
     // Clear agent cache to reload glossary
     clearAgentCache(req.params.id);
@@ -1521,9 +1786,19 @@ app.post('/api/projects/:id/glossary', async (req, res) => {
   }
 });
 
-// Update glossary entry
-app.put('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
+// Update glossary entry (requires auth)
+app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
     const { original, translated, type, gender, description, notes } = req.body;
 
     let declensions = req.body.declensions;
@@ -1534,15 +1809,20 @@ app.put('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
       declensions = result.declensions;
     }
 
-    const entry = await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
-      original,
-      translated,
-      type,
-      gender,
-      description, // Character/location/term description
-      notes, // User notes (separate from description)
-      declensions,
-    });
+    const entry = await updateGlossaryEntry(
+      req.params.projectId,
+      req.params.entryId,
+      {
+        original,
+        translated,
+        type,
+        gender,
+        description, // Character/location/term description
+        notes, // User notes (separate from description)
+        declensions,
+      },
+      requireToken(req)
+    );
 
     if (!entry) {
       return res.status(404).json({ error: 'Entry not found' });
@@ -1559,9 +1839,23 @@ app.put('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
   }
 });
 
-app.delete('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
+app.delete('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, res) => {
   try {
-    const success = await deleteGlossaryEntry(req.params.projectId, req.params.entryId);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const success = await deleteGlossaryEntry(
+      req.params.projectId,
+      req.params.entryId,
+      requireToken(req)
+    );
     if (!success) {
       return res.status(404).json({ error: 'Entry not found' });
     }
@@ -1575,17 +1869,22 @@ app.delete('/api/projects/:projectId/glossary/:entryId', async (req, res) => {
   }
 });
 
-// Upload image to glossary entry gallery
+// Upload image to glossary entry gallery (requires auth)
 app.post(
   '/api/projects/:projectId/glossary/:entryId/image',
+  requireAuth,
   uploadImage.single('image'),
   async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       if (!req.file) {
         return res.status(400).json({ error: 'No image file provided' });
       }
 
-      const project = await getProject(req.params.projectId);
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
       if (!project) {
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: 'Project not found' });
@@ -1609,11 +1908,16 @@ app.post(
       imageUrls = [...imageUrls, imageUrl];
 
       // Update entry with new gallery
-      const updatedEntry = await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
-        imageUrls,
-        // Keep legacy imageUrl for backward compatibility (use first image)
-        imageUrl: imageUrls[0],
-      });
+      const updatedEntry = await updateGlossaryEntry(
+        req.params.projectId,
+        req.params.entryId,
+        {
+          imageUrls,
+          // Keep legacy imageUrl for backward compatibility (use first image)
+          imageUrl: imageUrls[0],
+        },
+        requireToken(req)
+      );
 
       if (!updatedEntry) {
         fs.unlinkSync(req.file.path);
@@ -1628,61 +1932,78 @@ app.post(
   }
 );
 
-// Delete specific image from glossary entry gallery
-app.delete('/api/projects/:projectId/glossary/:entryId/image/:imageIndex', async (req, res) => {
-  try {
-    const project = await getProject(req.params.projectId);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+// Delete specific image from glossary entry gallery (requires auth)
+app.delete(
+  '/api/projects/:projectId/glossary/:entryId/image/:imageIndex',
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const entry = project.glossary.find((e) => e.id === req.params.entryId);
+      if (!entry) {
+        return res.status(404).json({ error: 'Entry not found' });
+      }
+
+      const imageIndex = parseInt(req.params.imageIndex, 10);
+      if (isNaN(imageIndex)) {
+        return res.status(400).json({ error: 'Invalid image index' });
+      }
+
+      // Get current imageUrls (migrate from legacy if needed)
+      let imageUrls = entry.imageUrls || [];
+      if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
+        imageUrls = [entry.imageUrl, ...imageUrls];
+      }
+
+      if (imageIndex < 0 || imageIndex >= imageUrls.length) {
+        return res.status(400).json({ error: 'Image index out of range' });
+      }
+
+      // Delete the image file
+      const imageUrlToDelete = imageUrls[imageIndex];
+      const imagePath = path.join(imagesDir, path.basename(imageUrlToDelete));
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+
+      // Remove from array
+      imageUrls = imageUrls.filter((_, idx) => idx !== imageIndex);
+
+      // Update entry
+      const updatedEntry = await updateGlossaryEntry(
+        req.params.projectId,
+        req.params.entryId,
+        {
+          imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+          imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Legacy support
+        },
+        requireToken(req)
+      );
+
+      res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+      res.status(500).json({ error: 'Failed to delete image' });
     }
-
-    const entry = project.glossary.find((e) => e.id === req.params.entryId);
-    if (!entry) {
-      return res.status(404).json({ error: 'Entry not found' });
-    }
-
-    const imageIndex = parseInt(req.params.imageIndex, 10);
-    if (isNaN(imageIndex)) {
-      return res.status(400).json({ error: 'Invalid image index' });
-    }
-
-    // Get current imageUrls (migrate from legacy if needed)
-    let imageUrls = entry.imageUrls || [];
-    if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
-      imageUrls = [entry.imageUrl, ...imageUrls];
-    }
-
-    if (imageIndex < 0 || imageIndex >= imageUrls.length) {
-      return res.status(400).json({ error: 'Image index out of range' });
-    }
-
-    // Delete the image file
-    const imageUrlToDelete = imageUrls[imageIndex];
-    const imagePath = path.join(imagesDir, path.basename(imageUrlToDelete));
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    }
-
-    // Remove from array
-    imageUrls = imageUrls.filter((_, idx) => idx !== imageIndex);
-
-    // Update entry
-    const updatedEntry = await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
-      imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-      imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Legacy support
-    });
-
-    res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
-  } catch (error) {
-    console.error('Failed to delete image:', error);
-    res.status(500).json({ error: 'Failed to delete image' });
   }
-});
+);
 
-// Legacy endpoint: delete all images (for backward compatibility)
-app.delete('/api/projects/:projectId/glossary/:entryId/image', async (req, res) => {
+// Legacy endpoint: delete all images (for backward compatibility) (requires auth)
+app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, async (req, res) => {
   try {
-    const project = await getProject(req.params.projectId);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -1707,10 +2028,15 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', async (req, res) 
     }
 
     // Update entry to remove all images
-    await updateGlossaryEntry(req.params.projectId, req.params.entryId, {
-      imageUrls: undefined,
-      imageUrl: undefined,
-    });
+    await updateGlossaryEntry(
+      req.params.projectId,
+      req.params.entryId,
+      {
+        imageUrls: undefined,
+        imageUrl: undefined,
+      },
+      requireToken(req)
+    );
 
     res.json({ success: true });
   } catch (error) {
@@ -1721,10 +2047,20 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', async (req, res) 
 
 // ============ Paragraphs ============
 
-// Get chapter with paragraph stats
-app.get('/api/projects/:projectId/chapters/:chapterId/stats', async (req, res) => {
+// Get chapter with paragraph stats (requires auth)
+app.get('/api/projects/:projectId/chapters/:chapterId/stats', requireAuth, async (req, res) => {
   try {
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const chapter = await getChapter(req.params.projectId, req.params.chapterId, requireToken(req));
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -1737,18 +2073,33 @@ app.get('/api/projects/:projectId/chapters/:chapterId/stats', async (req, res) =
 });
 
 // Update single paragraph
-// Update chapter title
-app.put('/api/projects/:projectId/chapters/:chapterId/title', async (req, res) => {
+// Update chapter title (requires auth)
+app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify project belongs to user
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
     const { title } = req.body;
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    const chapter = await updateChapter(req.params.projectId, req.params.chapterId, {
-      title: title.trim(),
-    });
+    const chapter = await updateChapter(
+      req.params.projectId,
+      req.params.chapterId,
+      {
+        title: title.trim(),
+      },
+      requireToken(req)
+    );
 
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
@@ -1763,16 +2114,25 @@ app.put('/api/projects/:projectId/chapters/:chapterId/title', async (req, res) =
   }
 });
 
-// Update chapter number
-app.put('/api/projects/:projectId/chapters/:chapterId/number', async (req, res) => {
+// Update chapter number (requires auth)
+app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const { number } = req.body;
 
     if (typeof number !== 'number' || number < 1 || !Number.isInteger(number)) {
       return res.status(400).json({ error: 'Valid chapter number is required (positive integer)' });
     }
 
-    const chapter = await updateChapterNumber(req.params.projectId, req.params.chapterId, number);
+    const chapter = await updateChapterNumber(
+      req.params.projectId,
+      req.params.chapterId,
+      number,
+      requireToken(req)
+    );
 
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
@@ -1781,7 +2141,7 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', async (req, res) 
     console.log(`🔢 Номер главы обновлён: "${chapter.title}" → ${number}`);
 
     // Return updated project with reordered chapters
-    const project = await getProject(req.params.projectId);
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
     res.json(project);
   } catch (error) {
     console.error('Failed to update chapter number:', error);
@@ -1790,8 +2150,10 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', async (req, res) 
   }
 });
 
+// Update paragraph (requires auth)
 app.put(
   '/api/projects/:projectId/chapters/:chapterId/paragraphs/:paragraphId',
+  requireAuth,
   async (req, res) => {
     try {
       const { translatedText, status } = req.body;
@@ -1806,11 +2168,13 @@ app.put(
         updates.status = status;
       }
 
+      const token = requireToken(req);
       const paragraph = await updateParagraph(
         req.params.projectId,
         req.params.chapterId,
         req.params.paragraphId,
-        updates
+        updates,
+        token
       );
 
       if (!paragraph) {
@@ -1826,10 +2190,14 @@ app.put(
   }
 );
 
-// Bulk update paragraph statuses (e.g., approve all)
+// Bulk update paragraph statuses (e.g., approve all) (requires auth)
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/paragraphs/bulk-status',
+  requireAuth,
   async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     try {
       const { paragraphIds, status } = req.body;
 
@@ -1843,7 +2211,8 @@ app.post(
           req.params.projectId,
           req.params.chapterId,
           paragraphId,
-          { status }
+          { status },
+          requireToken(req)
         );
         if (paragraph) {
           results.push(paragraph);
@@ -1861,9 +2230,13 @@ app.post(
 
 // ============ Export ============
 
-// Export project to EPUB or FB2
-app.post('/api/projects/:id/export', async (req, res) => {
+// Export project to EPUB or FB2 (requires auth)
+app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const { format, author } = req.body;
     const projectId = req.params.id;
 
@@ -1871,7 +2244,7 @@ app.post('/api/projects/:id/export', async (req, res) => {
       return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
     }
 
-    const project = await getProject(projectId);
+    const project = await getProject(projectId, req.user.id, requireToken(req));
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -1915,8 +2288,7 @@ app.get('*', (_req, res) => {
 // ============ Start Server ============
 
 async function startServer() {
-  // Initialize database
-  await initDatabase(config.storage.projectsDir);
+  // Supabase database is already initialized, no need for local init
 
   app.listen(PORT, () => {
     console.log(`

@@ -526,9 +526,7 @@ main {
 .card:hover {
   border-color: var(--accent);
   border-image: linear-gradient(135deg, var(--accent), var(--accent-dim)) 1;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 24px rgba(139, 92, 246, 0.15);
 }
 
@@ -582,17 +580,13 @@ main {
 .btn-primary {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
   color: white;
-  box-shadow: 
-    0 4px 16px var(--accent-glow),
-    0 0 0 1px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.3);
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 
-    0 8px 24px var(--accent-glow),
-    0 0 0 1px rgba(139, 92, 246, 0.5),
+  box-shadow: 0 8px 24px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.5),
     0 0 32px rgba(139, 92, 246, 0.3);
 }
 
@@ -610,9 +604,7 @@ main {
 .btn-secondary:hover {
   background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
   border-color: var(--accent);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 20px rgba(139, 92, 246, 0.1);
   transform: translateY(-1px);
 }
@@ -733,18 +725,14 @@ main {
 .project-item:hover {
   background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
   border-color: var(--accent);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 20px rgba(139, 92, 246, 0.1);
 }
 
 .project-item.active {
   background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
   border-color: var(--accent);
-  box-shadow: 
-    0 4px 16px var(--accent-glow),
-    0 0 0 1px rgba(139, 92, 246, 0.4),
+  box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.4),
     0 0 24px rgba(139, 92, 246, 0.2);
 }
 
@@ -899,9 +887,7 @@ main {
 .chapter-search-input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 
-    0 0 0 3px var(--accent-glow),
-    0 4px 16px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2);
 }
 
 .chapter-search-input::placeholder {
@@ -943,18 +929,14 @@ main {
 .chapter-item:hover {
   background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
   border-color: var(--accent);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 20px rgba(139, 92, 246, 0.1);
 }
 
 .chapter-item.active {
   background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
   border-color: var(--accent);
-  box-shadow: 
-    0 4px 16px var(--accent-glow),
-    0 0 0 1px rgba(139, 92, 246, 0.4),
+  box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.4),
     0 0 24px rgba(139, 92, 246, 0.2);
 }
 
@@ -1022,9 +1004,7 @@ main {
 
 .chapter-number-input:focus {
   border-color: var(--accent);
-  box-shadow: 
-    0 0 0 2px var(--accent-glow),
-    0 2px 8px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
 .chapter-number-edit-actions {
@@ -1158,9 +1138,7 @@ main {
   border-color: var(--accent);
   color: var(--accent);
   transform: scale(1.1);
-  box-shadow: 
-    0 4px 12px rgba(139, 92, 246, 0.3),
-    0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 20px rgba(139, 92, 246, 0.15);
 }
 
@@ -1237,9 +1215,7 @@ main {
 
 .chapter-title-input:focus {
   outline: none;
-  box-shadow: 
-    0 0 0 3px var(--accent-glow),
-    0 4px 16px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2);
 }
 
 .chapter-title-edit-actions {
@@ -1382,11 +1358,8 @@ main {
   max-width: 90vw;
   transform: translateY(20px) scale(0.95);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 25px 80px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(139, 92, 246, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 0 40px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 40px rgba(139, 92, 246, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -1445,6 +1418,44 @@ main {
   color: var(--error);
   transform: scale(1.1) rotate(90deg);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+/* === Auth Modal === */
+
+.auth-modal {
+  padding: 1.25rem !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.auth-modal .modal-title {
+  margin-bottom: 0.75rem !important;
+  font-size: 1.25rem !important;
+}
+
+.auth-tabs {
+  margin-bottom: 0.75rem !important;
+}
+
+.auth-form {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-form .form-group {
+  margin-bottom: 0;
+}
+
+.auth-form .form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Email Confirmation Modal should appear above Auth Modal */
+.email-confirmation-modal-overlay {
+  z-index: 1500;
 }
 
 /* =============================================================
@@ -1527,18 +1538,14 @@ textarea.form-input:focus {
   outline: none;
   border-color: var(--accent);
   background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.95) 100%);
-  box-shadow: 
-    0 0 0 3px var(--accent-glow),
-    0 4px 16px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2),
     0 0 24px rgba(139, 92, 246, 0.1);
 }
 
 .form-select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 
-    0 0 0 3px var(--accent-glow),
-    0 4px 16px rgba(139, 92, 246, 0.2),
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2),
     0 0 24px rgba(139, 92, 246, 0.1);
 }
 
@@ -1584,7 +1591,6 @@ textarea.form-input:focus {
 .form-select option:hover {
   background: var(--bg-hover);
 }
-
 
 .form-actions {
   display: flex;
@@ -1697,9 +1703,7 @@ textarea.form-input:focus {
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: auto, 12px;
-  box-shadow: 
-    0 0 0 3px var(--accent-glow),
-    0 4px 16px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2);
 }
 
 .setting-select option {
@@ -2069,9 +2073,7 @@ textarea.form-input:focus {
 .glossary-card:hover {
   border-color: var(--accent);
   transform: translateY(-2px);
-  box-shadow: 
-    0 12px 32px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(139, 92, 246, 0.3),
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.3),
     0 0 24px rgba(139, 92, 246, 0.2);
 }
 
@@ -2789,9 +2791,7 @@ textarea.form-input:focus {
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 
-    0 0 10px rgba(139, 92, 246, 0.5),
-    0 0 20px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5), 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
 .progress-fill::after {

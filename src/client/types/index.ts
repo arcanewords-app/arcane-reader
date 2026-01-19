@@ -173,3 +173,24 @@ export interface BulkUpdateResponse {
   paragraphs: Paragraph[];
 }
 
+// === Auth ===
+
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
+export interface Session {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+}
+
+export interface LoginResponse {
+  user: AuthUser;
+  session: Session | null;
+}
+
+export interface RegisterResponse {
+  user: AuthUser;
+}

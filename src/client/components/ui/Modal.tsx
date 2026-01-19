@@ -22,6 +22,12 @@ export function Modal({
   className = '',
   preventClose = false,
 }: ModalProps) {
+  // Don't render modal DOM when closed (to avoid layout issues)
+  // This check must be at the very beginning to prevent any DOM creation
+  if (!isOpen) {
+    return null;
+  }
+
   // Close on Escape key
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -33,15 +39,13 @@ export function Modal({
   );
 
   useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, handleKeyDown]);
+  }, [handleKeyDown]);
 
   // Handle overlay click
   const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
@@ -50,19 +54,16 @@ export function Modal({
     }
   };
 
-  const modalClasses = [
-    'modal',
-    size === 'large' && 'glossary-modal',
-    className,
-  ]
+  const modalClasses = ['modal', size === 'large' && 'glossary-modal', className]
     .filter(Boolean)
     .join(' ');
 
   const overlayClasses = [
     'modal-overlay',
-    isOpen && 'active',
+    'active',
     size === 'large' && 'glossary-modal-overlay',
     className.includes('nested') && 'nested-modal',
+    className === 'email-confirmation-modal' && 'email-confirmation-modal-overlay',
   ]
     .filter(Boolean)
     .join(' ');
@@ -80,16 +81,13 @@ export function Modal({
         ) : (
           <h3 class="modal-title">{title}</h3>
         )}
-        
+
         {children}
-        
+
         {footer && (
-          <div class={size === 'large' ? 'glossary-modal-footer' : 'form-actions'}>
-            {footer}
-          </div>
+          <div class={size === 'large' ? 'glossary-modal-footer' : 'form-actions'}>{footer}</div>
         )}
       </div>
     </div>
   );
 }
-

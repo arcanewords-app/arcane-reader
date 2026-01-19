@@ -3,6 +3,7 @@
  * Typed fetch wrapper for REST API communication
  */
 
+import { authService } from '../services/authService';
 import type {
   SystemStatus,
   Project,
@@ -32,14 +33,83 @@ export class ApiError extends Error {
 
 // === Fetch Helpers ===
 
+/**
+ * Helper to handle 401 errors consistently
+ */
+function handleAuthError(response: Response): void {
+  if (response.status === 401) {
+    authService.clearStorage();
+    if (window.location.pathname !== '/') {
+      window.location.href = '/?login=required';
+    }
+  }
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  // Get token from authService
+  const token = authService.getToken();
+  
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   });
+
+  // Handle 401 - unauthorized (token expired or invalid)
+  if (response.status === 401) {
+    handleAuthError(response);
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(
+      data.error || 'Unauthorized',
+      401,
+      data
+    );
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(
+      data.error || `HTTP ${response.status}`,
+      response.status,
+      data
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch helper for FormData requests (multipart/form-data)
+ * Does not set Content-Type header (browser will set it with boundary)
+ */
+async function fetchFormData<T>(url: string, formData: FormData, options?: RequestInit): Promise<T> {
+  // Get token from authService
+  const token = authService.getToken();
+  
+  const response = await fetch(url, {
+    ...options,
+    method: options?.method || 'POST',
+    headers: {
+      // Do not set Content-Type - browser will set it with boundary for FormData
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
+    body: formData,
+  });
+
+  // Handle 401 - unauthorized (token expired or invalid)
+  if (response.status === 401) {
+    handleAuthError(response);
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(
+      data.error || 'Unauthorized',
+      401,
+      data
+    );
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -120,17 +190,7 @@ export const api = {
     formData.append('file', file);
     formData.append('title', title);
 
-    const response = await fetch(`/api/projects/${projectId}/chapters`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new ApiError(data.error || 'Upload failed', response.status, data);
-    }
-
-    return response.json();
+    return fetchFormData<Chapter>(`/api/projects/${projectId}/chapters`, formData);
   },
 
   async getChapter(projectId: string, chapterId: string): Promise<Chapter> {
@@ -274,20 +334,10 @@ export const api = {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(
+    return fetchFormData<{ imageUrl: string; imageUrls: string[]; entry: GlossaryEntry }>(
       `/api/projects/${projectId}/glossary/${entryId}/image`,
-      {
-        method: 'POST',
-        body: formData,
-      }
+      formData
     );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new ApiError(data.error || 'Upload failed', response.status, data);
-    }
-
-    return response.json();
   },
 
   async deleteGlossaryImage(

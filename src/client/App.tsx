@@ -1,17 +1,26 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { api } from './api/client';
-import type { SystemStatus, Project, Chapter, ProjectSettings } from './types';
+import type { SystemStatus, Project, Chapter, ProjectSettings, AuthUser } from './types';
+import { authService } from './services/authService';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ProjectInfo } from './components/ProjectInfo';
 import { ChapterView } from './components/ChapterView';
 import { ReadingMode } from './components/ReadingMode';
 import { GlossaryModal } from './components/Glossary';
+import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { Card, Button, Modal } from './components/ui';
 
 type AppStatus = 'loading' | 'ready' | 'error';
 
 export function App() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [emailForConfirmation, setEmailForConfirmation] = useState('');
+
   // System state
   const [status, setStatus] = useState<AppStatus>('loading');
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -28,12 +37,40 @@ export function App() {
   const [deletingChapter, setDeletingChapter] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
 
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        setIsAuthenticated(!!user);
+        setAuthUser(user);
+        
+        // If not authenticated, show auth modal
+        if (!user) {
+          setShowAuthModal(true);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setIsAuthenticated(false);
+        setShowAuthModal(true);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
   // Read URL parameters on mount (only once)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const projectId = params.get('project');
     const chapterId = params.get('chapter');
     const reading = params.get('reading') === 'true';
+    const loginRequired = params.get('login') === 'required';
+
+    // If login required, show auth modal
+    if (loginRequired) {
+      setShowAuthModal(true);
+    }
 
     if (projectId) {
       setSelectedProjectId(projectId);
@@ -152,6 +189,25 @@ export function App() {
     });
   }, [project]);
 
+  // Auth handlers
+  const handleLogin = useCallback((user: AuthUser) => {
+    setAuthUser(user);
+    setIsAuthenticated(true);
+    setShowAuthModal(false);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await authService.logout();
+    setAuthUser(null);
+    setIsAuthenticated(false);
+    setShowAuthModal(true);
+  }, []);
+
+  const handleEmailNotConfirmed = useCallback((email: string) => {
+    setEmailForConfirmation(email);
+    setShowEmailConfirmation(true);
+  }, []);
+
   const handleRefreshProject = useCallback(async () => {
     if (!project) return;
     const updated = await api.getProject(project.id);
@@ -183,9 +239,39 @@ export function App() {
   const currentChapter = sortedChapters.find((c) => c.id === selectedChapterId);
   const chapterIndex = sortedChapters.findIndex((c) => c.id === selectedChapterId);
 
+  // If auth check is still in progress - show loader
+  if (isAuthenticated === null) {
+    return (
+      <div class="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div>Загрузка...</div>
+      </div>
+    );
+  }
+
+  // If not authenticated - show auth modal
+  if (!isAuthenticated) {
+    return (
+      <div class="app">
+        <AuthModal 
+          isOpen={showAuthModal} 
+          onSuccess={handleLogin}
+          onEmailNotConfirmed={handleEmailNotConfirmed}
+        />
+        {showEmailConfirmation && (
+          <EmailConfirmationModal
+            isOpen={showEmailConfirmation}
+            email={emailForConfirmation}
+            onClose={() => setShowEmailConfirmation(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // If authenticated - show main app
   return (
     <div class="app">
-      <Header status={status} systemStatus={systemStatus} />
+      <Header status={status} systemStatus={systemStatus} user={authUser} onLogout={handleLogout} />
 
       <main>
         <Sidebar
