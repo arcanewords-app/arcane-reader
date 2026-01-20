@@ -9,7 +9,7 @@ import { ChapterView } from './components/ChapterView';
 import { ReadingMode } from './components/ReadingMode';
 import { GlossaryModal } from './components/Glossary';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
-import { Card, Button, Modal } from './components/ui';
+import { Card, Button, Modal, LoadingSpinner } from './components/ui';
 
 type AppStatus = 'loading' | 'ready' | 'error';
 
@@ -37,6 +37,7 @@ export function App() {
   const [deletingChapter, setDeletingChapter] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loadingProject, setLoadingProject] = useState(false);
 
   // Handle window resize and popstate - close sidebar on desktop
   useEffect(() => {
@@ -195,21 +196,28 @@ export function App() {
     if (!selectedProjectId) {
       setProject(null);
       setSelectedChapterId(null);
+      setLoadingProject(false);
       // Don't reset reading mode here - it will be reset by URL update effect
       return;
     }
 
+    setLoadingProject(true);
     api.getProject(selectedProjectId)
-      .then(setProject)
+      .then((project) => {
+        setProject(project);
+        setLoadingProject(false);
+      })
       .catch((error) => {
         // Ignore 401 errors - they are handled globally and will show login page
         if (error instanceof ApiError && error.status === 401) {
           // Auth error - handled globally, just clear project
           setProject(null);
+          setLoadingProject(false);
           return;
         }
         console.error('Failed to load project:', error);
         setProject(null);
+        setLoadingProject(false);
       });
   }, [selectedProjectId]);
 
@@ -246,10 +254,15 @@ export function App() {
 
   const handleUploadChapter = useCallback(async (file: File, title: string) => {
     if (!project) return;
-    await api.uploadChapter(project.id, file, title);
-    const updated = await api.getProject(project.id);
-    setProject(updated);
-    setRefreshTrigger((n) => n + 1); // Update project list
+    try {
+      await api.uploadChapter(project.id, file, title);
+      const updated = await api.getProject(project.id);
+      setProject(updated);
+      setRefreshTrigger((n) => n + 1); // Update project list
+    } catch (error) {
+      // Error will be handled by ChapterList component's error modal
+      throw error;
+    }
   }, [project]);
 
   const handleSettingsChange = useCallback((settings: ProjectSettings) => {
@@ -260,6 +273,8 @@ export function App() {
   const handleDeleteProject = useCallback(() => {
     setSelectedProjectId(null);
     setProject(null);
+    // Refresh project list to remove deleted project
+    setRefreshTrigger((n) => n + 1);
   }, []);
 
   const handleChapterUpdate = useCallback((chapter: Chapter) => {
@@ -406,7 +421,14 @@ export function App() {
           isMobileOpen={sidebarOpen}
         />
 
-        <section class="content">
+        <section class="content" style={{ position: 'relative' }}>
+          {/* Loading overlay when switching projects */}
+          {loadingProject && (
+            <div class="project-loading-overlay">
+              <LoadingSpinner size="lg" text="Загрузка проекта..." />
+            </div>
+          )}
+
           {/* Alert for missing API key */}
           {systemStatus && !systemStatus.ai.configured && (
             <div class="alert-banner visible">
@@ -422,7 +444,7 @@ export function App() {
           )}
 
           {/* Welcome screen */}
-          {!project && (
+          {!project && !loadingProject && (
             <Card className="welcome">
               <img src="/arcane_icon.png" alt="Arcane" class="welcome-logo" />
               <h2>Добро пожаловать в Arcane</h2>

@@ -18,6 +18,7 @@ interface ChapterHeaderProps {
   onEnterReadingMode?: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
   translating: boolean;
+  isOriginalReadingMode?: boolean;
 }
 
 export function ChapterHeader({
@@ -34,6 +35,7 @@ export function ChapterHeader({
   onEnterReadingMode,
   onChapterUpdate,
   translating,
+  isOriginalReadingMode = false,
 }: ChapterHeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(chapter.title);
@@ -42,7 +44,14 @@ export function ChapterHeader({
   const hasTranslations = chapter.paragraphs?.some((p) => p.translatedText);
   const hasTranslatedText = !!chapter.translatedText;
   const isCompleted = chapter.status === 'completed';
-  const canRead = hasTranslations || hasTranslatedText;
+  
+  // In original reading mode, check for original text
+  // Otherwise, check for translated text
+  const hasOriginalText = !!(chapter.originalText && chapter.originalText.trim().length > 0);
+  const hasOriginalParagraphs = chapter.paragraphs?.some((p) => p.originalText && p.originalText.trim().length > 0);
+  const canRead = isOriginalReadingMode 
+    ? (hasOriginalText || hasOriginalParagraphs)
+    : (hasTranslations || hasTranslatedText);
   
   // Check for empty paragraphs (need translation)
   const emptyParagraphs = chapter.paragraphs?.filter((p) => {
@@ -166,7 +175,9 @@ export function ChapterHeader({
       </div>
 
       <div class="chapter-actions">
-        <StatusBadge status={chapter.status} />
+        {!isOriginalReadingMode && (
+          <StatusBadge status={chapter.status} />
+        )}
         
         {canRead && onEnterReadingMode && (
           <Button variant="secondary" size="sm" onClick={onEnterReadingMode} title="Режим чтения">
@@ -181,7 +192,7 @@ export function ChapterHeader({
         )}
         
         {/* Translate empty paragraphs button - show if chapter has some translations but also empty paragraphs */}
-        {hasEmptyParagraphs && hasTranslations && chapter.status !== 'translating' && onTranslateEmpty && (
+        {!isOriginalReadingMode && hasEmptyParagraphs && hasTranslations && chapter.status !== 'translating' && onTranslateEmpty && (
           <Button
             variant="secondary"
             size="sm"
@@ -193,7 +204,7 @@ export function ChapterHeader({
           </Button>
         )}
         
-        {chapter.status === 'translating' && (
+        {!isOriginalReadingMode && chapter.status === 'translating' && (
           <Button
             variant="secondary"
             size="sm"
@@ -204,8 +215,8 @@ export function ChapterHeader({
           </Button>
         )}
         
-        {/* Show translate button if: not completed, not translating, or completed (allow retranslation) */}
-        {(() => {
+        {/* Show translate button if: not completed, not translating, or completed (allow retranslation) - hidden in original reading mode */}
+        {!isOriginalReadingMode && (() => {
           // Don't show translate button if currently translating
           if (chapter.status === 'translating') {
             return null;

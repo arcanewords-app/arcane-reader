@@ -374,6 +374,29 @@ export const api = {
     });
   },
 
+  // === Project Cover Image ===
+
+  async uploadProjectCover(
+    projectId: string,
+    file: File
+  ): Promise<{ coverImageUrl: string; project: Project }> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    return fetchFormData<{ coverImageUrl: string; project: Project }>(
+      `/api/projects/${projectId}/cover`,
+      formData
+    );
+  },
+
+  async deleteProjectCover(
+    projectId: string
+  ): Promise<{ success: boolean; project: Project }> {
+    return fetchJson(`/api/projects/${projectId}/cover`, {
+      method: 'DELETE',
+    });
+  },
+
   // === Export ===
 
   async exportProject(

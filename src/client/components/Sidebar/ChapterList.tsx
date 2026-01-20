@@ -10,6 +10,7 @@ interface ChapterListProps {
   chapters: Chapter[];
   selectedId: string | null;
   projectId: string | null;
+  originalReadingMode?: boolean;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
   onUpload: (file: File, title: string) => Promise<void>;
@@ -20,6 +21,7 @@ export function ChapterList({
   chapters,
   selectedId,
   projectId,
+  originalReadingMode = false,
   onSelect,
   onDelete,
   onUpload,
@@ -34,6 +36,11 @@ export function ChapterList({
   const [savingNumber, setSavingNumber] = useState(false);
   const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
   const [dragOverChapterId, setDragOverChapterId] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    title: string;
+    message: string;
+    details?: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const numberInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,18 +60,57 @@ export function ChapterList({
 
   const counts = useMemo(() => ({
     all: chapters.length,
-    pending: chapters.filter((c) => c.status === 'pending').length,
-    completed: chapters.filter((c) => c.status === 'completed').length,
-    error: chapters.filter((c) => c.status === 'error').length,
-  }), [chapters]);
+    pending: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'pending').length,
+    completed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'completed').length,
+    error: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'error').length,
+  }), [chapters, originalReadingMode]);
 
   const handleFileSelect = async (file: File) => {
-    if (!file || !file.name.endsWith('.txt')) return;
+    const filename = file.name.toLowerCase();
+    const supportedFormats = ['.txt', '.epub', '.fb2'];
+    const isSupported = supportedFormats.some((ext) => filename.endsWith(ext));
+    
+    if (!file || !isSupported) {
+      // Show error modal for unsupported format
+      setError({
+        title: 'Неподдерживаемый формат',
+        message: 'Поддерживаемые форматы: .txt, .epub, .fb2',
+        details: `Выбранный файл: ${file.name}`,
+      });
+      return;
+    }
     
     setUploading(true);
     try {
-      const title = file.name.replace('.txt', '').replace(/^\d+[._\-\s]*/, '');
+      // For TXT files, extract title from filename
+      // For EPUB/FB2, title will be extracted by server
+      const title = filename.endsWith('.txt')
+        ? file.name.replace('.txt', '').replace(/^\d+[._\-\s]*/, '')
+        : `Глава ${chapters.length + 1}`;
       await onUpload(file, title || `Глава ${chapters.length + 1}`);
+    } catch (error: any) {
+      // Extract error details from ApiError
+      const errorMessage = error?.message || 'Неизвестная ошибка';
+      const errorDetails = error?.data?.details || error?.data?.parseErrors?.join('; ') || error?.data?.error;
+      const parseErrors = error?.data?.parseErrors;
+      const warnings = error?.data?.warnings;
+      
+      let detailsText = `Файл: ${file.name}`;
+      if (errorDetails) {
+        detailsText += `\n\n${errorDetails}`;
+      }
+      if (parseErrors && parseErrors.length > 0) {
+        detailsText += `\n\nОшибки парсинга:\n${parseErrors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}`;
+      }
+      if (warnings && warnings.length > 0) {
+        detailsText += `\n\nПредупреждения:\n${warnings.map((w: string, i: number) => `${i + 1}. ${w}`).join('\n')}`;
+      }
+      
+      setError({
+        title: 'Ошибка загрузки файла',
+        message: errorMessage,
+        details: detailsText,
+      });
     } finally {
       setUploading(false);
     }
@@ -233,7 +279,7 @@ export function ChapterList({
       </div>
 
       <div class="chapter-filters">
-        {(['all', 'pending', 'completed', 'error'] as FilterType[]).map((f) => (
+        {(['all', ...(originalReadingMode ? [] : ['pending', 'completed', 'error'] as FilterType[])] as FilterType[]).map((f) => (
           <button
             key={f}
             class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
@@ -323,7 +369,9 @@ export function ChapterList({
               )}
               <span class="chapter-item-title">{chapter.title}</span>
               <div class="chapter-item-actions">
-                <span>{getStatusIcon(chapter.status)}</span>
+                {!originalReadingMode && (
+                  <span>{getStatusIcon(chapter.status)}</span>
+                )}
                 {onDelete && (
                   <button
                     class="chapter-delete-btn"
@@ -355,16 +403,35 @@ export function ChapterList({
         ) : (
           <>
             <div class="upload-icon">📄</div>
-            <p>Перетащите .txt файл<br />или нажмите</p>
+            <p>Перетащите файл<br />(.txt, .epub, .fb2)<br />или нажмите</p>
           </>
         )}
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt"
+          accept=".txt,.epub,.fb2"
           style={{ display: 'none' }}
           onChange={handleFileInput}
         />
+        {error && (
+          <div className="error-modal-overlay" onClick={() => setError(null)}>
+            <div className="error-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="error-modal-header">
+                <h3>{error.title}</h3>
+                <button className="error-modal-close" onClick={() => setError(null)}>
+                  ×
+                </button>
+              </div>
+              <div className="error-modal-body">
+                <p>{error.message}</p>
+                {error.details && <p className="error-details">{error.details}</p>}
+              </div>
+              <div className="error-modal-footer">
+                <button onClick={() => setError(null)}>Закрыть</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   );

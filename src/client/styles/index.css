@@ -9,6 +9,7 @@
 
 /* Layout Styles (kept here as they're shared across components) */
 @import './layout/layout.css';
+@import './pages/pages.css';
 
 /* Component modules are imported directly in component files */
 /* This file now only contains base and layout styles */

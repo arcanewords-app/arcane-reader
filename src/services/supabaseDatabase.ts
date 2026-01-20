@@ -37,12 +37,21 @@ function transformProjectFromDB(
   chapters: Chapter[] = [],
   glossary: GlossaryEntry[] = []
 ): Project {
+  // Migrate legacy projects: determine type from metadata
+  let projectType = row.type || 'text';
+  if (!row.type && row.metadata) {
+    // If no type but has metadata, it's likely a book
+    projectType = 'book';
+  }
+  
   return {
     id: row.id,
     name: row.name,
+    type: projectType,
     sourceLanguage: row.source_language,
     targetLanguage: row.target_language,
     settings: (row.settings as ProjectSettings) || getDefaultProjectSettings(),
+    metadata: row.metadata || undefined,
     chapters,
     glossary,
     createdAt: row.created_at,
@@ -54,12 +63,24 @@ function transformProjectFromDB(
  * Transform Project to Supabase insert/update format
  */
 function transformProjectToDB(project: Partial<Project>): any {
-  return {
+  const result: any = {
     name: project.name,
     source_language: project.sourceLanguage,
     target_language: project.targetLanguage,
     settings: project.settings,
   };
+  
+  // Add type if provided
+  if (project.type !== undefined) {
+    result.type = project.type;
+  }
+  
+  // Add metadata if provided
+  if (project.metadata !== undefined) {
+    result.metadata = project.metadata;
+  }
+  
+  return result;
 }
 
 /**
@@ -261,6 +282,7 @@ export async function createProject(
   const projectData = {
     user_id: userId,
     name: data.name || 'Новый проект',
+    type: 'text', // Default type, will be updated when first file is uploaded
     source_language: data.sourceLanguage || 'en',
     target_language: data.targetLanguage || 'ru',
     settings: getDefaultProjectSettings(),

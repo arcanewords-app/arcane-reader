@@ -40,6 +40,8 @@ export function ChapterView({
   );
   const [translating, setTranslating] = useState(false);
   const [pollingInterval, setPollingInterval] = useState<number | null>(null);
+  
+  const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
 
   // Apply reader settings as CSS variables
   useEffect(() => {
@@ -242,6 +244,7 @@ export function ChapterView({
           onEnterReadingMode={onEnterReadingMode}
           onChapterUpdate={onChapterUpdate}
           translating={translating || chapter.status === 'translating'}
+          isOriginalReadingMode={isOriginalReadingMode}
         />
 
         {showSettings && (
@@ -251,8 +254,8 @@ export function ChapterView({
           />
         )}
 
-        {/* Progress bar */}
-        {paragraphs.length > 0 && (
+        {/* Progress bar - hidden in original reading mode */}
+        {!isOriginalReadingMode && paragraphs.length > 0 && (
           <div class="chapter-progress">
             <div class="progress-bar">
               <div
@@ -274,7 +277,11 @@ export function ChapterView({
       </Card>
 
       {paragraphs.length > 0 ? (
-        <ParagraphList paragraphs={paragraphs} onSave={handleSaveParagraph} />
+        <ParagraphList 
+          paragraphs={paragraphs} 
+          onSave={handleSaveParagraph}
+          isOriginalReadingMode={isOriginalReadingMode}
+        />
       ) : (
         <Card>
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>

@@ -79,3 +79,34 @@
   transform: none !important;
   box-shadow: none !important;
 }
+
+/* Glossary Button Variant */
+.btn-glossary {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(26, 26, 36, 0.8) 100%);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-glossary:hover {
+  background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
+    0 0 20px rgba(139, 92, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-glossary .glossary-count {
+  background: var(--accent);
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}

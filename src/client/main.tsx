@@ -1,6 +1,6 @@
 import { render } from 'preact';
-import { App } from './App';
+import { AppRouter } from './AppRouter';
 import './styles/index.css';
 
-render(<App />, document.getElementById('app')!);
+render(<AppRouter />, document.getElementById('app')!);
 

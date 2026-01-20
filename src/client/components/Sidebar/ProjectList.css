@@ -90,6 +90,8 @@
 .project-item.active {
   background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
   border-color: var(--accent);
+  border-left-width: 3px;
+  border-left-style: solid;
   box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.4),
     0 0 24px rgba(139, 92, 246, 0.2);
 }

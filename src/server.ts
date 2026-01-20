@@ -54,6 +54,8 @@ import {
 } from './services/engine-integration.js';
 import { exportProject } from './services/export/index.js';
 import { authService } from './services/authService.js';
+import { parseFile, isSupportedFormat, getProjectTypeFromFormat } from './services/import/index.js';
+import type { ParseResult } from './services/import/index.js';
 
 // Load configuration
 const config = loadConfig();
@@ -69,12 +71,25 @@ const PORT = config.port;
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (increased for EPUB/FB2)
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'text/plain' || file.originalname.endsWith('.txt')) {
+    const filename = file.originalname.toLowerCase();
+    const allowedExtensions = ['.txt', '.epub', '.fb2'];
+    const allowedMimes = [
+      'text/plain',
+      'application/epub+zip',
+      'application/x-epub+zip',
+      'application/xml',
+      'text/xml',
+    ];
+
+    const hasValidExtension = allowedExtensions.some((ext) => filename.endsWith(ext));
+    const hasValidMime = allowedMimes.includes(file.mimetype);
+
+    if (hasValidExtension || hasValidMime) {
       cb(null, true);
     } else {
-      cb(new Error('Only .txt files are allowed'));
+      cb(new Error('Поддерживаемые форматы: .txt, .epub, .fb2'));
     }
   },
 });
@@ -249,11 +264,14 @@ app.get('/api/projects', requireAuth, async (req, res) => {
     const projectList = projects.map((p) => ({
       id: p.id,
       name: p.name,
+      type: p.type, // Include project type
       chapterCount: p.chapters.length,
       translatedCount: p.chapters.filter((c) => c.status === 'completed').length,
       glossaryCount: p.glossary.length,
+      originalReadingMode: p.settings?.originalReadingMode ?? false, // Include original reading mode flag
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
+      metadata: p.metadata || undefined, // Include metadata (for cover images, etc.)
     }));
     res.json(projectList);
   } catch (error) {
@@ -339,6 +357,8 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       temperature,
       enableAnalysis,
       enableEditing,
+      enableTranslation, // Allow toggling translation (for original reading mode)
+      originalReadingMode, // New: original reading mode flag
     } = req.body;
 
     // Preserve existing reader settings
@@ -349,8 +369,9 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       ...project.settings,
       temperature: temperature ?? project.settings.temperature,
       enableAnalysis: enableAnalysis ?? project.settings.enableAnalysis ?? true,
-      enableTranslation: true, // Always required
+      enableTranslation: enableTranslation ?? project.settings.enableTranslation ?? true,
       enableEditing: enableEditing ?? project.settings.enableEditing ?? true,
+      originalReadingMode: originalReadingMode ?? project.settings.originalReadingMode ?? false,
       reader: existingReader,
     };
 
@@ -368,16 +389,25 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
 
     await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);
 
+    // Get updated project to return fresh settings
+    const updatedProject = await getProject(req.params.id, req.user.id, token);
+    if (!updatedProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
     const stagesStatus = [
-      project.settings.enableAnalysis ? '✅ Анализ' : '⏭️ Анализ',
-      '✅ Перевод',
-      project.settings.enableEditing ? '✅ Редактура' : '⏭️ Редактура',
+      updatedSettings.enableAnalysis ? '✅ Анализ' : '⏭️ Анализ',
+      updatedSettings.enableTranslation ? '✅ Перевод' : '⏭️ Перевод',
+      updatedSettings.enableEditing ? '✅ Редактура' : '⏭️ Редактура',
     ].join(' → ');
 
-    console.log(`⚙️  Настройки проекта "${project.name}" обновлены:`);
-    console.log(`   Модель: ${project.settings.model} | Стадии: ${stagesStatus}`);
+    console.log(`⚙️  Настройки проекта "${updatedProject.name}" обновлены:`);
+    console.log(`   Модель: ${updatedSettings.stageModels?.translation || updatedSettings.model || 'N/A'} | Стадии: ${stagesStatus}`);
+    if (updatedSettings.originalReadingMode) {
+      console.log(`   📖 Режим оригинального чтения: включен`);
+    }
 
-    res.json(project.settings);
+    res.json(updatedProject.settings);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update settings' });
   }
@@ -445,11 +475,128 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const text = req.file.buffer.toString('utf-8');
-    const title = req.body.title || `Глава ${project.chapters.length + 1}`;
+    const filename = req.file.originalname;
 
-    const chapter = await addChapter(req.params.id, { title, originalText: text }, token);
-    res.json(chapter);
+    // Check if format is supported
+    if (!isSupportedFormat(filename)) {
+      return res.status(400).json({
+        error: 'Неподдерживаемый формат файла',
+        details: 'Поддерживаемые форматы: .txt, .epub, .fb2',
+      });
+    }
+
+    // Parse file based on format
+    let parseResult: ParseResult;
+    try {
+      parseResult = await parseFile(req.file.buffer, filename);
+    } catch (parseError) {
+      const errorMessage =
+        parseError instanceof Error ? parseError.message : 'Ошибка парсинга файла';
+      console.error('Parse error:', parseError);
+      return res.status(400).json({
+        error: 'Ошибка при парсинге файла',
+        details: errorMessage,
+        parseErrors: [errorMessage],
+      });
+    }
+
+    // Handle parsing errors and warnings
+    if (parseResult.errors && parseResult.errors.length > 0) {
+      console.error('Parse errors:', parseResult.errors);
+      return res.status(400).json({
+        error: 'Ошибки при парсинге файла',
+        details: parseResult.errors.join('; '),
+        parseErrors: parseResult.errors,
+        warnings: parseResult.warnings,
+      });
+    }
+
+    // Determine project type from file format
+    const detectedType = getProjectTypeFromFormat(parseResult.format);
+    
+    // Update project type if not set or if it's the first chapter (auto-detect)
+    const isFirstChapter = project.chapters.length === 0;
+    const needsTypeUpdate = !project.type || project.type === 'text' && detectedType !== 'text';
+    
+    if (isFirstChapter && needsTypeUpdate) {
+      await updateProject(
+        req.params.id,
+        { type: detectedType },
+        req.user.id,
+        token
+      );
+      console.log(`📌 Тип проекта определен: ${detectedType}`);
+    }
+
+    // Update project metadata if available (for EPUB/FB2) and it's the first chapter
+    // For subsequent chapters, don't update metadata (as per requirement #4)
+    if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
+      let updatedMetadata = {
+        ...project.metadata,
+        ...parseResult.metadata,
+      };
+
+      // Save cover image if present
+      if (parseResult.metadata.coverImage) {
+        try {
+          const coverFilename = `cover-${req.params.id}-${Date.now()}.${parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg'}`;
+          const coverPath = path.join(imagesDir, coverFilename);
+          fs.writeFileSync(coverPath, parseResult.metadata.coverImage.data);
+          updatedMetadata.coverImageUrl = `/images/${coverFilename}`;
+          console.log(`🖼️  Обложка сохранена: ${coverFilename}`);
+        } catch (coverError) {
+          console.error('Failed to save cover image:', coverError);
+        }
+        // Remove coverImage buffer from metadata (we only store URL)
+        delete (updatedMetadata as any).coverImage;
+      }
+
+      // Only update if there's new metadata
+      if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
+        await updateProject(
+          req.params.id,
+          { metadata: updatedMetadata },
+          req.user.id,
+          token
+        );
+        console.log(`📚 Метаданные проекта обновлены: ${parseResult.metadata.title || 'N/A'}`);
+      }
+    } else if (!isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
+      console.log(`ℹ️  Пропущено обновление метаданных: проект уже содержит главы`);
+    }
+
+    // Handle multiple chapters (EPUB/FB2) or single chapter (TXT)
+    if (parseResult.chapters.length === 0) {
+      return res.status(400).json({
+        error: 'Файл не содержит глав',
+        details: 'Не удалось извлечь ни одной главы из файла',
+      });
+    }
+
+    // Add all chapters from parsed result
+    const addedChapters = [];
+    for (const parsedChapter of parseResult.chapters) {
+      const chapter = await addChapter(
+        req.params.id,
+        {
+          title: parsedChapter.title,
+          originalText: parsedChapter.content,
+        },
+        token
+      );
+      addedChapters.push(chapter);
+    }
+
+    // Return single chapter for backward compatibility, or array if multiple
+    if (addedChapters.length === 1) {
+      res.json(addedChapters[0]);
+    } else {
+      res.json({
+        chapters: addedChapters,
+        count: addedChapters.length,
+        warnings: parseResult.warnings,
+      });
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to add chapter';
     // Check if error is related to token validation
@@ -457,7 +604,10 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
       return res.status(401).json({ error: message });
     }
     console.error('Failed to add chapter:', error);
-    res.status(500).json({ error: 'Failed to add chapter' });
+    res.status(500).json({
+      error: 'Failed to add chapter',
+      details: message,
+    });
   }
 });
 
@@ -2042,6 +2192,114 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
   } catch (error) {
     console.error('Failed to delete images:', error);
     res.status(500).json({ error: 'Failed to delete images' });
+  }
+});
+
+// Upload project cover image (requires auth)
+app.post(
+  '/api/projects/:projectId/cover',
+  requireAuth,
+  uploadImage.single('image'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // Delete old cover if exists
+      if (project.metadata?.coverImageUrl) {
+        const oldImagePath = path.join(imagesDir, path.basename(project.metadata.coverImageUrl));
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+
+      const coverImageUrl = `/images/${req.file.filename}`;
+
+      // Update project metadata with new cover
+      // Ensure metadata object exists before spreading
+      const updatedMetadata = {
+        ...(project.metadata || {}),
+        coverImageUrl,
+      };
+
+      console.log(`📤 Загрузка обложки для проекта ${req.params.projectId}`);
+      console.log(`   Текущий metadata:`, JSON.stringify(project.metadata || null));
+      console.log(`   Новый metadata:`, JSON.stringify(updatedMetadata));
+
+      const updatedProject = await updateProject(
+        req.params.projectId,
+        {
+          metadata: updatedMetadata,
+        },
+        req.user.id,
+        requireToken(req)
+      );
+
+      if (!updatedProject) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: 'Failed to update project' });
+      }
+
+      console.log(`✅ Обложка сохранена в проект. Новый metadata:`, JSON.stringify(updatedProject.metadata || null));
+
+      res.json({ coverImageUrl, project: updatedProject });
+    } catch (error) {
+      console.error('Failed to upload cover image:', error);
+      res.status(500).json({ error: 'Failed to upload cover image' });
+    }
+  }
+);
+
+// Delete project cover image (requires auth)
+app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Delete cover image file if exists
+    if (project.metadata?.coverImageUrl) {
+      const imagePath = path.join(imagesDir, path.basename(project.metadata.coverImageUrl));
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
+    // Update project metadata to remove cover
+    const updatedMetadata = { ...(project.metadata || {}) };
+    delete updatedMetadata.coverImageUrl;
+
+    const updatedProject = await updateProject(
+      req.params.projectId,
+      { metadata: updatedMetadata },
+      req.user.id,
+      requireToken(req)
+    );
+
+    if (!updatedProject) {
+      return res.status(404).json({ error: 'Failed to update project' });
+    }
+
+    res.json({ success: true, project: updatedProject });
+  } catch (error) {
+    console.error('Failed to delete cover image:', error);
+    res.status(500).json({ error: 'Failed to delete cover image' });
   }
 });
 

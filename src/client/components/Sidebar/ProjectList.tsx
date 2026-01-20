@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { api, ApiError } from '../../api/client';
 import type { ProjectListItem } from '../../types';
 import { Button, Card, Modal, Input } from '../ui';
+import { getProjectTypeIcon, getProjectTypeColor } from '../../utils/project-type';
 import './ProjectList.css';
 
 interface ProjectListProps {
@@ -89,19 +90,31 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
               Нет проектов
             </div>
           ) : (
-            projects.map((project) => (
-              <div
-                key={project.id}
-                class={`project-item ${selectedId === project.id ? 'active' : ''}`}
-                onClick={() => onSelect(project.id)}
-              >
-                <div class="project-name">{project.name}</div>
-                <div class="project-meta">
-                  {project.translatedCount}/{project.chapterCount}{' '}
-                  {declension(project.chapterCount, ['глава', 'главы', 'глав'])}
+            projects.map((project) => {
+              const projectType = project.type || 'text';
+              const typeIcon = getProjectTypeIcon(projectType);
+              const typeColor = getProjectTypeColor(projectType);
+              
+              return (
+                <div
+                  key={project.id}
+                  class={`project-item ${selectedId === project.id ? 'active' : ''}`}
+                  onClick={() => onSelect(project.id)}
+                  style={{
+                    borderLeftColor: selectedId === project.id ? typeColor : 'transparent',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>{typeIcon}</span>
+                    <div class="project-name">{project.name}</div>
+                  </div>
+                  <div class="project-meta">
+                    {project.translatedCount}/{project.chapterCount}{' '}
+                    {declension(project.chapterCount, ['глава', 'главы', 'глав'])}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
         <Button

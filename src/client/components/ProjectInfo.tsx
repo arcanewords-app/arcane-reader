@@ -2,6 +2,8 @@ import { useState, useRef, useCallback } from 'preact/hooks';
 import type { Project, ProjectSettings, Chapter } from '../types';
 import { Card, Button, Modal } from './ui';
 import { api, ApiError } from '../api/client';
+import { invalidateProject } from '../store/projects';
+import '../components/ChapterView/ReaderSettings.css';
 
 interface ProjectInfoProps {
   project: Project;
@@ -17,6 +19,8 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const [showTranslateAllModal, setShowTranslateAllModal] = useState(false);
   const [translateErrorsOnly, setTranslateErrorsOnly] = useState(false);
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [deletingCover, setDeletingCover] = useState(false);
   interface ChapterProgress {
     chapterId: string;
     title: string;
@@ -92,46 +96,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
 
   const settings = project.settings;
 
-  // Get current model for a stage (with fallbacks)
-  const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
-    if (settings.stageModels) {
-      return settings.stageModels[stage];
-    }
-    return settings.model || 'gpt-4-turbo-preview';
-  };
-
-  const handleStageModelChange = async (
-    stage: 'analysis' | 'translation' | 'editing',
-    model: string
-  ) => {
-    const currentStageModels = settings.stageModels || {
-      analysis: settings.model || 'gpt-4.1-mini',
-      translation: settings.model || 'gpt-5-mini',
-      editing: settings.model || 'gpt-4.1-mini',
-    };
-    
-    const updated = await api.updateSettings(project.id, {
-      stageModels: {
-        ...currentStageModels,
-        [stage]: model,
-      },
-    });
-    onSettingsChange(updated);
-  };
-
-  const handleTemperatureChange = async (e: Event) => {
-    const value = parseInt((e.target as HTMLInputElement).value, 10);
-    const temperature = value / 100;
-    const updated = await api.updateSettings(project.id, { temperature });
-    onSettingsChange(updated);
-  };
-
-  const toggleStage = async (stage: 'analysis' | 'editing') => {
-    const key = stage === 'analysis' ? 'enableAnalysis' : 'enableEditing';
-    const current = settings[key] ?? true;
-    const updated = await api.updateSettings(project.id, { [key]: !current });
-    onSettingsChange(updated);
-  };
+  const isOriginalReadingMode = settings.originalReadingMode ?? false;
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -244,7 +209,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     initialGlossaryCountRef.current = project.glossary.length;
     
     // Initialize chapters progress
-    const chaptersProgress: ChapterProgress[] = emptyChapters.map((ch) => ({
+    const chaptersProgress: ChapterProgress[] = chaptersToTranslate.map((ch) => ({
       chapterId: ch.id,
       title: ch.title,
       status: ch.status === 'error' ? 'error' : 'pending',
@@ -252,7 +217,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     
     setTranslationProgress({
       current: 0,
-      total: emptyChapters.length,
+      total: chaptersToTranslate.length,
       currentChapter: null,
       currentChapterId: null,
       chapters: chaptersProgress,
@@ -266,12 +231,12 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     const startTime = Date.now();
 
     try {
-      for (let i = 0; i < emptyChapters.length; i++) {
+      for (let i = 0; i < chaptersToTranslate.length; i++) {
         if (cancelledRef.current) {
           break;
         }
 
-        const chapter = emptyChapters[i];
+        const chapter = chaptersToTranslate[i];
         const chapterStartTime = Date.now();
         
         // Update current chapter
@@ -402,7 +367,9 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{project.name}</h2>
-            <span style={{ color: 'var(--text-dim)' }}>EN → RU</span>
+            <span style={{ color: 'var(--text-dim)' }}>
+              {isOriginalReadingMode ? '📖 Оригинальное чтение' : 'EN → RU'}
+            </span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowDeleteModal(true)}>
             🗑️ Удалить
@@ -430,8 +397,501 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
           </div>
         </div>
 
-        {/* Mass Translation Buttons - only for translating all chapters in project */}
-        {(stats.empty > 0 || stats.error > 0) && (
+        {/* Book Metadata Section - only for 'book' type */}
+        {project.type === 'book' && project.metadata && Object.keys(project.metadata).length > 0 && (
+          <div class="book-metadata-section">
+            <div class="metadata-header">
+              <span class="metadata-icon">📚</span>
+              <h3 class="metadata-title">Информация о книге</h3>
+            </div>
+            <div class="metadata-content">
+              {/* Cover Image */}
+              <div 
+                class="metadata-cover"
+                style={{ 
+                  cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer',
+                  position: 'relative'
+                }}
+                onClick={() => {
+                  if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
+                    const input = document.getElementById('cover-upload-input') as HTMLInputElement;
+                    input?.click();
+                  }
+                }}
+              >
+                {project.metadata?.coverImageUrl ? (
+                  <>
+                    <img 
+                      src={project.metadata.coverImageUrl} 
+                      alt="Обложка книги"
+                      class="cover-image"
+                    />
+                    {deletingCover ? (
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '0.5rem', 
+                        right: '0.5rem',
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        borderRadius: '4px',
+                        padding: '0.25rem 0.5rem',
+                        color: 'white',
+                        fontSize: '0.85rem'
+                      }}>
+                        ⏳
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Удалить обложку проекта?')) return;
+                            setDeletingCover(true);
+                            try {
+                              const result = await api.deleteProjectCover(project.id);
+                              await onRefreshProject();
+                            } catch (error) {
+                              console.error('Failed to delete cover:', error);
+                              alert(error instanceof Error ? error.message : 'Ошибка удаления обложки');
+                            } finally {
+                              setDeletingCover(false);
+                            }
+                          }}
+                          disabled={deletingCover}
+                          style={{
+                            position: 'absolute',
+                            top: '0.5rem',
+                            right: '0.5rem',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            width: '32px',
+                            height: '32px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1rem',
+                            transition: 'all 0.2s'
+                          }}
+                          title="Удалить обложку"
+                        >
+                          🗑️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const input = document.getElementById('cover-upload-input') as HTMLInputElement;
+                            input?.click();
+                          }}
+                          disabled={uploadingCover || deletingCover}
+                          style={{
+                            position: 'absolute',
+                            bottom: '0.5rem',
+                            right: '0.5rem',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            padding: '0.375rem 0.75rem',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            transition: 'all 0.2s'
+                          }}
+                          title="Заменить обложку"
+                        >
+                          {uploadingCover ? '⏳' : '📤'}
+                        </button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '300px',
+                    background: 'var(--bg-hover)',
+                    border: '2px dashed var(--border)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.75rem',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!uploadingCover && !deletingCover) {
+                      e.currentTarget.style.borderColor = 'var(--accent)';
+                      e.currentTarget.style.background = 'var(--accent-glow)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.background = 'var(--bg-hover)';
+                  }}
+                  >
+                    <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0 1rem' }}>
+                      {uploadingCover ? '⏳ Загрузка...' : 'Нажмите для загрузки обложки'}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div class="metadata-details">
+                {/* Title */}
+                {project.metadata.title && project.metadata.title !== project.name && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">Название:</span>
+                    <span class="metadata-value">{project.metadata.title}</span>
+                  </div>
+                )}
+                
+                {/* Authors */}
+                {project.metadata.authors && project.metadata.authors.length > 0 && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">Автор(ы):</span>
+                    <span class="metadata-value">{project.metadata.authors.join(', ')}</span>
+                  </div>
+                )}
+                
+                {/* Language */}
+                {project.metadata.language && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">Язык оригинала:</span>
+                    <span class="metadata-value">{project.metadata.language.toUpperCase()}</span>
+                  </div>
+                )}
+                
+                {/* Publisher */}
+                {project.metadata.publisher && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">Издатель:</span>
+                    <span class="metadata-value">{project.metadata.publisher}</span>
+                  </div>
+                )}
+                
+                {/* Series */}
+                {project.metadata.series && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">Серия:</span>
+                    <span class="metadata-value">
+                      {project.metadata.series}
+                      {project.metadata.seriesNumber && ` (книга ${project.metadata.seriesNumber})`}
+                    </span>
+                  </div>
+                )}
+                
+                {/* ISBN */}
+                {project.metadata.isbn && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">ISBN:</span>
+                    <span class="metadata-value">{project.metadata.isbn}</span>
+                  </div>
+                )}
+                
+                {/* Published Date */}
+                {project.metadata.publishedDate && (
+                  <div class="metadata-item">
+                    <span class="metadata-label">Дата публикации:</span>
+                    <span class="metadata-value">
+                      {new Date(project.metadata.publishedDate).toLocaleDateString('ru-RU', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Description */}
+                {project.metadata.description && (
+                  <div class="metadata-item metadata-description">
+                    <span class="metadata-label">Описание:</span>
+                    <div class="metadata-value description-text">{project.metadata.description}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cover Image Section - for non-book projects or projects without metadata */}
+        {(!project.type || project.type !== 'book' || !project.metadata || Object.keys(project.metadata).length === 0) && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+              🖼️ Обложка проекта
+            </h3>
+            <div 
+              style={{ 
+                position: 'relative', 
+                display: 'inline-block', 
+                maxWidth: '200px',
+                cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer'
+              }}
+              onClick={() => {
+                if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
+                  const input = document.getElementById('cover-upload-input') as HTMLInputElement;
+                  input?.click();
+                }
+              }}
+            >
+              {project.metadata?.coverImageUrl ? (
+                <>
+                  <img 
+                    src={project.metadata.coverImageUrl} 
+                    alt="Обложка проекта"
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '200px', 
+                      height: 'auto', 
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  {deletingCover ? (
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '0.5rem', 
+                      right: '0.5rem',
+                      background: 'rgba(0, 0, 0, 0.7)',
+                      borderRadius: '4px',
+                      padding: '0.25rem 0.5rem',
+                      color: 'white',
+                      fontSize: '0.85rem'
+                    }}>
+                      ⏳
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm('Удалить обложку проекта?')) return;
+                          setDeletingCover(true);
+                          try {
+                            const result = await api.deleteProjectCover(project.id);
+                            // Invalidate project cache
+                            invalidateProject(project.id);
+                            await onRefreshProject();
+                          } catch (error) {
+                            console.error('Failed to delete cover:', error);
+                            alert(error instanceof Error ? error.message : 'Ошибка удаления обложки');
+                          } finally {
+                            setDeletingCover(false);
+                          }
+                        }}
+                        disabled={deletingCover}
+                        style={{
+                          position: 'absolute',
+                          top: '0.5rem',
+                          right: '0.5rem',
+                          background: 'rgba(255, 255, 255, 0.9)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '4px',
+                          width: '32px',
+                          height: '32px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1rem',
+                          transition: 'all 0.2s'
+                        }}
+                        title="Удалить обложку"
+                      >
+                        🗑️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const input = document.getElementById('cover-upload-input') as HTMLInputElement;
+                          input?.click();
+                        }}
+                        disabled={uploadingCover || deletingCover}
+                        style={{
+                          position: 'absolute',
+                          bottom: '0.5rem',
+                          right: '0.5rem',
+                          background: 'rgba(255, 255, 255, 0.9)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '4px',
+                          padding: '0.375rem 0.75rem',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          transition: 'all 0.2s'
+                        }}
+                        title="Заменить обложку"
+                      >
+                        {uploadingCover ? '⏳' : '📤'}
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div style={{
+                  width: '200px',
+                  height: '300px',
+                  background: 'var(--bg-hover)',
+                  border: '2px dashed var(--border)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  transition: 'all 0.2s',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  if (!uploadingCover && !deletingCover) {
+                    e.currentTarget.style.borderColor = 'var(--accent)';
+                    e.currentTarget.style.background = 'var(--accent-glow)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.background = 'var(--bg-hover)';
+                }}
+                >
+                  <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0 1rem' }}>
+                    {uploadingCover ? '⏳ Загрузка...' : 'Нажмите для загрузки обложки'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Hidden file input for cover upload */}
+        <input
+          id="cover-upload-input"
+          type="file"
+          accept="image/*"
+          onChange={async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            setUploadingCover(true);
+            try {
+              const result = await api.uploadProjectCover(project.id, file);
+              // Invalidate project cache
+              invalidateProject(project.id);
+              // Update local project state with new metadata
+              if (result.project) {
+                // Update project state directly with new metadata
+                const updatedProject = {
+                  ...project,
+                  metadata: result.project.metadata,
+                };
+                // Call onRefreshProject to reload from server
+                await onRefreshProject();
+              } else {
+                await onRefreshProject();
+              }
+            } catch (error) {
+              console.error('Failed to upload cover:', error);
+              alert(error instanceof Error ? error.message : 'Ошибка загрузки обложки');
+            } finally {
+              setUploadingCover(false);
+              (e.target as HTMLInputElement).value = '';
+            }
+          }}
+          disabled={uploadingCover || deletingCover}
+          style={{ display: 'none' }}
+        />
+
+        {/* Translation Statistics - hidden in original reading mode */}
+        {!isOriginalReadingMode && (() => {
+          const completedChapters = project.chapters.filter(c => c.status === 'completed' && c.translationMeta);
+          const totalTokens = completedChapters.reduce((sum, c) => sum + (c.translationMeta?.tokensUsed || 0), 0);
+          const totalDuration = completedChapters.reduce((sum, c) => sum + (c.translationMeta?.duration || 0), 0);
+          const lastTranslated = completedChapters
+            .filter(c => c.translationMeta?.translatedAt)
+            .sort((a, b) => {
+              const aDate = a.translationMeta?.translatedAt || '';
+              const bDate = b.translationMeta?.translatedAt || '';
+              return bDate.localeCompare(aDate);
+            })[0];
+          
+          if (completedChapters.length > 0) {
+            return (
+              <div class="translation-stats-section">
+                <div class="metadata-header">
+                  <span class="metadata-icon">📊</span>
+                  <h3 class="metadata-title">Статистика перевода</h3>
+                </div>
+                <div class="translation-stats-grid">
+                  {totalTokens > 0 && (
+                    <div class="translation-stat-item">
+                      <span class="translation-stat-label">Всего токенов:</span>
+                      <span class="translation-stat-value">{totalTokens.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {totalDuration > 0 && (
+                    <div class="translation-stat-item">
+                      <span class="translation-stat-label">Время перевода:</span>
+                      <span class="translation-stat-value">
+                        {totalDuration >= 3600000 
+                          ? `${(totalDuration / 3600000).toFixed(1)} ч`
+                          : totalDuration >= 60000
+                          ? `${(totalDuration / 60000).toFixed(1)} мин`
+                          : `${(totalDuration / 1000).toFixed(0)} сек`}
+                      </span>
+                    </div>
+                  )}
+                  {lastTranslated && (
+                    <div class="translation-stat-item">
+                      <span class="translation-stat-label">Последний перевод:</span>
+                      <span class="translation-stat-value">
+                        {new Date(lastTranslated.translationMeta!.translatedAt).toLocaleDateString('ru-RU', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  <div class="translation-stat-item">
+                    <span class="translation-stat-label">Создан:</span>
+                    <span class="translation-stat-value">
+                      {new Date(project.createdAt).toLocaleDateString('ru-RU', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  <div class="translation-stat-item">
+                    <span class="translation-stat-label">Обновлен:</span>
+                    <span class="translation-stat-value">
+                      {new Date(project.updatedAt).toLocaleDateString('ru-RU', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Mass Translation Buttons - only for translating all chapters in project, hidden in original reading mode */}
+        {!isOriginalReadingMode && (stats.empty > 0 || stats.error > 0) && (
           <div style={{ marginTop: '1.5rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {stats.error > 0 && (
               <Button
@@ -464,20 +924,36 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         )}
 
         {/* Reading Mode Button */}
-        {stats.translated > 0 && (
-          <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-            <Button
-              variant="secondary"
-              size="full"
-              onClick={onEnterReadingMode}
-            >
-              📖 Режим чтения ({stats.translated} глав)
-            </Button>
-          </div>
+        {isOriginalReadingMode ? (
+          // In original reading mode: show reading button for all chapters
+          stats.chapters > 0 && (
+            <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+              <Button
+                variant="secondary"
+                size="full"
+                onClick={onEnterReadingMode}
+              >
+                📖 Чтение ({stats.chapters} глав)
+              </Button>
+            </div>
+          )
+        ) : (
+          // In translation mode: show reading button only for translated chapters
+          stats.translated > 0 && (
+            <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+              <Button
+                variant="secondary"
+                size="full"
+                onClick={onEnterReadingMode}
+              >
+                📖 Режим чтения ({stats.translated} глав)
+              </Button>
+            </div>
+          )
         )}
 
-        {/* Export Buttons */}
-        {stats.translated > 0 && (
+        {/* Export Buttons - hidden in original reading mode */}
+        {!isOriginalReadingMode && stats.translated > 0 && (
           <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
               <Button
@@ -504,153 +980,6 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
           </div>
         )}
 
-        {/* Settings Panel */}
-        <div class="settings-panel">
-          <div class="setting-group">
-            <label class="setting-label">🤖 Модели по стадиям</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {/* Analysis Model */}
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
-                  🔍 Анализ (точность структурированного вывода)
-                </label>
-                <select
-                  class="setting-select"
-                  value={getStageModel('analysis')}
-                  onChange={(e) => handleStageModelChange('analysis', (e.target as HTMLSelectElement).value)}
-                >
-                  <optgroup label="⭐ Рекомендуется (из акции)">
-                    <option value="gpt-4.1-mini">GPT-4.1 Mini (лучшая цена/качество)</option>
-                    <option value="o3-mini">O3 Mini (reasoning, максимальная точность)</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini (быстрая и дешевая)</option>
-                  </optgroup>
-                  <optgroup label="Альтернативы">
-                    <option value="o4-mini">O4 Mini (reasoning, медленнее)</option>
-                    <option value="gpt-5-mini">GPT-5 Mini (новая модель)</option>
-                    <option value="gpt-4.1-nano">GPT-4.1 Nano (самая дешевая)</option>
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-                  </optgroup>
-                </select>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '0.25rem' }}>
-                  Нужна точность для структурированного JSON
-                </span>
-              </div>
-              
-              {/* Translation Model */}
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
-                  🔮 Перевод (максимальное качество)
-                </label>
-                <select
-                  class="setting-select"
-                  value={getStageModel('translation')}
-                  onChange={(e) => handleStageModelChange('translation', (e.target as HTMLSelectElement).value)}
-                >
-                  <optgroup label="⭐ Рекомендуется (из акции)">
-                    <option value="gpt-5-mini">GPT-5 Mini (лучшее качество)</option>
-                    <option value="gpt-4.1-mini">GPT-4.1 Mini (отличный баланс)</option>
-                    <option value="o3-mini">O3 Mini (reasoning, точный перевод)</option>
-                  </optgroup>
-                  <optgroup label="Альтернативы">
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="o4-mini">O4 Mini (reasoning)</option>
-                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini (экономия)</option>
-                    <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
-                  </optgroup>
-                </select>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '0.25rem' }}>
-                  Основная стадия - инвестируем в качество
-                </span>
-              </div>
-              
-              {/* Editing Model */}
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'block' }}>
-                  ✨ Редактура (полировка уже готового)
-                </label>
-                <select
-                  class="setting-select"
-                  value={getStageModel('editing')}
-                  onChange={(e) => handleStageModelChange('editing', (e.target as HTMLSelectElement).value)}
-                >
-                  <optgroup label="⭐ Рекомендуется (из акции)">
-                    <option value="gpt-4.1-mini">GPT-4.1 Mini (лучший баланс)</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini (экономия, достаточно)</option>
-                    <option value="gpt-4.1-nano">GPT-4.1 Nano (максимальная экономия)</option>
-                  </optgroup>
-                  <optgroup label="Для лучшего качества">
-                    <option value="gpt-5-mini">GPT-5 Mini</option>
-                    <option value="o3-mini">O3 Mini (reasoning)</option>
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-                  </optgroup>
-                </select>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginTop: '0.25rem' }}>
-                  Улучшение уже переведенного текста
-                </span>
-              </div>
-            </div>
-            <span class="setting-hint" style={{ marginTop: '0.5rem', display: 'block' }}>
-              Разные модели для разных стадий снижают стоимость при сохранении качества
-            </span>
-          </div>
-          <div class="setting-group">
-            <label class="setting-label">🎨 Креативность</label>
-            <div class="slider-container">
-              <input
-                type="range"
-                class="slider"
-                min="0"
-                max="100"
-                value={Math.round(settings.temperature * 100)}
-                onInput={(e) => {
-                  const value = parseInt((e.target as HTMLInputElement).value, 10);
-                  // Update display immediately
-                  const display = e.currentTarget.parentElement?.querySelector('.slider-value');
-                  if (display) display.textContent = (value / 100).toFixed(1);
-                }}
-                onChange={handleTemperatureChange}
-              />
-              <span class="slider-value">{settings.temperature.toFixed(1)}</span>
-            </div>
-            <span class="setting-hint">0 = точный, 1 = творческий</span>
-          </div>
-        </div>
-
-        {/* Pipeline Stages */}
-        <div class="stages-panel">
-          <div class="stages-title">⚙️ Этапы перевода</div>
-          <div class="stages-grid">
-            <div
-              class={`stage-toggle ${settings.enableAnalysis !== false ? 'active' : ''}`}
-              onClick={() => toggleStage('analysis')}
-            >
-              <span class="stage-checkbox">✓</span>
-              <span class="stage-icon">🔍</span>
-              <span class="stage-name">Анализ</span>
-            </div>
-            <span class="stage-arrow">→</span>
-            <div class="stage-toggle active disabled">
-              <span class="stage-checkbox">✓</span>
-              <span class="stage-icon">🔮</span>
-              <span class="stage-name">Перевод</span>
-            </div>
-            <span class="stage-arrow">→</span>
-            <div
-              class={`stage-toggle ${settings.enableEditing !== false ? 'active' : ''}`}
-              onClick={() => toggleStage('editing')}
-            >
-              <span class="stage-checkbox">✓</span>
-              <span class="stage-icon">✨</span>
-              <span class="stage-name">Редактура</span>
-            </div>
-          </div>
-          <span class="setting-hint" style={{ display: 'block', marginTop: '0.5rem' }}>
-            Нажмите, чтобы включить/выключить этапы. Перевод всегда обязателен.
-          </span>
-        </div>
       </Card>
 
       {/* Delete Modal */}

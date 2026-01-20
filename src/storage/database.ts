@@ -11,14 +11,47 @@ import path from 'path';
 import fs from 'fs';
 
 // Types
+/**
+ * Project type - determines how project is handled and what metadata is available
+ * Extensible for future types (web, document, series, etc.)
+ */
+export type ProjectType = 'book' | 'text' | string; // string allows for future extensions
+
+/**
+ * Unified project metadata structure
+ * Common fields available for all project types
+ * Type-specific fields can be added as needed
+ */
+export interface ProjectMetadata {
+  // Common fields (available for all types)
+  title?: string; // Original title from source
+  description?: string; // Description/annotation
+  language?: string; // Source language (if detected)
+  coverImageUrl?: string; // URL to cover/image
+  
+  // Book-specific fields (for type === 'book')
+  authors?: string[];
+  publisher?: string;
+  isbn?: string;
+  series?: string;
+  seriesNumber?: number;
+  publishedDate?: string;
+  
+  // Future: web-specific, document-specific fields can be added here
+  // webUrl?: string; // For 'web' type
+  // documentType?: string; // For 'document' type
+}
+
 export interface Project {
   id: string;
   name: string;
+  type: ProjectType; // Project type: 'book', 'text', or future types
   sourceLanguage: string;
   targetLanguage: string;
   chapters: Chapter[];
   glossary: GlossaryEntry[];
   settings: ProjectSettings;
+  metadata?: ProjectMetadata; // Unified metadata (type-specific fields based on type)
   createdAt: string;
   updatedAt: string;
 }
@@ -133,6 +166,7 @@ export interface ProjectSettings {
   enableAnalysis: boolean; // Stage 1: Extract entities, analyze style
   enableTranslation: boolean; // Stage 2: Translate (always true, required)
   enableEditing: boolean; // Stage 3: Polish and refine
+  originalReadingMode?: boolean; // Режим оригинального чтения (только анализ, без перевода)
   // Reader display settings
   reader: ReaderSettings;
 }
@@ -333,6 +367,7 @@ export async function createProject(data: {
   const project: Project = {
     id: generateId(),
     name: data.name || 'Новый проект',
+    type: 'text', // Default type, will be updated when first file is uploaded
     sourceLanguage: data.sourceLanguage || 'en',
     targetLanguage: data.targetLanguage || 'ru',
     chapters: [],

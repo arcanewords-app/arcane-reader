@@ -13,17 +13,29 @@ interface HeaderProps {
 
 export function Header({ status, systemStatus, user, onLogout, onMenuToggle }: HeaderProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [isDashboard, setIsDashboard] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
 
+    const checkDashboard = () => {
+      setIsDashboard(window.location.pathname === '/' || window.location.pathname === '');
+    };
+
     checkMobile();
+    checkDashboard();
+    
     window.addEventListener('resize', checkMobile);
+    window.addEventListener('popstate', checkDashboard);
+    // Also check on navigation
+    const interval = setInterval(checkDashboard, 100);
     
     return () => {
       window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('popstate', checkDashboard);
+      clearInterval(interval);
     };
   }, []);
 
@@ -38,7 +50,7 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle }: H
     <header>
       <div class="header-content">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {onMenuToggle && isMobile && (
+          {onMenuToggle && isMobile && !isDashboard && (
             <button class="mobile-menu-btn" onClick={onMenuToggle} aria-label="Меню">
               ☰
             </button>

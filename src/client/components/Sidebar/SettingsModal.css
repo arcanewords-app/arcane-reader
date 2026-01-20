@@ -1,0 +1,242 @@
+/* SettingsModal Component Styles */
+
+/* Container for settings modal content - must be scrollable */
+.settings-modal {
+  max-width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.5rem;
+  min-height: 0; /* Critical for flex children to allow scrolling */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom scrollbar for settings modal */
+.settings-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-modal::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.settings-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}
+
+@media (min-width: 768px) {
+  .settings-modal {
+    padding: 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .settings-modal {
+    padding: 2rem;
+  }
+}
+
+.settings-modal .settings-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.settings-modal .setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.settings-modal .setting-group:last-child {
+  margin-bottom: 0;
+}
+
+.settings-modal .setting-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.settings-modal .setting-select {
+  width: 100%;
+  padding: 0.625rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.settings-modal .setting-select:hover {
+  border-color: var(--accent-dim);
+}
+
+.settings-modal .setting-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-modal .setting-hint {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.settings-modal .slider-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-modal .slider {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 6px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.settings-modal .slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.settings-modal .slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.settings-modal .slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.settings-modal .slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.settings-modal .slider-value {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-modal .stages-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.settings-modal .stages-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.settings-modal .stages-grid {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.settings-modal .stage-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--bg-hover);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.settings-modal .stage-toggle:hover {
+  border-color: var(--accent-dim);
+  background: var(--bg-secondary);
+}
+
+.settings-modal .stage-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.settings-modal .stage-toggle.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.settings-modal .stage-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.settings-modal .stage-toggle.active .stage-checkbox {
+  opacity: 1;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.settings-modal .stage-toggle.disabled .stage-checkbox {
+  opacity: 1;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.settings-modal .stage-icon {
+  font-size: 1.2rem;
+}
+
+.settings-modal .stage-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.settings-modal .stage-arrow {
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  font-weight: 600;
+}

@@ -112,16 +112,34 @@ export interface ProjectSettings {
   reader?: ReaderSettings;
 }
 
+// === Project Metadata ===
+
+export interface ProjectMetadata {
+  title?: string;
+  authors?: string[];
+  language?: string;
+  publisher?: string;
+  description?: string;
+  isbn?: string;
+  publishedDate?: string;
+  series?: string;
+  seriesNumber?: number;
+  coverImageUrl?: string;
+  translatedAt?: string;
+}
+
 // === Project ===
 
 export interface Project {
   id: string;
   name: string;
+  type?: 'text' | 'book';
   sourceLanguage: string;
   targetLanguage: string;
   chapters: Chapter[];
   glossary: GlossaryEntry[];
   settings: ProjectSettings;
+  metadata?: ProjectMetadata;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,11 +149,14 @@ export interface Project {
 export interface ProjectListItem {
   id: string;
   name: string;
+  type?: 'text' | 'book';
   chapterCount: number;
   translatedCount: number;
   glossaryCount: number;
+  originalReadingMode?: boolean; // Flag for projects in original reading mode
   createdAt: string;
   updatedAt: string;
+  metadata?: ProjectMetadata;
 }
 
 // === API Response Types ===

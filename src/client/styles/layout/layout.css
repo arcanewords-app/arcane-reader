@@ -33,7 +33,6 @@ main {
   display: flex;
   flex-direction: column;
   gap: 1rem; /* Добавляем gap между секциями */
-  background: var(--bg-primary);
 }
 
 .sidebar.mobile-open {
@@ -93,14 +92,13 @@ main {
     width: var(--container-width-desktop);
     max-width: var(--container-width-desktop);
     padding: var(--main-padding-desktop);
-    display: grid;
-    /* Используем minmax для защиты от overflow на маленьких экранах */
-    grid-template-columns: minmax(280px, var(--sidebar-width-desktop)) minmax(0, 1fr);
-    gap: 2rem;
+    display: block; /* Changed from grid - sidebar will be inside pages */
     min-height: calc(100vh - 100px);
     /* Защита от горизонтального overflow */
     box-sizing: border-box;
   }
+
+  /* Grid layout only when sidebar is present - handled by pages themselves */
 
   .sidebar {
     position: static;

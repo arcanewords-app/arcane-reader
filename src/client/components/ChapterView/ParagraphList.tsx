@@ -5,9 +5,10 @@ import './ParagraphList.css';
 interface ParagraphListProps {
   paragraphs: Paragraph[];
   onSave: (id: string, text: string) => Promise<void>;
+  isOriginalReadingMode?: boolean;
 }
 
-export function ParagraphList({ paragraphs, onSave }: ParagraphListProps) {
+export function ParagraphList({ paragraphs, onSave, isOriginalReadingMode = false }: ParagraphListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -70,14 +71,16 @@ export function ParagraphList({ paragraphs, onSave }: ParagraphListProps) {
   return (
     <div class="text-panel-unified">
       <div class="panel-headers">
-        <div class="panel-header-left">
+        <div class="panel-header-left" style={isOriginalReadingMode ? { width: '100%' } : {}}>
           🇬🇧 Оригинал (English)
           <span class="panel-stats">{originalChars.toLocaleString()} символов</span>
         </div>
-        <div class="panel-header-right">
-          🇷🇺 Перевод (Русский)
-          <span class="panel-stats">{translatedChars.toLocaleString()} символов</span>
-        </div>
+        {!isOriginalReadingMode && (
+          <div class="panel-header-right">
+            🇷🇺 Перевод (Русский)
+            <span class="panel-stats">{translatedChars.toLocaleString()} символов</span>
+          </div>
+        )}
       </div>
 
       <div class="paragraphs-unified">
@@ -85,16 +88,18 @@ export function ParagraphList({ paragraphs, onSave }: ParagraphListProps) {
           <div
             key={paragraph.id}
             class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''}`}
+            style={isOriginalReadingMode ? { gridTemplateColumns: '1fr' } : {}}
             onMouseEnter={() => setHighlightedId(paragraph.id)}
             onMouseLeave={() => setHighlightedId(null)}
           >
             {/* Original */}
-            <div class="paragraph-cell paragraph-cell-original">
+            <div class="paragraph-cell paragraph-cell-original" style={isOriginalReadingMode ? { width: '100%' } : {}}>
               <span class="paragraph-index">{index + 1}</span>
               <div class="paragraph-text">{paragraph.originalText}</div>
             </div>
 
-            {/* Translation */}
+            {/* Translation - hidden in original reading mode */}
+            {!isOriginalReadingMode && (
             <div class="paragraph-cell paragraph-cell-translation">
               {editingId === paragraph.id ? (
                 <div>
@@ -133,6 +138,7 @@ export function ParagraphList({ paragraphs, onSave }: ParagraphListProps) {
                 />
               )}
             </div>
+            )}
           </div>
         ))}
       </div>

@@ -1,0 +1,27 @@
+/* Page Layouts - Responsive */
+
+/* Project and Chapter pages container */
+.project-page-container,
+.chapter-page-container {
+  display: block; /* Mobile: single column */
+  width: 100%;
+}
+
+/* Desktop: grid layout */
+@media (min-width: 1024px) {
+  .project-page-container,
+  .chapter-page-container {
+    display: grid;
+    grid-template-columns: minmax(280px, 320px) 1fr;
+    gap: 2rem;
+    width: 100%;
+  }
+}
+
+/* Tablet: can use grid with smaller gap */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .project-page-container,
+  .chapter-page-container {
+    display: block; /* Keep block on tablet for now */
+  }
+}

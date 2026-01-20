@@ -1,68 +1,134 @@
-import { ProjectList } from './ProjectList';
+import { useState } from 'preact/hooks';
 import { ChapterList } from './ChapterList';
 import { Button } from '../ui';
-import type { Project, Chapter } from '../../types';
+import { route } from 'preact-router';
+import type { Project, ProjectSettings } from '../../types';
+import { SettingsModal } from './SettingsModal';
+import './Sidebar.css';
 
 interface SidebarProps {
   project: Project | null;
-  selectedProjectId: string | null;
   selectedChapterId: string | null;
-  onSelectProject: (id: string) => void;
   onSelectChapter: (id: string) => void;
   onDeleteChapter?: (id: string) => void;
   onUploadChapter: (file: File, title: string) => Promise<void>;
   onOpenGlossary: () => void;
-  onProjectCreated?: () => void;
   onChaptersUpdate?: () => void;
-  refreshTrigger?: number;
+  onSettingsChange?: (settings: ProjectSettings) => void;
+  onRefreshProject?: () => Promise<void>;
   isMobileOpen?: boolean;
 }
 
 export function Sidebar({
   project,
-  selectedProjectId,
   selectedChapterId,
-  onSelectProject,
   onSelectChapter,
   onDeleteChapter,
   onUploadChapter,
   onOpenGlossary,
-  onProjectCreated,
   onChaptersUpdate,
-  refreshTrigger,
+  onSettingsChange,
+  onRefreshProject,
   isMobileOpen = false,
 }: SidebarProps) {
+  const [showSettings, setShowSettings] = useState(false);
+
+  if (!project) {
+    return null;
+  }
+
+  const handleSettingsChange = (settings: ProjectSettings) => {
+    if (onSettingsChange) {
+      onSettingsChange(settings);
+    }
+    // Also update project state if onChaptersUpdate is available (refresh)
+    if (onChaptersUpdate) {
+      onChaptersUpdate();
+    }
+  };
+
   return (
-    <aside class={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
-      <ProjectList
-        selectedId={selectedProjectId}
-        onSelect={onSelectProject}
-        onProjectCreated={onProjectCreated}
-        refreshTrigger={refreshTrigger}
-      />
+    <>
+      <aside class={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
+        {/* Quick link to projects dashboard */}
+        <Button 
+          variant="secondary" 
+          onClick={() => {
+            // Close sidebar on mobile
+            if (isMobileOpen) {
+              (window as any).__arcaneSidebarOpen = false;
+              window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
+            }
+            route('/');
+          }}
+          className="sidebar-dashboard-link"
+        >
+          ← Все проекты
+        </Button>
 
-      {project && (
-        <>
-          <ChapterList
-            chapters={project.chapters}
-            selectedId={selectedChapterId}
-            projectId={project.id}
-            onSelect={onSelectChapter}
-            onDelete={onDeleteChapter}
-            onUpload={onUploadChapter}
-            onChaptersUpdate={onChaptersUpdate}
-          />
+        {/* Project name/header */}
+        <div class="sidebar-project-header">
+          <h3 class="sidebar-project-name" title={project.name}>
+            {project.name}
+          </h3>
+        </div>
 
-          <Button variant="glossary" onClick={onOpenGlossary}>
-            📝 Глоссарий{' '}
-            <span class="glossary-count">{project.glossary.length}</span>
-          </Button>
-        </>
+        {/* Project Settings Button */}
+        <Button 
+          variant="secondary" 
+          onClick={() => {
+            // Close sidebar on mobile
+            if (isMobileOpen) {
+              (window as any).__arcaneSidebarOpen = false;
+              window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
+            }
+            route(`/projects/${project.id}`);
+          }}
+          className="sidebar-settings-link"
+          style={{ marginBottom: '0.75rem' }}
+        >
+          📄 О проекте
+        </Button>
+
+        {/* Settings Button */}
+        <Button 
+          variant="secondary" 
+          onClick={() => setShowSettings(true)}
+          className="sidebar-settings-link"
+          style={{ marginBottom: '1rem' }}
+        >
+          ⚙️ Настройки проекта
+        </Button>
+
+        <ChapterList
+          chapters={project.chapters}
+          selectedId={selectedChapterId}
+          projectId={project.id}
+          originalReadingMode={project.settings?.originalReadingMode ?? false}
+          onSelect={onSelectChapter}
+          onDelete={onDeleteChapter}
+          onUpload={onUploadChapter}
+          onChaptersUpdate={onChaptersUpdate}
+        />
+
+        <Button variant="glossary" onClick={onOpenGlossary}>
+          📝 Глоссарий{' '}
+          <span class="glossary-count">{project.glossary.length}</span>
+        </Button>
+      </aside>
+
+      {showSettings && (
+        <SettingsModal
+          project={project}
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          onSettingsChange={handleSettingsChange}
+          onRefreshProject={onRefreshProject}
+        />
       )}
-    </aside>
+    </>
   );
 }
 
-export { ProjectList } from './ProjectList';
 export { ChapterList } from './ChapterList';
 

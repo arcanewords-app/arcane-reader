@@ -30,19 +30,32 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [chapters, setChapters] = useState<Chapter[]>([]);
 
-  // Filter and load only completed chapters
+  // Determine reading mode (must be declared before use)
+  const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
+
+  // Filter and load chapters based on mode
   useEffect(() => {
-    const completedChapters = project.chapters
-      .filter(ch => ch.status === 'completed' && ch.translatedText)
-      .sort((a, b) => a.number - b.number);
     
-    setChapters(completedChapters);
+    let availableChapters: Chapter[];
+    if (isOriginalReadingMode) {
+      // In original reading mode: show all chapters with original text
+      availableChapters = project.chapters
+        .filter(ch => ch.originalText)
+        .sort((a, b) => a.number - b.number);
+    } else {
+      // In translation mode: show only completed chapters with translation
+      availableChapters = project.chapters
+        .filter(ch => ch.status === 'completed' && ch.translatedText)
+        .sort((a, b) => a.number - b.number);
+    }
+    
+    setChapters(availableChapters);
     
     // Set initial chapter index
-    if (completedChapters.length > 0) {
+    if (availableChapters.length > 0) {
       if (initialChapterId) {
         // Find chapter by ID
-        const chapterIndex = completedChapters.findIndex(ch => ch.id === initialChapterId);
+        const chapterIndex = availableChapters.findIndex(ch => ch.id === initialChapterId);
         if (chapterIndex >= 0) {
           setCurrentChapterIndex(chapterIndex);
         } else {
@@ -153,9 +166,13 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
       <div class="reading-mode">
         <div class="reading-mode-empty">
           <div style={{ textAlign: 'center', padding: '3rem' }}>
-            <h2 style={{ marginBottom: '1rem' }}>Нет переведенных глав</h2>
+            <h2 style={{ marginBottom: '1rem' }}>
+              {isOriginalReadingMode ? 'Нет глав для чтения' : 'Нет переведенных глав'}
+            </h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-              Для использования режима чтения нужно перевести хотя бы одну главу.
+              {isOriginalReadingMode 
+                ? 'Нет глав с оригинальным текстом для чтения.'
+                : 'Для использования режима чтения нужно перевести хотя бы одну главу.'}
             </p>
             <button
               class="reading-mode-exit-btn"
@@ -177,20 +194,26 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
       </div>
     );
   }
-
-  // Get translated text from paragraphs or fallback to chapter.translatedText
-  const getTranslatedText = (chapter: Chapter): string => {
-    if (chapter.paragraphs && chapter.paragraphs.length > 0) {
-      const paragraphs = chapter.paragraphs
-        .sort((a, b) => a.index - b.index)
-        .filter(p => p.translatedText)
-        .map(p => p.translatedText);
-      return paragraphs.join('\n\n');
+  
+  // Get text based on mode: original in original reading mode, translated otherwise
+  const getText = (chapter: Chapter): string => {
+    if (isOriginalReadingMode) {
+      // In original reading mode: use original text
+      return chapter.originalText || '';
+    } else {
+      // In translation mode: use translated text
+      if (chapter.paragraphs && chapter.paragraphs.length > 0) {
+        const paragraphs = chapter.paragraphs
+          .sort((a, b) => a.index - b.index)
+          .filter(p => p.translatedText)
+          .map(p => p.translatedText);
+        return paragraphs.join('\n\n');
+      }
+      return chapter.translatedText || '';
     }
-    return chapter.translatedText || '';
   };
 
-  const translatedText = currentChapter ? getTranslatedText(currentChapter) : '';
+  const displayText = currentChapter ? getText(currentChapter) : '';
 
   return (
     <div class="reading-mode">
@@ -272,15 +295,15 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
       {/* Content */}
       <div class="reading-mode-content">
         <div class="reading-mode-text">
-          {translatedText ? (
-            translatedText.split('\n\n').map((paragraph, idx) => (
+          {displayText ? (
+            displayText.split('\n\n').map((paragraph, idx) => (
               <p key={idx} class="reading-mode-paragraph">
                 {paragraph}
               </p>
             ))
           ) : (
             <p style={{ color: 'var(--text-dim)', textAlign: 'center' }}>
-              Нет переведенного текста
+              {isOriginalReadingMode ? 'Нет оригинального текста' : 'Нет переведенного текста'}
             </p>
           )}
         </div>
