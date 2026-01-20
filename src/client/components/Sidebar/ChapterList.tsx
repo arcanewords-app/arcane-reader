@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'preact/hooks';
 import type { Chapter, ChapterStatus } from '../../types';
 import { Card, CountBadge } from '../ui';
 import { api } from '../../api/client';
+import './ChapterList.css';
 
 type FilterType = 'all' | ChapterStatus;
 

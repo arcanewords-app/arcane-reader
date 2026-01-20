@@ -189,8 +189,6 @@ export interface Session {
 export interface LoginResponse {
   user: AuthUser;
   session: Session | null;
-}
-
-export interface RegisterResponse {
+}export interface RegisterResponse {
   user: AuthUser;
 }

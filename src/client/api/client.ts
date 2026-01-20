@@ -34,13 +34,33 @@ export class ApiError extends Error {
 // === Fetch Helpers ===
 
 /**
+ * Custom event name for authentication errors
+ */
+const AUTH_ERROR_EVENT = 'arcane:auth-error';
+
+/**
  * Helper to handle 401 errors consistently
+ * Clears auth storage, dispatches event for app to handle, and redirects if needed
  */
 function handleAuthError(response: Response): void {
   if (response.status === 401) {
+    // Clear auth storage
     authService.clearStorage();
+    
+    // Dispatch custom event to notify app about auth error
+    // This allows App.tsx to update state and show login without full page reload
+    window.dispatchEvent(new CustomEvent(AUTH_ERROR_EVENT, { 
+      detail: { message: 'Токен истек. Пожалуйста, войдите снова.' } 
+    }));
+    
+    // Redirect to login page if not already there
     if (window.location.pathname !== '/') {
       window.location.href = '/?login=required';
+    } else {
+      // Update URL to include login=required parameter
+      const url = new URL(window.location.href);
+      url.searchParams.set('login', 'required');
+      window.history.replaceState({}, '', url.toString());
     }
   }
 }

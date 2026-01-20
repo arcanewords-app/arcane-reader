@@ -15,6 +15,7 @@ interface SidebarProps {
   onProjectCreated?: () => void;
   onChaptersUpdate?: () => void;
   refreshTrigger?: number;
+  isMobileOpen?: boolean;
 }
 
 export function Sidebar({
@@ -29,9 +30,10 @@ export function Sidebar({
   onProjectCreated,
   onChaptersUpdate,
   refreshTrigger,
+  isMobileOpen = false,
 }: SidebarProps) {
   return (
-    <aside class="sidebar">
+    <aside class={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
       <ProjectList
         selectedId={selectedProjectId}
         onSelect={onSelectProject}

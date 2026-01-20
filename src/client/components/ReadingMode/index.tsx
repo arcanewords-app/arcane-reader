@@ -3,6 +3,7 @@ import type { Project, Chapter, ReaderSettings } from '../../types';
 import { api } from '../../api/client';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { Modal } from '../ui';
+import './ReadingMode.css';
 
 interface ReadingModeProps {
   project: Project;

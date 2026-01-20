@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import type { Paragraph } from '../../types';
+import './ParagraphList.css';
 
 interface ParagraphListProps {
   paragraphs: Paragraph[];

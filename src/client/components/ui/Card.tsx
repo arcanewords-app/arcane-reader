@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import './Card.css';
 
 interface CardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   title?: string;

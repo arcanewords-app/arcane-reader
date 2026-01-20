@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'preact/hooks';
 import type { GlossaryEntry, GlossaryEntryType } from '../../types';
 import { Modal, Button, Input, Select } from '../ui';
 import { api } from '../../api/client';
+import './GlossaryModal.css';
 
 type FilterType = 'all' | GlossaryEntryType;
 
@@ -148,8 +149,15 @@ export function GlossaryModal({
                           {entry.translated}
                         </span>
                       </div>
-                      <div class="glossary-card-type-badge">
-                        {typeIcons[entry.type]} {typeLabels[entry.type]}
+                      <div class="glossary-card-header-badges">
+                        <div class="glossary-card-type-badge" title={typeLabels[entry.type]}>
+                          {typeIcons[entry.type]}
+                        </div>
+                        {entry.firstAppearance && (
+                          <span class="glossary-card-badge glossary-card-chapter" title="Первое упоминание">
+                            📖 {entry.firstAppearance}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -160,18 +168,11 @@ export function GlossaryModal({
                     </div>
                   )}
                   
-                  <div class="glossary-card-footer">
-                    {entry.firstAppearance && (
-                      <span class="glossary-card-badge glossary-card-chapter" title="Первое упоминание">
-                        📖 Гл. {entry.firstAppearance}
-                      </span>
-                    )}
-                    {entry.notes && (
-                      <span class="glossary-card-badge glossary-card-notes" title={entry.notes}>
-                        📝 {entry.notes}
-                      </span>
-                    )}
-                  </div>
+                  {entry.notes && (
+                    <div class="glossary-card-notes" title={entry.notes}>
+                      {entry.notes}
+                    </div>
+                  )}
                   
                   <button
                     class="glossary-card-delete"

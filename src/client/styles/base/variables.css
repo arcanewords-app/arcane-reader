@@ -1,0 +1,192 @@
+/* =============================================================
+   CSS Variables & Theme
+   ============================================================= */
+:root {
+  /* Base UI colors (always dark theme for UI) */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-card: #1a1a24;
+  --bg-hover: #22222e;
+  --accent: #8b5cf6;
+  --accent-dim: #6d28d9;
+  --accent-glow: rgba(139, 92, 246, 0.3);
+  --text-primary: #e8e6f0;
+  --text-secondary: #9ca3af;
+  --text-dim: #6b7280;
+  --border: #2a2a3a;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Reader settings (customizable) */
+  --reader-font: 'Literata', Georgia, serif;
+  --reader-font-size: 18px;
+  --reader-line-height: 1.7;
+  --reader-paragraph-spacing: 1.2em;
+  --reader-bg: #1a1a2e;
+  --reader-text: #e4e4e7;
+  --reader-text-dim: #9ca3af;
+
+  /* =============================================================
+     RESPONSIVE LAYOUT - Fixed Sizes for 3 Devices
+     Mobile First Approach
+     ============================================================= */
+
+  /* Mobile (≤767px) - Base styles */
+  --container-width-mobile: 100%;
+  --sidebar-width-mobile: 85vw; /* Шире для мобильных, так как выдвигается */
+  --main-padding-mobile: 1rem;
+  --header-padding-mobile: 1rem;
+  --modal-width-mobile: 100%;
+  --modal-max-width-mobile: 100%;
+
+  /* Tablet (768px - 1023px) */
+  --container-width-tablet: 768px;
+  --sidebar-width-tablet: 320px;
+  --main-padding-tablet: 1.5rem;
+  --header-padding-tablet: 1.5rem;
+  --modal-width-tablet: 600px;
+  --modal-max-width-tablet: 600px;
+
+  /* Desktop (≥1024px) */
+  --container-width-desktop: 1200px;
+  --sidebar-width-desktop: 320px;
+  --main-padding-desktop: 2rem;
+  --header-padding-desktop: 2rem;
+  --modal-width-desktop: 800px;
+  --modal-max-width-desktop: 900px;
+
+  /* Reading Mode - Mobile (≤767px) */
+  --reading-header-padding-mobile: 0.75rem 1rem;
+  --reading-content-padding-mobile: 1rem;
+  --reading-text-max-width-mobile: 100%;
+  --reading-font-size-mobile: 16px;
+
+  /* Reading Mode - Tablet (768px - 1023px) */
+  --reading-header-padding-tablet: 1rem 1.5rem;
+  --reading-content-padding-tablet: 1.5rem;
+  --reading-text-max-width-tablet: 700px;
+  --reading-font-size-tablet: 17px;
+
+  /* Reading Mode - Desktop (≥1024px) */
+  --reading-header-padding-desktop: 1rem 2rem;
+  --reading-content-padding-desktop: 2rem;
+  --reading-text-max-width-desktop: 800px;
+  --reading-font-size-desktop: 18px;
+
+  /* Chapter View - Mobile (≤767px) */
+  --chapter-header-padding-mobile: 1rem;
+  --chapter-title-size-mobile: 1.25rem;
+  --chapter-nav-btn-size-mobile: 36px;
+  --paragraph-cell-padding-mobile: 1rem;
+  --paragraph-index-left-mobile: 0.5rem;
+  --panel-header-padding-mobile: 0.75rem 1rem;
+
+  /* Chapter View - Tablet (768px - 1023px) */
+  --chapter-header-padding-tablet: 1.25rem;
+  --chapter-title-size-tablet: 1.375rem;
+  --chapter-nav-btn-size-tablet: 36px;
+  --paragraph-cell-padding-tablet: 1rem 1.25rem;
+  --paragraph-index-left-tablet: 1rem;
+  --panel-header-padding-tablet: 1rem 1.25rem;
+
+  /* Chapter View - Desktop (≥1024px) */
+  --chapter-header-padding-desktop: 1.5rem;
+  --chapter-title-size-desktop: 1.5rem;
+  --chapter-nav-btn-size-desktop: 36px;
+  --paragraph-cell-padding-desktop: 1rem 1.5rem;
+  --paragraph-index-left-desktop: 0.75rem;
+  --panel-header-padding-desktop: 1rem 1.5rem;
+
+  /* Glossary Card - Mobile (≤767px) */
+  --glossary-grid-min-width-mobile: 320px;
+  --glossary-grid-gap-mobile: 0.75rem;
+  --glossary-card-padding-mobile: 1.25rem;
+  --glossary-card-image-size-mobile: 70px;
+  --glossary-card-min-height-mobile: 0; /* Убираем фиксированную высоту, чтобы карточки не ужимались */
+  --glossary-card-border-radius-mobile: 12px;
+  --glossary-card-header-gap-mobile: 0.75rem;
+  --glossary-card-footer-padding-mobile: 0.5rem 0.75rem;
+  --glossary-card-delete-size-mobile: 32px;
+  --glossary-card-delete-offset-mobile: 0.75rem;
+  --glossary-card-names-lines-mobile: 2;
+  --glossary-card-description-lines-mobile: 3;
+
+  /* Glossary Card - Tablet (768px - 1023px) */
+  --glossary-grid-min-width-tablet: 360px;
+  --glossary-grid-gap-tablet: 1.5rem;
+  --glossary-card-padding-tablet: 1.5rem;
+  --glossary-card-image-size-tablet: 80px;
+  --glossary-card-min-height-tablet: 0; /* Убираем фиксированную высоту, чтобы карточки не ужимались */
+  --glossary-card-border-radius-tablet: 14px;
+  --glossary-card-header-gap-tablet: 1rem;
+  --glossary-card-footer-padding-tablet: 0.75rem 1rem;
+  --glossary-card-delete-size-tablet: 34px;
+  --glossary-card-delete-offset-tablet: 0.875rem;
+  --glossary-card-names-lines-tablet: 2;
+  --glossary-card-description-lines-tablet: 4;
+
+  /* Glossary Card - Desktop (≥1024px) */
+  --glossary-grid-min-width-desktop: 420px;
+  --glossary-grid-gap-desktop: 1.5rem;
+  --glossary-card-padding-desktop: 1.75rem;
+  --glossary-card-image-size-desktop: 90px;
+  --glossary-card-min-height-desktop: 0; /* Убираем фиксированную высоту, чтобы карточки не ужимались */
+  --glossary-card-border-radius-desktop: 14px;
+  --glossary-card-header-gap-desktop: 1rem;
+  --glossary-card-footer-padding-desktop: 0.75rem 1rem;
+  --glossary-card-delete-size-desktop: 36px;
+  --glossary-card-delete-offset-desktop: 1rem;
+  --glossary-card-names-lines-desktop: 2;
+  --glossary-card-description-lines-desktop: 4;
+}
+
+/* === Reader Color Schemes === */
+
+[data-reader-theme='dark'] {
+  --reader-bg: #1a1a2e;
+  --reader-text: #e4e4e7;
+  --reader-text-dim: #9ca3af;
+  --reader-accent: #8b5cf6;
+}
+
+[data-reader-theme='light'] {
+  --reader-bg: #fafafa;
+  --reader-text: #1f1f1f;
+  --reader-text-dim: #6b7280;
+  --reader-accent: #7c3aed;
+}
+
+[data-reader-theme='sepia'] {
+  --reader-bg: #f4ecd8;
+  --reader-text: #5c4b37;
+  --reader-text-dim: #8b7355;
+  --reader-accent: #8b6914;
+}
+
+[data-reader-theme='contrast'] {
+  --reader-bg: #000000;
+  --reader-text: #ffffff;
+  --reader-text-dim: #cccccc;
+  --reader-accent: #ffcc00;
+}
+
+/* === Reader Font Families === */
+
+[data-reader-font='literary'] {
+  --reader-font: 'Literata', Georgia, serif;
+}
+
+[data-reader-font='serif'] {
+  --reader-font: 'Charter', 'Bitstream Charter', Cambria, serif;
+}
+
+[data-reader-font='sans'] {
+  --reader-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+[data-reader-font='mono'] {
+  --reader-font: 'JetBrains Mono', 'Fira Code', monospace;
+}

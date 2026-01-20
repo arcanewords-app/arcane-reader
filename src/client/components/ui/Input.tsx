@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import './Input.css';
 
 interface InputProps extends JSX.HTMLAttributes<HTMLInputElement> {
   label?: string;

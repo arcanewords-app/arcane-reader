@@ -1,0 +1,126 @@
+/* Input Component Styles */
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.form-input,
+textarea.form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem; /* Extra padding on right for chevron */
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: auto, 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary) !important; /* Force text color */
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 500; /* Make selected text slightly bolder */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Ensure selected value is visible in closed select */
+.form-select::-ms-value {
+  background: transparent;
+  color: var(--text-primary) !important;
+}
+
+.form-select::-moz-selection {
+  background: transparent;
+  color: var(--text-primary) !important;
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.form-input:hover,
+textarea.form-input:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+}
+
+.form-select:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: auto, 12px;
+}
+
+.form-input:focus,
+textarea.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.95) 100%);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2),
+    0 0 24px rgba(139, 92, 246, 0.1);
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2),
+    0 0 24px rgba(139, 92, 246, 0.1);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.95) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: auto, 12px;
+}
+
+/* Style option elements to have dark background */
+.form-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  font-weight: 400;
+}
+
+/* Highlight selected option in dropdown */
+.form-select option:checked {
+  background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
+  color: white !important;
+  font-weight: 600;
+}
+
+/* Hover state for options */
+.form-select option:hover {
+  background: var(--bg-hover);
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}

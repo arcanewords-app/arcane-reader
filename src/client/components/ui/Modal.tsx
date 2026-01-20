@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import { useEffect, useCallback } from 'preact/hooks';
+import './Modal.css';
 
 interface ModalProps {
   isOpen: boolean;

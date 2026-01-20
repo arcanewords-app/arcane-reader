@@ -1,0 +1,37 @@
+/* Auth Modal Component Styles */
+
+.auth-modal {
+  padding: 1.25rem !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.auth-modal .modal-title {
+  margin-bottom: 0.75rem !important;
+  font-size: 1.25rem !important;
+}
+
+.auth-tabs {
+  margin-bottom: 0.75rem !important;
+}
+
+.auth-form {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-form .form-group {
+  margin-bottom: 0;
+}
+
+.auth-form .form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Email Confirmation Modal should appear above Auth Modal */
+.email-confirmation-modal-overlay {
+  z-index: 1500;
+}

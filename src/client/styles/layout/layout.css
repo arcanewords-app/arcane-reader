@@ -1,0 +1,133 @@
+/* =============================================================
+   Layout Components
+   ============================================================= */
+
+/* === Main Layout === */
+/* Mobile First - Base styles for mobile */
+
+main {
+  width: var(--container-width-mobile);
+  max-width: var(--container-width-mobile);
+  margin: 0 auto;
+  padding: var(--main-padding-mobile);
+  display: block; /* Single column on mobile */
+  min-height: 100vh;
+  position: relative;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: var(--sidebar-width-mobile);
+  max-width: 320px; /* Максимальная ширина для больших мобильных */
+  height: 100vh;
+  border-right: 1px solid var(--border);
+  z-index: 999; /* Below header (1000) */
+  transition: left 0.3s ease;
+  overflow-y: auto;
+  padding: var(--main-padding-mobile); /* Добавляем padding для отступов */
+  padding-top: calc(var(--main-padding-mobile) + 70px); /* Space for header */
+  padding-bottom: var(--main-padding-mobile); /* Отступ снизу */
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* Добавляем gap между секциями */
+  background: var(--bg-primary);
+}
+
+.sidebar.mobile-open {
+  left: 0;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  backdrop-filter: blur(4px);
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  /* Защита от overflow в grid на маленьких экранах */
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* =============================================================
+   TABLET STYLES (768px - 1023px)
+   ============================================================= */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  main {
+    width: var(--container-width-tablet);
+    max-width: var(--container-width-tablet);
+    padding: var(--main-padding-tablet);
+    /* На планшете остаемся с block (без grid) для безопасности */
+    display: block;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width-tablet);
+  }
+}
+
+/* =============================================================
+   DESKTOP STYLES (≥1024px)
+   ============================================================= */
+
+@media (min-width: 1024px) {
+  main {
+    width: var(--container-width-desktop);
+    max-width: var(--container-width-desktop);
+    padding: var(--main-padding-desktop);
+    display: grid;
+    /* Используем minmax для защиты от overflow на маленьких экранах */
+    grid-template-columns: minmax(280px, var(--sidebar-width-desktop)) minmax(0, 1fr);
+    gap: 2rem;
+    min-height: calc(100vh - 100px);
+    /* Защита от горизонтального overflow */
+    box-sizing: border-box;
+  }
+
+  .sidebar {
+    position: static;
+    left: auto;
+    width: auto;
+    min-width: 0; /* Защита от overflow в grid */
+    height: auto;
+    padding: 0;
+    padding-top: 0;
+    box-shadow: none;
+    border-right: none;
+    overflow-y: visible;
+    /* Учитываем padding в ширину */
+    box-sizing: border-box;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+/* Защита для очень маленьких desktop экранов (1024px - 1200px) */
+@media (min-width: 1024px) and (max-width: 1200px) {
+  main {
+    /* На очень маленьких desktop используем меньший gap */
+    gap: 1.5rem;
+    /* Гарантируем, что grid не сломается */
+    grid-template-columns: minmax(min(260px, 100%), 280px) minmax(0, 1fr);
+  }
+}

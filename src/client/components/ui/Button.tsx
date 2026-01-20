@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import './Button.css';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'glossary';
 export type ButtonSize = 'sm' | 'md' | 'full';

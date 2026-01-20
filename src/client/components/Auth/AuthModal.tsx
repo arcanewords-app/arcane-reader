@@ -3,6 +3,7 @@ import { Modal } from '../ui';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 import type { AuthUser } from '../../types';
+import './AuthModal.css';
 
 interface AuthModalProps {
   isOpen: boolean;

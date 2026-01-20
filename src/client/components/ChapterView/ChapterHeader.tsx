@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { Chapter } from '../../types';
 import { Button, StatusBadge } from '../ui';
 import { api } from '../../api/client';
+import './ChapterHeader.css';
 
 interface ChapterHeaderProps {
   chapter: Chapter;

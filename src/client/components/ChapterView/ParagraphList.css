@@ -1,0 +1,343 @@
+/* ParagraphList Component Styles */
+
+/* === Reader Panel === */
+
+.text-panel-unified {
+  background: var(--reader-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px; /* Меньше скругление на мобильных */
+  overflow: visible; /* Allow content to overflow for horizontal scroll */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.3s ease;
+  min-width: 0; /* Allow flex item to shrink below content size */
+}
+
+.panel-headers {
+  display: flex;
+  background: var(--bg-secondary);
+  min-width: fit-content; /* Ensure headers don't shrink below content */
+}
+
+.panel-header-left,
+.panel-header-right {
+  flex: 1;
+  padding: var(--panel-header-padding-mobile);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0; /* Allow flex item to shrink */
+  font-size: 0.9rem; /* Mobile first - меньший размер */
+}
+
+.panel-stats {
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+.paragraphs-unified {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto; /* Allow horizontal scroll for wide content */
+  min-width: 0; /* Allow flex item to shrink */
+  max-height: calc(100vh - 280px); /* Ограничиваем высоту для скролла на мобильных */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) transparent;
+}
+
+.paragraphs-unified::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.paragraphs-unified::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.paragraphs-unified::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 3px;
+}
+
+.paragraphs-unified::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Paragraph Row */
+.paragraph-row {
+  display: flex;
+  flex-direction: column; /* На мобильных - вертикально */
+  transition: background 0.2s;
+  margin-bottom: calc(var(--reader-paragraph-spacing, 1.2em) * 0.5);
+  min-width: 0; /* Allow row to shrink */
+}
+
+.paragraph-row:hover {
+  background: rgba(139, 92, 246, 0.04);
+}
+
+.paragraph-row.highlighted {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+/* Paragraph Cells */
+.paragraph-cell {
+  flex: 1;
+  padding: var(--paragraph-cell-padding-mobile);
+  padding-left: calc(var(--paragraph-index-left-mobile) + 1.5rem + 0.5rem); /* Space for index + padding */
+  position: relative;
+  min-width: 0; /* Allow flex item to shrink */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  width: 100%; /* На мобильных (column) - полная ширина */
+}
+
+.paragraph-cell-original {
+  background: transparent;
+  /* Более мягкое разделение на мобильных - используем отступы вместо резкой границы */
+  padding-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid transparent;
+  background-image: linear-gradient(to bottom, transparent 0%, rgba(139, 92, 246, 0.08) 50%, transparent 100%);
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+
+.paragraph-cell-translation {
+  padding-top: 0;
+  margin-top: 0.75rem;
+}
+
+.paragraph-cell-translation:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.paragraph-index {
+  position: absolute;
+  top: 1rem;
+  left: var(--paragraph-index-left-mobile);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+.paragraph-text {
+  white-space: pre-wrap;
+  font-family: var(--reader-font);
+  font-size: var(--reader-font-size);
+  line-height: var(--reader-line-height);
+  color: var(--reader-text);
+  transition: all 0.3s ease;
+}
+
+.paragraph-text.editable {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.paragraph-text.editable:hover {
+  background: rgba(139, 92, 246, 0.1);
+  margin: -0.35rem;
+  padding: 0.35rem;
+}
+
+.paragraph-text.empty {
+  color: var(--text-dim);
+  font-style: italic;
+  cursor: pointer;
+}
+
+/* Inline editor */
+.paragraph-editor {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--reader-bg);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  color: var(--reader-text);
+  font-family: var(--reader-font);
+  font-size: var(--reader-font-size);
+  line-height: var(--reader-line-height);
+  resize: none;
+  overflow: hidden;
+  min-height: 2.5em;
+}
+
+.paragraph-editor:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.paragraph-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  justify-content: flex-end;
+}
+
+.paragraph-actions .btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* Responsive Styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .paragraphs-unified {
+    max-height: calc(100vh - 300px); /* Больше места на планшете */
+  }
+
+  .text-panel-unified {
+    border-radius: 14px; /* Среднее скругление на планшете */
+  }
+
+  .paragraph-row {
+    flex-direction: row !important; /* Две колонки на планшете - принудительно */
+  }
+
+  .paragraph-cell {
+    padding: var(--paragraph-cell-padding-tablet);
+    padding-left: calc(var(--paragraph-index-left-tablet) + 1.5rem + 0.5rem);
+    width: auto !important; /* На планшете (row) - автоматическая ширина */
+  }
+
+  .paragraph-cell-original {
+    border-bottom: none;
+    margin-bottom: 0;
+    background-image: none; /* Убираем градиент на планшете */
+    padding-bottom: var(--paragraph-cell-padding-tablet);
+    padding-right: 1rem;
+    border-right: none;
+    position: relative;
+  }
+
+  .paragraph-cell-original::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0.75rem;
+    bottom: 0.75rem;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(139, 92, 246, 0.2) 20%,
+      rgba(139, 92, 246, 0.3) 50%,
+      rgba(139, 92, 246, 0.2) 80%,
+      transparent 100%
+    );
+  }
+
+  .paragraph-cell-translation {
+    padding-top: var(--paragraph-cell-padding-tablet);
+    margin-top: 0;
+    padding-left: 1rem;
+  }
+
+  .paragraph-index {
+    left: var(--paragraph-index-left-tablet);
+    top: 1rem;
+  }
+
+  .panel-header-left,
+  .panel-header-right {
+    padding: var(--panel-header-padding-tablet);
+    font-size: 0.95rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .paragraphs-unified {
+    max-height: calc(100vh - 320px); /* Больше места на десктопе */
+  }
+
+  .text-panel-unified {
+    border-radius: 16px; /* Больше скругление на десктопе */
+  }
+
+  .paragraph-row {
+    flex-direction: row !important; /* Две колонки на десктопе - принудительно */
+  }
+
+  .paragraph-cell {
+    padding: var(--paragraph-cell-padding-desktop);
+    padding-left: calc(var(--paragraph-index-left-desktop) + 1.5rem + 0.5rem);
+    width: auto !important; /* На десктопе (row) - автоматическая ширина */
+  }
+
+  .paragraph-cell-original {
+    border-bottom: none;
+    margin-bottom: 0;
+    background-image: none; /* Убираем градиент на десктопе */
+    padding-bottom: var(--paragraph-cell-padding-desktop);
+    padding-right: 1.25rem;
+    border-right: none;
+    position: relative;
+  }
+
+  .paragraph-cell-original::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0.75rem;
+    bottom: 0.75rem;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(139, 92, 246, 0.2) 20%,
+      rgba(139, 92, 246, 0.3) 50%,
+      rgba(139, 92, 246, 0.2) 80%,
+      transparent 100%
+    );
+  }
+
+  .paragraph-cell-translation {
+    padding-top: var(--paragraph-cell-padding-desktop);
+    margin-top: 0;
+    padding-left: 1.25rem;
+  }
+
+  .paragraph-index {
+    left: var(--paragraph-index-left-desktop);
+    top: 1.25rem;
+  }
+
+  .panel-header-left,
+  .panel-header-right {
+    padding: var(--panel-header-padding-desktop);
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .paragraphs-unified {
+    max-height: calc(100vh - 260px); /* Меньше места на очень маленьких экранах */
+  }
+
+  .paragraph-cell {
+    padding: 0.875rem;
+    padding-left: calc(0.5rem + 1.5rem + 0.25rem);
+  }
+
+  .paragraph-index {
+    left: 0.5rem;
+    top: 0.875rem;
+    font-size: 0.7rem;
+  }
+
+  .panel-header-left,
+  .panel-header-right {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .panel-stats {
+    font-size: 0.75rem;
+  }
+}

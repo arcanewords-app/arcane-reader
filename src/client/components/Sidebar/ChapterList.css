@@ -1,0 +1,387 @@
+/* ChapterList Component Styles */
+
+/* === Welcome Screen === */
+
+.welcome {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.welcome-logo {
+  width: 140px;
+  height: 140px;
+  margin-bottom: 1.5rem;
+  border-radius: 50%;
+  box-shadow: 0 8px 40px var(--accent-glow);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.welcome h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.welcome p {
+  color: var(--text-secondary);
+  max-width: 500px;
+  margin: 0 auto 2rem;
+  font-size: 1.1rem;
+}
+
+/* === Chapter List === */
+
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* Отступ между карточками глав */
+  min-height: 100px;
+  max-height: 500px; /* Fixed height instead of calc(100vh - 450px) */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) transparent;
+}
+
+.chapter-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chapter-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chapter-list::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 3px;
+}
+
+.chapter-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Chapter filters */
+.chapter-filters {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.chapter-filter-btn {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chapter-filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.chapter-filter-btn.active {
+  background: var(--accent-dim);
+  color: white;
+  border-color: var(--accent);
+}
+
+.chapter-count-badge {
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: var(--text-dim);
+  margin-left: 0.5rem;
+}
+
+.chapter-search {
+  margin-bottom: 0.75rem;
+}
+
+.chapter-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chapter-search-input:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+}
+
+.chapter-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(139, 92, 246, 0.2);
+}
+
+.chapter-search-input::placeholder {
+  color: var(--text-dim);
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  /* padding, background, border и другие базовые стили применяются через общий селектор выше */
+}
+
+.chapter-item.active {
+  background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.4),
+    0 0 24px rgba(139, 92, 246, 0.2);
+}
+
+.chapter-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing !important;
+}
+
+.chapter-item.drag-over {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: linear-gradient(135deg, var(--accent-glow) 0%, rgba(139, 92, 246, 0.1) 100%);
+  transform: scale(1.02);
+}
+
+.chapter-number {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.chapter-item:hover .chapter-number {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+}
+
+.chapter-item.active .chapter-number {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 12px rgba(255, 255, 255, 0.2);
+}
+
+.chapter-number-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 1.75rem;
+}
+
+.chapter-number-input {
+  min-width: 2.5rem;
+  height: 1.75rem;
+  padding: 0 0.25rem;
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(26, 26, 36, 0.8) 100%);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.chapter-number-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.chapter-number-edit-actions {
+  display: flex;
+  gap: 0.1rem;
+}
+
+.chapter-number-save-btn,
+.chapter-number-cancel-btn {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.chapter-number-save-btn:hover {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+  transform: scale(1.1);
+}
+
+.chapter-number-cancel-btn:hover {
+  background: var(--error);
+  border-color: var(--error);
+  color: white;
+  transform: scale(1.1);
+}
+
+.chapter-number-save-btn:disabled,
+.chapter-number-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.chapter-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chapter-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  padding: 0.2rem;
+  border-radius: 4px;
+}
+
+.chapter-item:hover .chapter-delete-btn {
+  opacity: 0.6;
+}
+
+.chapter-delete-btn:hover {
+  opacity: 1 !important;
+  background: rgba(239, 68, 68, 0.2);
+  transform: scale(1.1);
+}
+
+/* Glossary Button */
+.btn-glossary {
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* padding, background, border и другие базовые стили применяются через общий селектор выше */
+}
+
+.glossary-count {
+  background: var(--accent);
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* === Upload Area === */
+
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 2rem 1rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.upload-area:hover,
+.upload-area.dragover {
+  border-color: var(--accent);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.upload-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.6;
+}
+
+.upload-area p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Responsive Styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Chapter list height for tablet */
+  .chapter-list {
+    max-height: 550px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Chapter list height for desktop */
+  .chapter-list {
+    max-height: 600px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chapter-item {
+    border-radius: 0;
+    padding: 1rem;
+    margin: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chapter-item:first-child {
+    border-top: 1px solid var(--border);
+  }
+
+  .chapter-list {
+    gap: 0.5rem; /* Немного меньше на очень маленьких экранах */
+  }
+
+  .chapter-filter-btn {
+    flex: 1;
+    min-width: 0;
+  }
+}

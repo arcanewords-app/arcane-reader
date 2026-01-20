@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'preact/hooks';
-import { api } from '../../api/client';
+import { api, ApiError } from '../../api/client';
 import type { ProjectListItem } from '../../types';
 import { Button, Card, Modal, Input } from '../ui';
+import './ProjectList.css';
 
 interface ProjectListProps {
   selectedId: string | null;
@@ -22,6 +23,11 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
       const data = await api.getProjects();
       setProjects(data);
     } catch (error) {
+      // Ignore 401 errors - they are handled globally and will show login page
+      if (error instanceof ApiError && error.status === 401) {
+        // Auth error - handled globally, just stop loading
+        return;
+      }
       console.error('Failed to load projects:', error);
     } finally {
       setLoading(false);
@@ -44,6 +50,11 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
       onSelect(project.id);
       onProjectCreated?.();
     } catch (error) {
+      // Ignore 401 errors - they are handled globally and will show login page
+      if (error instanceof ApiError && error.status === 401) {
+        // Auth error - handled globally
+        return;
+      }
       console.error('Failed to create project:', error);
     } finally {
       setCreating(false);

@@ -1,4 +1,5 @@
 import type { ReaderSettings as ReaderSettingsType, ColorScheme, FontFamily } from '../../types';
+import './ReaderSettings.css';
 
 interface ReaderSettingsProps {
   settings: ReaderSettingsType;

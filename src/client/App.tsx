@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
-import { api } from './api/client';
+import { api, ApiError } from './api/client';
 import type { SystemStatus, Project, Chapter, ProjectSettings, AuthUser } from './types';
 import { authService } from './services/authService';
 import { Header } from './components/Header';
@@ -36,6 +36,59 @@ export function App() {
   const [deleteChapterId, setDeleteChapterId] = useState<string | null>(null);
   const [deletingChapter, setDeletingChapter] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Handle window resize and popstate - close sidebar on desktop
+  useEffect(() => {
+    let resizeTimeout: number | null = null;
+
+    const handleResize = () => {
+      // Debounce resize events
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      
+      resizeTimeout = window.setTimeout(() => {
+        // Close sidebar if window width is greater than 768px (desktop)
+        if (window.innerWidth > 768) {
+          setSidebarOpen(false);
+        }
+      }, 100);
+    };
+
+    const handlePopState = () => {
+      // Close sidebar when navigating back/forward
+      setSidebarOpen(false);
+    };
+
+    const handleVisibilityChange = () => {
+      // Close sidebar when tab becomes visible (handles DevTools switching)
+      if (document.visibilityState === 'visible' && window.innerWidth > 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    // Check on mount
+    if (window.innerWidth > 768) {
+      setSidebarOpen(false);
+    }
+
+    // Listen for resize events
+    window.addEventListener('resize', handleResize);
+    // Listen for browser back/forward navigation
+    window.addEventListener('popstate', handlePopState);
+    // Listen for visibility changes (handles DevTools switching)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Check authentication on mount
   useEffect(() => {
@@ -57,6 +110,28 @@ export function App() {
     };
     
     checkAuth();
+  }, []);
+
+  // Listen for authentication errors (401) from API client
+  useEffect(() => {
+    const handleAuthError = () => {
+      // Update auth state to show login
+      setIsAuthenticated(false);
+      setAuthUser(null);
+      setShowAuthModal(true);
+      
+      // Update URL to include login=required parameter if not already there
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('login')) {
+        url.searchParams.set('login', 'required');
+        window.history.replaceState({}, '', url.toString());
+      }
+    };
+
+    window.addEventListener('arcane:auth-error', handleAuthError);
+    return () => {
+      window.removeEventListener('arcane:auth-error', handleAuthError);
+    };
   }, []);
 
   // Read URL parameters on mount (only once)
@@ -127,6 +202,12 @@ export function App() {
     api.getProject(selectedProjectId)
       .then(setProject)
       .catch((error) => {
+        // Ignore 401 errors - they are handled globally and will show login page
+        if (error instanceof ApiError && error.status === 401) {
+          // Auth error - handled globally, just clear project
+          setProject(null);
+          return;
+        }
         console.error('Failed to load project:', error);
         setProject(null);
       });
@@ -269,23 +350,60 @@ export function App() {
   }
 
   // If authenticated - show main app
+  const handleMenuToggle = useCallback(() => {
+    // Only allow toggle on mobile (width <= 768px)
+    if (window.innerWidth <= 768) {
+      setSidebarOpen((prev) => !prev);
+    }
+  }, []);
+
+  const handleSidebarClose = useCallback(() => {
+    setSidebarOpen(false);
+  }, []);
+
+  const handleSelectProjectWithClose = useCallback((id: string) => {
+    handleSelectProject(id);
+    setSidebarOpen(false);
+  }, [handleSelectProject]);
+
+  const handleSelectChapterWithClose = useCallback((id: string) => {
+    handleSelectChapter(id);
+    setSidebarOpen(false);
+  }, [handleSelectChapter]);
+
   return (
     <div class="app">
-      <Header status={status} systemStatus={systemStatus} user={authUser} onLogout={handleLogout} />
+      <Header 
+        status={status} 
+        systemStatus={systemStatus} 
+        user={authUser} 
+        onLogout={handleLogout}
+        onMenuToggle={handleMenuToggle}
+      />
+
+      {/* Sidebar overlay for mobile */}
+      <div 
+        class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+        onClick={handleSidebarClose}
+      />
 
       <main>
         <Sidebar
           project={project}
           selectedProjectId={selectedProjectId}
           selectedChapterId={selectedChapterId}
-          onSelectProject={handleSelectProject}
-          onSelectChapter={handleSelectChapter}
+          onSelectProject={handleSelectProjectWithClose}
+          onSelectChapter={handleSelectChapterWithClose}
           onDeleteChapter={handleDeleteChapter}
           onUploadChapter={handleUploadChapter}
-          onOpenGlossary={() => setShowGlossary(true)}
+          onOpenGlossary={() => {
+            setShowGlossary(true);
+            setSidebarOpen(false);
+          }}
           onProjectCreated={handleRefreshProject}
           onChaptersUpdate={handleRefreshProject}
           refreshTrigger={refreshTrigger}
+          isMobileOpen={sidebarOpen}
         />
 
         <section class="content">

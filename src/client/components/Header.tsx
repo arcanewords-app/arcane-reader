@@ -1,14 +1,32 @@
+import { useState, useEffect } from 'preact/hooks';
 import type { SystemStatus, AuthUser } from '../types';
 import { Button } from './ui';
+import './Header.css';
 
 interface HeaderProps {
   status: 'loading' | 'ready' | 'error';
   systemStatus: SystemStatus | null;
   user?: AuthUser | null;
   onLogout?: () => void;
+  onMenuToggle?: () => void;
 }
 
-export function Header({ status, systemStatus, user, onLogout }: HeaderProps) {
+export function Header({ status, systemStatus, user, onLogout, onMenuToggle }: HeaderProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
   const getStatusText = () => {
     if (status === 'loading') return 'Проверка...';
     if (status === 'error') return 'Ошибка соединения';
@@ -19,11 +37,18 @@ export function Header({ status, systemStatus, user, onLogout }: HeaderProps) {
   return (
     <header>
       <div class="header-content">
-        <div class="logo">
-          <img src="/arcane_icon.png" alt="Arcane" class="logo-icon-img" />
-          <div>
-            <div class="logo-text">ARCANE</div>
-            <div class="logo-subtitle">AI Переводчик новелл</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {onMenuToggle && isMobile && (
+            <button class="mobile-menu-btn" onClick={onMenuToggle} aria-label="Меню">
+              ☰
+            </button>
+          )}
+          <div class="logo">
+            <img src="/arcane_icon.png" alt="Arcane" class="logo-icon-img" />
+            <div>
+              <div class="logo-text">ARCANE</div>
+              <div class="logo-subtitle">AI Переводчик новелл</div>
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -32,11 +57,11 @@ export function Header({ status, systemStatus, user, onLogout }: HeaderProps) {
             <span class="status-text">{getStatusText()}</span>
           </div>
           {user && (
-            <div class="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            <div class="user-menu">
+              <span class="user-menu-email">
                 {user.email}
               </span>
-              <Button variant="secondary" onClick={onLogout} size="sm">
+              <Button variant="secondary" onClick={onLogout} size="sm" className="user-menu-button">
                 Выйти
               </Button>
             </div>

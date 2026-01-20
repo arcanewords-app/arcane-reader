@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'preact/hooks';
 import type { Project, ProjectSettings, Chapter } from '../types';
 import { Card, Button, Modal } from './ui';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 
 interface ProjectInfoProps {
   project: Project;
@@ -140,6 +140,11 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
       setShowDeleteModal(false);
       onDelete();
     } catch (error) {
+      // Ignore 401 errors - they are handled globally and will show login page
+      if (error instanceof ApiError && error.status === 401) {
+        // Auth error - handled globally
+        return;
+      }
       console.error('Failed to delete project:', error);
     } finally {
       setDeleting(false);
@@ -166,6 +171,11 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
 
       console.log(`✅ Экспорт ${format.toUpperCase()} завершен: ${result.filename}`);
     } catch (error: any) {
+      // Ignore 401 errors - they are handled globally and will show login page
+      if (error instanceof ApiError && error.status === 401) {
+        // Auth error - handled globally
+        return;
+      }
       console.error(`Failed to export ${format}:`, error);
       alert(error.message || `Ошибка при экспорте в ${format.toUpperCase()}`);
     } finally {

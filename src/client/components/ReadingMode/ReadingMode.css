@@ -1,0 +1,420 @@
+/* ReadingMode Component Styles */
+
+/* === Reading Mode === */
+
+.reading-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--reader-bg);
+  color: var(--reader-text);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.reading-mode-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: var(--reading-header-padding-mobile);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
+}
+
+.reading-mode-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.reading-mode-exit-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.reading-mode-exit-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: white;
+}
+
+.reading-mode-title h2 {
+  font-size: 1rem; /* Mobile first - меньший размер */
+  margin: 0;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-mode-chapter-info {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-left: 0.5rem;
+}
+
+.reading-mode-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reading-mode-header-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px; /* Защита от сжатия */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.reading-mode-header-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: white;
+}
+
+.reading-mode-settings-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px; /* Защита от сжатия */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.reading-mode-settings-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: white;
+}
+
+.reading-mode-settings-panel {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: var(--reading-header-padding-mobile);
+  flex-shrink: 0;
+}
+
+.reading-mode-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--reading-header-padding-mobile);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  gap: 0.75rem;
+  flex-shrink: 0;
+  flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
+}
+
+.reading-mode-nav-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.reading-mode-nav-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: white;
+}
+
+.reading-mode-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reading-mode-nav-info {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-mode-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--reading-content-padding-mobile);
+  display: flex;
+  justify-content: center;
+  min-width: 0; /* Защита от overflow */
+}
+
+.reading-mode-text {
+  max-width: var(--reading-text-max-width-mobile);
+  width: 100%;
+  font-family: var(--reader-font);
+  font-size: var(--reading-font-size-mobile);
+  line-height: var(--reader-line-height);
+  color: var(--reader-text);
+}
+
+.reading-mode-paragraph {
+  margin-bottom: var(--reader-paragraph-spacing, 1.2em);
+  text-align: justify;
+  text-indent: 1.5em;
+}
+
+.reading-mode-paragraph:first-child {
+  text-indent: 0;
+}
+
+.reading-mode-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--reading-header-padding-mobile);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  gap: 0.75rem;
+  flex-shrink: 0;
+  flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
+}
+
+.reading-mode-progress {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.reading-mode-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem;
+}
+
+/* Table of Contents */
+.reading-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.reading-toc-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
+}
+
+.reading-toc-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.reading-toc-item.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: white;
+}
+
+.reading-toc-number {
+  min-width: 2rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.reading-toc-item.active .reading-toc-number {
+  color: white;
+}
+
+.reading-toc-title {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-toc-current {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.reading-toc-item.active .reading-toc-current {
+  color: white;
+}
+
+.reading-share-copy-btn {
+  transition: all 0.2s;
+}
+
+/* Responsive Styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .reading-mode-header {
+    padding: var(--reading-header-padding-tablet);
+    gap: 0.875rem;
+  }
+
+  .reading-mode-title h2 {
+    font-size: 1.125rem;
+  }
+
+  .reading-mode-header-btn,
+  .reading-mode-settings-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  .reading-mode-settings-panel {
+    padding: var(--reading-header-padding-tablet);
+  }
+
+  .reading-mode-nav {
+    padding: var(--reading-header-padding-tablet);
+    gap: 0.875rem;
+  }
+
+  .reading-mode-content {
+    padding: var(--reading-content-padding-tablet);
+  }
+
+  .reading-mode-text {
+    max-width: var(--reading-text-max-width-tablet);
+    font-size: var(--reading-font-size-tablet);
+  }
+
+  .reading-mode-footer {
+    padding: var(--reading-header-padding-tablet);
+    gap: 0.875rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .reading-mode-header {
+    padding: var(--reading-header-padding-desktop);
+    gap: 1rem;
+  }
+
+  .reading-mode-title h2 {
+    font-size: 1.25rem;
+  }
+
+  .reading-mode-header-btn,
+  .reading-mode-settings-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .reading-mode-settings-panel {
+    padding: var(--reading-header-padding-desktop);
+  }
+
+  .reading-mode-nav {
+    padding: var(--reading-header-padding-desktop);
+    gap: 1rem;
+  }
+
+  .reading-mode-content {
+    padding: var(--reading-content-padding-desktop);
+  }
+
+  .reading-mode-text {
+    max-width: var(--reading-text-max-width-desktop);
+    font-size: var(--reading-font-size-desktop);
+  }
+
+  .reading-mode-footer {
+    padding: var(--reading-header-padding-desktop);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .reading-mode-header {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .reading-mode-title h2 {
+    font-size: 0.9rem;
+  }
+
+  .reading-mode-header-btn,
+  .reading-mode-settings-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 0.9rem;
+  }
+
+  .reading-mode-nav {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .reading-mode-nav-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .reading-mode-content {
+    padding: 0.75rem;
+  }
+
+  .reading-mode-text {
+    font-size: 15px; /* Немного меньше на очень маленьких экранах */
+  }
+
+  .reading-mode-footer {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+}

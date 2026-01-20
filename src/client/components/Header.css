@@ -1,0 +1,253 @@
+/* Header Component Styles */
+
+header {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border);
+  padding: var(--header-padding-mobile);
+  position: sticky;
+  top: 0;
+  z-index: 1000; /* Higher than sidebar (999) to stay on top */
+  backdrop-filter: blur(10px);
+  width: 100%;
+}
+
+.mobile-menu-btn {
+  display: flex; /* Show on mobile */
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.header-content {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap; /* Разрешаем перенос на маленьких экранах */
+  min-width: 0; /* Защита от overflow */
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo-icon-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--accent-glow);
+  object-fit: cover;
+}
+
+.logo-text {
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* API Status */
+.api-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.api-status:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.api-status.ready .status-dot,
+.api-status.connected .status-dot {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.api-status.error .status-dot,
+.api-status.disconnected .status-dot {
+  background: var(--error);
+}
+
+.api-status.loading .status-dot {
+  background: var(--warning);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-text {
+  color: var(--text-secondary);
+}
+
+/* User Menu */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.user-menu-email {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px; /* На мобильных ограничиваем ширину email */
+}
+
+.user-menu-button {
+  flex-shrink: 0; /* Кнопка не сжимается */
+}
+
+/* Responsive Styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  header {
+    padding: var(--header-padding-tablet);
+  }
+
+  .header-content {
+    max-width: var(--container-width-tablet);
+  }
+
+  .user-menu {
+    gap: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .user-menu-email {
+    max-width: 200px; /* Больше места на планшете */
+    font-size: 0.875rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  header {
+    padding: var(--header-padding-desktop);
+  }
+
+  .header-content {
+    max-width: var(--container-width-desktop);
+  }
+
+  .mobile-menu-btn {
+    display: none; /* Hide on desktop */
+  }
+
+  .user-menu {
+    gap: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .user-menu-email {
+    max-width: 250px; /* Больше места на десктопе */
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    gap: 0.5rem; /* Меньший gap на мобильных */
+  }
+
+  .logo-icon-img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .logo-text {
+    font-size: 1.4rem;
+  }
+
+  .logo-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .api-status {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .user-menu {
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    flex-shrink: 1; /* Разрешаем сжиматься */
+  }
+
+  .user-menu-email {
+    max-width: 100px; /* Еще меньше на очень маленьких экранах */
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  header {
+    padding: 0.75rem;
+  }
+
+  .logo-text {
+    font-size: 1.2rem;
+  }
+
+  .logo-subtitle {
+    display: none; /* Hide subtitle on very small screens */
+  }
+
+  .user-menu-email {
+    display: none; /* Скрываем email на очень маленьких экранах */
+  }
+
+  .api-status .status-text {
+    display: none; /* Скрываем текст статуса, оставляем только точку */
+  }
+}
