@@ -12,6 +12,7 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
@@ -56,6 +57,14 @@ import { exportProject } from './services/export/index.js';
 import { authService } from './services/authService.js';
 import { parseFile, isSupportedFormat, getProjectTypeFromFormat } from './services/import/index.js';
 import type { ParseResult } from './services/import/index.js';
+import {
+  uploadFile,
+  deleteFile,
+  deleteFiles,
+  getPublicUrl,
+  extractPathFromUrl,
+  generateUniqueFilename,
+} from './services/storage.js';
 
 // Load configuration
 const config = loadConfig();
@@ -94,29 +103,9 @@ const upload = multer({
   },
 });
 
-// Storage for glossary images
-const imagesDir = path.join(__dirname, '../data/images');
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true });
-}
-
-// Storage for exported files
-const exportsDir = path.join(__dirname, '../data/exports');
-if (!fs.existsSync(exportsDir)) {
-  fs.mkdirSync(exportsDir, { recursive: true });
-}
-
-const imageStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, imagesDir),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `glossary-${uniqueSuffix}${ext}`);
-  },
-});
-
+// Storage for glossary images - using memory storage for Supabase upload
 const uploadImage = multer({
-  storage: imageStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -138,8 +127,8 @@ const publicPath = path.join(__dirname, '../public');
 const clientPath = fs.existsSync(distClientPath) ? distClientPath : publicPath;
 
 app.use(express.static(clientPath));
-app.use('/images', express.static(imagesDir)); // Serve uploaded images
-app.use('/exports', express.static(exportsDir)); // Serve exported files
+// Images and exports are now served from Supabase Storage via public URLs
+// No need for local static file serving
 
 // ============ API Routes ============
 
@@ -539,11 +528,20 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
       // Save cover image if present
       if (parseResult.metadata.coverImage) {
         try {
-          const coverFilename = `cover-${req.params.id}-${Date.now()}.${parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg'}`;
-          const coverPath = path.join(imagesDir, coverFilename);
-          fs.writeFileSync(coverPath, parseResult.metadata.coverImage.data);
-          updatedMetadata.coverImageUrl = `/images/${coverFilename}`;
-          console.log(`🖼️  Обложка сохранена: ${coverFilename}`);
+          const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
+          const storagePath = generateUniqueFilename('cover', ext, req.params.id);
+          
+          const uploadResult = await uploadFile(
+            'images',
+            storagePath,
+            parseResult.metadata.coverImage.data,
+            {
+              contentType: parseResult.metadata.coverImage.mimeType,
+            }
+          );
+          
+          updatedMetadata.coverImageUrl = uploadResult.publicUrl;
+          console.log(`🖼️  Обложка сохранена в Supabase Storage: ${storagePath}`);
         } catch (coverError) {
           console.error('Failed to save cover image:', coverError);
         }
@@ -2036,17 +2034,30 @@ app.post(
 
       const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
       if (!project) {
-        fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: 'Project not found' });
       }
 
       const entry = project.glossary.find((e) => e.id === req.params.entryId);
       if (!entry) {
-        fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: 'Entry not found' });
       }
 
-      const imageUrl = `/images/${req.file.filename}`;
+      // Upload to Supabase Storage
+      const ext = path.extname(req.file.originalname).slice(1) || 'jpg';
+      const storagePath = generateUniqueFilename(
+        `glossary-${req.params.entryId}`,
+        ext,
+        req.params.projectId
+      );
+
+      const uploadResult = await uploadFile(
+        'images',
+        storagePath,
+        req.file.buffer,
+        {
+          contentType: req.file.mimetype,
+        }
+      );
 
       // Migrate legacy imageUrl to imageUrls array if needed
       let imageUrls = entry.imageUrls || [];
@@ -2055,7 +2066,7 @@ app.post(
       }
 
       // Add new image to gallery
-      imageUrls = [...imageUrls, imageUrl];
+      imageUrls = [...imageUrls, uploadResult.publicUrl];
 
       // Update entry with new gallery
       const updatedEntry = await updateGlossaryEntry(
@@ -2070,11 +2081,16 @@ app.post(
       );
 
       if (!updatedEntry) {
-        fs.unlinkSync(req.file.path);
+        // Rollback: delete uploaded file if update failed
+        await deleteFile('images', storagePath).catch(console.error);
         return res.status(404).json({ error: 'Failed to update entry' });
       }
 
-      res.json({ imageUrl, imageUrls: updatedEntry.imageUrls, entry: updatedEntry });
+      res.json({
+        imageUrl: uploadResult.publicUrl,
+        imageUrls: updatedEntry.imageUrls,
+        entry: updatedEntry,
+      });
     } catch (error) {
       console.error('Failed to upload image:', error);
       res.status(500).json({ error: 'Failed to upload image' });
@@ -2117,11 +2133,14 @@ app.delete(
         return res.status(400).json({ error: 'Image index out of range' });
       }
 
-      // Delete the image file
+      // Delete the image file from Supabase Storage
       const imageUrlToDelete = imageUrls[imageIndex];
-      const imagePath = path.join(imagesDir, path.basename(imageUrlToDelete));
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+      const storagePath = extractPathFromUrl(imageUrlToDelete, 'images');
+      if (storagePath) {
+        await deleteFile('images', storagePath).catch((err) => {
+          console.error('Failed to delete image from storage:', err);
+          // Continue even if deletion fails
+        });
       }
 
       // Remove from array
@@ -2169,13 +2188,17 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
       imageUrls = [entry.imageUrl, ...imageUrls];
     }
 
-    // Delete all image files
-    for (const imageUrl of imageUrls) {
-      const imagePath = path.join(imagesDir, path.basename(imageUrl));
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+      // Delete all image files from Supabase Storage
+      const storagePaths = imageUrls
+        .map((url) => extractPathFromUrl(url, 'images'))
+        .filter((p): p is string => p !== null);
+      
+      if (storagePaths.length > 0) {
+        await deleteFiles('images', storagePaths).catch((err) => {
+          console.error('Failed to delete images from storage:', err);
+          // Continue even if deletion fails
+        });
       }
-    }
 
     // Update entry to remove all images
     await updateGlossaryEntry(
@@ -2218,13 +2241,29 @@ app.post(
 
       // Delete old cover if exists
       if (project.metadata?.coverImageUrl) {
-        const oldImagePath = path.join(imagesDir, path.basename(project.metadata.coverImageUrl));
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
+        const oldStoragePath = extractPathFromUrl(project.metadata.coverImageUrl, 'images');
+        if (oldStoragePath) {
+          await deleteFile('images', oldStoragePath).catch((err) => {
+            console.error('Failed to delete old cover:', err);
+            // Continue even if deletion fails
+          });
         }
       }
 
-      const coverImageUrl = `/images/${req.file.filename}`;
+      // Upload to Supabase Storage
+      const ext = path.extname(req.file.originalname).slice(1) || 'jpg';
+      const storagePath = generateUniqueFilename('cover', ext, req.params.projectId);
+      
+      const uploadResult = await uploadFile(
+        'images',
+        storagePath,
+        req.file.buffer,
+        {
+          contentType: req.file.mimetype,
+        }
+      );
+      
+      const coverImageUrl = uploadResult.publicUrl;
 
       // Update project metadata with new cover
       // Ensure metadata object exists before spreading
@@ -2247,7 +2286,8 @@ app.post(
       );
 
       if (!updatedProject) {
-        fs.unlinkSync(req.file.path);
+        // Rollback: delete uploaded file if update failed
+        await deleteFile('images', storagePath).catch(console.error);
         return res.status(404).json({ error: 'Failed to update project' });
       }
 
@@ -2273,11 +2313,14 @@ app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Delete cover image file if exists
+    // Delete cover image file from Supabase Storage if exists
     if (project.metadata?.coverImageUrl) {
-      const imagePath = path.join(imagesDir, path.basename(project.metadata.coverImageUrl));
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+      const storagePath = extractPathFromUrl(project.metadata.coverImageUrl, 'images');
+      if (storagePath) {
+        await deleteFile('images', storagePath).catch((err) => {
+          console.error('Failed to delete cover image:', err);
+          // Continue even if deletion fails
+        });
       }
     }
 
@@ -2507,31 +2550,95 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Export project
-    const filePath = await exportProject(project, {
-      format,
-      outputDir: exportsDir,
-      author,
-    });
+    // Generate file in temporary directory
+    // On Vercel, only /tmp is writable, so use it explicitly
+    // On local, os.tmpdir() works fine
+    const tmpDir = process.env.VERCEL ? '/tmp' : os.tmpdir();
+    const filename = `${sanitizeFilename(project.name)}-${Date.now()}.${format}`;
+    const tmpPath = path.join(tmpDir, filename);
 
-    // Get relative path for download
-    const relativePath = path.relative(exportsDir, filePath);
-    const filename = path.basename(filePath);
+    console.log(`📝 Начало экспорта: ${project.name} -> ${format.toUpperCase()}`);
+    console.log(`   Временный файл: ${tmpPath}`);
+    console.log(`   Временная директория: ${tmpDir} (VERCEL=${!!process.env.VERCEL})`);
 
-    console.log(`📤 Экспорт проекта: ${project.name} -> ${format.toUpperCase()} (${filename})`);
+    // Ensure tmp directory exists (should already exist on Vercel, but safe to check)
+    if (!fs.existsSync(tmpDir)) {
+      try {
+        fs.mkdirSync(tmpDir, { recursive: true });
+        console.log(`   ✅ Создана временная директория: ${tmpDir}`);
+      } catch (mkdirError: any) {
+        console.error(`   ❌ Ошибка создания директории: ${mkdirError.message}`);
+        throw new Error(`Не удалось создать временную директорию: ${tmpDir}. Ошибка: ${mkdirError.message}`);
+      }
+    } else {
+      console.log(`   ✅ Временная директория существует: ${tmpDir}`);
+    }
 
-    res.json({
-      success: true,
-      format,
-      filename,
-      url: `/exports/${relativePath.replace(/\\/g, '/')}`,
-      path: relativePath,
-    });
+    try {
+      // Export project to temporary file
+      console.log(`   Генерация файла...`);
+      const exportedPath = await exportProject(project, {
+        format,
+        outputDir: tmpDir,
+        filename,
+        author,
+      });
+
+      console.log(`   ✅ Файл создан: ${exportedPath}`);
+
+      // Check if file exists
+      if (!fs.existsSync(exportedPath)) {
+        throw new Error(`Файл не был создан: ${exportedPath}`);
+      }
+
+      // Read file as buffer
+      console.log(`   Чтение файла...`);
+      const fileBuffer = fs.readFileSync(exportedPath);
+      console.log(`   ✅ Файл прочитан: ${fileBuffer.length} байт`);
+
+      // Clean up temporary file before sending
+      try {
+        fs.unlinkSync(exportedPath);
+        console.log(`   ✅ Временный файл удален`);
+      } catch (cleanupError) {
+        console.warn(`   ⚠️ Не удалось удалить временный файл: ${cleanupError}`);
+        // Continue even if cleanup fails
+      }
+
+      // Send file directly to client (streaming, no storage)
+      const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', fileBuffer.length.toString());
+
+      console.log(`📤 Экспорт проекта завершен: ${project.name} -> ${format.toUpperCase()} (${filename})`);
+      console.log(`   Отправка файла клиенту (streaming, ${fileBuffer.length} байт)`);
+
+      res.send(fileBuffer);
+    } catch (exportError) {
+      // Clean up temporary file on error
+      try {
+        if (fs.existsSync(tmpPath)) {
+          fs.unlinkSync(tmpPath);
+        }
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+      throw exportError;
+    }
   } catch (error: any) {
     console.error('Export error:', error);
     res.status(500).json({ error: error.message || 'Failed to export project' });
   }
 });
+
+// Helper function to sanitize filename
+function sanitizeFilename(filename: string): string {
+  return filename
+    .replace(/[<>:"/\\|?*]/g, '') // Remove invalid characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .substring(0, 100); // Limit length
+}
 
 // ============ SPA Fallback ============
 
@@ -2545,11 +2652,17 @@ app.get('*', (_req, res) => {
 
 // ============ Start Server ============
 
-async function startServer() {
-  // Supabase database is already initialized, no need for local init
+// Export app for Vercel (when imported as module)
+export default app;
 
-  app.listen(PORT, () => {
-    console.log(`
+// Only start server if running directly (not in Vercel)
+// Vercel sets VERCEL=1 environment variable
+if (!process.env.VERCEL) {
+  async function startServer() {
+    // Supabase database is already initialized, no need for local init
+
+    app.listen(PORT, () => {
+      console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║     █████╗ ██████╗  ██████╗ █████╗ ███╗   ██╗███████╗     ║
@@ -2564,14 +2677,15 @@ async function startServer() {
 ╠═══════════════════════════════════════════════════════════╣
 ║                                                           ║
 ║   🌐 Сервер: http://localhost:${PORT}                        ║
-║   💾 База данных: LowDB (persistent)                      ║
+║   💾 База данных: Supabase PostgreSQL                      ║
 ║   🤖 AI: ${
-      config.openai.apiKey ? 'OpenAI ✅' : 'Не настроен ⚠️'
-    }                                   ║
+        config.openai.apiKey ? 'OpenAI ✅' : 'Не настроен ⚠️'
+      }                                   ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 `);
-  });
-}
+    });
+  }
 
-startServer().catch(console.error);
+  startServer().catch(console.error);
+}

@@ -20,20 +20,54 @@ export async function exportToFb2(
   project: ExportProject,
   options: Fb2ExportOptions = {}
 ): Promise<string> {
+  // Use provided outputDir or fallback (but outputDir should always be provided on Vercel)
   const outputDir = options.outputDir || './data/exports';
   const filename = options.filename || `${sanitizeFilename(project.title)}.fb2`;
-  const outputPath = path.join(outputDir, filename);
+  
+  // Ensure path is absolute
+  const outputPath = path.isAbsolute(outputDir)
+    ? path.join(outputDir, filename)
+    : path.resolve(outputDir, filename);
+
+  console.log(`[FB2 Export] Output directory: ${outputDir}`);
+  console.log(`[FB2 Export] Output path: ${outputPath}`);
+  console.log(`[FB2 Export] Path is absolute: ${path.isAbsolute(outputPath)}`);
 
   // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+      console.log(`[FB2 Export] Created output directory: ${outputDir}`);
+    } catch (mkdirError: any) {
+      console.error(`[FB2 Export] Failed to create directory: ${mkdirError.message}`);
+      throw new Error(`Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${mkdirError.message}`);
+    }
+  } else {
+    console.log(`[FB2 Export] Output directory exists: ${outputDir}`);
   }
 
   // Generate FB2 XML
+  console.log(`[FB2 Export] Generating FB2 XML...`);
   const xml = generateFb2Xml(project);
+  console.log(`[FB2 Export] XML generated, length: ${xml.length} characters`);
 
   // Write to file
-  fs.writeFileSync(outputPath, xml, 'utf-8');
+  try {
+    fs.writeFileSync(outputPath, xml, 'utf-8');
+    console.log(`[FB2 Export] FB2 file written successfully: ${outputPath}`);
+    
+    // Verify file was created
+    if (!fs.existsSync(outputPath)) {
+      throw new Error(`FB2 файл не был создан по пути: ${outputPath}`);
+    }
+    
+    const stats = fs.statSync(outputPath);
+    console.log(`[FB2 Export] File size: ${stats.size} bytes`);
+  } catch (writeError: any) {
+    console.error(`[FB2 Export] Error writing file: ${writeError.message}`);
+    console.error(`[FB2 Export] Stack: ${writeError.stack}`);
+    throw new Error(`Ошибка записи FB2 файла: ${writeError.message}`);
+  }
 
   return outputPath;
 }

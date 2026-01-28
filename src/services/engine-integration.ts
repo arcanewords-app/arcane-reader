@@ -17,7 +17,7 @@ import {
   type PipelineOptions,
   type Character,
   type Glossary,
-} from 'arcane-engine';
+} from '../engine/index.js';
 
 import type { AppConfig } from '../config.js';
 import type { Project, Chapter, GlossaryEntry } from '../storage/database.js';
