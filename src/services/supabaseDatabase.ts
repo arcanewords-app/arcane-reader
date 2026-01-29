@@ -501,6 +501,11 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
     return [];
   }
 
+  // Log loaded chapters order for debugging (only in development)
+  if (process.env.NODE_ENV === 'development' && chapters.length <= 5) {
+    console.log(`🔍 Загружены главы из БД:`, chapters.map(c => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', '));
+  }
+
   // Load paragraphs for each chapter with auto-sync recovery
   const chaptersWithParagraphs = await Promise.all(
     chapters.map(async (chapter) => {
@@ -1002,21 +1007,95 @@ export async function updateChapterNumber(
   // Reorder chapters
   const sortedChapters = [...chapters];
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
+  console.log(`🔧 Сервер: Исходный порядок глав:`, sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', '));
+  console.log(`🔧 Сервер: Перемещаем главу ${chapterId.substring(0, 8)} с позиции ${oldNumber} (индекс ${chapterIndex}) на позицию ${newNumber}`);
+  
   const [movedChapter] = sortedChapters.splice(chapterIndex, 1);
-  sortedChapters.splice(newNumber - 1, 0, movedChapter);
+  console.log(`🔧 Сервер: После удаления:`, sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', '));
+  
+  // Calculate insertion index accounting for the removed chapter
+  // newNumber is the desired final position (1-based) AFTER reordering
+  // 
+  // Example: [1,2] move chapter 2 to position 1 (newNumber=1)
+  // - Remove chapter 2: [1]
+  // - We want chapter 2 to be first (position 1), so insert at index 0
+  // - insertIndex = newNumber - 1 = 0 ✓
+  // - Insert: [2, 1]
+  // - Renumber: chapter 2 gets number 1, chapter 1 gets number 2
+  // - Final order: [2 (number 1), 1 (number 2)] ✓
+  //
+  // Example: [1,2,3,4,5], move chapter 2 (index 1) to position 4 (newNumber=4)
+  // - Remove chapter 2: [1,3,4,5]
+  // - We want chapter 2 at position 4, so insert at index 3
+  // - insertIndex = newNumber - 1 = 3 ✓
+  // - Insert: [1,3,4,2,5]
+  // - Renumber: [1,2,3,4,5] where positions are [1,3,4,2,5] ✓
+  //
+  // The key: newNumber is the FINAL position (1-based) after reordering
+  // We insert at newNumber - 1 (0-based index in array after removal)
+  const insertIndex = newNumber - 1;
+  sortedChapters.splice(insertIndex, 0, movedChapter);
+  console.log(`🔧 Сервер: После вставки на индекс ${insertIndex}:`, sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', '));
 
-  // Update all chapter numbers
-  for (let i = 0; i < sortedChapters.length; i++) {
-    const newNum = i + 1;
-    if (sortedChapters[i].number !== newNum) {
-      await client.from('chapters').update({ number: newNum }).eq('id', sortedChapters[i].id);
-    }
+  // Update all chapter numbers using temporary numbers to avoid unique constraint violations
+  // Strategy: First set all to temporary negative numbers, then set to final numbers
+  // Optimized: Use Promise.all for parallel updates and only update changed chapters
+  const updates: Array<{ id: string; oldNum: number; newNum: number }> = [];
+  
+  // Filter chapters that actually need updating
+  const chaptersToUpdate = sortedChapters
+    .map((chapter, i) => ({ chapter, newNum: i + 1 }))
+    .filter(({ chapter, newNum }) => chapter.number !== newNum);
+  
+  if (chaptersToUpdate.length === 0) {
+    // No changes needed
+    return getChapter(projectId, chapterId, token);
+  }
+  
+  // Step 1: Set all chapters to temporary negative numbers to free up the number space
+  // Use Promise.all for parallel updates
+  const tempUpdates = sortedChapters.map((chapter, i) => {
+    const tempNum = -(i + 1);
+    return client
+      .from('chapters')
+      .update({ number: tempNum })
+      .eq('id', chapter.id)
+      .select('id');
+  });
+  
+  const tempResults = await Promise.all(tempUpdates);
+  const tempErrors = tempResults.filter(r => r.error).map(r => r.error);
+  if (tempErrors.length > 0) {
+    console.error(`❌ Ошибки установки временных номеров:`, tempErrors);
+    throw new Error(`Failed to set temporary chapter numbers: ${tempErrors[0]?.message || 'Unknown error'}`);
+  }
+  
+  // Step 2: Set all chapters to their final numbers
+  // Use Promise.all for parallel updates
+  const finalUpdates = chaptersToUpdate.map(({ chapter, newNum }) => {
+    updates.push({ id: chapter.id, oldNum: chapter.number, newNum });
+    return client
+      .from('chapters')
+      .update({ number: newNum })
+      .eq('id', chapter.id)
+      .select('id');
+  });
+  
+  const finalResults = await Promise.all(finalUpdates);
+  const finalErrors = finalResults.filter(r => r.error).map(r => r.error);
+  if (finalErrors.length > 0) {
+    console.error(`❌ Ошибки обновления номеров глав:`, finalErrors);
+    throw new Error(`Failed to update chapter numbers: ${finalErrors[0]?.message || 'Unknown error'}`);
+  }
+  
+  if (updates.length > 0) {
+    console.log(`🔧 Сервер: Обновлено номеров глав:`, updates.map(u => `${u.id.substring(0, 8)}: ${u.oldNum}→${u.newNum}`).join(', '));
   }
 
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  console.log(`🔢 Номер главы изменён: ${chapterId} ${oldNumber} → ${newNumber}`);
+  console.log(`🔢 Номер главы изменён: ${chapterId.substring(0, 8)} ${oldNumber} → ${newNumber} (insertIndex: ${insertIndex})`);
 
   return getChapter(projectId, chapterId, token);
 }

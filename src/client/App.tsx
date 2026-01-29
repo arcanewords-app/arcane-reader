@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'preact/hooks';
 import { api, ApiError } from './api/client';
 import type { SystemStatus, Project, Chapter, ProjectSettings, AuthUser } from './types';
 import { authService } from './services/authService';
+import { getProject, invalidateProject } from './store/projects';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ProjectInfo } from './components/ProjectInfo';
@@ -202,9 +203,11 @@ export function App() {
     }
 
     setLoadingProject(true);
-    api.getProject(selectedProjectId)
+    getProject(selectedProjectId, false)
       .then((project) => {
-        setProject(project);
+        if (project) {
+          setProject(project);
+        }
         setLoadingProject(false);
       })
       .catch((error) => {
@@ -240,9 +243,13 @@ export function App() {
     setDeletingChapter(true);
     try {
       await api.deleteChapter(project.id, deleteChapterId);
-      const updated = await api.getProject(project.id);
-      setProject(updated);
-      setRefreshTrigger((n) => n + 1);
+      // Invalidate cache and refresh project
+      invalidateProject(project.id);
+      const updated = await getProject(project.id, true);
+      if (updated) {
+        setProject(updated);
+        setRefreshTrigger((n) => n + 1);
+      }
       if (selectedChapterId === deleteChapterId) {
         setSelectedChapterId(null);
       }
@@ -255,10 +262,25 @@ export function App() {
   const handleUploadChapter = useCallback(async (file: File, title: string) => {
     if (!project) return;
     try {
-      await api.uploadChapter(project.id, file, title);
-      const updated = await api.getProject(project.id);
-      setProject(updated);
-      setRefreshTrigger((n) => n + 1); // Update project list
+      const result = await api.uploadChapter(project.id, file, title);
+      // Handle both single chapter and multiple chapters response
+      if ('chapters' in result && Array.isArray(result.chapters)) {
+        // Multiple chapters uploaded (EPUB/FB2)
+        console.log(`✅ Загружено глав: ${result.count}`);
+        if (result.warnings && result.warnings.length > 0) {
+          console.warn('Предупреждения при загрузке:', result.warnings);
+        }
+      } else {
+        // Single chapter uploaded (TXT)
+        console.log(`✅ Глава загружена: ${result.title}`);
+      }
+      // Invalidate cache and refresh project
+      invalidateProject(project.id);
+      const updated = await getProject(project.id, true);
+      if (updated) {
+        setProject(updated);
+        setRefreshTrigger((n) => n + 1); // Update project list
+      }
     } catch (error) {
       // Error will be handled by ChapterList component's error modal
       throw error;
@@ -306,8 +328,12 @@ export function App() {
 
   const handleRefreshProject = useCallback(async () => {
     if (!project) return;
-    const updated = await api.getProject(project.id);
-    setProject(updated);
+    // Invalidate cache and refresh project
+    invalidateProject(project.id);
+    const updated = await getProject(project.id, true);
+    if (updated) {
+      setProject(updated);
+    }
   }, [project]);
 
   const handlePrevChapter = useCallback(() => {

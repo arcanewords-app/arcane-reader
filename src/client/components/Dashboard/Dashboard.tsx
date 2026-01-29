@@ -14,11 +14,11 @@ export function Dashboard() {
   const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Load projects on mount
+  // Load projects on mount and when returning to dashboard
   useEffect(() => {
-    if (projectsCache.value.length === 0 && !projectsLoading.value) {
-      loadProjects();
-    }
+    // Always refresh projects list when returning to dashboard
+    // This ensures we see latest updates (new chapters, etc.)
+    loadProjects();
   }, []);
 
   // Handle project creation

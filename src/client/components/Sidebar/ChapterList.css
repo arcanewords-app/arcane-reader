@@ -472,6 +472,9 @@
   padding: 0.75rem;
   border-radius: 6px;
   margin-top: 0.5rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
 }
 
 .error-modal-footer {

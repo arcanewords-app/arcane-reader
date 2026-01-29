@@ -201,6 +201,30 @@ export interface AuthUser {
   email: string;
 }
 
+// === Token Usage ===
+
+export interface TokenUsage {
+  date: string;
+  tokensUsed: number;
+  tokensLimit: number;
+  tokensRemaining: number;
+  percentageUsed: number;
+  tokensByStage?: {
+    analysis?: number;
+    translation: number;
+    editing?: number;
+  };
+  warning: boolean;
+}
+
+export interface TokenUsageHistory {
+  history: Array<{
+    date: string;
+    tokensUsed: number;
+    tokensLimit: number;
+  }>;
+}
+
 export interface Session {
   access_token: string;
   refresh_token: string;
@@ -210,6 +234,32 @@ export interface Session {
 export interface LoginResponse {
   user: AuthUser;
   session: Session | null;
-}export interface RegisterResponse {
+}
+
+export interface RegisterResponse {
   user: AuthUser;
+}
+
+// === Token Usage ===
+
+export interface TokenUsage {
+  date: string;
+  tokensUsed: number;
+  tokensLimit: number;
+  tokensRemaining: number;
+  percentageUsed: number;
+  tokensByStage?: {
+    analysis?: number;
+    translation: number;
+    editing?: number;
+  };
+  warning: boolean;
+}
+
+export interface TokenUsageHistory {
+  history: Array<{
+    date: string;
+    tokensUsed: number;
+    tokensLimit: number;
+  }>;
 }

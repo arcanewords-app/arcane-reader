@@ -1,5 +1,6 @@
 import type { ProjectListItem } from '../../types';
-import { getProjectTypeIcon, getProjectTypeColor } from '../../utils/project-type';
+import { getProjectTypeColor } from '../../utils/project-type';
+import { BookPlaceholder } from './BookPlaceholder';
 import './ProjectCard.css';
 
 interface ProjectCardProps {
@@ -9,7 +10,6 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onClick }: ProjectCardProps) {
   const projectType = project.type || 'text';
-  const typeIcon = getProjectTypeIcon(projectType);
   const typeColor = getProjectTypeColor(projectType);
   const coverImageUrl = project.metadata?.coverImageUrl;
   
@@ -65,12 +65,18 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
               }}
             />
             <div class={`project-card-placeholder ${coverImageUrl ? 'hidden' : ''}`}>
-              <span class="project-card-placeholder-icon">{typeIcon}</span>
+              <BookPlaceholder 
+                projectName={project.name} 
+                projectType={projectType as 'book' | 'text'}
+              />
             </div>
           </>
         ) : (
           <div class="project-card-placeholder">
-            <span class="project-card-placeholder-icon">{typeIcon}</span>
+            <BookPlaceholder 
+              projectName={project.name} 
+              projectType={projectType as 'book' | 'text'}
+            />
           </div>
         )}
         {/* Progress overlay (only for translation mode) */}

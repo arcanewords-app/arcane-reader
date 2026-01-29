@@ -18,6 +18,19 @@ export interface UploadResult {
   publicUrl: string;
 }
 
+export interface SignedUrlResult {
+  signedUrl: string;
+}
+
+export interface ListedFile {
+  name: string;
+  id?: string;
+  updated_at?: string;
+  created_at?: string;
+  last_accessed_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
 /**
  * Upload file to Supabase Storage
  */
@@ -48,6 +61,65 @@ export async function uploadFile(
     path: data.path,
     publicUrl: urlData.publicUrl,
   };
+}
+
+/**
+ * Create a signed URL for a file in Supabase Storage.
+ * Useful for private buckets (recommended for exports).
+ */
+export async function createSignedUrl(
+  bucket: StorageBucket,
+  path: string,
+  expiresInSeconds: number = 60 * 15
+): Promise<SignedUrlResult> {
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+
+  if (error || !data?.signedUrl) {
+    throw new Error(`Failed to create signed URL for ${bucket}: ${error?.message || 'Unknown error'}`);
+  }
+
+  return { signedUrl: data.signedUrl };
+}
+
+/**
+ * List files in a bucket folder (non-recursive). Uses pagination to fetch all.
+ * For exports we store files as `${projectId}/${filename}` so a single-level list is enough.
+ */
+export async function listFiles(
+  bucket: StorageBucket,
+  folder: string,
+  options: { limit?: number } = {}
+): Promise<ListedFile[]> {
+  const supabase = createServiceRoleClient();
+
+  const limit = options.limit ?? 100;
+  let offset = 0;
+  const all: ListedFile[] = [];
+
+  // Supabase Storage list() is paginated via offset/limit.
+  // We continue until we receive fewer than `limit` items.
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase.storage.from(bucket).list(folder, {
+      limit,
+      offset,
+      sortBy: { column: 'name', order: 'asc' },
+    });
+
+    if (error) {
+      throw new Error(`Failed to list files in ${bucket}/${folder}: ${error.message}`);
+    }
+
+    const page = (data as ListedFile[]) || [];
+    all.push(...page);
+
+    if (page.length < limit) break;
+    offset += limit;
+  }
+
+  return all;
 }
 
 /**

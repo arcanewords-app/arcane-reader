@@ -16,6 +16,8 @@ import type {
   Paragraph,
   TranslateResponse,
   BulkUpdateResponse,
+  TokenUsage,
+  TokenUsageHistory,
 } from '../types';
 
 // === API Error ===
@@ -205,12 +207,15 @@ export const api = {
     projectId: string,
     file: File,
     title: string
-  ): Promise<Chapter> {
+  ): Promise<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
 
-    return fetchFormData<Chapter>(`/api/projects/${projectId}/chapters`, formData);
+    return fetchFormData<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>(
+      `/api/projects/${projectId}/chapters`,
+      formData
+    );
   },
 
   async getChapter(projectId: string, chapterId: string): Promise<Chapter> {
@@ -408,6 +413,19 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ format, author }),
     });
+  },
+
+  // === Token Usage ===
+
+  async getTokenUsage(date?: string): Promise<TokenUsage> {
+    const url = date
+      ? `/api/user/token-usage?date=${encodeURIComponent(date)}`
+      : '/api/user/token-usage';
+    return fetchJson(url);
+  },
+
+  async getTokenUsageHistory(days: number = 7): Promise<TokenUsageHistory> {
+    return fetchJson(`/api/user/token-usage/history?days=${days}`);
   },
 };
 

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'preact/hooks';
-import type { Chapter, ChapterStatus } from '../../types';
+import type { Chapter, ChapterStatus, Project } from '../../types';
 import { Card, CountBadge } from '../ui';
 import { api } from '../../api/client';
 import './ChapterList.css';
@@ -14,7 +14,8 @@ interface ChapterListProps {
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
   onUpload: (file: File, title: string) => Promise<void>;
-  onChaptersUpdate?: () => void;
+  onChaptersUpdate?: () => void | Promise<void>;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 export function ChapterList({
@@ -26,6 +27,7 @@ export function ChapterList({
   onDelete,
   onUpload,
   onChaptersUpdate,
+  onProjectUpdate,
 }: ChapterListProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
@@ -36,6 +38,8 @@ export function ChapterList({
   const [savingNumber, setSavingNumber] = useState(false);
   const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
   const [dragOverChapterId, setDragOverChapterId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<{
     title: string;
     message: string;
@@ -175,11 +179,19 @@ export function ChapterList({
 
     setSavingNumber(true);
     try {
-      await api.updateChapterNumber(projectId, chapterId, newNumber);
-      setEditingNumber(null);
-      if (onChaptersUpdate) {
-        onChaptersUpdate();
+      // API returns updated Project with reordered chapters
+      const updatedProject = await api.updateChapterNumber(projectId, chapterId, newNumber);
+      // Update cache with the returned project immediately
+      const { updateProjectCache } = await import('../../store/projects');
+      updateProjectCache(updatedProject);
+      // Update project state directly if callback provided (preferred)
+      if (onProjectUpdate) {
+        onProjectUpdate(updatedProject);
+      } else if (onChaptersUpdate) {
+        // Fallback: trigger chapters update callback (will fetch from API)
+        await onChaptersUpdate();
       }
+      setEditingNumber(null);
     } catch (error) {
       console.error('Failed to update chapter number:', error);
       alert(error instanceof Error ? error.message : 'Ошибка обновления номера');
@@ -239,19 +251,50 @@ export function ChapterList({
       return;
     }
 
-    const draggedChapter = sortedChapters.find(c => c.id === draggedChapterId);
-    const targetChapter = sortedChapters.find(c => c.id === targetChapterId);
+    const draggedIndex = sortedChapters.findIndex(c => c.id === draggedChapterId);
+    const targetIndex = sortedChapters.findIndex(c => c.id === targetChapterId);
     
-    if (!draggedChapter || !targetChapter) {
+    if (draggedIndex === -1 || targetIndex === -1) {
       setDraggedChapterId(null);
       return;
     }
 
+    // Calculate new number based on target position
+    // When dragging, we want to insert the dragged chapter BEFORE the target chapter
+    // 
+    // The key insight: newNumber is the desired FINAL position (1-based) after reordering
+    // When dragging UP (draggedIndex > targetIndex):
+    //   - We want to insert BEFORE target, so the dragged chapter takes target's position
+    //   - Example: [1,2] drag 2→1: we want [2,1]
+    //   - After removing chapter 2: [1]
+    //   - Target (chapter 1) is at index 0, we want to insert BEFORE it at index 0
+    //   - So newNumber = 1 (to insert at index 0, which is position 1)
+    // 
+    // When dragging DOWN (draggedIndex < targetIndex):
+    //   - We want to insert BEFORE target, but target shifts after removal
+    //   - Example: [1,2,3,4,5] drag 2→4: we want [1,3,4,2,5]
+    //   - After removing chapter 2: [1,3,4,5]
+    //   - Target (chapter 4) is now at index 2 (was 3), we want to insert BEFORE it at index 2
+    //   - But we want final position 4, so newNumber = 4 (target's original position)
+    // 
+    // So for both cases: newNumber = targetIndex + 1 (target's current position)
+    const newNumber = targetIndex + 1;
+
     // Update the dragged chapter's number to target position
     try {
-      await api.updateChapterNumber(projectId, draggedChapterId, targetChapter.number);
-      if (onChaptersUpdate) {
-        onChaptersUpdate();
+      // API returns updated Project with reordered chapters
+      const updatedProject = await api.updateChapterNumber(projectId, draggedChapterId, newNumber);
+      
+      // Update cache with the returned project immediately
+      const { updateProjectCache } = await import('../../store/projects');
+      updateProjectCache(updatedProject);
+      
+      // Update project state directly if callback provided (preferred)
+      if (onProjectUpdate) {
+        onProjectUpdate(updatedProject);
+      } else if (onChaptersUpdate) {
+        // Fallback: trigger chapters update callback (will fetch from API)
+        await onChaptersUpdate();
       }
     } catch (error) {
       console.error('Failed to reorder chapter:', error);
@@ -377,9 +420,10 @@ export function ChapterList({
                     class="chapter-delete-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(chapter.id);
+                      setDeleteConfirmId(chapter.id);
                     }}
                     title="Удалить"
+                    disabled={deleting}
                   >
                     🗑️
                   </button>
@@ -414,20 +458,82 @@ export function ChapterList({
           onChange={handleFileInput}
         />
         {error && (
-          <div className="error-modal-overlay" onClick={() => setError(null)}>
-            <div className="error-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="error-modal-header">
+          <div class="error-modal-overlay" onClick={() => setError(null)}>
+            <div class="error-modal" onClick={(e) => e.stopPropagation()}>
+              <div class="error-modal-header">
                 <h3>{error.title}</h3>
-                <button className="error-modal-close" onClick={() => setError(null)}>
+                <button class="error-modal-close" onClick={() => setError(null)}>
                   ×
                 </button>
               </div>
-              <div className="error-modal-body">
+              <div class="error-modal-body">
                 <p>{error.message}</p>
-                {error.details && <p className="error-details">{error.details}</p>}
+                {error.details && (
+                  <pre class="error-details">{error.details}</pre>
+                )}
               </div>
-              <div className="error-modal-footer">
+              <div class="error-modal-footer">
                 <button onClick={() => setError(null)}>Закрыть</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteConfirmId && (
+          <div class="error-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+            <div class="error-modal" onClick={(e) => e.stopPropagation()}>
+              <div class="error-modal-header">
+                <h3>Удалить главу?</h3>
+                <button 
+                  class="error-modal-close" 
+                  onClick={() => setDeleteConfirmId(null)}
+                  disabled={deleting}
+                >
+                  ×
+                </button>
+              </div>
+              <div class="error-modal-body">
+                <p>
+                  Вы уверены, что хотите удалить главу "{sortedChapters.find(c => c.id === deleteConfirmId)?.title || 'Неизвестная глава'}"?
+                </p>
+                <p style={{ color: 'var(--error)', fontSize: '0.9rem', marginTop: '1rem' }}>
+                  ⚠️ Это действие нельзя отменить. Все данные главы будут удалены.
+                </p>
+              </div>
+              <div class="error-modal-footer">
+                <button 
+                  onClick={() => setDeleteConfirmId(null)}
+                  disabled={deleting}
+                  style={{ marginRight: '0.5rem' }}
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!onDelete || !deleteConfirmId) return;
+                    setDeleting(true);
+                    try {
+                      await onDelete(deleteConfirmId);
+                      setDeleteConfirmId(null);
+                    } catch (error) {
+                      console.error('Failed to delete chapter:', error);
+                      setError({
+                        title: 'Ошибка удаления',
+                        message: error instanceof Error ? error.message : 'Не удалось удалить главу',
+                      });
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleting}
+                  style={{ 
+                    background: 'var(--error)', 
+                    color: 'white',
+                    opacity: deleting ? 0.6 : 1
+                  }}
+                >
+                  {deleting ? 'Удаление...' : 'Удалить'}
+                </button>
               </div>
             </div>
           </div>

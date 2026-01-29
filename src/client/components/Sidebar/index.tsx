@@ -13,7 +13,8 @@ interface SidebarProps {
   onDeleteChapter?: (id: string) => void;
   onUploadChapter: (file: File, title: string) => Promise<void>;
   onOpenGlossary: () => void;
-  onChaptersUpdate?: () => void;
+  onChaptersUpdate?: () => void | Promise<void>;
+  onProjectUpdate?: (project: Project) => void;
   onSettingsChange?: (settings: ProjectSettings) => void;
   onRefreshProject?: () => Promise<void>;
   isMobileOpen?: boolean;
@@ -29,6 +30,7 @@ export function Sidebar({
   onChaptersUpdate,
   onSettingsChange,
   onRefreshProject,
+  onProjectUpdate,
   isMobileOpen = false,
 }: SidebarProps) {
   const [showSettings, setShowSettings] = useState(false);
@@ -109,6 +111,7 @@ export function Sidebar({
           onDelete={onDeleteChapter}
           onUpload={onUploadChapter}
           onChaptersUpdate={onChaptersUpdate}
+          onProjectUpdate={onProjectUpdate}
         />
 
         <Button variant="glossary" onClick={onOpenGlossary}>

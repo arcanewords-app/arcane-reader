@@ -85,6 +85,33 @@ export async function getProject(id: string, forceRefresh = false): Promise<Proj
   }
 }
 
+/**
+ * Update project cache directly (useful when API returns updated project)
+ */
+export function updateProjectCache(project: Project): void {
+  projectCache.set(project.id, { project, timestamp: Date.now() });
+  
+  // Update project in list cache
+  const index = projectsCache.value.findIndex(p => p.id === project.id);
+  if (index !== -1) {
+    projectsCache.value = [
+      ...projectsCache.value.slice(0, index),
+      {
+        ...projectsCache.value[index],
+        name: project.name,
+        type: project.type,
+        chapterCount: project.chapters.length,
+        translatedCount: project.chapters.filter(c => c.status === 'completed').length,
+        glossaryCount: project.glossary.length,
+        originalReadingMode: project.settings?.originalReadingMode ?? false,
+        updatedAt: project.updatedAt,
+        metadata: project.metadata || projectsCache.value[index].metadata,
+      },
+      ...projectsCache.value.slice(index + 1),
+    ];
+  }
+}
+
 // Invalidate project cache
 export function invalidateProject(id: string): void {
   projectCache.delete(id);

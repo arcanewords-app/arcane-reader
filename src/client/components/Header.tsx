@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import type { SystemStatus, AuthUser } from '../types';
 import { Button } from './ui';
+import { TokenUsageIndicator } from './TokenUsage';
 import './Header.css';
 
 interface HeaderProps {
@@ -69,14 +70,17 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle }: H
             <span class="status-text">{getStatusText()}</span>
           </div>
           {user && (
-            <div class="user-menu">
-              <span class="user-menu-email">
-                {user.email}
-              </span>
-              <Button variant="secondary" onClick={onLogout} size="sm" className="user-menu-button">
-                Выйти
-              </Button>
-            </div>
+            <>
+              <TokenUsageIndicator />
+              <div class="user-menu">
+                <span class="user-menu-email">
+                  {user.email}
+                </span>
+                <Button variant="secondary" onClick={onLogout} size="sm" className="user-menu-button">
+                  Выйти
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </div>

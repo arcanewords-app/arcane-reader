@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
 import type { Project, Chapter, ProjectSettings } from '../types';
-import { getProject } from '../store/projects';
+import { getProject, invalidateProject } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
+import { api } from '../api/client';
 
 interface ChapterPageProps {
   projectId: string;
@@ -14,15 +15,24 @@ interface ChapterPageProps {
 export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const previousProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // If projectId changed, invalidate previous project cache
+    if (previousProjectIdRef.current && previousProjectIdRef.current !== projectId) {
+      invalidateProject(previousProjectIdRef.current);
+    }
+    previousProjectIdRef.current = projectId;
+    
     loadProject();
   }, [projectId]);
 
   const loadProject = async () => {
     setLoading(true);
     try {
-      const loadedProject = await getProject(projectId, false);
+      // Always refresh when navigating to a project to ensure fresh data
+      // Cache will still be used internally if it's very fresh (< 5 seconds)
+      const loadedProject = await getProject(projectId, true);
       if (loadedProject) {
         setProject(loadedProject);
       } else {
@@ -51,8 +61,10 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
 
   const handleRefreshProject = async () => {
     if (!project) return;
-    const { getProject } = await import('../store/projects');
-    const updated = await getProject(project.id, false);
+    // Invalidate cache to force fresh data
+    invalidateProject(project.id);
+    // Load fresh project data from store (which will fetch from API)
+    const updated = await getProject(project.id, true);
     if (updated) {
       setProject(updated);
     }
@@ -127,9 +139,28 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           route(`/projects/${projectId}/chapters/${id}`);
         }}
         onUploadChapter={async () => {}}
+        onDeleteChapter={async (deletedChapterId) => {
+          if (!project) return;
+          try {
+            await api.deleteChapter(project.id, deletedChapterId);
+            invalidateProject(project.id);
+            await handleRefreshProject();
+            // If deleted chapter is currently viewed, navigate to project page
+            if (deletedChapterId === chapterId) {
+              route(`/projects/${projectId}`);
+            }
+          } catch (error) {
+            console.error('Failed to delete chapter:', error);
+            throw error; // Error will be handled by ChapterList component
+          }
+        }}
         onOpenGlossary={() => {
           handleSidebarClose(); // Close sidebar on mobile
           setShowGlossary(true);
+        }}
+        onProjectUpdate={(updatedProject) => {
+          // Update project state directly with returned project
+          setProject(updatedProject);
         }}
         onSettingsChange={handleSettingsChange}
         onRefreshProject={handleRefreshProject}

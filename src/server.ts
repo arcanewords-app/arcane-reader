@@ -48,6 +48,16 @@ import {
 import { requireAuth } from './middleware/auth.js';
 import { requireToken } from './utils/requestHelpers.js';
 import {
+  getUserTokenUsage,
+  checkTokenLimit,
+  incrementTokenUsage,
+  getTokenUsageHistory,
+} from './middleware/tokenLimits.js';
+import {
+  estimateTokensForTranslation,
+  estimateTokensByStage,
+} from './config/tokenLimits.js';
+import {
   translateChapterWithPipeline,
   translateSimple,
   getNameDeclensions,
@@ -65,6 +75,8 @@ import {
   extractPathFromUrl,
   generateUniqueFilename,
 } from './services/storage.js';
+import { createSignedUrl } from './services/storage.js';
+import { listFiles } from './services/storage.js';
 
 // Load configuration
 const config = loadConfig();
@@ -231,6 +243,42 @@ app.get('/api/status', (_req, res) => {
     },
     storage: 'supabase',
   });
+});
+
+// ============ Token Usage ============
+
+// Get current token usage (requires auth)
+app.get('/api/user/token-usage', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const date = req.query.date as string | undefined;
+    const usage = await getUserTokenUsage(req.user.id, requireToken(req), date);
+    res.json(usage);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage';
+    console.error('Error getting token usage:', error);
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
+// Get token usage history (requires auth)
+app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const days = parseInt((req.query.days as string) || '7', 10);
+    const history = await getTokenUsageHistory(req.user.id, requireToken(req), days);
+    res.json({ history });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage history';
+    console.error('Error getting token usage history:', error);
+    res.status(500).json({ error: errorMessage });
+  }
 });
 
 // ============ Projects ============
@@ -835,15 +883,7 @@ app.post(
         `   Режим перевода: ${translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
       );
 
-      // Update status
       const token = requireToken(req);
-      await updateChapter(
-        req.params.projectId,
-        req.params.chapterId,
-        { status: 'translating' },
-        token
-      );
-
       const startTime = Date.now();
       const textLength = chapter.originalText.length;
       const wordCount = chapter.originalText.split(/\s+/).length;
@@ -859,6 +899,61 @@ app.post(
       const analysisModel = getStageModel('analysis');
       const translationModel = getStageModel('translation');
       const editingModel = getStageModel('editing');
+
+      // Check translation settings to determine which stages will run
+      const enableAnalysis = project.settings?.enableAnalysis ?? true;
+      const enableEditing = project.settings?.enableEditing ?? !config.translation.skipEditing;
+
+      // Estimate tokens needed for translation
+      const estimatedTokens = estimateTokensForTranslation(textLength, {
+        skipAnalysis: !enableAnalysis,
+        skipEditing: !enableEditing,
+      });
+
+      // Check token limit before starting translation
+      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens);
+      
+      if (!limitCheck.allowed) {
+        // Reset chapter status back to pending
+        await updateChapter(
+          req.params.projectId,
+          req.params.chapterId,
+          { status: 'pending' },
+          token
+        );
+
+        // Calculate reset time (next midnight UTC)
+        const now = new Date();
+        const resetTime = new Date(Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate() + 1,
+          0, 0, 0
+        ));
+
+        return res.status(429).json({
+          error: 'Token limit exceeded',
+          message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          estimatedTokens,
+          resetAt: resetTime.toISOString(),
+        });
+      }
+
+      // Log token limit check result
+      if (limitCheck.warning) {
+        console.log(`⚠️  Предупреждение: ${limitCheck.message}`);
+      }
+      console.log(`📊 Токены: использовано ${limitCheck.currentUsage.toLocaleString()} / ${limitCheck.limit.toLocaleString()}, предполагается ${estimatedTokens.toLocaleString()}, останется ${(limitCheck.remaining - estimatedTokens).toLocaleString()}`);
+
+      // Update status to translating
+      await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        { status: 'translating' },
+        token
+      );
 
       console.log(`\n${'═'.repeat(60)}`);
       console.log(`🔮 ЗАПРОС НА ПЕРЕВОД`);
@@ -883,7 +978,8 @@ app.post(
         project,
         startTime,
         translateOnlyEmpty,
-        token
+        token,
+        req.user.id
       );
 
       res.json({ status: 'started', chapterId: chapter.id });
@@ -901,7 +997,8 @@ async function performTranslation(
   project: Project,
   startTime: number,
   translateOnlyEmpty: boolean = false,
-  token: string
+  token: string,
+  userId: string
 ): Promise<void> {
   try {
     // Validate input data
@@ -1288,6 +1385,19 @@ async function performTranslation(
 
     console.log(`📦 Сохранено ${chunksToSave.length} чанков перевода`);
     console.log(`✅ Глава успешно переведена и синхронизирована: ${chapter.title}`);
+
+    // Update token usage counter
+    try {
+      await incrementTokenUsage(
+        userId,
+        token,
+        result.tokensUsed,
+        result.tokensByStage
+      );
+    } catch (tokenError) {
+      // Don't fail translation if token tracking fails
+      console.error('⚠️  Failed to update token usage (non-critical):', tokenError);
+    }
 
     // Verify the chapter was saved correctly
     const savedChapter = await getChapter(projectId, chapterId, token);
@@ -2442,6 +2552,7 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, asyn
     console.log(`🔢 Номер главы обновлён: "${chapter.title}" → ${number}`);
 
     // Return updated project with reordered chapters
+    // No delay needed - Supabase updates are synchronous within the same connection
     const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
     res.json(project);
   } catch (error) {
@@ -2575,6 +2686,51 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
     }
 
     try {
+      // ============ Auto-clean old exports ============
+      // We keep storage usage under control (Supabase bucket is limited).
+      // Strategy:
+      // - Delete exports older than EXPORT_RETENTION_DAYS
+      // - Also keep only last EXPORT_KEEP_LATEST files per project
+      const EXPORT_RETENTION_DAYS = 7;
+      const EXPORT_KEEP_LATEST = 5;
+      try {
+        const folder = projectId;
+        const files = await listFiles('exports', folder, { limit: 100 });
+
+        const now = Date.now();
+        const toTimestamp = (d?: string): number => {
+          if (!d) return 0;
+          const t = Date.parse(d);
+          return Number.isFinite(t) ? t : 0;
+        };
+
+        const withTs = files
+          // ignore pseudo-folders
+          .filter((f) => f.name && !f.name.endsWith('/'))
+          .map((f) => {
+            const ts = Math.max(toTimestamp(f.created_at), toTimestamp(f.updated_at), toTimestamp(f.last_accessed_at));
+            return { ...f, __ts: ts };
+          })
+          .sort((a, b) => (b.__ts || 0) - (a.__ts || 0));
+
+        const cutoff = now - EXPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+        const oldByAge = withTs.filter((f) => (f.__ts || 0) > 0 && (f.__ts || 0) < cutoff);
+        const oldByCount = withTs.slice(EXPORT_KEEP_LATEST);
+
+        // De-duplicate by name
+        const toDeleteNames = Array.from(new Set([...oldByAge, ...oldByCount].map((f) => f.name)));
+
+        if (toDeleteNames.length > 0) {
+          const paths = toDeleteNames.map((name) => `${folder}/${name}`);
+          console.log(`🧹 Auto-clean exports: deleting ${paths.length} files from exports/${folder}/`);
+          await deleteFiles('exports', paths);
+        }
+      } catch (cleanupErr) {
+        // Cleanup must never break export itself
+        console.warn('⚠️ Auto-clean exports failed (continuing):', cleanupErr);
+      }
+
       // Export project to temporary file
       console.log(`   Генерация файла...`);
       const exportedPath = await exportProject(project, {
@@ -2596,25 +2752,40 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       const fileBuffer = fs.readFileSync(exportedPath);
       console.log(`   ✅ Файл прочитан: ${fileBuffer.length} байт`);
 
-      // Clean up temporary file before sending
+      // Upload to Supabase Storage (recommended for Vercel)
+      const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
+      const storagePath = `${projectId}/${filename}`;
+
+      console.log(`   ☁️ Загрузка в Supabase Storage: bucket=exports path=${storagePath}`);
+      const uploaded = await uploadFile('exports', storagePath, fileBuffer, {
+        contentType,
+        cacheControl: '3600',
+        upsert: true,
+      });
+
+      // Prefer signed URL (works even if bucket is private)
+      const { signedUrl } = await createSignedUrl('exports', storagePath, 60 * 30);
+
+      // Clean up temporary file after upload
       try {
         fs.unlinkSync(exportedPath);
         console.log(`   ✅ Временный файл удален`);
       } catch (cleanupError) {
         console.warn(`   ⚠️ Не удалось удалить временный файл: ${cleanupError}`);
-        // Continue even if cleanup fails
       }
 
-      // Send file directly to client (streaming, no storage)
-      const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Length', fileBuffer.length.toString());
+      console.log(
+        `📤 Экспорт проекта завершен: ${project.name} -> ${format.toUpperCase()} (${filename}), storagePath=${storagePath}`
+      );
 
-      console.log(`📤 Экспорт проекта завершен: ${project.name} -> ${format.toUpperCase()} (${filename})`);
-      console.log(`   Отправка файла клиенту (streaming, ${fileBuffer.length} байт)`);
-
-      res.send(fileBuffer);
+      return res.json({
+        success: true,
+        format,
+        filename,
+        path: uploaded.path,
+        url: signedUrl,
+        publicUrl: uploaded.publicUrl,
+      });
     } catch (exportError) {
       // Clean up temporary file on error
       try {

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'preact/hooks';
-import type { Chapter, Project, ReaderSettings } from '../../types';
+import type { Chapter, Project, ReaderSettings, TokenUsage } from '../../types';
 import { api } from '../../api/client';
 import { Card } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
 import { ReaderSettingsPanel } from './ReaderSettings';
 import { ParagraphList } from './ParagraphList';
+import { TokenLimitWarning } from '../TokenUsage';
 
 interface ChapterViewProps {
   project: Project;
@@ -40,6 +41,10 @@ export function ChapterView({
   );
   const [translating, setTranslating] = useState(false);
   const [pollingInterval, setPollingInterval] = useState<number | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
+  const [showTokenWarning, setShowTokenWarning] = useState(false);
+  const [estimatedTokens, setEstimatedTokens] = useState(0);
+  const [pendingTranslationType, setPendingTranslationType] = useState<'full' | 'empty'>('full');
   
   const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
 
@@ -112,6 +117,46 @@ export function ChapterView({
     }
   }, [chapter.status, chapter.id, project.id, translating]);
 
+  // Estimate tokens for translation
+  const estimateTokens = (textLength: number): number => {
+    const enableAnalysis = project.settings?.enableAnalysis ?? true;
+    const enableEditing = !(project.settings?.skipEditing ?? false);
+    
+    // Tokens per 10k characters (from config)
+    const tokensPer10K = {
+      analysis: 2000,
+      translation: 10000,
+      editing: 13000,
+    };
+    
+    const charsIn10K = textLength / 10000;
+    let tokens = 0;
+    
+    if (enableAnalysis) tokens += tokensPer10K.analysis * charsIn10K;
+    tokens += tokensPer10K.translation * charsIn10K;
+    if (enableEditing) tokens += tokensPer10K.editing * charsIn10K;
+    
+    return Math.ceil(tokens);
+  };
+
+  // Load token usage
+  useEffect(() => {
+    const loadTokenUsage = async () => {
+      try {
+        const usage = await api.getTokenUsage();
+        setTokenUsage(usage);
+      } catch (error) {
+        console.error('Failed to load token usage:', error);
+        // Don't show error, just continue without token checking
+      }
+    };
+    
+    loadTokenUsage();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadTokenUsage, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleTranslate = async () => {
     // Prevent double-translation
     if (chapter.status === 'translating' || translating) {
@@ -119,11 +164,40 @@ export function ChapterView({
       return;
     }
 
-    console.log('🔮 Starting translation for chapter:', chapter.id, chapter.title);
+    // Check token limit before starting translation
+    if (tokenUsage) {
+      const estimated = estimateTokens(chapter.originalText.length);
+      setEstimatedTokens(estimated);
+      
+      const tokensAfterTranslation = tokenUsage.tokensUsed + estimated;
+      const willExceed = tokensAfterTranslation > tokenUsage.tokensLimit;
+      const percentageAfter = (tokensAfterTranslation / tokenUsage.tokensLimit) * 100;
+      const shouldWarn = percentageAfter >= 80;
+
+      if (willExceed) {
+        // Show warning modal - translation will be blocked
+        setPendingTranslationType('full');
+        setShowTokenWarning(true);
+        return;
+      } else if (shouldWarn) {
+        // Show warning but allow continuation
+        setPendingTranslationType('full');
+        setShowTokenWarning(true);
+        return;
+      }
+    }
+
+    // Proceed with translation
+    await performTranslation(false);
+  };
+
+  const performTranslation = async (translateOnlyEmpty: boolean = false) => {
+    const action = translateOnlyEmpty ? 'empty paragraphs' : 'chapter';
+    console.log(`🔮 Starting translation for ${action}:`, chapter.id, chapter.title);
     setTranslating(true);
     
     try {
-      const response = await api.translateChapter(project.id, chapter.id);
+      const response = await api.translateChapter(project.id, chapter.id, translateOnlyEmpty);
       console.log('✅ Translation request sent, response:', response);
       
       // Immediately update chapter status to translating to trigger polling
@@ -132,10 +206,36 @@ export function ChapterView({
       
       console.log('📊 Chapter status updated to "translating", polling should start');
       
+      // Refresh token usage after starting translation
+      if (tokenUsage) {
+        try {
+          const updatedUsage = await api.getTokenUsage();
+          setTokenUsage(updatedUsage);
+        } catch (error) {
+          console.error('Failed to refresh token usage:', error);
+        }
+      }
+      
       // Polling will handle the rest via useEffect
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Translation error:', error);
       setTranslating(false);
+      
+      // Check if it's a token limit error (429)
+      if (error?.status === 429) {
+        const errorData = error.data || {};
+        alert(`Лимит токенов превышен: ${errorData.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.'}`);
+        
+        // Refresh token usage to show current state
+        try {
+          const updatedUsage = await api.getTokenUsage();
+          setTokenUsage(updatedUsage);
+        } catch (refreshError) {
+          console.error('Failed to refresh token usage:', refreshError);
+        }
+        
+        return;
+      }
       
       // Update chapter status to error if translation failed
       const errorChapter = { ...chapter, status: 'error' as const };
@@ -162,39 +262,39 @@ export function ChapterView({
       return !hasText || isError;
     }) || [];
 
+    // Calculate text length for empty paragraphs only
+    const emptyTextLength = emptyParagraphs.reduce((sum, p) => sum + p.originalText.length, 0);
+    
+    // Check token limit before starting translation
+    if (tokenUsage && emptyTextLength > 0) {
+      const estimated = estimateTokens(emptyTextLength);
+      setEstimatedTokens(estimated);
+      
+      const tokensAfterTranslation = tokenUsage.tokensUsed + estimated;
+      const willExceed = tokensAfterTranslation > tokenUsage.tokensLimit;
+      const percentageAfter = (tokensAfterTranslation / tokenUsage.tokensLimit) * 100;
+      const shouldWarn = percentageAfter >= 80;
+
+      if (willExceed) {
+        // Show warning modal - translation will be blocked
+        setPendingTranslationType('empty');
+        setShowTokenWarning(true);
+        return;
+      } else if (shouldWarn) {
+        // Show warning but allow continuation
+        setPendingTranslationType('empty');
+        setShowTokenWarning(true);
+        return;
+      }
+    }
+
     if (emptyParagraphs.length === 0) {
       alert('Нет пустых абзацев для перевода');
       return;
     }
 
-    console.log(`🔮 Starting translation for ${emptyParagraphs.length} empty paragraphs in chapter:`, chapter.id, chapter.title);
-    setTranslating(true);
-    
-    try {
-      // Translate only empty paragraphs using translateOnlyEmpty flag
-      const response = await api.translateChapter(project.id, chapter.id, true);
-      console.log('✅ Translation request sent, response:', response);
-      
-      // Immediately update chapter status to translating to trigger polling
-      const updatedChapter = { ...chapter, status: 'translating' as const };
-      onChapterUpdate(updatedChapter);
-      
-      console.log('📊 Chapter status updated to "translating", polling should start');
-      
-      // Polling will handle the rest via useEffect
-    } catch (error) {
-      console.error('❌ Translation error:', error);
-      setTranslating(false);
-      
-      // Update chapter status to error if translation failed
-      const errorChapter = { ...chapter, status: 'error' as const };
-      onChapterUpdate(errorChapter);
-      
-      // Show user-friendly error message
-      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      alert(`Ошибка запуска перевода: ${errorMessage}`);
-      console.error('Full error details:', error);
-    }
+    // Proceed with translation of empty paragraphs
+    await performTranslation(true);
   };
 
   const handleApproveAll = async () => {
@@ -251,6 +351,16 @@ export function ChapterView({
           <ReaderSettingsPanel
             settings={readerSettings}
             onChange={handleReaderSettingsChange}
+          />
+        )}
+        
+        {tokenUsage && (
+          <TokenLimitWarning
+            isOpen={showTokenWarning}
+            onClose={() => setShowTokenWarning(false)}
+            onConfirm={() => performTranslation(pendingTranslationType === 'empty')}
+            usage={tokenUsage}
+            estimatedTokens={estimatedTokens}
           />
         )}
 
