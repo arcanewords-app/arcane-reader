@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { ChapterList } from './ChapterList';
 import { Button } from '../ui';
 import { route } from 'preact-router';
@@ -33,6 +34,7 @@ export function Sidebar({
   onProjectUpdate,
   isMobileOpen = false,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
 
   if (!project) {
@@ -65,7 +67,7 @@ export function Sidebar({
           }}
           className="sidebar-dashboard-link"
         >
-          ← Все проекты
+          ← {t('sidebar.allProjects')}
         </Button>
 
         {/* Project name/header */}
@@ -89,7 +91,7 @@ export function Sidebar({
           className="sidebar-settings-link"
           style={{ marginBottom: '0.75rem' }}
         >
-          📄 О проекте
+          📄 {t('sidebar.aboutProject')}
         </Button>
 
         {/* Settings Button */}
@@ -99,7 +101,7 @@ export function Sidebar({
           className="sidebar-settings-link"
           style={{ marginBottom: '1rem' }}
         >
-          ⚙️ Настройки проекта
+          ⚙️ {t('sidebar.projectSettings')}
         </Button>
 
         <ChapterList
@@ -115,7 +117,7 @@ export function Sidebar({
         />
 
         <Button variant="glossary" onClick={onOpenGlossary}>
-          📝 Глоссарий{' '}
+          📝 {t('sidebar.glossary')}{' '}
           <span class="glossary-count">{project.glossary.length}</span>
         </Button>
       </aside>

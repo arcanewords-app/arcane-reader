@@ -1,5 +1,6 @@
 import { Router } from 'preact-router';
 import { useEffect, useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
 import { authService } from './services/authService';
 import { Header } from './components/Header';
@@ -14,6 +15,7 @@ type AppStatus = 'loading' | 'ready' | 'error';
 
 // Main app component with routing
 export function AppRouter() {
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -161,11 +163,10 @@ export function AppRouter() {
     };
   }, []);
 
-  // If auth check is still in progress - show loader
   if (isAuthenticated === null) {
     return (
       <div class="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <div>Загрузка...</div>
+        <div>{t('common.loading')}</div>
       </div>
     );
   }

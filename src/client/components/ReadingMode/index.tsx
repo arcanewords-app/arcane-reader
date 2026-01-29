@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { Project, Chapter, ReaderSettings } from '../../types';
 import { api } from '../../api/client';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
@@ -19,6 +20,7 @@ const defaultReaderSettings: ReaderSettings = {
 };
 
 export function ReadingMode({ project, initialChapterId, onExit }: ReadingModeProps) {
+  const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -167,12 +169,12 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
         <div class="reading-mode-empty">
           <div style={{ textAlign: 'center', padding: '3rem' }}>
             <h2 style={{ marginBottom: '1rem' }}>
-              {isOriginalReadingMode ? 'Нет глав для чтения' : 'Нет переведенных глав'}
+              {isOriginalReadingMode ? t('readingMode.noChaptersForReading') : t('readingMode.noTranslatedChapters')}
             </h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
               {isOriginalReadingMode 
-                ? 'Нет глав с оригинальным текстом для чтения.'
-                : 'Для использования режима чтения нужно перевести хотя бы одну главу.'}
+                ? t('readingMode.noOriginalChaptersForReading')
+                : t('readingMode.needTranslateOneChapter')}
             </p>
             <button
               class="reading-mode-exit-btn"
@@ -187,7 +189,7 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
                 fontSize: '1rem',
               }}
             >
-              Вернуться к проекту
+              {t('readingMode.backToProject')}
             </button>
           </div>
         </div>
@@ -223,14 +225,14 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
           <button
             class="reading-mode-exit-btn"
             onClick={onExit}
-            title="Выйти из режима чтения (Esc)"
+            title={t('readingMode.exitTitle')}
           >
-            ← Назад
+            ← {t('common.back')}
           </button>
           <div class="reading-mode-title">
             <h2>{project.name}</h2>
             <span class="reading-mode-chapter-info">
-              Глава {currentChapterIndex + 1} из {chapters.length}
+              {t('readingMode.chapterOf', { current: currentChapterIndex + 1, total: chapters.length })}
             </span>
           </div>
         </div>
@@ -238,21 +240,21 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
           <button
             class="reading-mode-header-btn"
             onClick={() => setShowTOC(true)}
-            title="Оглавление"
+            title={t('readingMode.toc')}
           >
             📑
           </button>
           <button
             class="reading-mode-header-btn"
             onClick={handleShare}
-            title="Поделиться"
+            title={t('readingMode.shareLink')}
           >
             🔗
           </button>
           <button
             class="reading-mode-settings-btn"
             onClick={() => setShowSettings(!showSettings)}
-            title="Настройки чтения"
+            title={t('readingMode.settingsTitle')}
           >
             ⚙️
           </button>
@@ -275,20 +277,20 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
           class="reading-mode-nav-btn"
           onClick={handlePrevChapter}
           disabled={currentChapterIndex === 0}
-          title="Предыдущая глава (←)"
+          title={`${t('chapter.prevChapter')} (←)`}
         >
-          ← Предыдущая
+          ← {t('readingMode.prev')}
         </button>
         <div class="reading-mode-nav-info">
-          {currentChapter?.title || `Глава ${currentChapterIndex + 1}`}
+          {currentChapter?.title || t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
         </div>
         <button
           class="reading-mode-nav-btn"
           onClick={handleNextChapter}
           disabled={currentChapterIndex >= chapters.length - 1}
-          title="Следующая глава (→)"
+          title={`${t('chapter.nextChapter')} (→)`}
         >
-          Следующая →
+          {t('readingMode.next')} →
         </button>
       </div>
 
@@ -303,7 +305,7 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
             ))
           ) : (
             <p style={{ color: 'var(--text-dim)', textAlign: 'center' }}>
-              {isOriginalReadingMode ? 'Нет оригинального текста' : 'Нет переведенного текста'}
+              {isOriginalReadingMode ? t('readingMode.noOriginalText') : t('readingMode.noTranslatedText')}
             </p>
           )}
         </div>
@@ -316,7 +318,7 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
           onClick={handlePrevChapter}
           disabled={currentChapterIndex === 0}
         >
-          ← Предыдущая
+          ← {t('readingMode.prev')}
         </button>
         <div class="reading-mode-progress">
           {currentChapterIndex + 1} / {chapters.length}
@@ -326,7 +328,7 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
           onClick={handleNextChapter}
           disabled={currentChapterIndex >= chapters.length - 1}
         >
-          Следующая →
+          {t('readingMode.next')} →
         </button>
       </div>
 
@@ -334,7 +336,7 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
       <Modal
         isOpen={showTOC}
         onClose={() => setShowTOC(false)}
-        title="📑 Оглавление"
+        title={`📑 ${t('readingMode.toc')}`}
         size="large"
       >
         <div class="reading-toc-list">
@@ -347,21 +349,20 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
               <span class="reading-toc-number">{index + 1}</span>
               <span class="reading-toc-title">{chapter.title}</span>
               {index === currentChapterIndex && (
-                <span class="reading-toc-current">Текущая</span>
+                <span class="reading-toc-current">{t('readingMode.current')}</span>
               )}
             </button>
           ))}
         </div>
       </Modal>
 
-      {/* Share Modal */}
       <Modal
         isOpen={showShareModal}
         onClose={() => {
           setShowShareModal(false);
           setShareCopied(false);
         }}
-        title="🔗 Поделиться ссылкой"
+        title={`🔗 ${t('readingMode.shareLink')}`}
         footer={
           <button
             class="reading-share-copy-btn"
@@ -378,13 +379,13 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
               width: '100%',
             }}
           >
-            {shareCopied ? '✓ Скопировано!' : '📋 Копировать ссылку'}
+            {shareCopied ? `✓ ${t('readingMode.copied')}!` : `📋 ${t('readingMode.copyLink')}`}
           </button>
         }
       >
         <div style={{ marginBottom: '1rem' }}>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-            Ссылка на текущую главу:
+            {t('readingMode.linkLabel')}
           </p>
           <input
             type="text"

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
 import type { Project } from '../types';
@@ -14,6 +15,7 @@ interface ProjectPageProps {
 }
 
 export function ProjectPage({ projectId }: ProjectPageProps) {
+  const { t } = useTranslation();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const refreshTrigger = useSignal(0);
@@ -90,11 +92,11 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   };
 
   if (loading) {
-    return <div>Загрузка...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   if (!project) {
-    return <div>Проект не найден</div>;
+    return <div>{t('project.notFound')}</div>;
   }
 
   // Get sidebar state from AppRouter (stored in window for cross-component communication)

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { Paragraph } from '../../types';
 import './ParagraphList.css';
 
@@ -6,9 +7,22 @@ interface ParagraphListProps {
   paragraphs: Paragraph[];
   onSave: (id: string, text: string) => Promise<void>;
   isOriginalReadingMode?: boolean;
+  /** IDs of paragraphs that are empty (no valid translation) - show checkbox for selection */
+  emptyParagraphIds?: string[];
+  /** Selected paragraph IDs for "translate selected" */
+  selectedParagraphIds?: string[];
+  onToggleParagraphSelection?: (id: string) => void;
 }
 
-export function ParagraphList({ paragraphs, onSave, isOriginalReadingMode = false }: ParagraphListProps) {
+export function ParagraphList({
+  paragraphs,
+  onSave,
+  isOriginalReadingMode = false,
+  emptyParagraphIds = [],
+  selectedParagraphIds = [],
+  onToggleParagraphSelection,
+}: ParagraphListProps) {
+  const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -73,18 +87,22 @@ export function ParagraphList({ paragraphs, onSave, isOriginalReadingMode = fals
       <div class="panel-headers">
         <div class="panel-header-left" style={isOriginalReadingMode ? { width: '100%' } : {}}>
           🇬🇧 Оригинал (English)
-          <span class="panel-stats">{originalChars.toLocaleString()} символов</span>
+          <span class="panel-stats">{originalChars.toLocaleString()} {t('paragraphList.characters')}</span>
         </div>
         {!isOriginalReadingMode && (
           <div class="panel-header-right">
             🇷🇺 Перевод (Русский)
-            <span class="panel-stats">{translatedChars.toLocaleString()} символов</span>
+            <span class="panel-stats">{translatedChars.toLocaleString()} {t('paragraphList.characters')}</span>
           </div>
         )}
       </div>
 
       <div class="paragraphs-unified">
-        {paragraphs.map((paragraph, index) => (
+        {paragraphs.map((paragraph, index) => {
+          const isEmpty = emptyParagraphIds.includes(paragraph.id);
+          const showCheckbox = !isOriginalReadingMode && isEmpty && onToggleParagraphSelection;
+          const isSelected = selectedParagraphIds.includes(paragraph.id);
+          return (
           <div
             key={paragraph.id}
             class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''}`}
@@ -94,6 +112,25 @@ export function ParagraphList({ paragraphs, onSave, isOriginalReadingMode = fals
           >
             {/* Original */}
             <div class="paragraph-cell paragraph-cell-original" style={isOriginalReadingMode ? { width: '100%' } : {}}>
+              {showCheckbox && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    marginRight: '0.35rem',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggleParagraphSelection?.(paragraph.id)}
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                </label>
+              )}
               <span class="paragraph-index">{index + 1}</span>
               <div class="paragraph-text">{paragraph.originalText}</div>
             </div>
@@ -113,14 +150,14 @@ export function ParagraphList({ paragraphs, onSave, isOriginalReadingMode = fals
                   />
                   <div class="paragraph-actions">
                     <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
-                      Отмена
+                      {t('common.cancel')}
                     </button>
                     <button
                       class="btn btn-primary btn-sm"
                       onClick={handleSave}
                       disabled={saving}
                     >
-                      {saving ? <span class="spinner" /> : '💾 Сохранить'}
+                      {saving ? <span class="spinner" /> : `💾 ${t('paragraphList.save')}`}
                     </button>
                   </div>
                 </div>
@@ -133,14 +170,15 @@ export function ParagraphList({ paragraphs, onSave, isOriginalReadingMode = fals
                   dangerouslySetInnerHTML={{
                     __html: paragraph.translatedText
                       ? escapeHtml(paragraph.translatedText)
-                      : '<em>Нажмите для редактирования...</em>',
+                      : `<em>${t('paragraphList.clickToEdit')}</em>`,
                   }}
                 />
               )}
             </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

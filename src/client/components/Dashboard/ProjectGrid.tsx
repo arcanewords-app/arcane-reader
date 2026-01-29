@@ -1,4 +1,5 @@
 import { useMemo } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { ProjectListItem } from '../../types';
 import { ProjectCard } from './ProjectCard';
 import { LoadingSpinner } from '../ui';
@@ -19,6 +20,7 @@ export function ProjectGrid({
   searchQuery = '',
   filterType = 'all',
 }: ProjectGridProps) {
+  const { t } = useTranslation();
   // Filter and search projects
   const filteredProjects = useMemo(() => {
     let filtered = projects;
@@ -47,7 +49,7 @@ export function ProjectGrid({
   if (loading) {
     return (
       <div class="project-grid-loading">
-        <LoadingSpinner size="lg" text="Загрузка проектов..." />
+        <LoadingSpinner size="lg" text={t('projectGrid.loadingProjects')} />
       </div>
     );
   }
@@ -59,20 +61,20 @@ export function ProjectGrid({
           <>
             <div class="project-grid-empty-icon">🔍</div>
             <div class="project-grid-empty-text">
-              Проекты не найдены
+              {t('projectGrid.noProjectsFound')}
             </div>
             <div class="project-grid-empty-hint">
-              Попробуйте изменить параметры поиска
+              {t('projectGrid.tryChangeSearch')}
             </div>
           </>
         ) : (
           <>
             <div class="project-grid-empty-icon">📚</div>
             <div class="project-grid-empty-text">
-              Нет проектов
+              {t('project.noProjects')}
             </div>
             <div class="project-grid-empty-hint">
-              Создайте первый проект, чтобы начать работу
+              {t('projectGrid.createFirstProject')}
             </div>
           </>
         )}

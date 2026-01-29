@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReaderSettings as ReaderSettingsType, ColorScheme, FontFamily } from '../../types';
 import './ReaderSettings.css';
 
@@ -13,18 +14,18 @@ const fonts: { key: FontFamily; label: string; style: string }[] = [
   { key: 'mono', label: 'Mono', style: "'JetBrains Mono', monospace" },
 ];
 
-const themes: { key: ColorScheme; icon: string; title: string; preview: string }[] = [
-  { key: 'dark', icon: '🌙', title: 'Тёмная', preview: 'theme-preview-dark' },
-  { key: 'light', icon: '☀️', title: 'Светлая', preview: 'theme-preview-light' },
-  { key: 'sepia', icon: '📜', title: 'Сепия', preview: 'theme-preview-sepia' },
-  { key: 'contrast', icon: '🔳', title: 'Контраст', preview: 'theme-preview-contrast' },
-];
-
 export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps) {
+  const { t } = useTranslation();
+  const themes: { key: ColorScheme; icon: string; titleKey: string; preview: string }[] = [
+    { key: 'dark', icon: '🌙', titleKey: 'reader.themeDark', preview: 'theme-preview-dark' },
+    { key: 'light', icon: '☀️', titleKey: 'reader.themeLight', preview: 'theme-preview-light' },
+    { key: 'sepia', icon: '📜', titleKey: 'reader.themeSepia', preview: 'theme-preview-sepia' },
+    { key: 'contrast', icon: '🔳', titleKey: 'reader.themeContrast', preview: 'theme-preview-contrast' },
+  ];
   return (
     <div class="reader-settings-panel">
       <div class="settings-section">
-        <label class="settings-label">Шрифт</label>
+        <label class="settings-label">{t('reader.font')}</label>
         <div class="font-selector">
           {fonts.map((font) => (
             <button
@@ -42,7 +43,7 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
       </div>
 
       <div class="settings-section">
-        <label class="settings-label">Размер текста</label>
+        <label class="settings-label">{t('reader.fontSize')}</label>
         <div class="slider-row">
           <span class="slider-label">A</span>
           <input
@@ -64,7 +65,7 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
       </div>
 
       <div class="settings-section">
-        <label class="settings-label">Межстрочный интервал</label>
+        <label class="settings-label">{t('reader.lineHeight')}</label>
         <div class="slider-row">
           <span class="slider-label">≡</span>
           <input
@@ -84,14 +85,14 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
       </div>
 
       <div class="settings-section">
-        <label class="settings-label">Тема</label>
+        <label class="settings-label">{t('reader.theme')}</label>
         <div class="theme-selector">
           {themes.map((theme) => (
             <button
               key={theme.key}
               class={`theme-option ${settings.colorScheme === theme.key ? 'active' : ''}`}
               onClick={() => onChange({ colorScheme: theme.key })}
-              title={theme.title}
+              title={t(theme.titleKey)}
             >
               <span class={`theme-preview ${theme.preview}`}>{theme.icon}</span>
             </button>

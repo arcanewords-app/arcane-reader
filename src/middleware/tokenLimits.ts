@@ -177,9 +177,6 @@ export async function incrementTokenUsage(
   if (error) {
     console.error('Failed to increment token usage:', error);
     // Don't throw - token tracking shouldn't block translation
-    // But log it for monitoring
-  } else {
-    console.log(`📊 Token usage updated: ${currentTokensUsed} → ${newTokensUsed} tokens`);
   }
 }
 

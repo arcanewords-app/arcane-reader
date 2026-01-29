@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { GlossaryEntry, GlossaryEntryType } from '../../types';
 import { Modal, Button, Input, Select } from '../ui';
 import { api } from '../../api/client';
@@ -20,12 +21,6 @@ const typeIcons: Record<GlossaryEntryType, string> = {
   term: '📖',
 };
 
-const typeLabels: Record<GlossaryEntryType, string> = {
-  character: 'Персонажи',
-  location: 'Локации',
-  term: 'Термины',
-};
-
 export function GlossaryModal({
   isOpen,
   onClose,
@@ -33,6 +28,12 @@ export function GlossaryModal({
   entries,
   onUpdate,
 }: GlossaryModalProps) {
+  const { t } = useTranslation();
+  const typeLabels: Record<GlossaryEntryType, string> = {
+    character: t('glossary.characters'),
+    location: t('glossary.locations'),
+    term: t('glossary.terms'),
+  };
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -75,14 +76,14 @@ export function GlossaryModal({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title="📝 Глоссарий"
+        title={`📝 ${t('glossary.title')}`}
         size="large"
         footer={
           <>
             <Button variant="secondary" onClick={onClose}>
-              Закрыть
+              {t('common.close')}
             </Button>
-            <Button onClick={() => setShowAddModal(true)}>＋ Добавить запись</Button>
+            <Button onClick={() => setShowAddModal(true)}>＋ {t('glossary.addEntry')}</Button>
           </>
         }
       >
@@ -91,7 +92,7 @@ export function GlossaryModal({
             <input
               type="text"
               class="form-input"
-              placeholder="🔍 Поиск..."
+              placeholder={`🔍 ${t('glossary.searchPlaceholder')}`}
               value={search}
               onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
             />
@@ -103,7 +104,7 @@ export function GlossaryModal({
                 class={`filter-btn ${filter === f ? 'active' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'all' ? 'Все' : `${typeIcons[f]} ${typeLabels[f]}`}
+                {f === 'all' ? t('glossary.all') : `${typeIcons[f]} ${typeLabels[f]}`}
                 <span>{counts[f]}</span>
               </button>
             ))}
@@ -114,7 +115,7 @@ export function GlossaryModal({
           {filteredEntries.length === 0 ? (
             <div class="glossary-empty">
               <div class="glossary-empty-icon">📚</div>
-              <p>{entries.length === 0 ? 'Глоссарий пуст' : 'Нет результатов'}</p>
+              <p>{entries.length === 0 ? t('glossary.empty') : t('glossary.noResults')}</p>
             </div>
           ) : (
             filteredEntries.map((entry) => {
@@ -154,7 +155,7 @@ export function GlossaryModal({
                           {typeIcons[entry.type]}
                         </div>
                         {entry.firstAppearance && (
-                          <span class="glossary-card-badge glossary-card-chapter" title="Первое упоминание">
+                          <span class="glossary-card-badge glossary-card-chapter" title={t('glossary.firstMention')}>
                             📖 {entry.firstAppearance}
                           </span>
                         )}
@@ -180,7 +181,7 @@ export function GlossaryModal({
                       e.stopPropagation();
                       setDeleteConfirmEntry(entry);
                     }}
-                    title="Удалить запись"
+                    title={t('glossary.deleteEntryTitle')}
                   >
                     🗑️
                   </button>
@@ -221,22 +222,21 @@ export function GlossaryModal({
       <Modal
         isOpen={deleteConfirmEntry !== null}
         onClose={() => setDeleteConfirmEntry(null)}
-        title="🗑️ Удалить запись?"
+        title={`🗑️ ${t('glossary.deleteEntryConfirmTitle')}`}
         className="nested"
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteConfirmEntry(null)}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleDeleteConfirm} loading={deleting}>
-              Удалить
+              {t('common.delete')}
             </Button>
           </>
         }
       >
         <p style={{ color: 'var(--text-secondary)' }}>
-          Вы уверены, что хотите удалить запись{' '}
-          <strong>"{deleteConfirmEntry?.original}"</strong>?
+          {t('glossary.deleteEntryConfirmMessage', { original: deleteConfirmEntry?.original ?? '' })}
         </p>
       </Modal>
     </>
@@ -253,6 +253,7 @@ interface AddGlossaryModalProps {
 }
 
 function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModalProps) {
+  const { t } = useTranslation();
   const [type, setType] = useState<GlossaryEntryType>('character');
   const [original, setOriginal] = useState('');
   const [translated, setTranslated] = useState('');
@@ -287,47 +288,53 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
     }
   };
 
+  const descriptionPlaceholder = type === 'character'
+    ? t('glossary.descriptionPlaceholderChar')
+    : type === 'location'
+    ? t('glossary.descriptionPlaceholderLoc')
+    : t('glossary.descriptionPlaceholderTerm');
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="📝 Новая запись глоссария"
+      title={`📝 ${t('glossary.newEntryTitle')}`}
       className="nested"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Отмена
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} loading={saving}>
-            Добавить
+            {t('glossary.addButton')}
           </Button>
         </>
       }
     >
       <Select
-        label="Тип"
+        label={t('glossary.typeLabel')}
         value={type}
         onChange={(e) => setType((e.target as HTMLSelectElement).value as GlossaryEntryType)}
         options={[
-          { value: 'character', label: '👤 Персонаж' },
-          { value: 'location', label: '📍 Локация' },
-          { value: 'term', label: '📖 Термин' },
+          { value: 'character', label: `👤 ${t('glossary.characters')}` },
+          { value: 'location', label: `📍 ${t('glossary.locations')}` },
+          { value: 'term', label: `📖 ${t('glossary.terms')}` },
         ]}
       />
       <Input
-        label="Оригинал (EN)"
-        placeholder="Например: The Dark Lord"
+        label={t('glossary.originalLabel')}
+        placeholder={t('glossary.originalPlaceholder')}
         value={original}
         onInput={(e) => setOriginal((e.target as HTMLInputElement).value)}
       />
       <Input
-        label="Перевод (RU)"
-        placeholder="Например: Тёмный Властелин"
+        label={t('glossary.translatedLabel')}
+        placeholder={t('glossary.translatedPlaceholder')}
         value={translated}
         onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
       />
       <div class="form-group">
-        <label class="form-label">📝 Описание (опционально)</label>
+        <label class="form-label">📝 {t('glossary.descriptionOptionalLabel')}</label>
         <textarea
           class="form-input"
           style={{ 
@@ -335,20 +342,14 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
             resize: 'vertical',
             fontFamily: 'var(--font-display)'
           }}
-          placeholder={
-            type === 'character' 
-              ? 'Например: Главный герой, молодой маг-исследователь'
-              : type === 'location'
-              ? 'Например: Столица королевства, крупный торговый город'
-              : 'Например: Магическая энергия, используемая для заклинаний'
-          }
+          placeholder={descriptionPlaceholder}
           value={description}
           onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
         />
       </div>
       <Input
-        label="Заметки (опционально)"
-        placeholder="Дополнительный контекст..."
+        label={t('glossary.notesLabel')}
+        placeholder={t('glossary.notesPlaceholder')}
         value={notes}
         onInput={(e) => setNotes((e.target as HTMLInputElement).value)}
       />
@@ -375,6 +376,7 @@ function EditGlossaryModal({
   onUpdate,
   onDelete,
 }: EditGlossaryModalProps) {
+  const { t } = useTranslation();
   const [type, setType] = useState(entry.type);
   const [original, setOriginal] = useState(entry.original);
   const [translated, setTranslated] = useState(entry.translated);
@@ -464,11 +466,17 @@ function EditGlossaryModal({
     }
   };
 
+  const descriptionPlaceholderEdit = type === 'character'
+    ? t('glossary.descriptionPlaceholderCharEdit')
+    : type === 'location'
+    ? t('glossary.descriptionPlaceholderLoc')
+    : t('glossary.descriptionPlaceholderTerm');
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="✏️ Редактировать запись"
+      title={`✏️ ${t('glossary.editEntryTitle')}`}
       className="nested"
       footer={
         <>
@@ -477,52 +485,52 @@ function EditGlossaryModal({
             onClick={() => onDelete(entry)}
             style={{ marginRight: 'auto' }}
           >
-            🗑️ Удалить
+            🗑️ {t('common.delete')}
           </Button>
           <Button variant="secondary" onClick={onClose}>
-            Отмена
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} loading={saving}>
-            💾 Сохранить
+            💾 {t('common.save')}
           </Button>
         </>
       }
     >
       <Select
-        label="Тип"
+        label={t('glossary.typeLabel')}
         value={type}
         onChange={(e) => setType((e.target as HTMLSelectElement).value as GlossaryEntryType)}
         options={[
-          { value: 'character', label: '👤 Персонаж' },
-          { value: 'location', label: '📍 Локация' },
-          { value: 'term', label: '📖 Термин' },
+          { value: 'character', label: `👤 ${t('glossary.characters')}` },
+          { value: 'location', label: `📍 ${t('glossary.locations')}` },
+          { value: 'term', label: `📖 ${t('glossary.terms')}` },
         ]}
       />
       {type === 'character' && (
         <Select
-          label="Пол (для склонения)"
+          label={t('glossary.genderLabel')}
           value={gender}
           onChange={(e) => setGender((e.target as HTMLSelectElement).value as typeof gender)}
           options={[
-            { value: 'male', label: 'Мужской' },
-            { value: 'female', label: 'Женский' },
-            { value: 'neutral', label: 'Средний' },
-            { value: 'unknown', label: 'Неизвестно' },
+            { value: 'male', label: t('glossary.genderMale') },
+            { value: 'female', label: t('glossary.genderFemale') },
+            { value: 'neutral', label: t('glossary.genderNeutral') },
+            { value: 'unknown', label: t('glossary.genderUnknown') },
           ]}
         />
       )}
       <Input
-        label="Оригинал (EN)"
+        label={t('glossary.originalLabel')}
         value={original}
         onInput={(e) => setOriginal((e.target as HTMLInputElement).value)}
       />
       <Input
-        label="Перевод (RU)"
+        label={t('glossary.translatedLabel')}
         value={translated}
         onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
       />
       <div class="form-group">
-        <label class="form-label">📝 Описание</label>
+        <label class="form-label">📝 {t('glossary.description')}</label>
         <textarea
           class="form-input"
           style={{ 
@@ -530,13 +538,7 @@ function EditGlossaryModal({
             resize: 'vertical',
             fontFamily: 'var(--font-display)'
           }}
-          placeholder={
-            type === 'character' 
-              ? 'Например: Главный герой, молодой маг-исследователь, склонный к анализу'
-              : type === 'location'
-              ? 'Например: Столица королевства, крупный торговый город'
-              : 'Например: Магическая энергия, используемая для заклинаний'
-          }
+          placeholder={descriptionPlaceholderEdit}
           value={description}
           onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
         />
@@ -547,21 +549,21 @@ function EditGlossaryModal({
           fontStyle: 'italic'
         }}>
           {entry.autoDetected && description 
-            ? 'Описание автоматически извлечено при анализе. Вы можете его отредактировать.'
-            : 'Краткое описание персонажа, локации или термина для лучшего контекста перевода'}
+            ? t('glossary.descriptionAutoExtracted')
+            : t('glossary.descriptionHint')}
         </div>
       </div>
       <Input
-        label="Заметки (опционально)"
+        label={t('glossary.notesLabel')}
         value={notes}
         onInput={(e) => setNotes((e.target as HTMLInputElement).value)}
-        placeholder="Дополнительные пользовательские заметки..."
+        placeholder={t('glossary.notesPlaceholderEdit')}
       />
       
       {/* First Appearance Info */}
       {entry.firstAppearance && (
         <div class="form-group">
-          <label class="form-label">📖 Первое упоминание</label>
+          <label class="form-label">📖 {t('glossary.firstMention')}</label>
           <div style={{ 
             padding: '0.75rem', 
             background: 'var(--bg-secondary)', 
@@ -569,10 +571,10 @@ function EditGlossaryModal({
             color: 'var(--text-secondary)',
             fontSize: '0.9rem'
           }}>
-            Глава {entry.firstAppearance}
+            {t('glossary.firstMentionChapter', { n: entry.firstAppearance })}
             {entry.autoDetected && (
               <span style={{ marginLeft: '0.5rem', opacity: 0.7, fontSize: '0.85rem' }}>
-                (автоопределено)
+                {t('glossary.autoDetected')}
               </span>
             )}
           </div>
@@ -581,7 +583,7 @@ function EditGlossaryModal({
       
       {/* Image Gallery Section */}
       <div class="form-group">
-        <label class="form-label">🖼️ Галерея изображений</label>
+        <label class="form-label">🖼️ {t('glossary.imageGallery')}</label>
         <div class="image-gallery-section">
           {currentImageUrls.length > 0 && (
             <div class="image-gallery-grid">
@@ -610,7 +612,7 @@ function EditGlossaryModal({
                     class="gallery-image-delete"
                     onClick={() => handleImageDelete(index)}
                     disabled={deletingImageIndex === index}
-                    title="Удалить изображение"
+                    title={t('glossary.deleteImageTitle')}
                   >
                     {deletingImageIndex === index ? '⏳' : '🗑️'}
                   </button>
@@ -626,7 +628,7 @@ function EditGlossaryModal({
               marginTop: currentImageUrls.length > 0 ? '0.75rem' : '0'
             }}
           >
-            {uploadingImage ? '⏳ Загрузка...' : '📤 Добавить изображение'}
+            {uploadingImage ? `⏳ ${t('glossary.uploadImageLoading')}` : `📤 ${t('glossary.addImageButton')}`}
             <input
               type="file"
               accept="image/*"

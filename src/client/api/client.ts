@@ -8,6 +8,7 @@ import type {
   SystemStatus,
   Project,
   ProjectListItem,
+  ProjectMetadata,
   ProjectSettings,
   ReaderSettings,
   Chapter,
@@ -177,6 +178,16 @@ export const api = {
     });
   },
 
+  async updateProjectMetadata(
+    projectId: string,
+    metadata: Partial<ProjectMetadata>
+  ): Promise<Project> {
+    return fetchJson(`/api/projects/${projectId}/metadata`, {
+      method: 'PUT',
+      body: JSON.stringify({ metadata }),
+    });
+  },
+
   async updateSettings(
     projectId: string,
     settings: Partial<ProjectSettings>
@@ -272,13 +283,20 @@ export const api = {
   async translateChapter(
     projectId: string,
     chapterId: string,
-    translateOnlyEmpty: boolean = false
+    options?: { translateOnlyEmpty?: boolean; paragraphIds?: string[] }
   ): Promise<TranslateResponse> {
+    const body: { translateOnlyEmpty?: boolean; paragraphIds?: string[] } = {};
+    if (options?.translateOnlyEmpty !== undefined) {
+      body.translateOnlyEmpty = options.translateOnlyEmpty;
+    }
+    if (options?.paragraphIds?.length) {
+      body.paragraphIds = options.paragraphIds;
+    }
     return fetchJson(
       `/api/projects/${projectId}/chapters/${chapterId}/translate`,
       {
         method: 'POST',
-        body: JSON.stringify({ translateOnlyEmpty }),
+        body: JSON.stringify(body),
       }
     );
   },
@@ -408,7 +426,14 @@ export const api = {
     projectId: string,
     format: 'epub' | 'fb2',
     author?: string
-  ): Promise<{ success: boolean; format: string; filename: string; url: string; path: string }> {
+  ): Promise<{
+    success: boolean;
+    format: string;
+    filename: string;
+    url: string;
+    path: string;
+    downloadUrl?: string;
+  }> {
     return fetchJson(`/api/projects/${projectId}/export`, {
       method: 'POST',
       body: JSON.stringify({ format, author }),

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../../api/client';
 import type { ProjectListItem } from '../../types';
 import { Button, Card, Modal, Input } from '../ui';
@@ -13,6 +14,7 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTrigger }: ProjectListProps) {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -68,7 +70,7 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
     }
   };
 
-  // Helper for declension
+  // Helper for declension (Russian: 1 глава, 2 главы, 5 глав; EN/PL use same form or count)
   const declension = (n: number, forms: [string, string, string]) => {
     const n10 = n % 10;
     const n100 = n % 100;
@@ -77,9 +79,15 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
     return forms[2];
   };
 
+  const chapterForms: [string, string, string] = [
+    t('project.chapterOne'),
+    t('project.chapterFew'),
+    t('project.chapterMany'),
+  ];
+
   return (
     <>
-      <Card title="📁 Проекты">
+      <Card title={`📁 ${t('project.projects')}`}>
         <div class="project-list">
           {loading ? (
             <div style={{ textAlign: 'center', padding: '1rem' }}>
@@ -87,7 +95,7 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
             </div>
           ) : projects.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-dim)' }}>
-              Нет проектов
+              {t('project.noProjects')}
             </div>
           ) : (
             projects.map((project) => {
@@ -110,7 +118,7 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
                   </div>
                   <div class="project-meta">
                     {project.translatedCount}/{project.chapterCount}{' '}
-                    {declension(project.chapterCount, ['глава', 'главы', 'глав'])}
+                    {declension(project.chapterCount, chapterForms)}
                   </div>
                 </div>
               );
@@ -123,28 +131,28 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
           style={{ marginTop: '1rem' }}
           onClick={() => setShowModal(true)}
         >
-          ＋ Новый проект
+          ＋ {t('project.newProject')}
         </Button>
       </Card>
 
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="📁 Новый проект"
+        title={`📁 ${t('project.newProjectTitle')}`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleCreate} loading={creating}>
-              Создать
+              {t('common.create')}
             </Button>
           </>
         }
       >
         <Input
-          label="Название проекта"
-          placeholder="Например: Властелин колец"
+          label={t('project.projectName')}
+          placeholder={t('project.projectNamePlaceholder')}
           value={newProjectName}
           onInput={(e) => setNewProjectName((e.target as HTMLInputElement).value)}
           onKeyDown={handleKeyDown}

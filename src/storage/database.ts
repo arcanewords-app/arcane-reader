@@ -249,18 +249,17 @@ function migrateProjectSettings(settings: ProjectSettings): ProjectSettings {
     return settings;
   }
 
-  // Migrate from legacy model field
-  const legacyModel = settings.model || 'gpt-4-turbo-preview';
-
-  // Create stageModels with sensible defaults based on legacy model
-  // If legacy model was cheap, use it for all stages
-  // If legacy model was expensive, use cheaper alternatives for analysis/editing
-  const isCheapModel = legacyModel.includes('3.5') || legacyModel.includes('mini');
+  // Migrate from legacy model field (free-tier models only)
+  const legacyModel = settings.model || 'gpt-4.1-mini';
+  const freeModels = ['gpt-5.1-codex-mini', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o-mini', 'o1-mini', 'o3-mini', 'o4-mini', 'codex-mini-latest'];
+  const isFreeModel = freeModels.includes(legacyModel);
+  const model = isFreeModel ? legacyModel : 'gpt-4.1-mini';
+  const isCheapModel = model.includes('nano') || model.includes('mini');
 
   settings.stageModels = {
-    analysis: isCheapModel ? legacyModel : 'gpt-4o-mini',
-    translation: legacyModel, // Keep original model for translation
-    editing: isCheapModel ? legacyModel : 'gpt-4-turbo-preview',
+    analysis: isCheapModel ? model : 'gpt-4.1-mini',
+    translation: model,
+    editing: isCheapModel ? model : 'gpt-4.1-mini',
   };
 
   // Remove legacy model field (but keep it for backward compatibility in type)

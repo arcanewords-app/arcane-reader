@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Modal } from '../ui';
 import { Button } from '../ui';
 import type { TokenUsage } from '../../types';
@@ -18,6 +19,7 @@ export function TokenLimitWarning({
   usage,
   estimatedTokens,
 }: TokenLimitWarningProps) {
+  const { t } = useTranslation();
   const tokensAfterTranslation = usage.tokensUsed + estimatedTokens;
   const remainingAfter = Math.max(0, usage.tokensLimit - tokensAfterTranslation);
   const percentageAfter = (tokensAfterTranslation / usage.tokensLimit) * 100;
@@ -33,69 +35,61 @@ export function TokenLimitWarning({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={willExceed ? '⚠️ Лимит токенов превышен' : '⚠️ Предупреждение о лимите токенов'}
+      title={willExceed ? `⚠️ ${t('tokenLimit.titleExceeded')}` : `⚠️ ${t('tokenLimit.titleWarning')}`}
       size="default"
     >
       <div class="token-limit-warning-content">
         {willExceed ? (
           <>
-            <p class="token-limit-warning-message">
-              Дневной лимит токенов будет превышен при выполнении этого перевода.
-            </p>
+            <p class="token-limit-warning-message">{t('tokenLimit.messageExceeded')}</p>
             <div class="token-limit-warning-stats">
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">Текущее использование:</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.currentUsage')}</span>
                 <span class="token-limit-stat-value">{usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}</span>
               </div>
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">Предполагаемое использование:</span>
-                <span class="token-limit-stat-value">{estimatedTokens.toLocaleString()} токенов</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.estimatedUsage')}</span>
+                <span class="token-limit-stat-value">{estimatedTokens.toLocaleString()} {t('projectInfo.tokensCount')}</span>
               </div>
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">После перевода:</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.afterTranslation')}</span>
                 <span class="token-limit-stat-value critical">{tokensAfterTranslation.toLocaleString()} / {usage.tokensLimit.toLocaleString()}</span>
               </div>
             </div>
-            <p class="token-limit-warning-note">
-              Лимит токенов сбросится завтра в 00:00 UTC. Попробуйте перевести главу позже или уменьшите размер текста.
-            </p>
+            <p class="token-limit-warning-note">{t('tokenLimit.noteResetTomorrow')}</p>
           </>
         ) : (
           <>
-            <p class="token-limit-warning-message">
-              После этого перевода у вас останется мало токенов на сегодня.
-            </p>
+            <p class="token-limit-warning-message">{t('tokenLimit.messageLow')}</p>
             <div class="token-limit-warning-stats">
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">Текущее использование:</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.currentUsage')}</span>
                 <span class="token-limit-stat-value">{usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}</span>
               </div>
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">Предполагаемое использование:</span>
-                <span class="token-limit-stat-value">{estimatedTokens.toLocaleString()} токенов</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.estimatedUsage')}</span>
+                <span class="token-limit-stat-value">{estimatedTokens.toLocaleString()} {t('projectInfo.tokensCount')}</span>
               </div>
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">Останется после перевода:</span>
-                <span class="token-limit-stat-value warning">{remainingAfter.toLocaleString()} токенов</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.remainingAfter')}</span>
+                <span class="token-limit-stat-value warning">{remainingAfter.toLocaleString()} {t('projectInfo.tokensCount')}</span>
               </div>
               <div class="token-limit-stat">
-                <span class="token-limit-stat-label">Использование после перевода:</span>
+                <span class="token-limit-stat-label">{t('tokenLimit.usageAfter')}</span>
                 <span class="token-limit-stat-value warning">{percentageAfter.toFixed(1)}%</span>
               </div>
             </div>
-            <p class="token-limit-warning-note">
-              Вы уверены, что хотите продолжить? Лимит токенов сбросится завтра в 00:00 UTC.
-            </p>
+            <p class="token-limit-warning-note">{t('tokenLimit.noteConfirm')}</p>
           </>
         )}
       </div>
       <div class="token-limit-warning-footer">
         <Button variant="secondary" onClick={onClose} size="sm">
-          Отмена
+          {t('common.cancel')}
         </Button>
         {!willExceed && (
           <Button variant="primary" onClick={handleConfirm} size="sm">
-            Продолжить
+            {t('common.continue')}
           </Button>
         )}
       </div>

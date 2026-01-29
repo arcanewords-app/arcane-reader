@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from './ProjectGrid';
 import { Button, Input, Modal, Card } from '../ui';
@@ -8,6 +9,7 @@ import type { ProjectListItem } from '../../types';
 import './Dashboard.css';
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'book' | 'text'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -55,11 +57,11 @@ export function Dashboard() {
       {/* Header Section */}
       <div class="dashboard-header">
         <div class="dashboard-title">
-          <h1>Мои проекты</h1>
+          <h1>{t('dashboard.myProjects')}</h1>
           <p class="dashboard-subtitle">
             {projects.length > 0 
-              ? `${projects.length} ${projects.length === 1 ? 'проект' : projects.length < 5 ? 'проекта' : 'проектов'}`
-              : 'Начните создавать проекты для перевода'
+              ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
+              : t('dashboard.subtitleEmpty')
             }
           </p>
         </div>
@@ -68,7 +70,7 @@ export function Dashboard() {
           onClick={() => setShowCreateModal(true)}
           className="dashboard-create-btn"
         >
-          + Новый проект
+          + {t('dashboard.newProjectButton')}
         </Button>
       </div>
 
@@ -77,7 +79,7 @@ export function Dashboard() {
         <div class="dashboard-filters">
           <div class="dashboard-search">
             <Input
-              placeholder="Поиск проектов..."
+              placeholder={t('dashboard.searchPlaceholder')}
               value={searchQuery}
               onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
               className="dashboard-search-input"
@@ -88,19 +90,19 @@ export function Dashboard() {
               class={`dashboard-filter-btn ${filterType === 'all' ? 'active' : ''}`}
               onClick={() => setFilterType('all')}
             >
-              Все ({projects.length})
+              {t('dashboard.filterAll')} ({projects.length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
               onClick={() => setFilterType('book')}
             >
-              📚 Книги ({projects.filter(p => p.type === 'book').length})
+              📚 {t('dashboard.filterBooks')} ({projects.filter(p => p.type === 'book').length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}
               onClick={() => setFilterType('text')}
             >
-              📝 Текст ({projects.filter(p => p.type === 'text' || !p.type).length})
+              📝 {t('dashboard.filterText')} ({projects.filter(p => p.type === 'text' || !p.type).length})
             </button>
           </div>
         </div>
@@ -119,21 +121,21 @@ export function Dashboard() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="📁 Новый проект"
+        title={`📁 ${t('dashboard.newProjectModalTitle')}`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleCreateProject} loading={creating}>
-              Создать
+              {t('common.create')}
             </Button>
           </>
         }
       >
         <Input
-          label="Название проекта"
-          placeholder="Например: Властелин колец"
+          label={t('dashboard.projectNameLabel')}
+          placeholder={t('dashboard.projectNamePlaceholder')}
           value={newProjectName}
           onInput={(e) => setNewProjectName((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {

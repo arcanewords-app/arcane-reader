@@ -20,7 +20,7 @@ export class OpenAIProvider implements ILLMProvider {
   
   constructor(config: LLMProviderConfig) {
     this.config = config;
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? 'gpt-4.1-mini';
     
     this.client = new OpenAI({
       apiKey: config.apiKey,

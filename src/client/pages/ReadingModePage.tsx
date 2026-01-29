@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { Project } from '../types';
 import { getProject } from '../store/projects';
@@ -10,6 +11,7 @@ interface ReadingModePageProps {
 }
 
 export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) {
+  const { t } = useTranslation();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +45,7 @@ export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) 
   };
 
   if (loading || !project) {
-    return <div>Загрузка...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   return (

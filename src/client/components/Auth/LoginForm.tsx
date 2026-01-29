@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { Button, Input } from '../ui';
 import { authService } from '../../services/authService';
 import type { AuthUser } from '../../types';
@@ -10,6 +11,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }: LoginFormProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
       const { user } = await authService.login(email, password);
       onSuccess(user);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Ошибка входа';
+      const errorMessage = err instanceof Error ? err.message : t('auth.errorLogin');
       
       // Check if this is an email confirmation error
       if (isEmailNotConfirmedError(errorMessage)) {
@@ -72,7 +74,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
 
       <Input
         type="email"
-        label="Email"
+        label={t('auth.email')}
         id="login-email"
         value={email}
         onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
@@ -83,7 +85,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
 
       <Input
         type="password"
-        label="Пароль"
+        label={t('auth.password')}
         id="login-password"
         value={password}
         onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
@@ -93,7 +95,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
       />
 
       <Button type="submit" loading={loading} size="full">
-        Войти
+        {t('auth.submitLogin')}
       </Button>
 
       <div style={{ textAlign: 'center' }}>
@@ -109,7 +111,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
           }}
           disabled={loading}
         >
-          Нет аккаунта? Зарегистрироваться
+          {t('auth.noAccountRegister')}
         </button>
       </div>
     </form>

@@ -1,3 +1,4 @@
+import './i18n';
 import { render } from 'preact';
 import { AppRouter } from './AppRouter';
 import './styles/index.css';

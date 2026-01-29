@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { TokenUsage } from '../../types';
 import { api } from '../../api/client';
+import { authService } from '../../services/authService';
 import './TokenUsageIndicator.css';
 
 interface TokenUsageIndicatorProps {
@@ -9,35 +11,64 @@ interface TokenUsageIndicatorProps {
 }
 
 export function TokenUsageIndicator({ className = '', showDetails = false }: TokenUsageIndicatorProps) {
+  const { t } = useTranslation();
   const [usage, setUsage] = useState<TokenUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadUsage = async () => {
+    // Check if user is authenticated before making request
+    if (!authService.isAuthenticated()) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       const data = await api.getTokenUsage();
       setUsage(data);
-    } catch (err) {
+    } catch (err: any) {
+      // Don't show error for 401 (unauthorized) - user just needs to login
+      if (err?.status === 401) {
+        setLoading(false);
+        return;
+      }
       console.error('Failed to load token usage:', err);
-      setError('Не удалось загрузить статистику');
+      setError(t('tokenUsage.errorLoadStats'));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Only load if authenticated
+    if (!authService.isAuthenticated()) {
+      setLoading(false);
+      return;
+    }
+
     loadUsage();
     // Refresh every 30 seconds
-    const interval = setInterval(loadUsage, 30000);
+    const interval = setInterval(() => {
+      // Re-check authentication before each refresh
+      if (authService.isAuthenticated()) {
+        loadUsage();
+      }
+    }, 30000);
+    
     return () => clearInterval(interval);
   }, []);
+
+  // Don't render if not authenticated or no usage data
+  if (!authService.isAuthenticated()) {
+    return null;
+  }
 
   if (loading && !usage) {
     return (
       <div class={`token-usage-indicator ${className}`}>
-        <span class="token-usage-loading">Загрузка...</span>
+        <span class="token-usage-loading">{t('tokenUsage.loading')}</span>
       </div>
     );
   }
@@ -58,7 +89,7 @@ export function TokenUsageIndicator({ className = '', showDetails = false }: Tok
   const progressWidth = Math.min(percentage, 100);
 
   return (
-    <div class={`token-usage-indicator ${className}`} title={`Использовано токенов: ${usage.tokensUsed.toLocaleString()} / ${usage.tokensLimit.toLocaleString()}`}>
+    <div class={`token-usage-indicator ${className}`} title={t('tokenUsage.usedTokensTitle', { used: usage.tokensUsed.toLocaleString(), limit: usage.tokensLimit.toLocaleString() })}>
       <div class="token-usage-content">
         <div class="token-usage-label">
           <span class="token-usage-icon">📝</span>
@@ -77,22 +108,22 @@ export function TokenUsageIndicator({ className = '', showDetails = false }: Tok
         <div class="token-usage-details">
           {usage.tokensByStage.analysis !== undefined && (
             <span class="token-usage-stage">
-              Анализ: {usage.tokensByStage.analysis.toLocaleString()}
+              {t('tokenUsage.analysis')} {usage.tokensByStage.analysis.toLocaleString()}
             </span>
           )}
           <span class="token-usage-stage">
-            Перевод: {usage.tokensByStage.translation.toLocaleString()}
+            {t('tokenUsage.translation')} {usage.tokensByStage.translation.toLocaleString()}
           </span>
           {usage.tokensByStage.editing !== undefined && (
             <span class="token-usage-stage">
-              Редактура: {usage.tokensByStage.editing.toLocaleString()}
+              {t('tokenUsage.editing')} {usage.tokensByStage.editing.toLocaleString()}
             </span>
           )}
         </div>
       )}
       {usage.warning && (
         <div class="token-usage-warning-badge">
-          ⚠️ Приближение к лимиту
+          ⚠️ {t('tokenUsage.approachingLimit')}
         </div>
       )}
     </div>

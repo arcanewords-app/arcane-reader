@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { Project, Chapter, ProjectSettings } from '../types';
 import { getProject, invalidateProject } from '../store/projects';
@@ -13,6 +14,7 @@ interface ChapterPageProps {
 }
 
 export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
+  const { t } = useTranslation();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const previousProjectIdRef = useRef<string | null>(null);
@@ -25,7 +27,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     previousProjectIdRef.current = projectId;
     
     loadProject();
-  }, [projectId]);
+  }, [projectId, chapterId]); // Reload when projectId or chapterId changes (user navigates back)
 
   const loadProject = async () => {
     setLoading(true);
@@ -75,7 +77,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   };
 
   if (loading || !project) {
-    return <div>Загрузка...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);

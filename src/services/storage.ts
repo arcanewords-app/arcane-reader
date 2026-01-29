@@ -157,6 +157,25 @@ export async function deleteFiles(
 }
 
 /**
+ * Download file from Supabase Storage as Buffer (for proxy download with Content-Disposition).
+ */
+export async function downloadFile(bucket: StorageBucket, path: string): Promise<Buffer> {
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase.storage.from(bucket).download(path);
+
+  if (error) {
+    throw new Error(`Failed to download file from ${bucket}: ${error.message}`);
+  }
+  if (!data) {
+    throw new Error(`No data returned from ${bucket}/${path}`);
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
  * Get public URL for a file in Supabase Storage
  */
 export function getPublicUrl(bucket: StorageBucket, path: string): string {

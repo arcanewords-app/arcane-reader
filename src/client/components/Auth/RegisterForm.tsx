@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { Button, Input } from '../ui';
 import { authService } from '../../services/authService';
 import type { AuthUser } from '../../types';
@@ -9,6 +10,7 @@ interface RegisterFormProps {
 }
 
 export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,12 +24,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
 
     // Validation
     if (password.length < 6) {
-      setError('Пароль должен быть не менее 6 символов');
+      setError(t('auth.passwordMinLength'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Пароли не совпадают');
+      setError(t('auth.passwordsMismatch'));
       return;
     }
 
@@ -40,13 +42,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
       // Show success message - email confirmation required
       setRegistrationSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка регистрации');
+      setError(err instanceof Error ? err.message : t('auth.errorRegister'));
     } finally {
       setLoading(false);
     }
   };
 
-  // Show success message after registration
   if (registrationSuccess) {
     return (
       <div class="auth-form" style={{ textAlign: 'center', padding: '1rem' }}>
@@ -56,23 +57,14 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           fontSize: '1.1rem',
           fontWeight: 'bold'
         }}>
-          ✓ Регистрация успешна!
+          ✓ {t('auth.registrationSuccess')}
         </div>
-        <p style={{ 
-          color: 'var(--text-secondary)', 
-          marginBottom: '1.5rem',
-          lineHeight: '1.6'
-        }}>
-          На ваш email <strong>{email}</strong> отправлено письмо для подтверждения аккаунта.
-          <br />
-          Пожалуйста, проверьте почту и перейдите по ссылке из письма.
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: t('auth.emailSentConfirmation', { email }) }} />
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+          {t('auth.checkEmail')}
         </p>
-        <p style={{ 
-          color: 'var(--text-secondary)', 
-          marginBottom: '1.5rem',
-          fontSize: '0.9rem'
-        }}>
-          После подтверждения email вы сможете войти в систему.
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          {t('auth.afterConfirmLogin')}
         </p>
         <button
           type="button"
@@ -88,7 +80,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             fontWeight: '500',
           }}
         >
-          Перейти к входу
+          {t('auth.goToLogin')}
         </button>
       </div>
     );
@@ -115,7 +107,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
 
       <Input
         type="password"
-        label="Пароль"
+        label={t('auth.password')}
         id="register-password"
         value={password}
         onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
@@ -127,7 +119,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
 
       <Input
         type="password"
-        label="Подтвердите пароль"
+        label={t('auth.confirmPassword')}
         id="register-confirm-password"
         value={confirmPassword}
         onInput={(e) => setConfirmPassword((e.target as HTMLInputElement).value)}
@@ -138,7 +130,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
       />
 
       <Button type="submit" loading={loading} size="full">
-        Зарегистрироваться
+        {t('auth.submitRegister')}
       </Button>
 
       <div style={{ textAlign: 'center' }}>
@@ -154,7 +146,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           }}
           disabled={loading}
         >
-          Уже есть аккаунт? Войти
+          {t('auth.haveAccountLogin')}
         </button>
       </div>
     </form>

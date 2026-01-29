@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { Chapter, ChapterStatus, Project } from '../../types';
 import { Card, CountBadge } from '../ui';
 import { api } from '../../api/client';
@@ -38,6 +39,7 @@ export function ChapterList({
   const [savingNumber, setSavingNumber] = useState(false);
   const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
   const [dragOverChapterId, setDragOverChapterId] = useState<string | null>(null);
+  const { t } = useTranslation();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<{
@@ -75,26 +77,22 @@ export function ChapterList({
     const isSupported = supportedFormats.some((ext) => filename.endsWith(ext));
     
     if (!file || !isSupported) {
-      // Show error modal for unsupported format
       setError({
-        title: 'Неподдерживаемый формат',
-        message: 'Поддерживаемые форматы: .txt, .epub, .fb2',
-        details: `Выбранный файл: ${file.name}`,
+        title: t('chapterList.unsupportedFormat'),
+        message: t('chapterList.supportedFormats'),
+        details: `${t('chapterList.selectedFile')}: ${file.name}`,
       });
       return;
     }
     
     setUploading(true);
     try {
-      // For TXT files, extract title from filename
-      // For EPUB/FB2, title will be extracted by server
       const title = filename.endsWith('.txt')
         ? file.name.replace('.txt', '').replace(/^\d+[._\-\s]*/, '')
-        : `Глава ${chapters.length + 1}`;
-      await onUpload(file, title || `Глава ${chapters.length + 1}`);
+        : t('chapterList.defaultChapterTitle', { number: chapters.length + 1 });
+      await onUpload(file, title || t('chapterList.defaultChapterTitle', { number: chapters.length + 1 }));
     } catch (error: any) {
-      // Extract error details from ApiError
-      const errorMessage = error?.message || 'Неизвестная ошибка';
+      const errorMessage = error?.message || t('errors.unknown');
       const errorDetails = error?.data?.details || error?.data?.parseErrors?.join('; ') || error?.data?.error;
       const parseErrors = error?.data?.parseErrors;
       const warnings = error?.data?.warnings;
@@ -111,7 +109,7 @@ export function ChapterList({
       }
       
       setError({
-        title: 'Ошибка загрузки файла',
+        title: t('chapterList.uploadError'),
         message: errorMessage,
         details: detailsText,
       });
@@ -194,7 +192,7 @@ export function ChapterList({
       setEditingNumber(null);
     } catch (error) {
       console.error('Failed to update chapter number:', error);
-      alert(error instanceof Error ? error.message : 'Ошибка обновления номера');
+      alert(error instanceof Error ? error.message : t('chapterList.errorUpdateNumber'));
       setEditedNumber(chapter.number);
     } finally {
       setSavingNumber(false);
@@ -298,7 +296,7 @@ export function ChapterList({
       }
     } catch (error) {
       console.error('Failed to reorder chapter:', error);
-      alert(error instanceof Error ? error.message : 'Ошибка изменения порядка');
+      alert(error instanceof Error ? error.message : t('chapter.errorReorder'));
     } finally {
       setDraggedChapterId(null);
     }
@@ -310,12 +308,12 @@ export function ChapterList({
   };
 
   return (
-    <Card title={<>📖 Главы <CountBadge count={counts.all} /></>}>
+    <Card title={<>📖 {t('chapterList.title')} <CountBadge count={counts.all} /></>}>
       <div class="chapter-search">
         <input
           type="text"
           class="chapter-search-input"
-          placeholder="🔍 Поиск..."
+          placeholder={`🔍 ${t('chapterList.searchPlaceholder')}`}
           value={search}
           onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
         />
@@ -328,7 +326,7 @@ export function ChapterList({
             class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
             onClick={() => setFilter(f)}
           >
-            {f === 'all' ? 'Все' : f === 'pending' ? '⏳' : f === 'completed' ? '✅' : '❌'}
+            {f === 'all' ? t('chapterList.all') : f === 'pending' ? '⏳' : f === 'completed' ? '✅' : '❌'}
           </button>
         ))}
       </div>
@@ -336,7 +334,7 @@ export function ChapterList({
       <div class="chapter-list">
         {filteredChapters.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-dim)' }}>
-            {chapters.length === 0 ? 'Нет глав' : 'Нет результатов'}
+            {chapters.length === 0 ? t('chapterList.noChapters') : t('chapterList.noResults')}
           </div>
         ) : (
           filteredChapters.map((chapter) => (
@@ -383,7 +381,7 @@ export function ChapterList({
                         handleSaveNumber(chapter.id);
                       }}
                       disabled={savingNumber}
-                      title="Сохранить (Enter)"
+                      title={t('chapterList.saveNumberTitle')}
                     >
                       ✓
                     </button>
@@ -394,7 +392,7 @@ export function ChapterList({
                         handleCancelEditNumber(chapter);
                       }}
                       disabled={savingNumber}
-                      title="Отмена (Esc)"
+                      title={t('chapterList.cancelNumberTitle')}
                     >
                       ✕
                     </button>
@@ -404,7 +402,7 @@ export function ChapterList({
                 <span
                   class="chapter-number"
                   onClick={(e) => handleStartEditNumber(chapter, e)}
-                  title="Кликните для редактирования номера"
+                  title={t('chapterList.editNumberTitle')}
                   style={{ cursor: 'pointer' }}
                 >
                   {chapter.number}
@@ -422,7 +420,7 @@ export function ChapterList({
                       e.stopPropagation();
                       setDeleteConfirmId(chapter.id);
                     }}
-                    title="Удалить"
+                    title={t('chapterList.deleteTitle')}
                     disabled={deleting}
                   >
                     🗑️
@@ -447,7 +445,7 @@ export function ChapterList({
         ) : (
           <>
             <div class="upload-icon">📄</div>
-            <p>Перетащите файл<br />(.txt, .epub, .fb2)<br />или нажмите</p>
+            <p dangerouslySetInnerHTML={{ __html: t('chapterList.dragFileOrClick') }} />
           </>
         )}
         <input
@@ -473,7 +471,7 @@ export function ChapterList({
                 )}
               </div>
               <div class="error-modal-footer">
-                <button onClick={() => setError(null)}>Закрыть</button>
+                <button onClick={() => setError(null)}>{t('common.close')}</button>
               </div>
             </div>
           </div>
@@ -483,7 +481,7 @@ export function ChapterList({
           <div class="error-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
             <div class="error-modal" onClick={(e) => e.stopPropagation()}>
               <div class="error-modal-header">
-                <h3>Удалить главу?</h3>
+                <h3>{t('chapter.deleteConfirmTitle')}</h3>
                 <button 
                   class="error-modal-close" 
                   onClick={() => setDeleteConfirmId(null)}
@@ -494,10 +492,12 @@ export function ChapterList({
               </div>
               <div class="error-modal-body">
                 <p>
-                  Вы уверены, что хотите удалить главу "{sortedChapters.find(c => c.id === deleteConfirmId)?.title || 'Неизвестная глава'}"?
+                  {t('chapter.deleteConfirmMessage', {
+                    title: sortedChapters.find(c => c.id === deleteConfirmId)?.title || t('chapter.unknownChapter'),
+                  })}
                 </p>
                 <p style={{ color: 'var(--error)', fontSize: '0.9rem', marginTop: '1rem' }}>
-                  ⚠️ Это действие нельзя отменить. Все данные главы будут удалены.
+                  ⚠️ {t('chapter.cannotUndo')}
                 </p>
               </div>
               <div class="error-modal-footer">
@@ -506,7 +506,7 @@ export function ChapterList({
                   disabled={deleting}
                   style={{ marginRight: '0.5rem' }}
                 >
-                  Отмена
+                  {t('common.cancel')}
                 </button>
                 <button 
                   onClick={async () => {
@@ -518,8 +518,8 @@ export function ChapterList({
                     } catch (error) {
                       console.error('Failed to delete chapter:', error);
                       setError({
-                        title: 'Ошибка удаления',
-                        message: error instanceof Error ? error.message : 'Не удалось удалить главу',
+                        title: t('chapter.errorDeleting'),
+                        message: error instanceof Error ? error.message : t('chapter.errorDeleteFailed'),
                       });
                     } finally {
                       setDeleting(false);
@@ -532,7 +532,7 @@ export function ChapterList({
                     opacity: deleting ? 0.6 : 1
                   }}
                 >
-                  {deleting ? 'Удаление...' : 'Удалить'}
+                  {deleting ? t('chapter.deleting') : t('common.delete')}
                 </button>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { api, ApiError } from './api/client';
 import type { SystemStatus, Project, Chapter, ProjectSettings, AuthUser } from './types';
 import { authService } from './services/authService';
@@ -15,6 +16,7 @@ import { Card, Button, Modal, LoadingSpinner } from './components/ui';
 type AppStatus = 'loading' | 'ready' | 'error';
 
 export function App() {
+  const { t } = useTranslation();
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -365,7 +367,7 @@ export function App() {
   if (isAuthenticated === null) {
     return (
       <div class="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <div>Загрузка...</div>
+        <div>{t('common.loading')}</div>
       </div>
     );
   }
@@ -451,7 +453,7 @@ export function App() {
           {/* Loading overlay when switching projects */}
           {loadingProject && (
             <div class="project-loading-overlay">
-              <LoadingSpinner size="lg" text="Загрузка проекта..." />
+              <LoadingSpinner size="lg" text={t('project.loadingProject')} />
             </div>
           )}
 
@@ -460,11 +462,8 @@ export function App() {
             <div class="alert-banner visible">
               <div class="alert-icon">⚠️</div>
               <div class="alert-content">
-                <h4>API ключ не настроен</h4>
-                <p>
-                  Для перевода добавьте <code>OPENAI_API_KEY</code> в файл{' '}
-                  <code>.env</code>
-                </p>
+                <h4>{t('project.apiKeyTitle')}</h4>
+                <p>{t('project.apiKeyHint')}</p>
               </div>
             </div>
           )}
@@ -473,11 +472,8 @@ export function App() {
           {!project && !loadingProject && (
             <Card className="welcome">
               <img src="/arcane_icon.png" alt="Arcane" class="welcome-logo" />
-              <h2>Добро пожаловать в Arcane</h2>
-              <p>
-                Интеллектуальный переводчик новелл с английского на русский с
-                сохранением контекста и стилистики.
-              </p>
+              <h2>{t('project.welcome')}</h2>
+              <p>{t('project.welcomeSubtitle')}</p>
               <Button
                 style={{ marginTop: '2rem' }}
                 onClick={() => {
@@ -486,7 +482,7 @@ export function App() {
                   btn?.click();
                 }}
               >
-                Создать первый проект
+                {t('project.createFirstProject')}
               </Button>
             </Card>
           )}
@@ -542,24 +538,22 @@ export function App() {
       <Modal
         isOpen={deleteChapterId !== null}
         onClose={() => setDeleteChapterId(null)}
-        title="🗑️ Удалить главу?"
+        title={`🗑️ ${t('chapter.deleteConfirmTitle')}`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteChapterId(null)}>
-              Отмена
+              {t('common.cancel')}
             </Button>
             <Button onClick={confirmDeleteChapter} loading={deletingChapter}>
-              Удалить
+              {t('common.delete')}
             </Button>
           </>
         }
       >
         <p style={{ color: 'var(--text-secondary)' }}>
-          Вы уверены, что хотите удалить главу{' '}
-          <strong>
-            "{project?.chapters.find((c) => c.id === deleteChapterId)?.title}"
-          </strong>
-          ? Это действие нельзя отменить.
+          {t('chapter.deleteConfirmMessage', {
+            title: project?.chapters.find((c) => c.id === deleteChapterId)?.title ?? '',
+          })}
         </p>
       </Modal>
     </div>

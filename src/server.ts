@@ -74,6 +74,7 @@ import {
   getPublicUrl,
   extractPathFromUrl,
   generateUniqueFilename,
+  downloadFile,
 } from './services/storage.js';
 import { createSignedUrl } from './services/storage.js';
 import { listFiles } from './services/storage.js';
@@ -864,9 +865,29 @@ app.post(
         return res.status(404).json({ error: 'Chapter not found' });
       }
 
-      // Parse request body for translateOnlyEmpty flag
+      // Parse request body: translateOnlyEmpty and optional paragraphIds (subset to translate)
       const body = req.body || {};
       const translateOnlyEmpty = body.translateOnlyEmpty === true;
+      const paragraphIds = Array.isArray(body.paragraphIds) ? body.paragraphIds : undefined;
+
+      const hasValidTranslation = (p: { translatedText?: string | null }) => {
+        const t = p.translatedText?.trim() || '';
+        if (!t.length) return false;
+        if (t.startsWith('❌') || t.startsWith('[ERROR')) return false;
+        return true;
+      };
+
+      // Text length for token estimate: selected paragraphs, or empty only, or full chapter
+      let textLength = chapter.originalText.length;
+      if (paragraphIds?.length && chapter.paragraphs?.length) {
+        const idSet = new Set(paragraphIds);
+        textLength = chapter.paragraphs
+          .filter((p) => idSet.has(p.id))
+          .reduce((sum, p) => sum + p.originalText.length, 0);
+      } else if (translateOnlyEmpty && chapter.paragraphs?.length) {
+        const empty = chapter.paragraphs.filter((p) => !hasValidTranslation(p));
+        textLength = empty.reduce((sum, p) => sum + p.originalText.length, 0);
+      }
 
       // Log chapter state before translation
       const hasTranslatedText =
@@ -880,13 +901,12 @@ app.post(
       console.log(`   Есть переведенные параграфы: ${hasTranslatedParagraphs}`);
       console.log(`   Количество параграфов: ${chapter.paragraphs?.length || 0}`);
       console.log(
-        `   Режим перевода: ${translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
+        `   Режим: ${paragraphIds?.length ? `Выбранные параграфы (${paragraphIds.length})` : translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
       );
 
       const token = requireToken(req);
       const startTime = Date.now();
-      const textLength = chapter.originalText.length;
-      const wordCount = chapter.originalText.split(/\s+/).length;
+      const wordCount = Math.max(1, textLength / 5);
 
       // Get models for each stage
       const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
@@ -941,12 +961,6 @@ app.post(
         });
       }
 
-      // Log token limit check result
-      if (limitCheck.warning) {
-        console.log(`⚠️  Предупреждение: ${limitCheck.message}`);
-      }
-      console.log(`📊 Токены: использовано ${limitCheck.currentUsage.toLocaleString()} / ${limitCheck.limit.toLocaleString()}, предполагается ${estimatedTokens.toLocaleString()}, останется ${(limitCheck.remaining - estimatedTokens).toLocaleString()}`);
-
       // Update status to translating
       await updateChapter(
         req.params.projectId,
@@ -970,7 +984,6 @@ app.post(
       console.log(`💾 Хранилище: LowDB (persistent)`);
       console.log(`${'─'.repeat(60)}`);
 
-      // Perform translation using arcane-engine
       performTranslation(
         req.params.projectId,
         req.params.chapterId,
@@ -979,7 +992,8 @@ app.post(
         startTime,
         translateOnlyEmpty,
         token,
-        req.user.id
+        req.user.id,
+        paragraphIds
       );
 
       res.json({ status: 'started', chapterId: chapter.id });
@@ -998,7 +1012,8 @@ async function performTranslation(
   startTime: number,
   translateOnlyEmpty: boolean = false,
   token: string,
-  userId: string
+  userId: string,
+  paragraphIds?: string[]
 ): Promise<void> {
   try {
     // Validate input data
@@ -1135,11 +1150,25 @@ async function performTranslation(
       return markedParagraphs.join('\n\n');
     };
 
-    // If translateOnlyEmpty is true, filter empty paragraphs and create modified chapter
+    // Determine which paragraphs to translate: selected IDs, empty only, or full chapter
     let chapterToTranslate = chapter;
     let paragraphsToTranslate = chapter.paragraphs || [];
+    let translateSubsetOnly = false; // true when we merge synced subset back into full paragraphs
 
-    if (translateOnlyEmpty) {
+    if (paragraphIds?.length) {
+      const idSet = new Set(paragraphIds);
+      paragraphsToTranslate = (chapter.paragraphs || []).filter((p) => idSet.has(p.id));
+      if (paragraphsToTranslate.length === 0) {
+        console.log(`ℹ️  Нет выбранных параграфов для перевода.`);
+        await updateChapter(projectId, chapterId, { status: 'completed' }, token);
+        return;
+      }
+      const textToTranslate = mergeParagraphsToText(paragraphsToTranslate, 'originalText');
+      const markedText = addParagraphMarkers(textToTranslate, paragraphsToTranslate);
+      chapterToTranslate = { ...chapter, originalText: markedText };
+      translateSubsetOnly = true;
+      console.log(`📝 Режим выбранных параграфов: ${paragraphsToTranslate.length} из ${(chapter.paragraphs || []).length}`);
+    } else if (translateOnlyEmpty) {
       const paragraphs = chapter.paragraphs || [];
       const emptyParagraphs = paragraphs.filter((p) => !hasValidTranslation(p));
 
@@ -1160,17 +1189,14 @@ async function performTranslation(
         `   Пропускаем: ${paragraphs.length - emptyParagraphs.length} уже переведенных параграфов`
       );
 
-      // Add markers to text before translation
       const markedText = addParagraphMarkers(textToTranslate, emptyParagraphs);
       paragraphsToTranslate = emptyParagraphs;
 
-      // Create temporary chapter object with marked text
       chapterToTranslate = {
         ...chapter,
         originalText: markedText,
       };
     } else {
-      // Add markers for full translation
       const markedText = addParagraphMarkers(chapter.originalText, chapter.paragraphs || []);
       chapterToTranslate = {
         ...chapter,
@@ -1327,24 +1353,33 @@ async function performTranslation(
       throw new Error('Не удалось получить главу для синхронизации');
     }
 
+    const originalParagraphsForSync = translateSubsetOnly
+      ? paragraphsToTranslate
+      : currentChapter.paragraphs;
+    const partialSync = translateOnlyEmpty && !translateSubsetOnly;
+
     let syncedParagraphs: Paragraph[];
 
     if (parsedJSON && parsedJSON.paragraphs && Array.isArray(parsedJSON.paragraphs)) {
-      // Use JSON-based synchronization
       console.log(`🔄 Автоматическая синхронизация перевода с параграфами (JSON-формат)...`);
       syncedParagraphs = syncTranslationJSONToParagraphs(
-        currentChapter.paragraphs,
+        originalParagraphsForSync,
         parsedJSON,
-        translateOnlyEmpty
+        partialSync
       );
     } else {
-      // Fallback to text-based synchronization
       console.log(`🔄 Автоматическая синхронизация перевода с параграфами (текстовый формат)...`);
       syncedParagraphs = syncTranslationChunksToParagraphs(
-        currentChapter.paragraphs,
+        originalParagraphsForSync,
         translatedChunks,
-        translateOnlyEmpty
+        partialSync
       );
+    }
+
+    // When we translated only a subset (paragraphIds), merge synced subset back into full paragraphs
+    if (translateSubsetOnly && currentChapter.paragraphs) {
+      const syncedById = new Map(syncedParagraphs.map((p) => [p.id, p]));
+      syncedParagraphs = currentChapter.paragraphs.map((p) => syncedById.get(p.id) ?? p);
     }
 
     // Create model info string showing all models used
@@ -2456,6 +2491,43 @@ app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
   }
 });
 
+// Update project metadata (e.g. description) (requires auth)
+app.put('/api/projects/:projectId/metadata', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { metadata: metadataUpdates } = req.body;
+    if (!metadataUpdates || typeof metadataUpdates !== 'object') {
+      return res.status(400).json({ error: 'metadata object is required' });
+    }
+
+    const updatedMetadata = { ...(project.metadata || {}), ...metadataUpdates };
+    const updatedProject = await updateProject(
+      req.params.projectId,
+      { metadata: updatedMetadata },
+      req.user.id,
+      requireToken(req)
+    );
+
+    if (!updatedProject) {
+      return res.status(404).json({ error: 'Failed to update project' });
+    }
+
+    res.json(updatedProject);
+  } catch (error) {
+    console.error('Failed to update project metadata:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update project metadata';
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
 // ============ Paragraphs ============
 
 // Get chapter with paragraph stats (requires auth)
@@ -2778,6 +2850,9 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
         `📤 Экспорт проекта завершен: ${project.name} -> ${format.toUpperCase()} (${filename}), storagePath=${storagePath}`
       );
 
+      // downloadUrl: same-origin proxy so browser downloads instead of opening (Content-Disposition: attachment)
+      const downloadUrl = `/api/projects/${projectId}/export/download?path=${encodeURIComponent(storagePath)}`;
+
       return res.json({
         success: true,
         format,
@@ -2785,6 +2860,7 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
         path: uploaded.path,
         url: signedUrl,
         publicUrl: uploaded.publicUrl,
+        downloadUrl,
       });
     } catch (exportError) {
       // Clean up temporary file on error
@@ -2800,6 +2876,48 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
   } catch (error: any) {
     console.error('Export error:', error);
     res.status(500).json({ error: error.message || 'Failed to export project' });
+  }
+});
+
+// Download export file via proxy (Content-Disposition: attachment so browser downloads, not opens)
+app.get('/api/projects/:id/export/download', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const projectId = req.params.id;
+    const pathParam = req.query.path as string;
+
+    if (!pathParam || typeof pathParam !== 'string') {
+      return res.status(400).json({ error: 'Missing path query parameter' });
+    }
+
+    const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
+
+    if (!storagePath.startsWith(projectId + '/') || storagePath.includes('..')) {
+      return res.status(403).json({ error: 'Forbidden: invalid path' });
+    }
+
+    const project = await getProject(projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const buffer = await downloadFile('exports', storagePath);
+    const filename = storagePath.split('/').pop() || 'export';
+
+    const contentType =
+      filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.send(buffer);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Download failed';
+    console.error('Export download error:', error);
+    res.status(500).json({ error: msg });
   }
 });
 

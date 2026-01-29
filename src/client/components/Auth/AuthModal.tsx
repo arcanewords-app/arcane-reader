@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '../ui';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
@@ -14,6 +15,7 @@ interface AuthModalProps {
 type AuthMode = 'login' | 'register';
 
 export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>('login');
 
   const handleSuccess = (user: AuthUser) => {
@@ -31,8 +33,8 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => {}} // Prevent closing - user must authenticate
-      title={mode === 'login' ? 'Вход в систему' : 'Регистрация'}
+      onClose={() => {}}
+      title={mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
       preventClose={true}
       className="auth-modal"
     >
@@ -50,7 +52,7 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
             fontWeight: mode === 'login' ? 'bold' : 'normal',
           }}
         >
-          Вход
+          {t('auth.login')}
         </button>
         <button
           type="button"
@@ -66,7 +68,7 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
             fontWeight: mode === 'register' ? 'bold' : 'normal',
           }}
         >
-          Регистрация
+          {t('auth.register')}
         </button>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import type { Chapter } from '../../types';
 import { Button, StatusBadge } from '../ui';
 import { api } from '../../api/client';
@@ -12,13 +13,20 @@ interface ChapterHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onTranslate: () => void;
-  onTranslateEmpty?: () => void; // New handler for translating empty paragraphs
+  onTranslateEmpty?: () => void;
+  onTranslateSelected?: () => void;
+  onSelectAllEmpty?: () => void;
+  onDeselectAll?: () => void;
+  selectedParagraphIds?: string[];
+  emptyParagraphIds?: string[];
+  estimatedTokensSelected?: number;
   onApproveAll: () => void;
   onToggleSettings: () => void;
   onEnterReadingMode?: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
   translating: boolean;
   isOriginalReadingMode?: boolean;
+  estimatedTokens?: number;
 }
 
 export function ChapterHeader({
@@ -30,13 +38,21 @@ export function ChapterHeader({
   onNext,
   onTranslate,
   onTranslateEmpty,
+  onTranslateSelected,
+  onSelectAllEmpty,
+  onDeselectAll,
+  selectedParagraphIds = [],
+  emptyParagraphIds = [],
+  estimatedTokensSelected = 0,
   onApproveAll,
   onToggleSettings,
   onEnterReadingMode,
   onChapterUpdate,
   translating,
   isOriginalReadingMode = false,
+  estimatedTokens,
 }: ChapterHeaderProps) {
+  const { t } = useTranslation();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(chapter.title);
   const [savingTitle, setSavingTitle] = useState(false);
@@ -117,7 +133,7 @@ export function ChapterHeader({
           class="chapter-nav-btn"
           disabled={!canPrev}
           onClick={onPrev}
-          title="Предыдущая глава"
+          title={t('chapter.prevChapter')}
         >
           ◀
         </button>
@@ -138,7 +154,7 @@ export function ChapterHeader({
                 class="chapter-title-save-btn"
                 onClick={handleSaveTitle}
                 disabled={savingTitle}
-                title="Сохранить (Enter)"
+                title={t('chapter.saveEnter')}
               >
                 ✓
               </button>
@@ -146,7 +162,7 @@ export function ChapterHeader({
                 class="chapter-title-cancel-btn"
                 onClick={handleCancelEdit}
                 disabled={savingTitle}
-                title="Отмена (Esc)"
+                title={t('chapter.cancelEsc')}
               >
                 ✕
               </button>
@@ -158,7 +174,7 @@ export function ChapterHeader({
             <button
               class="chapter-title-edit-btn"
               onClick={handleStartEdit}
-              title="Редактировать название"
+              title={t('chapter.editTitle')}
             >
               ✏️
             </button>
@@ -168,7 +184,7 @@ export function ChapterHeader({
           class="chapter-nav-btn"
           disabled={!canNext}
           onClick={onNext}
-          title="Следующая глава"
+          title={t('chapter.nextChapter')}
         >
           ▶
         </button>
@@ -180,28 +196,83 @@ export function ChapterHeader({
         )}
         
         {canRead && onEnterReadingMode && (
-          <Button variant="secondary" size="sm" onClick={onEnterReadingMode} title="Режим чтения">
-            📖 Читать
+          <Button variant="secondary" size="sm" onClick={onEnterReadingMode} title={t('chapter.readingMode')}>
+            📖 {t('chapter.read')}
           </Button>
         )}
         
         {hasTranslations && !isCompleted && (
           <Button variant="secondary" size="sm" onClick={onApproveAll}>
-            ✅ Одобрить всё
+            ✅ {t('chapter.approveAll')}
           </Button>
         )}
         
-        {/* Translate empty paragraphs button - show if chapter has some translations but also empty paragraphs */}
-        {!isOriginalReadingMode && hasEmptyParagraphs && hasTranslations && chapter.status !== 'translating' && onTranslateEmpty && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onTranslateEmpty}
-            disabled={translating}
-            title={`Перевести ${emptyParagraphs.length} пустых абзацев`}
-          >
-            🔮 Перевести пустые абзацы ({emptyParagraphs.length})
-          </Button>
+        {/* Translate empty / selected paragraphs - show whenever there are empty paragraphs (with or without existing translations) */}
+        {!isOriginalReadingMode && hasEmptyParagraphs && chapter.status !== 'translating' && onTranslateEmpty && (
+          <>
+            {onTranslateSelected && onSelectAllEmpty && onDeselectAll && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginRight: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={onSelectAllEmpty}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent)',
+                    cursor: 'pointer',
+                    padding: '0.2rem 0',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {t('chapter.selectAll')}
+                </button>
+                <span style={{ color: 'var(--text-dim)' }}>|</span>
+                <button
+                  type="button"
+                  onClick={onDeselectAll}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-dim)',
+                    cursor: 'pointer',
+                    padding: '0.2rem 0',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {t('chapter.deselectAll')}
+                </button>
+              </span>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onTranslateEmpty}
+              disabled={translating}
+              title={t('chapter.translateEmptyTitle', { count: emptyParagraphs.length })}
+            >
+              🔮 {t('chapter.translateAllEmpty', { count: emptyParagraphs.length })}
+            </Button>
+            {onTranslateSelected && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onTranslateSelected}
+                disabled={translating || selectedParagraphIds.length === 0}
+                title={
+                  selectedParagraphIds.length === 0
+                    ? t('chapter.selectParagraphsBelow')
+                    : t('chapter.translateSelectedTitle', { tokens: estimatedTokensSelected.toLocaleString() })
+                }
+              >
+                🔮 {t('chapter.translateSelected', { count: selectedParagraphIds.length })}
+                {estimatedTokensSelected > 0 && (
+                  <span style={{ marginLeft: '0.25rem', opacity: 0.9 }}>
+                    {t('chapter.translateSelectedTokens', { tokens: estimatedTokensSelected.toLocaleString() })}
+                  </span>
+                )}
+              </Button>
+            )}
+          </>
         )}
         
         {!isOriginalReadingMode && chapter.status === 'translating' && (
@@ -209,9 +280,9 @@ export function ChapterHeader({
             variant="secondary"
             size="sm"
             onClick={handleCancelTranslation}
-            title="Отменить перевод"
+            title={t('chapter.cancelTranslation')}
           >
-            ⏹️ Отменить
+            ⏹️ {t('chapter.cancelTranslate')}
           </Button>
         )}
         
@@ -224,15 +295,18 @@ export function ChapterHeader({
           
           // For error status, show retry button (check this first)
           if (chapter.status === 'error') {
+            const titleText = estimatedTokens
+              ? t('chapter.retryAfterErrorTitleWithTokens', { tokens: estimatedTokens.toLocaleString() })
+              : t('chapter.retryAfterErrorTitle');
             return (
               <Button
                 size="sm"
                 onClick={onTranslate}
                 loading={translating}
                 disabled={translating}
-                title="Повторить перевод после ошибки"
+                title={titleText}
               >
-                🔄 Повторить
+                🔄 {t('chapter.retryAfterError')}{estimatedTokens ? ` (~${estimatedTokens.toLocaleString()})` : ''}
               </Button>
             );
           }
@@ -241,30 +315,36 @@ export function ChapterHeader({
           // This allows retranslation even if the chapter has a valid translation
           // Useful when paragraphs don't match due to past errors
           if (isCompleted) {
+            const titleText = estimatedTokens
+              ? t('chapter.translateAgainWithTokens', { tokens: estimatedTokens.toLocaleString() })
+              : t('chapter.translateAgainTitle');
             return (
               <Button
                 size="sm"
                 onClick={onTranslate}
                 loading={translating}
                 disabled={translating}
-                title="Перевести главу заново (полезно, если параграфы не совпадают из-за прошлых ошибок)"
+                title={titleText}
               >
-                🔄 Перевести снова
+                🔄 {t('chapter.translateAgain')}{estimatedTokens ? ` (~${estimatedTokens.toLocaleString()})` : ''}
               </Button>
             );
           }
           
-          // For non-completed chapters (pending), show "Перевести" button
+          // For non-completed chapters (pending), show translate button
           if (!isCompleted) {
+            const titleText = estimatedTokens 
+              ? t('chapter.startTranslateTitle', { tokens: estimatedTokens.toLocaleString() })
+              : t('chapter.startTranslate');
             return (
               <Button
                 size="sm"
                 onClick={onTranslate}
                 loading={translating}
                 disabled={translating}
-                title="Начать перевод"
+                title={titleText}
               >
-                🔮 Перевести
+                🔮 {t('chapter.translate')}{estimatedTokens ? ` (~${estimatedTokens.toLocaleString()})` : ''}
               </Button>
             );
           }
@@ -276,7 +356,7 @@ export function ChapterHeader({
           variant="secondary"
           size="sm"
           onClick={onToggleSettings}
-          title="Настройки отображения"
+          title={t('reader.displaySettings')}
         >
           ⚙️
         </Button>

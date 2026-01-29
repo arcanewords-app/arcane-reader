@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ProjectListItem } from '../../types';
 import { getProjectTypeColor } from '../../utils/project-type';
 import { BookPlaceholder } from './BookPlaceholder';
@@ -9,6 +10,7 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, onClick }: ProjectCardProps) {
+  const { t } = useTranslation();
   const projectType = project.type || 'text';
   const typeColor = getProjectTypeColor(projectType);
   const coverImageUrl = project.metadata?.coverImageUrl;
@@ -23,7 +25,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
   // Format date
   const updatedDate = new Date(project.updatedAt);
   const daysAgo = Math.floor((Date.now() - updatedDate.getTime()) / (1000 * 60 * 60 * 24));
-  const dateText = daysAgo === 0 ? 'Сегодня' : daysAgo === 1 ? 'Вчера' : `${daysAgo} дн. назад`;
+  const dateText = daysAgo === 0 ? t('projectCard.today') : daysAgo === 1 ? t('projectCard.yesterday') : t('projectCard.daysAgo', { count: daysAgo });
   
   // Status indicator (only for translation mode)
   const hasErrors = !isOriginalReadingMode && project.chapterCount > 0 && project.translatedCount < project.chapterCount;
@@ -96,16 +98,16 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
         <div class="project-card-meta">
           <span class="project-card-progress">
             {isOriginalReadingMode 
-              ? `${project.chapterCount} ${project.chapterCount === 1 ? 'глава' : project.chapterCount < 5 ? 'главы' : 'глав'}`
-              : `${project.translatedCount}/${project.chapterCount} глав`}
+              ? `${project.chapterCount} ${project.chapterCount === 1 ? t('project.chapterOne') : project.chapterCount < 5 ? t('project.chapterFew') : t('project.chapterMany')}`
+              : t('projectCard.chaptersProgress', { translated: project.translatedCount, total: project.chapterCount })}
           </span>
           {!isOriginalReadingMode && hasErrors && (
-            <span class="project-card-status project-card-status-error" title="Есть непереведенные главы">
+            <span class="project-card-status project-card-status-error" title={t('projectCard.hasUntranslatedChapters')}>
               ⚠️
             </span>
           )}
           {!isOriginalReadingMode && isComplete && (
-            <span class="project-card-status project-card-status-complete" title="Все главы переведены">
+            <span class="project-card-status project-card-status-complete" title={t('projectCard.allChaptersTranslated')}>
               ✓
             </span>
           )}
@@ -113,7 +115,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
         <div class="project-card-footer">
           <span class="project-card-date">{dateText}</span>
           {project.glossaryCount > 0 && (
-            <span class="project-card-glossary" title="Записей в глоссарии">
+            <span class="project-card-glossary" title={t('projectCard.glossaryEntriesTitle')}>
               📝 {project.glossaryCount}
             </span>
           )}
