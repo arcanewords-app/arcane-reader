@@ -240,7 +240,14 @@
     "confirmEmailMessage": "На ваш email {{email}} было отправлено письмо для подтверждения аккаунта.",
     "confirmEmailInstructions": "Пожалуйста, проверьте вашу почту и перейдите по ссылке из письма для активации аккаунта.",
     "noAccountRegister": "Нет аккаунта? Зарегистрироваться",
-    "haveAccountLogin": "Уже есть аккаунт? Войти"
+    "haveAccountLogin": "Уже есть аккаунт? Войти",
+    "loading": "Загрузка...",
+    "inviteCode": "Инвайт-код",
+    "inviteCodeHint": "Мы в режиме тестирования. Введите инвайт-код для регистрации.",
+    "inviteCodePlaceholder": "Введите код",
+    "inviteContinue": "Продолжить",
+    "inviteCodeRequired": "Введите инвайт-код",
+    "inviteCodeInvalid": "Неверный инвайт-код"
   },
   "projectInfo": {
     "delete": "Удалить",

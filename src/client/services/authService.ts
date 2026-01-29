@@ -18,13 +18,43 @@ function clearAuthStorage(): void {
 
 export const authService = {
   /**
+   * Check if invitation code is required for registration
+   */
+  async isInviteRequired(): Promise<boolean> {
+    const response = await fetch('/api/auth/invite-required');
+    if (!response.ok) return false;
+    const data = await response.json().catch(() => ({}));
+    return !!data.required;
+  },
+
+  /**
+   * Check if invitation code is valid (used when app is in invite-only mode)
+   */
+  async checkInvite(code: string): Promise<boolean> {
+    const response = await fetch('/api/auth/check-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.trim() }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Invalid invitation code');
+    }
+    return true;
+  },
+
+  /**
    * Register new user
    */
-  async register(email: string, password: string): Promise<AuthUser> {
+  async register(email: string, password: string, invitationCode?: string): Promise<AuthUser> {
+    const body: { email: string; password: string; invitationCode?: string } = { email, password };
+    if (invitationCode !== undefined && invitationCode !== '') {
+      body.invitationCode = invitationCode;
+    }
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

@@ -1,8 +1,10 @@
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../ui';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
+import { InviteStep } from './InviteStep';
+import { authService } from '../../services/authService';
 import type { AuthUser } from '../../types';
 import './AuthModal.css';
 
@@ -17,6 +19,15 @@ type AuthMode = 'login' | 'register';
 export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>('login');
+  const [inviteRequired, setInviteRequired] = useState<boolean | null>(null);
+  const [inviteVerified, setInviteVerified] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+
+  useEffect(() => {
+    if (mode === 'register' && inviteRequired === null) {
+      authService.isInviteRequired().then(setInviteRequired);
+    }
+  }, [mode, inviteRequired]);
 
   const handleSuccess = (user: AuthUser) => {
     onSuccess(user);
@@ -28,13 +39,30 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
 
   const handleSwitchToLogin = () => {
     setMode('login');
+    setInviteVerified(false);
+    setInviteCode('');
   };
+
+  const handleInviteSuccess = (code: string) => {
+    setInviteVerified(true);
+    setInviteCode(code);
+  };
+
+  const showInviteStep = mode === 'register' && inviteRequired === true && !inviteVerified;
+  const showRegisterForm = mode === 'register' && (inviteRequired === false || inviteVerified);
+  const registerInviteCode = inviteVerified ? inviteCode : undefined;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={() => {}}
-      title={mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
+      title={
+        mode === 'login'
+          ? t('auth.loginTitle')
+          : showInviteStep
+            ? t('auth.registerTitle')
+            : t('auth.registerTitle')
+      }
       preventClose={true}
       className="auth-modal"
     >
@@ -78,9 +106,19 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
           onSwitchToRegister={handleSwitchToRegister}
           onEmailNotConfirmed={onEmailNotConfirmed}
         />
-      ) : (
-        <RegisterForm onSuccess={handleSuccess} onSwitchToLogin={handleSwitchToLogin} />
-      )}
+      ) : inviteRequired === null ? (
+        <div class="auth-form" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          {t('auth.loading')}
+        </div>
+      ) : showInviteStep ? (
+        <InviteStep onSuccess={handleInviteSuccess} onSwitchToLogin={handleSwitchToLogin} />
+      ) : showRegisterForm ? (
+        <RegisterForm
+          onSuccess={handleSuccess}
+          onSwitchToLogin={handleSwitchToLogin}
+          invitationCode={registerInviteCode}
+        />
+      ) : null}
     </Modal>
   );
 }

@@ -147,10 +147,35 @@ app.use(express.static(clientPath));
 
 // ============ Auth Routes ============
 
+// Check if invitation code is required for registration
+app.get('/api/auth/invite-required', (_req, res) => {
+  res.json({ required: !!process.env.INVITATION_CODE });
+});
+
+// Validate invitation code (optional: used when INVITATION_CODE env is set)
+app.post('/api/auth/check-invite', (req, res) => {
+  const requiredCode = process.env.INVITATION_CODE;
+  if (!requiredCode) {
+    return res.status(200).json({ valid: true });
+  }
+  const { code } = req.body || {};
+  if (!code || code !== requiredCode) {
+    return res.status(400).json({ error: 'Invalid invitation code' });
+  }
+  res.status(200).json({ valid: true });
+});
+
 // Register
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, invitationCode } = req.body;
+    const requiredCode = process.env.INVITATION_CODE;
+
+    if (requiredCode) {
+      if (!invitationCode || invitationCode !== requiredCode) {
+        return res.status(403).json({ error: 'Valid invitation code is required to register' });
+      }
+    }
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });

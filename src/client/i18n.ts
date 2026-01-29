@@ -1,6 +1,6 @@
 /**
  * i18n setup for app UI localization.
- * Default language: Russian (ru). Supported: ru, en, pl.
+ * Default language: English (en). Supported: ru, en, pl.
  */
 
 import i18n from 'i18next';
@@ -14,12 +14,12 @@ export type AppLocale = 'ru' | 'en' | 'pl';
 export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en', 'pl'];
 
 function getSavedLocale(): AppLocale {
-  if (typeof window === 'undefined') return 'ru';
+  if (typeof window === 'undefined') return 'en';
   const saved = localStorage.getItem(APP_LOCALE_KEY);
   if (saved && SUPPORTED_LOCALES.includes(saved as AppLocale)) {
     return saved as AppLocale;
   }
-  return 'ru';
+  return 'en';
 }
 
 export function setSavedLocale(locale: AppLocale): void {
@@ -39,7 +39,7 @@ i18n.use(initReactI18next).init({
     pl: { translation: pl },
   },
   lng: getSavedLocale(),
-  fallbackLng: 'ru',
+  fallbackLng: 'en',
   supportedLngs: SUPPORTED_LOCALES,
   interpolation: {
     escapeValue: false,

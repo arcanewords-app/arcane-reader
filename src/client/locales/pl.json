@@ -241,7 +241,14 @@
     "confirmEmailMessage": "Na adres {{email}} wysłano wiadomość z potwierdzeniem.",
     "confirmEmailInstructions": "Sprawdź skrzynkę i przejdź do linku, aby aktywować konto.",
     "noAccountRegister": "Brak konta? Zarejestruj się",
-    "haveAccountLogin": "Masz już konto? Zaloguj się"
+    "haveAccountLogin": "Masz już konto? Zaloguj się",
+    "loading": "Ładowanie...",
+    "inviteCode": "Kod zaproszenia",
+    "inviteCodeHint": "Jesteśmy w fazie beta. Wprowadź kod zaproszenia, aby się zarejestrować.",
+    "inviteCodePlaceholder": "Wprowadź kod",
+    "inviteContinue": "Kontynuuj",
+    "inviteCodeRequired": "Wprowadź kod zaproszenia",
+    "inviteCodeInvalid": "Nieprawidłowy kod zaproszenia"
   },
   "projectInfo": {
     "delete": "Usuń",
