@@ -3,6 +3,7 @@
  * For now, we keep direct imports for better compatibility
  */
 
+export { HomePage as CatalogPage } from './HomePage';
 export { Dashboard } from '../components/Dashboard';
 export { ProjectPage } from './ProjectPage';
 export { ChapterPage } from './ChapterPage';

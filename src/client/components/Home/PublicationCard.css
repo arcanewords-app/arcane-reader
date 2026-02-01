@@ -1,0 +1,118 @@
+.publication-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.publication-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: var(--accent);
+}
+
+.publication-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.publication-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.publication-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+}
+
+.publication-card-placeholder.hidden {
+  display: none;
+}
+
+.publication-card-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.publication-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.publication-card-description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.publication-card-author,
+.publication-card-lang,
+.publication-card-date {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.publication-card-read-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.publication-card-read-btn:hover {
+  filter: brightness(1.1);
+}
+
+@media (max-width: 480px) {
+  .publication-card-read-btn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+  .publication-card-content {
+    padding: 0.75rem;
+  }
+  .publication-card-title {
+    font-size: 0.95rem;
+  }
+  .publication-card-description,
+  .publication-card-author,
+  .publication-card-lang,
+  .publication-card-date {
+    font-size: 0.8rem;
+  }
+}

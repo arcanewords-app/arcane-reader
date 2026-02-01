@@ -39,6 +39,8 @@
   --sidebar-width-mobile: 85vw; /* Шире для мобильных, так как выдвигается */
   --main-padding-mobile: 1rem;
   --header-padding-mobile: 1rem;
+  --header-height-mobile: 72px; /* Высота хедера для позиционирования сайдбара */
+  --header-height-small: 60px; /* Высота хедера на ≤480px */
   --modal-width-mobile: 100%;
   --modal-max-width-mobile: 100%;
 
@@ -47,6 +49,7 @@
   --sidebar-width-tablet: 320px;
   --main-padding-tablet: 1.5rem;
   --header-padding-tablet: 1.5rem;
+  --header-height-tablet: 88px;
   --modal-width-tablet: 600px;
   --modal-max-width-tablet: 600px;
 

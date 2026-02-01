@@ -1,10 +1,14 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation, Trans } from 'react-i18next';
-import type { Project, ProjectSettings, Chapter, TokenUsage } from '../types';
-import { Card, Button, Modal } from './ui';
+import type { Project, ProjectSettings, Chapter, Publication, TranslationStageKind } from '../types';
+import { Card, Button, Modal, Input } from './ui';
+
+const BATCH_STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translation', 'editing'];
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { invalidateProject } from '../store/projects';
+import { useTokenEstimate } from '../hooks/useTokenEstimate';
+import { useBatchChapterTranslation } from '../hooks/useBatchChapterTranslation';
 import { TokenLimitWarning } from './TokenUsage';
 import '../components/ChapterView/ReaderSettings.css';
 
@@ -29,42 +33,93 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [savingDescription, setSavingDescription] = useState(false);
   const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
-  const [showTokenWarning, setShowTokenWarning] = useState(false);
-  const [estimatedTotalTokens, setEstimatedTotalTokens] = useState(0);
-  const [pendingChaptersToTranslate, setPendingChaptersToTranslate] = useState<Chapter[]>([]);
-  interface ChapterProgress {
-    chapterId: string;
-    title: string;
-    status: 'pending' | 'translating' | 'completed' | 'error';
-    tokensUsed?: number;
-    tokensByStage?: {
-      analysis?: number;
-      translation: number;
-      editing?: number;
-    };
-    duration?: number;
-    glossaryEntries?: number;
-  }
 
-  const [translationProgress, setTranslationProgress] = useState<{
-    current: number;
-    total: number;
-    currentChapter: string | null;
-    currentChapterId: string | null;
-    chapters: ChapterProgress[];
-    totalTokens: number;
-    totalDuration: number;
-    totalGlossaryEntries: number;
-    completed: number;
-    errors: number;
-  } | null>(null);
-  const cancelledRef = useRef(false);
-  const initialGlossaryCountRef = useRef<number>(0);
+  const estimate = useTokenEstimate();
+  const batch = useBatchChapterTranslation(project.id, project, onRefreshProject);
   const translateModalWasOpenRef = useRef(false);
 
   // Selected chapter IDs for "translate selected" modal (only used when modal is open)
   const [translateSelectionIds, setTranslateSelectionIds] = useState<string[]>([]);
+  // Stages for batch translation (same as chapter TranslationPanel)
+  const [batchSelectedStages, setBatchSelectedStages] = useState<TranslationStageKind[]>(['analysis', 'translation', 'editing']);
+
+  // Publication (catalog)
+  const [publication, setPublication] = useState<Publication | null>(null);
+  const [publicationLoading, setPublicationLoading] = useState(true);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
+  const [updatingPublication, setUpdatingPublication] = useState(false);
+  const [publishTitle, setPublishTitle] = useState('');
+  const [publishDescription, setPublishDescription] = useState('');
+  const [publishAuthorDisplay, setPublishAuthorDisplay] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getProjectPublication(project.id)
+      .then((pub) => { if (!cancelled) setPublication(pub ?? null); })
+      .catch(() => { if (!cancelled) setPublication(null); })
+      .finally(() => { if (!cancelled) setPublicationLoading(false); });
+    return () => { cancelled = true; };
+  }, [project.id]);
+
+  const openPublishModal = useCallback(() => {
+    setPublishTitle(project.metadata?.title ?? project.name);
+    setPublishDescription(project.metadata?.description ?? '');
+    const user = authService.getCachedUser();
+    setPublishAuthorDisplay(user?.email ?? '');
+    setShowPublishModal(true);
+  }, [project.metadata?.title, project.metadata?.description, project.name]);
+
+  const handlePublish = useCallback(async () => {
+    setPublishing(true);
+    try {
+      const pub = await api.publishProject(project.id, {
+        status: 'published',
+        title: publishTitle.trim() || undefined,
+        description: publishDescription.trim() || undefined,
+        authorDisplay: publishAuthorDisplay.trim() || undefined,
+      });
+      setPublication(pub);
+      setShowPublishModal(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : t('projectInfo.publishError'));
+    } finally {
+      setPublishing(false);
+    }
+  }, [project.id, publishTitle, publishDescription, publishAuthorDisplay, t]);
+
+  const handleUnpublish = useCallback(async () => {
+    if (!confirm(t('projectInfo.unpublishConfirm'))) return;
+    setUnpublishing(true);
+    try {
+      await api.unpublishProject(project.id);
+      setPublication(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : t('projectInfo.unpublishError'));
+    } finally {
+      setUnpublishing(false);
+    }
+  }, [project.id, t]);
+
+  const handleUpdatePublication = useCallback(async () => {
+    setUpdatingPublication(true);
+    try {
+      const user = authService.getCachedUser();
+      const pub = await api.publishProject(project.id, {
+        status: 'published',
+        title: project.metadata?.title ?? project.name,
+        description: project.metadata?.description ?? undefined,
+        authorDisplay: user?.email ?? undefined,
+        coverImageUrl: project.metadata?.coverImageUrl ?? undefined,
+      });
+      setPublication(pub);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : t('projectInfo.publishError'));
+    } finally {
+      setUpdatingPublication(false);
+    }
+  }, [project.id, project.metadata?.title, project.metadata?.description, project.metadata?.coverImageUrl, project.name, t]);
 
   const startEditingDescription = useCallback(() => {
     setDescriptionDraft(project.metadata?.description ?? '');
@@ -222,29 +277,6 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     }
   };
 
-  // Estimate tokens for translation
-  // Use useCallback to ensure it uses latest project.settings
-  const estimateTokens = useCallback((textLength: number): number => {
-    const enableAnalysis = project.settings?.enableAnalysis ?? true;
-    const enableEditing = project.settings?.enableEditing ?? true;
-    
-    // Tokens per 10k characters (from config)
-    const tokensPer10K = {
-      analysis: 2000,
-      translation: 10000,
-      editing: 13000,
-    };
-    
-    const charsIn10K = textLength / 10000;
-    let tokens = 0;
-    
-    if (enableAnalysis) tokens += tokensPer10K.analysis * charsIn10K;
-    tokens += tokensPer10K.translation * charsIn10K;
-    if (enableEditing) tokens += tokensPer10K.editing * charsIn10K;
-    
-    return Math.ceil(tokens);
-  }, [project.settings?.enableAnalysis, project.settings?.enableEditing]);
-
   // Chapters eligible for translation in the modal (empty or errors, sorted by number)
   const eligibleChaptersForTranslate = useMemo(() => {
     const list = translateErrorsOnly
@@ -259,14 +291,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     return eligibleChaptersForTranslate.filter((c) => idSet.has(c.id));
   }, [eligibleChaptersForTranslate, translateSelectionIds]);
 
-  // Estimated tokens for selected chapters only
+  // Estimated tokens for selected chapters and selected stages
   const estimatedTokensSelected = useMemo(() => {
     const totalLength = selectedChaptersForTranslate.reduce(
       (sum, ch) => sum + ch.originalText.length,
       0
     );
-    return estimateTokens(totalLength);
-  }, [selectedChaptersForTranslate, estimateTokens]);
+    return estimate(totalLength, batchSelectedStages);
+  }, [selectedChaptersForTranslate, batchSelectedStages, estimate]);
 
   // When translate modal opens, pre-select all eligible chapters
   useEffect(() => {
@@ -280,293 +312,38 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     }
   }, [showTranslateAllModal, eligibleChaptersForTranslate]);
 
-  // Load token usage
-  useEffect(() => {
-    // Only load if authenticated
-    if (!authService.isAuthenticated()) {
-      return;
-    }
-
-    const loadTokenUsage = async () => {
-      try {
-        const usage = await api.getTokenUsage();
-        setTokenUsage(usage);
-      } catch (error: any) {
-        // Don't show error for 401 (unauthorized) - user just needs to login
-        if (error?.status === 401) {
-          return;
-        }
-        console.error('Failed to load token usage:', error);
-        // Don't show error, just continue without token checking
-      }
-    };
-    
-    loadTokenUsage();
-    // Refresh every 30 seconds (only if authenticated)
-    const interval = setInterval(() => {
-      if (authService.isAuthenticated()) {
-        loadTokenUsage();
-      }
-    }, 30000);
-    return () => clearInterval(interval);
+  const toggleBatchStage = useCallback((stage: TranslationStageKind) => {
+    setBatchSelectedStages((prev) =>
+      prev.includes(stage)
+        ? prev.filter((s) => s !== stage)
+        : [...prev, stage].sort((a, b) => BATCH_STAGE_ORDER.indexOf(a) - BATCH_STAGE_ORDER.indexOf(b))
+    );
   }, []);
 
-  // Poll chapter status until translation completes
-  const pollChapterStatus = async (
-    chapterId: string,
-    maxAttempts: number = 60
-  ): Promise<{ success: boolean; chapter?: Chapter; error?: string }> => {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (cancelledRef.current) {
-        return { success: false, error: t('projectInfo.errorCanceled') };
-      }
-
-      try {
-        const chapter = await api.getChapter(project.id, chapterId);
-        
-        if (chapter.status === 'completed') {
-          return { success: true, chapter };
-        }
-        
-        if (chapter.status === 'error') {
-          return { success: false, error: t('projectInfo.errorTranslation') };
-        }
-
-        // Wait 2 seconds before next poll
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.error('Polling error:', error);
-        return { success: false, error: t('projectInfo.errorStatusCheck') };
-      }
-    }
-
-    return { success: false, error: t('projectInfo.errorTimeout') };
-  };
-
   // Translate selected chapters (from modal selection)
-  const handleTranslateAll = async () => {
+  const handleTranslateAll = () => {
     const chaptersToTranslate = selectedChaptersForTranslate;
-
     if (chaptersToTranslate.length === 0) {
       alert(t('projectInfo.selectOneChapter'));
       return;
     }
-
-    // Check token limit before starting translation (only if authenticated)
-    if (tokenUsage && authService.isAuthenticated()) {
-      setEstimatedTotalTokens(estimatedTokensSelected);
-      setPendingChaptersToTranslate(chaptersToTranslate);
-
-      const tokensAfterTranslation = tokenUsage.tokensUsed + estimatedTokensSelected;
-      const willExceed = tokensAfterTranslation > tokenUsage.tokensLimit;
-      const percentageAfter = (tokensAfterTranslation / tokenUsage.tokensLimit) * 100;
-      const shouldWarn = percentageAfter >= 80;
-
-      if (willExceed) {
-        setShowTokenWarning(true);
-        return;
-      }
-      if (shouldWarn) {
-        setShowTokenWarning(true);
-        return;
-      }
-    }
-
-    await performTranslateAll(chaptersToTranslate);
-  };
-
-  const performTranslateAll = async (chaptersToTranslate: Chapter[]) => {
+    if (batchSelectedStages.length === 0) return;
     setShowTranslateAllModal(false);
-
-    cancelledRef.current = false;
-    
-    // Refresh token usage before starting
-    if (tokenUsage) {
-      try {
-        const updatedUsage = await api.getTokenUsage();
-        setTokenUsage(updatedUsage);
-      } catch (error) {
-        console.error('Failed to refresh token usage:', error);
-      }
-    }
-    
-    // Store initial glossary count
-    initialGlossaryCountRef.current = project.glossary.length;
-    
-    // Initialize chapters progress
-    const chaptersProgress: ChapterProgress[] = chaptersToTranslate.map((ch) => ({
-      chapterId: ch.id,
-      title: ch.title,
-      status: ch.status === 'error' ? 'error' : 'pending',
-    }));
-    
-    setTranslationProgress({
-      current: 0,
-      total: chaptersToTranslate.length,
-      currentChapter: null,
-      currentChapterId: null,
-      chapters: chaptersProgress,
-      totalTokens: 0,
-      totalDuration: 0,
-      totalGlossaryEntries: 0,
-      completed: 0,
-      errors: 0,
-    });
-
-    const startTime = Date.now();
-
-    try {
-      for (let i = 0; i < chaptersToTranslate.length; i++) {
-        if (cancelledRef.current) {
-          break;
-        }
-
-        const chapter = chaptersToTranslate[i];
-        const chapterStartTime = Date.now();
-        
-        // Update current chapter
-        setTranslationProgress((prev) =>
-          prev
-            ? {
-                ...prev,
-                current: i + 1,
-                currentChapter: chapter.title,
-                currentChapterId: chapter.id,
-                chapters: prev.chapters.map((ch) =>
-                  ch.chapterId === chapter.id
-                    ? { ...ch, status: 'translating' }
-                    : ch
-                ),
-              }
-            : null
-        );
-
-        try {
-          // Start translation
-          await api.translateChapter(project.id, chapter.id);
-          
-          // Poll until complete
-          const result = await pollChapterStatus(chapter.id);
-          
-          // Refresh project to get latest data
-          await onRefreshProject();
-          const updatedProject = await api.getProject(project.id);
-          const updatedChapter = updatedProject.chapters.find((c) => c.id === chapter.id);
-          
-          if (result.success && updatedChapter) {
-            const chapterDuration = updatedChapter.translationMeta?.duration || (Date.now() - chapterStartTime);
-            const tokensUsed = updatedChapter.translationMeta?.tokensUsed || 0;
-            const tokensByStage = updatedChapter.translationMeta?.tokensByStage;
-            
-            // Calculate new glossary entries for this chapter
-            const previousGlossaryCount = initialGlossaryCountRef.current;
-            const currentGlossaryCount = updatedProject.glossary.length;
-            const glossaryEntries = Math.max(0, currentGlossaryCount - previousGlossaryCount);
-            
-            setTranslationProgress((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    completed: prev.completed + 1,
-                    totalTokens: prev.totalTokens + tokensUsed,
-                    totalDuration: prev.totalDuration + chapterDuration,
-                    totalGlossaryEntries: updatedProject.glossary.length - initialGlossaryCountRef.current,
-                    chapters: prev.chapters.map((ch) =>
-                      ch.chapterId === chapter.id
-                        ? {
-                            ...ch,
-                            status: 'completed',
-                            tokensUsed,
-                            tokensByStage,
-                            duration: chapterDuration,
-                            glossaryEntries,
-                          }
-                        : ch
-                    ),
-                  }
-                : null
-            );
-            
-            // Update initial count for next iteration
-            initialGlossaryCountRef.current = currentGlossaryCount;
-          } else {
-            setTranslationProgress((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    errors: prev.errors + 1,
-                    chapters: prev.chapters.map((ch) =>
-                      ch.chapterId === chapter.id
-                        ? { ...ch, status: 'error' }
-                        : ch
-                    ),
-                  }
-                : null
-            );
-          }
-        } catch (error: any) {
-          console.error(`Translation error for chapter ${chapter.id}:`, error);
-          
-          // Check if it's a token limit error (429)
-          if (error?.status === 429) {
-            const errorData = error.data || {};
-            alert(t('projectInfo.tokenLimitExceededChapter', { title: chapter.title, message: errorData.message || t('tokenLimit.dailyExhaustedShort') }));
-            
-        // Refresh token usage to show current state (only if authenticated)
-        if (authService.isAuthenticated()) {
-          try {
-            const updatedUsage = await api.getTokenUsage();
-            setTokenUsage(updatedUsage);
-          } catch (refreshError: any) {
-            // Don't show error for 401 (unauthorized)
-            if (refreshError?.status !== 401) {
-              console.error('Failed to refresh token usage:', refreshError);
-            }
-          }
-        }
-            
-            // Stop translation process
-            break;
-          }
-          
-          setTranslationProgress((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  errors: prev.errors + 1,
-                  chapters: prev.chapters.map((ch) =>
-                    ch.chapterId === chapter.id
-                      ? { ...ch, status: 'error' }
-                      : ch
-                  ),
-                }
-              : null
-          );
-        }
-      }
-
-      // Final refresh
-      await onRefreshProject();
-    } finally {
-      // Don't auto-close - let user close manually to review the results
-      cancelledRef.current = false;
-      setTranslateErrorsOnly(false); // Reset flag after translation
-    }
+    batch.startBatch(chaptersToTranslate, { stages: batchSelectedStages });
   };
 
   const handleCancelTranslation = useCallback(() => {
-    cancelledRef.current = true;
-    setTranslationProgress(null);
-  }, []);
+    batch.cancel();
+  }, [batch.cancel]);
 
   const handleCloseTranslation = useCallback(() => {
-    setTranslationProgress(null);
-    cancelledRef.current = false;
-    setTranslateErrorsOnly(false); // Reset flag when closing
-  }, []);
+    batch.clearProgress();
+    setTranslateErrorsOnly(false);
+  }, [batch.clearProgress]);
 
-  // Check if translation is completed
-  const isTranslationComplete = translationProgress !== null && 
+  const translationProgress = batch.progress;
+  const isTranslationComplete =
+    translationProgress !== null &&
     translationProgress.current >= translationProgress.total;
 
   return (
@@ -1071,6 +848,51 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         )}
 
         {/* Hidden file input for cover upload */}
+        {/* Publication (catalog) */}
+        <div class="publication-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+          <div class="metadata-header" style={{ marginBottom: '0.75rem' }}>
+            <span class="metadata-icon">📢</span>
+            <h3 class="metadata-title">{t('projectInfo.publicationTitle')}</h3>
+          </div>
+          {publicationLoading ? (
+            <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>{t('common.loading')}</div>
+          ) : publication?.status === 'published' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                {t('projectInfo.publicationPublished')}
+              </p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+                {t('projectInfo.publicationUpdatesHint')}
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <Button variant="secondary" size="sm" onClick={() => window.open(`/p/${publication.id}`, '_blank')}>
+                  {t('projectInfo.publicationView')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleUpdatePublication} disabled={updatingPublication}>
+                  {updatingPublication ? t('common.loading') : t('projectInfo.updatePublication')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleUnpublish} disabled={unpublishing}>
+                  {unpublishing ? t('common.loading') : t('projectInfo.unpublish')}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                {t('projectInfo.publicationNotPublished')}
+              </p>
+              <Button variant="primary" size="sm" onClick={openPublishModal} disabled={stats.chapters === 0}>
+                {t('projectInfo.publish')}
+              </Button>
+              {stats.chapters === 0 && (
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+                  {t('projectInfo.publishRequiresChapters')}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         <input
           id="cover-upload-input"
           type="file"
@@ -1302,6 +1124,62 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         </p>
       </Modal>
 
+      {/* Publish to catalog modal */}
+      <Modal
+        isOpen={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        title={`📢 ${t('projectInfo.publishModalTitle')}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handlePublish} loading={publishing}>
+              {t('projectInfo.publish')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          {t('projectInfo.publishModalHint')}
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <Input
+            label={t('projectInfo.publishTitleLabel')}
+            value={publishTitle}
+            onInput={(e) => setPublishTitle((e.target as HTMLInputElement).value)}
+            placeholder={project.name}
+          />
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              {t('projectInfo.publishDescriptionLabel')}
+            </label>
+            <textarea
+              value={publishDescription}
+              onInput={(e) => setPublishDescription((e.target as HTMLTextAreaElement).value)}
+              placeholder={t('projectInfo.publishDescriptionPlaceholder')}
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+          <Input
+            label={t('projectInfo.publishAuthorLabel')}
+            value={publishAuthorDisplay}
+            onInput={(e) => setPublishAuthorDisplay((e.target as HTMLInputElement).value)}
+            placeholder={authService.getCachedUser()?.email ?? ''}
+          />
+        </div>
+      </Modal>
+
       {/* Translate chapters modal: select which chapters to translate */}
       <Modal
         isOpen={showTranslateAllModal}
@@ -1325,8 +1203,17 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             </Button>
             <Button
               onClick={handleTranslateAll}
-              disabled={selectedChaptersForTranslate.length === 0}
-              title={selectedChaptersForTranslate.length === 0 ? t('projectInfo.selectOneChapter') : undefined}
+              disabled={
+                selectedChaptersForTranslate.length === 0 ||
+                batchSelectedStages.length === 0
+              }
+              title={
+                selectedChaptersForTranslate.length === 0
+                  ? t('projectInfo.selectOneChapter')
+                  : batchSelectedStages.length === 0
+                    ? t('translationPanel.stagesMultiHint')
+                    : undefined
+              }
             >
               {t('projectInfo.translateSelectedCount', { count: selectedChaptersForTranslate.length })}
             </Button>
@@ -1422,9 +1309,61 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             })
           )}
         </div>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>
+            {t('translationPanel.stages', 'Стадии')}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {BATCH_STAGE_ORDER.map((stage) => {
+              const checked = batchSelectedStages.includes(stage);
+              const label =
+                stage === 'analysis'
+                  ? t('projectInfo.stageAnalysis', 'Анализ')
+                  : stage === 'translation'
+                    ? t('projectInfo.stageTranslation', 'Перевод')
+                    : t('projectInfo.stageEditing', 'Редактура');
+              const icon = stage === 'analysis' ? '🔍' : stage === 'translation' ? '🔮' : '✨';
+              const title =
+                stage === 'analysis'
+                  ? t('translationPanel.stageAnalysisHint', 'Анализ, обновление глоссария')
+                  : stage === 'translation'
+                    ? t('translationPanel.stageTranslationHint', 'Перевод')
+                    : t('translationPanel.stageEditingHint', 'Редактура текущего перевода');
+              return (
+                <label
+                  key={stage}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.35rem 0.6rem',
+                    borderRadius: '6px',
+                    border: `1px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+                    background: checked ? 'var(--accent-subtle, rgba(var(--accent-rgb), 0.1))' : 'transparent',
+                    cursor: 'pointer',
+                    margin: 0,
+                    fontSize: '0.9rem',
+                  }}
+                  title={title}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleBatchStage(stage)}
+                    style={{ marginRight: 0, accentColor: 'var(--accent)' }}
+                  />
+                  {icon} {label}
+                </label>
+              );
+            })}
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+            {t('translationPanel.stagesMultiHint', 'Можно выбрать несколько стадий')}
+          </span>
+        </div>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>
           <Trans i18nKey="projectInfo.selectedChapters" values={{ count: selectedChaptersForTranslate.length }} components={{ strong: <strong style={{ color: 'var(--text-secondary)' }} /> }} />
-          {tokenUsage && authService.isAuthenticated() && (
+          {batch.tokenUsage && authService.isAuthenticated() && (
             <> · <Trans i18nKey="projectInfo.approxTokens" values={{ tokens: estimatedTokensSelected.toLocaleString() }} components={{ strong: <strong style={{ color: 'var(--text-secondary)' }} /> }} /></>
           )}
         </div>
@@ -1461,13 +1400,13 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               </div>
             </div>
 
-            {/* Stages Indicator */}
+            {/* Stages indicator (batch runs all stages by default) */}
             <div style={{ marginBottom: '1.5rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>
                 {t('projectInfo.translationStagesLabel')}
               </div>
               <div class="stages-grid" style={{ gap: '0.5rem' }}>
-                <div class={`stage-toggle ${settings.enableAnalysis !== false ? 'active' : ''}`} style={{ cursor: 'default', opacity: settings.enableAnalysis !== false ? 1 : 0.5 }}>
+                <div class="stage-toggle active" style={{ cursor: 'default' }}>
                   <span class="stage-icon">🔍</span>
                   <span class="stage-name">{t('projectInfo.stageAnalysis')}</span>
                 </div>
@@ -1477,7 +1416,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                   <span class="stage-name">{t('projectInfo.stageTranslation')}</span>
                 </div>
                 <span class="stage-arrow">→</span>
-                <div class={`stage-toggle ${settings.enableEditing !== false ? 'active' : ''}`} style={{ cursor: 'default', opacity: settings.enableEditing !== false ? 1 : 0.5 }}>
+                <div class="stage-toggle active" style={{ cursor: 'default' }}>
                   <span class="stage-icon">✨</span>
                   <span class="stage-name">{t('projectInfo.stageEditing')}</span>
                 </div>
@@ -1622,13 +1561,13 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         )}
       </Modal>
 
-      {tokenUsage && (
+      {batch.tokenUsage && batch.warningState.isOpen && (
         <TokenLimitWarning
-          isOpen={showTokenWarning}
-          onClose={() => setShowTokenWarning(false)}
-          onConfirm={() => performTranslateAll(pendingChaptersToTranslate)}
-          usage={tokenUsage}
-          estimatedTokens={estimatedTotalTokens}
+          isOpen={batch.warningState.isOpen}
+          onClose={batch.closeWarning}
+          onConfirm={batch.confirmAndProceed}
+          usage={batch.tokenUsage}
+          estimatedTokens={batch.warningState.estimatedTokens}
         />
       )}
     </>

@@ -323,10 +323,18 @@
 .upload-area {
   border: 2px dashed var(--border);
   border-radius: 12px;
-  padding: 2rem 1rem;
+  padding: 2rem 1.5rem; /* Совпадает с padding Card для выравнивания */
   text-align: center;
   transition: all 0.3s ease;
   cursor: pointer;
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .upload-area:hover,
@@ -344,6 +352,11 @@
 .upload-area p {
   color: var(--text-secondary);
   font-size: 0.9rem;
+}
+
+/* In sidebar: card must not shrink so sidebar scroll works (mobile) */
+.sidebar .chapter-list-card {
+  flex-shrink: 0;
 }
 
 /* Responsive Styles */

@@ -61,5 +61,11 @@ export interface PipelineOptions {
   skipEditing?: boolean;     // Skip stage 3 for faster translation
   chunkSize?: number;        // Override default chunk size
   retryAttempts?: number;    // Number of retries on failure
+  /** Run only this stage; overrides skipAnalysis/skipEditing */
+  runOnlyStage?: 'analysis' | 'translation' | 'editing';
+  /** Run only these stages in order (multi-select); overrides runOnlyStage/skip* */
+  runStages?: ('analysis' | 'translation' | 'editing')[];
+  /** For editing-only: existing translated text to edit */
+  existingTranslatedTextForEdit?: string;
 }
 

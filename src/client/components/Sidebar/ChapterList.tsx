@@ -308,7 +308,7 @@ export function ChapterList({
   };
 
   return (
-    <Card title={<>📖 {t('chapterList.title')} <CountBadge count={counts.all} /></>}>
+    <Card title={<>📖 {t('chapterList.title')} <CountBadge count={counts.all} /></>} className="chapter-list-card">
       <div class="chapter-search">
         <input
           type="text"

@@ -30,6 +30,8 @@
   width: var(--modal-width-mobile);
   max-width: var(--modal-max-width-mobile);
   margin: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   transform: translateY(20px) scale(0.95);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(139, 92, 246, 0.2),
@@ -95,6 +97,14 @@
 }
 
 /* Responsive Modal Sizes */
+@media (max-width: 480px) {
+  .modal {
+    margin: 0.75rem;
+    padding: 1rem;
+    max-height: calc(100vh - 1.5rem);
+  }
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .modal {
     width: var(--modal-width-tablet);

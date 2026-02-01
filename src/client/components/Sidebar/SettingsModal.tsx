@@ -73,23 +73,12 @@ export function SettingsModal({
     onSettingsChange(updated);
   };
 
-  const toggleStage = async (stage: 'analysis' | 'editing') => {
-    const key = stage === 'analysis' ? 'enableAnalysis' : 'enableEditing';
-    const current = settings[key] ?? true;
-    const updated = await api.updateSettings(project.id, { [key]: !current });
-    onSettingsChange(updated);
-  };
-
   const toggleOriginalReadingMode = async () => {
     const current = settings.originalReadingMode ?? false;
-    const updated = await api.updateSettings(project.id, { 
+    const updated = await api.updateSettings(project.id, {
       originalReadingMode: !current,
-      // When switching to original reading mode, disable translation and editing stages
-      enableTranslation: current, // If turning OFF original mode, enable translation
-      enableEditing: current,     // If turning OFF original mode, enable editing
     });
     onSettingsChange(updated);
-    // Refresh project to get updated state
     if (onRefreshProject) {
       await onRefreshProject();
     }
@@ -236,51 +225,37 @@ export function SettingsModal({
           </div>
         </div>
 
-        {/* Pipeline Stages - hidden in original reading mode */}
+        {/* Stage models info - stages are chosen per request (Translation panel), not in settings */}
         {!isOriginalReadingMode && (
           <div class="stages-panel">
-            <div class="stages-title">⚙️ {t('settings.translationStages')}</div>
-            <div class="stages-grid">
-              <div
-                class={`stage-toggle ${settings.enableAnalysis !== false ? 'active' : ''}`}
-                onClick={() => toggleStage('analysis')}
-              >
-                <span class="stage-checkbox">✓</span>
+            <div class="stages-title">⚙️ {t('settings.stageModelsTitle', 'Модели по стадиям')}</div>
+            <div class="stages-grid" style={{ pointerEvents: 'none', opacity: 0.9 }}>
+              <div class="stage-toggle active">
                 <span class="stage-icon">🔍</span>
                 <span class="stage-name">{t('settings.stageAnalysis')}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{getStageModel('analysis')}</span>
               </div>
               <span class="stage-arrow">→</span>
-              <div class="stage-toggle active disabled">
-                <span class="stage-checkbox">✓</span>
+              <div class="stage-toggle active">
                 <span class="stage-icon">🔮</span>
                 <span class="stage-name">{t('settings.stageTranslation')}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{getStageModel('translation')}</span>
               </div>
               <span class="stage-arrow">→</span>
-              <div
-                class={`stage-toggle ${settings.enableEditing !== false ? 'active' : ''}`}
-                onClick={() => toggleStage('editing')}
-              >
-                <span class="stage-checkbox">✓</span>
+              <div class="stage-toggle active">
                 <span class="stage-icon">✨</span>
                 <span class="stage-name">{t('settings.stageEditing')}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{getStageModel('editing')}</span>
               </div>
             </div>
             <span class="setting-hint" style={{ display: 'block', marginTop: '0.5rem' }}>
-              {t('settings.stagesHint')}
+              {t('settings.stageModelsHint', 'Стадии перевода выбираются при запуске (панель «Перевод» на главе).')}
             </span>
           </div>
         )}
-        
         {isOriginalReadingMode && (
           <div class="stages-panel">
             <div class="stages-title">⚙️ {t('settings.stagesTitle')}</div>
-            <div class="stages-grid">
-              <div class="stage-toggle active disabled">
-                <span class="stage-checkbox">✓</span>
-                <span class="stage-icon">🔍</span>
-                <span class="stage-name">{t('settings.stageAnalysis')}</span>
-              </div>
-            </div>
             <span class="setting-hint" style={{ display: 'block', marginTop: '0.5rem' }}>
               {t('settings.stagesOriginalOnly')}
             </span>

@@ -28,16 +28,40 @@ export const TOKEN_LIMITS = {
 } as const;
 
 /**
- * Translation options for token estimation
+ * Translation options for token estimation (legacy: skip flags)
  */
 export interface TranslationOptions {
   skipAnalysis?: boolean;
   skipEditing?: boolean;
 }
 
+/** Stages for translation pipeline; used for token estimate and API. */
+export type TranslationStageKind = 'analysis' | 'translation' | 'editing';
+export type TranslationStages = TranslationStageKind[] | 'all';
+
+/**
+ * Estimate tokens for the given stages.
+ * Array: sum coefficients for selected stages; 'all': sum of all three.
+ */
+export function estimateTokensForStages(
+  textLength: number,
+  stages: TranslationStages = 'all'
+): number {
+  const charsIn10K = textLength / 10000;
+  const { analysis, translation, editing } = TOKEN_LIMITS.TOKENS_PER_10K_CHARS;
+  if (stages === 'all') {
+    return Math.ceil((analysis + translation + editing) * charsIn10K);
+  }
+  let sum = 0;
+  if (stages.includes('analysis')) sum += analysis;
+  if (stages.includes('translation')) sum += translation;
+  if (stages.includes('editing')) sum += editing;
+  return Math.ceil(sum * charsIn10K);
+}
+
 /**
  * Estimate tokens needed for translation based on text length
- * 
+ *
  * @param textLength - Length of text in characters
  * @param options - Translation options (which stages to include)
  * @returns Estimated number of tokens
@@ -48,20 +72,20 @@ export function estimateTokensForTranslation(
 ): number {
   const charsIn10K = textLength / 10000;
   let tokens = 0;
-  
+
   // Analysis stage tokens
   if (!options.skipAnalysis) {
     tokens += TOKEN_LIMITS.TOKENS_PER_10K_CHARS.analysis * charsIn10K;
   }
-  
+
   // Translation stage tokens (always included)
   tokens += TOKEN_LIMITS.TOKENS_PER_10K_CHARS.translation * charsIn10K;
-  
+
   // Editing stage tokens
   if (!options.skipEditing) {
     tokens += TOKEN_LIMITS.TOKENS_PER_10K_CHARS.editing * charsIn10K;
   }
-  
+
   // Round up to be conservative
   return Math.ceil(tokens);
 }

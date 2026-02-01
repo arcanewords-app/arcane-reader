@@ -218,14 +218,22 @@ export function createPipeline(
   }
 }
 
+/** Options for translateChapterWithPipeline (stages from API) */
+export type TranslatePipelineOptions = PipelineOptions & {
+  stages?: ('analysis' | 'translation' | 'editing')[] | 'all';
+  existingTranslatedText?: string;
+};
+
 /**
- * Translate chapter using the full pipeline
+ * Translate chapter using the full pipeline.
+ * Stages are passed from the API (stages param); glossary is loaded from project
+ * and updated after analysis; agent cache is keyed by project id.
  */
 export async function translateChapterWithPipeline(
   config: AppConfig,
   project: Project,
   chapter: Chapter,
-  options: PipelineOptions = {}
+  options: TranslatePipelineOptions = {}
 ): Promise<{
   translatedText: string;
   tokensUsed: number;
@@ -238,32 +246,36 @@ export async function translateChapterWithPipeline(
   glossaryUpdates?: GlossaryEntry[];
 }> {
   try {
-    console.log(`[translateChapterWithPipeline] Creating pipeline...`);
     const pipeline = createPipeline(config, project);
-    console.log(`[translateChapterWithPipeline] Pipeline created: ${!!pipeline}`);
-    
-    // Verify pipeline has stages
-    console.log(`[translateChapterWithPipeline] Verifying pipeline stages...`);
-    console.log(`  - Pipeline object: ${!!pipeline}, type: ${typeof pipeline}`);
-    
-    console.log(`🔮 [Engine] Запуск TranslationPipeline...`);
-    console.log(`   Этапы: ${options.skipAnalysis ? '❌' : '✅'} Анализ | ✅ Перевод | ${options.skipEditing ? '❌' : '✅'} Редактура`);
-    
+    const stages = options.stages ?? 'all';
+
+    const pipelineOpts: PipelineOptions = {
+      chunkSize: config.translation.maxTokensPerChunk,
+    };
+    if (Array.isArray(stages)) {
+      pipelineOpts.runStages = stages;
+      if (stages.includes('editing') && !stages.includes('translation')) {
+        pipelineOpts.existingTranslatedTextForEdit =
+          options.existingTranslatedText ?? chapter.translatedText?.trim() ?? '';
+      }
+    } else if (stages === 'all') {
+      pipelineOpts.skipAnalysis = options.skipAnalysis ?? false;
+      pipelineOpts.skipEditing = options.skipEditing ?? config.translation.skipEditing;
+    }
+
+    console.log(`🔮 [Engine] Запуск TranslationPipeline... stages=${JSON.stringify(stages)}`);
     const result = await pipeline.translateChapter(
       chapter.originalText,
       chapter.number,
-      {
-        skipAnalysis: options.skipAnalysis ?? true, // Skip for now, can enable later
-        skipEditing: options.skipEditing ?? config.translation.skipEditing,
-        chunkSize: config.translation.maxTokensPerChunk,
-      }
+      pipelineOpts
     );
-    
-    // Check if translation failed
-    if (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]')) {
+
+    const analysisOnly =
+      Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis';
+    if (!analysisOnly && (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]'))) {
       throw new Error(result.finalTranslation || 'Translation returned empty result');
     }
-  
+
   // Extract glossary updates from analysis stage
   let glossaryUpdates: GlossaryEntry[] = [];
   if (result.stage1.success && result.stage1.data) {
@@ -310,12 +322,7 @@ export async function translateChapterWithPipeline(
     
     console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов (Глава ${chapter.number})`);
   }
-  
-    // Check if translation failed
-    if (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]')) {
-      throw new Error(result.finalTranslation || 'Translation returned empty result');
-    }
-    
+
     // Update agent cache
     agentCache.set(project.id, pipeline.getAgent());
     

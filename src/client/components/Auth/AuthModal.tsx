@@ -10,18 +10,27 @@ import './AuthModal.css';
 
 interface AuthModalProps {
   isOpen: boolean;
+  initialMode?: 'login' | 'register';
   onSuccess: (user: AuthUser) => void;
+  onClose?: () => void;
   onEmailNotConfirmed?: (email: string) => void;
 }
 
 type AuthMode = 'login' | 'register';
 
-export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalProps) {
+export function AuthModal({ isOpen, initialMode = 'login', onSuccess, onClose, onEmailNotConfirmed }: AuthModalProps) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [inviteRequired, setInviteRequired] = useState<boolean | null>(null);
   const [inviteVerified, setInviteVerified] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+
+  // When modal opens, sync tab to initialMode (e.g. "Register" button opened with register tab)
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   useEffect(() => {
     if (mode === 'register' && inviteRequired === null) {
@@ -55,7 +64,7 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => {}}
+      onClose={onClose ?? (() => {})}
       title={
         mode === 'login'
           ? t('auth.loginTitle')
@@ -63,10 +72,12 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
             ? t('auth.registerTitle')
             : t('auth.registerTitle')
       }
-      preventClose={true}
+      preventClose={false}
       className="auth-modal"
     >
-      <div class="auth-tabs">
+      <>
+        <div class="auth-modal-header-row">
+        <div class="auth-tabs">
         <button
           type="button"
           onClick={handleSwitchToLogin}
@@ -99,8 +110,19 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
           {t('auth.register')}
         </button>
       </div>
+        {onClose && (
+          <button
+            type="button"
+            class="auth-modal-close"
+            onClick={onClose}
+            aria-label={t('common.close')}
+          >
+            ×
+          </button>
+        )}
+        </div>
 
-      {mode === 'login' ? (
+        {mode === 'login' ? (
         <LoginForm
           onSuccess={handleSuccess}
           onSwitchToRegister={handleSwitchToRegister}
@@ -119,6 +141,7 @@ export function AuthModal({ isOpen, onSuccess, onEmailNotConfirmed }: AuthModalP
           invitationCode={registerInviteCode}
         />
       ) : null}
+      </>
     </Modal>
   );
 }

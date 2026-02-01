@@ -17,8 +17,12 @@ import type {
   Paragraph,
   TranslateResponse,
   BulkUpdateResponse,
+  ChapterTranslationOptions,
   TokenUsage,
   TokenUsageHistory,
+  Publication,
+  PublicationListItem,
+  PublicationWithChapters,
 } from '../types';
 
 // === API Error ===
@@ -283,14 +287,17 @@ export const api = {
   async translateChapter(
     projectId: string,
     chapterId: string,
-    options?: { translateOnlyEmpty?: boolean; paragraphIds?: string[] }
+    options?: ChapterTranslationOptions
   ): Promise<TranslateResponse> {
-    const body: { translateOnlyEmpty?: boolean; paragraphIds?: string[] } = {};
+    const body: ChapterTranslationOptions = {};
     if (options?.translateOnlyEmpty !== undefined) {
       body.translateOnlyEmpty = options.translateOnlyEmpty;
     }
     if (options?.paragraphIds?.length) {
       body.paragraphIds = options.paragraphIds;
+    }
+    if (options?.stages !== undefined) {
+      body.stages = options.stages;
     }
     return fetchJson(
       `/api/projects/${projectId}/chapters/${chapterId}/translate`,
@@ -438,6 +445,84 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ format, author }),
     });
+  },
+
+  // === Publications (public catalog) ===
+
+  /** List published publications (public, no auth required) */
+  async getPublications(params?: {
+    limit?: number;
+    offset?: number;
+    orderBy?: 'published_at' | 'created_at';
+    orderAsc?: boolean;
+  }): Promise<PublicationListItem[]> {
+    const search = new URLSearchParams();
+    if (params?.limit != null) search.set('limit', String(params.limit));
+    if (params?.offset != null) search.set('offset', String(params.offset));
+    if (params?.orderBy) search.set('orderBy', params.orderBy);
+    if (params?.orderAsc) search.set('orderAsc', String(params.orderAsc));
+    const q = search.toString();
+    return fetchJson(`/api/publications${q ? `?${q}` : ''}`);
+  },
+
+  /** Get single publication (public) */
+  async getPublication(id: string): Promise<Publication> {
+    return fetchJson(`/api/publications/${id}`);
+  },
+
+  /** Get publication with chapters list (public, for reading page) */
+  async getPublicationWithChapters(id: string): Promise<PublicationWithChapters> {
+    const result = await fetchJson<{ publication: Publication; chapters: PublicationWithChapters['chapters'] }>(
+      `/api/publications/${id}/chapters`
+    );
+    return { ...result.publication, chapters: result.chapters };
+  },
+
+  /** Get single chapter content for public reading (translated text only) */
+  async getPublicationChapter(
+    publicationId: string,
+    chapterId: string
+  ): Promise<{ id: string; number: number; title: string; translatedText: string }> {
+    return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}`);
+  },
+
+  /** Publish project (auth required) */
+  async publishProject(
+    projectId: string,
+    data: {
+      status?: 'draft' | 'published';
+      title?: string | null;
+      description?: string | null;
+      coverImageUrl?: string | null;
+      authorDisplay?: string | null;
+    }
+  ): Promise<Publication> {
+    return fetchJson(`/api/projects/${projectId}/publish`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** Unpublish project (auth required) */
+  async unpublishProject(projectId: string): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/publish`, {
+      method: 'DELETE',
+    });
+  },
+
+  /** Get current user's publications (auth required) */
+  async getUserPublications(): Promise<Publication[]> {
+    return fetchJson('/api/user/publications');
+  },
+
+  /** Get publication for a project (owner, auth required) */
+  async getProjectPublication(projectId: string): Promise<Publication | null> {
+    try {
+      return await fetchJson(`/api/projects/${projectId}/publication`);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null;
+      throw e;
+    }
   },
 
   // === Token Usage ===

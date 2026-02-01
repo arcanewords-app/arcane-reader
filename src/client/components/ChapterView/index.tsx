@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Chapter, Project, ReaderSettings, TokenUsage } from '../../types';
+import type { Chapter, Project, ReaderSettings } from '../../types';
 import { api } from '../../api/client';
-import { authService } from '../../services/authService';
+import { useChapterTranslation } from '../../hooks/useChapterTranslation';
 import { Card } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
 import { ReaderSettingsPanel } from './ReaderSettings';
 import { ParagraphList } from './ParagraphList';
+import { TranslationPanel } from './TranslationPanel';
 import { TokenLimitWarning } from '../TokenUsage';
 
 interface ChapterViewProps {
@@ -18,7 +19,6 @@ interface ChapterViewProps {
   onNext: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
   onEnterReadingMode?: () => void;
-  estimatedTokens?: number; // Pass estimated tokens to ChapterHeader
 }
 
 const defaultReaderSettings: ReaderSettings = {
@@ -40,17 +40,22 @@ export function ChapterView({
 }: ChapterViewProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
+  const [showTranslationPanel, setShowTranslationPanel] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
     project.settings.reader || defaultReaderSettings
   );
-  const [translating, setTranslating] = useState(false);
   const [pollingInterval, setPollingInterval] = useState<number | null>(null);
-  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
-  const [showTokenWarning, setShowTokenWarning] = useState(false);
-  const [estimatedTokens, setEstimatedTokens] = useState(0);
-  const [pendingTranslationType, setPendingTranslationType] = useState<'full' | 'empty'>('full');
-  const [pendingParagraphIds, setPendingParagraphIds] = useState<string[] | null>(null);
   const [selectedParagraphIds, setSelectedParagraphIds] = useState<string[]>([]);
+
+  const {
+    startTranslation,
+    translating,
+    estimate,
+    tokenUsage,
+    warningState,
+    closeWarning,
+    confirmAndProceed,
+  } = useChapterTranslation(project.id, chapter.id, chapter, project, onChapterUpdate);
 
   const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
 
@@ -70,41 +75,6 @@ export function ChapterView({
   useEffect(() => {
     setSelectedParagraphIds(emptyParagraphIds.length > 0 ? [...emptyParagraphIds] : []);
   }, [chapter.id, emptyParagraphIds.join(',')]);
-
-  // Estimate tokens for translation - MUST be defined before estimatedTokensSelected
-  const estimateTokens = useCallback((textLength: number): number => {
-    const enableAnalysis = project.settings?.enableAnalysis ?? true;
-    const enableEditing = project.settings?.enableEditing ?? true;
-    const tokensPer10K = {
-      analysis: 2000,
-      translation: 10000,
-      editing: 13000,
-    };
-    const charsIn10K = textLength / 10000;
-    let tokens = 0;
-    if (enableAnalysis) tokens += tokensPer10K.analysis * charsIn10K;
-    tokens += tokensPer10K.translation * charsIn10K;
-    if (enableEditing) tokens += tokensPer10K.editing * charsIn10K;
-    return Math.ceil(tokens);
-  }, [project.settings?.enableAnalysis, project.settings?.enableEditing]);
-
-  // Estimated tokens for selected paragraphs only
-  const estimatedTokensSelected = useMemo(() => {
-    if (!chapter.paragraphs?.length || selectedParagraphIds.length === 0) return 0;
-    const idSet = new Set(selectedParagraphIds);
-    const totalLength = chapter.paragraphs
-      .filter((p) => idSet.has(p.id))
-      .reduce((sum, p) => sum + p.originalText.length, 0);
-    return estimateTokens(totalLength);
-  }, [chapter.paragraphs, selectedParagraphIds, estimateTokens]);
-
-  // Recalculate estimated tokens when project settings or chapter text changes
-  useEffect(() => {
-    if (chapter.originalText && chapter.status !== 'translating') {
-      const estimated = estimateTokens(chapter.originalText.length);
-      setEstimatedTokens(estimated);
-    }
-  }, [estimateTokens, chapter.originalText, chapter.status]);
 
   // Apply reader settings as CSS variables
   useEffect(() => {
@@ -140,8 +110,6 @@ export function ChapterView({
             console.log('🛑 Translation finished, stopping polling. Final status:', updated.status);
             clearInterval(interval);
             setPollingInterval(null);
-            setTranslating(false);
-            
             if (updated.status === 'completed') {
               console.log('✅ Translation completed successfully');
             } else if (updated.status === 'error') {
@@ -169,228 +137,8 @@ export function ChapterView({
         clearInterval(pollingInterval);
         setPollingInterval(null);
       }
-      if (translating && chapter.status !== 'translating') {
-        setTranslating(false);
-      }
     }
-  }, [chapter.status, chapter.id, project.id, translating]);
-
-  // Load token usage
-  useEffect(() => {
-    // Only load if authenticated
-    if (!authService.isAuthenticated()) {
-      return;
-    }
-
-    const loadTokenUsage = async () => {
-      try {
-        const usage = await api.getTokenUsage();
-        setTokenUsage(usage);
-      } catch (error: any) {
-        // Don't show error for 401 (unauthorized) - user just needs to login
-        if (error?.status === 401) {
-          return;
-        }
-        console.error('Failed to load token usage:', error);
-        // Don't show error, just continue without token checking
-      }
-    };
-    
-    loadTokenUsage();
-    // Refresh every 30 seconds (only if authenticated)
-    const interval = setInterval(() => {
-      if (authService.isAuthenticated()) {
-        loadTokenUsage();
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [chapter.id]); // Reload when chapter changes (user navigates to different chapter)
-
-  const handleTranslate = async () => {
-    // Prevent double-translation
-    if (chapter.status === 'translating' || translating) {
-      console.warn('⚠️ Translation already in progress, status:', chapter.status);
-      return;
-    }
-
-    // Check token limit before starting translation (only if authenticated)
-    if (tokenUsage && authService.isAuthenticated()) {
-      // Recalculate to ensure we use latest settings
-      const estimated = estimateTokens(chapter.originalText.length);
-      setEstimatedTokens(estimated);
-      
-      const tokensAfterTranslation = tokenUsage.tokensUsed + estimated;
-      const willExceed = tokensAfterTranslation > tokenUsage.tokensLimit;
-      const percentageAfter = (tokensAfterTranslation / tokenUsage.tokensLimit) * 100;
-      const shouldWarn = percentageAfter >= 80;
-
-      if (willExceed) {
-        // Show warning modal - translation will be blocked
-        setPendingTranslationType('full');
-        setShowTokenWarning(true);
-        return;
-      } else if (shouldWarn) {
-        // Show warning but allow continuation
-        setPendingTranslationType('full');
-        setShowTokenWarning(true);
-        return;
-      }
-    }
-
-    // Proceed with translation
-    await performTranslation(false);
-  };
-
-  const performTranslation = async (
-    translateOnlyEmpty: boolean = false,
-    paragraphIdsToTranslate?: string[]
-  ) => {
-    const action = paragraphIdsToTranslate?.length
-      ? `${paragraphIdsToTranslate.length} selected paragraphs`
-      : translateOnlyEmpty
-        ? 'empty paragraphs'
-        : 'chapter';
-    console.log(`🔮 Starting translation for ${action}:`, chapter.id, chapter.title);
-    setTranslating(true);
-
-    const options: { translateOnlyEmpty?: boolean; paragraphIds?: string[] } = {};
-    if (paragraphIdsToTranslate?.length) {
-      options.paragraphIds = paragraphIdsToTranslate;
-    } else if (translateOnlyEmpty) {
-      options.translateOnlyEmpty = true;
-    }
-
-    try {
-      const response = await api.translateChapter(project.id, chapter.id, options);
-      console.log('✅ Translation request sent, response:', response);
-      
-      // Immediately update chapter status to translating to trigger polling
-      const updatedChapter = { ...chapter, status: 'translating' as const };
-      onChapterUpdate(updatedChapter);
-      
-      console.log('📊 Chapter status updated to "translating", polling should start');
-      
-      // Refresh token usage after starting translation (only if authenticated)
-      if (tokenUsage && authService.isAuthenticated()) {
-        try {
-          const updatedUsage = await api.getTokenUsage();
-          setTokenUsage(updatedUsage);
-        } catch (error: any) {
-          // Don't show error for 401 (unauthorized)
-          if (error?.status !== 401) {
-            console.error('Failed to refresh token usage:', error);
-          }
-        }
-      }
-      
-      // Polling will handle the rest via useEffect
-    } catch (error: any) {
-      console.error('❌ Translation error:', error);
-      setTranslating(false);
-      
-      // Check if it's a token limit error (429)
-      if (error?.status === 429) {
-        const errorData = error.data || {};
-        alert(t('tokenLimit.exceededMessage', { message: errorData.message || t('tokenLimit.dailyExhaustedShort') }));
-        
-        // Refresh token usage to show current state (only if authenticated)
-        if (authService.isAuthenticated()) {
-          try {
-            const updatedUsage = await api.getTokenUsage();
-            setTokenUsage(updatedUsage);
-          } catch (refreshError: any) {
-            // Don't show error for 401 (unauthorized)
-            if (refreshError?.status !== 401) {
-              console.error('Failed to refresh token usage:', refreshError);
-            }
-          }
-        }
-        
-        return;
-      }
-      
-      // Update chapter status to error if translation failed
-      const errorChapter = { ...chapter, status: 'error' as const };
-      onChapterUpdate(errorChapter);
-      
-      // Show user-friendly error message
-      const errorMessage = error instanceof Error ? error.message : t('errors.unknown');
-      alert(`${t('errors.startTranslation')}: ${errorMessage}`);
-      console.error('Full error details:', error);
-    }
-  };
-
-  const handleTranslateEmptyParagraphs = async () => {
-    // Prevent double-translation
-    if (chapter.status === 'translating' || translating) {
-      console.warn('⚠️ Translation already in progress, status:', chapter.status);
-      return;
-    }
-
-    const emptyParagraphs = chapter.paragraphs?.filter((p) => {
-      const hasText = p.translatedText && p.translatedText.trim().length > 0;
-      const isError = p.translatedText?.trim().startsWith('❌') || 
-                      p.translatedText?.trim().startsWith('[ERROR');
-      return !hasText || isError;
-    }) || [];
-
-    // Calculate text length for empty paragraphs only
-    const emptyTextLength = emptyParagraphs.reduce((sum, p) => sum + p.originalText.length, 0);
-    
-    // Check token limit before starting translation (only if authenticated)
-    if (tokenUsage && emptyTextLength > 0 && authService.isAuthenticated()) {
-      const estimated = estimateTokens(emptyTextLength);
-      setEstimatedTokens(estimated);
-      
-      const tokensAfterTranslation = tokenUsage.tokensUsed + estimated;
-      const willExceed = tokensAfterTranslation > tokenUsage.tokensLimit;
-      const percentageAfter = (tokensAfterTranslation / tokenUsage.tokensLimit) * 100;
-      const shouldWarn = percentageAfter >= 80;
-
-      if (willExceed) {
-        // Show warning modal - translation will be blocked
-        setPendingTranslationType('empty');
-        setShowTokenWarning(true);
-        return;
-      } else if (shouldWarn) {
-        // Show warning but allow continuation
-        setPendingTranslationType('empty');
-        setShowTokenWarning(true);
-        return;
-      }
-    }
-
-    if (emptyParagraphs.length === 0) {
-      alert(t('chapterView.noEmptyParagraphs'));
-      return;
-    }
-
-    // Proceed with translation of empty paragraphs
-    await performTranslation(true);
-  };
-
-  const handleTranslateSelectedParagraphs = async () => {
-    if (chapter.status === 'translating' || translating) return;
-    if (selectedParagraphIds.length === 0) {
-      alert(t('chapterView.selectOneParagraph'));
-      return;
-    }
-
-    if (tokenUsage && authService.isAuthenticated()) {
-      const tokensAfter = tokenUsage.tokensUsed + estimatedTokensSelected;
-      const willExceed = tokensAfter > tokenUsage.tokensLimit;
-      const shouldWarn = (tokensAfter / tokenUsage.tokensLimit) * 100 >= 80;
-      if (willExceed || shouldWarn) {
-        setPendingTranslationType('empty');
-        setPendingParagraphIds(selectedParagraphIds);
-        setEstimatedTokens(estimatedTokensSelected);
-        setShowTokenWarning(true);
-        return;
-      }
-    }
-
-    await performTranslation(true, selectedParagraphIds);
-  };
+  }, [chapter.status, chapter.id, project.id]);
 
   const handleSelectAllEmpty = () => setSelectedParagraphIds([...emptyParagraphIds]);
   const handleDeselectAll = () => setSelectedParagraphIds([]);
@@ -399,6 +147,16 @@ export function ChapterView({
     setSelectedParagraphIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  };
+
+  const handleCancelTranslation = async () => {
+    try {
+      await api.cancelTranslation(project.id, chapter.id);
+      const updated = await api.getChapter(project.id, chapter.id);
+      onChapterUpdate(updated);
+    } catch (error) {
+      console.error('Failed to cancel translation:', error);
+    }
   };
 
   const handleApproveAll = async () => {
@@ -441,22 +199,32 @@ export function ChapterView({
           canNext={chapterIndex < totalChapters - 1}
           onPrev={onPrev}
           onNext={onNext}
-          onTranslate={handleTranslate}
-          onTranslateEmpty={handleTranslateEmptyParagraphs}
-          onTranslateSelected={handleTranslateSelectedParagraphs}
-          onSelectAllEmpty={handleSelectAllEmpty}
-          onDeselectAll={handleDeselectAll}
-          selectedParagraphIds={selectedParagraphIds}
-          emptyParagraphIds={emptyParagraphIds}
-          estimatedTokensSelected={estimatedTokensSelected}
+          onToggleTranslationPanel={() => setShowTranslationPanel((v) => !v)}
+          isTranslationPanelOpen={showTranslationPanel}
           onApproveAll={handleApproveAll}
           onToggleSettings={() => setShowSettings(!showSettings)}
           onEnterReadingMode={onEnterReadingMode}
           onChapterUpdate={onChapterUpdate}
-          translating={translating || chapter.status === 'translating'}
+          translating={translating}
           isOriginalReadingMode={isOriginalReadingMode}
-          estimatedTokens={estimatedTokens}
         />
+
+        {!isOriginalReadingMode && showTranslationPanel && (
+          <TranslationPanel
+            chapter={chapter}
+            project={project}
+            projectId={project.id}
+            startTranslation={startTranslation}
+            translating={translating}
+            estimate={estimate}
+            emptyCount={emptyParagraphIds.length}
+            selectedParagraphIds={selectedParagraphIds}
+            onSelectAllEmpty={handleSelectAllEmpty}
+            onDeselectAll={handleDeselectAll}
+            onCancelTranslation={handleCancelTranslation}
+            onChapterUpdate={onChapterUpdate}
+          />
+        )}
 
         {showSettings && (
           <ReaderSettingsPanel
@@ -465,23 +233,13 @@ export function ChapterView({
           />
         )}
         
-        {tokenUsage && (
+        {tokenUsage && warningState.isOpen && (
           <TokenLimitWarning
-            isOpen={showTokenWarning}
-            onClose={() => {
-              setShowTokenWarning(false);
-              setPendingParagraphIds(null);
-            }}
-            onConfirm={() => {
-              if (pendingParagraphIds?.length) {
-                performTranslation(true, pendingParagraphIds);
-                setPendingParagraphIds(null);
-              } else {
-                performTranslation(pendingTranslationType === 'empty');
-              }
-            }}
+            isOpen={warningState.isOpen}
+            onClose={closeWarning}
+            onConfirm={confirmAndProceed}
             usage={tokenUsage}
-            estimatedTokens={estimatedTokens}
+            estimatedTokens={warningState.estimatedTokens}
           />
         )}
 
@@ -530,8 +288,8 @@ export function ChapterView({
   );
 }
 
-// ChapterView is exported as named export above (export function ChapterView)
 export { ChapterHeader } from './ChapterHeader';
 export { ReaderSettingsPanel } from './ReaderSettings';
 export { ParagraphList } from './ParagraphList';
+export { TranslationPanel } from './TranslationPanel';
 

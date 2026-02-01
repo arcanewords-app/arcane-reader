@@ -6,8 +6,15 @@ import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { Modal } from '../ui';
 import './ReadingMode.css';
 
+/** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
+type ReaderChapter = (Chapter & { translatedText?: string }) | { id: string; number: number; title: string; translatedText?: string };
+
 interface ReadingModeProps {
-  project: Project;
+  project?: Project;
+  /** Publication mode: show translated text from catalog */
+  publicationId?: string;
+  publicationTitle?: string;
+  publicationChapters?: Array<{ id: string; number: number; title: string }>;
   initialChapterId?: string;
   onExit: () => void;
 }
@@ -19,7 +26,14 @@ const defaultReaderSettings: ReaderSettings = {
   colorScheme: 'dark',
 };
 
-export function ReadingMode({ project, initialChapterId, onExit }: ReadingModeProps) {
+export function ReadingMode({
+  project,
+  publicationId,
+  publicationTitle,
+  publicationChapters = [],
+  initialChapterId,
+  onExit,
+}: ReadingModeProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
@@ -27,47 +41,68 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
   const [shareLink, setShareLink] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
-    project.settings.reader || defaultReaderSettings
+    project?.settings?.reader || defaultReaderSettings
   );
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<ReaderChapter[]>([]);
+  const [chapterContentMap, setChapterContentMap] = useState<Record<string, string>>({});
+  const [chapterContentLoading, setChapterContentLoading] = useState(false);
 
-  // Determine reading mode (must be declared before use)
-  const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
+  const isPublicationMode = !!publicationId;
 
-  // Filter and load chapters based on mode
+  // Determine reading mode (project mode only)
+  const isOriginalReadingMode = !isPublicationMode && (project?.settings?.originalReadingMode ?? false);
+
+  // Project mode: filter and load chapters from project
   useEffect(() => {
-    
+    if (isPublicationMode) {
+      const list: ReaderChapter[] = publicationChapters.map((ch) => ({ ...ch }));
+      setChapters(list);
+      if (list.length > 0) {
+        const idx = initialChapterId
+          ? list.findIndex((ch) => ch.id === initialChapterId)
+          : 0;
+        setCurrentChapterIndex(idx >= 0 ? idx : 0);
+      }
+      return;
+    }
+    if (!project) return;
+
     let availableChapters: Chapter[];
     if (isOriginalReadingMode) {
-      // In original reading mode: show all chapters with original text
       availableChapters = project.chapters
-        .filter(ch => ch.originalText)
+        .filter((ch) => ch.originalText)
         .sort((a, b) => a.number - b.number);
     } else {
-      // In translation mode: show only completed chapters with translation
       availableChapters = project.chapters
-        .filter(ch => ch.status === 'completed' && ch.translatedText)
+        .filter((ch) => ch.status === 'completed' && ch.translatedText)
         .sort((a, b) => a.number - b.number);
     }
-    
+
     setChapters(availableChapters);
-    
-    // Set initial chapter index
     if (availableChapters.length > 0) {
-      if (initialChapterId) {
-        // Find chapter by ID
-        const chapterIndex = availableChapters.findIndex(ch => ch.id === initialChapterId);
-        if (chapterIndex >= 0) {
-          setCurrentChapterIndex(chapterIndex);
-        } else {
-          setCurrentChapterIndex(0);
-        }
-      } else {
-        setCurrentChapterIndex(0);
-      }
+      const chapterIndex = initialChapterId
+        ? availableChapters.findIndex((ch) => ch.id === initialChapterId)
+        : 0;
+      setCurrentChapterIndex(chapterIndex >= 0 ? chapterIndex : 0);
     }
-  }, [project, initialChapterId]);
+  }, [project, initialChapterId, isPublicationMode, publicationChapters]);
+
+  // Publication mode: load current chapter content
+  useEffect(() => {
+    if (!isPublicationMode || !publicationId || chapters.length === 0) return;
+    const ch = chapters[currentChapterIndex];
+    if (!ch || chapterContentMap[ch.id]) return;
+
+    setChapterContentLoading(true);
+    api
+      .getPublicationChapter(publicationId, ch.id)
+      .then((data) => {
+        setChapterContentMap((prev) => ({ ...prev, [data.id]: data.translatedText }));
+      })
+      .catch(() => {})
+      .finally(() => setChapterContentLoading(false));
+  }, [isPublicationMode, publicationId, chapters, currentChapterIndex, chapterContentMap]);
 
   // Apply reader settings as CSS variables
   useEffect(() => {
@@ -127,22 +162,30 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
   const handleReaderSettingsChange = async (updates: Partial<ReaderSettings>) => {
     const newSettings = { ...readerSettings, ...updates };
     setReaderSettings(newSettings);
-    await api.updateReaderSettings(project.id, newSettings);
+    if (!isPublicationMode && project) {
+      await api.updateReaderSettings(project.id, newSettings);
+    }
   };
 
   const handleShare = useCallback(() => {
     const currentChapter = chapters[currentChapterIndex];
     if (!currentChapter) return;
 
-    const params = new URLSearchParams();
-    params.set('project', project.id);
-    params.set('chapter', currentChapter.id);
-    params.set('reading', 'true');
-
-    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    let url: string;
+    if (isPublicationMode && publicationId) {
+      url = `${window.location.origin}/p/${publicationId}/chapters/${currentChapter.id}/reading`;
+    } else if (project) {
+      const params = new URLSearchParams();
+      params.set('project', project.id);
+      params.set('chapter', currentChapter.id);
+      params.set('reading', 'true');
+      url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    } else {
+      return;
+    }
     setShareLink(url);
     setShowShareModal(true);
-  }, [project.id, chapters, currentChapterIndex]);
+  }, [isPublicationMode, publicationId, project, chapters, currentChapterIndex]);
 
   const handleCopyShareLink = useCallback(async () => {
     if (!shareLink) return;
@@ -169,10 +212,16 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
         <div class="reading-mode-empty">
           <div style={{ textAlign: 'center', padding: '3rem' }}>
             <h2 style={{ marginBottom: '1rem' }}>
-              {isOriginalReadingMode ? t('readingMode.noChaptersForReading') : t('readingMode.noTranslatedChapters')}
+              {isPublicationMode
+                ? t('readingMode.noChaptersForReading')
+                : isOriginalReadingMode
+                ? t('readingMode.noChaptersForReading')
+                : t('readingMode.noTranslatedChapters')}
             </h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-              {isOriginalReadingMode 
+              {isPublicationMode
+                ? t('readingMode.noTranslatedChapters')
+                : isOriginalReadingMode
                 ? t('readingMode.noOriginalChaptersForReading')
                 : t('readingMode.needTranslateOneChapter')}
             </p>
@@ -189,30 +238,31 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
                 fontSize: '1rem',
               }}
             >
-              {t('readingMode.backToProject')}
+              {isPublicationMode ? t('readingMode.backToPublication') : t('readingMode.backToProject')}
             </button>
           </div>
         </div>
       </div>
     );
   }
-  
-  // Get text based on mode: original in original reading mode, translated otherwise
-  const getText = (chapter: Chapter): string => {
-    if (isOriginalReadingMode) {
-      // In original reading mode: use original text
-      return chapter.originalText || '';
-    } else {
-      // In translation mode: use translated text
-      if (chapter.paragraphs && chapter.paragraphs.length > 0) {
-        const paragraphs = chapter.paragraphs
-          .sort((a, b) => a.index - b.index)
-          .filter(p => p.translatedText)
-          .map(p => p.translatedText);
-        return paragraphs.join('\n\n');
-      }
-      return chapter.translatedText || '';
+
+  // Get text: publication mode from chapterContentMap, project mode from chapter
+  const getText = (chapter: ReaderChapter): string => {
+    if (isPublicationMode) {
+      return chapterContentMap[chapter.id] ?? '';
     }
+    const ch = chapter as Chapter;
+    if (isOriginalReadingMode) {
+      return ch.originalText || '';
+    }
+    if (ch.paragraphs && ch.paragraphs.length > 0) {
+      const paragraphs = ch.paragraphs
+        .sort((a, b) => a.index - b.index)
+        .filter((p) => p.translatedText)
+        .map((p) => p.translatedText!);
+      return paragraphs.join('\n\n');
+    }
+    return ch.translatedText || '';
   };
 
   const displayText = currentChapter ? getText(currentChapter) : '';
@@ -230,7 +280,7 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
             ← {t('common.back')}
           </button>
           <div class="reading-mode-title">
-            <h2>{project.name}</h2>
+            <h2>{isPublicationMode ? publicationTitle : project?.name}</h2>
             <span class="reading-mode-chapter-info">
               {t('readingMode.chapterOf', { current: currentChapterIndex + 1, total: chapters.length })}
             </span>
@@ -297,7 +347,9 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
       {/* Content */}
       <div class="reading-mode-content">
         <div class="reading-mode-text">
-          {displayText ? (
+          {chapterContentLoading ? (
+            <p style={{ color: 'var(--text-dim)', textAlign: 'center' }}>{t('common.loading')}</p>
+          ) : displayText ? (
             displayText.split('\n\n').map((paragraph, idx) => (
               <p key={idx} class="reading-mode-paragraph">
                 {paragraph}
@@ -305,7 +357,11 @@ export function ReadingMode({ project, initialChapterId, onExit }: ReadingModePr
             ))
           ) : (
             <p style={{ color: 'var(--text-dim)', textAlign: 'center' }}>
-              {isOriginalReadingMode ? t('readingMode.noOriginalText') : t('readingMode.noTranslatedText')}
+              {isPublicationMode
+                ? t('readingMode.noTranslatedText')
+                : isOriginalReadingMode
+                ? t('readingMode.noOriginalText')
+                : t('readingMode.noTranslatedText')}
             </p>
           )}
         </div>

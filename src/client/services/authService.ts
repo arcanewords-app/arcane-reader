@@ -112,6 +112,19 @@ export const authService = {
   },
 
   /**
+   * Get cached user from localStorage (synchronous). Use getCurrentUser() for fresh data.
+   */
+  getCachedUser(): AuthUser | null {
+    const userJson = localStorage.getItem(USER_KEY);
+    if (!userJson) return null;
+    try {
+      return JSON.parse(userJson);
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * Get current authenticated user
    */
   async getCurrentUser(): Promise<AuthUser | null> {

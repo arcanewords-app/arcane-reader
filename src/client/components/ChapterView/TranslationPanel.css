@@ -1,0 +1,122 @@
+.translation-panel {
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.translation-panel-section {
+  margin-bottom: 1rem;
+}
+
+.translation-panel-section:last-child {
+  margin-bottom: 0;
+}
+
+.translation-panel-label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.translation-panel-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.translation-panel-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.translation-panel-radio input {
+  accent-color: var(--accent);
+}
+
+.translation-panel-radio:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.translation-panel-actions-inline {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.translation-panel-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.translation-panel-link:hover:not(:disabled) {
+  color: var(--accent-hover, var(--accent));
+}
+
+.translation-panel-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.translation-panel-sep {
+  color: var(--text-dim);
+  margin: 0 0.5rem;
+}
+
+.translation-panel-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.translation-panel-stage-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.translation-panel-stage-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow, rgba(139, 92, 246, 0.1));
+}
+
+.translation-panel-stage-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-glow, rgba(139, 92, 246, 0.15));
+  color: var(--accent);
+}
+
+.translation-panel-stage-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.translation-panel-estimate {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.translation-panel-tokens {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.translation-panel-buttons {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}

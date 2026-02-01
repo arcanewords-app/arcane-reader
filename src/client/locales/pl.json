@@ -72,6 +72,21 @@
     "errorDeleteFailed": "Nie udało się usunąć rozdziału",
     "errorReorder": "Błąd zmiany kolejności"
   },
+  "translationPanel": {
+    "scope": "Zakres",
+    "scopeFull": "Cały rozdział",
+    "scopeEmpty": "Puste ({{count}})",
+    "scopeSelected": "Wybrane ({{count}})",
+    "stages": "Etapy",
+    "stageAll": "Wszystko",
+    "stageAnalysisHint": "Tylko analiza, aktualizacja glosariusza",
+    "stageTranslationHint": "Tylko tłumaczenie",
+    "stageEditingHint": "Tylko redakcja obecnego tłumaczenia",
+    "stageAllHint": "Analiza → Tłumaczenie → Redakcja",
+    "estimatedTokens": "~{{tokens}} tokenów",
+    "start": "Uruchom",
+    "toggle": "Panel tłumaczenia"
+  },
   "chapterList": {
     "title": "Rozdziały",
     "searchPlaceholder": "Szukaj...",
@@ -156,6 +171,8 @@
     "statusConnected": "Połączono",
     "statusApiNotConfigured": "API nie skonfigurowane",
     "logout": "Wyloguj",
+    "login": "Zaloguj",
+    "register": "Rejestracja",
     "appLanguage": "Język"
   },
   "glossary": {
@@ -329,7 +346,25 @@
     "timeSeconds": "s",
     "isbn": "ISBN:",
     "bookInSeries": "książka {{n}}",
-    "tokenLimitExceededChapter": "Przekroczono limit tokenów przy tłumaczeniu rozdziału \"{{title}}\": {{message}}"
+    "tokenLimitExceededChapter": "Przekroczono limit tokenów przy tłumaczeniu rozdziału \"{{title}}\": {{message}}",
+    "publicationTitle": "Publikacja w katalogu",
+    "publicationPublished": "Opublikowano w katalogu. Nowe rozdziały i zmiany pojawiają się automatycznie.",
+    "publicationUpdatesHint": "Gdy dodasz rozdziały lub edytujesz tekst, czytelnicy zobaczą zaktualizowaną wersję bez ponownej publikacji.",
+    "publicationNotPublished": "Opublikuj projekt, aby był widoczny w katalogu dla czytelników.",
+    "publicationView": "Otwórz w katalogu",
+    "updatePublication": "Zaktualizuj dane w katalogu",
+    "publish": "Opublikuj w katalogu",
+    "unpublish": "Cofnij publikację",
+    "unpublishConfirm": "Cofnąć publikację? Dzieło zniknie z katalogu.",
+    "unpublishError": "Nie udało się cofnąć publikacji",
+    "publishError": "Nie udało się opublikować",
+    "publishRequiresChapters": "Dodaj co najmniej jeden rozdział przed publikacją.",
+    "publishModalTitle": "Opublikuj w katalogu",
+    "publishModalHint": "Ustaw tytuł i opis dla karty w katalogu. Wartości są pobierane z projektu i można je zmienić.",
+    "publishTitleLabel": "Tytuł w katalogu",
+    "publishDescriptionLabel": "Krótki opis",
+    "publishDescriptionPlaceholder": "Opis dzieła dla karty w katalogu",
+    "publishAuthorLabel": "Tłumacz (wyświetlany w katalogu)"
   },
   "tokenUsage": {
     "loading": "Ładowanie...",
@@ -373,6 +408,7 @@
     "noOriginalChaptersForReading": "Brak rozdziałów z oryginalnym tekstem do czytania.",
     "needTranslateOneChapter": "Przetłumacz co najmniej jeden rozdział, aby użyć trybu czytania.",
     "backToProject": "Powrót do projektu",
+    "backToPublication": "Powrót do publikacji",
     "settingsTitle": "Ustawienia czytania",
     "noOriginalText": "Brak oryginalnego tekstu",
     "noTranslatedText": "Brak przetłumaczonego tekstu"
@@ -423,6 +459,33 @@
     "hasUntranslatedChapters": "Są nieprzetłumaczone rozdziały",
     "allChaptersTranslated": "Wszystkie rozdziały przetłumaczone",
     "glossaryEntriesTitle": "Wpisów w słowniku"
+  },
+  "home": {
+    "title": "Publikacje",
+    "subtitle": "Opublikowane tłumaczenia autorów",
+    "loading": "Ładowanie katalogu...",
+    "error": "Nie udało się załadować katalogu",
+    "noPublications": "Brak publikacji",
+    "publishHint": "Opublikuj projekt w panelu, aby pojawił się tutaj.",
+    "emptyHintGuest": "Zaloguj się lub zarejestruj, aby publikować tłumaczenia.",
+    "read": "Czytaj",
+    "catalogTab": "Wszystkie tłumaczenia",
+    "myWorksTab": "Moje prace",
+    "noMyPublications": "Nie masz jeszcze opublikowanych prac",
+    "emptyMyWorksHint": "Opublikuj projekt w panelu — pojawi się tutaj."
+  },
+  "cabinet": {
+    "title": "Moje projekty",
+    "link": "Panel",
+    "catalog": "Katalog"
+  },
+  "publication": {
+    "untitled": "Bez tytułu",
+    "unknownAuthor": "Nieznany autor",
+    "notFound": "Nie znaleziono publikacji",
+    "chapters": "Rozdziały",
+    "notTranslated": "Brak tłumaczenia",
+    "readingComingSoon": "Tryb czytania publikacji będzie dostępny w następnej aktualizacji."
   },
   "status": {
     "pending": "Oczekuje",

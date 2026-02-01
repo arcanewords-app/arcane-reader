@@ -1355,3 +1355,363 @@ export async function updateParagraph(
 
   return transformParagraphFromDB(updatedParagraph);
 }
+
+// ============================================
+// Publication Types (catalog)
+// ============================================
+
+export type PublicationStatus = 'draft' | 'published' | 'unpublished';
+
+export interface PublicationRow {
+  id: string;
+  project_id: string;
+  user_id: string;
+  status: PublicationStatus;
+  title: string | null;
+  description: string | null;
+  cover_image_url: string | null;
+  author_display: string | null;
+  source_language: string;
+  target_language: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformPublicationFromDB(row: PublicationRow): {
+  id: string;
+  projectId: string;
+  userId: string;
+  status: PublicationStatus;
+  title: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  authorDisplay: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+} {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    userId: row.user_id,
+    status: row.status,
+    title: row.title,
+    description: row.description,
+    coverImageUrl: row.cover_image_url,
+    authorDisplay: row.author_display,
+    sourceLanguage: row.source_language,
+    targetLanguage: row.target_language,
+    publishedAt: row.published_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * List published publications (public, no auth).
+ * Uses anon client - RLS allows SELECT where status = 'published'.
+ */
+export async function listPublicationsPublic(options?: {
+  limit?: number;
+  offset?: number;
+  orderBy?: 'published_at' | 'created_at';
+  orderAsc?: boolean;
+}): Promise<{ id: string; projectId: string; status: PublicationStatus; title: string | null; description: string | null; coverImageUrl: string | null; authorDisplay: string | null; sourceLanguage: string; targetLanguage: string; publishedAt: string | null; createdAt: string; updatedAt: string }[]> {
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+  const orderBy = options?.orderBy ?? 'published_at';
+  const orderAsc = options?.orderAsc ?? false;
+
+  const { data, error } = await supabase
+    .from('publications')
+    .select('*')
+    .eq('status', 'published')
+    .order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
+      ascending: orderAsc,
+      nullsFirst: false,
+    })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    throw new Error(`Failed to list publications: ${error.message}`);
+  }
+
+  return (data || []).map((row: PublicationRow) => transformPublicationFromDB(row));
+}
+
+/**
+ * Get a single publication by ID (public for published).
+ * Uses anon client - RLS allows SELECT for published or own.
+ */
+export async function getPublicationById(publicationId: string): Promise<{
+  id: string;
+  projectId: string;
+  userId: string;
+  status: PublicationStatus;
+  title: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  authorDisplay: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+} | null> {
+  const { data, error } = await supabase
+    .from('publications')
+    .select('*')
+    .eq('id', publicationId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    throw new Error(`Failed to get publication: ${error.message}`);
+  }
+
+  if (!data || (data as PublicationRow).status !== 'published') {
+    return null;
+  }
+
+  return transformPublicationFromDB(data as PublicationRow);
+}
+
+/**
+ * Get publication by ID with chapters list (for reading page).
+ * Returns only published; chapters are minimal (id, number, title, hasTranslation).
+ */
+export async function getPublicationWithChapters(publicationId: string): Promise<{
+  publication: ReturnType<typeof transformPublicationFromDB>;
+  chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
+} | null> {
+  const pub = await getPublicationById(publicationId);
+  if (!pub) return null;
+
+  // Load chapters for this project (we need token for RLS on chapters - but chapters are under project owned by publication owner)
+  // Chapters are under project (private by RLS). Use service role to read chapters for published project.
+  let chapters: { id: string; number: number; title: string; translated_text: string | null }[] = [];
+  try {
+    const { createServiceRoleClient } = await import('./supabaseClient.js');
+    const serviceClient = createServiceRoleClient();
+    const { data } = await serviceClient
+      .from('chapters')
+      .select('id, number, title, translated_text')
+      .eq('project_id', pub.projectId)
+      .order('number', { ascending: true });
+    chapters = data || [];
+  } catch {
+    // Service role not configured: return publication without chapters (client can still show metadata)
+  }
+
+  const list = chapters.map((c) => ({
+    id: c.id,
+    number: c.number,
+    title: c.title,
+    hasTranslation: !!c.translated_text,
+  }));
+
+  return { publication: pub, chapters: list };
+}
+
+/**
+ * Get a single chapter's content for public reading (translated text only).
+ * Publication must be published; chapter must belong to the publication's project.
+ */
+export async function getPublicationChapterContent(
+  publicationId: string,
+  chapterId: string
+): Promise<{ id: string; number: number; title: string; translatedText: string } | null> {
+  const pub = await getPublicationById(publicationId);
+  if (!pub) return null;
+
+  let chapter: { id: string; number: number; title: string; translated_text: string | null } | null = null;
+  try {
+    const { createServiceRoleClient } = await import('./supabaseClient.js');
+    const serviceClient = createServiceRoleClient();
+    const { data, error } = await serviceClient
+      .from('chapters')
+      .select('id, number, title, translated_text')
+      .eq('id', chapterId)
+      .eq('project_id', pub.projectId)
+      .single();
+    if (error || !data) return null;
+    chapter = data;
+  } catch {
+    return null;
+  }
+
+  if (!chapter || !chapter.translated_text) return null;
+  return {
+    id: chapter.id,
+    number: chapter.number,
+    title: chapter.title,
+    translatedText: chapter.translated_text,
+  };
+}
+
+/**
+ * Create or update publication for a project (owner only).
+ */
+export async function createOrUpdatePublication(
+  projectId: string,
+  userId: string,
+  token: string,
+  data: {
+    status: 'draft' | 'published';
+    title?: string | null;
+    description?: string | null;
+    coverImageUrl?: string | null;
+    authorDisplay?: string | null;
+    sourceLanguage?: string;
+    targetLanguage?: string;
+  }
+): Promise<ReturnType<typeof transformPublicationFromDB>> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  // Ensure user owns the project
+  const project = await getProject(projectId, userId, token);
+  if (!project) {
+    throw new Error('Project not found');
+  }
+
+  const now = new Date().toISOString();
+  const isPublish = data.status === 'published';
+
+  const row = {
+    project_id: projectId,
+    user_id: userId,
+    status: data.status,
+    title: data.title ?? project.metadata?.title ?? project.name,
+    description: data.description ?? project.metadata?.description ?? null,
+    cover_image_url: data.coverImageUrl ?? project.metadata?.coverImageUrl ?? null,
+    author_display: data.authorDisplay ?? undefined,
+    source_language: data.sourceLanguage ?? project.sourceLanguage,
+    target_language: data.targetLanguage ?? project.targetLanguage,
+    published_at: isPublish ? now : null,
+    updated_at: now,
+  };
+
+  const { data: existing } = await client
+    .from('publications')
+    .select('id, published_at')
+    .eq('project_id', projectId)
+    .single();
+
+  if (existing) {
+    const updatePayload: Record<string, unknown> = {
+      status: data.status,
+      title: row.title,
+      description: row.description,
+      cover_image_url: row.cover_image_url,
+      source_language: row.source_language,
+      target_language: row.target_language,
+      updated_at: row.updated_at,
+    };
+    if (data.authorDisplay !== undefined) updatePayload.author_display = data.authorDisplay;
+    // Only set published_at when first publishing (keep "first published" date on subsequent updates)
+    if (isPublish && !(existing as { published_at?: string | null }).published_at) {
+      updatePayload.published_at = row.published_at;
+    }
+    // When unpublishing we don't clear published_at (keep history)
+
+    const { data: updated, error } = await client
+      .from('publications')
+      .update(updatePayload)
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update publication: ${error.message}`);
+    }
+    return transformPublicationFromDB(updated as PublicationRow);
+  }
+
+  const insertPayload = {
+    ...row,
+    author_display: row.author_display ?? null,
+  };
+
+  const { data: inserted, error } = await client
+    .from('publications')
+    .insert(insertPayload)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create publication: ${error.message}`);
+  }
+  return transformPublicationFromDB(inserted as PublicationRow);
+}
+
+/**
+ * Unpublish (set status to unpublished) or delete publication.
+ */
+export async function unpublishProject(projectId: string, userId: string, token: string): Promise<boolean> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('publications')
+    .update({ status: 'unpublished', updated_at: new Date().toISOString() })
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .select('id')
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return false;
+    }
+    throw new Error(`Failed to unpublish: ${error.message}`);
+  }
+  return !!data;
+}
+
+/**
+ * Get all publications for current user (any status).
+ */
+export async function getUserPublications(userId: string, token: string): Promise<ReturnType<typeof transformPublicationFromDB>[]> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('publications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to get user publications: ${error.message}`);
+  }
+  return (data || []).map((row: PublicationRow) => transformPublicationFromDB(row));
+}
+
+/**
+ * Get publication by project ID (for owner).
+ */
+export async function getPublicationByProjectId(projectId: string, userId: string, token: string): Promise<ReturnType<typeof transformPublicationFromDB> | null> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('publications')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !data) {
+    if (error?.code === 'PGRST116') return null;
+    if (error) throw new Error(`Failed to get publication: ${error.message}`);
+    return null;
+  }
+  return transformPublicationFromDB(data as PublicationRow);
+}

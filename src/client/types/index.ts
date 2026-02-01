@@ -189,6 +189,18 @@ export interface TranslateResponse {
   chapterId: string;
 }
 
+/** Options for chapter translate API and hooks (scope + stages). */
+export type TranslationStageKind = 'analysis' | 'translation' | 'editing';
+
+/** Stages to run: array (multi-select) or 'all'. */
+export type TranslationStages = TranslationStageKind[] | 'all';
+
+export interface ChapterTranslationOptions {
+  translateOnlyEmpty?: boolean;
+  paragraphIds?: string[];
+  stages?: TranslationStages;
+}
+
 export interface BulkUpdateResponse {
   updated: number;
   paragraphs: Paragraph[];
@@ -240,26 +252,41 @@ export interface RegisterResponse {
   user: AuthUser;
 }
 
-// === Token Usage ===
+// === Publications (public catalog) ===
 
-export interface TokenUsage {
-  date: string;
-  tokensUsed: number;
-  tokensLimit: number;
-  tokensRemaining: number;
-  percentageUsed: number;
-  tokensByStage?: {
-    analysis?: number;
-    translation: number;
-    editing?: number;
-  };
-  warning: boolean;
+export type PublicationStatus = 'draft' | 'published' | 'unpublished';
+
+export interface Publication {
+  id: string;
+  projectId: string;
+  userId: string;
+  status: PublicationStatus;
+  title: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  authorDisplay: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface TokenUsageHistory {
-  history: Array<{
-    date: string;
-    tokensUsed: number;
-    tokensLimit: number;
-  }>;
+export interface PublicationListItem {
+  id: string;
+  projectId: string;
+  status: PublicationStatus;
+  title: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  authorDisplay: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicationWithChapters extends Publication {
+  chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
 }

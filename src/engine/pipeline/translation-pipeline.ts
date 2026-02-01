@@ -7,8 +7,8 @@
  */
 
 import type { ILLMProvider } from '../interfaces/llm-provider.js';
-import type { PipelineResult, PipelineOptions } from '../types/pipeline.js';
-import type { ChapterSummary } from '../types/agent.js';
+import type { PipelineResult, PipelineOptions, StageResult } from '../types/pipeline.js';
+import type { ChapterSummary, AnalysisResult } from '../types/agent.js';
 import { NovelAgent } from '../agents/novel-agent.js';
 import { AnalyzeStage } from '../stages/stage-1-analyze.js';
 import { TranslateStage } from '../stages/stage-2-translate.js';
@@ -137,113 +137,217 @@ export class TranslationPipeline {
   ): Promise<PipelineResult> {
     const startTime = Date.now();
     let totalTokens = 0;
-    
-    // Get current context
     const context = this.agent.getContext();
-    
+    const updatedContext = this.agent.getContext();
+
+    const dummyStage1: StageResult<AnalysisResult> = {
+      stage: 'analyze',
+      success: true,
+      tokensUsed: 0,
+      duration: 0,
+      data: undefined,
+    };
+    const dummyStage2 = {
+      stage: 'translate' as const,
+      success: true,
+      tokensUsed: 0,
+      duration: 0,
+      data: { originalText: sourceText, translatedText: '', chunkResults: [] },
+    };
+    const dummyStage3 = { stage: 'edit' as const, success: true, tokensUsed: 0, duration: 0 };
+
+    // ============ RUN STAGES (multi-select or single) ============
+    const runStages = options.runStages;
+    const onlyAnalysis =
+      (runStages?.length === 1 && runStages[0] === 'analysis') ||
+      options.runOnlyStage === 'analysis';
+    const onlyEditing =
+      (runStages?.length === 1 && runStages[0] === 'editing') ||
+      (options.runOnlyStage === 'editing' && options.existingTranslatedTextForEdit != null);
+
+    if (onlyAnalysis) {
+      console.log(`[Pipeline] Run only: Analysis (chapter ${chapterNumber})`);
+      const stage1Result = await this.analyzeStage.execute(sourceText, {
+        chapterNumber,
+        existingGlossary: context.glossary,
+      });
+      totalTokens += stage1Result.tokensUsed;
+      if (stage1Result.success && stage1Result.data) {
+        this.agent.applyAnalysisResult(stage1Result.data);
+        console.log(`[Pipeline] Stage 1 complete. Found ${stage1Result.data.foundCharacters.length} characters, ${stage1Result.data.foundTerms.length} terms.`);
+      }
+      return {
+        chapterNumber,
+        originalText: sourceText,
+        stage1: stage1Result,
+        stage2: dummyStage2,
+        stage3: dummyStage3,
+        finalTranslation: '', // No translation; server only saves glossary
+        totalTokensUsed: totalTokens,
+        totalDuration: Date.now() - startTime,
+        updatedContext: this.agent.getContext(),
+      };
+    }
+
+    if (onlyEditing) {
+      const existingText = options.existingTranslatedTextForEdit ?? '';
+      console.log(`[Pipeline] Run only: Editing (chapter ${chapterNumber})`);
+      const stage3Result = await this.editStage.execute(
+        existingText,
+        sourceText,
+        { context: updatedContext, checkQuality: true, chunkSize: options.chunkSize }
+      );
+      totalTokens += stage3Result.tokensUsed;
+      const finalTranslation =
+        stage3Result.success && stage3Result.data
+          ? stage3Result.data.finalText
+          : existingText;
+      return {
+        chapterNumber,
+        originalText: sourceText,
+        stage1: dummyStage1,
+        stage2: { ...dummyStage2, data: { ...dummyStage2.data, translatedText: existingText } },
+        stage3: stage3Result,
+        finalTranslation,
+        totalTokensUsed: totalTokens,
+        totalDuration: Date.now() - startTime,
+        updatedContext: this.agent.getContext(),
+      };
+    }
+
     // ============ STAGE 1: ANALYZE ============
     let stage1Result;
-    
-    if (!options.skipAnalysis) {
+    const runStage1 = runStages
+      ? runStages.includes('analysis')
+      : !options.runOnlyStage && !options.skipAnalysis;
+    if (runStage1) {
       console.log(`[Pipeline] Stage 1: Analyzing chapter ${chapterNumber}...`);
-      
       stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
         existingGlossary: context.glossary,
       });
-      
       totalTokens += stage1Result.tokensUsed;
-      
       if (stage1Result.success && stage1Result.data) {
-        // Apply analysis results to agent
         this.agent.applyAnalysisResult(stage1Result.data);
         console.log(`[Pipeline] Stage 1 complete. Found ${stage1Result.data.foundCharacters.length} characters, ${stage1Result.data.foundTerms.length} terms.`);
       } else {
         console.warn(`[Pipeline] Stage 1 failed: ${stage1Result.error}`);
       }
     } else {
-      stage1Result = {
-        stage: 'analyze' as const,
-        success: true,
-        tokensUsed: 0,
-        duration: 0,
-      };
-      console.log('[Pipeline] Stage 1: Skipped (using existing glossary)');
+      stage1Result = dummyStage1;
+      if (!runStages || !runStages.includes('translation')) console.log('[Pipeline] Stage 1: Skipped');
     }
-    
+
     // ============ STAGE 2: TRANSLATE ============
+    const runStage2 = runStages
+      ? runStages.includes('translation')
+      : options.runOnlyStage === 'translation' || !options.runOnlyStage;
+    if (!runStage2) {
+      if (runStages?.includes('editing')) {
+        // Editing only: need existing text, handled above; should not reach here if onlyEditing was true
+        const existing = options.existingTranslatedTextForEdit ?? '';
+        if (!existing) {
+          return this.createFailedResult(
+            chapterNumber,
+            sourceText,
+            stage1Result,
+            dummyStage2,
+            dummyStage3,
+            totalTokens,
+            Date.now() - startTime,
+            'Editing stage requires existing translated text or run translation first'
+          );
+        }
+        const stage3Result = await this.editStage.execute(
+          existing,
+          sourceText,
+          { context: this.agent.getContext(), checkQuality: true, chunkSize: options.chunkSize }
+        );
+        totalTokens += stage3Result.tokensUsed;
+        const finalTranslation =
+          stage3Result.success && stage3Result.data
+            ? stage3Result.data.finalText
+            : existing;
+        return {
+          chapterNumber,
+          originalText: sourceText,
+          stage1: stage1Result,
+          stage2: { ...dummyStage2, data: { ...dummyStage2.data, translatedText: existing } },
+          stage3: stage3Result,
+          finalTranslation,
+          totalTokensUsed: totalTokens,
+          totalDuration: Date.now() - startTime,
+          updatedContext: this.agent.getContext(),
+        };
+      }
+      return this.createFailedResult(
+        chapterNumber,
+        sourceText,
+        stage1Result,
+        dummyStage2,
+        dummyStage3,
+        totalTokens,
+        Date.now() - startTime,
+        'Editing-only requires existingTranslatedTextForEdit'
+      );
+    }
     console.log(`[Pipeline] Stage 2: Translating...`);
-    console.log(`[Pipeline] translateStage exists: ${!!this.translateStage}, type: ${typeof this.translateStage}`);
-    
-    const updatedContext = this.agent.getContext();
-    
+    const ctxAfter1 = this.agent.getContext();
     const stage2Result = await this.translateStage.execute(sourceText, {
-      context: updatedContext,
+      context: ctxAfter1,
       chunkSize: options.chunkSize,
     });
-    
     totalTokens += stage2Result.tokensUsed;
-    
+
     if (!stage2Result.success || !stage2Result.data) {
       return this.createFailedResult(
         chapterNumber,
         sourceText,
         stage1Result,
         stage2Result,
-        { stage: 'edit', success: false, tokensUsed: 0, duration: 0 },
+        dummyStage3,
         totalTokens,
         Date.now() - startTime,
         `Translation failed: ${stage2Result.error}`
       );
     }
-    
     console.log(`[Pipeline] Stage 2 complete. Translated ${stage2Result.data.chunkResults.length} chunks.`);
-    
+
     // ============ STAGE 3: EDIT ============
     let stage3Result;
     let finalTranslation: string;
-    
-    if (!options.skipEditing) {
+    const runStage3 = runStages
+      ? runStages.includes('editing')
+      : !options.runOnlyStage && !options.skipEditing;
+    if (runStage3) {
       console.log(`[Pipeline] Stage 3: Editing...`);
-      
       stage3Result = await this.editStage.execute(
         stage2Result.data.translatedText,
         sourceText,
-        {
-          context: updatedContext,
-          checkQuality: true,
-          chunkSize: options.chunkSize, // Pass chunkSize for chunked editing
-        }
+        { context: ctxAfter1, checkQuality: true, chunkSize: options.chunkSize }
       );
-      
       totalTokens += stage3Result.tokensUsed;
-      
       if (stage3Result.success && stage3Result.data) {
         finalTranslation = stage3Result.data.finalText;
         console.log(`[Pipeline] Stage 3 complete. Quality score: ${stage3Result.data.qualityScore ?? 'N/A'}`);
       } else {
-        // Use stage 2 result if editing fails
         finalTranslation = stage2Result.data.translatedText;
         console.warn(`[Pipeline] Stage 3 failed, using raw translation: ${stage3Result.error}`);
       }
     } else {
-      stage3Result = {
-        stage: 'edit' as const,
-        success: true,
-        tokensUsed: 0,
-        duration: 0,
-      };
+      stage3Result = dummyStage3;
       finalTranslation = stage2Result.data.translatedText;
       console.log('[Pipeline] Stage 3: Skipped');
     }
     
     // ============ RECORD CHAPTER ============
+    const analysisData = stage1Result.data;
     const chapterSummary: ChapterSummary = {
       chapterNumber,
-      summary: stage1Result.data?.chapterSummary ?? '',
-      keyEvents: stage1Result.data?.keyEvents ?? [],
-      activeCharacters: stage1Result.data?.foundCharacters.map(c => c.name) ?? [],
-      location: stage1Result.data?.foundLocations[0]?.name ?? '',
+      summary: analysisData?.chapterSummary ?? '',
+      keyEvents: analysisData?.keyEvents ?? [],
+      activeCharacters: analysisData?.foundCharacters.map((c: { name: string }) => c.name) ?? [],
+      location: analysisData?.foundLocations[0]?.name ?? '',
     };
     
     this.agent.recordChapterTranslation(chapterSummary);

@@ -72,6 +72,21 @@
     "errorDeleteFailed": "Failed to delete chapter",
     "errorReorder": "Reorder error"
   },
+  "translationPanel": {
+    "scope": "Scope",
+    "scopeFull": "Full chapter",
+    "scopeEmpty": "Empty ({{count}})",
+    "scopeSelected": "Selected ({{count}})",
+    "stages": "Stages",
+    "stageAll": "All",
+    "stageAnalysisHint": "Analysis only, update glossary",
+    "stageTranslationHint": "Translation only",
+    "stageEditingHint": "Editing only, polish current translation",
+    "stageAllHint": "Analysis → Translation → Editing",
+    "estimatedTokens": "~{{tokens}} tokens",
+    "start": "Start",
+    "toggle": "Translation panel"
+  },
   "chapterList": {
     "title": "Chapters",
     "searchPlaceholder": "Search...",
@@ -156,6 +171,8 @@
     "statusConnected": "Connected",
     "statusApiNotConfigured": "API not configured",
     "logout": "Log out",
+    "login": "Log in",
+    "register": "Sign up",
     "appLanguage": "Language"
   },
   "glossary": {
@@ -328,7 +345,25 @@
     "timeSeconds": "s",
     "isbn": "ISBN:",
     "bookInSeries": "book {{n}}",
-    "tokenLimitExceededChapter": "Token limit exceeded while translating chapter \"{{title}}\": {{message}}"
+    "tokenLimitExceededChapter": "Token limit exceeded while translating chapter \"{{title}}\": {{message}}",
+    "publicationTitle": "Publication in catalog",
+    "publicationPublished": "Published in catalog. New chapters and edits appear automatically.",
+    "publicationUpdatesHint": "When you add chapters or edit text, readers see the updated version without republishing.",
+    "publicationNotPublished": "Publish the project to make it visible in the catalog for readers.",
+    "publicationView": "Open in catalog",
+    "updatePublication": "Update catalog info",
+    "publish": "Publish to catalog",
+    "unpublish": "Unpublish",
+    "unpublishConfirm": "Unpublish this work? It will be removed from the catalog.",
+    "unpublishError": "Failed to unpublish",
+    "publishError": "Failed to publish",
+    "publishRequiresChapters": "Add at least one chapter before publishing.",
+    "publishModalTitle": "Publish to catalog",
+    "publishModalHint": "Set title and description for the catalog card. Values are taken from the project and can be changed.",
+    "publishTitleLabel": "Title in catalog",
+    "publishDescriptionLabel": "Short description",
+    "publishDescriptionPlaceholder": "Description for the catalog card",
+    "publishAuthorLabel": "Translator (shown in catalog)"
   },
   "tokenUsage": {
     "loading": "Loading...",
@@ -372,6 +407,7 @@
     "noOriginalChaptersForReading": "No chapters with original text to read.",
     "needTranslateOneChapter": "Translate at least one chapter to use reading mode.",
     "backToProject": "Back to project",
+    "backToPublication": "Back to publication",
     "settingsTitle": "Reading settings",
     "noOriginalText": "No original text",
     "noTranslatedText": "No translated text"
@@ -422,6 +458,33 @@
     "hasUntranslatedChapters": "Has untranslated chapters",
     "allChaptersTranslated": "All chapters translated",
     "glossaryEntriesTitle": "Glossary entries"
+  },
+  "home": {
+    "title": "Publications",
+    "subtitle": "Published translations by authors",
+    "loading": "Loading catalog...",
+    "error": "Failed to load catalog",
+    "noPublications": "No publications yet",
+    "publishHint": "Publish your project from the cabinet to see it here.",
+    "emptyHintGuest": "Sign in or register to publish your translations.",
+    "read": "Read",
+    "catalogTab": "All translations",
+    "myWorksTab": "My works",
+    "noMyPublications": "You have no published works yet",
+    "emptyMyWorksHint": "Publish a project from the cabinet — it will appear here."
+  },
+  "cabinet": {
+    "title": "My projects",
+    "link": "Cabinet",
+    "catalog": "Catalog"
+  },
+  "publication": {
+    "untitled": "Untitled",
+    "unknownAuthor": "Unknown author",
+    "notFound": "Publication not found",
+    "chapters": "Chapters",
+    "notTranslated": "No translation",
+    "readingComingSoon": "Reading mode for publications will be available in the next update."
   },
   "status": {
     "pending": "Pending",

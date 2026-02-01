@@ -13,46 +13,59 @@ main {
   display: block; /* Single column on mobile */
   min-height: 100vh;
   position: relative;
+  /* z-index не задаём — хедер sticky с z-index: 1000 сам будет выше при прокрутке */
 }
 
 .sidebar {
   position: fixed;
-  top: 0;
+  top: var(--header-height-mobile);
   left: -100%;
   width: var(--sidebar-width-mobile);
   max-width: 320px; /* Максимальная ширина для больших мобильных */
-  height: 100vh;
+  height: calc(100vh - var(--header-height-mobile));
+  max-height: 100vh;
+  min-height: 0; /* Allow flex container to shrink so overflow-y scroll works */
   border-right: 1px solid var(--border);
-  z-index: 999; /* Below header (1000) */
+  z-index: 999; /* Below header (1000) by default */
   transition: left 0.3s ease;
   overflow-y: auto;
-  padding: var(--main-padding-mobile); /* Добавляем padding для отступов */
-  padding-top: calc(var(--main-padding-mobile) + 70px); /* Space for header */
-  padding-bottom: var(--main-padding-mobile); /* Отступ снизу */
+  overflow-x: hidden;
+  padding: var(--main-padding-mobile);
+  padding-bottom: var(--main-padding-mobile);
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  gap: 1rem; /* Добавляем gap между секциями */
+  gap: 1rem;
+  background: var(--bg-primary);
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
+/* Full-screen sidebar when open on mobile */
 .sidebar.mobile-open {
   left: 0;
+  top: 0; /* Full viewport height */
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
+  z-index: 1001; /* Above header to prevent overlap */
 }
 
 .sidebar-overlay {
   display: none;
   position: fixed;
-  top: 0;
+  top: var(--header-height-mobile);
   left: 0;
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 998;
   backdrop-filter: blur(4px);
+  touch-action: none; /* Prevent scroll passthrough to background */
 }
 
 .sidebar-overlay.active {
   display: block;
+  top: 0; /* Full viewport when sidebar is full-screen */
 }
 
 .content {
@@ -79,7 +92,22 @@ main {
   }
 
   .sidebar {
+    top: var(--header-height-tablet);
+    height: calc(100vh - var(--header-height-tablet));
     width: var(--sidebar-width-tablet);
+  }
+
+  .sidebar.mobile-open {
+    top: 0;
+    height: 100vh;
+  }
+
+  .sidebar-overlay {
+    top: var(--header-height-tablet);
+  }
+
+  .sidebar-overlay.active {
+    top: 0;
   }
 }
 
@@ -103,20 +131,42 @@ main {
   .sidebar {
     position: static;
     left: auto;
-    width: auto;
-    min-width: 0; /* Защита от overflow в grid */
+    width: 100%;
+    min-width: 0;
     height: auto;
-    padding: 0;
-    padding-top: 0;
+    min-height: calc(100vh - 88px);
+    padding: 0.75rem 1rem 1rem;
     box-shadow: none;
     border-right: none;
     overflow-y: visible;
-    /* Учитываем padding в ширину */
+    background: transparent;
     box-sizing: border-box;
+    align-self: stretch;
   }
 
   .sidebar-overlay {
     display: none !important;
+  }
+}
+
+/* Small mobile (≤480px) - уменьшенная высота хедера */
+@media (max-width: 480px) {
+  .sidebar {
+    top: var(--header-height-small);
+    height: calc(100vh - var(--header-height-small));
+  }
+
+  .sidebar.mobile-open {
+    top: 0;
+    height: 100vh;
+  }
+
+  .sidebar-overlay {
+    top: var(--header-height-small);
+  }
+
+  .sidebar-overlay.active {
+    top: 0;
   }
 }
 

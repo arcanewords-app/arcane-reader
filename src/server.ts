@@ -34,6 +34,14 @@ import {
   updateReaderSettings,
   getReaderSettings,
   resetStuckChapters,
+  listPublicationsPublic,
+  getPublicationById,
+  getPublicationWithChapters,
+  getPublicationChapterContent,
+  createOrUpdatePublication,
+  unpublishProject,
+  getUserPublications,
+  getPublicationByProjectId,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
 import {
@@ -55,7 +63,9 @@ import {
 } from './middleware/tokenLimits.js';
 import {
   estimateTokensForTranslation,
+  estimateTokensForStages,
   estimateTokensByStage,
+  type TranslationStages,
 } from './config/tokenLimits.js';
 import {
   translateChapterWithPipeline,
@@ -890,10 +900,20 @@ app.post(
         return res.status(404).json({ error: 'Chapter not found' });
       }
 
-      // Parse request body: translateOnlyEmpty and optional paragraphIds (subset to translate)
+      // Parse request body: translateOnlyEmpty, paragraphIds, stages (array or 'all')
       const body = req.body || {};
       const translateOnlyEmpty = body.translateOnlyEmpty === true;
       const paragraphIds = Array.isArray(body.paragraphIds) ? body.paragraphIds : undefined;
+      const stagesRaw = body.stages;
+      const validStage = (s: unknown): s is 'analysis' | 'translation' | 'editing' =>
+        s === 'analysis' || s === 'translation' || s === 'editing';
+      let stages: TranslationStages = 'all';
+      if (Array.isArray(stagesRaw) && stagesRaw.length > 0) {
+        const arr = stagesRaw.filter(validStage);
+        if (arr.length > 0) stages = [...new Set(arr)]; // unique, preserve order
+      } else if (stagesRaw === 'all') {
+        stages = 'all';
+      }
 
       const hasValidTranslation = (p: { translatedText?: string | null }) => {
         const t = p.translatedText?.trim() || '';
@@ -945,15 +965,8 @@ app.post(
       const translationModel = getStageModel('translation');
       const editingModel = getStageModel('editing');
 
-      // Check translation settings to determine which stages will run
-      const enableAnalysis = project.settings?.enableAnalysis ?? true;
-      const enableEditing = project.settings?.enableEditing ?? !config.translation.skipEditing;
-
-      // Estimate tokens needed for translation
-      const estimatedTokens = estimateTokensForTranslation(textLength, {
-        skipAnalysis: !enableAnalysis,
-        skipEditing: !enableEditing,
-      });
+      // Estimate tokens for the requested stages
+      const estimatedTokens = estimateTokensForStages(textLength, stages);
 
       // Check token limit before starting translation
       const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens);
@@ -1018,7 +1031,8 @@ app.post(
         translateOnlyEmpty,
         token,
         req.user.id,
-        paragraphIds
+        paragraphIds,
+        stages
       );
 
       res.json({ status: 'started', chapterId: chapter.id });
@@ -1028,7 +1042,12 @@ app.post(
   }
 );
 
-// Translation logic - uses arcane-engine
+/**
+ * Translation logic - uses arcane-engine.
+ * Glossary accumulates per project: new entries from the analysis stage are saved
+ * to the project and available for subsequent chapters. Stages (analysis |
+ * translation | editing | all) are passed from the API request body.
+ */
 async function performTranslation(
   projectId: string,
   chapterId: string,
@@ -1038,7 +1057,8 @@ async function performTranslation(
   translateOnlyEmpty: boolean = false,
   token: string,
   userId: string,
-  paragraphIds?: string[]
+  paragraphIds?: string[],
+  stages: TranslationStages = 'all'
 ): Promise<void> {
   try {
     // Validate input data
@@ -1106,14 +1126,18 @@ async function performTranslation(
     const editingModel = getStageModel('editing');
 
     const projectTemperature = project.settings?.temperature ?? config.translation.temperature;
-    const enableAnalysis = project.settings?.enableAnalysis ?? true;
-    const enableEditing = project.settings?.enableEditing ?? true;
 
-    const stagesInfo = [
-      enableAnalysis ? '✅ Анализ' : '⏭️ Анализ',
-      '✅ Перевод',
-      enableEditing ? '✅ Редактура' : '⏭️ Редактура',
-    ].join(' → ');
+    const stageLabels: Record<string, string> = {
+      analysis: 'Анализ',
+      translation: 'Перевод',
+      editing: 'Редактура',
+    };
+    const stagesInfo =
+      stages === 'all'
+        ? '✅ Анализ → ✅ Перевод → ✅ Редактура'
+        : Array.isArray(stages)
+          ? stages.map((s) => `✅ ${stageLabels[s] || s}`).join(' → ')
+          : '✅ Редактура';
 
     console.log(`🚀 Запуск arcane-engine TranslationPipeline...`);
     console.log(
@@ -1230,28 +1254,28 @@ async function performTranslation(
     }
 
     // Create project-specific config
-    // Note: Models are now passed per-stage via providers in createPipeline
-    // This config is used for other settings like temperature
     const projectConfig = {
       ...config,
       openai: {
         ...config.openai,
-        // Keep default model for compatibility, but actual models come from stageModels
-        model: translationModel, // Use translation model as default
+        model: translationModel,
       },
       translation: {
         ...config.translation,
         temperature: projectTemperature,
-        skipEditing: !enableEditing,
       },
     };
 
-    // Use arcane-engine for translation
+    // Use arcane-engine for translation (stages: array or 'all')
     let result;
     try {
+      const needsExistingText =
+        Array.isArray(stages) && stages.includes('editing') && !stages.includes('translation');
       result = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
-        skipAnalysis: !enableAnalysis,
-        skipEditing: !enableEditing,
+        stages,
+        existingTranslatedText: needsExistingText
+          ? (chapter.translatedText?.trim() || '') || undefined
+          : undefined,
       });
     } catch (pipelineError) {
       // Pipeline error - rethrow to outer catch block
@@ -1285,6 +1309,22 @@ async function performTranslation(
       console.log(`📚 Новые записи в глоссарии: ${result.glossaryUpdates.length}`);
     }
     console.log(`${'═'.repeat(60)}\n`);
+
+    // stages = ['analysis'] only: save glossary, don't update chapter translation
+    if (Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis') {
+      if (result.glossaryUpdates?.length) {
+        for (const entry of result.glossaryUpdates) {
+          await addGlossaryEntry(projectId, entry, token);
+        }
+      }
+      await updateChapter(projectId, chapterId, { status: 'completed' }, token);
+      try {
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+      } catch (tokenError) {
+        console.error('⚠️ Failed to update token usage (non-critical):', tokenError);
+      }
+      return;
+    }
 
     // Validate translation result
     const isValidTranslationResult =
@@ -1407,15 +1447,13 @@ async function performTranslation(
       syncedParagraphs = currentChapter.paragraphs.map((p) => syncedById.get(p.id) ?? p);
     }
 
-    // Create model info string showing all models used
+    // Create model info string based on stages run (analysis-only already returned above)
     const modelInfo =
-      enableAnalysis && enableEditing
+      stages === 'all'
         ? `${analysisModel}/${translationModel}/${editingModel}`
-        : enableAnalysis
-        ? `${analysisModel}/${translationModel}`
-        : enableEditing
-        ? `${translationModel}/${editingModel}`
-        : translationModel;
+        : Array.isArray(stages)
+          ? stages.map((s) => (s === 'analysis' ? analysisModel : s === 'translation' ? translationModel : editingModel)).join('/')
+          : editingModel;
 
     // Prepare translatedChunks for saving (use from parsedJSON or text-based chunks)
     const chunksToSave =
@@ -2953,6 +2991,149 @@ function sanitizeFilename(filename: string): string {
     .replace(/\s+/g, '_') // Replace spaces with underscores
     .substring(0, 100); // Limit length
 }
+
+// ============ Publications (public catalog) ============
+
+// List published publications (public, no auth)
+app.get('/api/publications', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 100);
+    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
+    const orderBy = (req.query.orderBy as string) === 'created_at' ? 'created_at' : 'published_at';
+    const orderAsc = req.query.orderAsc === 'true';
+    const list = await listPublicationsPublic({ limit, offset, orderBy, orderAsc });
+    res.json(list);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to list publications';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get single publication (public)
+app.get('/api/publications/:id', async (req, res) => {
+  try {
+    const pub = await getPublicationById(req.params.id);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+    res.json(pub);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get publication';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get publication with chapters list (public, for reading page)
+app.get('/api/publications/:id/chapters', async (req, res) => {
+  try {
+    const result = await getPublicationWithChapters(req.params.id);
+    if (!result) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+    res.json(result);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get publication';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get single chapter content for public reading (translated text only)
+app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
+  try {
+    const chapter = await getPublicationChapterContent(req.params.id, req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    res.json(chapter);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get chapter';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Publish project (auth required)
+app.post('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const projectId = req.params.projectId;
+    const body = req.body as {
+      status?: 'draft' | 'published';
+      title?: string | null;
+      description?: string | null;
+      coverImageUrl?: string | null;
+      authorDisplay?: string | null;
+      sourceLanguage?: string;
+      targetLanguage?: string;
+    };
+    const status = body.status ?? 'published';
+    const publication = await createOrUpdatePublication(
+      projectId,
+      userId,
+      token,
+      {
+        status,
+        title: body.title,
+        description: body.description,
+        coverImageUrl: body.coverImageUrl,
+        authorDisplay: body.authorDisplay ?? req.user!.email,
+        sourceLanguage: body.sourceLanguage,
+        targetLanguage: body.targetLanguage,
+      }
+    );
+    res.json(publication);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to publish';
+    res.status(400).json({ error: msg });
+  }
+});
+
+// Unpublish project (auth required)
+app.delete('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const projectId = req.params.projectId;
+    const ok = await unpublishProject(projectId, userId, token);
+    if (!ok) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to unpublish';
+    res.status(400).json({ error: msg });
+  }
+});
+
+// Get current user's publications (auth required)
+app.get('/api/user/publications', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const list = await getUserPublications(userId, token);
+    res.json(list);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get publications';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get publication for a project (owner only, auth required)
+app.get('/api/projects/:projectId/publication', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const projectId = req.params.projectId;
+    const pub = await getPublicationByProjectId(projectId, userId, token);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+    res.json(pub);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get publication';
+    res.status(500).json({ error: msg });
+  }
+});
 
 // ============ SPA Fallback ============
 

@@ -1,4 +1,4 @@
-import { Router } from 'preact-router';
+import { Router, route } from 'preact-router';
 import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
@@ -6,10 +6,12 @@ import { authService } from './services/authService';
 import { Header } from './components/Header';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { api } from './api/client';
-import { Dashboard } from './components/Dashboard';
+import { Dashboard, CatalogPage } from './pages';
 import { ProjectPage } from './pages/ProjectPage';
 import { ChapterPage } from './pages/ChapterPage';
 import { ReadingModePage } from './pages/ReadingModePage';
+import { PublicationPage } from './pages/PublicationPage';
+import { PublicationReadingPage } from './pages/PublicationReadingPage';
 
 type AppStatus = 'loading' | 'ready' | 'error';
 
@@ -19,11 +21,17 @@ export function AppRouter() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [emailForConfirmation, setEmailForConfirmation] = useState('');
   const [status, setStatus] = useState<AppStatus>('loading');
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Сайдбар есть только на /projects/* — показываем overlay и гамбургер только там
+  const [hasSidebar, setHasSidebar] = useState(
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/projects/')
+  );
 
   // Sync sidebar state to window for pages to access
   useEffect(() => {
@@ -42,32 +50,76 @@ export function AppRouter() {
     };
   }, []);
 
-  // Check authentication on mount
+  // Lock body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen && hasSidebar) {
+      // Lock scroll
+      document.body.style.overflow = 'hidden';
+      // For iOS - also lock position (optional, try without first)
+      // const scrollY = window.scrollY;
+      // document.body.style.position = 'fixed';
+      // document.body.style.top = `-${scrollY}px`;
+      // document.body.style.width = '100%';
+      
+      return () => {
+        // Restore scroll
+        document.body.style.overflow = '';
+        // if (document.body.style.position === 'fixed') {
+        //   const scrollY = parseInt(document.body.style.top || '0', 10);
+        //   document.body.style.position = '';
+        //   document.body.style.top = '';
+        //   document.body.style.width = '';
+        //   window.scrollTo(0, Math.abs(scrollY));
+        // }
+      };
+    }
+  }, [sidebarOpen, hasSidebar]);
+
+  // Check authentication on mount (do not auto-open modal for guests — they see public catalog)
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const user = await authService.getCurrentUser();
         setIsAuthenticated(!!user);
         setAuthUser(user);
-        
-        if (!user) {
-          setShowAuthModal(true);
-        }
       } catch (error) {
         console.error('Auth check failed:', error);
         setIsAuthenticated(false);
-        setShowAuthModal(true);
       }
     };
-    
     checkAuth();
   }, []);
+
+  // Open AuthModal when URL has ?login=required (e.g. after redirect from /cabinet)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === 'required') {
+      setAuthModalMode('login');
+      setShowAuthModal(true);
+    }
+  }, []);
+
+  // Protected routes: redirect guest from /cabinet and /projects/* to /?login=required
+  useEffect(() => {
+    if (isAuthenticated !== false) return;
+    const path = window.location.pathname;
+    if (path === '/cabinet' || path.startsWith('/projects/')) {
+      route('/');
+      const url = new URL(window.location.href);
+      url.pathname = '/';
+      url.searchParams.set('login', 'required');
+      window.history.replaceState({}, '', url.toString());
+      setAuthModalMode('login');
+      setShowAuthModal(true);
+    }
+  }, [isAuthenticated]);
 
   // Listen for authentication errors (401) from API client
   useEffect(() => {
     const handleAuthError = () => {
       setIsAuthenticated(false);
       setAuthUser(null);
+      setAuthModalMode('login');
       setShowAuthModal(true);
     };
 
@@ -110,12 +162,28 @@ export function AppRouter() {
     setAuthUser(user);
     setIsAuthenticated(true);
     setShowAuthModal(false);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === 'required') {
+      window.history.replaceState({}, '', window.location.pathname || '/');
+      route('/cabinet');
+    }
   };
 
   const handleLogout = async () => {
     await authService.logout();
     setAuthUser(null);
     setIsAuthenticated(false);
+    setShowAuthModal(false);
+    route('/');
+  };
+
+  const handleOpenLogin = () => {
+    setAuthModalMode('login');
+    setShowAuthModal(true);
+  };
+
+  const handleOpenRegister = () => {
+    setAuthModalMode('register');
     setShowAuthModal(true);
   };
 
@@ -134,31 +202,19 @@ export function AppRouter() {
     setSidebarOpen(false);
   };
 
-  // Determine if we're on dashboard (to hide sidebar)
-  // Use window.location.pathname since useLocation is not available in preact-router
-  const [isDashboard, setIsDashboard] = useState(
-    typeof window !== 'undefined' && 
-    (window.location.pathname === '/' || window.location.pathname === '')
-  );
-
-  // Update isDashboard when route changes
   useEffect(() => {
-    const checkDashboard = () => {
-      const newIsDashboard = window.location.pathname === '/' || window.location.pathname === '';
-      setIsDashboard(newIsDashboard);
-      // Close sidebar when navigating to dashboard
-      if (newIsDashboard) {
-        setSidebarOpen(false);
-      }
+    const checkPath = () => {
+      const path = window.location.pathname;
+      const newHasSidebar = path.startsWith('/projects/');
+      setHasSidebar(newHasSidebar);
+      if (!newHasSidebar) setSidebarOpen(false);
     };
 
-    // Check on popstate (back/forward navigation)
-    window.addEventListener('popstate', checkDashboard);
-    // Also check periodically for programmatic navigation
-    const interval = setInterval(checkDashboard, 100);
+    window.addEventListener('popstate', checkPath);
+    const interval = setInterval(checkPath, 100);
 
     return () => {
-      window.removeEventListener('popstate', checkDashboard);
+      window.removeEventListener('popstate', checkPath);
       clearInterval(interval);
     };
   }, []);
@@ -171,40 +227,37 @@ export function AppRouter() {
     );
   }
 
-  // If not authenticated - show auth modal
-  if (!isAuthenticated) {
-    return (
-      <div class="app">
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onSuccess={handleLogin}
-          onEmailNotConfirmed={handleEmailNotConfirmed}
-        />
-        {showEmailConfirmation && (
-          <EmailConfirmationModal
-            isOpen={showEmailConfirmation}
-            email={emailForConfirmation}
-            onClose={() => setShowEmailConfirmation(false)}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // If authenticated - show main app with routing
+  // Always render app: public catalog on / for everyone; guests see Header with Login/Register
   return (
     <div class="app">
-      <Header 
-        status={status} 
-        systemStatus={systemStatus} 
-        user={authUser} 
+      <AuthModal
+        isOpen={showAuthModal}
+        initialMode={authModalMode}
+        onSuccess={handleLogin}
+        onClose={() => setShowAuthModal(false)}
+        onEmailNotConfirmed={handleEmailNotConfirmed}
+      />
+      {showEmailConfirmation && (
+        <EmailConfirmationModal
+          isOpen={showEmailConfirmation}
+          email={emailForConfirmation}
+          onClose={() => setShowEmailConfirmation(false)}
+        />
+      )}
+
+      <Header
+        status={status}
+        systemStatus={systemStatus}
+        user={authUser}
         onLogout={handleLogout}
         onMenuToggle={handleMenuToggle}
+        onOpenLogin={handleOpenLogin}
+        onOpenRegister={handleOpenRegister}
       />
 
-      {/* Sidebar overlay for mobile */}
-      {!isDashboard && (
-        <div 
+      {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
+      {hasSidebar && (
+        <div
           class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
           onClick={handleSidebarClose}
         />
@@ -212,7 +265,11 @@ export function AppRouter() {
 
       <main>
         <Router>
-          <Dashboard path="/" />
+          <CatalogPage path="/" />
+          <CatalogPage path="/catalog" />
+          <Dashboard path="/cabinet" />
+          <PublicationPage path="/p/:publicationId" />
+          <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
           <ProjectPage path="/projects/:projectId" />
           <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
           <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />

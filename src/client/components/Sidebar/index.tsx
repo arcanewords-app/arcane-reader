@@ -51,10 +51,32 @@ export function Sidebar({
     }
   };
 
+  const handleCloseSidebar = () => {
+    (window as any).__arcaneSidebarOpen = false;
+    window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
+  };
+
   return (
     <>
       <aside class={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
-        {/* Quick link to projects dashboard */}
+        {/* Mobile header with close button (only on mobile when open) */}
+        {isMobileOpen && (
+          <div class="sidebar-mobile-header">
+            <div class="sidebar-mobile-title">
+              <img src="/arcane_icon.png" alt="Arcane" class="sidebar-mobile-logo" />
+              <span>ARCANE</span>
+            </div>
+            <button 
+              class="sidebar-mobile-close" 
+              onClick={handleCloseSidebar}
+              aria-label={t('common.close')}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Quick link to projects dashboard (cabinet) */}
         <Button 
           variant="secondary" 
           onClick={() => {
@@ -63,7 +85,7 @@ export function Sidebar({
               (window as any).__arcaneSidebarOpen = false;
               window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
             }
-            route('/');
+            route('/cabinet');
           }}
           className="sidebar-dashboard-link"
         >

@@ -72,6 +72,21 @@
     "errorDeleteFailed": "Не удалось удалить главу",
     "errorReorder": "Ошибка изменения порядка"
   },
+  "translationPanel": {
+    "scope": "Объём",
+    "scopeFull": "Вся глава",
+    "scopeEmpty": "Пустые ({{count}})",
+    "scopeSelected": "Выбранные ({{count}})",
+    "stages": "Стадии",
+    "stageAll": "Всё",
+    "stageAnalysisHint": "Только анализ, обновление глоссария",
+    "stageTranslationHint": "Только перевод",
+    "stageEditingHint": "Только редактура текущего перевода",
+    "stageAllHint": "Анализ → Перевод → Редактура",
+    "estimatedTokens": "~{{tokens}} токенов",
+    "start": "Запустить",
+    "toggle": "Панель перевода"
+  },
   "chapterList": {
     "title": "Главы",
     "searchPlaceholder": "Поиск...",
@@ -156,6 +171,8 @@
     "statusConnected": "Подключено",
     "statusApiNotConfigured": "API не настроен",
     "logout": "Выйти",
+    "login": "Войти",
+    "register": "Регистрация",
     "appLanguage": "Язык"
   },
   "glossary": {
@@ -328,7 +345,25 @@
     "timeSeconds": "сек",
     "isbn": "ISBN:",
     "bookInSeries": "книга {{n}}",
-    "tokenLimitExceededChapter": "Лимит токенов превышен при переводе главы \"{{title}}\": {{message}}"
+    "tokenLimitExceededChapter": "Лимит токенов превышен при переводе главы \"{{title}}\": {{message}}",
+    "publicationTitle": "Публикация в каталоге",
+    "publicationPublished": "Произведение опубликовано в каталоге. Новые главы и правки отображаются автоматически.",
+    "publicationUpdatesHint": "При добавлении глав или изменении текста читатели увидят обновлённую версию без повторной публикации.",
+    "publicationNotPublished": "Опубликуйте проект, чтобы он появился в каталоге для читателей.",
+    "publicationView": "Открыть в каталоге",
+    "updatePublication": "Обновить данные в каталоге",
+    "publish": "Опубликовать в каталоге",
+    "unpublish": "Снять с публикации",
+    "unpublishConfirm": "Снять произведение с публикации? Оно исчезнет из каталога.",
+    "unpublishError": "Не удалось снять с публикации",
+    "publishError": "Не удалось опубликовать",
+    "publishRequiresChapters": "Добавьте хотя бы одну главу перед публикацией.",
+    "publishModalTitle": "Опубликовать в каталоге",
+    "publishModalHint": "Укажите название и описание для карточки в каталоге. Данные берутся из проекта, их можно изменить.",
+    "publishTitleLabel": "Название в каталоге",
+    "publishDescriptionLabel": "Краткое описание",
+    "publishDescriptionPlaceholder": "Описание произведения для карточки в каталоге",
+    "publishAuthorLabel": "Автор перевода (отображается в каталоге)"
   },
   "tokenUsage": {
     "loading": "Загрузка...",
@@ -372,6 +407,7 @@
     "noOriginalChaptersForReading": "Нет глав с оригинальным текстом для чтения.",
     "needTranslateOneChapter": "Для использования режима чтения нужно перевести хотя бы одну главу.",
     "backToProject": "Вернуться к проекту",
+    "backToPublication": "Вернуться к публикации",
     "settingsTitle": "Настройки чтения",
     "noOriginalText": "Нет оригинального текста",
     "noTranslatedText": "Нет переведенного текста"
@@ -422,6 +458,33 @@
     "hasUntranslatedChapters": "Есть непереведенные главы",
     "allChaptersTranslated": "Все главы переведены",
     "glossaryEntriesTitle": "Записей в глоссарии"
+  },
+  "home": {
+    "title": "Публикации",
+    "subtitle": "Опубликованные переводы от авторов",
+    "loading": "Загрузка каталога...",
+    "error": "Не удалось загрузить каталог",
+    "noPublications": "Пока нет публикаций",
+    "publishHint": "Опубликуйте свой проект в кабинете, чтобы он появился здесь.",
+    "emptyHintGuest": "Войдите или зарегистрируйтесь, чтобы публиковать свои переводы.",
+    "read": "Читать",
+    "catalogTab": "Все переводы",
+    "myWorksTab": "Мои работы",
+    "noMyPublications": "У вас пока нет опубликованных работ",
+    "emptyMyWorksHint": "Опубликуйте проект в кабинете — он появится здесь."
+  },
+  "cabinet": {
+    "title": "Мои проекты",
+    "link": "Кабинет",
+    "catalog": "Каталог"
+  },
+  "publication": {
+    "untitled": "Без названия",
+    "unknownAuthor": "Неизвестный автор",
+    "notFound": "Публикация не найдена",
+    "chapters": "Главы",
+    "notTranslated": "Нет перевода",
+    "readingComingSoon": "Режим чтения публикаций будет доступен в следующем обновлении."
   },
   "status": {
     "pending": "Ожидает",
