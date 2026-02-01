@@ -117,6 +117,102 @@
 }
 
 .translation-panel-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);
+}
+
+/* Responsive Styles */
+@media (max-width: 767px) {
+  .translation-panel {
+    padding: 0.875rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .translation-panel-scope {
+    gap: 0.5rem;
+  }
+
+  .translation-panel-radio {
+    font-size: 0.8125rem;
+  }
+
+  .translation-panel-stages {
+    gap: 0.375rem;
+  }
+
+  .translation-panel-stage-btn {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8rem;
+  }
+
+  .translation-panel-buttons {
+    gap: 0.375rem;
+  }
+
+  .translation-panel-buttons .btn {
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .translation-panel {
+    padding: 0.75rem;
+  }
+
+  .translation-panel-scope {
+    gap: 0.375rem;
+  }
+
+  .translation-panel-radio {
+    font-size: 0.75rem;
+  }
+
+  .translation-panel-stages {
+    gap: 0.25rem;
+  }
+
+  .translation-panel-stage-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .translation-panel-buttons {
+    gap: 0.25rem;
+  }
+
+  .translation-panel-buttons .btn {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.625rem;
+    min-height: 36px;
+  }
+
+  .translation-panel-label {
+    font-size: 0.8rem;
+  }
+
+  .translation-panel-estimate {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .translation-panel {
+    padding: 0.625rem;
+  }
+
+  .translation-panel-buttons .btn {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    min-height: 32px;
+  }
+
+  .translation-panel-stage-btn {
+    padding: 0.25rem 0.375rem;
+    font-size: 0.7rem;
+  }
 }

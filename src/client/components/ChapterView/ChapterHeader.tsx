@@ -20,6 +20,9 @@ interface ChapterHeaderProps {
   onChapterUpdate: (chapter: Chapter) => void;
   translating: boolean;
   isOriginalReadingMode?: boolean;
+  /** Mark chapter as translated (shown in originalReadingMode when panel is hidden) */
+  onMarkAsTranslated?: () => void;
+  markingAsTranslated?: boolean;
 }
 
 export function ChapterHeader({
@@ -37,6 +40,8 @@ export function ChapterHeader({
   onChapterUpdate,
   translating,
   isOriginalReadingMode = false,
+  onMarkAsTranslated,
+  markingAsTranslated = false,
 }: ChapterHeaderProps) {
   const { t } = useTranslation();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -152,6 +157,15 @@ export function ChapterHeader({
         >
           ▶
         </button>
+        
+        {/* Settings button - в навигации, а не в actions */}
+        <button
+          class="chapter-nav-btn chapter-settings-btn"
+          onClick={onToggleSettings}
+          title={t('reader.displaySettings')}
+        >
+          ⚙️
+        </button>
       </div>
 
       <div class="chapter-actions">
@@ -182,14 +196,17 @@ export function ChapterHeader({
           </Button>
         )}
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onToggleSettings}
-          title={t('reader.displaySettings')}
-        >
-          ⚙️
-        </Button>
+        {isOriginalReadingMode && onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'error') && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onMarkAsTranslated}
+            disabled={translating || markingAsTranslated}
+            title={t('markAsTranslated.title', 'Пометить как переведённую')}
+          >
+            {markingAsTranslated ? <span class="spinner" /> : '✅'} {t('markAsTranslated.button', 'Пометить как переведённую')}
+          </Button>
+        )}
       </div>
     </div>
   );

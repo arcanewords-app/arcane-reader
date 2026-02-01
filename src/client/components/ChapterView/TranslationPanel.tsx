@@ -23,6 +23,9 @@ interface TranslationPanelProps {
   onDeselectAll: () => void;
   onCancelTranslation: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
+  /** Mark current content as ready-made translation (one click) */
+  onMarkAsTranslated?: () => void;
+  markingAsTranslated?: boolean;
 }
 
 /** Get text length for scope (for token estimate). */
@@ -60,6 +63,8 @@ export function TranslationPanel({
   onSelectAllEmpty,
   onDeselectAll,
   onCancelTranslation,
+  onMarkAsTranslated,
+  markingAsTranslated = false,
 }: TranslationPanelProps) {
   const { t } = useTranslation();
 
@@ -208,19 +213,32 @@ export function TranslationPanel({
             ⏹ {t('chapter.cancelTranslate')}
           </Button>
         ) : (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleStart}
-            disabled={
-              selectedStages.length === 0 ||
-              (scope === 'empty' && emptyCount === 0) ||
-              (scope === 'selected' && selectedParagraphIds.length === 0) ||
-              chapter.status === 'translating'
-            }
-          >
-            🔮 {t('translationPanel.start', 'Запустить')}
-          </Button>
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleStart}
+              disabled={
+                selectedStages.length === 0 ||
+                (scope === 'empty' && emptyCount === 0) ||
+                (scope === 'selected' && selectedParagraphIds.length === 0) ||
+                chapter.status === 'translating'
+              }
+            >
+              🔮 {t('translationPanel.start', 'Запустить')}
+            </Button>
+            {onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'error') && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onMarkAsTranslated}
+                disabled={translating || markingAsTranslated}
+                title={t('markAsTranslated.title', 'Пометить как переведённую')}
+              >
+                {markingAsTranslated ? <span class="spinner" /> : '✅'} {t('markAsTranslated.button', 'Пометить как переведённую')}
+              </Button>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -527,27 +527,31 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
         const syncedParagraphs = autoSyncChunksToParagraphs(paragraphs, chapterData.translatedChunks);
         
         if (syncedParagraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0)) {
-          // Update paragraphs in database
-          await Promise.all(
-            syncedParagraphs.map(async (paragraph: Paragraph) => {
-              const paragraphData: any = {};
-              if (paragraph.translatedText !== undefined)
-                paragraphData.translated_text = paragraph.translatedText || null;
-              if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-              if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
-              if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
+          // Update paragraphs in database (batched)
+          const BATCH_SIZE = 15;
+          for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
+            const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
+            await Promise.all(
+              batch.map(async (paragraph: Paragraph) => {
+                const paragraphData: any = {};
+                if (paragraph.translatedText !== undefined)
+                  paragraphData.translated_text = paragraph.translatedText || null;
+                if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
+                if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
+                if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
 
-              const { error } = await client
-                .from('paragraphs')
-                .update(paragraphData)
-                .eq('id', paragraph.id)
-                .eq('chapter_id', chapter.id);
-
-              if (error) {
-                console.error(`Failed to update paragraph ${paragraph.id}:`, error.message);
-              }
-            })
-          );
+                const { error } = await client
+                  .from('paragraphs')
+                  .update(paragraphData)
+                  .eq('id', paragraph.id)
+                  .eq('chapter_id', chapter.id);
+                if (error) console.error(`[loadChapters auto-recovery] Failed ${paragraph.id}:`, error.message);
+              })
+            );
+            if (i + BATCH_SIZE < syncedParagraphs.length) {
+              await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+          }
 
           // Reload updated paragraphs
           paragraphs = await loadParagraphsForChapter(chapter.id, token);
@@ -731,33 +735,40 @@ export async function updateChapter(
     throw new Error(`Failed to update chapter: ${error.message}`);
   }
 
-  // Update paragraphs if provided
+  // Update paragraphs if provided (batched to avoid connection exhaustion)
   if (updates.paragraphs && Array.isArray(updates.paragraphs)) {
-    // Update each paragraph individually
-    // Use Promise.all for parallel updates
-    await Promise.all(
-      updates.paragraphs.map(async (paragraph) => {
-        const paragraphData: any = {};
-        if (paragraph.translatedText !== undefined)
-          paragraphData.translated_text = paragraph.translatedText || null;
-        if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-        if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
-        if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
+    const BATCH_SIZE = 15;
+    let successCount = 0;
+    let failCount = 0;
 
-        const { error } = await client
-          .from('paragraphs')
-          .update(paragraphData)
-          .eq('id', paragraph.id)
-          .eq('chapter_id', chapterId);
+    for (let i = 0; i < updates.paragraphs.length; i += BATCH_SIZE) {
+      const batch = updates.paragraphs.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (paragraph) => {
+          const paragraphData: any = {};
+          if (paragraph.translatedText !== undefined)
+            paragraphData.translated_text = paragraph.translatedText || null;
+          if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
+          if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
+          if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
 
-        if (error) {
-          console.error(`Failed to update paragraph ${paragraph.id}:`, error.message);
-          // Don't throw - continue with other paragraphs
-        }
-      })
-    );
+          const { error } = await client
+            .from('paragraphs')
+            .update(paragraphData)
+            .eq('id', paragraph.id)
+            .eq('chapter_id', chapterId);
 
-    console.log(`📝 Обновлено ${updates.paragraphs.length} параграфов в БД`);
+          return { id: paragraph.id, error };
+        })
+      );
+
+      results.forEach((r) => (r.error ? failCount++ : successCount++));
+      if (i + BATCH_SIZE < updates.paragraphs.length) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    console.log(`📝 Параграфы: обновлено ${successCount}, ошибок ${failCount}, всего ${updates.paragraphs.length}`);
   }
 
   // Update project updated_at
@@ -765,6 +776,12 @@ export async function updateChapter(
 
   // Reload with paragraphs (will load updated paragraphs from DB)
   const paragraphs = await loadParagraphsForChapter(chapter.id, token);
+  const withTranslation = paragraphs.filter((p) => p.translatedText && p.translatedText.trim().length > 0).length;
+  if (updates.paragraphs && updates.paragraphs.length > 0 && withTranslation !== updates.paragraphs.length) {
+    console.log(
+      `[updateChapter] После перезагрузки: загружено ${paragraphs.length} параграфов, с переводом ${withTranslation} (ожидалось ${updates.paragraphs.length})`
+    );
+  }
   return transformChapterFromDB(chapter, paragraphs);
 }
 
@@ -884,28 +901,35 @@ export async function getChapter(
     
     const syncedParagraphs = autoSyncChunksToParagraphs(paragraphs, chapterData.translatedChunks);
     
-    if (syncedParagraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0)) {
-      // Update paragraphs in database
-      await Promise.all(
-        syncedParagraphs.map(async (paragraph: Paragraph) => {
-          const paragraphData: any = {};
-          if (paragraph.translatedText !== undefined)
-            paragraphData.translated_text = paragraph.translatedText || null;
-          if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-          if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
-          if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
+      if (syncedParagraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0)) {
+      // Update paragraphs in database (batched to avoid fetch exhaustion)
+      const BATCH_SIZE = 15;
+      for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
+        const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map(async (paragraph: Paragraph) => {
+            const paragraphData: any = {};
+            if (paragraph.translatedText !== undefined)
+              paragraphData.translated_text = paragraph.translatedText || null;
+            if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
+            if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
+            if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
 
-          const { error } = await client
-            .from('paragraphs')
-            .update(paragraphData)
-            .eq('id', paragraph.id)
-            .eq('chapter_id', chapterId);
-
-          if (error) {
-            console.error(`Failed to update paragraph ${paragraph.id}:`, error.message);
-          }
-        })
-      );
+            const { error } = await client
+              .from('paragraphs')
+              .update(paragraphData)
+              .eq('id', paragraph.id)
+              .eq('chapter_id', chapterId);
+            return { id: paragraph.id, error };
+          })
+        );
+        results.forEach((r) => {
+          if (r.error) console.error(`[auto-recovery] Failed paragraph ${r.id}:`, r.error.message);
+        });
+        if (i + BATCH_SIZE < syncedParagraphs.length) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      }
 
       // Reload updated paragraphs
       paragraphs = await loadParagraphsForChapter(chapter.id, token);

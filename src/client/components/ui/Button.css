@@ -1,4 +1,7 @@
-/* Button Component Styles */
+/* =============================================================
+   Button Component - Modern & Accessible
+   WCAG AA+ compliant, simplified styles
+   ============================================================= */
 
 .btn {
   display: inline-flex;
@@ -6,88 +9,66 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 10px;
+  min-height: 44px;
+  min-width: 44px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
   font-family: var(--font-display);
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 550;
+  line-height: 1.2;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--duration-normal) var(--ease-standard);
   position: relative;
-  overflow: hidden;
+  white-space: nowrap;
 }
 
-.btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.btn:hover::before {
-  left: 100%;
-}
-
+/* === Primary Button === */
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+  background: var(--accent);
   color: white;
-  box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.3);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(157, 111, 255, 0.3);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 24px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.5),
-    0 0 32px rgba(139, 92, 246, 0.3);
-}
-
-.btn-primary:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.btn-secondary {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.btn-secondary:hover {
-  background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
-  border-color: var(--accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
-    0 0 20px rgba(139, 92, 246, 0.1);
+  background: var(--accent-bright);
+  border-color: var(--accent-bright);
+  box-shadow: 0 4px 16px rgba(157, 111, 255, 0.4);
   transform: translateY(-1px);
 }
 
-.btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(157, 111, 255, 0.3);
 }
 
-.btn-full {
-  width: 100%;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-/* Glossary Button Variant */
-.btn-glossary {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(26, 26, 36, 0.8) 100%);
+/* === Secondary Button === */
+.btn-secondary {
+  background: var(--bg-card);
   color: var(--text-primary);
-  border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--accent-bright);
+  box-shadow: 0 2px 8px rgba(157, 111, 255, 0.2);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* === Glossary Button Variant === */
+.btn-glossary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
   width: 100%;
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,18 +76,60 @@
 }
 
 .btn-glossary:hover {
-  background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
-  border-color: var(--accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
-    0 0 20px rgba(139, 92, 246, 0.1);
-  transform: translateY(-1px);
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--accent-bright);
+  box-shadow: 0 2px 8px rgba(157, 111, 255, 0.2);
 }
 
 .btn-glossary .glossary-count {
   background: var(--accent);
   color: white;
-  padding: 0.15rem 0.5rem;
-  border-radius: 10px;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 650;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* === Button Sizes === */
+.btn-sm {
+  padding: 0.625rem 1.25rem;
+  min-height: 40px;
+  min-width: 40px;
+  font-size: 0.9375rem;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* === Disabled State === */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+/* === Focus State (Accessibility) === */
+.btn:focus-visible {
+  outline: 3px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+/* === Loading Spinner === */
+.btn .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

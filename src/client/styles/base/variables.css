@@ -1,33 +1,69 @@
 /* =============================================================
-   CSS Variables & Theme
+   CSS Variables & Theme - UX Refactored 2026
+   WCAG AA+ compliant colors, modern typography
    ============================================================= */
 :root {
-  /* Base UI colors (always dark theme for UI) */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #12121a;
-  --bg-card: #1a1a24;
-  --bg-hover: #22222e;
-  --accent: #8b5cf6;
-  --accent-dim: #6d28d9;
-  --accent-glow: rgba(139, 92, 246, 0.3);
-  --text-primary: #e8e6f0;
-  --text-secondary: #9ca3af;
-  --text-dim: #6b7280;
-  --border: #2a2a3a;
-  --success: #10b981;
+  /* ===== TYPOGRAPHY ===== */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* ===== COLOR SYSTEM ===== */
+  /* Base UI colors - improved contrast for WCAG AA+ */
+  --bg-primary: #0d0d12;
+  --bg-secondary: #15151d;
+  --bg-card: #1d1d28;
+  --bg-hover: #25252f;
+  
+  /* Text colors - WCAG AA+ compliant (4.5:1 minimum) */
+  --text-primary: #f0f0f3;
+  --text-secondary: #b4b9c5;
+  --text-dim: #878d9a;
+  
+  /* Accent colors - improved contrast */
+  --accent: #9d6fff;
+  --accent-dim: #7c3aed;
+  --accent-bright: #b794ff;
+  --accent-glow: rgba(157, 111, 255, 0.35);
+  
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(157, 111, 255, 0.3);
+  --border-focus: rgba(157, 111, 255, 0.5);
+  
+  /* Status colors */
+  --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
-  --font-display: 'Cormorant Garamond', serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* ===== SPACING SYSTEM ===== */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  
+  /* ===== BORDER RADIUS ===== */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  
+  /* ===== TRANSITIONS ===== */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.2s;
+  --duration-slow: 0.3s;
 
-  /* Reader settings (customizable) */
+  /* ===== READER SETTINGS ===== */
   --reader-font: 'Literata', Georgia, serif;
   --reader-font-size: 18px;
-  --reader-line-height: 1.7;
+  --reader-line-height: 1.75;
   --reader-paragraph-spacing: 1.2em;
   --reader-bg: #1a1a2e;
-  --reader-text: #e4e4e7;
-  --reader-text-dim: #9ca3af;
+  --reader-text: #f0f0f3;
+  --reader-text-dim: #b4b9c5;
 
   /* =============================================================
      RESPONSIVE LAYOUT - Fixed Sizes for 3 Devices
@@ -150,9 +186,9 @@
 
 [data-reader-theme='dark'] {
   --reader-bg: #1a1a2e;
-  --reader-text: #e4e4e7;
-  --reader-text-dim: #9ca3af;
-  --reader-accent: #8b5cf6;
+  --reader-text: #f0f0f3;
+  --reader-text-dim: #b4b9c5;
+  --reader-accent: #9d6fff;
 }
 
 [data-reader-theme='light'] {

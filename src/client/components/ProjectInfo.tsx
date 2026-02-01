@@ -332,6 +332,17 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     batch.startBatch(chaptersToTranslate, { stages: batchSelectedStages });
   };
 
+  // Mark selected chapters as translated (no AI, sequential)
+  const handleMarkAsTranslatedBatch = () => {
+    const chaptersToMark = selectedChaptersForTranslate;
+    if (chaptersToMark.length === 0) {
+      alert(t('projectInfo.selectOneChapter'));
+      return;
+    }
+    setShowTranslateAllModal(false);
+    batch.startMarkAsTranslatedBatch(chaptersToMark);
+  };
+
   const handleCancelTranslation = useCallback(() => {
     batch.cancel();
   }, [batch.cancel]);
@@ -1200,6 +1211,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               }}
             >
               {t('common.cancel')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleMarkAsTranslatedBatch}
+              disabled={selectedChaptersForTranslate.length === 0}
+              title={t('markAsTranslated.batchTitle', 'Пометить выбранные главы как переведённые')}
+            >
+              ✅ {t('markAsTranslated.batchButton', { count: selectedChaptersForTranslate.length }, `Пометить (${selectedChaptersForTranslate.length})`)}
             </Button>
             <Button
               onClick={handleTranslateAll}

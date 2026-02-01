@@ -1,9 +1,20 @@
 import { supabase } from './supabaseClient.js';
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { parseRole } from '../types/roles.js';
+
+const DEFAULT_ROLE = 'author' as const;
+
+async function getProfileRole(client: SupabaseClient, userId: string): Promise<AuthUser['role']> {
+  const { data } = await client.from('profiles').select('role').eq('id', userId).single();
+  const role = parseRole(data?.role);
+  return role === 'guest' ? DEFAULT_ROLE : role;
+}
 
 export interface AuthUser {
   id: string;
   email: string;
+  role: 'author' | 'author_plus' | 'super_author' | 'admin';
 }
 
 export const authService = {
@@ -24,10 +35,11 @@ export const authService = {
       throw new Error('Registration failed: No user data returned');
     }
 
-    // Profile will be created automatically by trigger handle_new_user()
+    // Profile will be created automatically by trigger handle_new_user() with role = 'author'
     return {
       id: data.user.id,
       email: data.user.email!,
+      role: 'author',
     };
   },
 
@@ -48,9 +60,11 @@ export const authService = {
       throw new Error('Login failed: No user data returned');
     }
 
+    const role = await getProfileRole(supabase, data.user.id);
     return {
       id: data.user.id,
       email: data.user.email!,
+      role,
     };
   },
 
@@ -74,9 +88,11 @@ export const authService = {
       return null;
     }
 
+    const role = await getProfileRole(supabase, user.id);
     return {
       id: user.id,
       email: user.email!,
+      role,
     };
   },
 
@@ -101,9 +117,18 @@ export const authService = {
       return null;
     }
 
+    const { data: profile } = await supabaseWithToken
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = parseRole(profile?.role);
+
     return {
       id: user.id,
       email: user.email!,
+      role: role === 'guest' ? 'author' : role,
     };
   },
 

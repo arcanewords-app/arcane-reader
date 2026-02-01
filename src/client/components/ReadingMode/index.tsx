@@ -53,20 +53,22 @@ export function ReadingMode({
   // Determine reading mode (project mode only)
   const isOriginalReadingMode = !isPublicationMode && (project?.settings?.originalReadingMode ?? false);
 
-  // Project mode: filter and load chapters from project
+  // Publication mode: set chapters from catalog and initial index (own effect so project mode doesn't depend on publicationChapters reference)
   useEffect(() => {
-    if (isPublicationMode) {
-      const list: ReaderChapter[] = publicationChapters.map((ch) => ({ ...ch }));
-      setChapters(list);
-      if (list.length > 0) {
-        const idx = initialChapterId
-          ? list.findIndex((ch) => ch.id === initialChapterId)
-          : 0;
-        setCurrentChapterIndex(idx >= 0 ? idx : 0);
-      }
-      return;
+    if (!isPublicationMode) return;
+    const list: ReaderChapter[] = publicationChapters.map((ch) => ({ ...ch }));
+    setChapters(list);
+    if (list.length > 0) {
+      const idx = initialChapterId
+        ? list.findIndex((ch) => ch.id === initialChapterId)
+        : 0;
+      setCurrentChapterIndex(idx >= 0 ? idx : 0);
     }
-    if (!project) return;
+  }, [isPublicationMode, publicationChapters, initialChapterId]);
+
+  // Project mode: filter and load chapters from project (separate effect so it only runs when project/initialChapterId change, not on every render)
+  useEffect(() => {
+    if (isPublicationMode || !project) return;
 
     let availableChapters: Chapter[];
     if (isOriginalReadingMode) {
@@ -75,7 +77,12 @@ export function ReadingMode({
         .sort((a, b) => a.number - b.number);
     } else {
       availableChapters = project.chapters
-        .filter((ch) => ch.status === 'completed' && ch.translatedText)
+        .filter(
+          (ch) =>
+            ch.status === 'completed' &&
+            (ch.translatedText ||
+              (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)))
+        )
         .sort((a, b) => a.number - b.number);
     }
 
@@ -86,7 +93,7 @@ export function ReadingMode({
         : 0;
       setCurrentChapterIndex(chapterIndex >= 0 ? chapterIndex : 0);
     }
-  }, [project, initialChapterId, isPublicationMode, publicationChapters]);
+  }, [isPublicationMode, project, initialChapterId, isOriginalReadingMode]);
 
   // Publication mode: load current chapter content
   useEffect(() => {
@@ -388,12 +395,13 @@ export function ReadingMode({
         </button>
       </div>
 
-      {/* Table of Contents Modal */}
+      {/* Table of Contents Modal - dedicated TOC styling (not glossary modal) */}
       <Modal
         isOpen={showTOC}
         onClose={() => setShowTOC(false)}
         title={`📑 ${t('readingMode.toc')}`}
         size="large"
+        className="toc-modal"
       >
         <div class="reading-toc-list">
           {chapters.map((chapter, index) => (

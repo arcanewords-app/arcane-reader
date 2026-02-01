@@ -64,6 +64,8 @@ export interface TranslationMeta {
   duration: number;
   model: string;
   translatedAt: string;
+  /** Source of translation: 'ai' for pipeline, 'uploaded' for user-uploaded */
+  source?: 'uploaded' | 'ai';
 }
 
 export interface Chapter {
@@ -208,9 +210,14 @@ export interface BulkUpdateResponse {
 
 // === Auth ===
 
+/** User role from profiles; guest when not authenticated. */
+export type UserRole = 'guest' | 'author' | 'author_plus' | 'super_author' | 'admin';
+
 export interface AuthUser {
   id: string;
   email: string;
+  /** Role from profile; defaults to 'author' when missing (backward compat). */
+  role?: UserRole;
 }
 
 // === Token Usage ===

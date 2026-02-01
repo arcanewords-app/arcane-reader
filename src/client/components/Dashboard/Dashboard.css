@@ -1,3 +1,8 @@
+/* =============================================================
+   Dashboard Component - Modern & Accessible
+   Improved filter buttons, better contrast
+   ============================================================= */
+
 .dashboard {
   width: 100%;
   max-width: 100%;
@@ -21,8 +26,9 @@
 }
 
 .dashboard-subtitle {
-  font-size: 0.95rem;
-  color: var(--text-dim);
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  font-weight: 500;
   margin: 0;
 }
 
@@ -53,26 +59,40 @@
 }
 
 .dashboard-filter-btn {
-  padding: 0.5rem 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 0.625rem 1.25rem;
+  min-height: 44px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
+  font-weight: 550;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-normal) var(--ease-standard);
+  white-space: nowrap;
 }
 
 .dashboard-filter-btn:hover {
   background: var(--bg-hover);
-  border-color: var(--accent);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.dashboard-filter-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .dashboard-filter-btn.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-primary);
-  font-weight: 600;
+  color: white;
+  font-weight: 650;
+}
+
+.dashboard-filter-btn.active:hover {
+  background: var(--accent-bright);
+  border-color: var(--accent-bright);
 }
 
 /* Mobile adjustments */

@@ -87,6 +87,23 @@
     "start": "Start",
     "toggle": "Translation panel"
   },
+  "markAsTranslated": {
+    "title": "Mark as translated",
+    "button": "Mark as translated",
+    "batchTitle": "Mark selected chapters as translated (no AI)",
+    "batchButton": "Mark ({{count}})"
+  },
+  "uploadTranslation": {
+    "title": "Upload ready-made translation",
+    "button": "Upload translation",
+    "hint": "Paste or upload translation text. Text will be split into paragraphs (double line break).",
+    "placeholder": "Paste translation text…",
+    "chooseFile": "Choose TXT file",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "emptyError": "Enter translation text",
+    "submitError": "Upload error"
+  },
   "chapterList": {
     "title": "Chapters",
     "searchPlaceholder": "Search...",
@@ -368,6 +385,8 @@
   "tokenUsage": {
     "loading": "Loading...",
     "usedTokensTitle": "Tokens used: {{used}} / {{limit}}",
+    "unlimited": "Unlimited",
+    "unlimitedTitle": "Used today: {{used}} (unlimited)",
     "analysis": "Analysis:",
     "translation": "Translation:",
     "editing": "Editing:",
@@ -375,6 +394,7 @@
     "errorLoadStats": "Failed to load stats"
   },
   "tokenLimit": {
+    "unlimitedNote": "You have unlimited token access. Limit warnings do not apply.",
     "titleExceeded": "Token limit exceeded",
     "exceededMessage": "Token limit exceeded: {{message}}",
     "titleWarning": "Token limit warning",

@@ -87,6 +87,23 @@
     "start": "Uruchom",
     "toggle": "Panel tłumaczenia"
   },
+  "markAsTranslated": {
+    "title": "Oznacz jako przetłumaczone",
+    "button": "Oznacz jako przetłumaczone",
+    "batchTitle": "Oznacz wybrane rozdziały jako przetłumaczone (bez AI)",
+    "batchButton": "Oznacz ({{count}})"
+  },
+  "uploadTranslation": {
+    "title": "Prześlij gotowe tłumaczenie",
+    "button": "Prześlij tłumaczenie",
+    "hint": "Wklej lub prześlij tekst tłumaczenia. Tekst zostanie podzielony na akapity (podwójna nowa linia).",
+    "placeholder": "Wklej tekst tłumaczenia…",
+    "chooseFile": "Wybierz plik TXT",
+    "upload": "Prześlij",
+    "uploading": "Przesyłanie…",
+    "emptyError": "Wprowadź tekst tłumaczenia",
+    "submitError": "Błąd przesyłania"
+  },
   "chapterList": {
     "title": "Rozdziały",
     "searchPlaceholder": "Szukaj...",
@@ -369,6 +386,8 @@
   "tokenUsage": {
     "loading": "Ładowanie...",
     "usedTokensTitle": "Użyto tokenów: {{used}} / {{limit}}",
+    "unlimited": "Bez limitu",
+    "unlimitedTitle": "Użyto dziś: {{used}} (bez limitu)",
     "analysis": "Analiza:",
     "translation": "Tłumaczenie:",
     "editing": "Redakcja:",
@@ -376,6 +395,7 @@
     "errorLoadStats": "Nie udało się załadować statystyk"
   },
   "tokenLimit": {
+    "unlimitedNote": "Masz nieograniczony dostęp do tokenów. Ostrzeżenia o limicie nie obowiązują.",
     "titleExceeded": "Przekroczono limit tokenów",
     "exceededMessage": "Przekroczono limit tokenów: {{message}}",
     "titleWarning": "Ostrzeżenie o limicie tokenów",

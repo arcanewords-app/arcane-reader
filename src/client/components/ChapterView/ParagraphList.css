@@ -1,49 +1,54 @@
-/* ParagraphList Component Styles */
+/* =============================================================
+   ParagraphList Component - Reader Panel
+   Improved readability, simplified styles
+   ============================================================= */
 
 /* === Reader Panel === */
-
 .text-panel-unified {
   background: var(--reader-bg);
   border: 1px solid var(--border);
-  border-radius: 12px; /* Меньше скругление на мобильных */
-  overflow: visible; /* Allow content to overflow for horizontal scroll */
+  border-radius: var(--radius-md);
+  overflow: visible;
   flex: 1;
   display: flex;
   flex-direction: column;
-  transition: background 0.3s ease;
-  min-width: 0; /* Allow flex item to shrink below content size */
+  transition: background var(--duration-slow) ease;
+  min-width: 0;
 }
 
 .panel-headers {
   display: flex;
   background: var(--bg-secondary);
-  min-width: fit-content; /* Ensure headers don't shrink below content */
+  min-width: fit-content;
+  border-bottom: 1px solid var(--border);
 }
 
 .panel-header-left,
 .panel-header-right {
   flex: 1;
-  padding: var(--panel-header-padding-mobile);
-  font-weight: 600;
+  padding: 0.875rem 1rem;
+  font-weight: 650;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-width: 0; /* Allow flex item to shrink */
-  font-size: 0.9rem; /* Mobile first - меньший размер */
+  min-width: 0;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
 }
 
 .panel-stats {
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-family: var(--font-mono);
+  font-weight: 550;
   color: var(--text-dim);
 }
 
 .paragraphs-unified {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto; /* Allow horizontal scroll for wide content */
-  min-width: 0; /* Allow flex item to shrink */
-  max-height: calc(100vh - 280px); /* Ограничиваем высоту для скролла на мобильных */
+  overflow-x: auto;
+  min-width: 0;
+  max-height: calc(100vh - 280px);
   scrollbar-width: thin;
   scrollbar-color: var(--accent-dim) transparent;
 }
@@ -69,39 +74,38 @@
 /* Paragraph Row */
 .paragraph-row {
   display: flex;
-  flex-direction: column; /* На мобильных - вертикально */
-  transition: background 0.2s;
+  flex-direction: column;
+  transition: background var(--duration-normal);
   margin-bottom: calc(var(--reader-paragraph-spacing, 1.2em) * 0.5);
-  min-width: 0; /* Allow row to shrink */
+  min-width: 0;
 }
 
 .paragraph-row:hover {
-  background: rgba(139, 92, 246, 0.04);
+  background: rgba(157, 111, 255, 0.04);
 }
 
 .paragraph-row.highlighted {
-  background: rgba(139, 92, 246, 0.08);
+  background: rgba(157, 111, 255, 0.08);
 }
 
 /* Paragraph Cells */
 .paragraph-cell {
   flex: 1;
-  padding: var(--paragraph-cell-padding-mobile);
-  padding-left: calc(var(--paragraph-index-left-mobile) + 1.5rem + 0.5rem); /* Space for index + padding */
+  padding: 1rem;
+  padding-left: calc(0.5rem + 1.5rem + 0.5rem);
   position: relative;
-  min-width: 0; /* Allow flex item to shrink */
+  min-width: 0;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  width: 100%; /* На мобильных (column) - полная ширина */
+  width: 100%;
 }
 
 .paragraph-cell-original {
   background: transparent;
-  /* Более мягкое разделение на мобильных - используем отступы вместо резкой границы */
   padding-bottom: 1rem;
   margin-bottom: 0.75rem;
   border-bottom: 1px solid transparent;
-  background-image: linear-gradient(to bottom, transparent 0%, rgba(139, 92, 246, 0.08) 50%, transparent 100%);
+  background-image: linear-gradient(to bottom, transparent 0%, rgba(157, 111, 255, 0.08) 50%, transparent 100%);
   background-size: 100% 1px;
   background-repeat: no-repeat;
   background-position: bottom;
@@ -110,41 +114,44 @@
 .paragraph-cell-translation {
   padding-top: 0;
   margin-top: 0.75rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-normal);
 }
 
 .paragraph-cell-translation:hover {
-  background: rgba(139, 92, 246, 0.05);
+  background: rgba(157, 111, 255, 0.05);
 }
 
 .paragraph-index {
   position: absolute;
   top: 1rem;
-  left: var(--paragraph-index-left-mobile);
+  left: 0.5rem;
   font-size: 0.75rem;
   font-family: var(--font-mono);
+  font-weight: 550;
   color: var(--text-dim);
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .paragraph-text {
   white-space: pre-wrap;
   font-family: var(--reader-font);
-  font-size: var(--reader-font-size);
+  font-size: clamp(1rem, 1.5vw, var(--reader-font-size));
   line-height: var(--reader-line-height);
   color: var(--reader-text);
-  transition: all 0.3s ease;
+  transition: all var(--duration-slow) ease;
 }
 
 .paragraph-text.editable {
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-normal);
 }
 
 .paragraph-text.editable:hover {
-  background: rgba(139, 92, 246, 0.1);
-  margin: -0.35rem;
-  padding: 0.35rem;
+  background: rgba(157, 111, 255, 0.1);
+  padding: 0.5rem;
+  margin: -0.5rem;
 }
 
 .paragraph-text.empty {
@@ -156,17 +163,18 @@
 /* Inline editor */
 .paragraph-editor {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.875rem;
+  min-height: 120px;
   background: var(--reader-bg);
   border: 2px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--reader-text);
   font-family: var(--reader-font);
-  font-size: var(--reader-font-size);
+  font-size: clamp(1rem, 1.5vw, var(--reader-font-size));
   line-height: var(--reader-line-height);
-  resize: none;
+  resize: vertical;
   overflow: hidden;
-  min-height: 2.5em;
+  transition: all var(--duration-normal) var(--ease-standard);
 }
 
 .paragraph-editor:focus {
@@ -179,11 +187,12 @@
   gap: 0.5rem;
   margin-top: 0.5rem;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .paragraph-actions .btn {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
 }
 
 /* Responsive Styles */

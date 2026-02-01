@@ -6,7 +6,8 @@
 
 import { createClientWithToken } from '../services/supabaseClient.js';
 import { validateToken } from '../utils/tokenValidation.js';
-import { TOKEN_LIMITS } from '../config/tokenLimits.js';
+import { TOKEN_LIMITS, getTokenLimitForRole, isUnlimitedTokenLimit } from '../config/tokenLimits.js';
+import type { UserRole } from '../types/roles.js';
 
 export interface TokenUsage {
   date: string;
@@ -39,18 +40,20 @@ function getCurrentDateUTC(): string {
 }
 
 /**
- * Get user's token usage for today
+ * Get user's token usage for today.
+ * @param role - User role; limit is taken from ROLE_DAILY_LIMITS. Defaults to 'author'.
  */
 export async function getUserTokenUsage(
   userId: string,
   token: string,
-  date?: string
+  date?: string,
+  role: UserRole = 'author'
 ): Promise<TokenUsage> {
   validateToken(token);
   const client = createClientWithToken(token);
   const targetDate = date || getCurrentDateUTC();
+  const tokensLimit = getTokenLimitForRole(role);
 
-  // Get or create token usage record for today
   const { data, error } = await client
     .from('user_token_usage')
     .select('*')
@@ -59,7 +62,6 @@ export async function getUserTokenUsage(
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    // PGRST116 = not found, which is OK (we'll create it)
     throw new Error(`Failed to get token usage: ${error.message}`);
   }
 
@@ -70,14 +72,15 @@ export async function getUserTokenUsage(
     editing: 0,
   };
 
-  const tokensRemaining = Math.max(0, TOKEN_LIMITS.DAILY_LIMIT - tokensUsed);
-  const percentageUsed = (tokensUsed / TOKEN_LIMITS.DAILY_LIMIT) * 100;
-  const warning = percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
+  const unlimited = isUnlimitedTokenLimit(tokensLimit);
+  const tokensRemaining = unlimited ? -1 : Math.max(0, tokensLimit - tokensUsed);
+  const percentageUsed = unlimited || tokensLimit <= 0 ? 0 : (tokensUsed / tokensLimit) * 100;
+  const warning = !unlimited && tokensLimit > 0 && percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
 
   return {
     date: targetDate,
     tokensUsed,
-    tokensLimit: TOKEN_LIMITS.DAILY_LIMIT,
+    tokensLimit,
     tokensRemaining,
     percentageUsed,
     tokensByStage: {
@@ -90,31 +93,35 @@ export async function getUserTokenUsage(
 }
 
 /**
- * Check if user can use estimated tokens
+ * Check if user can use estimated tokens.
+ * @param role - User role; limit is taken from ROLE_DAILY_LIMITS. Defaults to 'author'.
  */
 export async function checkTokenLimit(
   userId: string,
   token: string,
-  estimatedTokens: number
+  estimatedTokens: number,
+  role: UserRole = 'author'
 ): Promise<TokenLimitCheck> {
-  const usage = await getUserTokenUsage(userId, token);
-  
+  const usage = await getUserTokenUsage(userId, token, undefined, role);
+  const { tokensLimit } = usage;
+  const unlimited = isUnlimitedTokenLimit(tokensLimit);
+
   const totalAfterTranslation = usage.tokensUsed + estimatedTokens;
-  const allowed = totalAfterTranslation <= TOKEN_LIMITS.DAILY_LIMIT;
-  const remaining = Math.max(0, TOKEN_LIMITS.DAILY_LIMIT - usage.tokensUsed);
-  const warning = usage.percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
+  const allowed = unlimited || totalAfterTranslation <= tokensLimit;
+  const remaining = unlimited ? -1 : Math.max(0, tokensLimit - usage.tokensUsed);
+  const warning = !unlimited && usage.percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
 
   let message: string | undefined;
-  if (!allowed) {
-    message = `Дневной лимит токенов исчерпан. Использовано: ${usage.tokensUsed.toLocaleString()} / ${TOKEN_LIMITS.DAILY_LIMIT.toLocaleString()}. Лимит сбросится завтра в 00:00 UTC.`;
-  } else if (warning) {
-    message = `Приближение к лимиту токенов. Использовано: ${usage.tokensUsed.toLocaleString()} / ${TOKEN_LIMITS.DAILY_LIMIT.toLocaleString()}. После перевода останется: ${(remaining - estimatedTokens).toLocaleString()} токенов.`;
+  if (!unlimited && !allowed) {
+    message = `Дневной лимит токенов исчерпан. Использовано: ${usage.tokensUsed.toLocaleString()} / ${tokensLimit.toLocaleString()}. Лимит сбросится завтра в 00:00 UTC.`;
+  } else if (!unlimited && warning) {
+    message = `Приближение к лимиту токенов. Использовано: ${usage.tokensUsed.toLocaleString()} / ${tokensLimit.toLocaleString()}. После перевода останется: ${(remaining - estimatedTokens).toLocaleString()} токенов.`;
   }
 
   return {
     allowed,
     currentUsage: usage.tokensUsed,
-    limit: TOKEN_LIMITS.DAILY_LIMIT,
+    limit: tokensLimit,
     remaining,
     warning,
     message,
@@ -181,15 +188,18 @@ export async function incrementTokenUsage(
 }
 
 /**
- * Get token usage history for user
+ * Get token usage history for user.
+ * @param role - User role; tokensLimit in each record uses ROLE_DAILY_LIMITS. Defaults to 'author'.
  */
 export async function getTokenUsageHistory(
   userId: string,
   token: string,
-  days: number = 7
+  days: number = 7,
+  role: UserRole = 'author'
 ): Promise<Array<{ date: string; tokensUsed: number; tokensLimit: number }>> {
   validateToken(token);
   const client = createClientWithToken(token);
+  const tokensLimit = getTokenLimitForRole(role);
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -209,6 +219,6 @@ export async function getTokenUsageHistory(
   return (data || []).map((record) => ({
     date: record.date,
     tokensUsed: record.tokens_used,
-    tokensLimit: TOKEN_LIMITS.DAILY_LIMIT,
+    tokensLimit,
   }));
 }

@@ -1,19 +1,33 @@
 /**
  * Token Limits Configuration
- * 
- * Defines daily token limits and calculation coefficients for translation
+ *
+ * Defines daily token limits per role and calculation coefficients for translation
  */
 
+import type { UserRole } from '../types/roles.js';
+
 export const TOKEN_LIMITS = {
-  /** Daily token limit per user */
+  /** Default daily limit for role 'author' (kept for backward compat / docs) */
   DAILY_LIMIT: 50000,
-  
+
+  /** Daily token limit per role. guest=0 (cannot translate); admin=-1 (unlimited). */
+  ROLE_DAILY_LIMITS: {
+    guest: 0,
+    author: 50000,
+    author_plus: 100000,
+    super_author: 200000,
+    admin: -1, // unlimited
+  } as const satisfies Record<UserRole, number>,
+
+  /** Sentinel for unlimited daily limit (admin). */
+  UNLIMITED_LIMIT: -1 as const,
+
   /** Warning threshold (percentage of limit) */
   WARNING_THRESHOLD: 0.8, // Warn at 80% usage
-  
+
   /** Block threshold (percentage of limit) */
   BLOCK_THRESHOLD: 1.0, // Block at 100% usage
-  
+
   /** Token calculation coefficients (per 10,000 characters) */
   TOKENS_PER_10K_CHARS: {
     analysis: 2000,
@@ -21,11 +35,24 @@ export const TOKEN_LIMITS = {
     editing: 13000,
     total: 25000,
   },
-  
+
   /** Reset time (UTC) */
   RESET_TIME: '00:00:00',
   RESET_TIMEZONE: 'UTC',
 } as const;
+
+/**
+ * Get daily token limit for the given role.
+ * Guest = 0; admin = UNLIMITED_LIMIT (-1); others use ROLE_DAILY_LIMITS.
+ */
+export function getTokenLimitForRole(role: UserRole): number {
+  return TOKEN_LIMITS.ROLE_DAILY_LIMITS[role];
+}
+
+/** True when limit is unlimited (e.g. admin). */
+export function isUnlimitedTokenLimit(limit: number): boolean {
+  return limit === TOKEN_LIMITS.UNLIMITED_LIMIT || limit < 0;
+}
 
 /**
  * Translation options for token estimation (legacy: skip flags)

@@ -95,6 +95,8 @@ export interface Chapter {
     duration: number;
     model: string;
     translatedAt: string;
+    /** Source of translation: 'ai' for pipeline, 'uploaded' for user-uploaded */
+    source?: 'uploaded' | 'ai';
   };
 }
 

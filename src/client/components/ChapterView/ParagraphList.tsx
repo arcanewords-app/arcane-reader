@@ -7,6 +7,8 @@ interface ParagraphListProps {
   paragraphs: Paragraph[];
   onSave: (id: string, text: string) => Promise<void>;
   isOriginalReadingMode?: boolean;
+  /** Show only translation column (1 column) - for chapters with uploaded translation, no original */
+  isTranslationOnlyDisplay?: boolean;
   /** IDs of paragraphs that are empty (no valid translation) - show checkbox for selection */
   emptyParagraphIds?: string[];
   /** Selected paragraph IDs for "translate selected" */
@@ -18,6 +20,7 @@ export function ParagraphList({
   paragraphs,
   onSave,
   isOriginalReadingMode = false,
+  isTranslationOnlyDisplay = false,
   emptyParagraphIds = [],
   selectedParagraphIds = [],
   onToggleParagraphSelection,
@@ -82,15 +85,19 @@ export function ParagraphList({
     0
   );
 
+  const singleColumn = isOriginalReadingMode || isTranslationOnlyDisplay;
+
   return (
     <div class="text-panel-unified">
       <div class="panel-headers">
-        <div class="panel-header-left" style={isOriginalReadingMode ? { width: '100%' } : {}}>
-          🇬🇧 Оригинал (English)
-          <span class="panel-stats">{originalChars.toLocaleString()} {t('paragraphList.characters')}</span>
-        </div>
-        {!isOriginalReadingMode && (
-          <div class="panel-header-right">
+        {!isTranslationOnlyDisplay && (
+          <div class="panel-header-left" style={singleColumn ? { width: '100%' } : {}}>
+            🇬🇧 Оригинал (English)
+            <span class="panel-stats">{originalChars.toLocaleString()} {t('paragraphList.characters')}</span>
+          </div>
+        )}
+        {(isTranslationOnlyDisplay || !isOriginalReadingMode) && (
+          <div class={`panel-header-right ${isTranslationOnlyDisplay ? 'panel-header-full' : ''}`} style={isTranslationOnlyDisplay ? { width: '100%' } : {}}>
             🇷🇺 Перевод (Русский)
             <span class="panel-stats">{translatedChars.toLocaleString()} {t('paragraphList.characters')}</span>
           </div>
@@ -100,18 +107,19 @@ export function ParagraphList({
       <div class="paragraphs-unified">
         {paragraphs.map((paragraph, index) => {
           const isEmpty = emptyParagraphIds.includes(paragraph.id);
-          const showCheckbox = !isOriginalReadingMode && isEmpty && onToggleParagraphSelection;
+          const showCheckbox = !isOriginalReadingMode && !isTranslationOnlyDisplay && isEmpty && onToggleParagraphSelection;
           const isSelected = selectedParagraphIds.includes(paragraph.id);
           return (
           <div
             key={paragraph.id}
-            class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''}`}
-            style={isOriginalReadingMode ? { gridTemplateColumns: '1fr' } : {}}
+            class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+            style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
             onMouseEnter={() => setHighlightedId(paragraph.id)}
             onMouseLeave={() => setHighlightedId(null)}
           >
-            {/* Original */}
-            <div class="paragraph-cell paragraph-cell-original" style={isOriginalReadingMode ? { width: '100%' } : {}}>
+            {/* Original - hidden in original reading mode and translation-only display */}
+            {!isTranslationOnlyDisplay && (
+            <div class="paragraph-cell paragraph-cell-original" style={singleColumn ? { width: '100%' } : {}}>
               {showCheckbox && (
                 <label
                   style={{
@@ -134,10 +142,14 @@ export function ParagraphList({
               <span class="paragraph-index">{index + 1}</span>
               <div class="paragraph-text">{paragraph.originalText}</div>
             </div>
+            )}
 
-            {/* Translation - hidden in original reading mode */}
-            {!isOriginalReadingMode && (
-            <div class="paragraph-cell paragraph-cell-translation">
+            {/* Translation - hidden only in original reading mode */}
+            {(!isOriginalReadingMode || isTranslationOnlyDisplay) && (
+            <div class="paragraph-cell paragraph-cell-translation" style={isTranslationOnlyDisplay ? { width: '100%' } : {}}>
+              {isTranslationOnlyDisplay && (
+                <span class="paragraph-index">{index + 1}</span>
+              )}
               {editingId === paragraph.id ? (
                 <div>
                   <textarea

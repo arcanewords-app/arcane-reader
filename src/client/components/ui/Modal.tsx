@@ -55,38 +55,59 @@ export function Modal({
     }
   };
 
-  const modalClasses = ['modal', size === 'large' && 'glossary-modal', className]
+  const isTocModal = className.includes('toc-modal');
+  const isLarge = size === 'large';
+  const useGlossaryLayout = isLarge && !isTocModal;
+
+  const modalClasses = [
+    'modal',
+    useGlossaryLayout && 'glossary-modal',
+    isTocModal && 'toc-modal',
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
 
   const overlayClasses = [
     'modal-overlay',
     'active',
-    size === 'large' && 'glossary-modal-overlay',
+    isLarge && 'glossary-modal-overlay',
     className.includes('nested') && 'nested-modal',
     className === 'email-confirmation-modal' && 'email-confirmation-modal-overlay',
   ]
     .filter(Boolean)
     .join(' ');
 
+  const headerContent =
+    isTocModal ? (
+      <div class="toc-modal-header">
+        <h3 class="toc-modal-title">{title}</h3>
+        <button type="button" class="modal-close-btn toc-modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+    ) : isLarge ? (
+      <div class="glossary-modal-header">
+        <h3 class="modal-title">{title}</h3>
+        <button type="button" class="modal-close-btn" onClick={onClose}>
+          ×
+        </button>
+      </div>
+    ) : (
+      <h3 class="modal-title">{title}</h3>
+    );
+
   return (
     <div class={overlayClasses} onClick={handleOverlayClick}>
       <div class={modalClasses}>
-        {size === 'large' ? (
-          <div class="glossary-modal-header">
-            <h3 class="modal-title">{title}</h3>
-            <button class="modal-close-btn" onClick={onClose}>
-              ×
-            </button>
-          </div>
-        ) : (
-          <h3 class="modal-title">{title}</h3>
-        )}
+        {headerContent}
 
         {children}
 
         {footer && (
-          <div class={size === 'large' ? 'glossary-modal-footer' : 'form-actions'}>{footer}</div>
+          <div class={isTocModal ? 'toc-modal-footer' : useGlossaryLayout ? 'glossary-modal-footer' : 'form-actions'}>
+            {footer}
+          </div>
         )}
       </div>
     </div>

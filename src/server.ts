@@ -291,7 +291,7 @@ app.get('/api/user/token-usage', requireAuth, async (req, res) => {
     }
 
     const date = req.query.date as string | undefined;
-    const usage = await getUserTokenUsage(req.user.id, requireToken(req), date);
+    const usage = await getUserTokenUsage(req.user.id, requireToken(req), date, req.user.role);
     res.json(usage);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage';
@@ -308,7 +308,7 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
     }
 
     const days = parseInt((req.query.days as string) || '7', 10);
-    const history = await getTokenUsageHistory(req.user.id, requireToken(req), days);
+    const history = await getTokenUsageHistory(req.user.id, requireToken(req), days, req.user.role);
     res.json({ history });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage history';
@@ -880,6 +880,209 @@ app.post(
   }
 );
 
+// Upload ready-made translation (requires auth)
+app.post(
+  '/api/projects/:projectId/chapters/:chapterId/upload-translation',
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const chapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        token
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      if (chapter.status === 'translating') {
+        return res.status(400).json({
+          error: 'Translation in progress',
+          message: 'Дождитесь окончания перевода или отмените его.',
+        });
+      }
+
+      if (!chapter.paragraphs || chapter.paragraphs.length === 0) {
+        return res.status(400).json({
+          error: 'No paragraphs',
+          message: 'Глава не содержит параграфов. Сначала добавьте главу с текстом.',
+        });
+      }
+
+      const translatedText = (req.body?.translatedText ?? '').trim();
+      if (!translatedText) {
+        return res.status(400).json({
+          error: 'Empty translation',
+          message: 'Текст перевода не может быть пустым.',
+        });
+      }
+
+      const syncedParagraphs = syncTranslationToParagraphs(
+        chapter.paragraphs,
+        translatedText,
+        { replaceAll: true, editedBy: 'user' }
+      );
+
+      const mergedText = mergeParagraphsToText(syncedParagraphs, 'translatedText');
+      const chunks = mergedText
+        .split(/\n\s*\n/)
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
+
+      const now = new Date().toISOString();
+      const updatedChapter = await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        {
+          paragraphs: syncedParagraphs,
+          translatedText: mergedText,
+          translatedChunks: chunks,
+          status: 'completed',
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            source: 'uploaded',
+            translatedAt: now,
+            tokensUsed: 0,
+            duration: 0,
+            model: 'uploaded',
+          },
+        },
+        token
+      );
+
+      if (updatedChapter) {
+        console.log(`📤 Загружен готовый перевод: ${chapter.title}`);
+        res.json(updatedChapter);
+      } else {
+        res.status(500).json({ error: 'Failed to update chapter' });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to upload translation:', error);
+      res.status(500).json({
+        error: 'Failed to upload translation',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+// Mark chapter as translated (treat current content as ready-made translation)
+app.post(
+  '/api/projects/:projectId/chapters/:chapterId/mark-as-translated',
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const chapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        token
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      if (chapter.status === 'translating') {
+        return res.status(400).json({
+          error: 'Translation in progress',
+          message: 'Дождитесь окончания перевода или отмените его.',
+        });
+      }
+
+      if (!chapter.paragraphs || chapter.paragraphs.length === 0) {
+        return res.status(400).json({
+          error: 'No paragraphs',
+          message: 'Глава не содержит параграфов.',
+        });
+      }
+
+      // Debug: input state
+      const withOriginal = chapter.paragraphs.filter((p) => (p.originalText || '').trim().length > 0).length;
+      const totalOriginalChars = chapter.paragraphs.reduce((s, p) => s + (p.originalText || '').length, 0);
+      console.log(
+        `[mark-as-translated] Вход: ${chapter.title}, параграфов=${chapter.paragraphs.length}, с текстом=${withOriginal}, символов=${totalOriginalChars}`
+      );
+
+      const now = new Date().toISOString();
+
+      // Copy originalText → translatedText for each paragraph (1:1)
+      const updatedParagraphs = chapter.paragraphs.map((p) => ({
+        ...p,
+        translatedText: p.originalText,
+        status: 'translated' as const,
+        editedBy: 'user' as const,
+        editedAt: now,
+      }));
+
+      const mergedText = mergeParagraphsToText(updatedParagraphs, 'translatedText');
+      // Keep 1:1 mapping: chunks[i] = paragraph[i].translatedText (for auto-recovery consistency)
+      const chunks = [...updatedParagraphs]
+        .sort((a, b) => a.index - b.index)
+        .map((p) => p.translatedText || '');
+
+      // Debug: verify counts match
+      console.log(
+        `[mark-as-translated] ${chapter.title}: paragraphs=${chapter.paragraphs.length}, chunks=${chunks.length}, mergedLen=${mergedText.length}, emptyParagraphs=${updatedParagraphs.filter((p) => !(p.translatedText || '').trim()).length}`
+      );
+
+      const updatedChapter = await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        {
+          paragraphs: updatedParagraphs,
+          translatedText: mergedText,
+          translatedChunks: chunks,
+          originalText: '',
+          status: 'completed',
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            source: 'uploaded',
+            translatedAt: now,
+            tokensUsed: 0,
+            duration: 0,
+            model: 'uploaded',
+          },
+        },
+        token
+      );
+
+      if (updatedChapter) {
+        console.log(`✅ Глава помечена как переведённая: ${chapter.title}`);
+        res.json(updatedChapter);
+      } else {
+        res.status(500).json({ error: 'Failed to update chapter' });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to mark chapter as translated:', error);
+      res.status(500).json({
+        error: 'Failed to mark chapter as translated',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
 // Translation endpoint with logging (requires auth)
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/translate',
@@ -968,8 +1171,8 @@ app.post(
       // Estimate tokens for the requested stages
       const estimatedTokens = estimateTokensForStages(textLength, stages);
 
-      // Check token limit before starting translation
-      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens);
+      // Check token limit before starting translation (limit depends on user role)
+      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
       
       if (!limitCheck.allowed) {
         // Reset chapter status back to pending
@@ -1573,12 +1776,18 @@ async function performTranslation(
  * Sync translated text to paragraph structure
  * Tries to match translated paragraphs to original ones
  * Improved to handle cases where paragraph count doesn't match
- * Preserves existing translations for paragraphs that already have valid translations
+ * Preserves existing translations for paragraphs that already have valid translations (unless replaceAll=true)
+ *
+ * @param replaceAll - If true, replace all paragraphs with new translation (for uploaded translation)
+ * @param editedBy - 'ai' for pipeline translation, 'user' for uploaded translation
  */
 function syncTranslationToParagraphs(
   originalParagraphs: Paragraph[],
-  translatedText: string
+  translatedText: string,
+  options?: { replaceAll?: boolean; editedBy?: 'ai' | 'user' }
 ): Paragraph[] {
+  const replaceAll = options?.replaceAll ?? false;
+  const editedBy = options?.editedBy ?? 'ai';
   if (!originalParagraphs || originalParagraphs.length === 0) {
     console.warn('⚠️ syncTranslationToParagraphs: Нет оригинальных параграфов');
     return [];
@@ -1647,8 +1856,8 @@ function syncTranslationToParagraphs(
       return original; // Keep separator paragraph as-is, don't try to translate it
     }
 
-    // If paragraph already has valid translation, preserve it
-    if (hasValidTranslation(original)) {
+    // If paragraph already has valid translation, preserve it (unless replaceAll)
+    if (!replaceAll && hasValidTranslation(original)) {
       return original; // Keep existing translation, skip it in translation mapping
     }
 
@@ -1664,7 +1873,7 @@ function syncTranslationToParagraphs(
           translatedText: translatedPart,
           status: 'translated' as const,
           editedAt: now,
-          editedBy: 'ai' as const,
+          editedBy,
         };
       }
     }

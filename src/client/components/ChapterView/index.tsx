@@ -41,6 +41,7 @@ export function ChapterView({
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [showTranslationPanel, setShowTranslationPanel] = useState(false);
+  const [markingAsTranslated, setMarkingAsTranslated] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
     project.settings.reader || defaultReaderSettings
   );
@@ -58,6 +59,9 @@ export function ChapterView({
   } = useChapterTranslation(project.id, chapter.id, chapter, project, onChapterUpdate);
 
   const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
+
+  // Show only translation column when translation was uploaded (author marked as ready-made)
+  const isTranslationOnlyDisplay = chapter.translationMeta?.source === 'uploaded';
 
   // Empty paragraphs (no valid translation) - for "translate empty" / "translate selected"
   const emptyParagraphIds = useMemo(() => {
@@ -171,6 +175,18 @@ export function ChapterView({
     onChapterUpdate(updated);
   };
 
+  const handleMarkAsTranslated = async () => {
+    setMarkingAsTranslated(true);
+    try {
+      const updated = await api.markChapterAsTranslated(project.id, chapter.id);
+      onChapterUpdate(updated);
+    } catch (error) {
+      console.error('Failed to mark chapter as translated:', error);
+    } finally {
+      setMarkingAsTranslated(false);
+    }
+  };
+
   const handleSaveParagraph = async (paragraphId: string, text: string) => {
     await api.updateParagraph(project.id, chapter.id, paragraphId, {
       translatedText: text,
@@ -207,6 +223,8 @@ export function ChapterView({
           onChapterUpdate={onChapterUpdate}
           translating={translating}
           isOriginalReadingMode={isOriginalReadingMode}
+          onMarkAsTranslated={handleMarkAsTranslated}
+          markingAsTranslated={markingAsTranslated}
         />
 
         {!isOriginalReadingMode && showTranslationPanel && (
@@ -223,6 +241,8 @@ export function ChapterView({
             onDeselectAll={handleDeselectAll}
             onCancelTranslation={handleCancelTranslation}
             onChapterUpdate={onChapterUpdate}
+            onMarkAsTranslated={handleMarkAsTranslated}
+            markingAsTranslated={markingAsTranslated}
           />
         )}
 
@@ -270,6 +290,7 @@ export function ChapterView({
           paragraphs={paragraphs}
           onSave={handleSaveParagraph}
           isOriginalReadingMode={isOriginalReadingMode}
+          isTranslationOnlyDisplay={isTranslationOnlyDisplay}
           emptyParagraphIds={emptyParagraphIds}
           selectedParagraphIds={selectedParagraphIds}
           onToggleParagraphSelection={handleToggleParagraphSelection}

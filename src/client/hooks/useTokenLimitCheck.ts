@@ -4,6 +4,8 @@ import { authService } from '../services/authService';
 import type { TokenUsage } from '../types';
 
 const WARNING_THRESHOLD = 0.8; // 80%
+/** tokensLimit < 0 means unlimited (e.g. admin) */
+const isUnlimited = (limit: number) => limit < 0;
 
 export type TokenLimitCheckResult = 'ok' | 'warn' | 'block';
 
@@ -50,6 +52,10 @@ export function useTokenLimitCheck() {
   const checkBeforeTranslate = useCallback(
     (estimatedTokens: number, onProceed: () => void): TokenLimitCheckResult => {
       if (!tokenUsage || !authService.isAuthenticated()) {
+        onProceed();
+        return 'ok';
+      }
+      if (isUnlimited(tokenUsage.tokensLimit)) {
         onProceed();
         return 'ok';
       }

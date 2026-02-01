@@ -277,6 +277,30 @@ export const api = {
     });
   },
 
+  async uploadChapterTranslation(
+    projectId: string,
+    chapterId: string,
+    translatedText: string
+  ): Promise<Chapter> {
+    return fetchJson(
+      `/api/projects/${projectId}/chapters/${chapterId}/upload-translation`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ translatedText }),
+      }
+    );
+  },
+
+  async markChapterAsTranslated(
+    projectId: string,
+    chapterId: string
+  ): Promise<Chapter> {
+    return fetchJson(
+      `/api/projects/${projectId}/chapters/${chapterId}/mark-as-translated`,
+      { method: 'POST' }
+    );
+  },
+
   async getChapterStats(
     projectId: string,
     chapterId: string

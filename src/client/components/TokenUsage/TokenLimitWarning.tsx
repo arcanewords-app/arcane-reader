@@ -20,11 +20,27 @@ export function TokenLimitWarning({
   estimatedTokens,
 }: TokenLimitWarningProps) {
   const { t } = useTranslation();
+  const unlimited = usage.tokensLimit <= 0;
   const tokensAfterTranslation = usage.tokensUsed + estimatedTokens;
-  const remainingAfter = Math.max(0, usage.tokensLimit - tokensAfterTranslation);
-  const percentageAfter = (tokensAfterTranslation / usage.tokensLimit) * 100;
-  const willExceed = tokensAfterTranslation > usage.tokensLimit;
-  const isWarning = percentageAfter >= 80 && !willExceed;
+  const remainingAfter = unlimited ? -1 : Math.max(0, usage.tokensLimit - tokensAfterTranslation);
+  const percentageAfter = unlimited || usage.tokensLimit <= 0 ? 0 : (tokensAfterTranslation / usage.tokensLimit) * 100;
+  const willExceed = !unlimited && tokensAfterTranslation > usage.tokensLimit;
+  const isWarning = !unlimited && percentageAfter >= 80 && !willExceed;
+
+  if (unlimited) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title={t('tokenUsage.unlimited')} size="default">
+        <div class="token-limit-warning-content">
+          <p class="token-limit-warning-message">{t('tokenLimit.unlimitedNote')}</p>
+        </div>
+        <div class="token-limit-warning-footer">
+          <Button variant="primary" onClick={onClose} size="sm">
+            {t('common.close')}
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   const handleConfirm = () => {
     onConfirm();

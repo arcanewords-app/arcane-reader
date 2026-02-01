@@ -23,6 +23,7 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [hasSidebar, setHasSidebar] = useState(false);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const currentLocale = (i18n.language || 'ru') as AppLocale;
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
 
     const checkPath = () => {
       const path = window.location.pathname;
+      setCurrentPath(path);
       setHasSidebar(path.startsWith('/projects/'));
     };
 
@@ -59,57 +61,105 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
   return (
     <header>
       <div class="header-content">
-        {/* Верхний слой: логотип слева | навигация справа */}
-        <div class="header-top-row">
-          <a href="/" onClick={(e) => { e.preventDefault(); route('/'); }} class="logo" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img src="/arcane_icon.png" alt="Arcane" class="logo-icon-img" />
-            <div>
-              <div class="logo-text">ARCANE</div>
-              <div class="logo-subtitle">{t('header.logoSubtitle')}</div>
-            </div>
-          </a>
-          <div class="header-nav">
-            <div class="header-locale" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span class="header-locale-label" style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginRight: '0.25rem' }}>{t('header.appLanguage')}:</span>
-              {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
-                <button
-                  key={locale}
-                  type="button"
-                  class={`header-locale-btn ${currentLocale === locale ? 'active' : ''}`}
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.8rem',
-                    borderRadius: '4px',
-                    border: currentLocale === locale ? '1px solid var(--accent)' : '1px solid var(--border)',
-                    background: currentLocale === locale ? 'var(--bg-tertiary)' : 'transparent',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    fontWeight: currentLocale === locale ? 600 : 400,
-                  }}
-                  onClick={() => setSavedLocale(locale)}
-                  title={locale === 'ru' ? t('settings.appLanguageRu') : locale === 'en' ? t('settings.appLanguageEn') : t('settings.appLanguagePl')}
-                >
-                  {locale.toUpperCase()}
-                </button>
-              ))}
-            </div>
-            {user ? (
-              <>
-                <div class={`api-status ${status}`}>
-                  <span class="status-dot"></span>
-                  <span class="status-text">{getStatusText()}</span>
-                </div>
-                <a href="/" onClick={(e) => { e.preventDefault(); route('/'); }} class="header-catalog-link" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textDecoration: 'none', marginRight: '0.5rem' }}>
-                  {t('cabinet.catalog')}
-                </a>
-                <a href="/cabinet" onClick={(e) => { e.preventDefault(); route('/cabinet'); }} class="header-cabinet-link" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textDecoration: 'none', marginRight: '0.5rem' }}>
-                  {t('cabinet.link')}
-                </a>
-                <TokenUsageIndicator />
-              </>
-            ) : (
-              (onOpenLogin || onOpenRegister) && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        {/* Mobile menu button - только на мобильных */}
+        {onMenuToggle && isMobile && hasSidebar && (
+          <button class="mobile-menu-btn" onClick={onMenuToggle} aria-label={t('header.menuAria')}>
+            ☰
+          </button>
+        )}
+
+        {/* Branding - Логотип и название */}
+        <a href="/" onClick={(e) => { e.preventDefault(); route('/'); }} class="header-logo">
+          <img src="/arcane_icon.png" alt="Arcane" class="logo-icon-img" />
+          <div class="logo-info">
+            <div class="logo-text">ARCANE</div>
+            <div class="logo-subtitle">{t('header.logoSubtitle')}</div>
+          </div>
+        </a>
+
+        {/* Navigation - Основная навигация (только для авторизованных) */}
+        {user && (
+          <nav class="header-navigation" aria-label="Main navigation">
+            <a 
+              href="/" 
+              onClick={(e) => { e.preventDefault(); route('/'); }} 
+              class={`nav-link ${currentPath === '/' ? 'active' : ''}`}
+              aria-current={currentPath === '/' ? 'page' : undefined}
+            >
+              {t('cabinet.catalog')}
+            </a>
+            <a 
+              href="/cabinet" 
+              onClick={(e) => { e.preventDefault(); route('/cabinet'); }} 
+              class={`nav-link ${currentPath === '/cabinet' ? 'active' : ''}`}
+              aria-current={currentPath === '/cabinet' ? 'page' : undefined}
+            >
+              {t('cabinet.link')}
+            </a>
+          </nav>
+        )}
+
+        {/* Spacer для выравнивания */}
+        <div class="header-spacer" />
+
+        {/* Right section - Системная информация и управление */}
+        <div class="header-actions">
+          {user ? (
+            <>
+              {/* System Status */}
+              <div class={`api-status ${status}`} title={getStatusText()}>
+                <span class="status-dot"></span>
+                <span class="status-text">{getStatusText()}</span>
+              </div>
+
+              {/* Token Usage */}
+              <TokenUsageIndicator />
+
+              {/* Language Selector */}
+              <div class="header-locale">
+                {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
+                  <button
+                    key={locale}
+                    type="button"
+                    class={`locale-btn ${currentLocale === locale ? 'active' : ''}`}
+                    onClick={() => setSavedLocale(locale)}
+                    title={locale === 'ru' ? t('settings.appLanguageRu') : locale === 'en' ? t('settings.appLanguageEn') : t('settings.appLanguagePl')}
+                  >
+                    {locale.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              {/* User Menu */}
+              <div class="header-user-menu">
+                <span class="user-email" title={user.email}>
+                  {user.email}
+                </span>
+                <Button variant="secondary" onClick={onLogout} size="sm">
+                  {t('header.logout')}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Language Selector для неавторизованных */}
+              <div class="header-locale">
+                {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
+                  <button
+                    key={locale}
+                    type="button"
+                    class={`locale-btn ${currentLocale === locale ? 'active' : ''}`}
+                    onClick={() => setSavedLocale(locale)}
+                    title={locale === 'ru' ? t('settings.appLanguageRu') : locale === 'en' ? t('settings.appLanguageEn') : t('settings.appLanguagePl')}
+                  >
+                    {locale.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              {/* Auth Buttons */}
+              {(onOpenLogin || onOpenRegister) && (
+                <div class="header-auth-buttons">
                   <Button variant="secondary" size="sm" onClick={onOpenLogin}>
                     {t('header.login')}
                   </Button>
@@ -117,26 +167,10 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
                     {t('header.register')}
                   </Button>
                 </div>
-              )
-            )}
-          </div>
+              )}
+            </>
+          )}
         </div>
-        {/* Нижний слой (авторизованный): гамбургер слева | email центр | logout справа */}
-        {user && (
-          <div class="header-user-row">
-                {onMenuToggle && isMobile && hasSidebar && (
-                  <button class="mobile-menu-btn" onClick={onMenuToggle} aria-label={t('header.menuAria')}>
-                    ☰
-                  </button>
-                )}
-                <span class="user-menu-email" title={user.email}>
-                  {user.email}
-                </span>
-                <Button variant="secondary" onClick={onLogout} size="sm" className="user-menu-button">
-                  {t('header.logout')}
-                </Button>
-              </div>
-        )}
       </div>
     </header>
   );
