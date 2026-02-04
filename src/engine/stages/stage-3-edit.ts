@@ -20,6 +20,7 @@ interface EditStageOptions {
   context: AgentContext;
   checkQuality?: boolean;
   chunkSize?: number; // Max tokens per chunk for chunked editing
+  temperature?: number;
 }
 
 interface QualityCheckResponse {
@@ -91,12 +92,14 @@ export class EditStage {
         const chunkSize = options.chunkSize ?? 2000;
         console.log(`[EditStage] Используется чанковое редактирование (размер текста: ~${estimatedTokens} токенов, размер чанка: ${chunkSize})`);
         
+        const editTemp = options.temperature ?? 0.5;
         const chunkedResult = await this.editChunked(
           translatedText,
           originalText,
           glossaryText,
           styleNotes,
-          chunkSize
+          chunkSize,
+          editTemp
         );
         
         editedText = chunkedResult.text;
@@ -118,8 +121,9 @@ export class EditStage {
           },
         ];
         
+        const editTemp = options.temperature ?? 0.5;
         const editResponse = await this.provider.complete(messages, {
-          temperature: 0.5,
+          temperature: editTemp,
           maxTokens: 4096,
         });
         
@@ -224,7 +228,8 @@ export class EditStage {
     originalText: string,
     glossaryText: string,
     styleNotes: string,
-    chunkSize: number
+    chunkSize: number,
+    temperature: number = 0.5
   ): Promise<{ text: string; tokensUsed: number }> {
     // Chunk both translated and original texts
     const translatedChunks = chunkText(translatedText, {
@@ -254,7 +259,8 @@ export class EditStage {
           translatedChunk,
           originalChunk,
           glossaryText,
-          styleNotes
+          styleNotes,
+          temperature
         );
         
         totalTokensUsed += editResult.tokensUsed;
@@ -310,7 +316,8 @@ export class EditStage {
     translatedChunk: TextChunk,
     originalChunk: TextChunk,
     glossaryText: string,
-    styleNotes: string
+    styleNotes: string,
+    temperature: number = 0.5
   ): Promise<{ text: string; tokensUsed: number }> {
     const messages: Message[] = [
       { role: 'system', content: EDITOR_SYSTEM_PROMPT },
@@ -326,7 +333,7 @@ export class EditStage {
     ];
     
     const editResponse = await this.provider.complete(messages, {
-      temperature: 0.5,
+      temperature,
       maxTokens: 4096,
     });
     

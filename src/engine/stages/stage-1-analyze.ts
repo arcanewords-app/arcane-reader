@@ -10,13 +10,14 @@
 import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AnalysisResult } from '../types/agent.js';
 import type { StageResult } from '../types/pipeline.js';
-import type { Glossary } from '../types/glossary.js';
+import type { Glossary, Character, Location, Term } from '../types/glossary.js';
 import { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from '../prompts/system/analyzer.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 
 interface AnalyzeStageOptions {
   chapterNumber: number;
   existingGlossary?: Glossary;
+  temperature?: number;
 }
 
 interface RawAnalysisResponse {
@@ -39,6 +40,23 @@ interface RawAnalysisResponse {
     suggestedTranslation?: string;
     category?: string;
     description?: string;
+  }[];
+  /** Refined/merged updates for entities already in the glossary (agent returns these) */
+  updatedCharacters?: {
+    originalName: string;
+    description?: string;
+    suggestedTranslation?: string;
+  }[];
+  updatedLocations?: {
+    originalName: string;
+    description?: string;
+    suggestedTranslation?: string;
+  }[];
+  updatedTerms?: {
+    originalTerm: string;
+    description?: string;
+    suggestedTranslation?: string;
+    category?: string;
   }[];
   chapterSummary?: string;
   keyEvents?: string[];
@@ -110,27 +128,41 @@ export class AnalyzeStage {
       ];
       
       // Call LLM
+      const temperature = options.temperature ?? 0.3;
+      const promptChars = messages.reduce((s, m) => s + (m.content?.length ?? 0), 0);
+      const model = (this.provider as { model?: string })?.model ?? '';
+      const isReasoningModel = /^gpt-5|^o1-|^o3-|^o4-/i.test(model);
+      console.log(`[AnalyzeStage] Calling provider.completeJSON (prompt length ~${promptChars} chars, model: ${model})`);
+      if (isReasoningModel) {
+        console.log(`[AnalyzeStage] Reasoning model in use: first response may take 1–5 minutes, please wait...`);
+      }
       const response = await this.provider.completeJSON<RawAnalysisResponse>(messages, {
-        temperature: 0.3,
+        temperature,
         maxTokens: 4096,
       });
-      
+      const tokensUsed = response.tokensUsed?.total ?? 0;
+      console.log(`[AnalyzeStage] Provider returned tokensUsed=${tokensUsed}`);
+
       // Parse and validate response
       const result = this.parseResponse(response.data, options);
-      
+
       return {
         stage: 'analyze',
         success: true,
         data: result,
-        tokensUsed: response.tokensUsed.total,
+        tokensUsed,
         duration: Date.now() - startTime,
       };
-      
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[AnalyzeStage] Error: ${errMsg}`);
+      if (error instanceof Error && error.stack) {
+        console.error(`[AnalyzeStage] Stack: ${error.stack.split('\n').slice(0, 3).join('\n')}`);
+      }
       return {
         stage: 'analyze',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errMsg,
         tokensUsed: 0,
         duration: Date.now() - startTime,
       };
@@ -141,44 +173,87 @@ export class AnalyzeStage {
     raw: RawAnalysisResponse,
     options: AnalyzeStageOptions
   ): AnalysisResult {
-    const existingCharNames = new Set(
-      options.existingGlossary?.characters.map(c => c.originalName.toLowerCase()) ?? []
-    );
-    const existingLocNames = new Set(
-      options.existingGlossary?.locations.map(l => l.originalName.toLowerCase()) ?? []
-    );
-    const existingTerms = new Set(
-      options.existingGlossary?.terms.map(t => t.originalTerm.toLowerCase()) ?? []
-    );
-    
+    const existingChars = options.existingGlossary?.characters ?? [];
+    const existingLocs = options.existingGlossary?.locations ?? [];
+    const existingTermsList = options.existingGlossary?.terms ?? [];
+    const existingCharNames = new Set(existingChars.map(c => c.originalName.toLowerCase()));
+    const existingLocNames = new Set(existingLocs.map(l => l.originalName.toLowerCase()));
+    const existingTermSet = new Set(existingTermsList.map(t => t.originalTerm.toLowerCase()));
+
+    const findExistingChar = (name: string) =>
+      existingChars.find(c => c.originalName.toLowerCase() === name.toLowerCase());
+    const findExistingLoc = (name: string) =>
+      existingLocs.find(l => l.originalName.toLowerCase() === name.toLowerCase());
+    const findExistingTerm = (term: string) =>
+      existingTermsList.find(t => t.originalTerm.toLowerCase() === term.toLowerCase());
+
+    // Map agent-returned updated* (by original name/term) to entries with id for DB updates
+    const mapUpdatedCharacters = (): Partial<Character>[] => {
+      const out: Partial<Character>[] = [];
+      for (const c of raw.updatedCharacters ?? []) {
+        const existing = findExistingChar(c.originalName);
+        if (!existing) continue;
+        const entry: Partial<Character> = { id: existing.id };
+        if ((c.description?.trim() ?? '').length > 0) entry.description = c.description!.trim();
+        if ((c.suggestedTranslation?.trim() ?? '').length > 0) entry.translatedName = c.suggestedTranslation!.trim();
+        if (Object.keys(entry).length > 1) out.push(entry);
+      }
+      return out;
+    };
+    const mapUpdatedLocations = (): Partial<Location>[] => {
+      const out: Partial<Location>[] = [];
+      for (const l of raw.updatedLocations ?? []) {
+        const existing = findExistingLoc(l.originalName);
+        if (!existing) continue;
+        const entry: Partial<Location> = { id: existing.id };
+        if ((l.description?.trim() ?? '').length > 0) entry.description = l.description!.trim();
+        if ((l.suggestedTranslation?.trim() ?? '').length > 0) entry.translatedName = l.suggestedTranslation!.trim();
+        if (Object.keys(entry).length > 1) out.push(entry);
+      }
+      return out;
+    };
+    const mapUpdatedTerms = (): Partial<Term>[] => {
+      const out: Partial<Term>[] = [];
+      for (const t of raw.updatedTerms ?? []) {
+        const existing = findExistingTerm(t.originalTerm);
+        if (!existing) continue;
+        const entry: Partial<Term> = { id: existing.id };
+        if ((t.description?.trim() ?? '').length > 0) entry.description = t.description!.trim();
+        if ((t.suggestedTranslation?.trim() ?? '').length > 0) entry.translatedTerm = t.suggestedTranslation!.trim();
+        if ((t.category?.trim() ?? '').length > 0) entry.category = (t.category as Term['category']) ?? 'other';
+        if (Object.keys(entry).length > 1) out.push(entry);
+      }
+      return out;
+    };
+
     return {
       chapterNumber: options.chapterNumber,
-      
+
       foundCharacters: (raw.characters ?? []).map(c => ({
         name: c.name,
         isNew: !existingCharNames.has(c.name.toLowerCase()),
         suggestedTranslation: c.suggestedTranslation,
         context: c.context ?? '',
       })),
-      
+
       foundLocations: (raw.locations ?? []).map(l => ({
         name: l.name,
         isNew: !existingLocNames.has(l.name.toLowerCase()),
         suggestedTranslation: l.suggestedTranslation,
       })),
-      
+
       foundTerms: (raw.terms ?? []).map(t => ({
         term: t.term,
-        isNew: !existingTerms.has(t.term.toLowerCase()),
+        isNew: !existingTermSet.has(t.term.toLowerCase()),
         suggestedTranslation: t.suggestedTranslation,
         category: t.category ?? 'other',
       })),
-      
+
       chapterSummary: raw.chapterSummary ?? '',
       keyEvents: raw.keyEvents ?? [],
       mood: raw.mood ?? '',
       styleNotes: raw.styleNotes,
-      
+
       glossaryUpdate: {
         newCharacters: (raw.characters ?? [])
           .filter(c => !existingCharNames.has(c.name.toLowerCase()))
@@ -208,16 +283,16 @@ export class AnalyzeStage {
             description: l.description ?? '',
           })),
         newTerms: (raw.terms ?? [])
-          .filter(t => !existingTerms.has(t.term.toLowerCase()))
+          .filter(t => !existingTermSet.has(t.term.toLowerCase()))
           .map(t => ({
             originalTerm: t.term,
             translatedTerm: t.suggestedTranslation ?? t.term,
             category: (t.category as 'skill' | 'magic' | 'item' | 'title' | 'organization' | 'race' | 'other') ?? 'other',
             description: t.description ?? '',
           })),
-        updatedCharacters: [],
-        updatedLocations: [],
-        updatedTerms: [],
+        updatedCharacters: mapUpdatedCharacters(),
+        updatedLocations: mapUpdatedLocations(),
+        updatedTerms: mapUpdatedTerms(),
       },
     };
   }

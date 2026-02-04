@@ -6,13 +6,15 @@
 /* Mobile First - Base styles for mobile */
 
 main {
-  width: var(--container-width-mobile);
+  width: 100%;
   max-width: var(--container-width-mobile);
   margin: 0 auto;
   padding: var(--main-padding-mobile);
   display: block; /* Single column on mobile */
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
+  box-sizing: border-box;
   /* z-index не задаём — хедер sticky с z-index: 1000 сам будет выше при прокрутке */
 }
 
@@ -21,7 +23,7 @@ main {
   top: var(--header-height-mobile);
   left: -100%;
   width: var(--sidebar-width-mobile);
-  max-width: 320px; /* Максимальная ширина для больших мобильных */
+  max-width: min(320px, 100vw); /* Не выходим за viewport */
   height: calc(100vh - var(--header-height-mobile));
   max-height: 100vh;
   min-height: 0; /* Allow flex container to shrink so overflow-y scroll works */
@@ -38,6 +40,12 @@ main {
   gap: 1rem;
   background: var(--bg-primary);
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  box-sizing: border-box;
+}
+
+/* Flex children must be able to shrink to avoid horizontal overflow */
+.sidebar > * {
+  min-width: 0;
 }
 
 /* Full-screen sidebar when open on mobile */
@@ -117,12 +125,11 @@ main {
 
 @media (min-width: 1024px) {
   main {
-    width: var(--container-width-desktop);
-    max-width: var(--container-width-desktop);
+    width: 100%;
+    max-width: min(var(--container-width-desktop), 100vw);
     padding: var(--main-padding-desktop);
     display: block; /* Changed from grid - sidebar will be inside pages */
     min-height: calc(100vh - 100px);
-    /* Защита от горизонтального overflow */
     box-sizing: border-box;
   }
 
@@ -133,12 +140,14 @@ main {
     left: auto;
     width: 100%;
     min-width: 0;
+    max-width: 100%;
     height: auto;
     min-height: calc(100vh - 88px);
     padding: 0.75rem 1rem 1rem;
     box-shadow: none;
     border-right: none;
     overflow-y: visible;
+    overflow-x: hidden;
     background: transparent;
     box-sizing: border-box;
     align-self: stretch;

@@ -5,16 +5,22 @@
 .chapter-page-container {
   display: block; /* Mobile: single column */
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
-/* Desktop: grid layout */
+/* Desktop: grid layout — колонка контента может сжиматься (minmax(0, 1fr)) */
 @media (min-width: 1024px) {
   .project-page-container,
   .chapter-page-container {
     display: grid;
-    grid-template-columns: minmax(280px, 320px) 1fr;
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
     gap: 2rem;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 

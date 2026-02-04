@@ -27,8 +27,10 @@ import {
   getChapter,
   deleteChapter,
   updateChapterNumber,
+  updateChaptersOrder,
   addGlossaryEntry,
   updateGlossaryEntry,
+  getGlossaryEntry,
   deleteGlossaryEntry,
   updateParagraph,
   updateReaderSettings,
@@ -96,6 +98,20 @@ const configValidation = validateConfig(config);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Decode filename from multipart uploads.
+ * Browsers may send UTF-8 names that some stacks interpret as Latin-1, causing mojibake.
+ * Prefer client-sent "filename" field; use this when only originalname is available.
+ */
+function decodeMultipartFilename(originalname: string): string {
+  if (!originalname || typeof originalname !== 'string') return originalname;
+  try {
+    return Buffer.from(originalname, 'latin1').toString('utf8');
+  } catch {
+    return originalname;
+  }
+}
+
 const app = express();
 const PORT = config.port;
 
@@ -105,7 +121,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (increased for EPUB/FB2)
   fileFilter: (_req, file, cb) => {
-    const filename = file.originalname.toLowerCase();
+    const filename = decodeMultipartFilename(file.originalname).toLowerCase();
     const allowedExtensions = ['.txt', '.epub', '.fb2'];
     const allowedMimes = [
       'text/plain',
@@ -139,6 +155,12 @@ const uploadImage = multer({
     }
   },
 });
+
+// In-memory registry for translation cancellation: when user clicks Cancel, server checks this and stops pipeline
+const translationCancelRegistry = new Map<string, boolean>();
+function translationCancelKey(projectId: string, chapterId: string): string {
+  return `${projectId}:${chapterId}`;
+}
 
 // Middleware
 app.use(cors());
@@ -428,6 +450,7 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       model, // Legacy: single model
       stageModels, // New: per-stage models
       temperature,
+      temperatureByStage, // Per-stage creativity
       enableAnalysis,
       enableEditing,
       enableTranslation, // Allow toggling translation (for original reading mode)
@@ -447,6 +470,13 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       originalReadingMode: originalReadingMode ?? project.settings.originalReadingMode ?? false,
       reader: existingReader,
     };
+
+    if (temperatureByStage != null && typeof temperatureByStage === 'object') {
+      updatedSettings.temperatureByStage = {
+        ...(project.settings.temperatureByStage || {}),
+        ...temperatureByStage,
+      };
+    }
 
     // Handle model updates
     if (stageModels) {
@@ -548,7 +578,11 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const filename = req.file.originalname;
+    // Use client-sent filename (correct UTF-8) when present; else decode multipart originalname for any locale
+    const filename =
+      typeof req.body?.filename === 'string' && req.body.filename.trim()
+        ? req.body.filename.trim()
+        : decodeMultipartFilename(req.file.originalname);
 
     // Check if format is supported
     if (!isSupportedFormat(filename)) {
@@ -772,6 +806,7 @@ app.post(
 
       // Only reset if status is translating
       if (chapter.status === 'translating') {
+        translationCancelRegistry.set(translationCancelKey(req.params.projectId, req.params.chapterId), true);
         await updateChapter(
           req.params.projectId,
           req.params.chapterId,
@@ -1103,6 +1138,21 @@ app.post(
         return res.status(404).json({ error: 'Chapter not found' });
       }
 
+      // Use chapter.originalText if set; otherwise derive from paragraphs (e.g. after "mark as translated" which clears chapter.originalText but keeps paragraph.originalText)
+      const effectiveOriginalText =
+        (chapter.originalText && chapter.originalText.trim().length > 0)
+          ? chapter.originalText.trim()
+          : (chapter.paragraphs && chapter.paragraphs.length > 0)
+            ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
+            : '';
+      if (!effectiveOriginalText) {
+        return res.status(400).json({
+          error: 'No source text',
+          message: 'Глава не содержит исходного текста. Добавьте текст или импортируйте главу заново.',
+        });
+      }
+      const chapterForTranslation = { ...chapter, originalText: effectiveOriginalText };
+
       // Parse request body: translateOnlyEmpty, paragraphIds, stages (array or 'all')
       const body = req.body || {};
       const translateOnlyEmpty = body.translateOnlyEmpty === true;
@@ -1126,28 +1176,28 @@ app.post(
       };
 
       // Text length for token estimate: selected paragraphs, or empty only, or full chapter
-      let textLength = chapter.originalText.length;
-      if (paragraphIds?.length && chapter.paragraphs?.length) {
+      let textLength = chapterForTranslation.originalText.length;
+      if (paragraphIds?.length && chapterForTranslation.paragraphs?.length) {
         const idSet = new Set(paragraphIds);
-        textLength = chapter.paragraphs
+        textLength = chapterForTranslation.paragraphs
           .filter((p) => idSet.has(p.id))
           .reduce((sum, p) => sum + p.originalText.length, 0);
-      } else if (translateOnlyEmpty && chapter.paragraphs?.length) {
-        const empty = chapter.paragraphs.filter((p) => !hasValidTranslation(p));
+      } else if (translateOnlyEmpty && chapterForTranslation.paragraphs?.length) {
+        const empty = chapterForTranslation.paragraphs.filter((p) => !hasValidTranslation(p));
         textLength = empty.reduce((sum, p) => sum + p.originalText.length, 0);
       }
 
       // Log chapter state before translation
       const hasTranslatedText =
-        !!chapter.translatedText && chapter.translatedText.trim().length > 0;
-      const hasTranslatedParagraphs = chapter.paragraphs?.some(
+        !!chapterForTranslation.translatedText && chapterForTranslation.translatedText.trim().length > 0;
+      const hasTranslatedParagraphs = chapterForTranslation.paragraphs?.some(
         (p) => p.translatedText && p.translatedText.trim().length > 0
       );
-      console.log(`📋 Состояние главы перед переводом: ${chapter.title}`);
-      console.log(`   ID: ${chapter.id}, Статус: ${chapter.status}`);
+      console.log(`📋 Состояние главы перед переводом: ${chapterForTranslation.title}`);
+      console.log(`   ID: ${chapterForTranslation.id}, Статус: ${chapterForTranslation.status}`);
       console.log(`   Есть переведенный текст: ${hasTranslatedText}`);
       console.log(`   Есть переведенные параграфы: ${hasTranslatedParagraphs}`);
-      console.log(`   Количество параграфов: ${chapter.paragraphs?.length || 0}`);
+      console.log(`   Количество параграфов: ${chapterForTranslation.paragraphs?.length || 0}`);
       console.log(
         `   Режим: ${paragraphIds?.length ? `Выбранные параграфы (${paragraphIds.length})` : translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
       );
@@ -1213,7 +1263,7 @@ app.post(
       console.log(`\n${'═'.repeat(60)}`);
       console.log(`🔮 ЗАПРОС НА ПЕРЕВОД`);
       console.log(`${'─'.repeat(60)}`);
-      console.log(`📖 Глава: ${chapter.title}`);
+      console.log(`📖 Глава: ${chapterForTranslation.title}`);
       console.log(`📊 Размер: ${textLength} символов, ~${wordCount} слов`);
       console.log(`🔑 API ключ: ${config.openai.apiKey ? '✅ Настроен' : '❌ Не настроен'}`);
       console.log(
@@ -1228,7 +1278,7 @@ app.post(
       performTranslation(
         req.params.projectId,
         req.params.chapterId,
-        chapter,
+        chapterForTranslation,
         project,
         startTime,
         translateOnlyEmpty,
@@ -1263,13 +1313,26 @@ async function performTranslation(
   paragraphIds?: string[],
   stages: TranslationStages = 'all'
 ): Promise<void> {
+  const cancelKey = translationCancelKey(projectId, chapterId);
+  const isCancelled = () => translationCancelRegistry.get(cancelKey) === true;
   try {
-    // Validate input data
-    if (!chapter || !chapter.originalText) {
-      throw new Error('Глава не содержит исходного текста');
+    if (!chapter) {
+      throw new Error('Глава не указана');
     }
 
-    const paragraphs = chapter.paragraphs || [];
+    // Use chapter.originalText if set; otherwise derive from paragraphs (e.g. after "mark as translated")
+    const effectiveOriginalText =
+      (chapter.originalText && chapter.originalText.trim().length > 0)
+        ? chapter.originalText.trim()
+        : (chapter.paragraphs && chapter.paragraphs.length > 0)
+          ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
+          : '';
+    if (!effectiveOriginalText) {
+      throw new Error('Глава не содержит исходного текста');
+    }
+    const chapterWithOriginal = { ...chapter, originalText: effectiveOriginalText };
+
+    const paragraphs = chapterWithOriginal.paragraphs || [];
     if (paragraphs.length === 0) {
       throw new Error('Глава не содержит параграфов');
     }
@@ -1282,8 +1345,8 @@ async function performTranslation(
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // Update paragraphs with demo translations
-      const paragraphs = chapter.paragraphs || [];
-      const updatedParagraphs = paragraphs.map((p, idx) => ({
+      const demoParagraphs = chapterWithOriginal.paragraphs || [];
+      const updatedParagraphs = demoParagraphs.map((p, idx) => ({
         ...p,
         translatedText: `[ДЕМО ${idx + 1}] ${p.originalText.substring(0, 50)}...`,
         status: 'translated' as const,
@@ -1311,7 +1374,7 @@ async function performTranslation(
       );
 
       console.log(
-        `✅ Демо-перевод завершён за ${Date.now() - startTime}ms (${paragraphs.length} абзацев)`
+        `✅ Демо-перевод завершён за ${Date.now() - startTime}ms (${demoParagraphs.length} абзацев)`
       );
       return;
     }
@@ -1403,13 +1466,13 @@ async function performTranslation(
     };
 
     // Determine which paragraphs to translate: selected IDs, empty only, or full chapter
-    let chapterToTranslate = chapter;
-    let paragraphsToTranslate = chapter.paragraphs || [];
+    let chapterToTranslate = chapterWithOriginal;
+    let paragraphsToTranslate = chapterWithOriginal.paragraphs || [];
     let translateSubsetOnly = false; // true when we merge synced subset back into full paragraphs
 
     if (paragraphIds?.length) {
       const idSet = new Set(paragraphIds);
-      paragraphsToTranslate = (chapter.paragraphs || []).filter((p) => idSet.has(p.id));
+      paragraphsToTranslate = (chapterWithOriginal.paragraphs || []).filter((p) => idSet.has(p.id));
       if (paragraphsToTranslate.length === 0) {
         console.log(`ℹ️  Нет выбранных параграфов для перевода.`);
         await updateChapter(projectId, chapterId, { status: 'completed' }, token);
@@ -1417,11 +1480,11 @@ async function performTranslation(
       }
       const textToTranslate = mergeParagraphsToText(paragraphsToTranslate, 'originalText');
       const markedText = addParagraphMarkers(textToTranslate, paragraphsToTranslate);
-      chapterToTranslate = { ...chapter, originalText: markedText };
+      chapterToTranslate = { ...chapterWithOriginal, originalText: markedText };
       translateSubsetOnly = true;
-      console.log(`📝 Режим выбранных параграфов: ${paragraphsToTranslate.length} из ${(chapter.paragraphs || []).length}`);
+      console.log(`📝 Режим выбранных параграфов: ${paragraphsToTranslate.length} из ${(chapterWithOriginal.paragraphs || []).length}`);
     } else if (translateOnlyEmpty) {
-      const paragraphs = chapter.paragraphs || [];
+      const paragraphs = chapterWithOriginal.paragraphs || [];
       const emptyParagraphs = paragraphs.filter((p) => !hasValidTranslation(p));
 
       if (emptyParagraphs.length === 0) {
@@ -1445,13 +1508,13 @@ async function performTranslation(
       paragraphsToTranslate = emptyParagraphs;
 
       chapterToTranslate = {
-        ...chapter,
+        ...chapterWithOriginal,
         originalText: markedText,
       };
     } else {
-      const markedText = addParagraphMarkers(chapter.originalText, chapter.paragraphs || []);
+      const markedText = addParagraphMarkers(chapterWithOriginal.originalText, chapterWithOriginal.paragraphs || []);
       chapterToTranslate = {
-        ...chapter,
+        ...chapterWithOriginal,
         originalText: markedText,
       };
     }
@@ -1469,6 +1532,11 @@ async function performTranslation(
       },
     };
 
+    if (isCancelled()) {
+      console.log(`⏹️  Перевод отменён пользователем до запуска пайплайна: ${chapter.title}`);
+      return;
+    }
+
     // Use arcane-engine for translation (stages: array or 'all')
     let result;
     try {
@@ -1477,8 +1545,9 @@ async function performTranslation(
       result = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
         stages,
         existingTranslatedText: needsExistingText
-          ? (chapter.translatedText?.trim() || '') || undefined
+          ? (chapterWithOriginal.translatedText?.trim() || '') || undefined
           : undefined,
+        isCancelled,
       });
     } catch (pipelineError) {
       // Pipeline error - rethrow to outer catch block
@@ -1492,17 +1561,21 @@ async function performTranslation(
     console.log(`✅ ПЕРЕВОД ЗАВЕРШЁН (arcane-engine)`);
     console.log(`⏱️  Время: ${(result.duration / 1000).toFixed(1)}s`);
 
-    // Show tokens by stage
+    // Show tokens by stage (only stages that were run)
     if (result.tokensByStage) {
       const stageTokens: string[] = [];
-      if (result.tokensByStage.analysis) {
+      if (result.tokensByStage.analysis !== undefined) {
         stageTokens.push(`🔍 Анализ: ${result.tokensByStage.analysis.toLocaleString()}`);
       }
-      stageTokens.push(`🔮 Перевод: ${result.tokensByStage.translation.toLocaleString()}`);
-      if (result.tokensByStage.editing) {
+      if (result.tokensByStage.translation !== undefined) {
+        stageTokens.push(`🔮 Перевод: ${result.tokensByStage.translation.toLocaleString()}`);
+      }
+      if (result.tokensByStage.editing !== undefined) {
         stageTokens.push(`✨ Редактура: ${result.tokensByStage.editing.toLocaleString()}`);
       }
-      console.log(`📝 Токенов по стейджам: ${stageTokens.join(' | ')}`);
+      if (stageTokens.length) {
+        console.log(`📝 Токенов по стейджам: ${stageTokens.join(' | ')}`);
+      }
       console.log(`📊 Всего токенов: ${result.tokensUsed.toLocaleString()}`);
     } else {
       console.log(`📝 Токенов: ${result.tokensUsed.toLocaleString()}`);
@@ -1518,6 +1591,21 @@ async function performTranslation(
       if (result.glossaryUpdates?.length) {
         for (const entry of result.glossaryUpdates) {
           await addGlossaryEntry(projectId, entry, token);
+        }
+      }
+      if (result.glossaryUpdatesExisting?.length) {
+        for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
+          await updateGlossaryEntry(projectId, entryId, updates, token);
+        }
+      }
+      if (result.glossaryAppearanceEntryIds?.length) {
+        const chapterNum = chapter.number;
+        for (const entryId of result.glossaryAppearanceEntryIds) {
+          const entry = await getGlossaryEntry(projectId, entryId, token);
+          if (entry) {
+            const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort((a, b) => a - b);
+            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+          }
         }
       }
       await updateChapter(projectId, chapterId, { status: 'completed' }, token);
@@ -1738,15 +1826,34 @@ async function performTranslation(
       console.error(`❌ ОШИБКА: Не удалось получить сохраненную главу для проверки!`);
     }
 
-    // Auto-add detected glossary entries
+    // Auto-add detected glossary entries (new + updates for existing)
     if (result.glossaryUpdates?.length) {
       for (const entry of result.glossaryUpdates) {
         await addGlossaryEntry(projectId, entry, token);
       }
     }
+    if (result.glossaryUpdatesExisting?.length) {
+      for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
+        await updateGlossaryEntry(projectId, entryId, updates, token);
+      }
+    }
+    if (result.glossaryAppearanceEntryIds?.length) {
+      const chapterNum = chapter.number;
+      for (const entryId of result.glossaryAppearanceEntryIds) {
+        const entry = await getGlossaryEntry(projectId, entryId, token);
+        if (entry) {
+          const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort((a, b) => a - b);
+          await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+        }
+      }
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
+    if (errorMessage === 'Cancelled') {
+      console.log(`⏹️  Перевод отменён пользователем: ${chapter.title}`);
+      return;
+    }
     console.log(`❌ ОШИБКА: ${errorMessage}`);
     if (errorStack) {
       console.log(`   Stack trace: ${errorStack.substring(0, 500)}...`);
@@ -1769,6 +1876,8 @@ async function performTranslation(
 
     console.log(`⚠️ Глава помечена как ошибка: ${chapter.title}`);
     console.log(`   Сохранен существующий перевод: ${!!existingTranslation}`);
+  } finally {
+    translationCancelRegistry.delete(cancelKey);
   }
 }
 
@@ -2906,6 +3015,28 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, asyn
   }
 });
 
+// Reorder chapters (accepts full ordered ids array)
+app.put('/api/projects/:projectId/chapters/order', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.some((i) => typeof i !== 'string')) {
+      return res.status(400).json({ error: 'Invalid ids array' });
+    }
+
+    await updateChaptersOrder(req.params.projectId, ids, requireToken(req));
+
+    // Return updated project
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    res.json(project);
+  } catch (error) {
+    console.error('Failed to reorder chapters:', error);
+    const message = error instanceof Error ? error.message : 'Failed to reorder chapters';
+    res.status(500).json({ error: message });
+  }
+});
+
 // Update paragraph (requires auth)
 app.put(
   '/api/projects/:projectId/chapters/:chapterId/paragraphs/:paragraphId',
@@ -3272,6 +3403,7 @@ app.post('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
       description?: string | null;
       coverImageUrl?: string | null;
       authorDisplay?: string | null;
+      translatorDisplay?: string | null;
       sourceLanguage?: string;
       targetLanguage?: string;
     };
@@ -3285,7 +3417,8 @@ app.post('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
         title: body.title,
         description: body.description,
         coverImageUrl: body.coverImageUrl,
-        authorDisplay: body.authorDisplay ?? req.user!.email,
+        authorDisplay: body.authorDisplay,
+        translatorDisplay: body.translatorDisplay ?? req.user!.email,
         sourceLanguage: body.sourceLanguage,
         targetLanguage: body.targetLanguage,
       }
@@ -3327,16 +3460,14 @@ app.get('/api/user/publications', requireAuth, async (req, res) => {
   }
 });
 
-// Get publication for a project (owner only, auth required)
+// Get publication for a project (owner only, auth required).
+// Returns 200 with publication or null when project has no publication yet (normal case).
 app.get('/api/projects/:projectId/publication', requireAuth, async (req, res) => {
   try {
     const userId = req.user!.id;
     const token = req.token!;
     const projectId = req.params.projectId;
     const pub = await getPublicationByProjectId(projectId, userId, token);
-    if (!pub) {
-      return res.status(404).json({ error: 'Publication not found' });
-    }
     res.json(pub);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get publication';

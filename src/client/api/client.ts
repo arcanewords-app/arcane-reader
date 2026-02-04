@@ -221,15 +221,19 @@ export const api = {
   async uploadChapter(
     projectId: string,
     file: File,
-    title: string
+    title: string,
+    signal?: AbortSignal
   ): Promise<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
+    // Send actual filename so server gets correct UTF-8 name (avoids multipart encoding issues with Cyrillic, etc.)
+    formData.append('filename', file.name);
 
     return fetchFormData<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>(
       `/api/projects/${projectId}/chapters`,
-      formData
+      formData,
+      { method: 'POST', signal }
     );
   },
 
@@ -265,6 +269,13 @@ export const api = {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/number`, {
       method: 'PUT',
       body: JSON.stringify({ number }),
+    });
+  },
+
+  async reorderChapters(projectId: string, ids: string[]): Promise<Project> {
+    return fetchJson(`/api/projects/${projectId}/chapters/order`, {
+      method: 'PUT',
+      body: JSON.stringify({ ids }),
     });
   },
 
@@ -511,7 +522,7 @@ export const api = {
   },
 
   /** Publish project (auth required) */
-  async publishProject(
+  async   publishProject(
     projectId: string,
     data: {
       status?: 'draft' | 'published';
@@ -519,6 +530,7 @@ export const api = {
       description?: string | null;
       coverImageUrl?: string | null;
       authorDisplay?: string | null;
+      translatorDisplay?: string | null;
     }
   ): Promise<Publication> {
     return fetchJson(`/api/projects/${projectId}/publish`, {
@@ -539,14 +551,10 @@ export const api = {
     return fetchJson('/api/user/publications');
   },
 
-  /** Get publication for a project (owner, auth required) */
+  /** Get publication for a project (owner, auth required). Returns null when project has no publication yet. */
   async getProjectPublication(projectId: string): Promise<Publication | null> {
-    try {
-      return await fetchJson(`/api/projects/${projectId}/publication`);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return null;
-      throw e;
-    }
+    const result = await fetchJson<Publication | null>(`/api/projects/${projectId}/publication`);
+    return result ?? null;
   },
 
   // === Token Usage ===

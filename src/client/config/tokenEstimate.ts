@@ -4,7 +4,7 @@
  */
 
 export const TOKENS_PER_10K_CHARS = {
-  analysis: 2000,
+  analysis: 5000, // ~5000 tokens per 10k chars observed in practice
   translation: 10000,
   editing: 13000,
 } as const;

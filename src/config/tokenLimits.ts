@@ -30,10 +30,10 @@ export const TOKEN_LIMITS = {
 
   /** Token calculation coefficients (per 10,000 characters) */
   TOKENS_PER_10K_CHARS: {
-    analysis: 2000,
+    analysis: 5000, // ~5000 tokens per 10k chars observed in practice
     translation: 10000,
     editing: 13000,
-    total: 25000,
+    total: 28000,
   },
 
   /** Reset time (UTC) */

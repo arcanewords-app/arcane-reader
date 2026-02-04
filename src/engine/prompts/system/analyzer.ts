@@ -82,12 +82,37 @@ If in doubt, DO NOT extract it. It's better to have fewer, high-quality entries 
       "description": "meaning and usage"
     }
   ],
+  "updatedCharacters": [
+    {
+      "originalName": "exact original name from existing glossary",
+      "description": "refined or expanded description from this chapter",
+      "suggestedTranslation": "refined translation if this chapter suggests a better one"
+    }
+  ],
+  "updatedLocations": [
+    {
+      "originalName": "exact original name from existing glossary",
+      "description": "refined description",
+      "suggestedTranslation": "refined translation"
+    }
+  ],
+  "updatedTerms": [
+    {
+      "originalTerm": "exact original term from existing glossary",
+      "description": "refined meaning/usage",
+      "suggestedTranslation": "refined translation",
+      "category": "skill|magic|item|title|organization|race|other"
+    }
+  ],
   "chapterSummary": "2-3 sentence summary of events",
   "keyEvents": ["event 1", "event 2"],
   "mood": "chapter mood/atmosphere",
   "styleNotes": "notable stylistic elements"
 }
 \`\`\`
+
+- **characters / locations / terms**: Only NEW entities not already in the existing glossary.
+- **updatedCharacters / updatedLocations / updatedTerms**: Entities that ARE already in the existing glossary and appear in this chapter. Include an entry here only when you have new or improved information (e.g. refined description, better translation from context). Use the exact original name/term as in the glossary to identify the entry. Omit any field you do not want to change.
 
 ## Guidelines
 
@@ -121,7 +146,9 @@ export const createAnalyzerPrompt = (
   
   if (existingGlossary) {
     prompt += `## Existing Glossary (for reference)\n${existingGlossary}\n\n`;
-    prompt += `Note: Only include NEW characters/terms not in the glossary. Mark existing ones if they appear.\n\n`;
+    prompt += `Rules:\n`;
+    prompt += `- In "characters", "locations", "terms" list ONLY NEW entities that are not in the glossary above.\n`;
+    prompt += `- If an entity from the glossary appears in this chapter and you have refined or new data (better description, improved translation), add it to "updatedCharacters", "updatedLocations", or "updatedTerms" with the exact original name/term. Only include fields you want to update.\n\n`;
   }
   
   prompt += `## Source Text\n\n${sourceText}\n\n`;

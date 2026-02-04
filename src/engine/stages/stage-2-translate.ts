@@ -18,6 +18,7 @@ import { chunkText, mergeChunks } from '../utils/chunker.js';
 interface TranslateStageOptions {
   context: AgentContext;
   chunkSize?: number;
+  temperature?: number;
 }
 
 export class TranslateStage {
@@ -95,7 +96,8 @@ export class TranslateStage {
         console.log(`[TranslateStage] Перевод чанка ${i + 1}/${chunks.length} (ID: ${chunk.id}, токенов: ${chunk.tokenCount})`);
         
         try {
-          const result = await this.translateChunk(chunk, glossaryText, contextText, styleGuide);
+          const temperature = options.temperature ?? 0.7;
+          const result = await this.translateChunk(chunk, glossaryText, contextText, styleGuide, temperature);
 
           if (!result.translation.translated || result.translation.translated.trim().length === 0) {
             console.warn(`[TranslateStage] ⚠️ Чанк ${i + 1} вернул пустой перевод!`);
@@ -204,7 +206,8 @@ export class TranslateStage {
     chunk: TextChunk,
     glossaryText: string,
     contextText: string,
-    styleGuide: string
+    styleGuide: string,
+    temperature: number = 0.7
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     // Validate provider before use
     if (!this.provider) {
@@ -239,7 +242,7 @@ export class TranslateStage {
         const response = await this.provider.completeJSON<{
           paragraphs: Array<{ id: string; translated: string }>;
         }>(messages, {
-          temperature: 0.7,
+          temperature,
           maxTokens: 4096,
         });
 
@@ -274,7 +277,7 @@ export class TranslateStage {
         // Fallback to text format
         if (typeof this.provider.complete === 'function') {
           const response = await this.provider.complete(messages, {
-            temperature: 0.7,
+            temperature,
             maxTokens: 4096,
           });
           translatedText = response.content ? response.content.trim() : '';
@@ -286,7 +289,7 @@ export class TranslateStage {
     } else {
       // Use text format if JSON not supported
       const response = await this.provider.complete(messages, {
-        temperature: 0.7,
+        temperature,
         maxTokens: 4096,
       });
       translatedText = response.content ? response.content.trim() : '';

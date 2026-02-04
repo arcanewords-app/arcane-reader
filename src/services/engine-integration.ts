@@ -92,18 +92,23 @@ function getStageModel(
   stage: 'analysis' | 'translation' | 'editing',
   defaultModel: string
 ): string {
-  // Use per-stage models if available
-  if (project.settings.stageModels) {
-    return project.settings.stageModels[stage];
+  const stageModels = project.settings?.stageModels;
+  const stageModel = stageModels?.[stage];
+  if (stageModel && typeof stageModel === 'string' && stageModel.trim()) {
+    return stageModel;
   }
-  
-  // Fallback to legacy model if available
-  if (project.settings.model) {
+  if (project.settings?.model) {
     return project.settings.model;
   }
-  
-  // Final fallback to config default
   return defaultModel;
+}
+
+/** Models that only support v1/responses (not chat/completions). Fallback for old saved settings. */
+const RESPONSES_ONLY_MODELS = new Set(['gpt-5.1-codex-mini', 'codex-mini-latest']);
+const FALLBACK_MODEL = 'gpt-4o-mini';
+
+function modelForChatCompletions(id: string): string {
+  return RESPONSES_ONLY_MODELS.has(id) ? FALLBACK_MODEL : id;
 }
 
 /**
@@ -117,14 +122,18 @@ export function createPipeline(
   if (!config.openai.apiKey) {
     throw new Error('OpenAI API key is not configured');
   }
-  
-  // Create separate providers for each stage with their respective models
-  // Defaults optimized for promotional models with fallback
-  const analysisModel = getStageModel(project, 'analysis', 'gpt-4.1-mini') || 'gpt-4o-mini';
-  // Fallback: use gpt-4.1-mini if gpt-5-mini not available
-  const translationModel = getStageModel(project, 'translation', 'gpt-5-mini') || getStageModel(project, 'translation', 'gpt-4.1-mini') || config.openai.model;
-  const editingModel = getStageModel(project, 'editing', 'gpt-4.1-mini') || 'gpt-4o-mini';
-  
+
+  const rawAnalysisModel = modelForChatCompletions(getStageModel(project, 'analysis', 'gpt-4.1-mini') || 'gpt-4o-mini');
+  // Analysis: forbid reasoning models (gpt-5*, o1*, o3*, o4*) — they take 1–5 min per request and are not suitable
+  const isReasoningModel = (m: string) => /^gpt-5|^o1-|^o3-|^o4-/i.test(m);
+  const analysisModel = isReasoningModel(rawAnalysisModel) ? 'gpt-4.1-mini' : rawAnalysisModel;
+  if (rawAnalysisModel !== analysisModel) {
+    console.log(`[Pipeline] Analysis: reasoning model "${rawAnalysisModel}" not allowed for analysis, using "${analysisModel}"`);
+  }
+
+  const translationModel = modelForChatCompletions(getStageModel(project, 'translation', 'gpt-5-mini') || getStageModel(project, 'translation', 'gpt-4.1-mini') || config.openai.model);
+  const editingModel = modelForChatCompletions(getStageModel(project, 'editing', 'gpt-4.1-mini') || 'gpt-4o-mini');
+
   console.log(`[Pipeline] Creating providers: analysis=${analysisModel}, translation=${translationModel}, editing=${editingModel}`);
   console.log(`[Pipeline] API key present: ${!!config.openai.apiKey}, length: ${config.openai.apiKey?.length || 0}`);
   
@@ -244,13 +253,24 @@ export async function translateChapterWithPipeline(
   };
   duration: number;
   glossaryUpdates?: GlossaryEntry[];
+  /** Updates for existing glossary entries (id + partial fields from analysis) */
+  glossaryUpdatesExisting?: Array<{ id: string; updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> }>;
+  /** Entry IDs that appeared in this chapter (for merging chapter into mentionedInChapters) */
+  glossaryAppearanceEntryIds?: string[];
 }> {
   try {
     const pipeline = createPipeline(config, project);
     const stages = options.stages ?? 'all';
 
+    const fallbackTemp = project.settings.temperature ?? config.translation?.temperature ?? 0.5;
     const pipelineOpts: PipelineOptions = {
       chunkSize: config.translation.maxTokensPerChunk,
+      temperatureByStage: {
+        analysis: project.settings.temperatureByStage?.analysis ?? fallbackTemp,
+        translation: project.settings.temperatureByStage?.translation ?? fallbackTemp,
+        editing: project.settings.temperatureByStage?.editing ?? fallbackTemp,
+      },
+      ...(options.isCancelled && { isCancelled: options.isCancelled }),
     };
     if (Array.isArray(stages)) {
       pipelineOpts.runStages = stages;
@@ -263,9 +283,13 @@ export async function translateChapterWithPipeline(
       pipelineOpts.skipEditing = options.skipEditing ?? config.translation.skipEditing;
     }
 
-    console.log(`🔮 [Engine] Запуск TranslationPipeline... stages=${JSON.stringify(stages)}`);
+    const sourceText = (chapter.originalText ?? '').trim();
+    if (!sourceText) {
+      throw new Error('Chapter has no original text to process. Add or re-import chapter content.');
+    }
+    console.log(`🔮 [Engine] Запуск TranslationPipeline... stages=${JSON.stringify(stages)}, sourceText.length=${sourceText.length}`);
     const result = await pipeline.translateChapter(
-      chapter.originalText,
+      sourceText,
       chapter.number,
       pipelineOpts
     );
@@ -275,62 +299,119 @@ export async function translateChapterWithPipeline(
     if (!analysisOnly && (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]'))) {
       throw new Error(result.finalTranslation || 'Translation returned empty result');
     }
+    if (analysisOnly && !result.stage1.success) {
+      console.error(`❌ [Engine] Analysis stage failed: ${result.stage1.error ?? 'unknown'}`);
+      throw new Error(`Analysis failed: ${result.stage1.error ?? 'unknown'}`);
+    }
 
-  // Extract glossary updates from analysis stage
+  // Extract glossary updates from analysis stage (new + updates for existing)
   let glossaryUpdates: GlossaryEntry[] = [];
+  let glossaryUpdatesExisting: Array<{ id: string; updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> }> = [];
+  let glossaryAppearanceEntryIds: string[] = [];
   if (result.stage1.success && result.stage1.data) {
     const analysis = result.stage1.data;
     const glossaryUpdate = analysis.glossaryUpdate;
-    
-    // Add new characters (use glossaryUpdate which contains description)
+
+    // New entries (first appearance + mentionedInChapters for this chapter)
+    const chapterNum = chapter.number;
     const newCharacters = glossaryUpdate.newCharacters.map((c, idx) => ({
       id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
       type: 'character' as const,
       original: c.originalName,
       translated: c.translatedName,
-      description: c.description || undefined, // Save character description
+      description: c.description || undefined,
       gender: c.gender,
       declensions: c.declensions,
-      firstAppearance: chapter.number,
+      firstAppearance: chapterNum,
+      mentionedInChapters: [chapterNum],
       autoDetected: true,
     }));
-    
-    // Add new locations (use glossaryUpdate which contains description)
     const newLocations = glossaryUpdate.newLocations.map((l, idx) => ({
       id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
       type: 'location' as const,
       original: l.originalName,
       translated: l.translatedName,
-      description: l.description || undefined, // Save location description
-      firstAppearance: chapter.number,
+      description: l.description || undefined,
+      firstAppearance: chapterNum,
+      mentionedInChapters: [chapterNum],
       autoDetected: true,
     }));
-    
-    // Add new terms (use glossaryUpdate which contains description)
     const newTerms = glossaryUpdate.newTerms.map((t, idx) => ({
       id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
       type: 'term' as const,
       original: t.originalTerm,
       translated: t.translatedTerm,
-      description: t.description || undefined, // Save term description
-      notes: t.category, // Category goes to notes
-      firstAppearance: chapter.number,
+      description: t.description || undefined,
+      notes: t.category,
+      firstAppearance: chapterNum,
+      mentionedInChapters: [chapterNum],
       autoDetected: true,
     }));
-    
     glossaryUpdates = [...newCharacters, ...newLocations, ...newTerms];
-    
-    console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов (Глава ${chapter.number})`);
+
+    // Entry IDs that appeared in this chapter (isNew: false) — server will merge chapter into their mentionedInChapters
+    const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
+      project.glossary.find(
+        (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
+      );
+    const ids = new Set<string>();
+    for (const c of analysis.foundCharacters ?? []) {
+      if (!c.isNew) {
+        const entry = byOriginal(c.name, 'character');
+        if (entry?.id) ids.add(entry.id);
+      }
+    }
+    for (const l of analysis.foundLocations ?? []) {
+      if (!l.isNew) {
+        const entry = byOriginal(l.name, 'location');
+        if (entry?.id) ids.add(entry.id);
+      }
+    }
+    for (const t of analysis.foundTerms ?? []) {
+      if (!t.isNew) {
+        const entry = byOriginal(t.term, 'term');
+        if (entry?.id) ids.add(entry.id);
+      }
+    }
+    glossaryAppearanceEntryIds = [...ids];
+
+    // Updates for existing entries (from analysis re-appearance in this chapter)
+    for (const c of glossaryUpdate.updatedCharacters ?? []) {
+      if (!c.id) continue;
+      const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+      if (c.description !== undefined) updates.description = c.description;
+      if (c.translatedName !== undefined) updates.translated = c.translatedName;
+      if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: c.id, updates });
+    }
+    for (const l of glossaryUpdate.updatedLocations ?? []) {
+      if (!l.id) continue;
+      const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+      if (l.description !== undefined) updates.description = l.description;
+      if (l.translatedName !== undefined) updates.translated = l.translatedName;
+      if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: l.id, updates });
+    }
+    for (const t of glossaryUpdate.updatedTerms ?? []) {
+      if (!t.id) continue;
+      const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+      if (t.description !== undefined) updates.description = t.description;
+      if (t.translatedTerm !== undefined) updates.translated = t.translatedTerm;
+      if (t.category !== undefined) updates.notes = t.category;
+      if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: t.id, updates });
+    }
+
+    console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов; обновлено существующих: ${glossaryUpdatesExisting.length}; упоминаний в главе: ${glossaryAppearanceEntryIds.length} (Глава ${chapter.number})`);
   }
 
     // Update agent cache
     agentCache.set(project.id, pipeline.getAgent());
     
-    // Extract tokens by stage
+    // Extract tokens by stage (include analysis/editing whenever that stage ran, even if 0)
+    const ranAnalysis = Array.isArray(stages) ? stages.includes('analysis') : stages === 'all';
+    const ranEditing = Array.isArray(stages) ? stages.includes('editing') : stages === 'all';
     const tokensByStage = {
       translation: result.stage2.tokensUsed,
-      ...(result.stage1.success && result.stage1.tokensUsed > 0 ? { analysis: result.stage1.tokensUsed } : {}),
-      ...(result.stage3.success && result.stage3.tokensUsed > 0 ? { editing: result.stage3.tokensUsed } : {}),
+      ...(ranAnalysis ? { analysis: result.stage1.tokensUsed } : {}),
+      ...(ranEditing ? { editing: result.stage3.tokensUsed } : {}),
     };
 
     return {
@@ -339,6 +420,8 @@ export async function translateChapterWithPipeline(
       tokensByStage,
       duration: result.totalDuration,
       glossaryUpdates,
+      glossaryUpdatesExisting: glossaryUpdatesExisting.length > 0 ? glossaryUpdatesExisting : undefined,
+      glossaryAppearanceEntryIds: glossaryAppearanceEntryIds.length > 0 ? glossaryAppearanceEntryIds : undefined,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

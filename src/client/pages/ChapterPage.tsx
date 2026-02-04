@@ -187,6 +187,11 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           onClose={() => setShowGlossary(false)}
           projectId={project.id}
           entries={project.glossary}
+          chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
+          onNavigateToChapter={(chapterId) => {
+            setShowGlossary(false);
+            route(`/projects/${project.id}/chapters/${chapterId}`);
+          }}
           onUpdate={handleRefreshProject}
         />
       )}

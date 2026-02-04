@@ -96,7 +96,7 @@ export function ChapterHeader({
   };
 
   return (
-    <div class="chapter-header">
+    <div class={`chapter-header ${isEditingTitle ? 'is-editing-title' : ''}`}>
       <div class="chapter-nav">
         <button
           class="chapter-nav-btn"
@@ -170,7 +170,7 @@ export function ChapterHeader({
 
       <div class="chapter-actions">
         {!isOriginalReadingMode && (
-          <StatusBadge status={chapter.status} />
+          <StatusBadge status={chapter.status} showText={chapter.status !== 'completed'} />
         )}
 
         {canRead && onEnterReadingMode && (

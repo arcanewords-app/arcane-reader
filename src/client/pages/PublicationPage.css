@@ -97,7 +97,14 @@
   line-height: 1.5;
 }
 
+.publication-page-authors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .publication-page-author,
+.publication-page-translator,
 .publication-page-lang {
   font-size: 0.9rem;
   color: var(--text-dim);

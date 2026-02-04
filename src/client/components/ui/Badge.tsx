@@ -24,7 +24,7 @@ export function StatusBadge({ status, showText = true }: BadgeProps) {
   const text = t(`status.${status}`);
 
   return (
-    <span class={`chapter-status ${config.className}`}>
+    <span class={`chapter-status ${config.className}`} title={!showText ? text : undefined}>
       {config.icon}
       {showText && ` ${text}`}
     </span>

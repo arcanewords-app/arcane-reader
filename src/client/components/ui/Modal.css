@@ -46,7 +46,8 @@
   transform: translateY(0) scale(1);
 }
 
-.modal-header {
+.modal-header,
+.modal-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;

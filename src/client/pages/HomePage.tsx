@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useEffect, useState, useCallback, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
 import type { PublicationListItem, Publication } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
-import { LoadingSpinner } from '../components/ui';
+import { LoadingSpinner, Input, Select } from '../components/ui';
 import './HomePage.css';
 
 type CatalogFilter = 'all' | 'mine';
@@ -20,9 +20,42 @@ export function HomePage() {
   const { t } = useTranslation();
   const isAuthor = !!authService.getToken();
   const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [targetLanguage, setTargetLanguage] = useState('');
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const targetLanguageOptions = useMemo(() => {
+    const codes = [...new Set(publications.map((p) => p.targetLanguage).filter(Boolean))] as string[];
+    codes.sort((a, b) => a.localeCompare(b));
+    const options = [{ value: '', label: t('home.languageAll') }];
+    codes.forEach((code) => {
+      options.push({ value: code, label: t(`language.${code}`) || code.toUpperCase() });
+    });
+    return options;
+  }, [publications, t]);
+
+  const filteredPublications = useMemo(() => {
+    let list = publications;
+    if (targetLanguage) {
+      list = list.filter((p) => p.targetLanguage === targetLanguage);
+    }
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    return list.filter((p) => {
+      const title = (p.title || '').toLowerCase();
+      const description = (p.description || '').toLowerCase();
+      const author = (p.authorDisplay || '').toLowerCase();
+      const translator = (p.translatorDisplay || '').toLowerCase();
+      return (
+        title.includes(q) ||
+        description.includes(q) ||
+        author.includes(q) ||
+        translator.includes(q)
+      );
+    });
+  }, [publications, searchQuery, targetLanguage]);
 
   // Sync filter from URL (e.g. browser back/forward)
   useEffect(() => {
@@ -156,15 +189,43 @@ export function HomePage() {
           <p class="home-empty-hint">{emptyHint}</p>
         </div>
       ) : (
-        <div class="home-grid">
-          {publications.map((pub) => (
-            <PublicationCard
-              key={pub.id}
-              publication={pub}
-              onRead={() => handleRead(pub.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div class="home-filters">
+            <div class="home-search">
+              <Input
+                placeholder={t('home.searchPlaceholder')}
+                value={searchQuery}
+                onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+                className="home-search-input"
+              />
+            </div>
+            <div class="home-language-filter">
+              <Select
+                label={t('home.targetLanguageLabel')}
+                options={targetLanguageOptions}
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage((e.target as HTMLSelectElement).value)}
+                className="home-language-select"
+              />
+            </div>
+          </div>
+          {filteredPublications.length === 0 ? (
+            <div class="home-empty home-empty-filtered">
+              <p class="home-empty-text">{t('home.noSearchResults')}</p>
+              <p class="home-empty-hint">{t('home.noSearchResultsHint')}</p>
+            </div>
+          ) : (
+            <div class="home-grid">
+              {filteredPublications.map((pub) => (
+                <PublicationCard
+                  key={pub.id}
+                  publication={pub}
+                  onRead={() => handleRead(pub.id)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

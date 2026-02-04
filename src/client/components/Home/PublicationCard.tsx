@@ -13,7 +13,8 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
   const { t } = useTranslation();
   const title = publication.title || t('publication.untitled');
   const coverImageUrl = publication.coverImageUrl;
-  const authorDisplay = publication.authorDisplay || t('publication.unknownAuthor');
+  const authorDisplay = publication.authorDisplay || null;
+  const translatorDisplay = publication.translatorDisplay || null;
   const langLabel = `${publication.sourceLanguage} → ${publication.targetLanguage}`;
   const publishedAt = publication.publishedAt
     ? new Date(publication.publishedAt).toLocaleDateString(undefined, {
@@ -60,7 +61,22 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
         {publication.description && (
           <p class="publication-card-description">{publication.description}</p>
         )}
-        <p class="publication-card-author">{authorDisplay}</p>
+        {(authorDisplay || translatorDisplay) ? (
+          <div class="publication-card-authors">
+            {authorDisplay && (
+              <p class="publication-card-author">
+                {t('publication.authorLabel')}: {authorDisplay}
+              </p>
+            )}
+            {translatorDisplay && (
+              <p class="publication-card-translator">
+                {t('publication.translatorLabel')}: {translatorDisplay}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p class="publication-card-author">{t('publication.unknownAuthor')}</p>
+        )}
         <p class="publication-card-lang">{langLabel}</p>
         {publishedAt && (
           <p class="publication-card-date">{publishedAt}</p>

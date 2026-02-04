@@ -135,6 +135,11 @@ export class TranslationPipeline {
     chapterNumber: number,
     options: PipelineOptions = {}
   ): Promise<PipelineResult> {
+    const checkCancelled = () => {
+      if (options.isCancelled?.()) throw new Error('Cancelled');
+    };
+    checkCancelled();
+
     const startTime = Date.now();
     let totalTokens = 0;
     const context = this.agent.getContext();
@@ -166,11 +171,13 @@ export class TranslationPipeline {
       (options.runOnlyStage === 'editing' && options.existingTranslatedTextForEdit != null);
 
     if (onlyAnalysis) {
-      console.log(`[Pipeline] Run only: Analysis (chapter ${chapterNumber})`);
+      console.log(`[Pipeline] Run only: Analysis (chapter ${chapterNumber}), sourceText.length=${sourceText.length}`);
       const stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
         existingGlossary: context.glossary,
+        temperature: options.temperatureByStage?.analysis,
       });
+      checkCancelled();
       totalTokens += stage1Result.tokensUsed;
       if (stage1Result.success && stage1Result.data) {
         this.agent.applyAnalysisResult(stage1Result.data);
@@ -195,7 +202,7 @@ export class TranslationPipeline {
       const stage3Result = await this.editStage.execute(
         existingText,
         sourceText,
-        { context: updatedContext, checkQuality: true, chunkSize: options.chunkSize }
+        { context: updatedContext, checkQuality: true, chunkSize: options.chunkSize, temperature: options.temperatureByStage?.editing }
       );
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
@@ -225,7 +232,9 @@ export class TranslationPipeline {
       stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
         existingGlossary: context.glossary,
+        temperature: options.temperatureByStage?.analysis,
       });
+      checkCancelled();
       totalTokens += stage1Result.tokensUsed;
       if (stage1Result.success && stage1Result.data) {
         this.agent.applyAnalysisResult(stage1Result.data);
@@ -296,6 +305,7 @@ export class TranslationPipeline {
     const stage2Result = await this.translateStage.execute(sourceText, {
       context: ctxAfter1,
       chunkSize: options.chunkSize,
+      temperature: options.temperatureByStage?.translation,
     });
     totalTokens += stage2Result.tokensUsed;
 
@@ -312,6 +322,7 @@ export class TranslationPipeline {
       );
     }
     console.log(`[Pipeline] Stage 2 complete. Translated ${stage2Result.data.chunkResults.length} chunks.`);
+    checkCancelled();
 
     // ============ STAGE 3: EDIT ============
     let stage3Result;
@@ -324,7 +335,7 @@ export class TranslationPipeline {
       stage3Result = await this.editStage.execute(
         stage2Result.data.translatedText,
         sourceText,
-        { context: ctxAfter1, checkQuality: true, chunkSize: options.chunkSize }
+        { context: ctxAfter1, checkQuality: true, chunkSize: options.chunkSize, temperature: options.temperatureByStage?.editing }
       );
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {

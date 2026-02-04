@@ -41,6 +41,11 @@
 
 /* === Chapter List === */
 
+.chapter-list-card {
+  min-width: 0; /* Allow shrinking inside sidebar flex */
+  overflow: hidden;
+}
+
 .chapter-list {
   display: flex;
   flex-direction: column;
@@ -48,6 +53,7 @@
   min-height: 100px;
   max-height: 500px; /* Fixed height instead of calc(100vh - 450px) */
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--accent-dim) transparent;
 }
@@ -144,6 +150,22 @@
   justify-content: space-between;
   gap: 0.5rem;
   /* padding, background, border и другие базовые стили применяются через общий селектор выше */
+}
+
+/* Drag area: number + title — drag from here; actions (e.g. delete) stay outside and clickable */
+.chapter-item-drag-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.chapter-item-drag-area:active {
+  cursor: grabbing;
 }
 
 .chapter-item.active {
@@ -274,27 +296,37 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
+/* Stable hit area, no transform on hover (transform caused jitter) */
 .chapter-delete-btn {
   background: none;
   border: none;
   cursor: pointer;
   font-size: 0.9rem;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  padding: 0.2rem;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+  padding: 0.35rem;
   border-radius: 4px;
+  pointer-events: auto;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .chapter-item:hover .chapter-delete-btn {
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 .chapter-delete-btn:hover {
-  opacity: 1 !important;
+  opacity: 1;
   background: rgba(239, 68, 68, 0.2);
-  transform: scale(1.1);
 }
 
 /* Glossary Button */
@@ -397,6 +429,82 @@
     flex: 1;
     min-width: 0;
   }
+}
+
+/* === Upload Queue === */
+.upload-queue {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-queue-cancel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.queue-item .queue-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.queue-status {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.queue-name {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-item-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.queue-error {
+  color: var(--error);
+  font-size: 0.8rem;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
 }
 
 /* === Error Modal === */

@@ -1,7 +1,8 @@
 /* SettingsModal Component Styles */
 
-/* Container for settings modal content - must be scrollable */
+/* Container for settings modal content - must be scrollable and use full width */
 .settings-modal {
+  width: 100%;
   max-width: 100%;
   flex: 1;
   overflow-y: auto;
@@ -10,6 +11,7 @@
   min-height: 0; /* Critical for flex children to allow scrolling */
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* Custom scrollbar for settings modal */
@@ -42,7 +44,10 @@
   }
 }
 
+/* Single-column layout; do not use grid from ReaderSettings.css */
 .settings-modal .settings-panel {
+  display: block;
+  width: 100%;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -59,6 +64,64 @@
 
 .settings-modal .setting-group:last-child {
   margin-bottom: 0;
+}
+
+/* Unified stage row: label | model select | creativity slider — use full width */
+.settings-modal .setting-group-unified {
+  width: 100%;
+}
+
+.settings-modal .setting-group-unified .stage-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.settings-modal .stage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.settings-modal .stage-row-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-width: 7rem;
+  flex-shrink: 0;
+}
+
+.settings-modal .stage-row-select {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.settings-modal .stage-row-slider {
+  flex: 0 0 auto;
+  width: 10rem;
+  min-width: 8rem;
+  flex-wrap: wrap;
+}
+
+.settings-modal .stage-row-slider .slider {
+  min-width: 4rem;
+}
+
+.settings-modal .stage-row-slider.slider-disabled {
+  opacity: 0.75;
+}
+
+.settings-modal .stage-row-slider.slider-disabled .slider {
+  cursor: not-allowed;
+}
+
+.settings-modal .stage-row-slider .slider-hint {
+  flex-basis: 100%;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 0.15rem;
 }
 
 .settings-modal .setting-label {

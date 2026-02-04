@@ -143,6 +143,12 @@ function transformGlossaryEntryFromDB(row: any): GlossaryEntry {
     imageUrls = [row.image_url, ...imageUrls];
   }
 
+  const mentionedInChapters = row.mentioned_in_chapters;
+  const mentionedInChaptersArr =
+    Array.isArray(mentionedInChapters) && mentionedInChapters.length > 0
+      ? [...mentionedInChapters].sort((a, b) => a - b)
+      : undefined;
+
   return {
     id: row.id,
     type: row.type as 'character' | 'location' | 'term',
@@ -153,6 +159,7 @@ function transformGlossaryEntryFromDB(row: any): GlossaryEntry {
     description: row.description || undefined,
     notes: row.notes || undefined,
     firstAppearance: row.first_appearance || undefined,
+    mentionedInChapters: mentionedInChaptersArr,
     imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
     imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Legacy support
     autoDetected: row.auto_detected || false,
@@ -612,6 +619,31 @@ async function loadGlossaryForProject(projectId: string, token: string): Promise
   }
 
   return entries.map(transformGlossaryEntryFromDB);
+}
+
+/**
+ * Get a single glossary entry by id (for merging chapter appearance).
+ */
+export async function getGlossaryEntry(
+  projectId: string,
+  entryId: string,
+  token: string
+): Promise<GlossaryEntry | null> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data: row, error } = await client
+    .from('glossary_entries')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('id', entryId)
+    .single();
+
+  if (error || !row) {
+    return null;
+  }
+
+  return transformGlossaryEntryFromDB(row);
 }
 
 // ============================================
@@ -1076,10 +1108,13 @@ export async function updateChapterNumber(
     return getChapter(projectId, chapterId, token);
   }
   
-  // Step 1: Set all chapters to temporary negative numbers to free up the number space
-  // Use Promise.all for parallel updates
-  const tempUpdates = sortedChapters.map((chapter, i) => {
-    const tempNum = -(i + 1);
+  // Step 1: Move existing numbers out of the target range by adding a large offset.
+  // Using negative numbers caused unique constraint conflicts in some environments
+  // (e.g. concurrent operations or leftover negative values). Shifting by an offset
+  // ensures temporary numbers don't collide with current or previous values.
+  const offset = maxNumber + 5;
+  const tempUpdates = sortedChapters.map((chapter) => {
+    const tempNum = chapter.number + offset; // temp numbers are > maxNumber
     return client
       .from('chapters')
       .update({ number: tempNum })
@@ -1122,6 +1157,105 @@ export async function updateChapterNumber(
   console.log(`🔢 Номер главы изменён: ${chapterId.substring(0, 8)} ${oldNumber} → ${newNumber} (insertIndex: ${insertIndex})`);
 
   return getChapter(projectId, chapterId, token);
+}
+
+// Simple per-project async lock queue to serialize reorder operations
+const reorderLocks = new Map<string, Array<() => void>>();
+
+async function acquireReorderLock(projectId: string) {
+  return new Promise<void>((resolve) => {
+    const q = reorderLocks.get(projectId) || [];
+    q.push(resolve);
+    reorderLocks.set(projectId, q);
+    if (q.length === 1) {
+      // no one before us
+      resolve();
+    }
+  });
+}
+
+function releaseReorderLock(projectId: string) {
+  const q = reorderLocks.get(projectId);
+  if (!q) return;
+  q.shift();
+  if (q.length === 0) {
+    reorderLocks.delete(projectId);
+  } else {
+    const next = q[0];
+    next();
+  }
+}
+
+/**
+ * Update full chapters order using an array of ordered ids.
+ * This function acquires a per-project lock to avoid concurrent reorders,
+ * then applies a safe offset-based renumbering to avoid unique constraint collisions.
+ */
+export async function updateChaptersOrder(
+  projectId: string,
+  orderedIds: string[],
+  token: string
+): Promise<void> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  await acquireReorderLock(projectId);
+  try {
+    // Load current chapters ordered by number
+    const { data: chapters, error: chaptersError } = await client
+      .from('chapters')
+      .select('id, number')
+      .eq('project_id', projectId)
+      .order('number', { ascending: true });
+
+    if (chaptersError) {
+      throw new Error(`Failed to get chapters: ${chaptersError.message}`);
+    }
+    if (!chapters) return;
+
+    const currentIds = chapters.map((c) => c.id);
+    if (currentIds.length !== orderedIds.length) {
+      throw new Error('Ordered ids length does not match current chapters count');
+    }
+
+    const setA = new Set(currentIds);
+    const setB = new Set(orderedIds);
+    if (setA.size !== setB.size || ![...setA].every((id) => setB.has(id))) {
+      throw new Error('Ordered ids do not match current chapter ids');
+    }
+
+    const maxNumber = chapters.length;
+    const offset = maxNumber + 5;
+
+    // Step 1: Shift current numbers out of the way by adding offset
+    const tempUpdates = chapters.map((chapter) => {
+      const tempNum = chapter.number + offset;
+      return client.from('chapters').update({ number: tempNum }).eq('id', chapter.id).select('id');
+    });
+    const tempResults = await Promise.all(tempUpdates);
+    const tempErrors = tempResults.filter((r) => r.error).map((r) => r.error);
+    if (tempErrors.length > 0) {
+      console.error('Errors setting temporary numbers for reorder:', tempErrors);
+      throw new Error(tempErrors[0]?.message || 'Failed to set temporary numbers');
+    }
+
+    // Step 2: Apply final numbers according to orderedIds
+    const finalUpdates = orderedIds.map((id, idx) => {
+      const newNum = idx + 1;
+      return client.from('chapters').update({ number: newNum }).eq('id', id).select('id');
+    });
+    const finalResults = await Promise.all(finalUpdates);
+    const finalErrors = finalResults.filter((r) => r.error).map((r) => r.error);
+    if (finalErrors.length > 0) {
+      console.error('Errors applying final numbers for reorder:', finalErrors);
+      throw new Error(finalErrors[0]?.message || 'Failed to apply final numbers');
+    }
+
+    // Update project updated_at
+    await client.from('projects').update({}).eq('id', projectId);
+  } finally {
+    releaseReorderLock(projectId);
+  }
 }
 
 /**
@@ -1189,6 +1323,7 @@ export async function addGlossaryEntry(
     description: entry.description || null,
     notes: entry.notes || null,
     first_appearance: entry.firstAppearance || null,
+    mentioned_in_chapters: entry.mentionedInChapters ?? null,
     image_urls: entry.imageUrls || [],
     auto_detected: entry.autoDetected || false,
   };
@@ -1249,6 +1384,8 @@ export async function updateGlossaryEntry(
   if (updates.notes !== undefined) entryData.notes = updates.notes || null;
   if (updates.firstAppearance !== undefined)
     entryData.first_appearance = updates.firstAppearance || null;
+  if (updates.mentionedInChapters !== undefined)
+    entryData.mentioned_in_chapters = updates.mentionedInChapters?.length ? updates.mentionedInChapters : null;
   if (imageUrls.length > 0 || updates.imageUrls !== undefined) entryData.image_urls = imageUrls;
   if (updates.autoDetected !== undefined) entryData.auto_detected = updates.autoDetected;
 
@@ -1395,6 +1532,7 @@ export interface PublicationRow {
   description: string | null;
   cover_image_url: string | null;
   author_display: string | null;
+  translator_display: string | null;
   source_language: string;
   target_language: string;
   published_at: string | null;
@@ -1411,6 +1549,7 @@ function transformPublicationFromDB(row: PublicationRow): {
   description: string | null;
   coverImageUrl: string | null;
   authorDisplay: string | null;
+  translatorDisplay: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;
@@ -1426,6 +1565,7 @@ function transformPublicationFromDB(row: PublicationRow): {
     description: row.description,
     coverImageUrl: row.cover_image_url,
     authorDisplay: row.author_display,
+    translatorDisplay: (row as { translator_display?: string | null }).translator_display ?? null,
     sourceLanguage: row.source_language,
     targetLanguage: row.target_language,
     publishedAt: row.published_at,
@@ -1443,7 +1583,7 @@ export async function listPublicationsPublic(options?: {
   offset?: number;
   orderBy?: 'published_at' | 'created_at';
   orderAsc?: boolean;
-}): Promise<{ id: string; projectId: string; status: PublicationStatus; title: string | null; description: string | null; coverImageUrl: string | null; authorDisplay: string | null; sourceLanguage: string; targetLanguage: string; publishedAt: string | null; createdAt: string; updatedAt: string }[]> {
+}): Promise<{ id: string; projectId: string; status: PublicationStatus; title: string | null; description: string | null; coverImageUrl: string | null; authorDisplay: string | null; translatorDisplay: string | null; sourceLanguage: string; targetLanguage: string; publishedAt: string | null; createdAt: string; updatedAt: string }[]> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
   const orderBy = options?.orderBy ?? 'published_at';
@@ -1479,6 +1619,7 @@ export async function getPublicationById(publicationId: string): Promise<{
   description: string | null;
   coverImageUrl: string | null;
   authorDisplay: string | null;
+  translatorDisplay: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;
@@ -1591,6 +1732,7 @@ export async function createOrUpdatePublication(
     description?: string | null;
     coverImageUrl?: string | null;
     authorDisplay?: string | null;
+    translatorDisplay?: string | null;
     sourceLanguage?: string;
     targetLanguage?: string;
   }
@@ -1615,6 +1757,7 @@ export async function createOrUpdatePublication(
     description: data.description ?? project.metadata?.description ?? null,
     cover_image_url: data.coverImageUrl ?? project.metadata?.coverImageUrl ?? null,
     author_display: data.authorDisplay ?? undefined,
+    translator_display: data.translatorDisplay ?? undefined,
     source_language: data.sourceLanguage ?? project.sourceLanguage,
     target_language: data.targetLanguage ?? project.targetLanguage,
     published_at: isPublish ? now : null,
@@ -1638,6 +1781,7 @@ export async function createOrUpdatePublication(
       updated_at: row.updated_at,
     };
     if (data.authorDisplay !== undefined) updatePayload.author_display = data.authorDisplay;
+    if (data.translatorDisplay !== undefined) updatePayload.translator_display = data.translatorDisplay;
     // Only set published_at when first publishing (keep "first published" date on subsequent updates)
     if (isPublish && !(existing as { published_at?: string | null }).published_at) {
       updatePayload.published_at = row.published_at;
@@ -1661,6 +1805,7 @@ export async function createOrUpdatePublication(
   const insertPayload = {
     ...row,
     author_display: row.author_display ?? null,
+    translator_display: row.translator_display ?? null,
   };
 
   const { data: inserted, error } = await client

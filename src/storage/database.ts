@@ -118,6 +118,8 @@ export interface GlossaryEntry {
   notes?: string; // User notes (separate from description)
   autoDetected?: boolean;
   firstAppearance?: number; // Chapter number where this entry was first mentioned
+  /** Chapter numbers where this entry was mentioned (from analysis). Sorted, unique. */
+  mentionedInChapters?: number[];
   imageUrls?: string[]; // Array of image file paths for gallery
   // Legacy support: keep imageUrl for backward compatibility
   imageUrl?: string;
@@ -164,6 +166,11 @@ export interface ProjectSettings {
   };
 
   temperature: number;
+  temperatureByStage?: {
+    analysis?: number;
+    translation?: number;
+    editing?: number;
+  };
   // Pipeline stages control
   enableAnalysis: boolean; // Stage 1: Extract entities, analyze style
   enableTranslation: boolean; // Stage 2: Translate (always true, required)

@@ -73,7 +73,14 @@
   overflow: hidden;
 }
 
+.publication-card-authors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .publication-card-author,
+.publication-card-translator,
 .publication-card-lang,
 .publication-card-date {
   font-size: 0.8rem;
@@ -111,6 +118,7 @@
   }
   .publication-card-description,
   .publication-card-author,
+  .publication-card-translator,
   .publication-card-lang,
   .publication-card-date {
     font-size: 0.8rem;

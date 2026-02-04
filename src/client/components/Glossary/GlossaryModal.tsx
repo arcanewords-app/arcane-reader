@@ -7,12 +7,23 @@ import './GlossaryModal.css';
 
 type FilterType = 'all' | GlossaryEntryType;
 
+/** Optional: for showing chapter titles and "go to chapter" from mentioned-in-chapters */
+export interface ChapterRef {
+  id: string;
+  number: number;
+  title: string;
+}
+
 interface GlossaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
   entries: GlossaryEntry[];
   onUpdate: () => void;
+  /** Optional: list of chapters (number → id, title) for pills and navigation */
+  chapters?: ChapterRef[];
+  /** Optional: when user confirms, navigate to this chapter (modal will close from parent) */
+  onNavigateToChapter?: (chapterId: string) => void;
 }
 
 const typeIcons: Record<GlossaryEntryType, string> = {
@@ -27,8 +38,19 @@ export function GlossaryModal({
   projectId,
   entries,
   onUpdate,
+  chapters,
+  onNavigateToChapter,
 }: GlossaryModalProps) {
   const { t } = useTranslation();
+
+  const handleChapterClick = (num: number) => {
+    if (!onNavigateToChapter || !chapters?.length) return;
+    const ch = chapters.find((c) => c.number === num);
+    if (!ch) return;
+    const title = ch.title ? ch.title : String(num);
+    if (!confirm(t('glossary.goToChapterConfirm', { num, title }))) return;
+    onNavigateToChapter(ch.id);
+  };
   const typeLabels: Record<GlossaryEntryType, string> = {
     character: t('glossary.characters'),
     location: t('glossary.locations'),
@@ -168,6 +190,34 @@ export function GlossaryModal({
                       {entry.description}
                     </div>
                   )}
+
+                  {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
+                    <div class="glossary-card-chapters" title={t('glossary.chaptersMentionedLabel')}>
+                      {chapters?.length && onNavigateToChapter
+                        ? entry.mentionedInChapters.map((num) => {
+                            const ch = chapters.find((c) => c.number === num);
+                            const title = ch ? `${num}: ${ch.title}` : String(num);
+                            const isClickable = !!ch?.id;
+                            return isClickable ? (
+                              <button
+                                key={num}
+                                type="button"
+                                class="glossary-chapter-pill"
+                                title={t('glossary.goToChapterConfirm', { num, title: ch?.title ?? num })}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleChapterClick(num);
+                                }}
+                              >
+                                {num}
+                              </button>
+                            ) : (
+                              <span key={num} class="glossary-chapter-pill glossary-chapter-pill-static">{num}</span>
+                            );
+                          })
+                        : t('glossary.mentionedInChapters', { chapters: entry.mentionedInChapters.join(', ') })}
+                    </div>
+                  )}
                   
                   {entry.notes && (
                     <div class="glossary-card-notes" title={entry.notes}>
@@ -207,6 +257,8 @@ export function GlossaryModal({
           onClose={() => setEditingEntry(null)}
           projectId={projectId}
           entry={editingEntry}
+          chapters={chapters}
+          onNavigateToChapter={onNavigateToChapter}
           onUpdate={() => {
             setEditingEntry(null);
             onUpdate();
@@ -364,6 +416,8 @@ interface EditGlossaryModalProps {
   onClose: () => void;
   projectId: string;
   entry: GlossaryEntry;
+  chapters?: ChapterRef[];
+  onNavigateToChapter?: (chapterId: string) => void;
   onUpdate: () => void;
   onDelete: (entry: GlossaryEntry) => void;
 }
@@ -373,10 +427,21 @@ function EditGlossaryModal({
   onClose,
   projectId,
   entry,
+  chapters,
+  onNavigateToChapter,
   onUpdate,
   onDelete,
 }: EditGlossaryModalProps) {
   const { t } = useTranslation();
+
+  const handleChapterClick = (num: number) => {
+    if (!onNavigateToChapter || !chapters?.length) return;
+    const ch = chapters.find((c) => c.number === num);
+    if (!ch) return;
+    const title = ch.title ? ch.title : String(num);
+    if (!confirm(t('glossary.goToChapterConfirm', { num, title }))) return;
+    onNavigateToChapter(ch.id);
+  };
   const [type, setType] = useState(entry.type);
   const [original, setOriginal] = useState(entry.original);
   const [translated, setTranslated] = useState(entry.translated);
@@ -564,9 +629,9 @@ function EditGlossaryModal({
       {entry.firstAppearance && (
         <div class="form-group">
           <label class="form-label">📖 {t('glossary.firstMention')}</label>
-          <div style={{ 
-            padding: '0.75rem', 
-            background: 'var(--bg-secondary)', 
+          <div style={{
+            padding: '0.75rem',
+            background: 'var(--bg-secondary)',
             borderRadius: '8px',
             color: 'var(--text-secondary)',
             fontSize: '0.9rem'
@@ -580,7 +645,37 @@ function EditGlossaryModal({
           </div>
         </div>
       )}
-      
+
+      {/* Mentioned in chapters */}
+      {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
+        <div class="form-group">
+          <label class="form-label">📑 {t('glossary.chaptersMentionedLabel')}</label>
+          <div class="edit-modal-chapters-block">
+            {chapters?.length && onNavigateToChapter
+              ? entry.mentionedInChapters.map((num) => {
+                  const ch = chapters.find((c) => c.number === num);
+                  const isClickable = !!ch?.id;
+                  return isClickable ? (
+                    <button
+                      key={num}
+                      type="button"
+                      class="glossary-chapter-pill"
+                      title={ch?.title ? `${num}: ${ch.title}` : String(num)}
+                      onClick={() => handleChapterClick(num)}
+                    >
+                      {ch?.title ? `${num}. ${ch.title}` : num}
+                    </button>
+                  ) : (
+                    <span key={num} class="glossary-chapter-pill glossary-chapter-pill-static">
+                      {num}
+                    </span>
+                  );
+                })
+              : entry.mentionedInChapters.join(', ')}
+          </div>
+        </div>
+      )}
+
       {/* Image Gallery Section */}
       <div class="form-group">
         <label class="form-label">🖼️ {t('glossary.imageGallery')}</label>

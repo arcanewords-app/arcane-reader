@@ -66,7 +66,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
 
   const pub = data;
   const title = pub.title || t('publication.untitled');
-  const authorDisplay = pub.authorDisplay || t('publication.unknownAuthor');
+  const authorDisplay = pub.authorDisplay || null;
+  const translatorDisplay = pub.translatorDisplay || null;
   const langLabel = `${pub.sourceLanguage} → ${pub.targetLanguage}`;
   const chapters = pub.chapters || [];
 
@@ -90,7 +91,22 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           {pub.description && (
             <p class="publication-page-description">{pub.description}</p>
           )}
-          <p class="publication-page-author">{authorDisplay}</p>
+          {(authorDisplay || translatorDisplay) ? (
+            <div class="publication-page-authors">
+              {authorDisplay && (
+                <p class="publication-page-author">
+                  {t('publication.authorLabel')}: {authorDisplay}
+                </p>
+              )}
+              {translatorDisplay && (
+                <p class="publication-page-translator">
+                  {t('publication.translatorLabel')}: {translatorDisplay}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p class="publication-page-author">{t('publication.unknownAuthor')}</p>
+          )}
           <p class="publication-page-lang">{langLabel}</p>
           {chapters.length > 0 && (
             <div class="publication-page-chapters">

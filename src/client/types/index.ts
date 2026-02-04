@@ -29,6 +29,8 @@ export interface GlossaryEntry {
   description?: string; // Character/location/term description (from analysis or manual)
   notes?: string; // User notes (separate from description)
   firstAppearance?: number; // Chapter number where this entry was first mentioned
+  /** Chapter numbers where this entry was mentioned (from analysis). Sorted, unique. */
+  mentionedInChapters?: number[];
   imageUrls?: string[]; // Array of image URLs for gallery
   autoDetected?: boolean;
   // Legacy support: keep imageUrl for backward compatibility
@@ -107,7 +109,13 @@ export interface ProjectSettings {
     editing: string;     // Stage 3: Polish and refine
   };
   
-  temperature: number;
+  temperature: number; // Legacy / default when temperatureByStage not set
+  /** Per-stage creativity (0–1). Falls back to temperature if not set for a stage. */
+  temperatureByStage?: {
+    analysis?: number;
+    translation?: number;
+    editing?: number;
+  };
   enableAnalysis?: boolean;
   enableTranslation?: boolean;
   enableEditing?: boolean;
@@ -272,6 +280,7 @@ export interface Publication {
   description: string | null;
   coverImageUrl: string | null;
   authorDisplay: string | null;
+  translatorDisplay: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;
@@ -287,6 +296,7 @@ export interface PublicationListItem {
   description: string | null;
   coverImageUrl: string | null;
   authorDisplay: string | null;
+  translatorDisplay: string | null;
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;

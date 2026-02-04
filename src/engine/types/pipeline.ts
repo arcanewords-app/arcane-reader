@@ -67,5 +67,13 @@ export interface PipelineOptions {
   runStages?: ('analysis' | 'translation' | 'editing')[];
   /** For editing-only: existing translated text to edit */
   existingTranslatedTextForEdit?: string;
+  /** Per-stage temperature (0–1). Used by each stage when calling the provider. */
+  temperatureByStage?: {
+    analysis?: number;
+    translation?: number;
+    editing?: number;
+  };
+  /** When true, pipeline should throw 'Cancelled' and stop (used when user clicks Cancel on UI). */
+  isCancelled?: () => boolean;
 }
 

@@ -11,6 +11,44 @@ import type {
   CompletionResult 
 } from '../interfaces/llm-provider.js';
 
+/**
+ * Models that require max_completion_tokens (new API); older models use max_tokens.
+ */
+function useMaxCompletionTokensParam(model: string): boolean {
+  const m = model.toLowerCase();
+  return (
+    m.startsWith('o1') ||
+    m.startsWith('o3') ||
+    m.startsWith('o4') ||
+    m.startsWith('gpt-4o') ||
+    m.includes('gpt-4.1') ||
+    m.includes('gpt-4.2') ||
+    m.startsWith('gpt-5') ||
+    m.includes('codex')
+  );
+}
+
+/**
+ * Models that only support the default temperature (no custom value).
+ * Omit temperature entirely for these; API uses its default.
+ * - Reasoning: o1-, o3-, o4-
+ * - GPT-5 series: gpt-5-mini, gpt-5-nano, etc.
+ */
+function modelRequiresDefaultTemperature(model: string): boolean {
+  const m = model.toLowerCase();
+  return (
+    m.startsWith('o1-') ||
+    m.startsWith('o3-') ||
+    m.startsWith('o4-') ||
+    m.startsWith('gpt-5')
+  );
+}
+
+function temperatureParam(model: string, requested: number | undefined, defaultVal: number): { temperature?: number } {
+  if (modelRequiresDefaultTemperature(model)) return {};
+  return { temperature: requested ?? defaultVal };
+}
+
 export class OpenAIProvider implements ILLMProvider {
   readonly name = 'openai';
   readonly model: string;
@@ -30,6 +68,13 @@ export class OpenAIProvider implements ILLMProvider {
     });
   }
   
+  private maxTokensParam(options?: CompletionOptions): { max_tokens?: number; max_completion_tokens?: number } {
+    const value = options?.maxTokens ?? 4096;
+    return useMaxCompletionTokensParam(this.model)
+      ? { max_completion_tokens: value }
+      : { max_tokens: value };
+  }
+  
   async complete(
     messages: Message[],
     options?: CompletionOptions
@@ -40,8 +85,8 @@ export class OpenAIProvider implements ILLMProvider {
         role: m.role,
         content: m.content,
       })),
-      temperature: options?.temperature ?? 0.7,
-      max_tokens: options?.maxTokens ?? 4096,
+      ...temperatureParam(this.model, options?.temperature, 0.7),
+      ...this.maxTokensParam(options),
       top_p: options?.topP,
       frequency_penalty: options?.frequencyPenalty,
       presence_penalty: options?.presencePenalty,
@@ -72,8 +117,8 @@ export class OpenAIProvider implements ILLMProvider {
         role: m.role,
         content: m.content,
       })),
-      temperature: options?.temperature ?? 0.3, // Lower temp for structured output
-      max_tokens: options?.maxTokens ?? 4096,
+      ...temperatureParam(this.model, options?.temperature, 0.3),
+      ...this.maxTokensParam(options),
       response_format: { type: 'json_object' },
     });
     

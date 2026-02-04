@@ -56,7 +56,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   };
 
   const handleDeleteProject = () => {
-    route('/');
+    route('/cabinet');
   };
 
   const handleRefreshProject = async () => {
@@ -197,6 +197,11 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           onClose={() => setShowGlossary(false)}
           projectId={project.id}
           entries={project.glossary}
+          chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
+          onNavigateToChapter={(chapterId) => {
+            setShowGlossary(false);
+            route(`/projects/${project.id}/chapters/${chapterId}`);
+          }}
           onUpdate={handleRefreshProject}
         />
       )}

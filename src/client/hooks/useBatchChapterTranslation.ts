@@ -91,11 +91,15 @@ export function useBatchChapterTranslation(
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const cancelledRef = useRef(false);
+  const currentChapterIdRef = useRef<string | null>(null);
   const initialGlossaryCountRef = useRef(0);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
-  }, []);
+    if (currentChapterIdRef.current) {
+      api.cancelTranslation(projectId, currentChapterIdRef.current).catch(() => {});
+    }
+  }, [projectId]);
 
   const clearProgress = useCallback(() => {
     setProgress(null);
@@ -236,6 +240,7 @@ export function useBatchChapterTranslation(
               const chapter = chapters[i];
               const chapterStartTime = Date.now();
 
+              currentChapterIdRef.current = chapter.id;
               setProgress((prev) =>
                 prev
                   ? {
@@ -342,6 +347,7 @@ export function useBatchChapterTranslation(
           } finally {
             setIsRunning(false);
             cancelledRef.current = false;
+            currentChapterIdRef.current = null;
           }
         })();
       });

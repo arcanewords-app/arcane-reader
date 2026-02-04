@@ -25,7 +25,6 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showTranslateAllModal, setShowTranslateAllModal] = useState(false);
-  const [translateErrorsOnly, setTranslateErrorsOnly] = useState(false);
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [deletingCover, setDeletingCover] = useState(false);
@@ -53,23 +52,61 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
   const [publishAuthorDisplay, setPublishAuthorDisplay] = useState('');
+  const [publishTranslatorDisplay, setPublishTranslatorDisplay] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    api.getProjectPublication(project.id)
-      .then((pub) => { if (!cancelled) setPublication(pub ?? null); })
-      .catch(() => { if (!cancelled) setPublication(null); })
-      .finally(() => { if (!cancelled) setPublicationLoading(false); });
-    return () => { cancelled = true; };
+    
+    // Load publication in background with retry logic, don't block on errors
+    const loadPublicationWithRetry = async (retries = 2) => {
+      try {
+        const pub = await api.getProjectPublication(project.id);
+        if (!cancelled) {
+          setPublication(pub ?? null);
+        }
+      } catch (error) {
+        // If retries left, try again after a delay
+        if (retries > 0) {
+          setTimeout(() => {
+            if (!cancelled) {
+              loadPublicationWithRetry(retries - 1);
+            }
+          }, 1000 + Math.random() * 1000); // 1-2s delay + jitter
+        } else {
+          // After all retries, just set to null and move on
+          if (!cancelled) {
+            console.warn('Failed to load publication after retries:', error);
+            setPublication(null);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setPublicationLoading(false);
+        }
+      }
+    };
+    
+    // Delay initial load slightly to not compete with main project loading
+    const loadTimer = setTimeout(() => {
+      if (!cancelled) {
+        loadPublicationWithRetry();
+      }
+    }, 500); // Small delay after project loads
+    
+    return () => {
+      cancelled = true;
+      clearTimeout(loadTimer);
+    };
   }, [project.id]);
 
   const openPublishModal = useCallback(() => {
     setPublishTitle(project.metadata?.title ?? project.name);
     setPublishDescription(project.metadata?.description ?? '');
     const user = authService.getCachedUser();
-    setPublishAuthorDisplay(user?.email ?? '');
+    setPublishAuthorDisplay(publication?.authorDisplay ?? project.metadata?.authors?.[0] ?? '');
+    setPublishTranslatorDisplay(publication?.translatorDisplay ?? user?.email ?? '');
     setShowPublishModal(true);
-  }, [project.metadata?.title, project.metadata?.description, project.name]);
+  }, [project.metadata?.title, project.metadata?.description, project.metadata?.authors, project.name, publication?.authorDisplay, publication?.translatorDisplay]);
 
   const handlePublish = useCallback(async () => {
     setPublishing(true);
@@ -79,6 +116,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         title: publishTitle.trim() || undefined,
         description: publishDescription.trim() || undefined,
         authorDisplay: publishAuthorDisplay.trim() || undefined,
+        translatorDisplay: publishTranslatorDisplay.trim() || undefined,
       });
       setPublication(pub);
       setShowPublishModal(false);
@@ -87,7 +125,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     } finally {
       setPublishing(false);
     }
-  }, [project.id, publishTitle, publishDescription, publishAuthorDisplay, t]);
+  }, [project.id, publishTitle, publishDescription, publishAuthorDisplay, publishTranslatorDisplay, t]);
 
   const handleUnpublish = useCallback(async () => {
     if (!confirm(t('projectInfo.unpublishConfirm'))) return;
@@ -110,7 +148,8 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         status: 'published',
         title: project.metadata?.title ?? project.name,
         description: project.metadata?.description ?? undefined,
-        authorDisplay: user?.email ?? undefined,
+        authorDisplay: publication?.authorDisplay ?? project.metadata?.authors?.[0] ?? undefined,
+        translatorDisplay: publication?.translatorDisplay ?? user?.email ?? undefined,
         coverImageUrl: project.metadata?.coverImageUrl ?? undefined,
       });
       setPublication(pub);
@@ -119,7 +158,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     } finally {
       setUpdatingPublication(false);
     }
-  }, [project.id, project.metadata?.title, project.metadata?.description, project.metadata?.coverImageUrl, project.name, t]);
+  }, [project.id, project.metadata?.title, project.metadata?.description, project.metadata?.authors, project.metadata?.coverImageUrl, project.name, publication?.authorDisplay, publication?.translatorDisplay, t]);
 
   const startEditingDescription = useCallback(() => {
     setDescriptionDraft(project.metadata?.description ?? '');
@@ -277,40 +316,53 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     }
   };
 
-  // Chapters eligible for translation in the modal (empty or errors, sorted by number)
-  const eligibleChaptersForTranslate = useMemo(() => {
-    const list = translateErrorsOnly
-      ? project.chapters.filter((c) => c.status === 'error')
-      : project.chapters.filter(isChapterEmpty);
-    return [...list].sort((a, b) => a.number - b.number);
-  }, [project.chapters, translateErrorsOnly]);
+  // All chapters in the modal (sorted by number); no filter — user chooses
+  const allChaptersSorted = useMemo(
+    () => [...project.chapters].sort((a, b) => a.number - b.number),
+    [project.chapters]
+  );
 
-  // Selected chapters in order (subset of eligible, for "translate selected")
+  // Default selection on modal open: empty + error chapters (sensible default)
+  const defaultSelectionIds = useMemo(() => {
+    return project.chapters
+      .filter((c) => c.status === 'error' || isChapterEmpty(c))
+      .map((c) => c.id);
+  }, [project.chapters]);
+
+  // Selected chapters in order (from all, by selection ids)
   const selectedChaptersForTranslate = useMemo(() => {
     const idSet = new Set(translateSelectionIds);
-    return eligibleChaptersForTranslate.filter((c) => idSet.has(c.id));
-  }, [eligibleChaptersForTranslate, translateSelectionIds]);
+    return allChaptersSorted.filter((c) => idSet.has(c.id));
+  }, [allChaptersSorted, translateSelectionIds]);
+
+  // Helper: text length for a chapter (originalText or sum of paragraph originalText for error chapters where originalText may be empty)
+  const getChapterTextLength = useCallback((ch: { originalText?: string; paragraphs?: Array<{ originalText?: string }> }) => {
+    const direct = (ch.originalText || '').trim().length;
+    if (direct > 0) return direct;
+    const fromParas = (ch.paragraphs || []).reduce((s, p) => s + (p.originalText || '').length, 0);
+    return fromParas;
+  }, []);
 
   // Estimated tokens for selected chapters and selected stages
   const estimatedTokensSelected = useMemo(() => {
     const totalLength = selectedChaptersForTranslate.reduce(
-      (sum, ch) => sum + ch.originalText.length,
+      (sum, ch) => sum + getChapterTextLength(ch),
       0
     );
     return estimate(totalLength, batchSelectedStages);
-  }, [selectedChaptersForTranslate, batchSelectedStages, estimate]);
+  }, [selectedChaptersForTranslate, batchSelectedStages, estimate, getChapterTextLength]);
 
-  // When translate modal opens, pre-select all eligible chapters
+  // When translate modal opens, pre-select default (empty + errors) once
   useEffect(() => {
     if (showTranslateAllModal) {
       if (!translateModalWasOpenRef.current) {
-        setTranslateSelectionIds(eligibleChaptersForTranslate.map((c) => c.id));
+        setTranslateSelectionIds(defaultSelectionIds.length > 0 ? defaultSelectionIds : allChaptersSorted.map((c) => c.id));
         translateModalWasOpenRef.current = true;
       }
     } else {
       translateModalWasOpenRef.current = false;
     }
-  }, [showTranslateAllModal, eligibleChaptersForTranslate]);
+  }, [showTranslateAllModal, defaultSelectionIds, allChaptersSorted]);
 
   const toggleBatchStage = useCallback((stage: TranslationStageKind) => {
     setBatchSelectedStages((prev) =>
@@ -345,17 +397,22 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
 
   const handleCancelTranslation = useCallback(() => {
     batch.cancel();
-  }, [batch.cancel]);
+    batch.clearProgress();
+  }, [batch.cancel, batch.clearProgress]);
 
   const handleCloseTranslation = useCallback(() => {
     batch.clearProgress();
-    setTranslateErrorsOnly(false);
   }, [batch.clearProgress]);
 
   const translationProgress = batch.progress;
   const isTranslationComplete =
     translationProgress !== null &&
     translationProgress.current >= translationProgress.total;
+
+  const selectedCompletedCount = selectedChaptersForTranslate.filter((c) => c.status === 'completed').length;
+  const overwriteWarning = batchSelectedStages.includes('translation') && selectedCompletedCount > 0;
+  // Show token estimate line whenever we have selected chapters and at least one stage (show "—" when estimate is 0, e.g. when error chapters have no text length yet)
+  const showTokensInSummary = selectedChaptersForTranslate.length > 0 && batchSelectedStages.length > 0;
 
   return (
     <>
@@ -1022,36 +1079,17 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
           return null;
         })()}
 
-        {/* Mass Translation Buttons - only for translating all chapters in project, hidden in original reading mode */}
-        {!isOriginalReadingMode && (stats.empty > 0 || stats.error > 0) && (
-          <div style={{ marginTop: '1.5rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {stats.error > 0 && (
-              <Button
-                variant="primary"
-                size="full"
-                onClick={() => {
-                  setTranslateErrorsOnly(true);
-                  setShowTranslateAllModal(true);
-                }}
-                disabled={translationProgress !== null}
-                style={{ background: 'var(--error)', borderColor: 'var(--error)' }}
-              >
-                🔄 {t('projectInfo.translateAllErrors', { count: stats.error })}
-              </Button>
-            )}
-            {stats.empty > 0 && (
-              <Button
-                variant="primary"
-                size="full"
-                onClick={() => {
-                  setTranslateErrorsOnly(false);
-                  setShowTranslateAllModal(true);
-                }}
-                disabled={translationProgress !== null}
-              >
-                🔮 {t('projectInfo.translateAllEmpty', { count: stats.empty })}
-              </Button>
-            )}
+        {/* Single entry: process chapters (translate / analysis / editing), always when there are chapters */}
+        {!isOriginalReadingMode && stats.chapters > 0 && (
+          <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+            <Button
+              variant="primary"
+              size="full"
+              onClick={() => setShowTranslateAllModal(true)}
+              disabled={translationProgress !== null}
+            >
+              🔮 {t('projectInfo.processChapters', 'Обработать главы')}
+            </Button>
           </div>
         )}
 
@@ -1186,29 +1224,27 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             label={t('projectInfo.publishAuthorLabel')}
             value={publishAuthorDisplay}
             onInput={(e) => setPublishAuthorDisplay((e.target as HTMLInputElement).value)}
+            placeholder={project.metadata?.authors?.[0] ?? ''}
+          />
+          <Input
+            label={t('projectInfo.publishTranslatorLabel')}
+            value={publishTranslatorDisplay}
+            onInput={(e) => setPublishTranslatorDisplay((e.target as HTMLInputElement).value)}
             placeholder={authService.getCachedUser()?.email ?? ''}
           />
         </div>
       </Modal>
 
-      {/* Translate chapters modal: select which chapters to translate */}
+      {/* Process chapters modal: select chapters and stages (translate / analysis / editing) */}
       <Modal
         isOpen={showTranslateAllModal}
-        onClose={() => {
-          setTranslateErrorsOnly(false);
-          setShowTranslateAllModal(false);
-        }}
-        title={translateErrorsOnly
-          ? `🔄 ${t('projectInfo.translateErrorsModalTitle')}`
-          : `🔮 ${t('projectInfo.translateEmptyModalTitle')}`}
+        onClose={() => setShowTranslateAllModal(false)}
+        title={`🔮 ${t('projectInfo.processChaptersModalTitle', 'Обработать главы')}`}
         footer={
           <>
             <Button
               variant="secondary"
-              onClick={() => {
-                setTranslateErrorsOnly(false);
-                setShowTranslateAllModal(false);
-              }}
+              onClick={() => setShowTranslateAllModal(false)}
             >
               {t('common.cancel')}
             </Button>
@@ -1242,16 +1278,16 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         <p style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
           {t('projectInfo.chooseChaptersHint')}
         </p>
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
           <button
             type="button"
-            onClick={() => setTranslateSelectionIds(eligibleChaptersForTranslate.map((c) => c.id))}
+            onClick={() => setTranslateSelectionIds(allChaptersSorted.map((c) => c.id))}
             style={{
               background: 'none',
               border: 'none',
               color: 'var(--accent)',
               cursor: 'pointer',
-              padding: 0,
+              padding: '0.25rem 0',
               textDecoration: 'underline',
             }}
           >
@@ -1265,16 +1301,63 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               border: 'none',
               color: 'var(--text-dim)',
               cursor: 'pointer',
-              padding: 0,
+              padding: '0.25rem 0',
               textDecoration: 'underline',
             }}
           >
             {t('chapter.deselectAll')}
           </button>
+          <span style={{ color: 'var(--border)', margin: '0 0.25rem' }}>|</span>
+          <button
+            type="button"
+            onClick={() => setTranslateSelectionIds(project.chapters.filter(isChapterEmpty).map((c) => c.id))}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-dim)',
+              cursor: 'pointer',
+              padding: '0.25rem 0',
+              textDecoration: 'underline',
+            }}
+          >
+            {t('projectInfo.presetEmpty', { count: stats.empty }, 'Пустые ({{count}})')}
+          </button>
+          {stats.error > 0 && (
+            <button
+              type="button"
+              onClick={() => setTranslateSelectionIds(project.chapters.filter((c) => c.status === 'error').map((c) => c.id))}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--error)',
+                cursor: 'pointer',
+                padding: '0.25rem 0',
+                textDecoration: 'underline',
+              }}
+            >
+              {t('projectInfo.presetErrors', { count: stats.error }, 'С ошибками ({{count}})')}
+            </button>
+          )}
+          {stats.translated > 0 && (
+            <button
+              type="button"
+              onClick={() => setTranslateSelectionIds(project.chapters.filter((c) => c.status === 'completed').map((c) => c.id))}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-dim)',
+                cursor: 'pointer',
+                padding: '0.25rem 0',
+                textDecoration: 'underline',
+              }}
+            >
+              {t('projectInfo.presetTranslated', { count: stats.translated }, 'Переведённые ({{count}})')}
+            </button>
+          )}
         </div>
         <div
           style={{
-            maxHeight: '240px',
+            maxHeight: '280px',
             overflowY: 'auto',
             border: '1px solid var(--border)',
             borderRadius: '8px',
@@ -1282,14 +1365,17 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             marginBottom: '0.75rem',
           }}
         >
-          {eligibleChaptersForTranslate.length === 0 ? (
+          {allChaptersSorted.length === 0 ? (
             <div style={{ padding: '1rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
-              {translateErrorsOnly ? t('projectInfo.noErrorChapters') : t('projectInfo.noEmptyChapters')}
+              {t('projectInfo.noChaptersInProject')}
             </div>
           ) : (
-            eligibleChaptersForTranslate.map((chapter, index) => {
+            allChaptersSorted.map((chapter, index) => {
               const checked = translateSelectionIds.includes(chapter.id);
-              const isLast = index === eligibleChaptersForTranslate.length - 1;
+              const isLast = index === allChaptersSorted.length - 1;
+              const isEmpty = isChapterEmpty(chapter);
+              const isError = chapter.status === 'error';
+              const isCompleted = chapter.status === 'completed';
               return (
                 <label
                   key={chapter.id}
@@ -1323,6 +1409,21 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {chapter.title}
                   </span>
+                  {(isEmpty || isError || isCompleted) && (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        padding: '0.1rem 0.35rem',
+                        borderRadius: '4px',
+                        background: isError ? 'var(--error)' : isCompleted ? 'var(--success)' : 'var(--text-dim)',
+                        color: isError || isCompleted ? 'white' : 'var(--bg-secondary)',
+                        flexShrink: 0,
+                      }}
+                      title={isError ? t('projectInfo.chapterStatusError') : isCompleted ? t('projectInfo.chapterStatusTranslated') : t('projectInfo.chapterStatusEmpty')}
+                    >
+                      {isError ? '!' : isCompleted ? '✓' : '○'}
+                    </span>
+                  )}
                 </label>
               );
             })
@@ -1377,24 +1478,55 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             })}
           </div>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-            {t('translationPanel.stagesMultiHint', 'Можно выбрать несколько стадий')}
+            {t('translationPanel.stagesMultiHint')}
           </span>
         </div>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>
-          <Trans i18nKey="projectInfo.selectedChapters" values={{ count: selectedChaptersForTranslate.length }} components={{ strong: <strong style={{ color: 'var(--text-secondary)' }} /> }} />
-          {batch.tokenUsage && authService.isAuthenticated() && (
-            <> · <Trans i18nKey="projectInfo.approxTokens" values={{ tokens: estimatedTokensSelected.toLocaleString() }} components={{ strong: <strong style={{ color: 'var(--text-secondary)' }} /> }} /></>
+
+        {/* Summary + warnings: one block, same style */}
+        <div
+          style={{
+            marginBottom: '0.75rem',
+            padding: '0.6rem 0.75rem',
+            borderRadius: '8px',
+            background: 'var(--bg-hover)',
+            border: '1px solid var(--border)',
+            fontSize: '0.85rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <div style={{ marginBottom: overwriteWarning ? '0.5rem' : 0 }}>
+            <Trans i18nKey="projectInfo.selectedChapters" values={{ count: selectedChaptersForTranslate.length }} components={{ strong: <strong style={{ color: 'var(--text-primary)' }} /> }} />
+            {showTokensInSummary && (
+              <> · <Trans i18nKey="projectInfo.approxTokens" values={{ tokens: estimatedTokensSelected > 0 ? estimatedTokensSelected.toLocaleString() : '—' }} components={{ strong: <strong style={{ color: 'var(--text-primary)' }} /> }} /> · {t('projectInfo.checkApiLimit')}</>
+            )}
+          </div>
+          {overwriteWarning && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.35rem' }}>
+              <span style={{ flexShrink: 0 }}>⚠️</span>
+              <span>{t('projectInfo.warningOverwriteTranslated', { count: selectedCompletedCount })}</span>
+            </div>
           )}
         </div>
       </Modal>
 
-      {/* Translation Progress Modal */}
+      {/* Translation Progress Modal - footer (form-actions) so Cancel/Close are always visible and work */}
       <Modal
         isOpen={translationProgress !== null}
         onClose={isTranslationComplete ? handleCloseTranslation : handleCancelTranslation}
         title={`🔮 ${t('projectInfo.translationProgressTitle')}`}
         className="translation-progress-modal"
         preventClose={!isTranslationComplete}
+        footer={
+          isTranslationComplete ? (
+            <Button variant="primary" size="sm" onClick={handleCloseTranslation}>
+              {t('common.close')}
+            </Button>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={handleCancelTranslation}>
+              ⏹ {t('chapter.cancelTranslate')}
+            </Button>
+          )
+        }
       >
         {translationProgress && (
           <div>
@@ -1495,24 +1627,29 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               </div>
             )}
 
-            {/* Overall Statistics */}
-            {(translationProgress.totalTokens > 0 || translationProgress.totalDuration > 0 || translationProgress.totalGlossaryEntries > 0) && (
+            {/* Overall Statistics: derive totals from all chapters so we show stats even when some have errors */}
+            {(() => {
+              const computedTotalTokens = translationProgress.chapters.reduce((s, ch) => s + (ch.tokensUsed ?? 0), 0);
+              const computedTotalDuration = translationProgress.chapters.reduce((s, ch) => s + (ch.duration ?? 0), 0);
+              const computedTotalGlossary = translationProgress.chapters.reduce((s, ch) => s + (ch.glossaryEntries ?? 0), 0);
+              const batchFinished = translationProgress.current >= translationProgress.total;
+              const showStats = batchFinished || computedTotalTokens > 0 || computedTotalDuration > 0 || computedTotalGlossary > 0;
+              if (!showStats) return null;
+              return (
               <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: '8px', fontSize: '0.9rem' }}>
                 <div style={{ color: 'var(--text-dim)', marginBottom: '0.5rem' }}>{t('projectInfo.generalStats')}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                  {translationProgress.totalDuration > 0 && (
-                    <span>⏱️ {(translationProgress.totalDuration / 1000).toFixed(1)} {t('projectInfo.timeSeconds')}</span>
+                  {computedTotalDuration > 0 && (
+                    <span>⏱️ {(computedTotalDuration / 1000).toFixed(1)} {t('projectInfo.timeSeconds')}</span>
                   )}
-                  {translationProgress.totalTokens > 0 && (
-                    <span>📝 {t('projectInfo.totalShort')} {translationProgress.totalTokens.toLocaleString()} {t('projectInfo.tokensCount')}</span>
-                  )}
-                  {translationProgress.totalGlossaryEntries > 0 && (
-                    <span>📚 +{translationProgress.totalGlossaryEntries} {t('projectInfo.glossaryEntriesCount')}</span>
+                  <span>📝 {t('projectInfo.totalShort')} {computedTotalTokens.toLocaleString()} {t('projectInfo.tokensCount')}</span>
+                  {computedTotalGlossary > 0 && (
+                    <span>📚 +{computedTotalGlossary} {t('projectInfo.glossaryEntriesCount')}</span>
                   )}
                 </div>
-                {/* Calculate tokens by stage from all completed chapters */}
+                {/* Calculate tokens by stage from all chapters that have tokensByStage (completed or partial) */}
                 {(() => {
-                  const completedChapters = translationProgress.chapters.filter(ch => ch.status === 'completed' && ch.tokensByStage);
+                  const completedChapters = translationProgress.chapters.filter(ch => ch.tokensByStage);
                   if (completedChapters.length > 0) {
                     const totalByStage = completedChapters.reduce((acc, ch) => {
                       if (ch.tokensByStage) {
@@ -1541,7 +1678,8 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                   return null;
                 })()}
               </div>
-            )}
+              );
+            })()}
 
             {/* Summary */}
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
@@ -1555,27 +1693,6 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               )}
             </div>
 
-            <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-              {isTranslationComplete ? (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleCloseTranslation}
-                  style={{ width: '100%' }}
-                >
-                  {t('common.close')}
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleCancelTranslation}
-                  style={{ width: '100%' }}
-                >
-                  {t('chapter.cancelTranslate')}
-                </Button>
-              )}
-            </div>
           </div>
         )}
       </Modal>
