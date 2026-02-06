@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { TokenUsage } from '../../types';
-import { api } from '../../api/client';
 import { authService } from '../../services/authService';
+import { useTokenUsageContext } from '../../contexts/TokenUsageContext';
 import './TokenUsageIndicator.css';
 
 interface TokenUsageIndicatorProps {
@@ -12,53 +10,7 @@ interface TokenUsageIndicatorProps {
 
 export function TokenUsageIndicator({ className = '', showDetails = false }: TokenUsageIndicatorProps) {
   const { t } = useTranslation();
-  const [usage, setUsage] = useState<TokenUsage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadUsage = async () => {
-    // Check if user is authenticated before making request
-    if (!authService.isAuthenticated()) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.getTokenUsage();
-      setUsage(data);
-    } catch (err: any) {
-      // Don't show error for 401 (unauthorized) - user just needs to login
-      if (err?.status === 401) {
-        setLoading(false);
-        return;
-      }
-      console.error('Failed to load token usage:', err);
-      setError(t('tokenUsage.errorLoadStats'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Only load if authenticated
-    if (!authService.isAuthenticated()) {
-      setLoading(false);
-      return;
-    }
-
-    loadUsage();
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
-      // Re-check authentication before each refresh
-      if (authService.isAuthenticated()) {
-        loadUsage();
-      }
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
+  const { usage, loading, error } = useTokenUsageContext();
 
   // Don't render if not authenticated or no usage data
   if (!authService.isAuthenticated()) {
@@ -74,7 +26,7 @@ export function TokenUsageIndicator({ className = '', showDetails = false }: Tok
   }
 
   if (error || !usage) {
-    return null; // Don't show error, just hide the indicator
+    return null;
   }
 
   const unlimited = usage.tokensLimit < 0;

@@ -40,6 +40,7 @@ import {
   getPublicationById,
   getPublicationWithChapters,
   getPublicationChapterContent,
+  getGlossaryForPublication,
   createOrUpdatePublication,
   unpublishProject,
   getUserPublications,
@@ -75,6 +76,10 @@ import {
   getNameDeclensions,
   clearAgentCache,
 } from './services/engine-integration.js';
+import {
+  suggestGlossaryMerges,
+  type MergeSuggestion,
+} from './services/glossaryMergeSuggestions.js';
 import { exportProject } from './services/export/index.js';
 import { authService } from './services/authService.js';
 import { parseFile, isSupportedFormat, getProjectTypeFromFormat } from './services/import/index.js';
@@ -727,6 +732,26 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
   }
 });
 
+// Get chapter status only (lightweight, for polling during translation)
+app.get('/api/projects/:projectId/chapters/:chapterId/status', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const chapter = await getChapter(req.params.projectId, req.params.chapterId, requireToken(req));
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    res.json({ status: chapter.status });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get chapter status' });
+  }
+});
+
 // Get chapter (requires auth)
 app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req, res) => {
   try {
@@ -804,18 +829,10 @@ app.post(
         return res.status(404).json({ error: 'Chapter not found' });
       }
 
-      // Only reset if status is translating
+      // Only set cancel flag if status is translating; performTranslation will set status to pending when it exits (single source of truth)
       if (chapter.status === 'translating') {
         translationCancelRegistry.set(translationCancelKey(req.params.projectId, req.params.chapterId), true);
-        await updateChapter(
-          req.params.projectId,
-          req.params.chapterId,
-          {
-            status: 'pending',
-          },
-          requireToken(req)
-        );
-        console.log(`⏹️  Перевод отменён: ${chapter.title}`);
+        console.log(`⏹️  Перевод отменён (флаг): ${chapter.title}`);
         res.json({ success: true, message: 'Translation cancelled' });
       } else {
         res.json({ success: false, message: 'Chapter is not being translated' });
@@ -1136,6 +1153,15 @@ app.post(
       const chapter = project.chapters.find((c) => c.id === req.params.chapterId);
       if (!chapter) {
         return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      // Idempotency: only one translation job per chapter (refactor TRANSLATION_CANCEL_REFACTOR)
+      if (chapter.status === 'translating') {
+        return res.status(409).json({
+          error: 'Translation already in progress',
+          code: 'ALREADY_RUNNING',
+          message: 'Перевод этой главы уже выполняется. Дождитесь завершения или отмените.',
+        });
       }
 
       // Use chapter.originalText if set; otherwise derive from paragraphs (e.g. after "mark as translated" which clears chapter.originalText but keeps paragraph.originalText)
@@ -1475,7 +1501,7 @@ async function performTranslation(
       paragraphsToTranslate = (chapterWithOriginal.paragraphs || []).filter((p) => idSet.has(p.id));
       if (paragraphsToTranslate.length === 0) {
         console.log(`ℹ️  Нет выбранных параграфов для перевода.`);
-        await updateChapter(projectId, chapterId, { status: 'completed' }, token);
+        await updateChapter(projectId, chapterId, { status: 'completed' }, token, { useServiceRole: true });
         return;
       }
       const textToTranslate = mergeParagraphsToText(paragraphsToTranslate, 'originalText');
@@ -1489,7 +1515,7 @@ async function performTranslation(
 
       if (emptyParagraphs.length === 0) {
         console.log(`ℹ️  Нет пустых параграфов для перевода. Перевод пропущен.`);
-        await updateChapter(projectId, chapterId, { status: 'completed' }, token);
+        await updateChapter(projectId, chapterId, { status: 'completed' }, token, { useServiceRole: true });
         return;
       }
 
@@ -1534,6 +1560,7 @@ async function performTranslation(
 
     if (isCancelled()) {
       console.log(`⏹️  Перевод отменён пользователем до запуска пайплайна: ${chapter.title}`);
+      await updateChapter(projectId, chapterId, { status: 'pending' }, token, { useServiceRole: true });
       return;
     }
 
@@ -1608,7 +1635,28 @@ async function performTranslation(
           }
         }
       }
-      await updateChapter(projectId, chapterId, { status: 'completed' }, token);
+      const nowIso = new Date().toISOString();
+      // When only analysis ran: always set status to 'analyzed' so UI shows 🔍 (analysis-only),
+      // not ✅ (completed). If the chapter already had translation, we keep the content but the
+      // badge reflects "last run was analysis only".
+      await updateChapter(
+        projectId,
+        chapterId,
+        {
+          status: 'analyzed',
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            tokensUsed: result.tokensUsed,
+            tokensByStage: result.tokensByStage,
+            duration: result.duration,
+            model: analysisModel,
+            translatedAt: nowIso,
+            lastAnalysisAt: nowIso,
+          },
+        },
+        token,
+        { useServiceRole: true }
+      );
       try {
         await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
       } catch (tokenError) {
@@ -1626,7 +1674,7 @@ async function performTranslation(
     const hasValidTokens = result.tokensUsed > 0 || result.duration > 0;
 
     if (!isValidTranslationResult || (!hasValidTokens && result.duration === 0)) {
-      // Translation failed or returned empty/invalid result
+      // Translation failed or returned empty/invalid result — still save tokens used so far
       const errorMessage = !isValidTranslationResult
         ? 'Перевод пустой или содержит ошибку'
         : 'Перевод завершился без использования токенов (возможна ошибка)';
@@ -1639,15 +1687,44 @@ async function performTranslation(
       );
       console.log(`   Токены: ${result.tokensUsed}, Время: ${result.duration}ms`);
 
+      const modelInfoOnError =
+        stages === 'all'
+          ? `${analysisModel}/${translationModel}/${editingModel}`
+          : Array.isArray(stages)
+            ? stages
+                .map((s) =>
+                  s === 'analysis' ? analysisModel : s === 'translation' ? translationModel : editingModel
+                )
+                .join('/')
+            : editingModel;
+
       await updateChapter(
         projectId,
         chapterId,
         {
           status: 'error',
           translatedText: result.translatedText || `❌ Ошибка перевода: ${errorMessage}`,
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            tokensUsed: result.tokensUsed,
+            tokensByStage: result.tokensByStage,
+            duration: result.duration,
+            model: modelInfoOnError,
+            translatedAt: new Date().toISOString(),
+          },
         },
-        token
+        token,
+        { useServiceRole: true }
       );
+
+      // Count tokens toward usage even when translation failed (stages were run)
+      if (result.tokensUsed > 0) {
+        try {
+          await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+        } catch (tokenError) {
+          console.error('⚠️ Failed to update token usage (non-critical):', tokenError);
+        }
+      }
 
       return;
     }
@@ -1703,8 +1780,8 @@ async function performTranslation(
       );
     }
 
-    // Get current chapter state for synchronization
-    const currentChapter = await getChapter(projectId, chapterId, token);
+    // Get current chapter state for synchronization (service role so JWT expiry during long run doesn't fail)
+    const currentChapter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
     if (!currentChapter) {
       throw new Error('Не удалось получить главу для синхронизации');
     }
@@ -1752,7 +1829,10 @@ async function performTranslation(
         ? parsedJSON.paragraphs.map((p) => p.translated)
         : translatedChunks;
 
-    // Save translation with synced paragraphs
+    const nowIso = new Date().toISOString();
+    const ranAnalysis = stages === 'all' || (Array.isArray(stages) && stages.includes('analysis'));
+
+    // Save translation with synced paragraphs (service role so JWT expiry during long run doesn't fail)
     await updateChapter(
       projectId,
       chapterId,
@@ -1762,14 +1842,17 @@ async function performTranslation(
         paragraphs: syncedParagraphs, // Auto-synced paragraphs
         status: 'completed',
         translationMeta: {
+          ...(chapter.translationMeta || {}),
           tokensUsed: result.tokensUsed,
           tokensByStage: result.tokensByStage,
           duration: result.duration,
           model: modelInfo, // Store all models used (or single model if stages skipped)
-          translatedAt: new Date().toISOString(),
+          translatedAt: nowIso,
+          lastAnalysisAt: ranAnalysis ? nowIso : (chapter.translationMeta?.lastAnalysisAt ?? undefined),
         },
       },
-      token
+      token,
+      { useServiceRole: true }
     );
 
     console.log(`📦 Сохранено ${chunksToSave.length} чанков перевода`);
@@ -1788,8 +1871,8 @@ async function performTranslation(
       console.error('⚠️  Failed to update token usage (non-critical):', tokenError);
     }
 
-    // Verify the chapter was saved correctly
-    const savedChapter = await getChapter(projectId, chapterId, token);
+    // Verify the chapter was saved correctly (service role for same reason)
+    const savedChapter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
     if (savedChapter) {
       const savedHasText =
         !!savedChapter.translatedText && savedChapter.translatedText.trim().length > 0;
@@ -1852,6 +1935,7 @@ async function performTranslation(
     const errorStack = error instanceof Error ? error.stack : undefined;
     if (errorMessage === 'Cancelled') {
       console.log(`⏹️  Перевод отменён пользователем: ${chapter.title}`);
+      await updateChapter(projectId, chapterId, { status: 'pending' }, token, { useServiceRole: true });
       return;
     }
     console.log(`❌ ОШИБКА: ${errorMessage}`);
@@ -1860,8 +1944,8 @@ async function performTranslation(
     }
     console.log(`${'═'.repeat(60)}\n`);
 
-    // Try to preserve existing translation if any
-    const currentChapter = await getChapter(projectId, chapterId, token);
+    // Try to preserve existing translation if any (service role so expired JWT doesn't lose the error state)
+    const currentChapter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
     const existingTranslation = currentChapter?.translatedText;
 
     await updateChapter(
@@ -1871,7 +1955,8 @@ async function performTranslation(
         translatedText: existingTranslation || `❌ Ошибка перевода: ${errorMessage}`,
         status: 'error',
       },
-      token
+      token,
+      { useServiceRole: true }
     );
 
     console.log(`⚠️ Глава помечена как ошибка: ${chapter.title}`);
@@ -2540,6 +2625,140 @@ app.delete('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete glossary entry' });
+  }
+});
+
+// Suggest glossary merges (LLM analyzes and returns groups of entries to merge)
+app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = requireToken(req);
+    const project = await getProject(req.params.projectId, req.user.id, token);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    if (!config.openai?.apiKey) {
+      return res.status(503).json({
+        error: 'AI not configured',
+        message: 'Configure OpenAI API key to use merge suggestions.',
+      });
+    }
+    const model = project.settings?.stageModels?.analysis ?? project.settings?.model ?? config.openai.model;
+    const suggestions: MergeSuggestion[] = await suggestGlossaryMerges(project.glossary, {
+      apiKey: config.openai.apiKey,
+      model,
+      timeout: config.openai.timeout,
+    });
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('[suggest-merges]', error);
+    res.status(500).json({ error: 'Failed to get merge suggestions' });
+  }
+});
+
+// Merge glossary entries into one (keep one, merge fields, delete others)
+app.post('/api/projects/:projectId/glossary/merge', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = requireToken(req);
+    const project = await getProject(req.params.projectId, req.user.id, token);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { entryIds, keepEntryId } = req.body as { entryIds?: string[]; keepEntryId?: string };
+    if (!Array.isArray(entryIds) || entryIds.length < 2) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'entryIds must be an array of at least 2 entry IDs.',
+      });
+    }
+
+    const idSet = new Set(entryIds);
+    const entries = project.glossary.filter((e) => idSet.has(e.id));
+    if (entries.length !== entryIds.length) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'One or more entry IDs not found in this project glossary.',
+      });
+    }
+
+    const types = entries.map((e) => e.type);
+    if (new Set(types).size > 1) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'All entries must be of the same type (character, location, or term).',
+      });
+    }
+
+    if (keepEntryId !== undefined && !idSet.has(keepEntryId)) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'keepEntryId must be one of the entryIds.',
+      });
+    }
+
+    // Pick primary: keepEntryId, or entry with most mentionedInChapters, or first
+    let primary: GlossaryEntry;
+    if (keepEntryId) {
+      primary = entries.find((e) => e.id === keepEntryId)!;
+    } else {
+      const withChapters = entries.map((e) => ({
+        entry: e,
+        count: (e.mentionedInChapters ?? []).length,
+      }));
+      withChapters.sort((a, b) => b.count - a.count);
+      primary = withChapters[0].entry;
+    }
+
+    const others = entries.filter((e) => e.id !== primary.id);
+
+    // Merge: mentionedInChapters union (sorted), description/notes concatenation
+    const allChapters = new Set<number>();
+    for (const e of entries) {
+      (e.mentionedInChapters ?? []).forEach((n) => allChapters.add(n));
+    }
+    const mergedChapters = [...allChapters].sort((a, b) => a - b);
+
+    const descriptions = entries.map((e) => e.description?.trim()).filter(Boolean) as string[];
+    const mergedDescription =
+      descriptions.length > 0
+        ? [...new Set(descriptions)].filter(Boolean).join(' ; ')
+        : primary.description;
+
+    const notesList = entries.map((e) => e.notes?.trim()).filter(Boolean) as string[];
+    const mergedNotes =
+      notesList.length > 0 ? [...new Set(notesList)].filter(Boolean).join(' ; ') : primary.notes;
+
+    await updateGlossaryEntry(
+      req.params.projectId,
+      primary.id,
+      {
+        mentionedInChapters: mergedChapters,
+        ...(mergedDescription !== undefined && { description: mergedDescription }),
+        ...(mergedNotes !== undefined && { notes: mergedNotes }),
+      },
+      token
+    );
+
+    for (const e of others) {
+      await deleteGlossaryEntry(req.params.projectId, e.id, token);
+    }
+
+    clearAgentCache(req.params.projectId);
+
+    const kept = await getGlossaryEntry(req.params.projectId, primary.id, token);
+    res.json({
+      kept: kept ?? primary,
+      deletedCount: others.length,
+    });
+  } catch (error) {
+    console.error('[glossary merge]', error);
+    res.status(500).json({ error: 'Failed to merge glossary entries' });
   }
 });
 
@@ -3387,6 +3606,17 @@ app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
     res.json(chapter);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get chapter';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get publication glossary (public, read-only; returns empty array if not published)
+app.get('/api/publications/:id/glossary', async (req, res) => {
+  try {
+    const entries = await getGlossaryForPublication(req.params.id);
+    res.json(entries);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get glossary';
     res.status(500).json({ error: msg });
   }
 });

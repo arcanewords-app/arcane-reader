@@ -20,6 +20,42 @@ interface AnalyzeStageOptions {
   temperature?: number;
 }
 
+/** Allowed gender values (DB constraint). LLM may return "masculine", "f", etc. */
+const ALLOWED_GENDERS = ['male', 'female', 'neutral', 'unknown'] as const;
+type AllowedGender = (typeof ALLOWED_GENDERS)[number];
+
+function normalizeGender(value: unknown): AllowedGender {
+  if (value == null || value === '') return 'unknown';
+  const s = String(value).trim().toLowerCase();
+  if (s === 'male' || s === 'm' || s === 'masculine') return 'male';
+  if (s === 'female' || s === 'f' || s === 'feminine') return 'female';
+  if (s === 'neutral' || s === 'n' || s === 'other' || s === 'non-binary') return 'neutral';
+  if (s === 'unknown' || s === 'u') return 'unknown';
+  if (ALLOWED_GENDERS.includes(s as AllowedGender)) return s as AllowedGender;
+  return 'unknown';
+}
+
+const LOCATION_TYPES = ['city', 'country', 'building', 'region', 'world', 'other'] as const;
+function normalizeLocationType(value: unknown): (typeof LOCATION_TYPES)[number] {
+  if (value == null || value === '') return 'other';
+  const s = String(value).trim().toLowerCase();
+  if (LOCATION_TYPES.includes(s as any)) return s as (typeof LOCATION_TYPES)[number];
+  if (s === 'town' || s === 'village' || s === 'place') return 'city';
+  if (s === 'area' || s === 'zone') return 'region';
+  return 'other';
+}
+
+const TERM_CATEGORIES = ['skill', 'magic', 'item', 'title', 'organization', 'race', 'other'] as const;
+function normalizeTermCategory(value: unknown): (typeof TERM_CATEGORIES)[number] {
+  if (value == null || value === '') return 'other';
+  const s = String(value).trim().toLowerCase();
+  if (TERM_CATEGORIES.includes(s as any)) return s as (typeof TERM_CATEGORIES)[number];
+  if (s === 'spell' || s === 'ability') return 'magic';
+  if (s === 'rank' || s === 'position') return 'title';
+  if (s === 'group' || s === 'guild' || s === 'faction') return 'organization';
+  return 'other';
+}
+
 interface RawAnalysisResponse {
   characters?: {
     name: string;
@@ -131,6 +167,8 @@ export class AnalyzeStage {
       const temperature = options.temperature ?? 0.3;
       const promptChars = messages.reduce((s, m) => s + (m.content?.length ?? 0), 0);
       const model = (this.provider as { model?: string })?.model ?? '';
+      // Analysis is a single request per chapter (no chunking). For long chapters or reasoning
+      // models (o1, gpt-5) this can take 2–5+ min — ensure OPENAI_TIMEOUT_MS is high enough.
       const isReasoningModel = /^gpt-5|^o1-|^o3-|^o4-/i.test(model);
       console.log(`[AnalyzeStage] Calling provider.completeJSON (prompt length ~${promptChars} chars, model: ${model})`);
       if (isReasoningModel) {
@@ -268,7 +306,7 @@ export class AnalyzeStage {
               instrumental: c.suggestedTranslation ?? c.name,
               prepositional: c.suggestedTranslation ?? c.name,
             },
-            gender: (c.gender as 'male' | 'female' | 'neutral' | 'unknown') ?? 'unknown',
+            gender: normalizeGender(c.gender),
             description: c.description ?? '',
             aliases: [],
             firstAppearance: options.chapterNumber,
@@ -279,7 +317,7 @@ export class AnalyzeStage {
           .map(l => ({
             originalName: l.name,
             translatedName: l.suggestedTranslation ?? l.name,
-            type: (l.type as 'city' | 'country' | 'building' | 'region' | 'world' | 'other') ?? 'other',
+            type: normalizeLocationType(l.type),
             description: l.description ?? '',
           })),
         newTerms: (raw.terms ?? [])
@@ -287,7 +325,7 @@ export class AnalyzeStage {
           .map(t => ({
             originalTerm: t.term,
             translatedTerm: t.suggestedTranslation ?? t.term,
-            category: (t.category as 'skill' | 'magic' | 'item' | 'title' | 'organization' | 'race' | 'other') ?? 'other',
+            category: normalizeTermCategory(t.category),
             description: t.description ?? '',
           })),
         updatedCharacters: mapUpdatedCharacters(),

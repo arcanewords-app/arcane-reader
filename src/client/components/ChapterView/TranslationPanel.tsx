@@ -227,7 +227,7 @@ export function TranslationPanel({
             >
               🔮 {t('translationPanel.start', 'Запустить')}
             </Button>
-            {onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'error') && (
+            {onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'analyzed' || chapter.status === 'error') && (
               <Button
                 variant="secondary"
                 size="sm"

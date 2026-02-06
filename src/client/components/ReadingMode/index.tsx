@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Project, Chapter, ReaderSettings } from '../../types';
+import type { Project, Chapter, ReaderSettings, GlossaryEntry } from '../../types';
 import { api } from '../../api/client';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
+import { PublicationGlossaryModal } from '../Glossary';
 import { Modal } from '../ui';
 import './ReadingMode.css';
 
@@ -15,6 +16,10 @@ interface ReadingModeProps {
   publicationId?: string;
   publicationTitle?: string;
   publicationChapters?: Array<{ id: string; number: number; title: string }>;
+  /** When > 0, show Glossary button in header (publication mode only). */
+  publicationGlossaryCount?: number;
+  /** Preloaded glossary entries (modal opens without loading when set). */
+  publicationGlossaryPreloaded?: GlossaryEntry[] | null;
   initialChapterId?: string;
   onExit: () => void;
 }
@@ -31,12 +36,15 @@ export function ReadingMode({
   publicationId,
   publicationTitle,
   publicationChapters = [],
+  publicationGlossaryCount = 0,
+  publicationGlossaryPreloaded,
   initialChapterId,
   onExit,
 }: ReadingModeProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
@@ -294,6 +302,15 @@ export function ReadingMode({
           </div>
         </div>
         <div class="reading-mode-header-right">
+          {isPublicationMode && publicationGlossaryCount > 0 && (
+            <button
+              class="reading-mode-header-btn"
+              onClick={() => setShowGlossary(true)}
+              title={t('sidebar.glossary')}
+            >
+              📝
+            </button>
+          )}
           <button
             class="reading-mode-header-btn"
             onClick={() => setShowTOC(true)}
@@ -468,6 +485,16 @@ export function ReadingMode({
           />
         </div>
       </Modal>
+
+      {publicationId && (
+        <PublicationGlossaryModal
+          isOpen={showGlossary}
+          onClose={() => setShowGlossary(false)}
+          publicationId={publicationId}
+          chapters={publicationChapters}
+          preloadedEntries={publicationGlossaryPreloaded ?? undefined}
+        />
+      )}
     </div>
   );
 }

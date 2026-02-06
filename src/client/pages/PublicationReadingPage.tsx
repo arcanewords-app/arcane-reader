@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
+import type { GlossaryEntry } from '../types';
 import { ReadingMode } from '../components/ReadingMode';
 import { LoadingSpinner } from '../components/ui';
 import './PublicationReadingPage.css';
@@ -16,9 +17,11 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [data, setData] = useState<{
     publication: { id: string; title: string | null };
     chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
+    glossaryCount: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
 
   useEffect(() => {
     if (!publicationId) {
@@ -33,6 +36,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
           setData({
             publication: { id: result.id, title: result.title },
             chapters: result.chapters || [],
+            glossaryCount: result.glossaryCount ?? 0,
           });
         }
       })
@@ -46,6 +50,23 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       cancelled = true;
     };
   }, [publicationId]);
+
+  // Preload glossary in background when publication has glossary entries
+  useEffect(() => {
+    if (!publicationId || !data || (data.glossaryCount ?? 0) <= 0) return;
+    let cancelled = false;
+    api
+      .getPublicationGlossary(publicationId)
+      .then((list) => {
+        if (!cancelled) setPreloadedGlossary(list);
+      })
+      .catch(() => {
+        if (!cancelled) setPreloadedGlossary([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [publicationId, data?.glossaryCount]);
 
   if (!publicationId) return null;
 
@@ -96,6 +117,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       publicationId={publicationId}
       publicationTitle={data.publication.title || undefined}
       publicationChapters={publicationChapters}
+      publicationGlossaryCount={data.glossaryCount}
+      publicationGlossaryPreloaded={preloadedGlossary ?? undefined}
       initialChapterId={chapterId}
       onExit={() => route(`/p/${publicationId}`)}
     />

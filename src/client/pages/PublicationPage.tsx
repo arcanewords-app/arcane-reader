@@ -2,9 +2,10 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
-import type { PublicationWithChapters } from '../types';
+import type { PublicationWithChapters, GlossaryEntry } from '../types';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
 import { LoadingSpinner } from '../components/ui';
+import { PublicationGlossaryModal } from '../components/Glossary';
 import './PublicationPage.css';
 
 interface PublicationPageProps {
@@ -16,6 +17,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [data, setData] = useState<PublicationWithChapters | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showGlossary, setShowGlossary] = useState(false);
+  const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
 
   useEffect(() => {
     if (!publicationId) return;
@@ -35,6 +38,23 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       cancelled = true;
     };
   }, [publicationId]);
+
+  // Preload glossary in background when publication has glossary entries
+  useEffect(() => {
+    if (!data || (data.glossaryCount ?? 0) <= 0) return;
+    let cancelled = false;
+    api
+      .getPublicationGlossary(data.id)
+      .then((list) => {
+        if (!cancelled) setPreloadedGlossary(list);
+      })
+      .catch(() => {
+        if (!cancelled) setPreloadedGlossary([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.id, data?.glossaryCount]);
 
   if (!publicationId) {
     route('/catalog');
@@ -70,6 +90,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const translatorDisplay = pub.translatorDisplay || null;
   const langLabel = `${pub.sourceLanguage} → ${pub.targetLanguage}`;
   const chapters = pub.chapters || [];
+  const glossaryCount = pub.glossaryCount ?? 0;
+  const translatedChapters = chapters.filter((ch) => ch.hasTranslation).map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
 
   return (
     <div class="publication-page">
@@ -108,6 +130,16 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
             <p class="publication-page-author">{t('publication.unknownAuthor')}</p>
           )}
           <p class="publication-page-lang">{langLabel}</p>
+          {glossaryCount > 0 && (
+            <button
+              type="button"
+              class="publication-page-glossary-btn"
+              onClick={() => setShowGlossary(true)}
+              title={t('sidebar.glossary')}
+            >
+              {t('sidebar.glossary')}
+            </button>
+          )}
           {chapters.length > 0 && (
             <div class="publication-page-chapters">
               <h2>{t('publication.chapters')}</h2>
@@ -137,6 +169,13 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           )}
         </div>
       </div>
+      <PublicationGlossaryModal
+        isOpen={showGlossary}
+        onClose={() => setShowGlossary(false)}
+        publicationId={pub.id}
+        chapters={translatedChapters}
+        preloadedEntries={preloadedGlossary ?? undefined}
+      />
     </div>
   );
 }

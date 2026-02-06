@@ -54,7 +54,7 @@ export interface Paragraph {
 
 // === Chapters ===
 
-export type ChapterStatus = 'pending' | 'translating' | 'completed' | 'error';
+export type ChapterStatus = 'pending' | 'translating' | 'analyzed' | 'completed' | 'error';
 
 export interface TranslationMeta {
   tokensUsed: number; // Total tokens (for backward compatibility)
@@ -68,6 +68,8 @@ export interface TranslationMeta {
   translatedAt: string;
   /** Source of translation: 'ai' for pipeline, 'uploaded' for user-uploaded */
   source?: 'uploaded' | 'ai';
+  /** When analysis was last run successfully (ISO). Used to avoid duplicate analysis and show "Analyzed" in UI. */
+  lastAnalysisAt?: string;
 }
 
 export interface Chapter {
@@ -306,4 +308,6 @@ export interface PublicationListItem {
 
 export interface PublicationWithChapters extends Publication {
   chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
+  /** Number of glossary entries (for showing Glossary button on publication). */
+  glossaryCount?: number;
 }

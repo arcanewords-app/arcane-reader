@@ -124,7 +124,7 @@ export class EditStage {
         const editTemp = options.temperature ?? 0.5;
         const editResponse = await this.provider.complete(messages, {
           temperature: editTemp,
-          maxTokens: 4096,
+          maxTokens: 8192,
         });
         
         totalTokens += editResponse.tokensUsed.total;
@@ -334,7 +334,7 @@ export class EditStage {
     
     const editResponse = await this.provider.complete(messages, {
       temperature,
-      maxTokens: 4096,
+      maxTokens: 8192,
     });
     
     return {

@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from 'preact/hooks';
-import { api } from '../api/client';
+import { useState, useCallback } from 'preact/hooks';
 import { authService } from '../services/authService';
-import type { TokenUsage } from '../types';
+import { useTokenUsageContext } from '../contexts/TokenUsageContext';
 
 const WARNING_THRESHOLD = 0.8; // 80%
 /** tokensLimit < 0 means unlimited (e.g. admin) */
@@ -17,37 +16,17 @@ export interface TokenLimitWarningState {
 }
 
 /**
- * Hook: load token usage, check limit before translation, show TokenLimitWarning on warn/block.
- * Returns checkBeforeTranslate(estimatedTokens, onProceed) - if ok calls onProceed(); if warn/block opens modal (onProceed stored; confirm only when !willExceed).
+ * Hook: check limit before translation, show TokenLimitWarning on warn/block.
+ * Uses shared TokenUsageContext (single refresh interval for the app).
  */
 export function useTokenLimitCheck() {
-  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
+  const { usage: tokenUsage, refresh: loadTokenUsage } = useTokenUsageContext();
   const [warningState, setWarningState] = useState<TokenLimitWarningState>({
     isOpen: false,
     estimatedTokens: 0,
     willExceed: false,
     onProceed: null,
   });
-
-  const loadTokenUsage = useCallback(async () => {
-    if (!authService.isAuthenticated()) return;
-    try {
-      const usage = await api.getTokenUsage();
-      setTokenUsage(usage);
-    } catch (err: unknown) {
-      const status = (err as { status?: number })?.status;
-      if (status === 401) return;
-      console.error('Failed to load token usage:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTokenUsage();
-    const interval = setInterval(() => {
-      if (authService.isAuthenticated()) loadTokenUsage();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [loadTokenUsage]);
 
   const checkBeforeTranslate = useCallback(
     (estimatedTokens: number, onProceed: () => void): TokenLimitCheckResult => {

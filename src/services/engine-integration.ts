@@ -142,9 +142,11 @@ export function createPipeline(
   let editingProvider: OpenAIProvider;
   
   try {
+    // Analysis = one request per chapter (no chunking). Timeout should allow for slow/reasoning models.
     analysisProvider = new OpenAIProvider({
       apiKey: config.openai.apiKey,
       model: analysisModel,
+      timeout: config.openai.timeout,
     });
     console.log(`[Pipeline] ✅ Analysis provider created: ${!!analysisProvider}, has completeJSON: ${typeof analysisProvider.completeJSON}`);
   } catch (error) {
@@ -153,9 +155,11 @@ export function createPipeline(
   }
   
   try {
+    // Translation = per-chunk requests; timeout applies to each chunk.
     translationProvider = new OpenAIProvider({
       apiKey: config.openai.apiKey,
       model: translationModel,
+      timeout: config.openai.timeout,
     });
     console.log(`[Pipeline] ✅ Translation provider created: ${!!translationProvider}, has complete: ${typeof translationProvider.complete}`);
   } catch (error) {
@@ -164,9 +168,11 @@ export function createPipeline(
   }
   
   try {
+    // Editing = per-chunk requests; timeout applies to each chunk.
     editingProvider = new OpenAIProvider({
       apiKey: config.openai.apiKey,
       model: editingModel,
+      timeout: config.openai.timeout,
     });
     console.log(`[Pipeline] ✅ Editing provider created: ${!!editingProvider}, has complete: ${typeof editingProvider.complete}`);
   } catch (error) {
@@ -349,7 +355,8 @@ export async function translateChapterWithPipeline(
     }));
     glossaryUpdates = [...newCharacters, ...newLocations, ...newTerms];
 
-    // Entry IDs that appeared in this chapter (isNew: false) — server will merge chapter into their mentionedInChapters
+    // Entry IDs that appeared in this chapter — server will merge chapter into their mentionedInChapters
+    // Source 1: found* with isNew=false (model put entity in characters/locations/terms and we matched by original)
     const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
       project.glossary.find(
         (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
@@ -372,6 +379,16 @@ export async function translateChapterWithPipeline(
         const entry = byOriginal(t.term, 'term');
         if (entry?.id) ids.add(entry.id);
       }
+    }
+    // Source 2: updated* (model put entity only in updatedCharacters/updatedLocations/updatedTerms — still counts as "appeared in this chapter")
+    for (const c of glossaryUpdate.updatedCharacters ?? []) {
+      if (c.id) ids.add(c.id);
+    }
+    for (const l of glossaryUpdate.updatedLocations ?? []) {
+      if (l.id) ids.add(l.id);
+    }
+    for (const t of glossaryUpdate.updatedTerms ?? []) {
+      if (t.id) ids.add(t.id);
     }
     glossaryAppearanceEntryIds = [...ids];
 

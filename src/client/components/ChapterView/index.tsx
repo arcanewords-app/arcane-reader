@@ -89,59 +89,52 @@ export function ChapterView({
     root.setAttribute('data-reader-theme', readerSettings.colorScheme);
   }, [readerSettings]);
 
-  // Poll for chapter updates during translation
+  // Poll for chapter updates during translation (lightweight status + exponential backoff, skip when tab hidden)
   useEffect(() => {
-    console.log('🔄 Polling effect triggered, chapter status:', chapter.status, 'has interval:', !!pollingInterval);
-    
-    if (chapter.status === 'translating') {
-      // Clear any existing interval first
+    if (chapter.status !== 'translating') {
       if (pollingInterval) {
-        console.log('🧹 Clearing existing polling interval');
-        clearInterval(pollingInterval);
+        clearTimeout(pollingInterval);
         setPollingInterval(null);
       }
-      
-      console.log('▶️ Starting polling for chapter:', chapter.id);
-      const interval = window.setInterval(async () => {
-        try {
-          console.log('📡 Polling chapter status...');
-          const updated = await api.getChapter(project.id, chapter.id);
-          console.log('📥 Chapter status update:', updated.status);
-          onChapterUpdate(updated);
-          
-          // Stop polling if translation is complete or failed
-          if (updated.status !== 'translating') {
-            console.log('🛑 Translation finished, stopping polling. Final status:', updated.status);
-            clearInterval(interval);
-            setPollingInterval(null);
-            if (updated.status === 'completed') {
-              console.log('✅ Translation completed successfully');
-            } else if (updated.status === 'error') {
-              console.error('❌ Translation failed with error status');
-            }
-          }
-        } catch (error) {
-          console.error('⚠️ Polling error:', error);
-          // Continue polling on error (network issues might be temporary)
-        }
-      }, 2000);
-      
-      setPollingInterval(interval);
-      
-      return () => {
-        console.log('🧹 Cleanup: clearing polling interval');
-        if (interval) {
-          clearInterval(interval);
-        }
-      };
-    } else {
-      // Clear interval if not translating
-      if (pollingInterval) {
-        console.log('🛑 Not translating, clearing polling interval');
-        clearInterval(pollingInterval);
-        setPollingInterval(null);
-      }
+      return;
     }
+    if (pollingInterval) {
+      clearTimeout(pollingInterval);
+      setPollingInterval(null);
+    }
+
+    let delayMs = 1500;
+    const maxDelayMs = 10000;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      if (document.hidden) {
+        timeoutId = setTimeout(poll, delayMs);
+        setPollingInterval(timeoutId);
+        return;
+      }
+      try {
+        const { status } = await api.getChapterStatus(project.id, chapter.id);
+        if (status !== 'translating') {
+          const fullChapter = await api.getChapter(project.id, chapter.id);
+          onChapterUpdate(fullChapter);
+          setPollingInterval(null);
+          return;
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+      delayMs = Math.min(delayMs * 1.4, maxDelayMs);
+      timeoutId = setTimeout(poll, delayMs);
+      setPollingInterval(timeoutId);
+    };
+
+    timeoutId = setTimeout(poll, delayMs);
+    setPollingInterval(timeoutId);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [chapter.status, chapter.id, project.id]);
 
   const handleSelectAllEmpty = () => setSelectedParagraphIds([...emptyParagraphIds]);

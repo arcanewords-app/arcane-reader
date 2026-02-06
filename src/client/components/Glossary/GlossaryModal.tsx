@@ -63,6 +63,14 @@ export function GlossaryModal({
   const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<GlossaryEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  type MergeSuggestionItem = { entryIds: string[]; reason: string; suggestedPrimaryId?: string };
+  const [mergeSuggestions, setMergeSuggestions] = useState<MergeSuggestionItem[] | null>(null);
+  const [loadingMergeSuggestions, setLoadingMergeSuggestions] = useState(false);
+  const [showMergeSuggestionsModal, setShowMergeSuggestionsModal] = useState(false);
+  const [selectedMergeIndexes, setSelectedMergeIndexes] = useState<Set<number>>(new Set());
+  const [keepEntryIdByIndex, setKeepEntryIdByIndex] = useState<Record<number, string>>({});
+  const [applyingMerges, setApplyingMerges] = useState(false);
+
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
       const matchesFilter = filter === 'all' || entry.type === filter;
@@ -93,6 +101,67 @@ export function GlossaryModal({
     }
   };
 
+  const handleSuggestMerges = async () => {
+    if (entries.length < 2) return;
+    setLoadingMergeSuggestions(true);
+    setMergeSuggestions(null);
+    try {
+      const res = await api.suggestGlossaryMerges(projectId);
+      const list = res.suggestions ?? [];
+      setMergeSuggestions(list);
+      const initialKeep: Record<number, string> = {};
+      list.forEach((s, i) => {
+        initialKeep[i] = s.suggestedPrimaryId ?? s.entryIds[0] ?? '';
+      });
+      setKeepEntryIdByIndex(initialKeep);
+      setSelectedMergeIndexes(new Set());
+      setShowMergeSuggestionsModal(true);
+    } catch (err) {
+      console.error('Suggest merges failed:', err);
+    } finally {
+      setLoadingMergeSuggestions(false);
+    }
+  };
+
+  const toggleMergeSelection = (index: number) => {
+    setSelectedMergeIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const setKeepForMerge = (index: number, entryId: string) => {
+    setKeepEntryIdByIndex((prev) => ({ ...prev, [index]: entryId }));
+  };
+
+  const handleApplyMerges = async () => {
+    if (!mergeSuggestions?.length || selectedMergeIndexes.size === 0) return;
+    setApplyingMerges(true);
+    const indexes = [...selectedMergeIndexes].sort((a, b) => a - b);
+    try {
+      for (const i of indexes) {
+        const s = mergeSuggestions[i];
+        if (!s?.entryIds?.length) continue;
+        const keepId = keepEntryIdByIndex[i] ?? s.suggestedPrimaryId ?? s.entryIds[0];
+        await api.mergeGlossaryEntries(projectId, {
+          entryIds: s.entryIds,
+          keepEntryId: keepId,
+        });
+      }
+      onUpdate();
+      setShowMergeSuggestionsModal(false);
+      setMergeSuggestions(null);
+      setSelectedMergeIndexes(new Set());
+    } catch (err) {
+      console.error('Apply merges failed:', err);
+      alert(t('glossary.mergeError'));
+    } finally {
+      setApplyingMerges(false);
+    }
+  };
+
   return (
     <>
       <Modal
@@ -104,6 +173,14 @@ export function GlossaryModal({
           <>
             <Button variant="secondary" onClick={onClose}>
               {t('common.close')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleSuggestMerges}
+              disabled={entries.length < 2 || loadingMergeSuggestions}
+              title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
+            >
+              {loadingMergeSuggestions ? t('glossary.suggestMergesLoading') : `🔀 ${t('glossary.suggestMerges')}`}
             </Button>
             <Button onClick={() => setShowAddModal(true)}>＋ {t('glossary.addEntry')}</Button>
           </>
@@ -240,6 +317,90 @@ export function GlossaryModal({
             })
           )}
         </div>
+      </Modal>
+
+      {/* Merge suggestions modal */}
+      <Modal
+        isOpen={showMergeSuggestionsModal}
+        onClose={() => {
+          setShowMergeSuggestionsModal(false);
+          setMergeSuggestions(null);
+        }}
+        title={t('glossary.suggestionsTitle', {
+          count: mergeSuggestions?.length ?? 0,
+        })}
+        size="medium"
+        footer={
+          mergeSuggestions && mergeSuggestions.length > 0 ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowMergeSuggestionsModal(false);
+                  setMergeSuggestions(null);
+                }}
+              >
+                {t('common.close')}
+              </Button>
+              <Button
+                onClick={handleApplyMerges}
+                disabled={selectedMergeIndexes.size === 0 || applyingMerges}
+              >
+                {applyingMerges
+                  ? t('glossary.suggestMergesLoading')
+                  : t('glossary.applySelected', { count: selectedMergeIndexes.size })}
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {mergeSuggestions === null ? (
+          <div class="glossary-merge-loading">{t('glossary.suggestMergesLoading')}</div>
+        ) : mergeSuggestions.length === 0 ? (
+          <p class="glossary-merge-empty">{t('glossary.noSuggestions')}</p>
+        ) : (
+          <div class="glossary-merge-list">
+            {mergeSuggestions.map((suggestion, index) => {
+              const entryLabels = suggestion.entryIds
+                .map((id) => {
+                  const e = entries.find((x) => x.id === id);
+                  return e ? `${e.original} → ${e.translated}` : id;
+                })
+                .join(' + ');
+              const keepId = keepEntryIdByIndex[index] ?? suggestion.suggestedPrimaryId ?? suggestion.entryIds[0];
+              return (
+                <div key={index} class="glossary-merge-card">
+                  <label class="glossary-merge-card-select">
+                    <input
+                      type="checkbox"
+                      checked={selectedMergeIndexes.has(index)}
+                      onChange={() => toggleMergeSelection(index)}
+                    />
+                    <span class="glossary-merge-card-entries">{entryLabels}</span>
+                  </label>
+                  <p class="glossary-merge-reason">{t('glossary.mergeReason', { reason: suggestion.reason })}</p>
+                  <div class="glossary-merge-keep">
+                    <span>{t('glossary.keepEntry')}:</span>
+                    <select
+                      value={keepId}
+                      onChange={(e) => setKeepForMerge(index, (e.target as HTMLSelectElement).value)}
+                    >
+                      {suggestion.entryIds.map((id) => {
+                        const e = entries.find((x) => x.id === id);
+                        const label = e ? `${e.original} → ${e.translated}` : id;
+                        return (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Modal>
 
       {/* Add Entry Modal */}

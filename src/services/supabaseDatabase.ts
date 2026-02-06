@@ -29,6 +29,46 @@ import { randomUUID } from 'crypto';
 // Type Transformations (DB snake_case <-> App camelCase)
 // ============================================
 
+// --- Glossary entry enum normalization (DB check constraints + LLM/API input) ---
+// See docs/GLOSSARY_LLM_NORMALIZATION.md for what the LLM can return and what we normalize.
+
+/** Allowed values for glossary_entries.gender (DB check constraint) */
+const ALLOWED_GENDERS = ['male', 'female', 'neutral', 'unknown'] as const;
+type AllowedGender = (typeof ALLOWED_GENDERS)[number];
+
+/**
+ * Normalize gender to a value allowed by glossary_entries_gender_check.
+ * LLM may return "masculine", "f", "Female", "" etc. — we coerce to allowed or null.
+ */
+function normalizeGenderForDB(value: unknown): AllowedGender | null {
+  if (value == null || value === '') return null;
+  const s = String(value).trim().toLowerCase();
+  if (s === 'male' || s === 'm' || s === 'masculine') return 'male';
+  if (s === 'female' || s === 'f' || s === 'feminine') return 'female';
+  if (s === 'neutral' || s === 'n' || s === 'other' || s === 'non-binary') return 'neutral';
+  if (s === 'unknown' || s === 'u') return 'unknown';
+  if (ALLOWED_GENDERS.includes(s as AllowedGender)) return s as AllowedGender;
+  return null;
+}
+
+/** Allowed values for glossary_entries.type (entry kind: character/location/term) */
+const ALLOWED_ENTRY_TYPES = ['character', 'location', 'term'] as const;
+type AllowedEntryType = (typeof ALLOWED_ENTRY_TYPES)[number];
+
+/**
+ * Normalize entry type. API/LLM might send "Character", "char", or typos.
+ * Default to 'term' for unknown so insert doesn't fail.
+ */
+function normalizeGlossaryTypeForDB(value: unknown): AllowedEntryType {
+  if (value == null || value === '') return 'term';
+  const s = String(value).trim().toLowerCase();
+  if (s === 'character' || s === 'char' || s === 'c') return 'character';
+  if (s === 'location' || s === 'loc' || s === 'place' || s === 'l') return 'location';
+  if (s === 'term' || s === 't') return 'term';
+  if (ALLOWED_ENTRY_TYPES.includes(s as AllowedEntryType)) return s as AllowedEntryType;
+  return 'term';
+}
+
 /**
  * Transform Supabase project row to Project type
  */
@@ -576,10 +616,20 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 }
 
 /**
- * Load all paragraphs for a chapter
+ * Load all paragraphs for a chapter.
+ * When useServiceRole is true, uses service role client (for long-running server flows where JWT may expire).
  */
-async function loadParagraphsForChapter(chapterId: string, token: string): Promise<Paragraph[]> {
-  const client = token ? createClientWithToken(token) : supabase;
+async function loadParagraphsForChapter(
+  chapterId: string,
+  token: string | null,
+  useServiceRole?: boolean
+): Promise<Paragraph[]> {
+  const client =
+    useServiceRole
+      ? (await import('./supabaseClient.js')).createServiceRoleClient()
+      : token
+        ? createClientWithToken(token)
+        : supabase;
 
   const { data: paragraphs, error } = await client
     .from('paragraphs')
@@ -644,6 +694,58 @@ export async function getGlossaryEntry(
   }
 
   return transformGlossaryEntryFromDB(row);
+}
+
+/**
+ * Load glossary entries for a project using service role (for public publication viewer).
+ * Use only when publication is published; RLS blocks anon/user from reading project glossary.
+ */
+export async function loadGlossaryForProjectPublic(projectId: string): Promise<GlossaryEntry[]> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: entries, error } = await client
+    .from('glossary_entries')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load glossary: ${error.message}`);
+  }
+
+  if (!entries || entries.length === 0) {
+    return [];
+  }
+
+  return entries.map(transformGlossaryEntryFromDB);
+}
+
+/**
+ * Get glossary entry count for a project (service role). Used for publication API to show/hide Glossary button.
+ */
+export async function getGlossaryCountForProject(projectId: string): Promise<number> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { count, error } = await client
+    .from('glossary_entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('project_id', projectId);
+
+  if (error) {
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Get glossary for a published publication (public, no auth). Returns empty array if publication not found or not published.
+ */
+export async function getGlossaryForPublication(publicationId: string): Promise<GlossaryEntry[]> {
+  const pub = await getPublicationById(publicationId);
+  if (!pub) return [];
+  return loadGlossaryForProjectPublic(pub.projectId);
 }
 
 // ============================================
@@ -735,19 +837,27 @@ export async function addChapter(
   return transformChapterFromDB(chapter, paragraphsList);
 }
 
+/** Options for updateChapter when using service role (e.g. long-running translate where JWT may expire). */
+export type UpdateChapterOptions = { useServiceRole?: boolean };
+
 /**
- * Update a chapter
- * Note: Token is required for RLS authentication
- * @throws {Error} If token is required but not provided
+ * Update a chapter.
+ * When options.useServiceRole is true, uses service role client so DB calls succeed even if user JWT expired.
  */
 export async function updateChapter(
   projectId: string,
   chapterId: string,
   updates: Partial<Chapter>,
-  token: string
+  token: string,
+  options?: UpdateChapterOptions
 ): Promise<Chapter | undefined> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   // Verify chapter belongs to project (RLS will check user ownership)
   const chapterData = transformChapterToDB(updates);
@@ -807,7 +917,7 @@ export async function updateChapter(
   await client.from('projects').update({}).eq('id', projectId);
 
   // Reload with paragraphs (will load updated paragraphs from DB)
-  const paragraphs = await loadParagraphsForChapter(chapter.id, token);
+  const paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
   const withTranslation = paragraphs.filter((p) => p.translatedText && p.translatedText.trim().length > 0).length;
   if (updates.paragraphs && updates.paragraphs.length > 0 && withTranslation !== updates.paragraphs.length) {
     console.log(
@@ -884,18 +994,26 @@ function autoSyncChunksToParagraphs(
   });
 }
 
+/** Options for getChapter when using service role (e.g. long-running translate where JWT may expire). */
+export type GetChapterOptions = { useServiceRole?: boolean };
+
 /**
- * Get a single chapter
- * Note: Token is required for RLS authentication
- * @throws {Error} If token is required but not provided
+ * Get a single chapter.
+ * When options.useServiceRole is true, uses service role client so DB calls succeed even if user JWT expired.
  */
 export async function getChapter(
   projectId: string,
   chapterId: string,
-  token: string
+  token: string,
+  options?: GetChapterOptions
 ): Promise<Chapter | undefined> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   const { data: chapter, error } = await client
     .from('chapters')
@@ -916,7 +1034,7 @@ export async function getChapter(
   }
 
   // Load paragraphs
-  let paragraphs = await loadParagraphsForChapter(chapter.id, token);
+  let paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
   const chapterData = transformChapterFromDB(chapter, paragraphs);
 
   // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
@@ -964,8 +1082,8 @@ export async function getChapter(
       }
 
       // Reload updated paragraphs
-      paragraphs = await loadParagraphsForChapter(chapter.id, token);
-      
+      paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
+
       const syncedCount = paragraphs.filter(p => p.translatedText && p.translatedText.trim().length > 0).length;
       console.log(`✅ Восстановлено ${syncedCount} параграфов из ${chapterData.translatedChunks.length} чанков`);
     }
@@ -1315,10 +1433,10 @@ export async function addGlossaryEntry(
 
   const entryData = {
     project_id: projectId,
-    type: entry.type,
+    type: normalizeGlossaryTypeForDB(entry.type),
     original: entry.original,
     translated: entry.translated,
-    gender: entry.gender || null,
+    gender: normalizeGenderForDB(entry.gender),
     declensions: entry.declensions || null,
     description: entry.description || null,
     notes: entry.notes || null,
@@ -1375,10 +1493,10 @@ export async function updateGlossaryEntry(
   }
 
   const entryData: any = {};
-  if (updates.type !== undefined) entryData.type = updates.type;
+  if (updates.type !== undefined) entryData.type = normalizeGlossaryTypeForDB(updates.type);
   if (updates.original !== undefined) entryData.original = updates.original;
   if (updates.translated !== undefined) entryData.translated = updates.translated;
-  if (updates.gender !== undefined) entryData.gender = updates.gender || null;
+  if (updates.gender !== undefined) entryData.gender = normalizeGenderForDB(updates.gender);
   if (updates.declensions !== undefined) entryData.declensions = updates.declensions || null;
   if (updates.description !== undefined) entryData.description = updates.description || null;
   if (updates.notes !== undefined) entryData.notes = updates.notes || null;
@@ -1648,11 +1766,12 @@ export async function getPublicationById(publicationId: string): Promise<{
 
 /**
  * Get publication by ID with chapters list (for reading page).
- * Returns only published; chapters are minimal (id, number, title, hasTranslation).
+ * Returns only published; chapters are minimal (id, number, title, hasTranslation); glossaryCount for showing Glossary button.
  */
 export async function getPublicationWithChapters(publicationId: string): Promise<{
   publication: ReturnType<typeof transformPublicationFromDB>;
   chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
+  glossaryCount: number;
 } | null> {
   const pub = await getPublicationById(publicationId);
   if (!pub) return null;
@@ -1680,7 +1799,14 @@ export async function getPublicationWithChapters(publicationId: string): Promise
     hasTranslation: !!c.translated_text,
   }));
 
-  return { publication: pub, chapters: list };
+  let glossaryCount = 0;
+  try {
+    glossaryCount = await getGlossaryCountForProject(pub.projectId);
+  } catch {
+    // Service role or glossary table issue: return 0 so client hides Glossary button
+  }
+
+  return { publication: pub, chapters: list, glossaryCount };
 }
 
 /**

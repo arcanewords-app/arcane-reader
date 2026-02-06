@@ -241,6 +241,14 @@ export const api = {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`);
   },
 
+  /** Lightweight: only chapter status (for polling during translation) */
+  async getChapterStatus(
+    projectId: string,
+    chapterId: string
+  ): Promise<{ status: Chapter['status'] }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/status`);
+  },
+
   async deleteChapter(
     projectId: string,
     chapterId: string
@@ -411,6 +419,27 @@ export const api = {
     });
   },
 
+  /** Get LLM suggestions for merging duplicate/alias glossary entries */
+  async suggestGlossaryMerges(
+    projectId: string
+  ): Promise<{ suggestions: Array<{ entryIds: string[]; reason: string; suggestedPrimaryId?: string }> }> {
+    return fetchJson(`/api/projects/${projectId}/glossary/suggest-merges`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  /** Merge multiple glossary entries into one (keeps one, merges fields, deletes others) */
+  async mergeGlossaryEntries(
+    projectId: string,
+    body: { entryIds: string[]; keepEntryId?: string }
+  ): Promise<{ kept: GlossaryEntry; deletedCount: number }> {
+    return fetchJson(`/api/projects/${projectId}/glossary/merge`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   async uploadGlossaryImage(
     projectId: string,
     entryId: string,
@@ -507,10 +536,21 @@ export const api = {
 
   /** Get publication with chapters list (public, for reading page) */
   async getPublicationWithChapters(id: string): Promise<PublicationWithChapters> {
-    const result = await fetchJson<{ publication: Publication; chapters: PublicationWithChapters['chapters'] }>(
-      `/api/publications/${id}/chapters`
-    );
-    return { ...result.publication, chapters: result.chapters };
+    const result = await fetchJson<{
+      publication: Publication;
+      chapters: PublicationWithChapters['chapters'];
+      glossaryCount: number;
+    }>(`/api/publications/${id}/chapters`);
+    return {
+      ...result.publication,
+      chapters: result.chapters,
+      glossaryCount: result.glossaryCount,
+    };
+  },
+
+  /** Get publication glossary (public, read-only). Returns empty array if not published. */
+  async getPublicationGlossary(publicationId: string): Promise<GlossaryEntry[]> {
+    return fetchJson(`/api/publications/${publicationId}/glossary`);
   },
 
   /** Get single chapter content for public reading (translated text only) */

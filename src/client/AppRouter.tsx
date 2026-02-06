@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
 import { authService } from './services/authService';
+import { TokenUsageProvider } from './contexts/TokenUsageContext';
 import { Header } from './components/Header';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { api } from './api/client';
@@ -229,6 +230,7 @@ export function AppRouter() {
 
   // Always render app: public catalog on / for everyone; guests see Header with Login/Register
   return (
+    <TokenUsageProvider>
     <div class="app">
       <AuthModal
         isOpen={showAuthModal}
@@ -268,8 +270,8 @@ export function AppRouter() {
           <CatalogPage path="/" />
           <CatalogPage path="/catalog" />
           <Dashboard path="/cabinet" />
-          <PublicationPage path="/p/:publicationId" />
           <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
+          <PublicationPage path="/p/:publicationId" />
           <ProjectPage path="/projects/:projectId" />
           <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
           <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />
@@ -277,5 +279,6 @@ export function AppRouter() {
         </Router>
       </main>
     </div>
+    </TokenUsageProvider>
   );
 }

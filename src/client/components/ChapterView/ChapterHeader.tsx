@@ -196,7 +196,7 @@ export function ChapterHeader({
           </Button>
         )}
 
-        {isOriginalReadingMode && onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'error') && (
+        {isOriginalReadingMode && onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'analyzed' || chapter.status === 'error') && (
           <Button
             variant="secondary"
             size="sm"

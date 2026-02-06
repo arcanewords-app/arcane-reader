@@ -4,6 +4,11 @@
   font-size: 0.9rem;
 }
 
+.sidebar-process-chapters {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
 /* Mobile header with close button */
 .sidebar-mobile-header {
   display: flex;
@@ -71,7 +76,8 @@
 
 /* Desktop: no project name, tighter spacing */
 @media (min-width: 1024px) {
-  .sidebar-dashboard-link {
+  .sidebar-dashboard-link,
+  .sidebar-process-chapters {
     margin-bottom: 0.75rem;
   }
 

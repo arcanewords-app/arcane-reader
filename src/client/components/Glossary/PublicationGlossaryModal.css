@@ -1,0 +1,167 @@
+/* Publication glossary viewer: aligned with PublicationPage design (clean, minimal) */
+
+.publication-glossary-modal.glossary-modal .glossary-modal-header {
+  background: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.publication-glossary-modal.glossary-modal .modal-title {
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+  color: var(--text-primary);
+}
+
+.publication-glossary-modal .glossary-toolbar {
+  border-bottom: 1px solid var(--border);
+}
+
+.publication-glossary-modal .glossary-search input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.publication-glossary-modal .glossary-search input::placeholder {
+  color: var(--text-dim);
+}
+
+.publication-glossary-modal .filter-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.publication-glossary-modal .filter-btn::before {
+  display: none;
+}
+
+.publication-glossary-modal .filter-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  transform: none;
+  box-shadow: none;
+}
+
+.publication-glossary-modal .filter-btn.active {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.publication-glossary-modal .glossary-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.publication-glossary-modal .glossary-card::before {
+  display: none;
+}
+
+.publication-glossary-modal .glossary-card:hover {
+  border-color: var(--border-hover, var(--accent));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.publication-glossary-modal .glossary-card-original {
+  color: var(--text-secondary);
+}
+
+.publication-glossary-modal .glossary-card-translated {
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+  color: var(--text-primary);
+}
+
+.publication-glossary-modal .glossary-card-type-badge {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+}
+
+.publication-glossary-modal .glossary-card-chapter {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.publication-glossary-modal .glossary-chapter-pill {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.publication-glossary-modal .glossary-chapter-pill:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.publication-glossary-modal .glossary-chapter-pill-static {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+
+.publication-glossary-modal .glossary-empty {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.publication-glossary-modal .glossary-modal-footer .button,
+.publication-glossary-modal .glossary-modal-footer button {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+}
+
+.publication-glossary-modal .glossary-modal-footer .button:hover,
+.publication-glossary-modal .glossary-modal-footer button:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.publication-glossary-modal .modal-close-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.publication-glossary-modal .modal-close-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+/* Nested detail modal (read-only entry view) */
+.publication-glossary-detail-modal .form-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.publication-glossary-detail-modal .form-group {
+  margin-bottom: 1rem;
+}
+
+.publication-glossary-detail-modal .edit-modal-chapters-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Go to chapter confirmation modal */
+.publication-glossary-confirm-modal .publication-glossary-confirm-text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+}

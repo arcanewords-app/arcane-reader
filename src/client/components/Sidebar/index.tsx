@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { ChapterList } from './ChapterList';
+import { ProcessChapters } from './ProcessChapters';
 import { Button } from '../ui';
 import { route } from 'preact-router';
 import type { Project, ProjectSettings } from '../../types';
@@ -117,14 +118,18 @@ export function Sidebar({
         </Button>
 
         {/* Settings Button */}
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           onClick={() => setShowSettings(true)}
           className="sidebar-settings-link"
           style={{ marginBottom: '1rem' }}
         >
           ⚙️ {t('sidebar.projectSettings')}
         </Button>
+
+        {onRefreshProject && (
+          <ProcessChapters project={project} onRefreshProject={onRefreshProject} />
+        )}
 
         <ChapterList
           chapters={project.chapters}

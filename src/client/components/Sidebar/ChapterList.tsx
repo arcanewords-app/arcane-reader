@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'preact/hooks';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'preact/hooks';
 // dnd-kit imports for modern drag & drop
 import {
   DndContext,
@@ -18,7 +18,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import type { Chapter, ChapterStatus, Project } from '../../types';
-import { Card, CountBadge, Modal } from '../ui';
+import { Card, CountBadge, Modal, Button } from '../ui';
 import { api } from '../../api/client';
 import './ChapterList.css';
 
@@ -88,6 +88,7 @@ export function ChapterList({
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const processingRef = useRef(false);
   const queueRef = useRef<QueueItem[]>([]);
   const currentAbortRef = useRef<AbortController | null>(null);
@@ -135,9 +136,15 @@ export function ChapterList({
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [containerHeight, setContainerHeight] = useState(400);
   const [scrollTop, setScrollTop] = useState(0);
+  const scrollTopRafRef = useRef<number | null>(null); // throttle scroll updates
+  const edgeScrollRafRef = useRef<number | null>(null); // edge auto-scroll animation
   const ITEM_HEIGHT = 56; // px - approximate height per chapter row
   const BUFFER = 6; // render extra items above/below
   const prevChaptersCountRef = useRef(chapters.length);
+
+  // Edge scroll zone: distance from top/bottom (px) where auto-scroll activates
+  const EDGE_SCROLL_ZONE = 80;
+  const EDGE_SCROLL_SPEED_MAX = 12; // px per frame
 
   // sensors for dnd-kit
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -181,6 +188,7 @@ export function ChapterList({
     all: chapters.length,
     pending: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'pending').length,
     completed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'completed').length,
+    analyzed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'analyzed').length,
     error: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'error').length,
   }), [chapters, originalReadingMode]);
 
@@ -221,6 +229,7 @@ export function ChapterList({
       queueRef.current = next;
       return next;
     });
+    setShowUploadModal(true);
     // Start processing if not already
     setTimeout(() => startProcessing(), 0);
   };
@@ -374,6 +383,7 @@ export function ChapterList({
     switch (status) {
       case 'completed': return '✅';
       case 'translating': return '🔮';
+      case 'analyzed': return '🔍';
       case 'error': return '❌';
       default: return '⏳';
     }
@@ -493,7 +503,7 @@ export function ChapterList({
       }
     }
   };
-  // detect container size and attach scroll handler
+  // detect container size and attach scroll handler (throttled to reduce flicker)
   useEffect(() => {
     const el = listContainerRef.current;
     if (!el) return;
@@ -501,11 +511,18 @@ export function ChapterList({
     onResize();
     const obs = new ResizeObserver(onResize);
     obs.observe(el);
-    const onScroll = () => setScrollTop(el.scrollTop);
+    const onScroll = () => {
+      if (scrollTopRafRef.current !== null) return;
+      scrollTopRafRef.current = requestAnimationFrame(() => {
+        scrollTopRafRef.current = null;
+        setScrollTop(el.scrollTop);
+      });
+    };
     el.addEventListener('scroll', onScroll);
     return () => {
       obs.disconnect();
       el.removeEventListener('scroll', onScroll);
+      if (scrollTopRafRef.current !== null) cancelAnimationFrame(scrollTopRafRef.current);
     };
   }, []);
 
@@ -524,6 +541,27 @@ export function ChapterList({
     }
     prevChaptersCountRef.current = chapters.length;
   }, [chapters.length]);
+
+  // Reset drag state when list updates (e.g. after upload) so we don't show the simplified
+  // dragging template and lose role="group" / delete button in chapter-item-actions
+  useEffect(() => {
+    setIsDragging(false);
+  }, [chapters.length]);
+
+  // When selected chapter changes, center it in the visible list
+  useEffect(() => {
+    if (!selectedId || filteredChapters.length === 0) return;
+    const index = filteredChapters.findIndex((c) => c.id === selectedId);
+    if (index < 0) return;
+    const el = listContainerRef.current;
+    if (!el) return;
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+    // Center the item: item top at (index * ITEM_HEIGHT), we want it in the middle of the viewport
+    const targetScroll = index * ITEM_HEIGHT - el.clientHeight / 2 + ITEM_HEIGHT / 2;
+    const clamped = Math.max(0, Math.min(maxScroll, Math.round(targetScroll)));
+    el.scrollTop = clamped;
+    setScrollTop(clamped);
+  }, [selectedId, filteredChapters, containerHeight]);
 
   // dnd-kit drag start handler
   const handleDndStart = (event: DragStartEvent) => {
@@ -545,8 +583,13 @@ export function ChapterList({
     const activeId = event.active?.id as string | undefined;
     const overId = event.over?.id as string | undefined;
 
-  // remove pointer listener
-  window.removeEventListener('pointermove', onPointerMove);
+    // stop edge-scroll animation
+    if (edgeScrollRafRef.current !== null) {
+      cancelAnimationFrame(edgeScrollRafRef.current);
+      edgeScrollRafRef.current = null;
+    }
+    // remove pointer listener
+    window.removeEventListener('pointermove', onPointerMove);
 
   if (!activeId || !projectId) return;
     if (!overId || activeId === overId) return;
@@ -653,23 +696,54 @@ export function ChapterList({
     }
   };
 
+  // Edge auto-scroll: when dragging near top/bottom of visible list, scroll proportionally
+  const runEdgeScroll = useCallback(() => {
+    const el = listContainerRef.current;
+    if (!el || !isDragging) return;
+    const rect = el.getBoundingClientRect();
+    const pointerY = pointerYRef.current;
+    if (pointerY === null) return;
+    const relY = pointerY - rect.top; // distance from top of visible area
+    const maxScroll = el.scrollHeight - containerHeight;
+    if (maxScroll <= 0) return;
+
+    let delta = 0;
+    if (relY < EDGE_SCROLL_ZONE && el.scrollTop > 0) {
+      // In top zone: scroll up (negative delta). Closer to top = faster
+      const t = 1 - relY / EDGE_SCROLL_ZONE;
+      delta = -EDGE_SCROLL_SPEED_MAX * t;
+    } else if (relY > rect.height - EDGE_SCROLL_ZONE && el.scrollTop < maxScroll) {
+      // In bottom zone: scroll down. Closer to bottom = faster
+      const t = (relY - (rect.height - EDGE_SCROLL_ZONE)) / EDGE_SCROLL_ZONE;
+      delta = EDGE_SCROLL_SPEED_MAX * t;
+    }
+
+    if (delta !== 0) {
+      el.scrollTop = Math.max(0, Math.min(maxScroll, el.scrollTop + delta));
+      // State will update via throttled scroll listener
+    }
+
+    edgeScrollRafRef.current = requestAnimationFrame(runEdgeScroll);
+  }, [containerHeight]);
+
   const onPointerMove = (e: PointerEvent) => {
     pointerYRef.current = e.clientY;
-    // If dragging, ensure the item under pointer is rendered by scrolling container if needed
     if (!isDragging) return;
     const el = listContainerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const localY = e.clientY - rect.top + el.scrollTop; // position within scroll content
-    const pointerIndex = Math.floor(localY / ITEM_HEIGHT);
-    const visibleStart = Math.max(0, Math.floor(el.scrollTop / ITEM_HEIGHT) - BUFFER);
-    const visibleEnd = Math.min(filteredChapters.length, Math.ceil((el.scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER);
-    if (pointerIndex < visibleStart + 2 || pointerIndex > visibleEnd - 2) {
-      // scroll so pointerIndex is centered
-      const targetScroll = Math.max(0, pointerIndex * ITEM_HEIGHT - Math.floor(containerHeight / 2));
-      el.scrollTop = targetScroll;
-      // update scroll state
-      setScrollTop(el.scrollTop);
+    const relY = e.clientY - rect.top;
+
+    // Start or continue edge-scroll when pointer is in zone
+    const inTopZone = relY < EDGE_SCROLL_ZONE && el.scrollTop > 0;
+    const inBottomZone = relY > rect.height - EDGE_SCROLL_ZONE && el.scrollTop < el.scrollHeight - containerHeight;
+    if (inTopZone || inBottomZone) {
+      if (edgeScrollRafRef.current === null) edgeScrollRafRef.current = requestAnimationFrame(runEdgeScroll);
+    } else {
+      if (edgeScrollRafRef.current !== null) {
+        cancelAnimationFrame(edgeScrollRafRef.current);
+        edgeScrollRafRef.current = null;
+      }
     }
   };
 
@@ -709,13 +783,14 @@ export function ChapterList({
       </div>
 
       <div class="chapter-filters">
-        {(['all', ...(originalReadingMode ? [] : ['pending', 'completed', 'error'] as FilterType[])] as FilterType[]).map((f) => (
+        {(['all', ...(originalReadingMode ? [] : ['pending', 'completed', 'analyzed', 'error'] as FilterType[])] as FilterType[]).map((f) => (
           <button
             key={f}
             class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
             onClick={() => setFilter(f)}
+            title={f === 'all' ? t('chapterList.all') : f === 'pending' ? t('chapterList.filterPending') : f === 'completed' ? t('chapterList.filterCompleted') : f === 'analyzed' ? t('chapterList.filterAnalyzed') : t('chapterList.filterError')}
           >
-            {f === 'all' ? t('chapterList.all') : f === 'pending' ? '⏳' : f === 'completed' ? '✅' : '❌'}
+            {f === 'all' ? t('chapterList.all') : f === 'pending' ? '⏳' : f === 'completed' ? '✅' : f === 'analyzed' ? '🔍' : '❌'}
           </button>
         ))}
       </div>
@@ -728,165 +803,131 @@ export function ChapterList({
             </div>
           ) : (
             <SortableContext items={currentOrderedIds()} strategy={verticalListSortingStrategy}>
-              {!isDragging && (
-                // When NOT dragging, use virtualization for performance
-                (() => {
-                  const total = filteredChapters.length;
-                  const totalHeight = total * ITEM_HEIGHT;
-                  const start = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
-                  const end = Math.min(total, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER);
-                  const slice = filteredChapters.slice(start, end);
-                  const paddingTop = start * ITEM_HEIGHT;
-                  const paddingBottom = Math.max(0, totalHeight - end * ITEM_HEIGHT);
+              {/* Always use virtualization, but with larger buffer during drag to avoid scroll jumps */}
+              {(() => {
+                const total = filteredChapters.length;
+                const totalHeight = total * ITEM_HEIGHT;
+                // Use larger buffer during drag to ensure dragged item and nearby items stay rendered
+                const currentBuffer = isDragging ? DRAG_BUFFER : BUFFER;
+                const start = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - currentBuffer);
+                const end = Math.min(total, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + currentBuffer);
+                const slice = filteredChapters.slice(start, end);
+                const paddingTop = start * ITEM_HEIGHT;
+                const paddingBottom = Math.max(0, totalHeight - end * ITEM_HEIGHT);
 
-                  return (
-                    <div style={{ height: totalHeight + 'px', position: 'relative' }}>
-                      <div style={{ paddingTop: paddingTop + 'px', paddingBottom: paddingBottom + 'px' }}>
-                        {slice.map((chapter) => (
-                          <SortableItem id={chapter.id} key={chapter.id}>
-                            {({ attributes, listeners }) => (
+                return (
+                  <div style={{ height: totalHeight + 'px', position: 'relative' }}>
+                    <div style={{ paddingTop: paddingTop + 'px', paddingBottom: paddingBottom + 'px' }}>
+                      {slice.map((chapter) => (
+                        <SortableItem id={chapter.id} key={chapter.id}>
+                          {({ attributes, listeners }) => (
+                          <div
+                            class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
+                            onClick={() => onSelect(chapter.id)}
+                            title={chapter.title}
+                            style={{
+                              height: ITEM_HEIGHT + 'px',
+                              boxSizing: 'border-box',
+                            }}
+                          >
                             <div
-                              class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
-                              onClick={() => onSelect(chapter.id)}
-                              title={chapter.title}
-                              style={{
-                                height: ITEM_HEIGHT + 'px',
-                                boxSizing: 'border-box',
-                              }}
+                              class="chapter-item-drag-area"
+                              {...attributes}
+                              {...listeners}
+                              style={isDragging ? { cursor: 'grabbing' } : undefined}
                             >
-                              <div
-                                class="chapter-item-drag-area"
-                                {...attributes}
-                                {...listeners}
-                              >
-                                {editingNumber === chapter.id ? (
-                                <div class="chapter-number-edit" onClick={(e: any) => e.stopPropagation()} onPointerDown={(e: any) => e.stopPropagation()}>
-                                  <input
-                                    ref={editingNumber === chapter.id ? numberInputRef : undefined}
-                                    type="number"
-                                    min="1"
-                                    max={chapters.length}
-                                    value={editedNumber}
-                                    onInput={(e: any) => {
-                                      const value = parseInt((e.target as HTMLInputElement).value, 10);
-                                      if (!isNaN(value)) {
-                                        setEditedNumber(Math.max(1, Math.min(value, chapters.length)));
-                                      }
-                                    }}
-                                    onKeyDown={(e: any) => handleNumberKeyDown(e, chapter.id)}
-                                    onBlur={() => handleSaveNumber(chapter.id)}
-                                    disabled={savingNumber}
-                                    class="chapter-number-input"
-                                    style={{ width: '3rem', textAlign: 'center' }}
-                                  />
-                                  <div class="chapter-number-edit-actions">
-                                    <button
-                                      class="chapter-number-save-btn"
-                                      onClick={(e: any) => {
-                                        e.stopPropagation();
-                                        handleSaveNumber(chapter.id);
-                                      }}
-                                      disabled={savingNumber}
-                                      title={t('chapterList.saveNumberTitle')}
-                                    >
-                                      ✓
-                                    </button>
-                                    <button
-                                      class="chapter-number-cancel-btn"
-                                      onClick={(e: any) => {
-                                        e.stopPropagation();
-                                        handleCancelEditNumber(chapter);
-                                      }}
-                                      disabled={savingNumber}
-                                      title={t('chapterList.cancelNumberTitle')}
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span
-                                  class="chapter-number"
-                                  onClick={(e: any) => handleStartEditNumber(chapter, e)}
-                                  title={t('chapterList.editNumberTitle')}
-                                  style={{ cursor: 'pointer' }}
-                                >
-                                  {chapter.number}
-                                </span>
-                              )}
-                                <span class="chapter-item-title">{chapter.title}</span>
-                              </div>
-                              <div
-                                class="chapter-item-actions"
-                                onClick={(e: any) => e.stopPropagation()}
-                                onPointerDown={(e: any) => e.stopPropagation()}
-                                role="group"
-                                aria-label={t('chapterList.deleteTitle')}
-                              >
-                                {!originalReadingMode && (
-                                  <span>{getStatusIcon(chapter.status)}</span>
-                                )}
-                                {onDelete && (
+                              {editingNumber === chapter.id ? (
+                              <div class="chapter-number-edit" onClick={(e: any) => e.stopPropagation()} onPointerDown={(e: any) => e.stopPropagation()}>
+                                <input
+                                  ref={editingNumber === chapter.id ? numberInputRef : undefined}
+                                  type="number"
+                                  min="1"
+                                  max={chapters.length}
+                                  value={editedNumber}
+                                  onInput={(e: any) => {
+                                    const value = parseInt((e.target as HTMLInputElement).value, 10);
+                                    if (!isNaN(value)) {
+                                      setEditedNumber(Math.max(1, Math.min(value, chapters.length)));
+                                    }
+                                  }}
+                                  onKeyDown={(e: any) => handleNumberKeyDown(e, chapter.id)}
+                                  onBlur={() => handleSaveNumber(chapter.id)}
+                                  disabled={savingNumber}
+                                  class="chapter-number-input"
+                                  style={{ width: '3rem', textAlign: 'center' }}
+                                />
+                                <div class="chapter-number-edit-actions">
                                   <button
-                                    type="button"
-                                    class="chapter-delete-btn"
+                                    class="chapter-number-save-btn"
                                     onClick={(e: any) => {
                                       e.stopPropagation();
-                                      e.preventDefault();
-                                      setDeleteConfirmId(chapter.id);
+                                      handleSaveNumber(chapter.id);
                                     }}
-                                    onPointerDown={(e: any) => e.stopPropagation()}
-                                    title={t('chapterList.deleteTitle')}
-                                    disabled={deleting}
+                                    disabled={savingNumber}
+                                    title={t('chapterList.saveNumberTitle')}
                                   >
-                                    🗑️
+                                    ✓
                                   </button>
-                                )}
+                                  <button
+                                    class="chapter-number-cancel-btn"
+                                    onClick={(e: any) => {
+                                      e.stopPropagation();
+                                      handleCancelEditNumber(chapter);
+                                    }}
+                                    disabled={savingNumber}
+                                    title={t('chapterList.cancelNumberTitle')}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
                               </div>
+                            ) : (
+                              <span
+                                class="chapter-number"
+                                onClick={(e: any) => handleStartEditNumber(chapter, e)}
+                                title={t('chapterList.editNumberTitle')}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {chapter.number}
+                              </span>
+                            )}
+                              <span class="chapter-item-title">{chapter.title}</span>
                             </div>
-                            )}
-                          </SortableItem>
-                        ))}
-                      </div>
+                            <div
+                              class="chapter-item-actions"
+                              onClick={(e: any) => e.stopPropagation()}
+                              onPointerDown={(e: any) => e.stopPropagation()}
+                              role="group"
+                              aria-label={t('chapterList.deleteTitle')}
+                            >
+                              {!originalReadingMode && (
+                                <span>{getStatusIcon(chapter.status)}</span>
+                              )}
+                              {onDelete && (
+                                <button
+                                  type="button"
+                                  class="chapter-delete-btn"
+                                  onClick={(e: any) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setDeleteConfirmId(chapter.id);
+                                  }}
+                                  onPointerDown={(e: any) => e.stopPropagation()}
+                                  title={t('chapterList.deleteTitle')}
+                                  disabled={deleting}
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          )}
+                        </SortableItem>
+                      ))}
                     </div>
-                  );
-                })()
-              )}
-              {isDragging && (
-                // When dragging, render full list without virtualization
-                <div>
-                  {filteredChapters.map((chapter) => (
-                    <SortableItem id={chapter.id} key={chapter.id}>
-                      {({ attributes, listeners }) => (
-                        <div
-                          class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
-                          onClick={() => onSelect(chapter.id)}
-                          title={chapter.title}
-                          style={{
-                            height: ITEM_HEIGHT + 'px',
-                            boxSizing: 'border-box',
-                          }}
-                        >
-                          <div
-                            class="chapter-item-drag-area"
-                            {...attributes}
-                            {...listeners}
-                            style={{ cursor: 'grabbing' }}
-                          >
-                            <span class="chapter-number">{chapter.number}</span>
-                            <span class="chapter-item-title">{chapter.title}</span>
-                          </div>
-                          <div class="chapter-item-actions">
-                            {!originalReadingMode && (
-                              <span>{getStatusIcon(chapter.status)}</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </SortableItem>
-                  ))}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </SortableContext>
           )}
         </div>
@@ -995,33 +1036,61 @@ export function ChapterList({
           )}
         </Modal>
 
-        {queue.length > 0 && (
-          <div class="upload-queue">
-            <div class="upload-queue-header">
-              <strong>{t('chapterList.uploadQueue') || 'Upload queue'}</strong>
-              {processing && (
-                <button class="upload-queue-cancel" onClick={() => cancelQueue()}>{t('chapterList.cancelQueue') || 'Cancel'}</button>
-              )}
-            </div>
-
-            {queue.map((item) => (
-              <div key={item.id} class={`queue-item ${item.status}`}>
-                <div class="queue-item-left">
-                  <span class={`queue-status ${item.status}`}>{item.status === 'uploading' ? '⏳' : item.status === 'success' ? '✅' : item.status === 'error' ? '❌' : item.status === 'canceled' ? '✖' : '●'}</span>
-                  <span class="queue-name">{item.file.name}</span>
-                </div>
-                <div class="queue-item-actions">
-                  {item.status === 'error' && (
-                    <button class="small" onClick={() => retryItem(item.id)}>{t('common.retry') || 'Retry'}</button>
-                  )}
-                  {item.status === 'pending' && (
-                    <button class="small" onClick={() => removeItem(item.id)}>{t('common.remove') || 'Remove'}</button>
-                  )}
-                </div>
-                {item.error && <pre class="queue-error">{item.error}</pre>}
-              </div>
-            ))}
+        {queue.length > 0 && !showUploadModal && (
+          <div class="upload-queue-mini">
+            <span class="upload-queue-mini-label">
+              📄 {t('chapterList.uploadQueue')} ({queue.length})
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => setShowUploadModal(true)}>
+              {t('chapterList.viewQueue') || 'View'}
+            </Button>
           </div>
+        )}
+
+        {queue.length > 0 && (
+          <Modal
+            isOpen={showUploadModal}
+            onClose={() => !processing && setShowUploadModal(false)}
+            title={t('chapterList.uploadModalTitle') || t('chapterList.uploadQueue')}
+            className="upload-queue-modal"
+            preventClose={processing}
+            footer={
+              processing ? (
+                <Button variant="secondary" size="sm" onClick={() => cancelQueue()}>
+                  ⏹ {t('chapterList.cancelQueue') || 'Cancel'}
+                </Button>
+              ) : (
+                <Button variant="primary" size="sm" onClick={() => setShowUploadModal(false)}>
+                  {t('common.close')}
+                </Button>
+              )
+            }
+          >
+            <div class="upload-queue-modal-body">
+              <div class="upload-queue-header">
+                <strong>{t('chapterList.uploadQueue') || 'Upload queue'}</strong>
+              </div>
+              <div class="upload-queue-list">
+                {queue.map((item) => (
+                  <div key={item.id} class={`queue-item ${item.status}`}>
+                    <div class="queue-item-left">
+                      <span class={`queue-status ${item.status}`}>{item.status === 'uploading' ? '⏳' : item.status === 'success' ? '✅' : item.status === 'error' ? '❌' : item.status === 'canceled' ? '✖' : '●'}</span>
+                      <span class="queue-name">{item.file.name}</span>
+                    </div>
+                    <div class="queue-item-actions">
+                      {item.status === 'error' && (
+                        <button type="button" class="small" onClick={() => retryItem(item.id)}>{t('common.retry') || 'Retry'}</button>
+                      )}
+                      {item.status === 'pending' && (
+                        <button type="button" class="small" onClick={() => removeItem(item.id)}>{t('common.remove') || 'Remove'}</button>
+                      )}
+                    </div>
+                    {item.error && <pre class="queue-error">{item.error}</pre>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Modal>
         )}
       </div>
     </Card>

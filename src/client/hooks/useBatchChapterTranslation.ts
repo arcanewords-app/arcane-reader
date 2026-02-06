@@ -34,31 +34,34 @@ export interface BatchProgress {
   errors: number;
 }
 
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 60;
+const INITIAL_POLL_MS = 1500;
+const MAX_POLL_MS = 12000;
+const MAX_POLL_ATTEMPTS = 90; // ~5 min with backoff
 
 /**
- * Poll chapter status until translation completes or errors.
+ * Poll chapter status until translation completes or errors. Uses lightweight status endpoint and exponential backoff.
  */
 async function pollChapterUntilDone(
   projectId: string,
   chapterId: string,
   isCancelled: () => boolean,
   _t: (key: string) => string
-): Promise<{ success: boolean; chapter?: Chapter; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
+  let delayMs = INITIAL_POLL_MS;
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     if (isCancelled()) {
       return { success: false, error: _t('projectInfo.errorCanceled') };
     }
     try {
-      const chapter = await api.getChapter(projectId, chapterId);
-      if (chapter.status === 'completed') {
-        return { success: true, chapter };
+      const { status } = await api.getChapterStatus(projectId, chapterId);
+      if (status === 'completed' || status === 'analyzed') {
+        return { success: true };
       }
-      if (chapter.status === 'error') {
+      if (status === 'error') {
         return { success: false, error: _t('projectInfo.errorTranslation') };
       }
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      await new Promise((r) => setTimeout(r, delayMs));
+      delayMs = Math.min(delayMs * 1.5, MAX_POLL_MS);
     } catch (err) {
       console.error('Poll error:', err);
       return { success: false, error: _t('projectInfo.errorStatusCheck') };
@@ -328,6 +331,22 @@ export function useBatchChapterTranslation(
                   );
                   if (authService.isAuthenticated()) loadTokenUsage();
                   break;
+                }
+
+                // 409 = translation already in progress (e.g. another tab or duplicate request); do not retry
+                if (status === 409) {
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          errors: prev.errors + 1,
+                          chapters: prev.chapters.map((c) =>
+                            c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
+                          ),
+                        }
+                      : null
+                  );
+                  continue;
                 }
 
                 setProgress((prev) =>

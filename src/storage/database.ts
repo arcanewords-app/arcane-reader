@@ -71,7 +71,7 @@ export interface Paragraph {
 }
 
 /** Chapter status */
-export type ChapterStatus = 'pending' | 'translating' | 'completed' | 'error';
+export type ChapterStatus = 'pending' | 'translating' | 'analyzed' | 'completed' | 'error';
 
 export interface Chapter {
   id: string;
@@ -97,6 +97,8 @@ export interface Chapter {
     translatedAt: string;
     /** Source of translation: 'ai' for pipeline, 'uploaded' for user-uploaded */
     source?: 'uploaded' | 'ai';
+    /** When analysis was last run successfully (ISO). Used to avoid duplicate analysis and show "Analyzed" in UI. */
+    lastAnalysisAt?: string;
   };
 }
 

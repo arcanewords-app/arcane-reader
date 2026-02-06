@@ -80,7 +80,8 @@ export class TranslateStage {
       // Prepare style guide
       const styleGuide = this.buildStyleGuide(options.context);
 
-      // Chunk the text
+      // Chunk the text — each chunk is one API request, so long chapters don't need one huge
+      // timeout; slow models only need to finish one chunk per request (OPENAI_TIMEOUT_MS).
       const chunks = chunkText(sourceText, {
         maxTokens: options.chunkSize ?? 2000,
         preserveParagraphs: true,
@@ -243,7 +244,7 @@ export class TranslateStage {
           paragraphs: Array<{ id: string; translated: string }>;
         }>(messages, {
           temperature,
-          maxTokens: 4096,
+          maxTokens: 8192,
         });
 
         // Extract translations from JSON structure
@@ -278,7 +279,7 @@ export class TranslateStage {
         if (typeof this.provider.complete === 'function') {
           const response = await this.provider.complete(messages, {
             temperature,
-            maxTokens: 4096,
+            maxTokens: 8192,
           });
           translatedText = response.content ? response.content.trim() : '';
           tokensUsed = response.tokensUsed?.total || 0;
@@ -290,7 +291,7 @@ export class TranslateStage {
       // Use text format if JSON not supported
       const response = await this.provider.complete(messages, {
         temperature,
-        maxTokens: 4096,
+        maxTokens: 8192,
       });
       translatedText = response.content ? response.content.trim() : '';
       tokensUsed = response.tokensUsed?.total || 0;

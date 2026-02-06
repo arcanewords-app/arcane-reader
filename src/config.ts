@@ -10,6 +10,8 @@ export interface AppConfig {
   openai: {
     apiKey: string;
     model: string;
+    /** Request timeout in ms (e.g. for long analysis/translation). Default 120000 (2 min). */
+    timeout?: number;
   };
   anthropic: {
     apiKey: string;
@@ -39,6 +41,7 @@ export function loadConfig(): AppConfig {
     openai: {
       apiKey: process.env.OPENAI_API_KEY ?? '',
       model: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
+      timeout: parseInt(process.env.OPENAI_TIMEOUT_MS ?? '120000', 10),
     },
     
     anthropic: {
