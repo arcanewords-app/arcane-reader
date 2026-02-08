@@ -24,6 +24,7 @@ import {
   DEFAULT_READER_SETTINGS,
 } from '../storage/database.js';
 import { randomUUID } from 'crypto';
+import { logger } from '../logger.js';
 
 // ============================================
 // Type Transformations (DB snake_case <-> App camelCase)
@@ -345,7 +346,7 @@ export async function createProject(
     throw new Error(`Failed to create project: ${error.message}`);
   }
 
-  console.log(`📁 Создан проект: ${project.name} (${project.id})`);
+  logger.info({ event: 'project.created', projectId: project.id, projectName: project.name }, `Project created: ${project.name} (${project.id})`);
 
   // Return transformed project with empty chapters and glossary
   return transformProjectFromDB(project, [], []);
@@ -550,7 +551,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
   // Log loaded chapters order for debugging (only in development)
   if (process.env.NODE_ENV === 'development' && chapters.length <= 5) {
-    console.log(`🔍 Загружены главы из БД:`, chapters.map(c => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', '));
+    logger.debug({ projectId, chaptersCount: chapters.length }, `Chapters loaded: ${chapters.map(c => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', ')}`);
   }
 
   // Load paragraphs for each chapter with auto-sync recovery
@@ -569,7 +570,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
       if (hasTranslation && hasEmptyParagraphs && chapterData.translatedChunks && chapterData.translatedChunks.length > 0) {
         // Auto-recovery: sync translatedChunks to paragraphs
-        console.log(`🔄 Автоматическое восстановление синхронизации параграфов для главы: ${chapterData.title}`);
+        logger.info({ chapterId: chapter.id, chapterTitle: chapterData.title }, `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`);
         
         const syncedParagraphs = autoSyncChunksToParagraphs(paragraphs, chapterData.translatedChunks);
         
@@ -592,7 +593,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
                   .update(paragraphData)
                   .eq('id', paragraph.id)
                   .eq('chapter_id', chapter.id);
-                if (error) console.error(`[loadChapters auto-recovery] Failed ${paragraph.id}:`, error.message);
+                if (error) logger.warn({ paragraphId: paragraph.id, error: error.message }, 'loadChapters auto-recovery: failed paragraph update');
               })
             );
             if (i + BATCH_SIZE < syncedParagraphs.length) {
@@ -604,7 +605,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
           paragraphs = await loadParagraphsForChapter(chapter.id, token);
           
           const syncedCount = paragraphs.filter((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0).length;
-          console.log(`✅ Восстановлено ${syncedCount} параграфов из ${chapterData.translatedChunks.length} чанков`);
+          logger.info({ chapterId: chapter.id, syncedCount, chunksCount: chapterData.translatedChunks.length }, `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`);
         }
       }
 
@@ -828,8 +829,9 @@ export async function addChapter(
   // Update project updated_at timestamp
   await client.from('projects').update({}).eq('id', projectId);
 
-  console.log(
-    `📖 Добавлена глава: ${chapter.title} -> ${project.name} (${paragraphs.length} абзацев)`
+  logger.info(
+    { event: 'chapter.added', projectId, chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name, paragraphsCount: paragraphs.length },
+    `Chapter added: ${chapter.title} -> ${project.name} (${paragraphs.length} paragraphs)`
   );
 
   // Reload chapter with paragraphs
@@ -910,7 +912,7 @@ export async function updateChapter(
       }
     }
 
-    console.log(`📝 Параграфы: обновлено ${successCount}, ошибок ${failCount}, всего ${updates.paragraphs.length}`);
+    logger.info({ event: 'paragraphs.updated', chapterId, successCount, failCount, total: updates.paragraphs.length }, `Paragraphs updated: ${successCount} ok, ${failCount} errors, ${updates.paragraphs.length} total`);
   }
 
   // Update project updated_at
@@ -920,9 +922,7 @@ export async function updateChapter(
   const paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
   const withTranslation = paragraphs.filter((p) => p.translatedText && p.translatedText.trim().length > 0).length;
   if (updates.paragraphs && updates.paragraphs.length > 0 && withTranslation !== updates.paragraphs.length) {
-    console.log(
-      `[updateChapter] После перезагрузки: загружено ${paragraphs.length} параграфов, с переводом ${withTranslation} (ожидалось ${updates.paragraphs.length})`
-    );
+    logger.debug({ chapterId, paragraphsLength: paragraphs.length, withTranslation, expected: updates.paragraphs.length }, 'updateChapter: after reload, translation count mismatch');
   }
   return transformChapterFromDB(chapter, paragraphs);
 }
@@ -1047,12 +1047,11 @@ export async function getChapter(
 
   if (hasTranslation && hasEmptyParagraphs && chapterData.translatedChunks && chapterData.translatedChunks.length > 0) {
     // Auto-recovery: sync translatedChunks to paragraphs
-    console.log(`🔄 Автоматическое восстановление синхронизации параграфов для главы: ${chapterData.title}`);
-    
+    logger.info({ chapterId, chapterTitle: chapterData.title }, `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`);
+
     const syncedParagraphs = autoSyncChunksToParagraphs(paragraphs, chapterData.translatedChunks);
-    
+
       if (syncedParagraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0)) {
-      // Update paragraphs in database (batched to avoid fetch exhaustion)
       const BATCH_SIZE = 15;
       for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
         const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
@@ -1074,7 +1073,7 @@ export async function getChapter(
           })
         );
         results.forEach((r) => {
-          if (r.error) console.error(`[auto-recovery] Failed paragraph ${r.id}:`, r.error.message);
+          if (r.error) logger.warn({ paragraphId: r.id, error: r.error?.message }, 'auto-recovery: failed paragraph update');
         });
         if (i + BATCH_SIZE < syncedParagraphs.length) {
           await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1085,7 +1084,7 @@ export async function getChapter(
       paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
 
       const syncedCount = paragraphs.filter(p => p.translatedText && p.translatedText.trim().length > 0).length;
-      console.log(`✅ Восстановлено ${syncedCount} параграфов из ${chapterData.translatedChunks.length} чанков`);
+      logger.info({ chapterId, syncedCount, chunksCount: chapterData.translatedChunks.length }, `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`);
     }
   }
 
@@ -1128,7 +1127,7 @@ export async function deleteChapter(
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  console.log(`🗑️ Удалена глава: ${chapter.title}`);
+  logger.info({ event: 'chapter.deleted', chapterId, chapterTitle: chapter.title }, `Chapter deleted: ${chapter.title}`);
 
   return true;
 }
@@ -1181,11 +1180,11 @@ export async function updateChapterNumber(
   // Reorder chapters
   const sortedChapters = [...chapters];
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
-  console.log(`🔧 Сервер: Исходный порядок глав:`, sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', '));
-  console.log(`🔧 Сервер: Перемещаем главу ${chapterId.substring(0, 8)} с позиции ${oldNumber} (индекс ${chapterIndex}) на позицию ${newNumber}`);
+  logger.debug({ projectId, chapterId, sortedOrder: sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', ') }, 'Reorder: initial order');
+  logger.debug({ projectId, chapterId, oldNumber, chapterIndex, newNumber }, `Reorder: moving chapter ${chapterId.substring(0, 8)} from ${oldNumber} to ${newNumber}`);
   
   const [movedChapter] = sortedChapters.splice(chapterIndex, 1);
-  console.log(`🔧 Сервер: После удаления:`, sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', '));
+  logger.debug({ projectId, afterDelete: sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', ') }, 'Reorder: after remove');
   
   // Calculate insertion index accounting for the removed chapter
   // newNumber is the desired final position (1-based) AFTER reordering
@@ -1209,7 +1208,7 @@ export async function updateChapterNumber(
   // We insert at newNumber - 1 (0-based index in array after removal)
   const insertIndex = newNumber - 1;
   sortedChapters.splice(insertIndex, 0, movedChapter);
-  console.log(`🔧 Сервер: После вставки на индекс ${insertIndex}:`, sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', '));
+  logger.debug({ projectId, insertIndex, afterInsert: sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', ') }, 'Reorder: after insert');
 
   // Update all chapter numbers using temporary numbers to avoid unique constraint violations
   // Strategy: First set all to temporary negative numbers, then set to final numbers
@@ -1243,7 +1242,7 @@ export async function updateChapterNumber(
   const tempResults = await Promise.all(tempUpdates);
   const tempErrors = tempResults.filter(r => r.error).map(r => r.error);
   if (tempErrors.length > 0) {
-    console.error(`❌ Ошибки установки временных номеров:`, tempErrors);
+    logger.error({ projectId, tempErrors }, 'Reorder: errors setting temporary numbers');
     throw new Error(`Failed to set temporary chapter numbers: ${tempErrors[0]?.message || 'Unknown error'}`);
   }
   
@@ -1261,18 +1260,18 @@ export async function updateChapterNumber(
   const finalResults = await Promise.all(finalUpdates);
   const finalErrors = finalResults.filter(r => r.error).map(r => r.error);
   if (finalErrors.length > 0) {
-    console.error(`❌ Ошибки обновления номеров глав:`, finalErrors);
+    logger.error({ projectId, finalErrors }, 'Reorder: errors updating chapter numbers');
     throw new Error(`Failed to update chapter numbers: ${finalErrors[0]?.message || 'Unknown error'}`);
   }
   
   if (updates.length > 0) {
-    console.log(`🔧 Сервер: Обновлено номеров глав:`, updates.map(u => `${u.id.substring(0, 8)}: ${u.oldNum}→${u.newNum}`).join(', '));
+    logger.debug({ projectId, updates: updates.map(u => `${u.id.substring(0, 8)}: ${u.oldNum}→${u.newNum}`).join(', ') }, 'Reorder: chapter numbers updated');
   }
 
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  console.log(`🔢 Номер главы изменён: ${chapterId.substring(0, 8)} ${oldNumber} → ${newNumber} (insertIndex: ${insertIndex})`);
+  logger.info({ event: 'chapter.reordered', projectId, chapterId, oldNumber, newNumber, insertIndex }, `Chapter number changed: ${chapterId.substring(0, 8)} ${oldNumber} → ${newNumber}`);
 
   return getChapter(projectId, chapterId, token);
 }
@@ -1353,7 +1352,7 @@ export async function updateChaptersOrder(
     const tempResults = await Promise.all(tempUpdates);
     const tempErrors = tempResults.filter((r) => r.error).map((r) => r.error);
     if (tempErrors.length > 0) {
-      console.error('Errors setting temporary numbers for reorder:', tempErrors);
+      logger.error({ err: tempErrors }, 'Errors setting temporary numbers for reorder');
       throw new Error(tempErrors[0]?.message || 'Failed to set temporary numbers');
     }
 
@@ -1365,7 +1364,7 @@ export async function updateChaptersOrder(
     const finalResults = await Promise.all(finalUpdates);
     const finalErrors = finalResults.filter((r) => r.error).map((r) => r.error);
     if (finalErrors.length > 0) {
-      console.error('Errors applying final numbers for reorder:', finalErrors);
+      logger.error({ err: finalErrors }, 'Errors applying final numbers for reorder');
       throw new Error(finalErrors[0]?.message || 'Failed to apply final numbers');
     }
 

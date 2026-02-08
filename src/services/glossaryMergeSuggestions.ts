@@ -5,6 +5,7 @@
  */
 
 import type { GlossaryEntry } from '../storage/database.js';
+import { logger } from '../logger.js';
 
 export interface MergeSuggestion {
   /** 2–3 entry IDs that can be merged into one */
@@ -133,7 +134,7 @@ ${JSON.stringify(payload, null, 0)}`;
         { role: 'user', content: userMessage },
       ],
       temperature: 0.2,
-      max_tokens: 2048,
+      max_completion_tokens: 2048,
       response_format: { type: 'json_object' },
     });
 
@@ -143,7 +144,7 @@ ${JSON.stringify(payload, null, 0)}`;
     };
     return validateSuggestions(parsed, glossary);
   } catch (err) {
-    console.error('[glossaryMergeSuggestions] LLM or parse error:', err);
+    logger.error({ err }, 'glossaryMergeSuggestions: LLM or parse error');
     return [];
   }
 }

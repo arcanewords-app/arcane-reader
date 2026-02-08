@@ -1,0 +1,23 @@
+# Dependencies and build
+node_modules/
+dist/
+.cache/
+*.tsbuildinfo
+
+# Generated / vendored
+package-lock.json
+*.min.js
+*.min.css
+
+# Data and env
+data/
+.env
+.env.*
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Docs (optional: remove to format .md)
+# docs/

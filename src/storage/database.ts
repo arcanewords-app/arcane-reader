@@ -9,6 +9,7 @@ import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import path from 'path';
 import fs from 'fs';
+import { logger } from '../logger.js';
 
 // Types
 /**
@@ -217,8 +218,7 @@ export async function initDatabase(dataDir: string = './data'): Promise<Low<Data
   // Initialize with defaults if empty
   db.data ||= defaultData;
 
-  console.log(`📦 База данных инициализирована: ${dbPath}`);
-  console.log(`   Проектов: ${db.data.projects.length}`);
+  logger.info({ dbPath, projectsCount: db.data.projects.length }, `Database initialized: ${dbPath} (${db.data.projects.length} projects)`);
 
   return db;
 }
@@ -317,7 +317,7 @@ export async function resetStuckChapters(projectId?: string): Promise<number> {
         if (isStuck) {
           chapter.status = 'pending';
           resetCount++;
-          console.log(`🔄 Сброшен застрявший статус: ${chapter.title} (проект: ${project.name})`);
+          logger.info({ chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name }, `Reset stuck status: ${chapter.title} (project: ${project.name})`);
         }
       }
     }
@@ -402,7 +402,7 @@ export async function createProject(data: {
   db.data.projects.push(project);
   await db.write();
 
-  console.log(`📁 Создан проект: ${project.name} (${project.id})`);
+  logger.info({ event: 'project.created', projectId: project.id, projectName: project.name }, `Project created: ${project.name} (${project.id})`);
 
   return project;
 }
@@ -476,7 +476,7 @@ export async function deleteProject(id: string): Promise<boolean> {
   const [removed] = db.data.projects.splice(index, 1);
   await db.write();
 
-  console.log(`🗑️ Удалён проект: ${removed.name}`);
+  logger.info({ event: 'project.deleted', projectName: removed.name }, `Project deleted: ${removed.name}`);
 
   return true;
 }
@@ -508,8 +508,9 @@ export async function addChapter(
   project.updatedAt = new Date().toISOString();
   await db.write();
 
-  console.log(
-    `📖 Добавлена глава: ${chapter.title} -> ${project.name} (${paragraphs.length} абзацев)`
+  logger.info(
+    { event: 'chapter.added', projectId, chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name, paragraphsCount: paragraphs.length },
+    `Chapter added: ${chapter.title} -> ${project.name} (${paragraphs.length} paragraphs)`
   );
 
   return chapter;
@@ -578,7 +579,7 @@ export async function deleteChapter(projectId: string, chapterId: string): Promi
   project.updatedAt = new Date().toISOString();
   await db.write();
 
-  console.log(`🗑️ Удалена глава: ${removed.title}`);
+  logger.info({ event: 'chapter.deleted', chapterTitle: removed.title }, `Chapter deleted: ${removed.title}`);
 
   return true;
 }
@@ -641,7 +642,7 @@ export async function updateChapterNumber(
   project.updatedAt = new Date().toISOString();
   await db.write();
 
-  console.log(`🔢 Номер главы изменён: "${chapter.title}" ${oldNumber} → ${newNumber}`);
+  logger.info({ event: 'chapter.number_updated', chapterId, chapterTitle: chapter.title, oldNumber, newNumber }, `Chapter number changed: "${chapter.title}" ${oldNumber} → ${newNumber}`);
 
   return chapter;
 }

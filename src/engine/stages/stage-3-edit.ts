@@ -15,6 +15,7 @@ import type { TextChunk } from '../types/common.js';
 import { EDITOR_SYSTEM_PROMPT, createEditorPrompt, QUALITY_CHECK_PROMPT } from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
+import { log } from '../logger.js';
 
 interface EditStageOptions {
   context: AgentContext;
@@ -40,7 +41,7 @@ export class EditStage {
       throw new Error(`EditStage: provider is missing complete method. Provider: ${JSON.stringify(provider)}`);
     }
     this.provider = provider;
-    console.log(`[EditStage] Initialized with provider: ${!!this.provider}, has complete: ${typeof this.provider.complete}`);
+    log.debug('EditStage initialized', { hasProvider: !!this.provider, hasComplete: typeof this.provider.complete });
   }
   
   async execute(
@@ -51,8 +52,8 @@ export class EditStage {
     const startTime = Date.now();
     let totalTokens = 0;
     
-    // Validate provider
     if (!this.provider) {
+      log.warn('EditStage.execute: provider not initialized');
       return {
         stage: 'edit',
         success: false,
@@ -61,8 +62,12 @@ export class EditStage {
         error: 'Editing provider is not initialized',
       };
     }
-    
+
     if (typeof this.provider.complete !== 'function') {
+      log.warn('EditStage.execute: provider missing complete method', {
+        providerType: typeof this.provider,
+        hasComplete: !!this.provider.complete,
+      });
       return {
         stage: 'edit',
         success: false,
@@ -90,7 +95,7 @@ export class EditStage {
       if (useChunkedEditing) {
         // Chunked editing for large texts
         const chunkSize = options.chunkSize ?? 2000;
-        console.log(`[EditStage] Используется чанковое редактирование (размер текста: ~${estimatedTokens} токенов, размер чанка: ${chunkSize})`);
+        log.debug('EditStage: using chunked editing', { estimatedTokens, chunkSize });
         
         const editTemp = options.temperature ?? 0.5;
         const chunkedResult = await this.editChunked(
@@ -106,7 +111,7 @@ export class EditStage {
         totalTokens = chunkedResult.tokensUsed;
       } else {
         // Single-request editing for small texts
-        console.log(`[EditStage] Используется прямое редактирование (размер текста: ~${estimatedTokens} токенов)`);
+        log.debug('EditStage: using direct editing', { estimatedTokens });
         
         const messages: Message[] = [
           { role: 'system', content: EDITOR_SYSTEM_PROMPT },
@@ -148,10 +153,10 @@ export class EditStage {
           totalTokens += qualityResult.tokensUsed;
           qualityScore = qualityResult.score;
         } catch (qualityError) {
-          console.warn(`[EditStage] Quality check failed: ${qualityError instanceof Error ? qualityError.message : 'Unknown error'}`);
+          log.warn('EditStage: quality check failed', qualityError instanceof Error ? qualityError : undefined);
         }
       } else if (options.checkQuality && useChunkedEditing) {
-        console.log(`[EditStage] Quality check пропущен для чанкового редактирования (избежание таймаутов)`);
+        log.debug('EditStage: quality check skipped for chunked editing to avoid timeouts');
       }
       
       return {
@@ -167,16 +172,18 @@ export class EditStage {
       };
       
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
+      log.error(`EditStage.execute failed: ${errMsg}`, error instanceof Error ? error : undefined);
       return {
         stage: 'edit',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errMsg,
         tokensUsed: totalTokens,
         duration: Date.now() - startTime,
       };
     }
   }
-  
+
   private buildStyleNotes(context: AgentContext): string {
     const { styleProfile } = context;
     const notes: string[] = [];
@@ -242,7 +249,7 @@ export class EditStage {
       preserveParagraphs: true,
     });
     
-    console.log(`[EditStage] Разбито на ${translatedChunks.length} чанков для редактирования`);
+    log.info(`EditStage: split into ${translatedChunks.length} chunks for editing`, { chunksCount: translatedChunks.length });
     
     // Edit each chunk
     const editedChunks: { content: string; index: number }[] = [];
@@ -252,7 +259,7 @@ export class EditStage {
       const translatedChunk = translatedChunks[i];
       const originalChunk = originalChunks[i] || { content: '', index: i };
       
-      console.log(`[EditStage] Редактирование чанка ${i + 1}/${translatedChunks.length} (ID: ${translatedChunk.id}, токенов: ${translatedChunk.tokenCount})`);
+      log.debug(`EditStage: editing chunk ${i + 1}/${translatedChunks.length}`, { chunkId: translatedChunk.id, tokenCount: translatedChunk.tokenCount });
       
       try {
         const editResult = await this.editChunk(
@@ -266,14 +273,13 @@ export class EditStage {
         totalTokensUsed += editResult.tokensUsed;
         
         if (!editResult.text || editResult.text.trim().length === 0) {
-          console.warn(`[EditStage] ⚠️ Чанк ${i + 1} вернул пустое редактирование!`);
-          // Use original translated chunk if editing failed
+          log.warn(`EditStage: chunk ${i + 1} returned empty edit`);
           editedChunks.push({
             content: translatedChunk.content,
             index: translatedChunk.index,
           });
         } else {
-          console.log(`[EditStage] ✅ Чанк ${i + 1} отредактирован (${editResult.text.length} символов, ${editResult.tokensUsed} токенов)`);
+          log.debug(`EditStage: chunk ${i + 1} edited`, { length: editResult.text.length, tokensUsed: editResult.tokensUsed });
           editedChunks.push({
             content: editResult.text,
             index: translatedChunk.index,
@@ -281,7 +287,7 @@ export class EditStage {
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[EditStage] ❌ Ошибка при редактировании чанка ${i + 1}: ${errorMessage}`);
+        log.error(`EditStage: chunk ${i + 1} edit failed: ${errorMessage}`, error instanceof Error ? error : undefined);
         
         // Use original translated chunk if editing failed
         editedChunks.push({
@@ -292,19 +298,18 @@ export class EditStage {
         // Continue with next chunk instead of failing completely
       }
     }
-    
-    console.log(`[EditStage] Всего отредактировано ${editedChunks.length} чанков, использовано токенов: ${totalTokensUsed}`);
-    
+
+    log.info('EditStage: all chunks edited', { chunksCount: editedChunks.length, totalTokensUsed });
+
     // Merge edited chunks back together
     const finalText = mergeChunks(editedChunks);
     
     if (!finalText || finalText.trim().length === 0) {
-      console.error(`[EditStage] ❌ КРИТИЧЕСКАЯ ОШИБКА: Финальный отредактированный текст пуст после объединения ${editedChunks.length} чанков!`);
-      // Fallback to original translation
+      log.error('EditStage: critical - final edited text empty after merge', { chunksCount: editedChunks.length });
       return { text: translatedText, tokensUsed: totalTokensUsed };
     }
-    
-    console.log(`[EditStage] ✅ Финальный отредактированный текст: ${finalText.length} символов`);
+
+    log.debug('EditStage: final edited text length', { length: finalText.length });
     
     return { text: finalText, tokensUsed: totalTokensUsed };
   }

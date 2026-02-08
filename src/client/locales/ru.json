@@ -264,6 +264,8 @@
     "noSuggestions": "Подходящих объединений не найдено.",
     "applySelected": "Применить выбранные ({{count}})",
     "keepEntry": "Оставить запись",
+    "entriesToMerge": "Объединяемые записи",
+    "keepAsPrimary": "Оставить как основную",
     "mergeReason": "Причина: {{reason}}",
     "mergeError": "Не удалось объединить записи.",
     "suggestMergesLoading": "Анализ...",

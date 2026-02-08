@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import epubGen from 'epub-gen-memory';
 import type { ExportProject } from './common.js';
+import { logger } from '../../logger.js';
 
 export interface EpubExportOptions {
   outputDir?: string;
@@ -29,21 +30,19 @@ export async function exportToEpub(
     ? path.join(outputDir, filename)
     : path.resolve(outputDir, filename);
 
-  console.log(`[EPUB Export] Output directory: ${outputDir}`);
-  console.log(`[EPUB Export] Output path: ${outputPath}`);
-  console.log(`[EPUB Export] Path is absolute: ${path.isAbsolute(outputPath)}`);
+  logger.debug({ outputDir, outputPath, isAbsolute: path.isAbsolute(outputPath) }, 'EPUB export: output paths');
 
   if (!fs.existsSync(outputDir)) {
     try {
       fs.mkdirSync(outputDir, { recursive: true });
-      console.log(`[EPUB Export] Created output directory: ${outputDir}`);
+      logger.debug({ outputDir }, 'EPUB export: created output directory');
     } catch (mkdirError: unknown) {
       const msg = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
-      console.error(`[EPUB Export] Failed to create directory: ${msg}`);
+      logger.error({ err: mkdirError, outputDir }, 'EPUB export: failed to create directory');
       throw new Error(`Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${msg}`);
     }
   } else {
-    console.log(`[EPUB Export] Output directory exists: ${outputDir}`);
+    logger.debug({ outputDir }, 'EPUB export: output directory exists');
   }
 
   // epub-gen-memory: content is array of { title?, content } (content = HTML)
@@ -62,16 +61,14 @@ export async function exportToEpub(
       : undefined,
   };
 
-  console.log(`[EPUB Export] Starting EPUB generation (epub-gen-memory)...`);
+  logger.debug('EPUB export: starting generation (epub-gen-memory)');
   let buffer: Buffer;
   try {
     const epub = (epubGen as { default: (opts: unknown, content: unknown[]) => Promise<Buffer> }).default;
     buffer = await epub(epubOptions, content);
   } catch (epubError: unknown) {
     const msg = epubError instanceof Error ? epubError.message : String(epubError);
-    const stack = epubError instanceof Error ? epubError.stack : undefined;
-    console.error(`[EPUB Export] Error generating EPUB: ${msg}`);
-    if (stack) console.error(`[EPUB Export] Stack: ${stack}`);
+    logger.error({ err: epubError }, `EPUB export: error generating EPUB: ${msg}`);
     throw new Error(`Ошибка генерации EPUB: ${msg}`);
   }
 
@@ -87,8 +84,7 @@ export async function exportToEpub(
   }
 
   const stats = fs.statSync(outputPath);
-  console.log(`[EPUB Export] EPUB generated successfully: ${outputPath}`);
-  console.log(`[EPUB Export] File size: ${stats.size} bytes`);
+  logger.info({ outputPath, size: stats.size }, 'EPUB export: generated successfully');
 
   return outputPath;
 }

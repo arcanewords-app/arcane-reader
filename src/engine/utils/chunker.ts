@@ -3,6 +3,7 @@
  */
 
 import type { TextChunk } from '../types/common.js';
+import { log } from '../logger.js';
 
 export interface ChunkerOptions {
   maxTokens: number;        // Max tokens per chunk
@@ -155,7 +156,7 @@ function createChunk(content: string, index: number): TextChunk {
  */
 export function mergeChunks(chunks: { content: string; index: number }[]): string {
   if (!chunks || chunks.length === 0) {
-    console.warn('[mergeChunks] Пустой массив чанков для объединения');
+    log.warn('mergeChunks: empty chunk array');
     return '';
   }
 
@@ -165,17 +166,17 @@ export function mergeChunks(chunks: { content: string; index: number }[]): strin
     .sort((a, b) => a.index - b.index);
 
   if (sorted.length === 0) {
-    console.warn('[mergeChunks] Все чанки пусты после фильтрации');
+    log.warn('mergeChunks: all chunks empty after filter');
     return '';
   }
 
   if (sorted.length !== chunks.length) {
-    console.warn(`[mergeChunks] Отфильтровано ${chunks.length - sorted.length} пустых чанков`);
+    log.warn(`mergeChunks: filtered ${chunks.length - sorted.length} empty chunks`, { filtered: chunks.length - sorted.length });
   }
 
   const merged = sorted.map(c => c.content).join('\n\n');
-  
-  console.log(`[mergeChunks] Объединено ${sorted.length} чанков в текст длиной ${merged.length} символов`);
+
+  log.debug('mergeChunks: merged', { chunksCount: sorted.length, mergedLength: merged.length });
   
   return merged;
 }

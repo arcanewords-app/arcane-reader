@@ -264,6 +264,8 @@
     "noSuggestions": "No merge suggestions found.",
     "applySelected": "Apply selected ({{count}})",
     "keepEntry": "Keep entry",
+    "entriesToMerge": "Entries to merge",
+    "keepAsPrimary": "Keep as primary",
     "mergeReason": "Reason: {{reason}}",
     "mergeError": "Failed to merge entries.",
     "suggestMergesLoading": "Analyzing...",

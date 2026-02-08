@@ -3,13 +3,14 @@
  */
 
 import OpenAI from 'openai';
-import type { 
-  ILLMProvider, 
-  LLMProviderConfig, 
-  Message, 
-  CompletionOptions, 
-  CompletionResult 
+import type {
+  ILLMProvider,
+  LLMProviderConfig,
+  Message,
+  CompletionOptions,
+  CompletionResult,
 } from '../interfaces/llm-provider.js';
+import { log } from '../logger.js';
 
 /**
  * Models that require max_completion_tokens (new API); older models use max_tokens.
@@ -134,7 +135,12 @@ export class OpenAIProvider implements ILLMProvider {
           total: response.usage?.total_tokens ?? 0,
         },
       };
-    } catch {
+    } catch (parseErr) {
+      const preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
+      log.error('OpenAI provider: failed to parse JSON response', {
+        err: parseErr,
+        contentPreview: preview,
+      });
       throw new Error(`Failed to parse JSON response: ${content}`);
     }
   }
@@ -143,7 +149,8 @@ export class OpenAIProvider implements ILLMProvider {
     try {
       await this.client.models.list();
       return true;
-    } catch {
+    } catch (err) {
+      log.warn('OpenAI provider: isAvailable check failed', err instanceof Error ? err : undefined);
       return false;
     }
   }

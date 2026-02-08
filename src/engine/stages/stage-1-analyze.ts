@@ -13,6 +13,7 @@ import type { StageResult } from '../types/pipeline.js';
 import type { Glossary, Character, Location, Term } from '../types/glossary.js';
 import { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from '../prompts/system/analyzer.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
+import { log } from '../logger.js';
 
 interface AnalyzeStageOptions {
   chapterNumber: number;
@@ -111,7 +112,11 @@ export class AnalyzeStage {
       throw new Error(`AnalyzeStage: provider is missing completeJSON method. Provider type: ${typeof provider}, model: ${(provider as any)?.model || 'unknown'}`);
     }
     this.provider = provider;
-    console.log(`[AnalyzeStage] Initialized with provider: ${!!this.provider}, model: ${(this.provider as any)?.model || 'unknown'}, has completeJSON: ${typeof this.provider.completeJSON}`);
+    log.debug('AnalyzeStage initialized', {
+      hasProvider: !!this.provider,
+      model: (this.provider as any)?.model || 'unknown',
+      hasCompleteJSON: typeof this.provider.completeJSON,
+    });
   }
   
   async execute(
@@ -120,8 +125,8 @@ export class AnalyzeStage {
   ): Promise<StageResult<AnalysisResult>> {
     const startTime = Date.now();
     
-    // Double-check provider (should never fail if constructor passed)
     if (!this.provider) {
+      log.warn('AnalyzeStage.execute: provider not initialized');
       return {
         stage: 'analyze',
         success: false,
@@ -130,8 +135,12 @@ export class AnalyzeStage {
         error: 'Analysis provider is not initialized',
       };
     }
-    
+
     if (typeof this.provider.completeJSON !== 'function') {
+      log.warn('AnalyzeStage.execute: provider missing completeJSON', {
+        providerType: typeof this.provider,
+        hasCompleteJSON: !!this.provider.completeJSON,
+      });
       return {
         stage: 'analyze',
         success: false,
@@ -170,16 +179,16 @@ export class AnalyzeStage {
       // Analysis is a single request per chapter (no chunking). For long chapters or reasoning
       // models (o1, gpt-5) this can take 2–5+ min — ensure OPENAI_TIMEOUT_MS is high enough.
       const isReasoningModel = /^gpt-5|^o1-|^o3-|^o4-/i.test(model);
-      console.log(`[AnalyzeStage] Calling provider.completeJSON (prompt length ~${promptChars} chars, model: ${model})`);
+      log.debug('AnalyzeStage: calling provider.completeJSON', { promptChars, model });
       if (isReasoningModel) {
-        console.log(`[AnalyzeStage] Reasoning model in use: first response may take 1–5 minutes, please wait...`);
+        log.info('AnalyzeStage: reasoning model in use, first response may take 1–5 minutes');
       }
       const response = await this.provider.completeJSON<RawAnalysisResponse>(messages, {
         temperature,
         maxTokens: 4096,
       });
       const tokensUsed = response.tokensUsed?.total ?? 0;
-      console.log(`[AnalyzeStage] Provider returned tokensUsed=${tokensUsed}`);
+      log.debug('AnalyzeStage: provider returned', { tokensUsed });
 
       // Parse and validate response
       const result = this.parseResponse(response.data, options);
@@ -193,10 +202,7 @@ export class AnalyzeStage {
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[AnalyzeStage] Error: ${errMsg}`);
-      if (error instanceof Error && error.stack) {
-        console.error(`[AnalyzeStage] Stack: ${error.stack.split('\n').slice(0, 3).join('\n')}`);
-      }
+      log.error(`AnalyzeStage error: ${errMsg}`, error instanceof Error ? error : undefined);
       return {
         stage: 'analyze',
         success: false,

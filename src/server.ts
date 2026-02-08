@@ -57,6 +57,8 @@ import {
   type Paragraph,
 } from './storage/database.js';
 import { requireAuth } from './middleware/auth.js';
+import { requestContext, requestLogging } from './middleware/requestContext.js';
+import { logger } from './logger.js';
 import { requireToken } from './utils/requestHelpers.js';
 import {
   getUserTokenUsage,
@@ -170,6 +172,8 @@ function translationCancelKey(projectId: string, chapterId: string): string {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(requestContext);
+app.use(requestLogging);
 
 // Serve static files - prefer dist/client if exists (production), fallback to public (legacy)
 const distClientPath = path.join(__dirname, '../dist/client');
@@ -322,7 +326,7 @@ app.get('/api/user/token-usage', requireAuth, async (req, res) => {
     res.json(usage);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage';
-    console.error('Error getting token usage:', error);
+    req.log?.error({ err: error }, 'Error getting token usage');
     res.status(500).json({ error: errorMessage });
   }
 });
@@ -339,7 +343,7 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
     res.json({ history });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage history';
-    console.error('Error getting token usage history:', error);
+    req.log?.error({ err: error }, 'Error getting token usage history');
     res.status(500).json({ error: errorMessage });
   }
 });
@@ -357,7 +361,7 @@ app.get('/api/projects', requireAuth, async (req, res) => {
     const token = requireToken(req);
     const resetCount = await resetStuckChapters(token, undefined);
     if (resetCount > 0) {
-      console.log(`🔄 Сброшено застрявших глав: ${resetCount}`);
+      req.log?.info({ event: 'stuck_chapters.reset', count: resetCount }, `Reset ${resetCount} stuck chapter(s)`);
     }
 
     const projects = await getAllProjects(req.user.id, token);
@@ -509,11 +513,16 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       updatedSettings.enableEditing ? '✅ Редактура' : '⏭️ Редактура',
     ].join(' → ');
 
-    console.log(`⚙️  Настройки проекта "${updatedProject.name}" обновлены:`);
-    console.log(`   Модель: ${updatedSettings.stageModels?.translation || updatedSettings.model || 'N/A'} | Стадии: ${stagesStatus}`);
-    if (updatedSettings.originalReadingMode) {
-      console.log(`   📖 Режим оригинального чтения: включен`);
-    }
+    req.log?.info(
+      {
+        event: 'project.settings.updated',
+        projectId: updatedProject.id,
+        projectName: updatedProject.name,
+        model: updatedSettings.stageModels?.translation || updatedSettings.model || 'N/A',
+        originalReadingMode: !!updatedSettings.originalReadingMode,
+      },
+      `Project settings updated: ${updatedProject.name}`
+    );
 
     res.json(updatedProject.settings);
   } catch (error) {
@@ -554,8 +563,9 @@ app.put('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    console.log(
-      `📖 Reader настройки обновлены: шрифт=${reader.fontFamily}, размер=${reader.fontSize}px, тема=${reader.colorScheme}`
+    req.log?.info(
+      { event: 'reader.settings.updated', projectId: req.params.id, fontFamily: reader.fontFamily, fontSize: reader.fontSize, colorScheme: reader.colorScheme },
+      'Reader settings updated'
     );
 
     res.json(reader);
@@ -603,8 +613,8 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
       parseResult = await parseFile(req.file.buffer, filename);
     } catch (parseError) {
       const errorMessage =
-        parseError instanceof Error ? parseError.message : 'Ошибка парсинга файла';
-      console.error('Parse error:', parseError);
+        parseError instanceof Error ? parseError.message : 'File parse error';
+      req.log?.error({ err: parseError }, 'Parse error');
       return res.status(400).json({
         error: 'Ошибка при парсинге файла',
         details: errorMessage,
@@ -614,7 +624,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
 
     // Handle parsing errors and warnings
     if (parseResult.errors && parseResult.errors.length > 0) {
-      console.error('Parse errors:', parseResult.errors);
+      req.log?.error({ parseErrors: parseResult.errors }, 'Parse errors');
       return res.status(400).json({
         error: 'Ошибки при парсинге файла',
         details: parseResult.errors.join('; '),
@@ -637,7 +647,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
         req.user.id,
         token
       );
-      console.log(`📌 Тип проекта определен: ${detectedType}`);
+      req.log?.info({ event: 'project.type.detected', projectId: req.params.id, type: detectedType }, `Project type set to ${detectedType}`);
     }
 
     // Update project metadata if available (for EPUB/FB2) and it's the first chapter
@@ -664,9 +674,9 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
           );
           
           updatedMetadata.coverImageUrl = uploadResult.publicUrl;
-          console.log(`🖼️  Обложка сохранена в Supabase Storage: ${storagePath}`);
+          req.log?.info({ event: 'cover.saved', storagePath }, 'Cover saved to Supabase Storage');
         } catch (coverError) {
-          console.error('Failed to save cover image:', coverError);
+          req.log?.error({ err: coverError }, 'Failed to save cover image');
         }
         // Remove coverImage buffer from metadata (we only store URL)
         delete (updatedMetadata as any).coverImage;
@@ -680,10 +690,10 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
           req.user.id,
           token
         );
-        console.log(`📚 Метаданные проекта обновлены: ${parseResult.metadata.title || 'N/A'}`);
+        req.log?.info({ event: 'project.metadata.updated', projectId: req.params.id, title: parseResult.metadata.title }, 'Project metadata updated');
       }
     } else if (!isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
-      console.log(`ℹ️  Пропущено обновление метаданных: проект уже содержит главы`);
+      req.log?.debug({ projectId: req.params.id }, 'Skipped metadata update: project already has chapters');
     }
 
     // Handle multiple chapters (EPUB/FB2) or single chapter (TXT)
@@ -724,7 +734,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
     if (message.includes('Token is required') || message.includes('Invalid token')) {
       return res.status(401).json({ error: message });
     }
-    console.error('Failed to add chapter:', error);
+    req.log?.error({ err: error, projectId: req.params.id }, 'Failed to add chapter');
     res.status(500).json({
       error: 'Failed to add chapter',
       details: message,
@@ -832,13 +842,13 @@ app.post(
       // Only set cancel flag if status is translating; performTranslation will set status to pending when it exits (single source of truth)
       if (chapter.status === 'translating') {
         translationCancelRegistry.set(translationCancelKey(req.params.projectId, req.params.chapterId), true);
-        console.log(`⏹️  Перевод отменён (флаг): ${chapter.title}`);
+        req.log?.info({ event: 'translation.cancelled', chapterId: req.params.chapterId, chapterTitle: chapter.title }, 'Translation cancelled (flag set)');
         res.json({ success: true, message: 'Translation cancelled' });
       } else {
         res.json({ success: false, message: 'Chapter is not being translated' });
       }
     } catch (error) {
-      console.error('Failed to cancel translation:', error);
+      req.log?.error({ err: error }, 'Failed to cancel translation');
       res.status(500).json({ error: 'Failed to cancel translation' });
     }
   }
@@ -882,13 +892,17 @@ app.post(
         return res.status(400).json({ error: 'No paragraphs found in chapter' });
       }
 
-      console.log(`\n${'═'.repeat(60)}`);
-      console.log(`🔄 РУЧНАЯ СИНХРОНИЗАЦИЯ ПЕРЕВОДА С ПАРАГРАФАМИ (восстановление)`);
-      console.log(`${'─'.repeat(60)}`);
-      console.log(`📖 Глава: ${chapter.title}`);
-      console.log(`📦 Чанков для синхронизации: ${chapter.translatedChunks.length}`);
-      console.log(`📄 Параграфов: ${chapter.paragraphs.length}`);
-      console.log(`${'─'.repeat(60)}`);
+      req.log?.info(
+        {
+          event: 'translation.sync.manual',
+          projectId: req.params.projectId,
+          chapterId: req.params.chapterId,
+          chapterTitle: chapter.title,
+          chunksCount: chapter.translatedChunks.length,
+          paragraphsCount: chapter.paragraphs.length,
+        },
+        'Manual sync: translating chunks to paragraphs (recovery)'
+      );
 
       // Determine if this is a partial translation (some paragraphs already have translations)
       const hasExistingTranslations = chapter.paragraphs.some(
@@ -913,8 +927,6 @@ app.post(
         requireToken(req)
       );
 
-      console.log(`${'═'.repeat(60)}\n`);
-
       res.json({
         success: true,
         message: 'Translation synchronized',
@@ -926,7 +938,7 @@ app.post(
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to sync translation:', error);
+      req.log?.error({ err: error }, 'Failed to sync translation');
       res.status(500).json({ error: `Failed to sync translation: ${errorMessage}` });
     }
   }
@@ -1013,14 +1025,14 @@ app.post(
       );
 
       if (updatedChapter) {
-        console.log(`📤 Загружен готовый перевод: ${chapter.title}`);
+        req.log?.info({ event: 'translation.uploaded', chapterId: req.params.chapterId, chapterTitle: chapter.title }, 'Ready-made translation uploaded');
         res.json(updatedChapter);
       } else {
         res.status(500).json({ error: 'Failed to update chapter' });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to upload translation:', error);
+      req.log?.error({ err: error }, 'Failed to upload translation');
       res.status(500).json({
         error: 'Failed to upload translation',
         details: errorMessage,
@@ -1071,8 +1083,9 @@ app.post(
       // Debug: input state
       const withOriginal = chapter.paragraphs.filter((p) => (p.originalText || '').trim().length > 0).length;
       const totalOriginalChars = chapter.paragraphs.reduce((s, p) => s + (p.originalText || '').length, 0);
-      console.log(
-        `[mark-as-translated] Вход: ${chapter.title}, параграфов=${chapter.paragraphs.length}, с текстом=${withOriginal}, символов=${totalOriginalChars}`
+      req.log?.debug(
+        { chapterTitle: chapter.title, paragraphsCount: chapter.paragraphs.length, withOriginal, totalOriginalChars },
+        'mark-as-translated: input state'
       );
 
       const now = new Date().toISOString();
@@ -1092,9 +1105,9 @@ app.post(
         .sort((a, b) => a.index - b.index)
         .map((p) => p.translatedText || '');
 
-      // Debug: verify counts match
-      console.log(
-        `[mark-as-translated] ${chapter.title}: paragraphs=${chapter.paragraphs.length}, chunks=${chunks.length}, mergedLen=${mergedText.length}, emptyParagraphs=${updatedParagraphs.filter((p) => !(p.translatedText || '').trim()).length}`
+      req.log?.debug(
+        { chapterTitle: chapter.title, paragraphsCount: chapter.paragraphs.length, chunksCount: chunks.length, mergedLen: mergedText.length },
+        'mark-as-translated: counts'
       );
 
       const updatedChapter = await updateChapter(
@@ -1119,14 +1132,14 @@ app.post(
       );
 
       if (updatedChapter) {
-        console.log(`✅ Глава помечена как переведённая: ${chapter.title}`);
+        req.log?.info({ event: 'chapter.marked_translated', chapterId: req.params.chapterId, chapterTitle: chapter.title }, 'Chapter marked as translated');
         res.json(updatedChapter);
       } else {
         res.status(500).json({ error: 'Failed to update chapter' });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to mark chapter as translated:', error);
+      req.log?.error({ err: error }, 'Failed to mark chapter as translated');
       res.status(500).json({
         error: 'Failed to mark chapter as translated',
         details: errorMessage,
@@ -1213,19 +1226,22 @@ app.post(
         textLength = empty.reduce((sum, p) => sum + p.originalText.length, 0);
       }
 
-      // Log chapter state before translation
       const hasTranslatedText =
         !!chapterForTranslation.translatedText && chapterForTranslation.translatedText.trim().length > 0;
       const hasTranslatedParagraphs = chapterForTranslation.paragraphs?.some(
         (p) => p.translatedText && p.translatedText.trim().length > 0
       );
-      console.log(`📋 Состояние главы перед переводом: ${chapterForTranslation.title}`);
-      console.log(`   ID: ${chapterForTranslation.id}, Статус: ${chapterForTranslation.status}`);
-      console.log(`   Есть переведенный текст: ${hasTranslatedText}`);
-      console.log(`   Есть переведенные параграфы: ${hasTranslatedParagraphs}`);
-      console.log(`   Количество параграфов: ${chapterForTranslation.paragraphs?.length || 0}`);
-      console.log(
-        `   Режим: ${paragraphIds?.length ? `Выбранные параграфы (${paragraphIds.length})` : translateOnlyEmpty ? 'Только пустые параграфы' : 'Вся глава'}`
+      req.log?.debug(
+        {
+          chapterId: chapterForTranslation.id,
+          chapterTitle: chapterForTranslation.title,
+          status: chapterForTranslation.status,
+          hasTranslatedText,
+          hasTranslatedParagraphs,
+          paragraphsCount: chapterForTranslation.paragraphs?.length ?? 0,
+          mode: paragraphIds?.length ? `selected (${paragraphIds.length})` : translateOnlyEmpty ? 'empty only' : 'full',
+        },
+        'Chapter state before translation'
       );
 
       const token = requireToken(req);
@@ -1286,20 +1302,22 @@ app.post(
         token
       );
 
-      console.log(`\n${'═'.repeat(60)}`);
-      console.log(`🔮 ЗАПРОС НА ПЕРЕВОД`);
-      console.log(`${'─'.repeat(60)}`);
-      console.log(`📖 Глава: ${chapterForTranslation.title}`);
-      console.log(`📊 Размер: ${textLength} символов, ~${wordCount} слов`);
-      console.log(`🔑 API ключ: ${config.openai.apiKey ? '✅ Настроен' : '❌ Не настроен'}`);
-      console.log(
-        `🤖 Модели: Анализ=${analysisModel} | Перевод=${translationModel} | Редактура=${editingModel}`
+      req.log?.info(
+        {
+          event: 'translation.started',
+          projectId: req.params.projectId,
+          chapterId: req.params.chapterId,
+          chapterTitle: chapterForTranslation.title,
+          textLength,
+          wordCount,
+          hasApiKey: !!config.openai.apiKey,
+          analysisModel,
+          translationModel,
+          editingModel,
+          temperature: project.settings?.temperature ?? config.translation.temperature,
+        },
+        `Translation started: ${chapterForTranslation.title} (~${wordCount} words)`
       );
-      console.log(
-        `🎨 Креативность: ${project.settings?.temperature ?? config.translation.temperature}`
-      );
-      console.log(`💾 Хранилище: LowDB (persistent)`);
-      console.log(`${'─'.repeat(60)}`);
 
       performTranslation(
         req.params.projectId,
@@ -1364,8 +1382,7 @@ async function performTranslation(
     }
 
     if (!config.openai.apiKey) {
-      console.log(`⚠️  ДЕМО РЕЖИМ - API ключ не настроен`);
-      console.log(`${'═'.repeat(60)}\n`);
+      logger.warn({ projectId, chapterId, chapterTitle: chapter.title }, 'Demo mode: API key not configured');
 
       // Demo mode - translate paragraphs individually
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -1399,8 +1416,9 @@ async function performTranslation(
         token
       );
 
-      console.log(
-        `✅ Демо-перевод завершён за ${Date.now() - startTime}ms (${demoParagraphs.length} абзацев)`
+      logger.info(
+        { event: 'translation.demo_completed', projectId, chapterId, durationMs: Date.now() - startTime, paragraphsCount: demoParagraphs.length },
+        `Demo translation completed in ${Date.now() - startTime}ms (${demoParagraphs.length} paragraphs)`
       );
       return;
     }
@@ -1431,12 +1449,18 @@ async function performTranslation(
           ? stages.map((s) => `✅ ${stageLabels[s] || s}`).join(' → ')
           : '✅ Редактура';
 
-    console.log(`🚀 Запуск arcane-engine TranslationPipeline...`);
-    console.log(
-      `   Модели: Анализ=${analysisModel} | Перевод=${translationModel} | Редактура=${editingModel}`
+    logger.info(
+      {
+        event: 'pipeline.start',
+        projectId,
+        chapterId,
+        analysisModel,
+        translationModel,
+        editingModel,
+        temperature: projectTemperature,
+      },
+      'Starting arcane-engine TranslationPipeline'
     );
-    console.log(`   Креативность: ${projectTemperature}`);
-    console.log(`   Стадии: ${stagesInfo}`);
 
     // Helper function to check if paragraph has valid translation
     const hasValidTranslation = (p: Paragraph): boolean => {
@@ -1500,7 +1524,7 @@ async function performTranslation(
       const idSet = new Set(paragraphIds);
       paragraphsToTranslate = (chapterWithOriginal.paragraphs || []).filter((p) => idSet.has(p.id));
       if (paragraphsToTranslate.length === 0) {
-        console.log(`ℹ️  Нет выбранных параграфов для перевода.`);
+        logger.info({ projectId, chapterId }, 'No selected paragraphs to translate');
         await updateChapter(projectId, chapterId, { status: 'completed' }, token, { useServiceRole: true });
         return;
       }
@@ -1508,13 +1532,16 @@ async function performTranslation(
       const markedText = addParagraphMarkers(textToTranslate, paragraphsToTranslate);
       chapterToTranslate = { ...chapterWithOriginal, originalText: markedText };
       translateSubsetOnly = true;
-      console.log(`📝 Режим выбранных параграфов: ${paragraphsToTranslate.length} из ${(chapterWithOriginal.paragraphs || []).length}`);
+      logger.info(
+        { projectId, chapterId, selectedCount: paragraphsToTranslate.length, totalParagraphs: (chapterWithOriginal.paragraphs || []).length },
+        `Selected paragraphs mode: ${paragraphsToTranslate.length} of ${(chapterWithOriginal.paragraphs || []).length}`
+      );
     } else if (translateOnlyEmpty) {
       const paragraphs = chapterWithOriginal.paragraphs || [];
       const emptyParagraphs = paragraphs.filter((p) => !hasValidTranslation(p));
 
       if (emptyParagraphs.length === 0) {
-        console.log(`ℹ️  Нет пустых параграфов для перевода. Перевод пропущен.`);
+        logger.info({ projectId, chapterId }, 'No empty paragraphs to translate; skipping');
         await updateChapter(projectId, chapterId, { status: 'completed' }, token, { useServiceRole: true });
         return;
       }
@@ -1523,11 +1550,17 @@ async function performTranslation(
       const textLength = textToTranslate.length;
       const wordCount = textToTranslate.split(/\s+/).length;
 
-      console.log(`📝 Режим частичного перевода:`);
-      console.log(`   Переводим: ${emptyParagraphs.length} из ${paragraphs.length} параграфов`);
-      console.log(`   Размер текста: ${textLength} символов, ~${wordCount} слов`);
-      console.log(
-        `   Пропускаем: ${paragraphs.length - emptyParagraphs.length} уже переведенных параграфов`
+      logger.info(
+        {
+          projectId,
+          chapterId,
+          emptyCount: emptyParagraphs.length,
+          totalParagraphs: paragraphs.length,
+          textLength,
+          wordCount,
+          skipCount: paragraphs.length - emptyParagraphs.length,
+        },
+        `Partial translation: ${emptyParagraphs.length} of ${paragraphs.length} paragraphs (~${wordCount} words)`
       );
 
       const markedText = addParagraphMarkers(textToTranslate, emptyParagraphs);
@@ -1559,7 +1592,7 @@ async function performTranslation(
     };
 
     if (isCancelled()) {
-      console.log(`⏹️  Перевод отменён пользователем до запуска пайплайна: ${chapter.title}`);
+      logger.info({ projectId, chapterId, chapterTitle: chapter.title }, 'Translation cancelled by user before pipeline start');
       await updateChapter(projectId, chapterId, { status: 'pending' }, token, { useServiceRole: true });
       return;
     }
@@ -1577,41 +1610,31 @@ async function performTranslation(
         isCancelled,
       });
     } catch (pipelineError) {
-      // Pipeline error - rethrow to outer catch block
       const errorMessage =
         pipelineError instanceof Error ? pipelineError.message : 'Unknown pipeline error';
-      console.error(`❌ [Pipeline] Ошибка в translateChapterWithPipeline: ${errorMessage}`);
-      throw pipelineError; // Re-throw to be caught by outer catch
+      logger.error({ err: pipelineError, projectId, chapterId }, `Pipeline error in translateChapterWithPipeline: ${errorMessage}`);
+      throw pipelineError;
     }
 
-    console.log(`${'─'.repeat(60)}`);
-    console.log(`✅ ПЕРЕВОД ЗАВЕРШЁН (arcane-engine)`);
-    console.log(`⏱️  Время: ${(result.duration / 1000).toFixed(1)}s`);
-
-    // Show tokens by stage (only stages that were run)
-    if (result.tokensByStage) {
-      const stageTokens: string[] = [];
-      if (result.tokensByStage.analysis !== undefined) {
-        stageTokens.push(`🔍 Анализ: ${result.tokensByStage.analysis.toLocaleString()}`);
-      }
-      if (result.tokensByStage.translation !== undefined) {
-        stageTokens.push(`🔮 Перевод: ${result.tokensByStage.translation.toLocaleString()}`);
-      }
-      if (result.tokensByStage.editing !== undefined) {
-        stageTokens.push(`✨ Редактура: ${result.tokensByStage.editing.toLocaleString()}`);
-      }
-      if (stageTokens.length) {
-        console.log(`📝 Токенов по стейджам: ${stageTokens.join(' | ')}`);
-      }
-      console.log(`📊 Всего токенов: ${result.tokensUsed.toLocaleString()}`);
-    } else {
-      console.log(`📝 Токенов: ${result.tokensUsed.toLocaleString()}`);
-    }
+    logger.info(
+      {
+        event: 'translation.completed',
+        projectId,
+        chapterId,
+        durationMs: result.duration,
+        durationSec: (result.duration / 1000).toFixed(1),
+        tokensUsed: result.tokensUsed,
+        tokensByStage: result.tokensByStage,
+      },
+      `Translation completed in ${(result.duration / 1000).toFixed(1)}s (${result.tokensUsed.toLocaleString()} tokens)`
+    );
 
     if (result.glossaryUpdates?.length) {
-      console.log(`📚 Новые записи в глоссарии: ${result.glossaryUpdates.length}`);
+      logger.info(
+        { projectId, chapterId, glossaryUpdatesCount: result.glossaryUpdates.length },
+        `Glossary: ${result.glossaryUpdates.length} new entries`
+      );
     }
-    console.log(`${'═'.repeat(60)}\n`);
 
     // stages = ['analysis'] only: save glossary, don't update chapter translation
     if (Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis') {
@@ -1660,7 +1683,7 @@ async function performTranslation(
       try {
         await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
       } catch (tokenError) {
-        console.error('⚠️ Failed to update token usage (non-critical):', tokenError);
+        logger.warn({ err: tokenError, projectId, chapterId }, 'Failed to update token usage (non-critical)');
       }
       return;
     }
@@ -1674,18 +1697,20 @@ async function performTranslation(
     const hasValidTokens = result.tokensUsed > 0 || result.duration > 0;
 
     if (!isValidTranslationResult || (!hasValidTokens && result.duration === 0)) {
-      // Translation failed or returned empty/invalid result — still save tokens used so far
       const errorMessage = !isValidTranslationResult
-        ? 'Перевод пустой или содержит ошибку'
-        : 'Перевод завершился без использования токенов (возможна ошибка)';
+        ? 'Translation empty or contains error'
+        : 'Translation finished with no tokens used (possible error)';
 
-      console.log(`⚠️  ВАЛИДАЦИЯ НЕ ПРОЙДЕНА: ${errorMessage}`);
-      console.log(
-        `   Текст перевода: ${
-          result.translatedText ? `"${result.translatedText.substring(0, 100)}..."` : 'отсутствует'
-        }`
+      logger.warn(
+        {
+          projectId,
+          chapterId,
+          tokensUsed: result.tokensUsed,
+          durationMs: result.duration,
+          translatedPreview: result.translatedText ? result.translatedText.substring(0, 100) : null,
+        },
+        `Validation failed: ${errorMessage}`
       );
-      console.log(`   Токены: ${result.tokensUsed}, Время: ${result.duration}ms`);
 
       const modelInfoOnError =
         stages === 'all'
@@ -1722,7 +1747,7 @@ async function performTranslation(
         try {
           await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
         } catch (tokenError) {
-          console.error('⚠️ Failed to update token usage (non-critical):', tokenError);
+          logger.warn({ err: tokenError, projectId, chapterId }, 'Failed to update token usage (non-critical)');
         }
       }
 
@@ -1743,17 +1768,17 @@ async function performTranslation(
         if (parsed && parsed.paragraphs && Array.isArray(parsed.paragraphs)) {
           parsedJSON = parsed;
           if (parsedJSON) {
-            console.log(
-              `✅ Обнаружен JSON-формат перевода с ${parsedJSON.paragraphs.length} параграфами`
+            logger.debug(
+              { projectId, chapterId, paragraphsCount: parsedJSON.paragraphs.length },
+              `Translation in JSON format with ${parsedJSON.paragraphs.length} paragraphs`
             );
           }
         }
       }
     } catch (jsonError) {
-      console.log(
-        `ℹ️  JSON-парсинг не удался, используем текстовый формат: ${
-          jsonError instanceof Error ? jsonError.message : 'Unknown error'
-        }`
+      logger.debug(
+        { projectId, chapterId, jsonError: jsonError instanceof Error ? jsonError.message : 'Unknown error' },
+        'JSON parse failed, using text format'
       );
     }
 
@@ -1775,8 +1800,9 @@ async function performTranslation(
         // Filter out separator chunks (e.g., ***, ---, etc.)
         .filter((chunk) => !isSeparatorChunk(chunk));
 
-      console.log(
-        `📦 Перевод разбит на ${translatedChunks.length} чанков для автоматической синхронизации (текстовый формат)`
+      logger.debug(
+        { projectId, chapterId, chunksCount: translatedChunks.length },
+        `Translation split into ${translatedChunks.length} chunks for sync (text format)`
       );
     }
 
@@ -1794,14 +1820,14 @@ async function performTranslation(
     let syncedParagraphs: Paragraph[];
 
     if (parsedJSON && parsedJSON.paragraphs && Array.isArray(parsedJSON.paragraphs)) {
-      console.log(`🔄 Автоматическая синхронизация перевода с параграфами (JSON-формат)...`);
+      logger.debug({ projectId, chapterId }, 'Auto-sync: translation to paragraphs (JSON format)');
       syncedParagraphs = syncTranslationJSONToParagraphs(
         originalParagraphsForSync,
         parsedJSON,
         partialSync
       );
     } else {
-      console.log(`🔄 Автоматическая синхронизация перевода с параграфами (текстовый формат)...`);
+      logger.debug({ projectId, chapterId }, 'Auto-sync: translation to paragraphs (text format)');
       syncedParagraphs = syncTranslationChunksToParagraphs(
         originalParagraphsForSync,
         translatedChunks,
@@ -1855,8 +1881,10 @@ async function performTranslation(
       { useServiceRole: true }
     );
 
-    console.log(`📦 Сохранено ${chunksToSave.length} чанков перевода`);
-    console.log(`✅ Глава успешно переведена и синхронизирована: ${chapter.title}`);
+    logger.info(
+      { event: 'translation.synced', projectId, chapterId, chapterTitle: chapter.title, chunksCount: chunksToSave.length },
+      `Chapter translated and synced: ${chapter.title} (${chunksToSave.length} chunks)`
+    );
 
     // Update token usage counter
     try {
@@ -1867,8 +1895,7 @@ async function performTranslation(
         result.tokensByStage
       );
     } catch (tokenError) {
-      // Don't fail translation if token tracking fails
-      console.error('⚠️  Failed to update token usage (non-critical):', tokenError);
+      logger.warn({ err: tokenError, projectId, chapterId }, 'Failed to update token usage (non-critical)');
     }
 
     // Verify the chapter was saved correctly (service role for same reason)
@@ -1886,27 +1913,20 @@ async function performTranslation(
           (p) => p.translatedText && p.translatedText.trim().length > 0
         ).length || 0;
 
-      // Prepare chunks info for logging
-      const chunksInfo =
-        parsedJSON && parsedJSON.paragraphs
-          ? `JSON-параграфов=${parsedJSON.paragraphs.length}`
-          : `чанков=${translatedChunks.length}`;
-
-      console.log(
-        `🔍 Проверка сохранения: текст=${savedHasText}, ${chunksInfo}, параграфы=${savedHasParagraphs} (${syncedCount} синхронизировано), статус=${savedChapter.status}`
+      logger.debug(
+        { projectId, chapterId, savedHasText, savedHasChunks, savedHasParagraphs, syncedCount, status: savedChapter.status },
+        'Post-save verification'
       );
 
       if (!savedHasText && !savedHasChunks) {
-        console.error(`⚠️ ПРЕДУПРЕЖДЕНИЕ: Глава сохранена, но перевод и чанки отсутствуют!`);
+        logger.warn({ projectId, chapterId }, 'Chapter saved but translation and chunks are missing');
       }
 
       if (savedHasChunks && !savedHasParagraphs) {
-        console.error(
-          `⚠️ ПРЕДУПРЕЖДЕНИЕ: Перевод сохранен в чанках, но не синхронизирован с параграфами!`
-        );
+        logger.warn({ projectId, chapterId }, 'Translation saved in chunks but not synced to paragraphs');
       }
     } else {
-      console.error(`❌ ОШИБКА: Не удалось получить сохраненную главу для проверки!`);
+      logger.error({ projectId, chapterId }, 'Failed to load saved chapter for verification');
     }
 
     // Auto-add detected glossary entries (new + updates for existing)
@@ -1934,15 +1954,14 @@ async function performTranslation(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     if (errorMessage === 'Cancelled') {
-      console.log(`⏹️  Перевод отменён пользователем: ${chapter.title}`);
+      logger.info({ projectId, chapterId, chapterTitle: chapter.title }, 'Translation cancelled by user');
       await updateChapter(projectId, chapterId, { status: 'pending' }, token, { useServiceRole: true });
       return;
     }
-    console.log(`❌ ОШИБКА: ${errorMessage}`);
-    if (errorStack) {
-      console.log(`   Stack trace: ${errorStack.substring(0, 500)}...`);
-    }
-    console.log(`${'═'.repeat(60)}\n`);
+    logger.error(
+      { err: error, projectId, chapterId, chapterTitle: chapter.title, errorMessage, stack: errorStack?.substring(0, 500) },
+      `Translation error: ${errorMessage}`
+    );
 
     // Try to preserve existing translation if any (service role so expired JWT doesn't lose the error state)
     const currentChapter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
@@ -1959,8 +1978,10 @@ async function performTranslation(
       { useServiceRole: true }
     );
 
-    console.log(`⚠️ Глава помечена как ошибка: ${chapter.title}`);
-    console.log(`   Сохранен существующий перевод: ${!!existingTranslation}`);
+    logger.warn(
+      { projectId, chapterId, chapterTitle: chapter.title, existingTranslation: !!existingTranslation },
+      'Chapter marked as error; existing translation preserved'
+    );
   } finally {
     translationCancelRegistry.delete(cancelKey);
   }
@@ -1983,12 +2004,12 @@ function syncTranslationToParagraphs(
   const replaceAll = options?.replaceAll ?? false;
   const editedBy = options?.editedBy ?? 'ai';
   if (!originalParagraphs || originalParagraphs.length === 0) {
-    console.warn('⚠️ syncTranslationToParagraphs: Нет оригинальных параграфов');
+    logger.warn('syncTranslationToParagraphs: no original paragraphs');
     return [];
   }
 
   if (!translatedText || translatedText.trim().length === 0) {
-    console.warn('⚠️ syncTranslationToParagraphs: Переведенный текст пуст');
+    logger.warn('syncTranslationToParagraphs: translated text is empty');
     return originalParagraphs; // Return original paragraphs unchanged
   }
 
@@ -2018,8 +2039,9 @@ function syncTranslationToParagraphs(
     return true;
   };
 
-  console.log(
-    `📊 Синхронизация: ${originalParagraphs.length} оригинальных параграфов, ${translatedParts.length} переведенных частей`
+  logger.debug(
+    { originalCount: originalParagraphs.length, translatedPartsCount: translatedParts.length },
+    `Sync: ${originalParagraphs.length} original paragraphs, ${translatedParts.length} translated parts`
   );
 
   // Count empty paragraphs that need translation (excluding separators)
@@ -2027,14 +2049,15 @@ function syncTranslationToParagraphs(
     (p) => !isSeparatorParagraph(p) && !hasValidTranslation(p)
   ).length;
 
-  // If counts don't match, log info (this is normal when some paragraphs already have translations)
   if (translatedParts.length !== originalParagraphs.length) {
-    console.log(
-      `ℹ️  Несоответствие количества: оригинал=${originalParagraphs.length}, перевод=${translatedParts.length}, пустых=${emptyParagraphsCount}`
+    logger.debug(
+      { original: originalParagraphs.length, translatedParts: translatedParts.length, emptyCount: emptyParagraphsCount },
+      'Count mismatch: original vs translated parts'
     );
     if (translatedParts.length !== emptyParagraphsCount) {
-      console.warn(
-        `⚠️ Количество переведенных частей (${translatedParts.length}) не совпадает с количеством пустых параграфов (${emptyParagraphsCount})`
+      logger.warn(
+        { translatedParts: translatedParts.length, emptyParagraphsCount },
+        'Translated parts count does not match empty paragraphs count'
       );
     }
   }
@@ -2082,42 +2105,38 @@ function syncTranslationToParagraphs(
   const newTranslations = translatedCount - preservedCount;
   const emptyCount = originalParagraphs.length - preservedCount;
 
-  // Check if not all translations were used
   if (translationIndex < translatedParts.length) {
     const unusedCount = translatedParts.length - translationIndex;
-    console.warn(
-      `⚠️ Не все переводы использованы: осталось ${unusedCount} неиспользованных частей из ${translatedParts.length}`
+    logger.warn(
+      { unusedCount, translatedPartsCount: translatedParts.length },
+      'Not all translations used; possible format mismatch'
     );
-    console.warn(`   Это может указывать на несоответствие формата перевода`);
   }
 
-  // Check if translation didn't fill all empty paragraphs
   if (newTranslations < emptyCount && translationIndex >= translatedParts.length) {
     const missingCount = emptyCount - newTranslations;
-    console.warn(
-      `⚠️ Не все пустые параграфы получили перевод: ${newTranslations} из ${emptyCount} пустых параграфов заполнено`
+    logger.warn(
+      { newTranslations, emptyCount, missingCount },
+      'Not all empty paragraphs received translation'
     );
-    console.warn(`   Отсутствует перевод для ${missingCount} параграфов`);
   }
 
-  // Log summary
-  console.log(
-    `✅ Синхронизировано: ${translatedCount}/${originalParagraphs.length} параграфов имеют перевод (сохранено: ${preservedCount}, новых: ${newTranslations})`
+  logger.debug(
+    { translatedCount, total: originalParagraphs.length, preservedCount, newTranslations },
+    `Synced: ${translatedCount}/${originalParagraphs.length} paragraphs have translation`
   );
 
-  // Critical error check
   if (translatedCount === 0 && translatedText.trim().length > 0) {
-    console.error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Весь перевод потерян при синхронизации!`);
-    console.error(`   Длина переведенного текста: ${translatedText.length} символов`);
-    console.error(`   Количество частей после разбиения: ${translatedParts.length}`);
-    console.error(`   Пустых параграфов было: ${emptyCount}`);
+    logger.error(
+      { translatedTextLength: translatedText.length, translatedPartsLength: translatedParts.length, emptyCount },
+      'Critical: entire translation lost during sync'
+    );
   }
 
-  // Validation: check if all expected translations were applied (if we translated everything)
   if (emptyCount > 0 && newTranslations === 0 && translatedText.trim().length > 0) {
-    console.error(`❌ ОШИБКА: Перевод получен, но не применен ни к одному параграфу!`);
-    console.error(
-      `   Пустых параграфов: ${emptyCount}, Переведенных частей: ${translatedParts.length}`
+    logger.error(
+      { emptyCount, translatedPartsLength: translatedParts.length },
+      'Translation received but not applied to any paragraph'
     );
   }
 
@@ -2139,13 +2158,13 @@ function syncTranslationChunksToParagraphs(
   partialTranslation: boolean = false
 ): Paragraph[] {
   if (!originalParagraphs || originalParagraphs.length === 0) {
-    console.warn('⚠️ syncTranslationChunksToParagraphs: Нет оригинальных параграфов');
+    logger.warn('syncTranslationChunksToParagraphs: no original paragraphs');
     return [];
   }
 
   if (!translatedChunks || translatedChunks.length === 0) {
-    console.warn('⚠️ syncTranslationChunksToParagraphs: Нет переведенных чанков');
-    return originalParagraphs; // Return original paragraphs unchanged
+    logger.warn('syncTranslationChunksToParagraphs: no translated chunks');
+    return originalParagraphs;
   }
 
   const now = new Date().toISOString();
@@ -2168,23 +2187,24 @@ function syncTranslationChunksToParagraphs(
     return true;
   };
 
-  console.log(
-    `📊 Синхронизация чанков: ${originalParagraphs.length} оригинальных параграфов, ${translatedChunks.length} переведенных чанков`
+  logger.debug(
+    { originalCount: originalParagraphs.length, chunksCount: translatedChunks.length },
+    `Chunk sync: ${originalParagraphs.length} original paragraphs, ${translatedChunks.length} chunks`
   );
 
-  // Count empty paragraphs that need translation (excluding separators)
   const emptyParagraphsCount = originalParagraphs.filter(
     (p) => !isSeparatorParagraph(p) && !hasValidTranslation(p)
   ).length;
 
-  // If counts don't match, log info (this is normal when some paragraphs already have translations)
   if (translatedChunks.length !== originalParagraphs.length) {
-    console.log(
-      `ℹ️  Несоответствие количества: оригинал=${originalParagraphs.length}, чанков=${translatedChunks.length}, пустых=${emptyParagraphsCount}`
+    logger.debug(
+      { original: originalParagraphs.length, chunks: translatedChunks.length, emptyCount: emptyParagraphsCount },
+      'Chunk count mismatch'
     );
     if (translatedChunks.length !== emptyParagraphsCount) {
-      console.warn(
-        `⚠️ Количество переведенных чанков (${translatedChunks.length}) не совпадает с количеством пустых параграфов (${emptyParagraphsCount})`
+      logger.warn(
+        { translatedChunks: translatedChunks.length, emptyParagraphsCount },
+        'Chunk count does not match empty paragraphs count'
       );
     }
   }
@@ -2235,60 +2255,52 @@ function syncTranslationChunksToParagraphs(
   const newTranslations = translatedCount - preservedCount;
   const emptyCount = originalParagraphs.length - preservedCount;
 
-  // Check if not all translations were used
   if (translationIndex < translatedChunks.length) {
     const unusedCount = translatedChunks.length - translationIndex;
-    console.warn(
-      `⚠️ Не все чанки использованы: осталось ${unusedCount} неиспользованных чанков из ${translatedChunks.length}`
+    logger.warn(
+      { unusedCount, translatedChunksCount: translatedChunks.length },
+      'Not all chunks used; possible format mismatch'
     );
-    console.warn(`   Это может указывать на несоответствие формата перевода`);
   }
 
-  // Check if translation didn't fill all empty paragraphs
-  // This is expected for partial translation, but should not happen for full translation
   if (
     !partialTranslation &&
     newTranslations < emptyCount &&
     translationIndex >= translatedChunks.length
   ) {
     const missingCount = emptyCount - newTranslations;
-    console.warn(
-      `⚠️ Не все пустые параграфы получили перевод: ${newTranslations} из ${emptyCount} пустых параграфов заполнено`
+    logger.warn(
+      { newTranslations, emptyCount, missingCount },
+      'Not all empty paragraphs received translation'
     );
-    console.warn(`   Отсутствует перевод для ${missingCount} параграфов`);
   } else if (partialTranslation && newTranslations < emptyCount) {
-    // For partial translation, this is expected - we only translate empty paragraphs
-    console.log(
-      `ℹ️  Частичный перевод: заполнено ${newTranslations} из ${emptyCount} пустых параграфов (${preservedCount} уже переведенных сохранено)`
+    logger.debug(
+      { newTranslations, emptyCount, preservedCount },
+      `Partial translation: ${newTranslations} of ${emptyCount} empty paragraphs filled`
     );
   }
 
-  // Log summary
-  console.log(
-    `✅ Синхронизировано: ${translatedCount}/${originalParagraphs.length} параграфов имеют перевод (сохранено: ${preservedCount}, новых: ${newTranslations})`
+  logger.debug(
+    { translatedCount, total: originalParagraphs.length, preservedCount, newTranslations },
+    `Chunk sync done: ${translatedCount}/${originalParagraphs.length} paragraphs have translation`
   );
 
-  // Critical error check - should never happen after auto-sync
   if (translatedCount === 0 && translatedChunks.length > 0 && !partialTranslation) {
-    console.error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Весь перевод потерян при синхронизации!`);
-    console.error(`   Количество чанков: ${translatedChunks.length}`);
-    console.error(`   Пустых параграфов было: ${emptyCount}`);
-    console.error(`   Это указывает на серьезную проблему в логике синхронизации!`);
+    logger.error(
+      { translatedChunksLength: translatedChunks.length, emptyCount },
+      'Critical: entire translation lost during chunk sync'
+    );
   }
 
-  // Validation: check if all expected translations were applied (only for full translation)
   if (
     !partialTranslation &&
     emptyCount > 0 &&
     newTranslations === 0 &&
     translatedChunks.length > 0
   ) {
-    console.error(`❌ ОШИБКА: Перевод получен, но не применен ни к одному параграфу!`);
-    console.error(
-      `   Пустых параграфов: ${emptyCount}, Переведенных чанков: ${translatedChunks.length}`
-    );
-    console.error(
-      `   Возможно, все параграфы уже имели переводы (не должно происходить при полном переводе)`
+    logger.error(
+      { emptyCount, translatedChunksLength: translatedChunks.length },
+      'Translation received but not applied to any paragraph'
     );
   }
 
@@ -2305,12 +2317,12 @@ function syncTranslationJSONToParagraphs(
   partialTranslation: boolean = false
 ): Paragraph[] {
   if (!originalParagraphs || originalParagraphs.length === 0) {
-    console.warn('⚠️ syncTranslationJSONToParagraphs: Нет оригинальных параграфов');
+    logger.warn('syncTranslationJSONToParagraphs: no original paragraphs');
     return [];
   }
 
   if (!translationJSON || !translationJSON.paragraphs || translationJSON.paragraphs.length === 0) {
-    console.warn('⚠️ syncTranslationJSONToParagraphs: Нет переведенных параграфов в JSON');
+    logger.warn('syncTranslationJSONToParagraphs: no translated paragraphs in JSON');
     return originalParagraphs;
   }
 
@@ -2333,8 +2345,9 @@ function syncTranslationJSONToParagraphs(
     return true;
   };
 
-  console.log(
-    `📊 JSON-синхронизация: ${originalParagraphs.length} оригинальных параграфов, ${translationJSON.paragraphs.length} переведенных параграфов`
+  logger.debug(
+    { originalCount: originalParagraphs.length, jsonParagraphsCount: translationJSON.paragraphs.length },
+    `JSON sync: ${originalParagraphs.length} original, ${translationJSON.paragraphs.length} translated paragraphs`
   );
 
   // Create map of translations by paragraph ID
@@ -2352,7 +2365,7 @@ function syncTranslationJSONToParagraphs(
     }
   }
 
-  console.log(`📋 Создана карта переводов: ${translationMap.size} параграфов`);
+  logger.debug({ translationMapSize: translationMap.size }, `Translation map created: ${translationMap.size} paragraphs`);
 
   // Map translations to original paragraphs
   const result = originalParagraphs.map((original) => {
@@ -2388,24 +2401,24 @@ function syncTranslationJSONToParagraphs(
   const newTranslations = translatedCount - preservedCount;
   const emptyCount = originalParagraphs.length - preservedCount;
 
-  // Log summary
-  console.log(
-    `✅ JSON-синхронизация завершена: ${translatedCount}/${originalParagraphs.length} параграфов имеют перевод (сохранено: ${preservedCount}, новых: ${newTranslations})`
+  logger.debug(
+    { translatedCount, total: originalParagraphs.length, preservedCount, newTranslations },
+    `JSON sync done: ${translatedCount}/${originalParagraphs.length} paragraphs have translation`
   );
 
-  // Warning if not all paragraphs got translations
   if (newTranslations < emptyCount && !partialTranslation) {
     const missingCount = emptyCount - newTranslations;
-    console.warn(
-      `⚠️ Не все параграфы получили перевод: ${newTranslations} из ${emptyCount} пустых параграфов заполнено (отсутствует: ${missingCount})`
+    logger.warn(
+      { newTranslations, emptyCount, missingCount },
+      'Not all paragraphs received translation in JSON sync'
     );
   }
 
-  // Critical error check
   if (translatedCount === 0 && translationJSON.paragraphs.length > 0 && !partialTranslation) {
-    console.error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Весь перевод потерян при JSON-синхронизации!`);
-    console.error(`   JSON-параграфов: ${translationJSON.paragraphs.length}`);
-    console.error(`   Сопоставлено по ID: ${translationMap.size}`);
+    logger.error(
+      { jsonParagraphsCount: translationJSON.paragraphs.length, translationMapSize: translationMap.size },
+      'Critical: entire translation lost during JSON sync'
+    );
   }
 
   return result;
@@ -2435,7 +2448,7 @@ async function translateWithOpenAI(
     }
   }
 
-  console.log(`📤 Отправка ${chapter.originalText.length} символов...`);
+  logger.debug({ charCount: chapter.originalText.length }, `Sending ${chapter.originalText.length} characters for translation`);
 
   const response = await client.chat.completions.create({
     model: config.openai.model,
@@ -2462,7 +2475,7 @@ async function translateWithOpenAI(
   const translatedText = response.choices[0]?.message?.content || '';
   const tokensUsed = response.usage?.total_tokens;
 
-  console.log(`📥 Получено ${translatedText.length} символов`);
+  logger.debug({ receivedLength: translatedText.length }, `Received ${translatedText.length} characters`);
 
   return { text: translatedText, tokensUsed };
 }
@@ -2514,7 +2527,7 @@ app.post('/api/projects/:id/glossary', requireAuth, async (req, res) => {
       // Generate declensions for the translated name
       declensions = result.declensions;
 
-      console.log(`📝 Auto-declension for "${req.body.original}":`, declensions);
+      req.log?.debug({ original: req.body.original, declensions }, 'Auto-declension result');
     }
 
     const entry = await addGlossaryEntry(
@@ -2590,7 +2603,7 @@ app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, r
     // Clear agent cache to reload glossary
     clearAgentCache(req.params.projectId);
 
-    console.log(`✏️ Глоссарий обновлён: ${entry.original} → ${entry.translated}`);
+    req.log?.info({ event: 'glossary.updated', entryId: entry.id, original: entry.original, translated: entry.translated }, `Glossary updated: ${entry.original} → ${entry.translated}`);
 
     res.json(entry);
   } catch (error) {
@@ -2653,7 +2666,7 @@ app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, async 
     });
     res.json({ suggestions });
   } catch (error) {
-    console.error('[suggest-merges]', error);
+    req.log?.error({ err: error }, 'suggest-merges failed');
     res.status(500).json({ error: 'Failed to get merge suggestions' });
   }
 });
@@ -2757,7 +2770,7 @@ app.post('/api/projects/:projectId/glossary/merge', requireAuth, async (req, res
       deletedCount: others.length,
     });
   } catch (error) {
-    console.error('[glossary merge]', error);
+    req.log?.error({ err: error }, 'glossary merge failed');
     res.status(500).json({ error: 'Failed to merge glossary entries' });
   }
 });
@@ -2827,7 +2840,7 @@ app.post(
 
       if (!updatedEntry) {
         // Rollback: delete uploaded file if update failed
-        await deleteFile('images', storagePath).catch(console.error);
+        await deleteFile('images', storagePath).catch((err) => logger.error({ err, storagePath }, 'Failed to delete file from storage'));
         return res.status(404).json({ error: 'Failed to update entry' });
       }
 
@@ -2837,7 +2850,7 @@ app.post(
         entry: updatedEntry,
       });
     } catch (error) {
-      console.error('Failed to upload image:', error);
+      req.log?.error({ err: error }, 'Failed to upload image');
       res.status(500).json({ error: 'Failed to upload image' });
     }
   }
@@ -2883,7 +2896,7 @@ app.delete(
       const storagePath = extractPathFromUrl(imageUrlToDelete, 'images');
       if (storagePath) {
         await deleteFile('images', storagePath).catch((err) => {
-          console.error('Failed to delete image from storage:', err);
+          req.log?.error({ err }, 'Failed to delete image from storage');
           // Continue even if deletion fails
         });
       }
@@ -2904,7 +2917,7 @@ app.delete(
 
       res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
     } catch (error) {
-      console.error('Failed to delete image:', error);
+      req.log?.error({ err: error }, 'Failed to delete image');
       res.status(500).json({ error: 'Failed to delete image' });
     }
   }
@@ -2940,7 +2953,7 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
       
       if (storagePaths.length > 0) {
         await deleteFiles('images', storagePaths).catch((err) => {
-          console.error('Failed to delete images from storage:', err);
+          req.log?.error({ err }, 'Failed to delete images from storage');
           // Continue even if deletion fails
         });
       }
@@ -2958,7 +2971,7 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete images:', error);
+    req.log?.error({ err: error }, 'Failed to delete images');
     res.status(500).json({ error: 'Failed to delete images' });
   }
 });
@@ -2989,7 +3002,7 @@ app.post(
         const oldStoragePath = extractPathFromUrl(project.metadata.coverImageUrl, 'images');
         if (oldStoragePath) {
           await deleteFile('images', oldStoragePath).catch((err) => {
-            console.error('Failed to delete old cover:', err);
+            req.log?.error({ err }, 'Failed to delete old cover');
             // Continue even if deletion fails
           });
         }
@@ -3017,9 +3030,7 @@ app.post(
         coverImageUrl,
       };
 
-      console.log(`📤 Загрузка обложки для проекта ${req.params.projectId}`);
-      console.log(`   Текущий metadata:`, JSON.stringify(project.metadata || null));
-      console.log(`   Новый metadata:`, JSON.stringify(updatedMetadata));
+      req.log?.info({ event: 'cover.upload.start', projectId: req.params.projectId }, 'Uploading cover for project');
 
       const updatedProject = await updateProject(
         req.params.projectId,
@@ -3032,15 +3043,15 @@ app.post(
 
       if (!updatedProject) {
         // Rollback: delete uploaded file if update failed
-        await deleteFile('images', storagePath).catch(console.error);
+        await deleteFile('images', storagePath).catch((err) => logger.error({ err, storagePath }, 'Failed to delete file from storage'));
         return res.status(404).json({ error: 'Failed to update project' });
       }
 
-      console.log(`✅ Обложка сохранена в проект. Новый metadata:`, JSON.stringify(updatedProject.metadata || null));
+      req.log?.info({ event: 'cover.upload.done', projectId: req.params.projectId }, 'Cover saved to project');
 
       res.json({ coverImageUrl, project: updatedProject });
     } catch (error) {
-      console.error('Failed to upload cover image:', error);
+      req.log?.error({ err: error }, 'Failed to upload cover image');
       res.status(500).json({ error: 'Failed to upload cover image' });
     }
   }
@@ -3063,7 +3074,7 @@ app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
       const storagePath = extractPathFromUrl(project.metadata.coverImageUrl, 'images');
       if (storagePath) {
         await deleteFile('images', storagePath).catch((err) => {
-          console.error('Failed to delete cover image:', err);
+          req.log?.error({ err }, 'Failed to delete cover image');
           // Continue even if deletion fails
         });
       }
@@ -3086,7 +3097,7 @@ app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
 
     res.json({ success: true, project: updatedProject });
   } catch (error) {
-    console.error('Failed to delete cover image:', error);
+    req.log?.error({ err: error }, 'Failed to delete cover image');
     res.status(500).json({ error: 'Failed to delete cover image' });
   }
 });
@@ -3122,7 +3133,7 @@ app.put('/api/projects/:projectId/metadata', requireAuth, async (req, res) => {
 
     res.json(updatedProject);
   } catch (error) {
-    console.error('Failed to update project metadata:', error);
+    req.log?.error({ err: error }, 'Failed to update project metadata');
     const errorMessage = error instanceof Error ? error.message : 'Failed to update project metadata';
     res.status(500).json({ error: errorMessage });
   }
@@ -3188,11 +3199,11 @@ app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, async
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    console.log(`✏️ Название главы обновлено: "${chapter.title}"`);
+    req.log?.info({ event: 'chapter.title.updated', chapterId: req.params.chapterId, title: chapter.title }, `Chapter title updated: "${chapter.title}"`);
 
     res.json(chapter);
   } catch (error) {
-    console.error('Failed to update chapter title:', error);
+    req.log?.error({ err: error }, 'Failed to update chapter title');
     res.status(500).json({ error: 'Failed to update chapter title' });
   }
 });
@@ -3221,14 +3232,14 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, asyn
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    console.log(`🔢 Номер главы обновлён: "${chapter.title}" → ${number}`);
+    req.log?.info({ event: 'chapter.number.updated', chapterId: req.params.chapterId, chapterTitle: chapter.title, number }, `Chapter number updated: "${chapter.title}" → ${number}`);
 
     // Return updated project with reordered chapters
     // No delay needed - Supabase updates are synchronous within the same connection
     const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
     res.json(project);
   } catch (error) {
-    console.error('Failed to update chapter number:', error);
+    req.log?.error({ err: error }, 'Failed to update chapter number');
     const errorMessage = error instanceof Error ? error.message : 'Failed to update chapter number';
     res.status(500).json({ error: errorMessage });
   }
@@ -3250,7 +3261,7 @@ app.put('/api/projects/:projectId/chapters/order', requireAuth, async (req, res)
     const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
     res.json(project);
   } catch (error) {
-    console.error('Failed to reorder chapters:', error);
+    req.log?.error({ err: error }, 'Failed to reorder chapters');
     const message = error instanceof Error ? error.message : 'Failed to reorder chapters';
     res.status(500).json({ error: message });
   }
@@ -3287,7 +3298,7 @@ app.put(
         return res.status(404).json({ error: 'Paragraph not found' });
       }
 
-      console.log(`✏️  Абзац обновлён: ${paragraph.id.slice(0, 8)}... -> ${paragraph.status}`);
+      req.log?.debug({ paragraphId: paragraph.id.slice(0, 8), status: paragraph.status }, 'Paragraph updated');
 
       res.json(paragraph);
     } catch (error) {
@@ -3325,7 +3336,7 @@ app.post(
         }
       }
 
-      console.log(`✏️  Массовое обновление: ${results.length} абзацев -> ${status}`);
+      req.log?.info({ event: 'paragraphs.bulk_updated', count: results.length, status }, `Bulk update: ${results.length} paragraphs -> ${status}`);
 
       res.json({ updated: results.length, paragraphs: results });
     } catch (error) {
@@ -3362,21 +3373,22 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
     const filename = `${sanitizeFilename(project.name)}-${Date.now()}.${format}`;
     const tmpPath = path.join(tmpDir, filename);
 
-    console.log(`📝 Начало экспорта: ${project.name} -> ${format.toUpperCase()}`);
-    console.log(`   Временный файл: ${tmpPath}`);
-    console.log(`   Временная директория: ${tmpDir} (VERCEL=${!!process.env.VERCEL})`);
+    req.log?.info(
+      { event: 'export.start', projectId: req.params.projectId, projectName: project.name, format, tmpPath, tmpDir, vercel: !!process.env.VERCEL },
+      `Export started: ${project.name} -> ${format.toUpperCase()}`
+    );
 
     // Ensure tmp directory exists (should already exist on Vercel, but safe to check)
     if (!fs.existsSync(tmpDir)) {
       try {
         fs.mkdirSync(tmpDir, { recursive: true });
-        console.log(`   ✅ Создана временная директория: ${tmpDir}`);
+        req.log?.debug({ tmpDir }, 'Created temp directory');
       } catch (mkdirError: any) {
-        console.error(`   ❌ Ошибка создания директории: ${mkdirError.message}`);
+        req.log?.error({ err: mkdirError, tmpDir }, 'Failed to create temp directory');
         throw new Error(`Не удалось создать временную директорию: ${tmpDir}. Ошибка: ${mkdirError.message}`);
       }
     } else {
-      console.log(`   ✅ Временная директория существует: ${tmpDir}`);
+      req.log?.debug({ tmpDir }, 'Temp directory exists');
     }
 
     try {
@@ -3417,16 +3429,16 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
 
         if (toDeleteNames.length > 0) {
           const paths = toDeleteNames.map((name) => `${folder}/${name}`);
-          console.log(`🧹 Auto-clean exports: deleting ${paths.length} files from exports/${folder}/`);
+          req.log?.debug({ pathsCount: paths.length, folder }, 'Auto-clean exports: deleting old files');
           await deleteFiles('exports', paths);
         }
       } catch (cleanupErr) {
         // Cleanup must never break export itself
-        console.warn('⚠️ Auto-clean exports failed (continuing):', cleanupErr);
+        req.log?.warn({ err: cleanupErr }, 'Auto-clean exports failed (continuing)');
       }
 
       // Export project to temporary file
-      console.log(`   Генерация файла...`);
+      req.log?.debug('Generating file...');
       const exportedPath = await exportProject(project, {
         format,
         outputDir: tmpDir,
@@ -3434,7 +3446,7 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
         author,
       });
 
-      console.log(`   ✅ Файл создан: ${exportedPath}`);
+      req.log?.debug({ exportedPath }, 'File created');
 
       // Check if file exists
       if (!fs.existsSync(exportedPath)) {
@@ -3442,15 +3454,15 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       }
 
       // Read file as buffer
-      console.log(`   Чтение файла...`);
+      req.log?.debug('Reading file...');
       const fileBuffer = fs.readFileSync(exportedPath);
-      console.log(`   ✅ Файл прочитан: ${fileBuffer.length} байт`);
+      req.log?.debug({ size: fileBuffer.length }, 'File read');
 
       // Upload to Supabase Storage (recommended for Vercel)
       const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
       const storagePath = `${projectId}/${filename}`;
 
-      console.log(`   ☁️ Загрузка в Supabase Storage: bucket=exports path=${storagePath}`);
+      req.log?.debug({ bucket: 'exports', storagePath }, 'Uploading to Supabase Storage');
       const uploaded = await uploadFile('exports', storagePath, fileBuffer, {
         contentType,
         cacheControl: '3600',
@@ -3463,13 +3475,14 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       // Clean up temporary file after upload
       try {
         fs.unlinkSync(exportedPath);
-        console.log(`   ✅ Временный файл удален`);
+        req.log?.debug('Temp file removed');
       } catch (cleanupError) {
-        console.warn(`   ⚠️ Не удалось удалить временный файл: ${cleanupError}`);
+        req.log?.warn({ err: cleanupError }, 'Failed to remove temp file');
       }
 
-      console.log(
-        `📤 Экспорт проекта завершен: ${project.name} -> ${format.toUpperCase()} (${filename}), storagePath=${storagePath}`
+      req.log?.info(
+        { event: 'export.completed', projectId, projectName: project.name, format, filename, storagePath },
+        `Export completed: ${project.name} -> ${format.toUpperCase()} (${filename})`
       );
 
       // downloadUrl: same-origin proxy so browser downloads instead of opening (Content-Disposition: attachment)
@@ -3496,7 +3509,7 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       throw exportError;
     }
   } catch (error: any) {
-    console.error('Export error:', error);
+    req.log?.error({ err: error }, 'Export error');
     res.status(500).json({ error: error.message || 'Failed to export project' });
   }
 });
@@ -3538,7 +3551,7 @@ app.get('/api/projects/:id/export/download', requireAuth, async (req, res) => {
     res.send(buffer);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Download failed';
-    console.error('Export download error:', error);
+    req.log?.error({ err: error }, 'Export download error');
     res.status(500).json({ error: msg });
   }
 });
@@ -3749,8 +3762,16 @@ if (!process.env.VERCEL) {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 `);
+      logger.info(
+        {
+          event: 'server.started',
+          port: PORT,
+          hasOpenAI: !!config.openai.apiKey,
+        },
+        `Server listening on http://localhost:${PORT}`
+      );
     });
   }
 
-  startServer().catch(console.error);
+  startServer().catch((err) => logger.error({ err }, 'Server failed to start'));
 }

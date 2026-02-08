@@ -14,6 +14,7 @@ import type { TextChunk } from '../types/common.js';
 import { TRANSLATOR_SYSTEM_PROMPT, createTranslatorPrompt } from '../prompts/system/translator.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
+import { log } from '../logger.js';
 
 interface TranslateStageOptions {
   context: AgentContext;
@@ -34,10 +35,7 @@ export class TranslateStage {
       );
     }
     this.provider = provider;
-    console.log(
-      `[TranslateStage] Initialized with provider: ${!!this.provider}, has complete: ${typeof this
-        .provider.complete}`
-    );
+    log.debug('TranslateStage initialized', { hasProvider: !!this.provider, hasComplete: typeof this.provider.complete });
   }
 
   async execute(
@@ -47,8 +45,8 @@ export class TranslateStage {
     const startTime = Date.now();
     let totalTokens = 0;
 
-    // Validate provider
     if (!this.provider) {
+      log.warn('TranslateStage.execute: provider not initialized');
       return {
         stage: 'translate',
         success: false,
@@ -59,13 +57,16 @@ export class TranslateStage {
     }
 
     if (typeof this.provider.complete !== 'function') {
+      log.warn('TranslateStage.execute: provider missing complete method', {
+        providerType: typeof this.provider,
+        hasComplete: !!this.provider.complete,
+      });
       return {
         stage: 'translate',
         success: false,
         tokensUsed: 0,
         duration: Date.now() - startTime,
-        error: `Translation provider is missing complete method. Provider type: ${typeof this
-          .provider}, has complete: ${!!this.provider.complete}`,
+        error: `Translation provider is missing complete method. Provider type: ${typeof this.provider}, has complete: ${!!this.provider.complete}`,
       };
     }
 
@@ -87,32 +88,30 @@ export class TranslateStage {
         preserveParagraphs: true,
       });
 
-      console.log(`[TranslateStage] Разбито на ${chunks.length} чанков для перевода`);
+      log.info(`TranslateStage: split into ${chunks.length} chunks for translation`, { chunksCount: chunks.length });
 
       // Translate each chunk
       const chunkResults: ChunkTranslation[] = [];
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
-        console.log(`[TranslateStage] Перевод чанка ${i + 1}/${chunks.length} (ID: ${chunk.id}, токенов: ${chunk.tokenCount})`);
-        
+        log.debug(`TranslateStage: chunk ${i + 1}/${chunks.length}`, { chunkId: chunk.id, tokenCount: chunk.tokenCount });
+
         try {
           const temperature = options.temperature ?? 0.7;
           const result = await this.translateChunk(chunk, glossaryText, contextText, styleGuide, temperature);
 
           if (!result.translation.translated || result.translation.translated.trim().length === 0) {
-            console.warn(`[TranslateStage] ⚠️ Чанк ${i + 1} вернул пустой перевод!`);
-            console.warn(`   Оригинальный текст: ${chunk.content.substring(0, 200)}...`);
+            log.warn(`TranslateStage: chunk ${i + 1} returned empty translation`, { chunkId: chunk.id });
           } else {
-            console.log(`[TranslateStage] ✅ Чанк ${i + 1} переведен (${result.translation.translated.length} символов)`);
+            log.debug(`TranslateStage: chunk ${i + 1} translated`, { length: result.translation.translated.length });
           }
 
           chunkResults.push(result.translation);
           totalTokens += result.tokensUsed;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[TranslateStage] ❌ Ошибка при переводе чанка ${i + 1}: ${errorMessage}`);
-          console.error(`   Чанк ID: ${chunk.id}, Индекс: ${chunk.index}`);
+          log.error(`TranslateStage: chunk ${i + 1} translation failed: ${errorMessage}`, error instanceof Error ? error : undefined);
           
           // Add empty translation to maintain chunk order, but mark as failed
           chunkResults.push({
@@ -125,7 +124,7 @@ export class TranslateStage {
         }
       }
 
-      console.log(`[TranslateStage] Всего переведено ${chunkResults.length} чанков, токенов использовано: ${totalTokens}`);
+      log.info('TranslateStage: all chunks translated', { chunksCount: chunkResults.length, totalTokens });
 
       // Merge translated chunks
       // Extract index from chunkId (format: "chunk_0", "chunk_1", etc.)
@@ -134,7 +133,7 @@ export class TranslateStage {
         const index = indexMatch ? parseInt(indexMatch[1], 10) : -1;
         
         if (index === -1) {
-          console.error(`[TranslateStage] ❌ Не удалось извлечь индекс из chunkId: ${c.chunkId}`);
+          log.error(`TranslateStage: failed to extract index from chunkId: ${c.chunkId}`);
         }
         
         return {
@@ -146,24 +145,24 @@ export class TranslateStage {
       // Filter out invalid chunks and log
       const validChunks = chunksToMerge.filter(c => c.index >= 0);
       if (validChunks.length !== chunkResults.length) {
-        console.error(`[TranslateStage] ❌ Потеряно ${chunkResults.length - validChunks.length} чанков при извлечении индексов!`);
+        log.error(`TranslateStage: lost ${chunkResults.length - validChunks.length} chunks when extracting indices`);
       }
 
-      console.log(`[TranslateStage] Объединение ${validChunks.length} чанков...`);
+      log.debug('TranslateStage: merging chunks', { validChunksCount: validChunks.length });
       const translatedText = mergeChunks(validChunks);
-      
-      console.log(`[TranslateStage] ✅ Финальный перевод: ${translatedText.length} символов`);
-      
+
+      log.debug('TranslateStage: final translation length', { length: translatedText.length });
+
       if (translatedText.length === 0) {
-        console.error(`[TranslateStage] ❌ КРИТИЧЕСКАЯ ОШИБКА: Финальный перевод пуст после объединения ${validChunks.length} чанков!`);
+        log.error('TranslateStage: critical - final translation empty after merging', { validChunksCount: validChunks.length });
       }
 
-      // Final validation
       if (!translatedText || translatedText.trim().length === 0) {
-        console.error(`[TranslateStage] ❌ КРИТИЧЕСКАЯ ОШИБКА: Финальный перевод пуст!`);
-        console.error(`   Количество чанков: ${chunks.length}`);
-        console.error(`   Переведено чанков: ${chunkResults.length}`);
-        console.error(`   Валидных чанков для объединения: ${validChunks.length}`);
+        log.error('TranslateStage: critical - final translation empty', {
+          chunksCount: chunks.length,
+          chunkResultsCount: chunkResults.length,
+          validChunksCount: validChunks.length,
+        });
         
         return {
           stage: 'translate',
@@ -174,12 +173,14 @@ export class TranslateStage {
         };
       }
 
-      // Verify chunk count matches
       if (chunkResults.length !== chunks.length) {
-        console.error(`[TranslateStage] ❌ Несоответствие: переведено ${chunkResults.length} из ${chunks.length} чанков!`);
+        log.warn(`TranslateStage: chunk count mismatch: ${chunkResults.length} translated of ${chunks.length}`);
       }
 
-      console.log(`[TranslateStage] ✅ Перевод завершен успешно: ${translatedText.length} символов из ${sourceText.length} оригинальных`);
+      log.info('TranslateStage: translation completed successfully', {
+        translatedLength: translatedText.length,
+        sourceLength: sourceText.length,
+      });
 
       return {
         stage: 'translate',
@@ -193,10 +194,12 @@ export class TranslateStage {
         duration: Date.now() - startTime,
       };
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
+      log.error(`TranslateStage.execute failed: ${errMsg}`, error instanceof Error ? error : undefined);
       return {
         stage: 'translate',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errMsg,
         tokensUsed: totalTokens,
         duration: Date.now() - startTime,
       };
@@ -266,14 +269,13 @@ export class TranslateStage {
           // Store JSON data in translation for later parsing
           // We'll need to modify ChunkTranslation type to store this
           if (translatedText && translatedText.trim().length > 0) {
-            console.log(`[TranslateStage] ✅ Чанк ${chunk.id} переведен через JSON (${translatedText.length} символов)`);
+            log.debug(`TranslateStage: chunk ${chunk.id} translated via JSON`, { length: translatedText.length });
           }
         } else {
           throw new Error('Invalid JSON structure: missing paragraphs array');
         }
       } catch (jsonError) {
-        console.warn(`[TranslateStage] ⚠️ JSON перевод не удался для чанка ${chunk.id}, используем текстовый формат`);
-        console.warn(`   Ошибка: ${jsonError instanceof Error ? jsonError.message : 'Unknown error'}`);
+        log.warn(`TranslateStage: JSON translation failed for chunk ${chunk.id}, using text format`, jsonError instanceof Error ? jsonError : undefined);
         
         // Fallback to text format
         if (typeof this.provider.complete === 'function') {
@@ -298,8 +300,7 @@ export class TranslateStage {
     }
     
     if (!translatedText || translatedText.length === 0) {
-      console.error(`[TranslateStage] ❌ Чанк ${chunk.id} вернул пустой ответ от провайдера!`);
-      console.error(`   Оригинальный текст чанка: ${chunk.content.substring(0, 100)}...`);
+      log.error(`TranslateStage: chunk ${chunk.id} returned empty response from provider`, { chunkId: chunk.id });
     }
 
     return {

@@ -21,6 +21,7 @@ import {
 
 import type { AppConfig } from '../config.js';
 import type { Project, Chapter, GlossaryEntry } from '../storage/database.js';
+import { logger } from '../logger.js';
 
 // Cache for NovelAgents per project
 const agentCache = new Map<string, NovelAgent>();
@@ -128,14 +129,13 @@ export function createPipeline(
   const isReasoningModel = (m: string) => /^gpt-5|^o1-|^o3-|^o4-/i.test(m);
   const analysisModel = isReasoningModel(rawAnalysisModel) ? 'gpt-4.1-mini' : rawAnalysisModel;
   if (rawAnalysisModel !== analysisModel) {
-    console.log(`[Pipeline] Analysis: reasoning model "${rawAnalysisModel}" not allowed for analysis, using "${analysisModel}"`);
+    logger.debug({ rawAnalysisModel, analysisModel }, 'Analysis: reasoning model not allowed for analysis, using fallback');
   }
 
   const translationModel = modelForChatCompletions(getStageModel(project, 'translation', 'gpt-5-mini') || getStageModel(project, 'translation', 'gpt-4.1-mini') || config.openai.model);
   const editingModel = modelForChatCompletions(getStageModel(project, 'editing', 'gpt-4.1-mini') || 'gpt-4o-mini');
 
-  console.log(`[Pipeline] Creating providers: analysis=${analysisModel}, translation=${translationModel}, editing=${editingModel}`);
-  console.log(`[Pipeline] API key present: ${!!config.openai.apiKey}, length: ${config.openai.apiKey?.length || 0}`);
+  logger.debug({ analysisModel, translationModel, editingModel, hasApiKey: !!config.openai.apiKey }, 'Creating pipeline providers');
   
   let analysisProvider: OpenAIProvider;
   let translationProvider: OpenAIProvider;
@@ -148,9 +148,9 @@ export function createPipeline(
       model: analysisModel,
       timeout: config.openai.timeout,
     });
-    console.log(`[Pipeline] ✅ Analysis provider created: ${!!analysisProvider}, has completeJSON: ${typeof analysisProvider.completeJSON}`);
+    logger.debug('Analysis provider created');
   } catch (error) {
-    console.error(`[Pipeline] ❌ Failed to create analysis provider:`, error);
+    logger.error({ err: error }, 'Failed to create analysis provider');
     throw new Error(`Failed to create analysis provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
@@ -161,9 +161,9 @@ export function createPipeline(
       model: translationModel,
       timeout: config.openai.timeout,
     });
-    console.log(`[Pipeline] ✅ Translation provider created: ${!!translationProvider}, has complete: ${typeof translationProvider.complete}`);
+    logger.debug('Translation provider created');
   } catch (error) {
-    console.error(`[Pipeline] ❌ Failed to create translation provider:`, error);
+    logger.error({ err: error }, 'Failed to create translation provider');
     throw new Error(`Failed to create translation provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
@@ -174,9 +174,9 @@ export function createPipeline(
       model: editingModel,
       timeout: config.openai.timeout,
     });
-    console.log(`[Pipeline] ✅ Editing provider created: ${!!editingProvider}, has complete: ${typeof editingProvider.complete}`);
+    logger.debug('Editing provider created');
   } catch (error) {
-    console.error(`[Pipeline] ❌ Failed to create editing provider:`, error);
+    logger.error({ err: error }, 'Failed to create editing provider');
     throw new Error(`Failed to create editing provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
@@ -188,11 +188,10 @@ export function createPipeline(
   
   // Validate providers were created
   if (!providers.analysis || !providers.translation || !providers.editing) {
-    console.error(`[Pipeline] ❌ Provider validation failed:`, {
-      analysis: !!providers.analysis,
-      translation: !!providers.translation,
-      editing: !!providers.editing,
-    });
+    logger.error(
+      { analysis: !!providers.analysis, translation: !!providers.translation, editing: !!providers.editing },
+      'Provider validation failed'
+    );
     throw new Error('Failed to create LLM providers');
   }
   
@@ -208,16 +207,23 @@ export function createPipeline(
   }
   // Editing stage also needs completeJSON for quality check (optional)
   if (typeof providers.editing.completeJSON !== 'function') {
-    console.warn('[Pipeline] Editing provider missing completeJSON - quality check will be skipped');
+    logger.warn('Editing provider missing completeJSON - quality check will be skipped');
   }
   
   const agent = getAgentForProject(project);
   
-  console.log(`[Pipeline] About to create TranslationPipeline with providers:`);
-  console.log(`  - analysis: ${!!providers.analysis}, model: ${(providers.analysis as any)?.model || 'unknown'}`);
-  console.log(`  - translation: ${!!providers.translation}, model: ${(providers.translation as any)?.model || 'unknown'}`);
-  console.log(`  - editing: ${!!providers.editing}, model: ${(providers.editing as any)?.model || 'unknown'}`);
-  console.log(`  - agent: ${!!agent}`);
+  logger.debug(
+    {
+      hasAnalysis: !!providers.analysis,
+      analysisModel: (providers.analysis as any)?.model,
+      hasTranslation: !!providers.translation,
+      translationModel: (providers.translation as any)?.model,
+      hasEditing: !!providers.editing,
+      editingModel: (providers.editing as any)?.model,
+      hasAgent: !!agent,
+    },
+    'Creating TranslationPipeline with providers'
+  );
   
   try {
     const pipeline = new TranslationPipeline({
@@ -225,10 +231,10 @@ export function createPipeline(
       agent,
     });
     
-    console.log(`[Pipeline] TranslationPipeline created successfully`);
+    logger.debug('TranslationPipeline created successfully');
     return pipeline;
   } catch (error) {
-    console.error(`[Pipeline] ❌ Failed to create TranslationPipeline:`, error);
+    logger.error({ err: error }, 'Failed to create TranslationPipeline');
     throw error;
   }
 }
@@ -293,7 +299,7 @@ export async function translateChapterWithPipeline(
     if (!sourceText) {
       throw new Error('Chapter has no original text to process. Add or re-import chapter content.');
     }
-    console.log(`🔮 [Engine] Запуск TranslationPipeline... stages=${JSON.stringify(stages)}, sourceText.length=${sourceText.length}`);
+    logger.info({ stages, sourceTextLength: sourceText.length }, 'Engine: starting TranslationPipeline');
     const result = await pipeline.translateChapter(
       sourceText,
       chapter.number,
@@ -306,7 +312,7 @@ export async function translateChapterWithPipeline(
       throw new Error(result.finalTranslation || 'Translation returned empty result');
     }
     if (analysisOnly && !result.stage1.success) {
-      console.error(`❌ [Engine] Analysis stage failed: ${result.stage1.error ?? 'unknown'}`);
+      logger.error({ error: result.stage1.error }, 'Engine: analysis stage failed');
       throw new Error(`Analysis failed: ${result.stage1.error ?? 'unknown'}`);
     }
 
@@ -416,7 +422,17 @@ export async function translateChapterWithPipeline(
       if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: t.id, updates });
     }
 
-    console.log(`📚 [Engine] Найдено: ${newCharacters.length} персонажей, ${newLocations.length} локаций, ${newTerms.length} терминов; обновлено существующих: ${glossaryUpdatesExisting.length}; упоминаний в главе: ${glossaryAppearanceEntryIds.length} (Глава ${chapter.number})`);
+    logger.info(
+      {
+        newCharacters: newCharacters.length,
+        newLocations: newLocations.length,
+        newTerms: newTerms.length,
+        glossaryUpdatesExisting: glossaryUpdatesExisting.length,
+        glossaryAppearanceEntryIds: glossaryAppearanceEntryIds.length,
+        chapterNumber: chapter.number,
+      },
+      `Engine: found ${newCharacters.length} characters, ${newLocations.length} locations, ${newTerms.length} terms; updated ${glossaryUpdatesExisting.length} existing; ${glossaryAppearanceEntryIds.length} mentions in chapter`
+    );
   }
 
     // Update agent cache
@@ -442,8 +458,7 @@ export async function translateChapterWithPipeline(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`❌ [Engine] Translation failed: ${errorMessage}`);
-    console.error('Full error:', error);
+    logger.error({ err: error }, `Translation failed: ${errorMessage}`);
     
     // Re-throw with more context
     throw new Error(`Translation failed: ${errorMessage}`);

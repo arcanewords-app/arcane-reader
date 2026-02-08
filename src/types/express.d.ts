@@ -7,5 +7,9 @@ declare namespace Express {
       role: 'guest' | 'author' | 'author_plus' | 'super_author' | 'admin';
     } | null;
     token?: string;
+    /** Request ID (correlation). Set by requestContext middleware. */
+    id?: string;
+    /** Request-scoped logger. Set by requestContext middleware. */
+    log?: import('pino').Logger;
   }
 }

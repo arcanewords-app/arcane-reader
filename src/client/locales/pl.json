@@ -264,6 +264,8 @@
     "noSuggestions": "Nie znaleziono propozycji scalenia.",
     "applySelected": "Zastosuj wybrane ({{count}})",
     "keepEntry": "Zostaw wpis",
+    "entriesToMerge": "Wpisy do scalenia",
+    "keepAsPrimary": "Zostaw jako główną",
     "mergeReason": "Powód: {{reason}}",
     "mergeError": "Nie udało się scalić wpisów.",
     "suggestMergesLoading": "Analizowanie...",

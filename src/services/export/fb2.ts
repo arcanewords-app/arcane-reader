@@ -7,6 +7,7 @@
 import path from 'path';
 import fs from 'fs';
 import type { ExportProject, ExportChapter } from './common.js';
+import { logger } from '../../logger.js';
 
 export interface Fb2ExportOptions {
   outputDir?: string;
@@ -29,43 +30,36 @@ export async function exportToFb2(
     ? path.join(outputDir, filename)
     : path.resolve(outputDir, filename);
 
-  console.log(`[FB2 Export] Output directory: ${outputDir}`);
-  console.log(`[FB2 Export] Output path: ${outputPath}`);
-  console.log(`[FB2 Export] Path is absolute: ${path.isAbsolute(outputPath)}`);
+  logger.debug({ outputDir, outputPath, isAbsolute: path.isAbsolute(outputPath) }, 'FB2 export: output paths');
 
-  // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
     try {
       fs.mkdirSync(outputDir, { recursive: true });
-      console.log(`[FB2 Export] Created output directory: ${outputDir}`);
+      logger.debug({ outputDir }, 'FB2 export: created output directory');
     } catch (mkdirError: any) {
-      console.error(`[FB2 Export] Failed to create directory: ${mkdirError.message}`);
+      logger.error({ err: mkdirError, outputDir }, 'FB2 export: failed to create directory');
       throw new Error(`Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${mkdirError.message}`);
     }
   } else {
-    console.log(`[FB2 Export] Output directory exists: ${outputDir}`);
+    logger.debug({ outputDir }, 'FB2 export: output directory exists');
   }
 
-  // Generate FB2 XML
-  console.log(`[FB2 Export] Generating FB2 XML...`);
+  logger.debug('FB2 export: generating XML');
   const xml = generateFb2Xml(project);
-  console.log(`[FB2 Export] XML generated, length: ${xml.length} characters`);
+  logger.debug({ xmlLength: xml.length }, 'FB2 export: XML generated');
 
-  // Write to file
   try {
     fs.writeFileSync(outputPath, xml, 'utf-8');
-    console.log(`[FB2 Export] FB2 file written successfully: ${outputPath}`);
-    
-    // Verify file was created
+    logger.info({ outputPath }, 'FB2 export: file written successfully');
+
     if (!fs.existsSync(outputPath)) {
-      throw new Error(`FB2 файл не был создан по пути: ${outputPath}`);
+      throw new Error(`FB2 file was not created at: ${outputPath}`);
     }
-    
+
     const stats = fs.statSync(outputPath);
-    console.log(`[FB2 Export] File size: ${stats.size} bytes`);
+    logger.debug({ outputPath, size: stats.size }, 'FB2 export: file size');
   } catch (writeError: any) {
-    console.error(`[FB2 Export] Error writing file: ${writeError.message}`);
-    console.error(`[FB2 Export] Stack: ${writeError.stack}`);
+    logger.error({ err: writeError }, `FB2 export: error writing file: ${writeError.message}`);
     throw new Error(`Ошибка записи FB2 файла: ${writeError.message}`);
   }
 

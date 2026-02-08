@@ -51,7 +51,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    const { logger } = await import('../logger.js');
+    logger.error({ err: error }, 'Auth middleware error');
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 }

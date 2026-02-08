@@ -182,8 +182,8 @@ export async function incrementTokenUsage(
     });
 
   if (error) {
-    console.error('Failed to increment token usage:', error);
-    // Don't throw - token tracking shouldn't block translation
+    const { logger } = await import('../logger.js');
+    logger.error({ err: error }, 'Failed to increment token usage');
   }
 }
 

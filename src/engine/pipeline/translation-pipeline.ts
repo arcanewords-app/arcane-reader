@@ -13,6 +13,7 @@ import { NovelAgent } from '../agents/novel-agent.js';
 import { AnalyzeStage } from '../stages/stage-1-analyze.js';
 import { TranslateStage } from '../stages/stage-2-translate.js';
 import { EditStage } from '../stages/stage-3-edit.js';
+import { log } from '../logger.js';
 
 export interface PipelineConfig {
   // Support both single provider (legacy) and per-stage providers
@@ -38,17 +39,22 @@ export class TranslationPipeline {
   private editStage: EditStage;
   
   constructor(config: PipelineConfig) {
-    console.log(`[Pipeline Constructor] Starting initialization...`);
-    console.log(`[Pipeline Constructor] config.providers: ${!!config.providers}, config.provider: ${!!config.provider}, config.agent: ${!!config.agent}`);
-    
-    // Support legacy single provider or new per-stage providers
+    log.debug('Pipeline constructor: starting initialization', {
+      hasProviders: !!config.providers,
+      hasProvider: !!config.provider,
+      hasAgent: !!config.agent,
+    });
+
     if (config.providers) {
-      console.log(`[Pipeline Constructor] Using per-stage providers`);
+      log.debug('Pipeline constructor: using per-stage providers');
       this.providers = config.providers;
-      console.log(`[Pipeline Constructor] Providers assigned: analysis=${!!this.providers.analysis}, translation=${!!this.providers.translation}, editing=${!!this.providers.editing}`);
+      log.debug('Pipeline constructor: providers assigned', {
+        analysis: !!this.providers.analysis,
+        translation: !!this.providers.translation,
+        editing: !!this.providers.editing,
+      });
     } else if (config.provider) {
-      // Legacy: use same provider for all stages
-      console.log(`[Pipeline Constructor] Using legacy single provider`);
+      log.debug('Pipeline constructor: using legacy single provider');
       this.providers = {
         analysis: config.provider,
         translation: config.provider,
@@ -58,43 +64,40 @@ export class TranslationPipeline {
       throw new Error('Either provider or providers must be provided');
     }
     
-    // Validate providers
     if (!this.providers.analysis || !this.providers.translation || !this.providers.editing) {
-      console.error(`[Pipeline Constructor] Provider validation failed:`, {
+      log.error('Pipeline constructor: provider validation failed', {
         analysis: !!this.providers.analysis,
         translation: !!this.providers.translation,
         editing: !!this.providers.editing,
       });
       throw new Error('All stage providers must be provided');
     }
-    
-    // Validate providers have required methods
-    console.log(`[Pipeline Constructor] Validating provider methods...`);
+
+    log.debug('Pipeline constructor: validating provider methods');
     if (typeof this.providers.analysis.completeJSON !== 'function') {
-      console.error(`[Pipeline Constructor] Analysis provider missing completeJSON. Provider:`, this.providers.analysis);
+      log.error('Pipeline constructor: analysis provider missing completeJSON');
       throw new Error('Analysis provider is missing completeJSON method (needed for structured output)');
     }
     if (typeof this.providers.translation.complete !== 'function') {
-      console.error(`[Pipeline Constructor] Translation provider missing complete. Provider:`, this.providers.translation);
+      log.error('Pipeline constructor: translation provider missing complete');
       throw new Error('Translation provider is missing complete method');
     }
     if (typeof this.providers.editing.complete !== 'function') {
-      console.error(`[Pipeline Constructor] Editing provider missing complete. Provider:`, this.providers.editing);
+      log.error('Pipeline constructor: editing provider missing complete');
       throw new Error('Editing provider is missing complete method');
     }
-    // Editing stage also needs completeJSON for quality check
     if (typeof this.providers.editing.completeJSON !== 'function') {
-      console.warn('[Pipeline Constructor] Editing provider missing completeJSON - quality check will be skipped');
+      log.warn('Pipeline constructor: editing provider missing completeJSON - quality check will be skipped');
     }
     
     this.agent = config.agent;
     
-    // Create stages with validated providers
-    console.log(`[Pipeline Constructor] Creating stages with validated providers:`);
-    console.log(`  - analysis: ${!!this.providers.analysis}, type: ${typeof this.providers.analysis}, model: ${(this.providers.analysis as any)?.model || 'unknown'}, has completeJSON: ${typeof this.providers.analysis?.completeJSON}`);
-    console.log(`  - translation: ${!!this.providers.translation}, type: ${typeof this.providers.translation}, model: ${(this.providers.translation as any)?.model || 'unknown'}, has complete: ${typeof this.providers.translation?.complete}`);
-    console.log(`  - editing: ${!!this.providers.editing}, type: ${typeof this.providers.editing}, model: ${(this.providers.editing as any)?.model || 'unknown'}, has complete: ${typeof this.providers.editing?.complete}`);
-    
+    log.debug('Pipeline constructor: creating stages with validated providers', {
+      analysis: !!this.providers.analysis,
+      translation: !!this.providers.translation,
+      editing: !!this.providers.editing,
+    });
+
     if (!this.providers.analysis) {
       throw new Error('Analysis provider is undefined before stage creation');
     }
@@ -105,26 +108,25 @@ export class TranslationPipeline {
       throw new Error('Editing provider is undefined before stage creation');
     }
     
-    console.log(`[Pipeline Constructor] Creating AnalyzeStage...`);
+    log.debug('Pipeline constructor: creating AnalyzeStage');
     this.analyzeStage = new AnalyzeStage(this.providers.analysis);
-    console.log(`[Pipeline Constructor] AnalyzeStage created: ${!!this.analyzeStage}`);
-    
-    console.log(`[Pipeline Constructor] Creating TranslateStage...`);
+    log.debug('Pipeline constructor: AnalyzeStage created');
+
+    log.debug('Pipeline constructor: creating TranslateStage');
     this.translateStage = new TranslateStage(this.providers.translation);
-    console.log(`[Pipeline Constructor] TranslateStage created: ${!!this.translateStage}`);
-    
-    console.log(`[Pipeline Constructor] Creating EditStage...`);
+    log.debug('Pipeline constructor: TranslateStage created');
+
+    log.debug('Pipeline constructor: creating EditStage');
     this.editStage = new EditStage(this.providers.editing);
-    console.log(`[Pipeline Constructor] EditStage created: ${!!this.editStage}`);
-    
-    console.log(`[Pipeline Constructor] All stages created successfully`);
-    
-    // Verify stages were created successfully
+    log.debug('Pipeline constructor: EditStage created');
+
+    log.debug('Pipeline constructor: all stages created successfully');
+
     if (!this.analyzeStage || !this.translateStage || !this.editStage) {
       throw new Error('Failed to create translation stages');
     }
-    
-    console.log(`[Pipeline Constructor] Initialization complete`);
+
+    log.debug('Pipeline constructor: initialization complete');
   }
   
   /**
@@ -171,7 +173,7 @@ export class TranslationPipeline {
       (options.runOnlyStage === 'editing' && options.existingTranslatedTextForEdit != null);
 
     if (onlyAnalysis) {
-      console.log(`[Pipeline] Run only: Analysis (chapter ${chapterNumber}), sourceText.length=${sourceText.length}`);
+      log.info(`Pipeline: run only analysis (chapter ${chapterNumber})`, { sourceTextLength: sourceText.length });
       const stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
         existingGlossary: context.glossary,
@@ -181,7 +183,10 @@ export class TranslationPipeline {
       totalTokens += stage1Result.tokensUsed;
       if (stage1Result.success && stage1Result.data) {
         this.agent.applyAnalysisResult(stage1Result.data);
-        console.log(`[Pipeline] Stage 1 complete. Found ${stage1Result.data.foundCharacters.length} characters, ${stage1Result.data.foundTerms.length} terms.`);
+        log.info('Pipeline: Stage 1 complete', {
+          characters: stage1Result.data.foundCharacters.length,
+          terms: stage1Result.data.foundTerms.length,
+        });
       }
       return {
         chapterNumber,
@@ -198,7 +203,7 @@ export class TranslationPipeline {
 
     if (onlyEditing) {
       const existingText = options.existingTranslatedTextForEdit ?? '';
-      console.log(`[Pipeline] Run only: Editing (chapter ${chapterNumber})`);
+      log.info(`Pipeline: run only editing (chapter ${chapterNumber})`);
       const stage3Result = await this.editStage.execute(
         existingText,
         sourceText,
@@ -228,7 +233,7 @@ export class TranslationPipeline {
       ? runStages.includes('analysis')
       : !options.runOnlyStage && !options.skipAnalysis;
     if (runStage1) {
-      console.log(`[Pipeline] Stage 1: Analyzing chapter ${chapterNumber}...`);
+      log.info(`Pipeline: Stage 1 analyzing chapter ${chapterNumber}`);
       stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
         existingGlossary: context.glossary,
@@ -238,13 +243,16 @@ export class TranslationPipeline {
       totalTokens += stage1Result.tokensUsed;
       if (stage1Result.success && stage1Result.data) {
         this.agent.applyAnalysisResult(stage1Result.data);
-        console.log(`[Pipeline] Stage 1 complete. Found ${stage1Result.data.foundCharacters.length} characters, ${stage1Result.data.foundTerms.length} terms.`);
+        log.info('Pipeline: Stage 1 complete', {
+          characters: stage1Result.data.foundCharacters.length,
+          terms: stage1Result.data.foundTerms.length,
+        });
       } else {
-        console.warn(`[Pipeline] Stage 1 failed: ${stage1Result.error}`);
+        log.warn(`Pipeline: Stage 1 failed: ${stage1Result.error}`);
       }
     } else {
       stage1Result = dummyStage1;
-      if (!runStages || !runStages.includes('translation')) console.log('[Pipeline] Stage 1: Skipped');
+      if (!runStages || !runStages.includes('translation')) log.debug('Pipeline: Stage 1 skipped');
     }
 
     // ============ STAGE 2: TRANSLATE ============
@@ -300,7 +308,7 @@ export class TranslationPipeline {
         'Editing-only requires existingTranslatedTextForEdit'
       );
     }
-    console.log(`[Pipeline] Stage 2: Translating...`);
+    log.info('Pipeline: Stage 2 translating');
     const ctxAfter1 = this.agent.getContext();
     const stage2Result = await this.translateStage.execute(sourceText, {
       context: ctxAfter1,
@@ -321,7 +329,7 @@ export class TranslationPipeline {
         `Translation failed: ${stage2Result.error}`
       );
     }
-    console.log(`[Pipeline] Stage 2 complete. Translated ${stage2Result.data.chunkResults.length} chunks.`);
+    log.info('Pipeline: Stage 2 complete', { chunks: stage2Result.data.chunkResults.length });
     checkCancelled();
 
     // ============ STAGE 3: EDIT ============
@@ -331,7 +339,7 @@ export class TranslationPipeline {
       ? runStages.includes('editing')
       : !options.runOnlyStage && !options.skipEditing;
     if (runStage3) {
-      console.log(`[Pipeline] Stage 3: Editing...`);
+      log.info('Pipeline: Stage 3 editing');
       stage3Result = await this.editStage.execute(
         stage2Result.data.translatedText,
         sourceText,
@@ -340,15 +348,15 @@ export class TranslationPipeline {
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {
         finalTranslation = stage3Result.data.finalText;
-        console.log(`[Pipeline] Stage 3 complete. Quality score: ${stage3Result.data.qualityScore ?? 'N/A'}`);
+        log.info('Pipeline: Stage 3 complete', { qualityScore: stage3Result.data.qualityScore ?? 'N/A' });
       } else {
         finalTranslation = stage2Result.data.translatedText;
-        console.warn(`[Pipeline] Stage 3 failed, using raw translation: ${stage3Result.error}`);
+        log.warn(`Pipeline: Stage 3 failed, using raw translation: ${stage3Result.error}`);
       }
     } else {
       stage3Result = dummyStage3;
       finalTranslation = stage2Result.data.translatedText;
-      console.log('[Pipeline] Stage 3: Skipped');
+      log.debug('Pipeline: Stage 3 skipped');
     }
     
     // ============ RECORD CHAPTER ============
@@ -364,8 +372,11 @@ export class TranslationPipeline {
     this.agent.recordChapterTranslation(chapterSummary);
     
     const totalDuration = Date.now() - startTime;
-    console.log(`[Pipeline] Translation complete in ${(totalDuration / 1000).toFixed(1)}s, ${totalTokens} tokens used.`);
-    
+    log.info(`Pipeline: translation complete in ${(totalDuration / 1000).toFixed(1)}s`, {
+      totalTokens,
+      durationSec: (totalDuration / 1000).toFixed(1),
+    });
+
     return {
       chapterNumber,
       originalText: sourceText,
@@ -389,7 +400,7 @@ export class TranslationPipeline {
     const results: PipelineResult[] = [];
     
     for (const chapter of chapters) {
-      console.log(`\n========== Chapter ${chapter.number} ==========\n`);
+      log.debug(`Pipeline: chapter ${chapter.number}`, { chapterNumber: chapter.number });
       const result = await this.translateChapter(chapter.text, chapter.number, options);
       results.push(result);
     }
@@ -421,6 +432,12 @@ export class TranslationPipeline {
     totalDuration: number,
     error: string
   ): PipelineResult {
+    log.error('Pipeline: failed result', {
+      chapterNumber,
+      totalTokens,
+      totalDurationMs: totalDuration,
+      error,
+    });
     return {
       chapterNumber,
       originalText,
