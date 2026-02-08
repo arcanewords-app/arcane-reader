@@ -9,7 +9,10 @@
 
 import { logger as appLogger } from '../logger.js';
 
-function withData(msg: string, data?: Record<string, unknown> | Error): [Record<string, unknown>, string] {
+function withData(
+  msg: string,
+  data?: Record<string, unknown> | Error
+): [Record<string, unknown>, string] {
   if (data instanceof Error) {
     return [{ err: data }, msg];
   }

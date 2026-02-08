@@ -13,7 +13,12 @@ interface ProjectListProps {
   refreshTrigger?: number; // Increment to trigger refresh
 }
 
-export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTrigger }: ProjectListProps) {
+export function ProjectList({
+  selectedId,
+  onSelect,
+  onProjectCreated,
+  refreshTrigger,
+}: ProjectListProps) {
   const { t } = useTranslation();
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +48,7 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
 
   const handleCreate = async () => {
     if (!newProjectName.trim()) return;
-    
+
     setCreating(true);
     try {
       const project = await api.createProject(newProjectName.trim());
@@ -102,7 +107,7 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
               const projectType = project.type || 'text';
               const typeIcon = getProjectTypeIcon(projectType);
               const typeColor = getProjectTypeColor(projectType);
-              
+
               return (
                 <div
                   key={project.id}
@@ -162,4 +167,3 @@ export function ProjectList({ selectedId, onSelect, onProjectCreated, refreshTri
     </>
   );
 }
-

@@ -10,7 +10,9 @@
  */
 export function validateToken(token: string | undefined | null): asserts token is string {
   if (!token || typeof token !== 'string' || token.trim().length === 0) {
-    throw new Error('Token is required for RLS authentication. All database operations require a valid user token.');
+    throw new Error(
+      'Token is required for RLS authentication. All database operations require a valid user token.'
+    );
   }
 
   // Basic JWT format validation (3 parts separated by dots: header.payload.signature)
@@ -20,7 +22,7 @@ export function validateToken(token: string | undefined | null): asserts token i
   }
 
   // Validate each part is non-empty
-  if (parts.some(part => part.length === 0)) {
+  if (parts.some((part) => part.length === 0)) {
     throw new Error('Invalid token format: JWT parts cannot be empty');
   }
 }

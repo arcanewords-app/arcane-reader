@@ -101,11 +101,7 @@ export function TokenUsageProvider({ children }: { children: preact.ComponentChi
     refresh,
   };
 
-  return (
-    <TokenUsageContext.Provider value={value}>
-      {children}
-    </TokenUsageContext.Provider>
-  );
+  return <TokenUsageContext.Provider value={value}>{children}</TokenUsageContext.Provider>;
 }
 
 export function useTokenUsageContext(): TokenUsageContextValue {

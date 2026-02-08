@@ -12,10 +12,11 @@ export async function parseText(fileBuffer: Buffer, filename: string): Promise<P
   const text = fileBuffer.toString('utf-8');
 
   // Extract title from filename (remove extension and numbers)
-  const title = filename
-    .replace(/\.txt$/i, '')
-    .replace(/^\d+[._\-\s]*/, '')
-    .trim() || 'Глава 1';
+  const title =
+    filename
+      .replace(/\.txt$/i, '')
+      .replace(/^\d+[._\-\s]*/, '')
+      .trim() || 'Глава 1';
 
   // Split into chapters if there are clear separators
   // For now, treat entire file as one chapter

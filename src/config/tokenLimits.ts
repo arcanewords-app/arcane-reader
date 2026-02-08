@@ -130,21 +130,21 @@ export function estimateTokensByStage(
   total: number;
 } {
   const charsIn10K = textLength / 10000;
-  
+
   const translation = Math.ceil(TOKEN_LIMITS.TOKENS_PER_10K_CHARS.translation * charsIn10K);
   let analysis: number | undefined;
   let editing: number | undefined;
-  
+
   if (!options.skipAnalysis) {
     analysis = Math.ceil(TOKEN_LIMITS.TOKENS_PER_10K_CHARS.analysis * charsIn10K);
   }
-  
+
   if (!options.skipEditing) {
     editing = Math.ceil(TOKEN_LIMITS.TOKENS_PER_10K_CHARS.editing * charsIn10K);
   }
-  
+
   const total = (analysis || 0) + translation + (editing || 0);
-  
+
   const result: {
     analysis?: number;
     translation: number;
@@ -154,14 +154,14 @@ export function estimateTokensByStage(
     translation,
     total,
   };
-  
+
   if (analysis !== undefined) {
     result.analysis = analysis;
   }
-  
+
   if (editing !== undefined) {
     result.editing = editing;
   }
-  
+
   return result;
 }

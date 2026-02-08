@@ -1,6 +1,6 @@
 /**
  * System prompt for Stage 1: Analysis
- * 
+ *
  * This stage analyzes the source text to:
  * - Extract characters, locations, and special terms
  * - Determine writing style and tone
@@ -143,17 +143,16 @@ export const createAnalyzerPrompt = (
   existingGlossary?: string
 ): string => {
   let prompt = `Analyze the following ${sourceLanguage} text for translation to ${targetLanguage}.\n\n`;
-  
+
   if (existingGlossary) {
     prompt += `## Existing Glossary (for reference)\n${existingGlossary}\n\n`;
     prompt += `Rules:\n`;
     prompt += `- In "characters", "locations", "terms" list ONLY NEW entities that are not in the glossary above.\n`;
     prompt += `- If an entity from the glossary appears in this chapter and you have refined or new data (better description, improved translation), add it to "updatedCharacters", "updatedLocations", or "updatedTerms" with the exact original name/term. Only include fields you want to update.\n\n`;
   }
-  
+
   prompt += `## Source Text\n\n${sourceText}\n\n`;
   prompt += `Provide your analysis in the JSON format specified.`;
-  
+
   return prompt;
 };
-

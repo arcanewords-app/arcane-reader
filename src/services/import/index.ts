@@ -10,15 +10,19 @@ import { parseText } from './txt.js';
 import { getProjectTypeFromFormat } from './project-type.js';
 
 export type { ParseResult, BookMetadata, ParsedChapter, ImportFormat } from './types.js';
-export { getProjectTypeFromFormat, supportsMetadata, supportsCoverImage, getProjectTypeDisplayName, getProjectTypeIcon, getProjectTypeColor } from './project-type.js';
+export {
+  getProjectTypeFromFormat,
+  supportsMetadata,
+  supportsCoverImage,
+  getProjectTypeDisplayName,
+  getProjectTypeIcon,
+  getProjectTypeColor,
+} from './project-type.js';
 
 /**
  * Parse file based on extension and content
  */
-export async function parseFile(
-  fileBuffer: Buffer,
-  filename: string
-): Promise<ParseResult> {
+export async function parseFile(fileBuffer: Buffer, filename: string): Promise<ParseResult> {
   const extension = filename.toLowerCase().split('.').pop() || '';
 
   switch (extension) {

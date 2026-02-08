@@ -53,13 +53,11 @@ export function textToHtml(text: string, includeTitle: boolean = false, title?: 
   // Split into paragraphs (double newlines)
   const paragraphs = text
     .split(/\n\s*\n/)
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
 
   // Convert paragraphs to <p> tags
-  const htmlParagraphs = paragraphs
-    .map(p => `<p>${escapeHtml(p)}</p>`)
-    .join('\n');
+  const htmlParagraphs = paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('\n');
 
   // Add title if needed
   if (includeTitle && title) {
@@ -93,15 +91,16 @@ export function getTranslatedText(chapter: Chapter): string {
 export function prepareProjectForExport(project: Project, author?: string): ExportProject {
   // Filter only completed chapters with translations
   const completedChapters = project.chapters
-    .filter(ch => {
-      const hasTranslation = ch.status === 'completed' && 
-        (ch.translatedText || (ch.paragraphs && ch.paragraphs.some(p => p.translatedText)));
+    .filter((ch) => {
+      const hasTranslation =
+        ch.status === 'completed' &&
+        (ch.translatedText || (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)));
       return hasTranslation;
     })
     .sort((a, b) => a.number - b.number);
 
   // Prepare chapters for export
-  const exportChapters: ExportChapter[] = completedChapters.map(chapter => {
+  const exportChapters: ExportChapter[] = completedChapters.map((chapter) => {
     const translatedText = getTranslatedText(chapter);
     const htmlContent = textToHtml(translatedText, true, chapter.title);
     const textContent = translatedText;
@@ -116,7 +115,7 @@ export function prepareProjectForExport(project: Project, author?: string): Expo
 
   // Get latest translation metadata
   const latestTranslation = completedChapters
-    .filter(ch => ch.translationMeta)
+    .filter((ch) => ch.translationMeta)
     .sort((a, b) => {
       const aTime = a.translationMeta?.translatedAt || '';
       const bTime = b.translationMeta?.translatedAt || '';

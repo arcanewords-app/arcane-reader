@@ -19,7 +19,15 @@ interface HeaderProps {
   onOpenRegister?: () => void;
 }
 
-export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onOpenLogin, onOpenRegister }: HeaderProps) {
+export function Header({
+  status,
+  systemStatus,
+  user,
+  onLogout,
+  onMenuToggle,
+  onOpenLogin,
+  onOpenRegister,
+}: HeaderProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [hasSidebar, setHasSidebar] = useState(false);
@@ -39,11 +47,11 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
 
     checkMobile();
     checkPath();
-    
+
     window.addEventListener('resize', checkMobile);
     window.addEventListener('popstate', checkPath);
     const interval = setInterval(checkPath, 100);
-    
+
     return () => {
       window.removeEventListener('resize', checkMobile);
       window.removeEventListener('popstate', checkPath);
@@ -69,7 +77,14 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
         )}
 
         {/* Branding - Логотип и название */}
-        <a href="/" onClick={(e) => { e.preventDefault(); route('/'); }} class="header-logo">
+        <a
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            route('/');
+          }}
+          class="header-logo"
+        >
           <img src="/arcane_icon.png" alt="Arcane" class="logo-icon-img" />
           <div class="logo-info">
             <div class="logo-text">ARCANE</div>
@@ -80,17 +95,23 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
         {/* Navigation - Основная навигация (только для авторизованных) */}
         {user && (
           <nav class="header-navigation" aria-label="Main navigation">
-            <a 
-              href="/" 
-              onClick={(e) => { e.preventDefault(); route('/'); }} 
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                route('/');
+              }}
               class={`nav-link ${currentPath === '/' ? 'active' : ''}`}
               aria-current={currentPath === '/' ? 'page' : undefined}
             >
               {t('cabinet.catalog')}
             </a>
-            <a 
-              href="/cabinet" 
-              onClick={(e) => { e.preventDefault(); route('/cabinet'); }} 
+            <a
+              href="/cabinet"
+              onClick={(e) => {
+                e.preventDefault();
+                route('/cabinet');
+              }}
               class={`nav-link ${currentPath === '/cabinet' ? 'active' : ''}`}
               aria-current={currentPath === '/cabinet' ? 'page' : undefined}
             >
@@ -123,7 +144,13 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
                     type="button"
                     class={`locale-btn ${currentLocale === locale ? 'active' : ''}`}
                     onClick={() => setSavedLocale(locale)}
-                    title={locale === 'ru' ? t('settings.appLanguageRu') : locale === 'en' ? t('settings.appLanguageEn') : t('settings.appLanguagePl')}
+                    title={
+                      locale === 'ru'
+                        ? t('settings.appLanguageRu')
+                        : locale === 'en'
+                          ? t('settings.appLanguageEn')
+                          : t('settings.appLanguagePl')
+                    }
                   >
                     {locale.toUpperCase()}
                   </button>
@@ -150,7 +177,13 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
                     type="button"
                     class={`locale-btn ${currentLocale === locale ? 'active' : ''}`}
                     onClick={() => setSavedLocale(locale)}
-                    title={locale === 'ru' ? t('settings.appLanguageRu') : locale === 'en' ? t('settings.appLanguageEn') : t('settings.appLanguagePl')}
+                    title={
+                      locale === 'ru'
+                        ? t('settings.appLanguageRu')
+                        : locale === 'en'
+                          ? t('settings.appLanguageEn')
+                          : t('settings.appLanguagePl')
+                    }
                   >
                     {locale.toUpperCase()}
                   </button>
@@ -175,4 +208,3 @@ export function Header({ status, systemStatus, user, onLogout, onMenuToggle, onO
     </header>
   );
 }
-

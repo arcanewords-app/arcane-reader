@@ -1,6 +1,6 @@
 /**
  * Stage 1: Analysis
- * 
+ *
  * Analyzes source text to extract:
  * - Characters, locations, terms
  * - Writing style
@@ -46,7 +46,15 @@ function normalizeLocationType(value: unknown): (typeof LOCATION_TYPES)[number] 
   return 'other';
 }
 
-const TERM_CATEGORIES = ['skill', 'magic', 'item', 'title', 'organization', 'race', 'other'] as const;
+const TERM_CATEGORIES = [
+  'skill',
+  'magic',
+  'item',
+  'title',
+  'organization',
+  'race',
+  'other',
+] as const;
 function normalizeTermCategory(value: unknown): (typeof TERM_CATEGORIES)[number] {
   if (value == null || value === '') return 'other';
   const s = String(value).trim().toLowerCase();
@@ -103,13 +111,15 @@ interface RawAnalysisResponse {
 
 export class AnalyzeStage {
   private provider: ILLMProvider;
-  
+
   constructor(provider: ILLMProvider) {
     if (!provider) {
       throw new Error('AnalyzeStage: provider is required but was undefined');
     }
     if (typeof provider.completeJSON !== 'function') {
-      throw new Error(`AnalyzeStage: provider is missing completeJSON method. Provider type: ${typeof provider}, model: ${(provider as any)?.model || 'unknown'}`);
+      throw new Error(
+        `AnalyzeStage: provider is missing completeJSON method. Provider type: ${typeof provider}, model: ${(provider as any)?.model || 'unknown'}`
+      );
     }
     this.provider = provider;
     log.debug('AnalyzeStage initialized', {
@@ -118,13 +128,13 @@ export class AnalyzeStage {
       hasCompleteJSON: typeof this.provider.completeJSON,
     });
   }
-  
+
   async execute(
     sourceText: string,
     options: AnalyzeStageOptions
   ): Promise<StageResult<AnalysisResult>> {
     const startTime = Date.now();
-    
+
     if (!this.provider) {
       log.warn('AnalyzeStage.execute: provider not initialized');
       return {
@@ -149,7 +159,7 @@ export class AnalyzeStage {
         error: `Analysis provider is missing completeJSON method. Provider type: ${typeof this.provider}, has completeJSON: ${!!this.provider.completeJSON}`,
       };
     }
-    
+
     try {
       // Create glossary text for context
       let glossaryText = '';
@@ -157,21 +167,21 @@ export class AnalyzeStage {
         const manager = new GlossaryManager(options.existingGlossary);
         glossaryText = manager.toPromptText();
       }
-      
+
       // Build messages
       const messages: Message[] = [
         { role: 'system', content: ANALYZER_SYSTEM_PROMPT },
-        { 
-          role: 'user', 
+        {
+          role: 'user',
           content: createAnalyzerPrompt(
             sourceText,
             'English',
             'Russian',
             glossaryText || undefined
-          )
+          ),
         },
       ];
-      
+
       // Call LLM
       const temperature = options.temperature ?? 0.3;
       const promptChars = messages.reduce((s, m) => s + (m.content?.length ?? 0), 0);
@@ -212,24 +222,21 @@ export class AnalyzeStage {
       };
     }
   }
-  
-  private parseResponse(
-    raw: RawAnalysisResponse,
-    options: AnalyzeStageOptions
-  ): AnalysisResult {
+
+  private parseResponse(raw: RawAnalysisResponse, options: AnalyzeStageOptions): AnalysisResult {
     const existingChars = options.existingGlossary?.characters ?? [];
     const existingLocs = options.existingGlossary?.locations ?? [];
     const existingTermsList = options.existingGlossary?.terms ?? [];
-    const existingCharNames = new Set(existingChars.map(c => c.originalName.toLowerCase()));
-    const existingLocNames = new Set(existingLocs.map(l => l.originalName.toLowerCase()));
-    const existingTermSet = new Set(existingTermsList.map(t => t.originalTerm.toLowerCase()));
+    const existingCharNames = new Set(existingChars.map((c) => c.originalName.toLowerCase()));
+    const existingLocNames = new Set(existingLocs.map((l) => l.originalName.toLowerCase()));
+    const existingTermSet = new Set(existingTermsList.map((t) => t.originalTerm.toLowerCase()));
 
     const findExistingChar = (name: string) =>
-      existingChars.find(c => c.originalName.toLowerCase() === name.toLowerCase());
+      existingChars.find((c) => c.originalName.toLowerCase() === name.toLowerCase());
     const findExistingLoc = (name: string) =>
-      existingLocs.find(l => l.originalName.toLowerCase() === name.toLowerCase());
+      existingLocs.find((l) => l.originalName.toLowerCase() === name.toLowerCase());
     const findExistingTerm = (term: string) =>
-      existingTermsList.find(t => t.originalTerm.toLowerCase() === term.toLowerCase());
+      existingTermsList.find((t) => t.originalTerm.toLowerCase() === term.toLowerCase());
 
     // Map agent-returned updated* (by original name/term) to entries with id for DB updates
     const mapUpdatedCharacters = (): Partial<Character>[] => {
@@ -239,7 +246,8 @@ export class AnalyzeStage {
         if (!existing) continue;
         const entry: Partial<Character> = { id: existing.id };
         if ((c.description?.trim() ?? '').length > 0) entry.description = c.description!.trim();
-        if ((c.suggestedTranslation?.trim() ?? '').length > 0) entry.translatedName = c.suggestedTranslation!.trim();
+        if ((c.suggestedTranslation?.trim() ?? '').length > 0)
+          entry.translatedName = c.suggestedTranslation!.trim();
         if (Object.keys(entry).length > 1) out.push(entry);
       }
       return out;
@@ -251,7 +259,8 @@ export class AnalyzeStage {
         if (!existing) continue;
         const entry: Partial<Location> = { id: existing.id };
         if ((l.description?.trim() ?? '').length > 0) entry.description = l.description!.trim();
-        if ((l.suggestedTranslation?.trim() ?? '').length > 0) entry.translatedName = l.suggestedTranslation!.trim();
+        if ((l.suggestedTranslation?.trim() ?? '').length > 0)
+          entry.translatedName = l.suggestedTranslation!.trim();
         if (Object.keys(entry).length > 1) out.push(entry);
       }
       return out;
@@ -263,8 +272,10 @@ export class AnalyzeStage {
         if (!existing) continue;
         const entry: Partial<Term> = { id: existing.id };
         if ((t.description?.trim() ?? '').length > 0) entry.description = t.description!.trim();
-        if ((t.suggestedTranslation?.trim() ?? '').length > 0) entry.translatedTerm = t.suggestedTranslation!.trim();
-        if ((t.category?.trim() ?? '').length > 0) entry.category = (t.category as Term['category']) ?? 'other';
+        if ((t.suggestedTranslation?.trim() ?? '').length > 0)
+          entry.translatedTerm = t.suggestedTranslation!.trim();
+        if ((t.category?.trim() ?? '').length > 0)
+          entry.category = (t.category as Term['category']) ?? 'other';
         if (Object.keys(entry).length > 1) out.push(entry);
       }
       return out;
@@ -273,20 +284,20 @@ export class AnalyzeStage {
     return {
       chapterNumber: options.chapterNumber,
 
-      foundCharacters: (raw.characters ?? []).map(c => ({
+      foundCharacters: (raw.characters ?? []).map((c) => ({
         name: c.name,
         isNew: !existingCharNames.has(c.name.toLowerCase()),
         suggestedTranslation: c.suggestedTranslation,
         context: c.context ?? '',
       })),
 
-      foundLocations: (raw.locations ?? []).map(l => ({
+      foundLocations: (raw.locations ?? []).map((l) => ({
         name: l.name,
         isNew: !existingLocNames.has(l.name.toLowerCase()),
         suggestedTranslation: l.suggestedTranslation,
       })),
 
-      foundTerms: (raw.terms ?? []).map(t => ({
+      foundTerms: (raw.terms ?? []).map((t) => ({
         term: t.term,
         isNew: !existingTermSet.has(t.term.toLowerCase()),
         suggestedTranslation: t.suggestedTranslation,
@@ -300,8 +311,8 @@ export class AnalyzeStage {
 
       glossaryUpdate: {
         newCharacters: (raw.characters ?? [])
-          .filter(c => !existingCharNames.has(c.name.toLowerCase()))
-          .map(c => ({
+          .filter((c) => !existingCharNames.has(c.name.toLowerCase()))
+          .map((c) => ({
             originalName: c.name,
             translatedName: c.suggestedTranslation ?? c.name,
             declensions: {
@@ -319,16 +330,16 @@ export class AnalyzeStage {
             isMainCharacter: c.role === 'protagonist',
           })),
         newLocations: (raw.locations ?? [])
-          .filter(l => !existingLocNames.has(l.name.toLowerCase()))
-          .map(l => ({
+          .filter((l) => !existingLocNames.has(l.name.toLowerCase()))
+          .map((l) => ({
             originalName: l.name,
             translatedName: l.suggestedTranslation ?? l.name,
             type: normalizeLocationType(l.type),
             description: l.description ?? '',
           })),
         newTerms: (raw.terms ?? [])
-          .filter(t => !existingTermSet.has(t.term.toLowerCase()))
-          .map(t => ({
+          .filter((t) => !existingTermSet.has(t.term.toLowerCase()))
+          .map((t) => ({
             originalTerm: t.term,
             translatedTerm: t.suggestedTranslation ?? t.term,
             category: normalizeTermCategory(t.category),
@@ -341,4 +352,3 @@ export class AnalyzeStage {
     };
   }
 }
-

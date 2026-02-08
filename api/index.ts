@@ -1,9 +1,9 @@
 /**
  * Vercel API handler - Express server wrapper
- * 
+ *
  * This file exports the Express app for Vercel to use.
  * All routes from server.ts work as-is through this wrapper.
- * 
+ *
  * Vercel will automatically route all /api/* requests to this handler.
  */
 

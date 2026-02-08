@@ -37,9 +37,12 @@ export function UploadTranslationModal({
       onClose();
     } catch (e) {
       const apiErr = e instanceof ApiError ? e : null;
-      const msg = apiErr?.data && typeof apiErr.data === 'object' && 'message' in apiErr.data
-        ? String((apiErr.data as { message?: string }).message)
-        : e instanceof Error ? e.message : String(e);
+      const msg =
+        apiErr?.data && typeof apiErr.data === 'object' && 'message' in apiErr.data
+          ? String((apiErr.data as { message?: string }).message)
+          : e instanceof Error
+            ? e.message
+            : String(e);
       setError(msg || t('uploadTranslation.submitError', 'Ошибка загрузки'));
     } finally {
       setLoading(false);
@@ -80,17 +83,20 @@ export function UploadTranslationModal({
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={loading || !text.trim()}>
             {loading ? <span class="spinner" /> : null}
-            {loading ? t('uploadTranslation.uploading', 'Загрузка…') : `📤 ${t('uploadTranslation.upload', 'Загрузить')}`}
+            {loading
+              ? t('uploadTranslation.uploading', 'Загрузка…')
+              : `📤 ${t('uploadTranslation.upload', 'Загрузить')}`}
           </Button>
         </div>
       }
     >
       <div class="upload-translation-modal">
-        {chapterTitle && (
-          <p class="upload-translation-modal-chapter">{chapterTitle}</p>
-        )}
+        {chapterTitle && <p class="upload-translation-modal-chapter">{chapterTitle}</p>}
         <p class="upload-translation-modal-hint">
-          {t('uploadTranslation.hint', 'Вставьте или загрузите текст перевода. Текст будет разбит по абзацам (двойной перенос строки).')}
+          {t(
+            'uploadTranslation.hint',
+            'Вставьте или загрузите текст перевода. Текст будет разбит по абзацам (двойной перенос строки).'
+          )}
         </p>
         <textarea
           class="upload-translation-modal-textarea"
@@ -120,9 +126,7 @@ export function UploadTranslationModal({
             📁 {t('uploadTranslation.chooseFile', 'Выбрать файл TXT')}
           </Button>
         </div>
-        {error && (
-          <p class="upload-translation-modal-error">{error}</p>
-        )}
+        {error && <p class="upload-translation-modal-error">{error}</p>}
       </div>
     </Modal>
   );

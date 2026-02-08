@@ -32,7 +32,9 @@
 .sidebar-card:hover {
   background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
   border-color: var(--accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 20px rgba(139, 92, 246, 0.1);
 }
 
@@ -83,7 +85,9 @@
 .btn-glossary:hover {
   background: linear-gradient(135deg, var(--bg-hover) 0%, rgba(34, 34, 46, 0.8) 100%);
   border-color: var(--accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.2),
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(139, 92, 246, 0.2),
     0 0 20px rgba(139, 92, 246, 0.1);
 }
 
@@ -92,7 +96,9 @@
   border-color: var(--accent);
   border-left-width: 3px;
   border-left-style: solid;
-  box-shadow: 0 4px 16px var(--accent-glow), 0 0 0 1px rgba(139, 92, 246, 0.4),
+  box-shadow:
+    0 4px 16px var(--accent-glow),
+    0 0 0 1px rgba(139, 92, 246, 0.4),
     0 0 24px rgba(139, 92, 246, 0.2);
 }
 

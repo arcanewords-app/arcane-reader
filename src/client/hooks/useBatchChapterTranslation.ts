@@ -204,7 +204,11 @@ export function useBatchChapterTranslation(
         cancelledRef.current = false;
         initialGlossaryCountRef.current = project.glossary.length;
 
-        const body: { translateOnlyEmpty?: boolean; paragraphIds?: string[]; stages?: ChapterTranslationOptions['stages'] } = {};
+        const body: {
+          translateOnlyEmpty?: boolean;
+          paragraphIds?: string[];
+          stages?: ChapterTranslationOptions['stages'];
+        } = {};
         if (optionsPerChapter?.paragraphIds?.length) {
           body.paragraphIds = optionsPerChapter.paragraphIds;
         } else if (optionsPerChapter?.translateOnlyEmpty) {

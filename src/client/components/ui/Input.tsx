@@ -13,11 +13,7 @@ export function Input({ label, id, className = '', ...props }: InputProps) {
           {label}
         </label>
       )}
-      <input
-        id={id}
-        class={`form-input ${className}`}
-        {...props}
-      />
+      <input id={id} class={`form-input ${className}`} {...props} />
     </div>
   );
 }
@@ -52,13 +48,7 @@ interface SliderProps extends Omit<JSX.HTMLAttributes<HTMLInputElement>, 'type'>
   hint?: string;
 }
 
-export function Slider({
-  label,
-  displayValue,
-  hint,
-  className = '',
-  ...props
-}: SliderProps) {
+export function Slider({ label, displayValue, hint, className = '', ...props }: SliderProps) {
   return (
     <div class="setting-group">
       {label && <label class="setting-label">{label}</label>}
@@ -70,4 +60,3 @@ export function Slider({
     </div>
   );
 }
-

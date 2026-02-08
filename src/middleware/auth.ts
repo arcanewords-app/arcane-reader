@@ -13,7 +13,11 @@ async function getProfileRoleFromToken(token: string, userId: string): Promise<U
   const supabaseWithToken = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data } = await supabaseWithToken.from('profiles').select('role').eq('id', userId).single();
+  const { data } = await supabaseWithToken
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
   const role = parseRole(data?.role);
   return role === 'guest' ? DEFAULT_ROLE : role;
 }
@@ -34,7 +38,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
-    const { data: { user }, error } = await supabaseWithToken.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabaseWithToken.auth.getUser(token);
 
     if (error || !user) {
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
@@ -73,7 +80,10 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
-    const { data: { user }, error } = await supabaseWithToken.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabaseWithToken.auth.getUser(token);
 
     if (user && !error) {
       const role = await getProfileRoleFromToken(token, user.id);

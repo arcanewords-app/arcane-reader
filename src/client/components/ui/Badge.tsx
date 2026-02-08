@@ -41,4 +41,3 @@ export function CountBadge({ count, variant = 'default' }: CountBadgeProps) {
   const className = variant === 'accent' ? 'glossary-count' : 'chapter-count-badge';
   return <span class={className}>{count}</span>;
 }
-

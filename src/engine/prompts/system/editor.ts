@@ -1,6 +1,6 @@
 /**
  * System prompt for Stage 3: Editing/Polishing
- * 
+ *
  * This stage refines the translation to:
  * - Improve readability and flow
  * - Fix awkward phrasings
@@ -72,17 +72,17 @@ export const createEditorPrompt = (
   styleNotes?: string
 ): string => {
   let prompt = '';
-  
+
   prompt += `## Reference Glossary (do not change these terms)\n${glossary}\n\n`;
-  
+
   if (styleNotes) {
     prompt += `## Style Notes\n${styleNotes}\n\n`;
   }
-  
+
   prompt += `## Original Text (for reference)\n${originalText}\n\n`;
   prompt += `## Translation to Edit\n${translatedText}\n\n`;
   prompt += `Edit and polish this translation. Output only the final edited text.`;
-  
+
   return prompt;
 };
 
@@ -106,4 +106,3 @@ Output JSON:
   "issues": ["issue 1", "issue 2"],
   "suggestions": ["suggestion 1"]
 }`;
-

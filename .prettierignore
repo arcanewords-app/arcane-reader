@@ -8,6 +8,7 @@ dist/
 package-lock.json
 *.min.js
 *.min.css
+*.code-workspace
 
 # Data and env
 data/

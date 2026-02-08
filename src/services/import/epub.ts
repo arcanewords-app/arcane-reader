@@ -115,8 +115,7 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
           htmlContent,
         });
       } catch (chapterError) {
-        const errorMsg =
-          chapterError instanceof Error ? chapterError.message : 'Unknown error';
+        const errorMsg = chapterError instanceof Error ? chapterError.message : 'Unknown error';
         errors.push(`Ошибка при парсинге главы ${i + 1}: ${errorMsg}`);
       }
     }

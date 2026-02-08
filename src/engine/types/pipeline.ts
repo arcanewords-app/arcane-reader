@@ -43,24 +43,24 @@ export interface EditChange {
 export interface PipelineResult {
   chapterNumber: number;
   originalText: string;
-  
+
   stage1: StageResult<AnalysisResult>;
   stage2: StageResult<TranslationDraft>;
   stage3: StageResult<EditedTranslation>;
-  
+
   finalTranslation: string;
-  
+
   totalTokensUsed: number;
   totalDuration: number;
-  
+
   updatedContext: AgentContext;
 }
 
 export interface PipelineOptions {
-  skipAnalysis?: boolean;    // Skip stage 1 if glossary is complete
-  skipEditing?: boolean;     // Skip stage 3 for faster translation
-  chunkSize?: number;        // Override default chunk size
-  retryAttempts?: number;    // Number of retries on failure
+  skipAnalysis?: boolean; // Skip stage 1 if glossary is complete
+  skipEditing?: boolean; // Skip stage 3 for faster translation
+  chunkSize?: number; // Override default chunk size
+  retryAttempts?: number; // Number of retries on failure
   /** Run only this stage; overrides skipAnalysis/skipEditing */
   runOnlyStage?: 'analysis' | 'translation' | 'editing';
   /** Run only these stages in order (multi-select); overrides runOnlyStage/skip* */
@@ -76,4 +76,3 @@ export interface PipelineOptions {
   /** When true, pipeline should throw 'Cancelled' and stop (used when user clicks Cancel on UI). */
   isCancelled?: () => boolean;
 }
-

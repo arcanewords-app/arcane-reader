@@ -62,7 +62,9 @@ function buildGlossaryPayload(entries: GlossaryEntry[]): Array<Record<string, un
  * have same type, and length >= 2. Normalize entryIds to unique and filter suggestedPrimaryId.
  */
 function validateSuggestions(
-  raw: { suggestions?: Array<{ entryIds?: string[]; reason?: string; suggestedPrimaryId?: string }> },
+  raw: {
+    suggestions?: Array<{ entryIds?: string[]; reason?: string; suggestedPrimaryId?: string }>;
+  },
   glossary: GlossaryEntry[]
 ): MergeSuggestion[] {
   const idSet = new Set(glossary.map((e) => e.id));

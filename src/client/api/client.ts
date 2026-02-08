@@ -53,13 +53,15 @@ function handleAuthError(response: Response): void {
   if (response.status === 401) {
     // Clear auth storage
     authService.clearStorage();
-    
+
     // Dispatch custom event to notify app about auth error
     // This allows App.tsx to update state and show login without full page reload
-    window.dispatchEvent(new CustomEvent(AUTH_ERROR_EVENT, { 
-      detail: { message: 'Токен истек. Пожалуйста, войдите снова.' } 
-    }));
-    
+    window.dispatchEvent(
+      new CustomEvent(AUTH_ERROR_EVENT, {
+        detail: { message: 'Токен истек. Пожалуйста, войдите снова.' },
+      })
+    );
+
     // Redirect to login page if not already there
     if (window.location.pathname !== '/') {
       window.location.href = '/?login=required';
@@ -75,12 +77,12 @@ function handleAuthError(response: Response): void {
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   // Get token from authService
   const token = authService.getToken();
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   });
@@ -89,20 +91,12 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   if (response.status === 401) {
     handleAuthError(response);
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(
-      data.error || 'Unauthorized',
-      401,
-      data
-    );
+    throw new ApiError(data.error || 'Unauthorized', 401, data);
   }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(
-      data.error || `HTTP ${response.status}`,
-      response.status,
-      data
-    );
+    throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data);
   }
 
   return response.json();
@@ -112,16 +106,20 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
  * Fetch helper for FormData requests (multipart/form-data)
  * Does not set Content-Type header (browser will set it with boundary)
  */
-async function fetchFormData<T>(url: string, formData: FormData, options?: RequestInit): Promise<T> {
+async function fetchFormData<T>(
+  url: string,
+  formData: FormData,
+  options?: RequestInit
+): Promise<T> {
   // Get token from authService
   const token = authService.getToken();
-  
+
   const response = await fetch(url, {
     ...options,
     method: options?.method || 'POST',
     headers: {
       // Do not set Content-Type - browser will set it with boundary for FormData
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
     body: formData,
@@ -131,20 +129,12 @@ async function fetchFormData<T>(url: string, formData: FormData, options?: Reque
   if (response.status === 401) {
     handleAuthError(response);
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(
-      data.error || 'Unauthorized',
-      401,
-      data
-    );
+    throw new ApiError(data.error || 'Unauthorized', 401, data);
   }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(
-      data.error || `HTTP ${response.status}`,
-      response.status,
-      data
-    );
+    throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data);
   }
 
   return response.json();
@@ -154,7 +144,7 @@ async function fetchFormData<T>(url: string, formData: FormData, options?: Reque
 
 export const api = {
   // === System ===
-  
+
   async getStatus(): Promise<SystemStatus> {
     return fetchJson('/api/status');
   },
@@ -249,20 +239,13 @@ export const api = {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/status`);
   },
 
-  async deleteChapter(
-    projectId: string,
-    chapterId: string
-  ): Promise<{ success: boolean }> {
+  async deleteChapter(projectId: string, chapterId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`, {
       method: 'DELETE',
     });
   },
 
-  async updateChapterTitle(
-    projectId: string,
-    chapterId: string,
-    title: string
-  ): Promise<Chapter> {
+  async updateChapterTitle(projectId: string, chapterId: string, title: string): Promise<Chapter> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/title`, {
       method: 'PUT',
       body: JSON.stringify({ title }),
@@ -287,10 +270,7 @@ export const api = {
     });
   },
 
-  async cancelTranslation(
-    projectId: string,
-    chapterId: string
-  ): Promise<{ success: boolean }> {
+  async cancelTranslation(projectId: string, chapterId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate/cancel`, {
       method: 'POST',
     });
@@ -301,29 +281,19 @@ export const api = {
     chapterId: string,
     translatedText: string
   ): Promise<Chapter> {
-    return fetchJson(
-      `/api/projects/${projectId}/chapters/${chapterId}/upload-translation`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ translatedText }),
-      }
-    );
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/upload-translation`, {
+      method: 'POST',
+      body: JSON.stringify({ translatedText }),
+    });
   },
 
-  async markChapterAsTranslated(
-    projectId: string,
-    chapterId: string
-  ): Promise<Chapter> {
-    return fetchJson(
-      `/api/projects/${projectId}/chapters/${chapterId}/mark-as-translated`,
-      { method: 'POST' }
-    );
+  async markChapterAsTranslated(projectId: string, chapterId: string): Promise<Chapter> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/mark-as-translated`, {
+      method: 'POST',
+    });
   },
 
-  async getChapterStats(
-    projectId: string,
-    chapterId: string
-  ): Promise<ChapterStats> {
+  async getChapterStats(projectId: string, chapterId: string): Promise<ChapterStats> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/stats`);
   },
 
@@ -342,13 +312,10 @@ export const api = {
     if (options?.stages !== undefined) {
       body.stages = options.stages;
     }
-    return fetchJson(
-      `/api/projects/${projectId}/chapters/${chapterId}/translate`,
-      {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }
-    );
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   },
 
   // === Paragraphs ===
@@ -359,13 +326,10 @@ export const api = {
     paragraphId: string,
     updates: Partial<Pick<Paragraph, 'translatedText' | 'status'>>
   ): Promise<Paragraph> {
-    return fetchJson(
-      `/api/projects/${projectId}/chapters/${chapterId}/paragraphs/${paragraphId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(updates),
-      }
-    );
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/paragraphs/${paragraphId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
   },
 
   async bulkUpdateParagraphs(
@@ -374,13 +338,10 @@ export const api = {
     paragraphIds: string[],
     status: string
   ): Promise<BulkUpdateResponse> {
-    return fetchJson(
-      `/api/projects/${projectId}/chapters/${chapterId}/paragraphs/bulk-status`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ paragraphIds, status }),
-      }
-    );
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/paragraphs/bulk-status`, {
+      method: 'POST',
+      body: JSON.stringify({ paragraphIds, status }),
+    });
   },
 
   // === Glossary ===
@@ -389,10 +350,7 @@ export const api = {
     return fetchJson(`/api/projects/${projectId}/glossary`);
   },
 
-  async addGlossary(
-    projectId: string,
-    entry: Omit<GlossaryEntry, 'id'>
-  ): Promise<GlossaryEntry> {
+  async addGlossary(projectId: string, entry: Omit<GlossaryEntry, 'id'>): Promise<GlossaryEntry> {
     return fetchJson(`/api/projects/${projectId}/glossary`, {
       method: 'POST',
       body: JSON.stringify(entry),
@@ -410,10 +368,7 @@ export const api = {
     });
   },
 
-  async deleteGlossaryEntry(
-    projectId: string,
-    entryId: string
-  ): Promise<{ success: boolean }> {
+  async deleteGlossaryEntry(projectId: string, entryId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/glossary/${entryId}`, {
       method: 'DELETE',
     });
@@ -422,7 +377,9 @@ export const api = {
   /** Get LLM suggestions for merging duplicate/alias glossary entries */
   async suggestGlossaryMerges(
     projectId: string
-  ): Promise<{ suggestions: Array<{ entryIds: string[]; reason: string; suggestedPrimaryId?: string }> }> {
+  ): Promise<{
+    suggestions: Array<{ entryIds: string[]; reason: string; suggestedPrimaryId?: string }>;
+  }> {
     return fetchJson(`/api/projects/${projectId}/glossary/suggest-merges`, {
       method: 'POST',
       body: JSON.stringify({}),
@@ -459,10 +416,11 @@ export const api = {
     entryId: string,
     imageIndex?: number
   ): Promise<{ success: boolean; imageUrls?: string[] }> {
-    const url = imageIndex !== undefined
-      ? `/api/projects/${projectId}/glossary/${entryId}/image/${imageIndex}`
-      : `/api/projects/${projectId}/glossary/${entryId}/image`;
-    
+    const url =
+      imageIndex !== undefined
+        ? `/api/projects/${projectId}/glossary/${entryId}/image/${imageIndex}`
+        : `/api/projects/${projectId}/glossary/${entryId}/image`;
+
     return fetchJson(url, {
       method: 'DELETE',
     });
@@ -483,9 +441,7 @@ export const api = {
     );
   },
 
-  async deleteProjectCover(
-    projectId: string
-  ): Promise<{ success: boolean; project: Project }> {
+  async deleteProjectCover(projectId: string): Promise<{ success: boolean; project: Project }> {
     return fetchJson(`/api/projects/${projectId}/cover`, {
       method: 'DELETE',
     });
@@ -562,7 +518,7 @@ export const api = {
   },
 
   /** Publish project (auth required) */
-  async   publishProject(
+  async publishProject(
     projectId: string,
     data: {
       status?: 'draft' | 'published';
@@ -612,4 +568,3 @@ export const api = {
 };
 
 export default api;
-

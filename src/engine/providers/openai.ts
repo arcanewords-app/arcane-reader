@@ -37,15 +37,14 @@ function useMaxCompletionTokensParam(model: string): boolean {
  */
 function modelRequiresDefaultTemperature(model: string): boolean {
   const m = model.toLowerCase();
-  return (
-    m.startsWith('o1-') ||
-    m.startsWith('o3-') ||
-    m.startsWith('o4-') ||
-    m.startsWith('gpt-5')
-  );
+  return m.startsWith('o1-') || m.startsWith('o3-') || m.startsWith('o4-') || m.startsWith('gpt-5');
 }
 
-function temperatureParam(model: string, requested: number | undefined, defaultVal: number): { temperature?: number } {
+function temperatureParam(
+  model: string,
+  requested: number | undefined,
+  defaultVal: number
+): { temperature?: number } {
   if (modelRequiresDefaultTemperature(model)) return {};
   return { temperature: requested ?? defaultVal };
 }
@@ -53,14 +52,14 @@ function temperatureParam(model: string, requested: number | undefined, defaultV
 export class OpenAIProvider implements ILLMProvider {
   readonly name = 'openai';
   readonly model: string;
-  
+
   private client: OpenAI;
   private config: LLMProviderConfig;
-  
+
   constructor(config: LLMProviderConfig) {
     this.config = config;
     this.model = config.model ?? 'gpt-4.1-mini';
-    
+
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl,
@@ -68,21 +67,21 @@ export class OpenAIProvider implements ILLMProvider {
       maxRetries: config.maxRetries ?? 3,
     });
   }
-  
-  private maxTokensParam(options?: CompletionOptions): { max_tokens?: number; max_completion_tokens?: number } {
+
+  private maxTokensParam(options?: CompletionOptions): {
+    max_tokens?: number;
+    max_completion_tokens?: number;
+  } {
     const value = options?.maxTokens ?? 4096;
     return useMaxCompletionTokensParam(this.model)
       ? { max_completion_tokens: value }
       : { max_tokens: value };
   }
-  
-  async complete(
-    messages: Message[],
-    options?: CompletionOptions
-  ): Promise<CompletionResult> {
+
+  async complete(messages: Message[], options?: CompletionOptions): Promise<CompletionResult> {
     const response = await this.client.chat.completions.create({
       model: this.model,
-      messages: messages.map(m => ({
+      messages: messages.map((m) => ({
         role: m.role,
         content: m.content,
       })),
@@ -93,9 +92,9 @@ export class OpenAIProvider implements ILLMProvider {
       presence_penalty: options?.presencePenalty,
       stop: options?.stop,
     });
-    
+
     const choice = response.choices[0];
-    
+
     return {
       content: choice.message.content ?? '',
       tokensUsed: {
@@ -107,14 +106,14 @@ export class OpenAIProvider implements ILLMProvider {
       model: response.model,
     };
   }
-  
+
   async completeJSON<T>(
     messages: Message[],
     options?: CompletionOptions
   ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }> {
     const response = await this.client.chat.completions.create({
       model: this.model,
-      messages: messages.map(m => ({
+      messages: messages.map((m) => ({
         role: m.role,
         content: m.content,
       })),
@@ -122,9 +121,9 @@ export class OpenAIProvider implements ILLMProvider {
       ...this.maxTokensParam(options),
       response_format: { type: 'json_object' },
     });
-    
+
     const content = response.choices[0].message.content ?? '{}';
-    
+
     try {
       const data = JSON.parse(content) as T;
       return {
@@ -144,7 +143,7 @@ export class OpenAIProvider implements ILLMProvider {
       throw new Error(`Failed to parse JSON response: ${content}`);
     }
   }
-  
+
   async isAvailable(): Promise<boolean> {
     try {
       await this.client.models.list();
@@ -154,20 +153,18 @@ export class OpenAIProvider implements ILLMProvider {
       return false;
     }
   }
-  
+
   estimateTokens(text: string): number {
     // Rough estimation: ~4 characters per token for English
     // For CJK languages, roughly 1-2 characters per token
     const cjkPattern = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g;
     const cjkMatches = text.match(cjkPattern) ?? [];
     const nonCjkLength = text.length - cjkMatches.length;
-    
+
     return Math.ceil(nonCjkLength / 4) + cjkMatches.length;
   }
-  
-  private mapFinishReason(
-    reason: string | null
-  ): CompletionResult['finishReason'] {
+
+  private mapFinishReason(reason: string | null): CompletionResult['finishReason'] {
     switch (reason) {
       case 'stop':
         return 'stop';
@@ -180,4 +177,3 @@ export class OpenAIProvider implements ILLMProvider {
     }
   }
 }
-

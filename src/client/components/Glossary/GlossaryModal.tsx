@@ -82,12 +82,15 @@ export function GlossaryModal({
     });
   }, [entries, filter, search]);
 
-  const counts = useMemo(() => ({
-    all: entries.length,
-    character: entries.filter((e) => e.type === 'character').length,
-    location: entries.filter((e) => e.type === 'location').length,
-    term: entries.filter((e) => e.type === 'term').length,
-  }), [entries]);
+  const counts = useMemo(
+    () => ({
+      all: entries.length,
+      character: entries.filter((e) => e.type === 'character').length,
+      location: entries.filter((e) => e.type === 'location').length,
+      term: entries.filter((e) => e.type === 'term').length,
+    }),
+    [entries]
+  );
 
   const handleDeleteConfirm = async () => {
     if (!deleteConfirmEntry) return;
@@ -180,7 +183,9 @@ export function GlossaryModal({
               disabled={entries.length < 2 || loadingMergeSuggestions}
               title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
             >
-              {loadingMergeSuggestions ? t('glossary.suggestMergesLoading') : `🔀 ${t('glossary.suggestMerges')}`}
+              {loadingMergeSuggestions
+                ? t('glossary.suggestMergesLoading')
+                : `🔀 ${t('glossary.suggestMerges')}`}
             </Button>
             <Button onClick={() => setShowAddModal(true)}>＋ {t('glossary.addEntry')}</Button>
           </>
@@ -220,24 +225,14 @@ export function GlossaryModal({
             filteredEntries.map((entry) => {
               // Get first image from gallery (support legacy imageUrl)
               const firstImage = entry.imageUrls?.[0] || entry.imageUrl;
-              
+
               return (
-                <div
-                  key={entry.id}
-                  class="glossary-card"
-                  onClick={() => setEditingEntry(entry)}
-                >
+                <div key={entry.id} class="glossary-card" onClick={() => setEditingEntry(entry)}>
                   <div class="glossary-card-header">
                     {firstImage ? (
-                      <img
-                        src={firstImage}
-                        alt={entry.translated}
-                        class="glossary-card-image"
-                      />
+                      <img src={firstImage} alt={entry.translated} class="glossary-card-image" />
                     ) : (
-                      <div class="glossary-card-placeholder">
-                        {typeIcons[entry.type]}
-                      </div>
+                      <div class="glossary-card-placeholder">{typeIcons[entry.type]}</div>
                     )}
                     <div class="glossary-card-header-content">
                       <div class="glossary-card-names">
@@ -254,14 +249,17 @@ export function GlossaryModal({
                           {typeIcons[entry.type]}
                         </div>
                         {entry.firstAppearance && (
-                          <span class="glossary-card-badge glossary-card-chapter" title={t('glossary.firstMention')}>
+                          <span
+                            class="glossary-card-badge glossary-card-chapter"
+                            title={t('glossary.firstMention')}
+                          >
                             📖 {entry.firstAppearance}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  
+
                   {entry.description && (
                     <div class="glossary-card-description" title={entry.description}>
                       {entry.description}
@@ -269,7 +267,10 @@ export function GlossaryModal({
                   )}
 
                   {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
-                    <div class="glossary-card-chapters" title={t('glossary.chaptersMentionedLabel')}>
+                    <div
+                      class="glossary-card-chapters"
+                      title={t('glossary.chaptersMentionedLabel')}
+                    >
                       {chapters?.length && onNavigateToChapter
                         ? entry.mentionedInChapters.map((num) => {
                             const ch = chapters.find((c) => c.number === num);
@@ -280,7 +281,10 @@ export function GlossaryModal({
                                 key={num}
                                 type="button"
                                 class="glossary-chapter-pill"
-                                title={t('glossary.goToChapterConfirm', { num, title: ch?.title ?? num })}
+                                title={t('glossary.goToChapterConfirm', {
+                                  num,
+                                  title: ch?.title ?? num,
+                                })}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleChapterClick(num);
@@ -289,19 +293,26 @@ export function GlossaryModal({
                                 {num}
                               </button>
                             ) : (
-                              <span key={num} class="glossary-chapter-pill glossary-chapter-pill-static">{num}</span>
+                              <span
+                                key={num}
+                                class="glossary-chapter-pill glossary-chapter-pill-static"
+                              >
+                                {num}
+                              </span>
                             );
                           })
-                        : t('glossary.mentionedInChapters', { chapters: entry.mentionedInChapters.join(', ') })}
+                        : t('glossary.mentionedInChapters', {
+                            chapters: entry.mentionedInChapters.join(', '),
+                          })}
                     </div>
                   )}
-                  
+
                   {entry.notes && (
                     <div class="glossary-card-notes" title={entry.notes}>
                       {entry.notes}
                     </div>
                   )}
-                  
+
                   <button
                     class="glossary-card-delete"
                     onClick={(e) => {
@@ -365,7 +376,10 @@ export function GlossaryModal({
               const suggestedEntries = suggestion.entryIds
                 .map((id) => entries.find((x) => x.id === id))
                 .filter(Boolean) as GlossaryEntry[];
-              const keepId = keepEntryIdByIndex[index] ?? suggestion.suggestedPrimaryId ?? suggestion.entryIds[0];
+              const keepId =
+                keepEntryIdByIndex[index] ??
+                suggestion.suggestedPrimaryId ??
+                suggestion.entryIds[0];
               const keepEntry = entries.find((x) => x.id === keepId);
               return (
                 <div key={index} class="glossary-merge-card">
@@ -376,7 +390,9 @@ export function GlossaryModal({
                         checked={selectedMergeIndexes.has(index)}
                         onChange={() => toggleMergeSelection(index)}
                       />
-                      <span class="glossary-merge-card-title">{t('glossary.mergeReason', { reason: suggestion.reason })}</span>
+                      <span class="glossary-merge-card-title">
+                        {t('glossary.mergeReason', { reason: suggestion.reason })}
+                      </span>
                     </label>
                   </div>
                   <div class="glossary-merge-columns">
@@ -390,18 +406,25 @@ export function GlossaryModal({
                             title={entry.description ?? undefined}
                           >
                             <div class="glossary-merge-entry-card-header">
-                              <span class="glossary-merge-entry-card-icon" title={typeLabels[entry.type]}>
+                              <span
+                                class="glossary-merge-entry-card-icon"
+                                title={typeLabels[entry.type]}
+                              >
                                 {typeIcons[entry.type]}
                               </span>
                               <div class="glossary-merge-entry-card-names">
                                 <span class="glossary-merge-entry-original">{entry.original}</span>
                                 <span class="glossary-merge-entry-arrow">→</span>
-                                <span class="glossary-merge-entry-translated">{entry.translated}</span>
+                                <span class="glossary-merge-entry-translated">
+                                  {entry.translated}
+                                </span>
                               </div>
                             </div>
                             {entry.description && (
                               <p class="glossary-merge-entry-desc" title={entry.description}>
-                                {entry.description.length > 60 ? `${entry.description.slice(0, 60)}…` : entry.description}
+                                {entry.description.length > 60
+                                  ? `${entry.description.slice(0, 60)}…`
+                                  : entry.description}
                               </p>
                             )}
                             {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
@@ -418,24 +441,35 @@ export function GlossaryModal({
                       {keepEntry && (
                         <div class="glossary-merge-entry-card glossary-merge-entry-card-keep">
                           <div class="glossary-merge-entry-card-header">
-                            <span class="glossary-merge-entry-card-icon" title={typeLabels[keepEntry.type]}>
+                            <span
+                              class="glossary-merge-entry-card-icon"
+                              title={typeLabels[keepEntry.type]}
+                            >
                               {typeIcons[keepEntry.type]}
                             </span>
                             <div class="glossary-merge-entry-card-names">
-                              <span class="glossary-merge-entry-original">{keepEntry.original}</span>
+                              <span class="glossary-merge-entry-original">
+                                {keepEntry.original}
+                              </span>
                               <span class="glossary-merge-entry-arrow">→</span>
-                              <span class="glossary-merge-entry-translated">{keepEntry.translated}</span>
+                              <span class="glossary-merge-entry-translated">
+                                {keepEntry.translated}
+                              </span>
                             </div>
                           </div>
                           {keepEntry.description && (
                             <p class="glossary-merge-entry-desc" title={keepEntry.description}>
-                              {keepEntry.description.length > 60 ? `${keepEntry.description.slice(0, 60)}…` : keepEntry.description}
+                              {keepEntry.description.length > 60
+                                ? `${keepEntry.description.slice(0, 60)}…`
+                                : keepEntry.description}
                             </p>
                           )}
                           <select
                             class="glossary-merge-keep-select"
                             value={keepId}
-                            onChange={(e) => setKeepForMerge(index, (e.target as HTMLSelectElement).value)}
+                            onChange={(e) =>
+                              setKeepForMerge(index, (e.target as HTMLSelectElement).value)
+                            }
                             onClick={(e) => e.stopPropagation()}
                           >
                             {suggestion.entryIds.map((id) => {
@@ -505,7 +539,9 @@ export function GlossaryModal({
         }
       >
         <p style={{ color: 'var(--text-secondary)' }}>
-          {t('glossary.deleteEntryConfirmMessage', { original: deleteConfirmEntry?.original ?? '' })}
+          {t('glossary.deleteEntryConfirmMessage', {
+            original: deleteConfirmEntry?.original ?? '',
+          })}
         </p>
       </Modal>
     </>
@@ -557,11 +593,12 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
     }
   };
 
-  const descriptionPlaceholder = type === 'character'
-    ? t('glossary.descriptionPlaceholderChar')
-    : type === 'location'
-    ? t('glossary.descriptionPlaceholderLoc')
-    : t('glossary.descriptionPlaceholderTerm');
+  const descriptionPlaceholder =
+    type === 'character'
+      ? t('glossary.descriptionPlaceholderChar')
+      : type === 'location'
+        ? t('glossary.descriptionPlaceholderLoc')
+        : t('glossary.descriptionPlaceholderTerm');
 
   return (
     <Modal
@@ -606,10 +643,10 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
         <label class="form-label">📝 {t('glossary.descriptionOptionalLabel')}</label>
         <textarea
           class="form-input"
-          style={{ 
-            minHeight: '80px', 
+          style={{
+            minHeight: '80px',
             resize: 'vertical',
-            fontFamily: 'var(--font-display)'
+            fontFamily: 'var(--font-display)',
           }}
           placeholder={descriptionPlaceholder}
           value={description}
@@ -717,7 +754,7 @@ function EditGlossaryModal({
 
   const handleImageDelete = async (imageIndex: number) => {
     if (imageIndex < 0 || imageIndex >= currentImageUrls.length) return;
-    
+
     setDeletingImageIndex(imageIndex);
     try {
       const result = await api.deleteGlossaryImage(projectId, entry.id, imageIndex);
@@ -748,11 +785,12 @@ function EditGlossaryModal({
     }
   };
 
-  const descriptionPlaceholderEdit = type === 'character'
-    ? t('glossary.descriptionPlaceholderCharEdit')
-    : type === 'location'
-    ? t('glossary.descriptionPlaceholderLoc')
-    : t('glossary.descriptionPlaceholderTerm');
+  const descriptionPlaceholderEdit =
+    type === 'character'
+      ? t('glossary.descriptionPlaceholderCharEdit')
+      : type === 'location'
+        ? t('glossary.descriptionPlaceholderLoc')
+        : t('glossary.descriptionPlaceholderTerm');
 
   return (
     <Modal
@@ -815,22 +853,24 @@ function EditGlossaryModal({
         <label class="form-label">📝 {t('glossary.description')}</label>
         <textarea
           class="form-input"
-          style={{ 
-            minHeight: '80px', 
+          style={{
+            minHeight: '80px',
             resize: 'vertical',
-            fontFamily: 'var(--font-display)'
+            fontFamily: 'var(--font-display)',
           }}
           placeholder={descriptionPlaceholderEdit}
           value={description}
           onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
         />
-        <div style={{ 
-          fontSize: '0.75rem', 
-          color: 'var(--text-dim)', 
-          marginTop: '0.25rem',
-          fontStyle: 'italic'
-        }}>
-          {entry.autoDetected && description 
+        <div
+          style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-dim)',
+            marginTop: '0.25rem',
+            fontStyle: 'italic',
+          }}
+        >
+          {entry.autoDetected && description
             ? t('glossary.descriptionAutoExtracted')
             : t('glossary.descriptionHint')}
         </div>
@@ -841,18 +881,20 @@ function EditGlossaryModal({
         onInput={(e) => setNotes((e.target as HTMLInputElement).value)}
         placeholder={t('glossary.notesPlaceholderEdit')}
       />
-      
+
       {/* First Appearance Info */}
       {entry.firstAppearance && (
         <div class="form-group">
           <label class="form-label">📖 {t('glossary.firstMention')}</label>
-          <div style={{
-            padding: '0.75rem',
-            background: 'var(--bg-secondary)',
-            borderRadius: '8px',
-            color: 'var(--text-secondary)',
-            fontSize: '0.9rem'
-          }}>
+          <div
+            style={{
+              padding: '0.75rem',
+              background: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
+              fontSize: '0.9rem',
+            }}
+          >
             {t('glossary.firstMentionChapter', { n: entry.firstAppearance })}
             {entry.autoDetected && (
               <span style={{ marginLeft: '0.5rem', opacity: 0.7, fontSize: '0.85rem' }}>
@@ -932,15 +974,17 @@ function EditGlossaryModal({
               ))}
             </div>
           )}
-          <label 
-            class="image-upload-btn" 
-            style={{ 
-              cursor: uploadingImage ? 'wait' : 'pointer', 
+          <label
+            class="image-upload-btn"
+            style={{
+              cursor: uploadingImage ? 'wait' : 'pointer',
               opacity: uploadingImage ? 0.6 : 1,
-              marginTop: currentImageUrls.length > 0 ? '0.75rem' : '0'
+              marginTop: currentImageUrls.length > 0 ? '0.75rem' : '0',
             }}
           >
-            {uploadingImage ? `⏳ ${t('glossary.uploadImageLoading')}` : `📤 ${t('glossary.addImageButton')}`}
+            {uploadingImage
+              ? `⏳ ${t('glossary.uploadImageLoading')}`
+              : `📤 ${t('glossary.addImageButton')}`}
             <input
               type="file"
               accept="image/*"
@@ -954,4 +998,3 @@ function EditGlossaryModal({
     </Modal>
   );
 }
-

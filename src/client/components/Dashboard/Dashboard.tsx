@@ -32,10 +32,10 @@ export function Dashboard() {
       const project = await api.createProject(newProjectName.trim());
       setShowCreateModal(false);
       setNewProjectName('');
-      
+
       // Reload projects
       await loadProjects();
-      
+
       // Navigate to project (will be handled by router)
       route(`/projects/${project.id}`);
     } catch (error) {
@@ -59,10 +59,9 @@ export function Dashboard() {
         <div class="dashboard-title">
           <h1>{t('dashboard.myProjects')}</h1>
           <p class="dashboard-subtitle">
-            {projects.length > 0 
+            {projects.length > 0
               ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
-              : t('dashboard.subtitleEmpty')
-            }
+              : t('dashboard.subtitleEmpty')}
           </p>
         </div>
         <Button
@@ -96,13 +95,14 @@ export function Dashboard() {
               class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
               onClick={() => setFilterType('book')}
             >
-              📚 {t('dashboard.filterBooks')} ({projects.filter(p => p.type === 'book').length})
+              📚 {t('dashboard.filterBooks')} ({projects.filter((p) => p.type === 'book').length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}
               onClick={() => setFilterType('text')}
             >
-              📝 {t('dashboard.filterText')} ({projects.filter(p => p.type === 'text' || !p.type).length})
+              📝 {t('dashboard.filterText')} (
+              {projects.filter((p) => p.type === 'text' || !p.type).length})
             </button>
           </div>
         </div>

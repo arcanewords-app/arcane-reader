@@ -42,13 +42,11 @@ export async function uploadFile(
 ): Promise<UploadResult> {
   const supabase = createServiceRoleClient();
 
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .upload(path, file, {
-      contentType: options.contentType,
-      upsert: options.upsert ?? true,
-      cacheControl: options.cacheControl || '3600',
-    });
+  const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
+    contentType: options.contentType,
+    upsert: options.upsert ?? true,
+    cacheControl: options.cacheControl || '3600',
+  });
 
   if (error) {
     throw new Error(`Failed to upload file to ${bucket}: ${error.message}`);
@@ -74,10 +72,14 @@ export async function createSignedUrl(
 ): Promise<SignedUrlResult> {
   const supabase = createServiceRoleClient();
 
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, expiresInSeconds);
 
   if (error || !data?.signedUrl) {
-    throw new Error(`Failed to create signed URL for ${bucket}: ${error?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to create signed URL for ${bucket}: ${error?.message || 'Unknown error'}`
+    );
   }
 
   return { signedUrl: data.signedUrl };
@@ -125,10 +127,7 @@ export async function listFiles(
 /**
  * Delete file from Supabase Storage
  */
-export async function deleteFile(
-  bucket: StorageBucket,
-  path: string
-): Promise<void> {
+export async function deleteFile(bucket: StorageBucket, path: string): Promise<void> {
   const supabase = createServiceRoleClient();
 
   const { error } = await supabase.storage.from(bucket).remove([path]);
@@ -141,10 +140,7 @@ export async function deleteFile(
 /**
  * Delete multiple files from Supabase Storage
  */
-export async function deleteFiles(
-  bucket: StorageBucket,
-  paths: string[]
-): Promise<void> {
+export async function deleteFiles(bucket: StorageBucket, paths: string[]): Promise<void> {
   if (paths.length === 0) return;
 
   const supabase = createServiceRoleClient();
@@ -210,10 +206,10 @@ export function generateUniqueFilename(
   const timestamp = Date.now();
   const random = Math.round(Math.random() * 1e9);
   const filename = `${prefix}-${timestamp}-${random}.${extension}`;
-  
+
   if (projectId) {
     return `${projectId}/${filename}`;
   }
-  
+
   return filename;
 }

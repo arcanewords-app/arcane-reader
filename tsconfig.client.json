@@ -30,4 +30,3 @@
   "include": ["src/client/**/*", "vite.config.ts"],
   "exclude": ["node_modules"]
 }
-

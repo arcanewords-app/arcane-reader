@@ -33,9 +33,9 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
       'неподтвержден',
       'подтверждение email',
     ];
-    
+
     // Check for specific email confirmation keywords
-    return emailNotConfirmedKeywords.some(keyword => lowerMessage.includes(keyword));
+    return emailNotConfirmedKeywords.some((keyword) => lowerMessage.includes(keyword));
   };
 
   const handleSubmit = async (e: Event) => {
@@ -48,7 +48,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
       onSuccess(user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('auth.errorLogin');
-      
+
       // Check if this is an email confirmation error
       if (isEmailNotConfirmedError(errorMessage)) {
         if (onEmailNotConfirmed) {

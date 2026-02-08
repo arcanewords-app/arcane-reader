@@ -80,10 +80,7 @@ export function ParagraphList({
 
   // Calculate stats
   const originalChars = paragraphs.reduce((sum, p) => sum + p.originalText.length, 0);
-  const translatedChars = paragraphs.reduce(
-    (sum, p) => sum + (p.translatedText?.length || 0),
-    0
-  );
+  const translatedChars = paragraphs.reduce((sum, p) => sum + (p.translatedText?.length || 0), 0);
 
   const singleColumn = isOriginalReadingMode || isTranslationOnlyDisplay;
 
@@ -93,13 +90,20 @@ export function ParagraphList({
         {!isTranslationOnlyDisplay && (
           <div class="panel-header-left" style={singleColumn ? { width: '100%' } : {}}>
             🇬🇧 Оригинал (English)
-            <span class="panel-stats">{originalChars.toLocaleString()} {t('paragraphList.characters')}</span>
+            <span class="panel-stats">
+              {originalChars.toLocaleString()} {t('paragraphList.characters')}
+            </span>
           </div>
         )}
         {(isTranslationOnlyDisplay || !isOriginalReadingMode) && (
-          <div class={`panel-header-right ${isTranslationOnlyDisplay ? 'panel-header-full' : ''}`} style={isTranslationOnlyDisplay ? { width: '100%' } : {}}>
+          <div
+            class={`panel-header-right ${isTranslationOnlyDisplay ? 'panel-header-full' : ''}`}
+            style={isTranslationOnlyDisplay ? { width: '100%' } : {}}
+          >
             🇷🇺 Перевод (Русский)
-            <span class="panel-stats">{translatedChars.toLocaleString()} {t('paragraphList.characters')}</span>
+            <span class="panel-stats">
+              {translatedChars.toLocaleString()} {t('paragraphList.characters')}
+            </span>
           </div>
         )}
       </div>
@@ -107,92 +111,97 @@ export function ParagraphList({
       <div class="paragraphs-unified">
         {paragraphs.map((paragraph, index) => {
           const isEmpty = emptyParagraphIds.includes(paragraph.id);
-          const showCheckbox = !isOriginalReadingMode && !isTranslationOnlyDisplay && isEmpty && onToggleParagraphSelection;
+          const showCheckbox =
+            !isOriginalReadingMode &&
+            !isTranslationOnlyDisplay &&
+            isEmpty &&
+            onToggleParagraphSelection;
           const isSelected = selectedParagraphIds.includes(paragraph.id);
           return (
-          <div
-            key={paragraph.id}
-            class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
-            style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
-            onMouseEnter={() => setHighlightedId(paragraph.id)}
-            onMouseLeave={() => setHighlightedId(null)}
-          >
-            {/* Original - hidden in original reading mode and translation-only display */}
-            {!isTranslationOnlyDisplay && (
-            <div class="paragraph-cell paragraph-cell-original" style={singleColumn ? { width: '100%' } : {}}>
-              {showCheckbox && (
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    marginRight: '0.35rem',
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggleParagraphSelection?.(paragraph.id)}
-                    style={{ accentColor: 'var(--accent)' }}
-                  />
-                </label>
-              )}
-              <span class="paragraph-index">{index + 1}</span>
-              <div class="paragraph-text">{paragraph.originalText}</div>
-            </div>
-            )}
-
-            {/* Translation - hidden only in original reading mode */}
-            {(!isOriginalReadingMode || isTranslationOnlyDisplay) && (
-            <div class="paragraph-cell paragraph-cell-translation" style={isTranslationOnlyDisplay ? { width: '100%' } : {}}>
-              {isTranslationOnlyDisplay && (
-                <span class="paragraph-index">{index + 1}</span>
-              )}
-              {editingId === paragraph.id ? (
-                <div>
-                  <textarea
-                    ref={textareaRef}
-                    class="paragraph-editor"
-                    value={editText}
-                    onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
-                    onKeyDown={handleKeyDown}
-                    autoFocus
-                  />
-                  <div class="paragraph-actions">
-                    <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
-                      {t('common.cancel')}
-                    </button>
-                    <button
-                      class="btn btn-primary btn-sm"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? <span class="spinner" /> : `💾 ${t('paragraphList.save')}`}
-                    </button>
-                  </div>
-                </div>
-              ) : (
+            <div
+              key={paragraph.id}
+              class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+              style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
+              onMouseEnter={() => setHighlightedId(paragraph.id)}
+              onMouseLeave={() => setHighlightedId(null)}
+            >
+              {/* Original - hidden in original reading mode and translation-only display */}
+              {!isTranslationOnlyDisplay && (
                 <div
-                  class={`paragraph-text editable ${
-                    !paragraph.translatedText ? 'empty' : ''
-                  }`}
-                  onClick={() => startEditing(paragraph)}
-                  dangerouslySetInnerHTML={{
-                    __html: paragraph.translatedText
-                      ? escapeHtml(paragraph.translatedText)
-                      : `<em>${t('paragraphList.clickToEdit')}</em>`,
-                  }}
-                />
+                  class="paragraph-cell paragraph-cell-original"
+                  style={singleColumn ? { width: '100%' } : {}}
+                >
+                  {showCheckbox && (
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                        marginRight: '0.35rem',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggleParagraphSelection?.(paragraph.id)}
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                    </label>
+                  )}
+                  <span class="paragraph-index">{index + 1}</span>
+                  <div class="paragraph-text">{paragraph.originalText}</div>
+                </div>
+              )}
+
+              {/* Translation - hidden only in original reading mode */}
+              {(!isOriginalReadingMode || isTranslationOnlyDisplay) && (
+                <div
+                  class="paragraph-cell paragraph-cell-translation"
+                  style={isTranslationOnlyDisplay ? { width: '100%' } : {}}
+                >
+                  {isTranslationOnlyDisplay && <span class="paragraph-index">{index + 1}</span>}
+                  {editingId === paragraph.id ? (
+                    <div>
+                      <textarea
+                        ref={textareaRef}
+                        class="paragraph-editor"
+                        value={editText}
+                        onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
+                        onKeyDown={handleKeyDown}
+                        autoFocus
+                      />
+                      <div class="paragraph-actions">
+                        <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
+                          {t('common.cancel')}
+                        </button>
+                        <button
+                          class="btn btn-primary btn-sm"
+                          onClick={handleSave}
+                          disabled={saving}
+                        >
+                          {saving ? <span class="spinner" /> : `💾 ${t('paragraphList.save')}`}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
+                      onClick={() => startEditing(paragraph)}
+                      dangerouslySetInnerHTML={{
+                        __html: paragraph.translatedText
+                          ? escapeHtml(paragraph.translatedText)
+                          : `<em>${t('paragraphList.clickToEdit')}</em>`,
+                      }}
+                    />
+                  )}
+                </div>
               )}
             </div>
-            )}
-          </div>
           );
         })}
       </div>
     </div>
   );
 }
-

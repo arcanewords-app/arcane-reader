@@ -48,11 +48,5 @@ export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) 
     return <div>{t('common.loading')}</div>;
   }
 
-  return (
-    <ReadingMode
-      project={project}
-      initialChapterId={chapterId}
-      onExit={handleExit}
-    />
-  );
+  return <ReadingMode project={project} initialChapterId={chapterId} onExit={handleExit} />;
 }

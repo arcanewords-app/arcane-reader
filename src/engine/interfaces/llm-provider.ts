@@ -30,15 +30,12 @@ export interface CompletionResult {
 export interface ILLMProvider {
   readonly name: string;
   readonly model: string;
-  
+
   /**
    * Send a completion request to the LLM
    */
-  complete(
-    messages: Message[],
-    options?: CompletionOptions
-  ): Promise<CompletionResult>;
-  
+  complete(messages: Message[], options?: CompletionOptions): Promise<CompletionResult>;
+
   /**
    * Send a completion request with JSON response
    */
@@ -46,12 +43,12 @@ export interface ILLMProvider {
     messages: Message[],
     options?: CompletionOptions
   ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }>;
-  
+
   /**
    * Check if the provider is available and configured
    */
   isAvailable(): Promise<boolean>;
-  
+
   /**
    * Get approximate token count for text
    */
@@ -65,4 +62,3 @@ export interface LLMProviderConfig {
   timeout?: number;
   maxRetries?: number;
 }
-

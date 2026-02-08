@@ -15,7 +15,7 @@ try {
     // Windows: find and kill process
     const result = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf-8' });
     const lines = result.trim().split('\n');
-    
+
     const pids = new Set();
     for (const line of lines) {
       const parts = line.trim().split(/\s+/);
@@ -24,7 +24,7 @@ try {
         pids.add(pid);
       }
     }
-    
+
     if (pids.size === 0) {
       console.log(`✅ Порт ${port} свободен`);
     } else {
@@ -43,7 +43,7 @@ try {
     try {
       const result = execSync(`lsof -ti:${port}`, { encoding: 'utf-8' });
       const pids = result.trim().split('\n').filter(Boolean);
-      
+
       for (const pid of pids) {
         console.log(`🔪 Завершаю процесс PID ${pid}...`);
         execSync(`kill -9 ${pid}`);
@@ -58,4 +58,3 @@ try {
 }
 
 console.log(`🚀 Порт ${port} освобождён, можно запускать сервер\n`);
-

@@ -6,7 +6,13 @@ interface CardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   children: preact.ComponentChildren;
 }
 
-export function Card({ title, className = '', class: classAttr = '', children, ...props }: CardProps) {
+export function Card({
+  title,
+  className = '',
+  class: classAttr = '',
+  children,
+  ...props
+}: CardProps) {
   const classes = `card ${className} ${classAttr}`.trim();
   return (
     <div class={classes} {...props}>
@@ -15,4 +21,3 @@ export function Card({ title, className = '', class: classAttr = '', children, .
     </div>
   );
 }
-

@@ -54,7 +54,9 @@ export function SettingsModal({
   /** Models that only support default temperature (gpt-5*, o1-, o3-, o4-). Match backend provider. */
   const modelUsesDefaultTemperature = (modelId: string) => {
     const m = (modelId || '').toLowerCase();
-    return m.startsWith('o1-') || m.startsWith('o3-') || m.startsWith('o4-') || m.startsWith('gpt-5');
+    return (
+      m.startsWith('o1-') || m.startsWith('o3-') || m.startsWith('o4-') || m.startsWith('gpt-5')
+    );
   };
 
   /** Reasoning/long-thinking models: not allowed for analysis (too slow, 1–5 min per request). */
@@ -71,7 +73,7 @@ export function SettingsModal({
       translation: settings.model || 'gpt-5-mini',
       editing: settings.model || 'gpt-4.1-mini',
     };
-    
+
     const updated = await api.updateSettings(project.id, {
       stageModels: {
         ...currentStageModels,
@@ -113,12 +115,22 @@ export function SettingsModal({
     <Modal isOpen={isOpen} onClose={onClose} title={`⚙️ ${t('settings.title')}`} size="large">
       <div class="settings-modal">
         {/* Original Reading Mode Toggle */}
-        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+        <div
+          style={{
+            marginBottom: '1.5rem',
+            padding: '1rem',
+            background: 'var(--bg-secondary)',
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+          }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>📖 {t('settings.originalReadingMode')}</div>
+              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                📖 {t('settings.originalReadingMode')}
+              </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>
-                {isOriginalReadingMode 
+                {isOriginalReadingMode
                   ? t('settings.originalReadingModeDescOn')
                   : t('settings.originalReadingModeDescOff')}
               </div>
@@ -137,7 +149,10 @@ export function SettingsModal({
         {/* Settings Panel: one row per stage = model + creativity */}
         <div class="settings-panel">
           <div class="setting-group setting-group-unified">
-            <label class="setting-label">🤖 {t('settings.modelsByStage')} · 🎨 {t('settings.creativityByStage', 'Креативность')}</label>
+            <label class="setting-label">
+              🤖 {t('settings.modelsByStage')} · 🎨{' '}
+              {t('settings.creativityByStage', 'Креативность')}
+            </label>
             <div class="stage-rows">
               {/* Analysis - always visible */}
               <div class="stage-row">
@@ -145,26 +160,41 @@ export function SettingsModal({
                 <select
                   class="setting-select stage-row-select"
                   value={getStageModel('analysis')}
-                  onChange={(e) => handleStageModelChange('analysis', (e.target as HTMLSelectElement).value)}
+                  onChange={(e) =>
+                    handleStageModelChange('analysis', (e.target as HTMLSelectElement).value)
+                  }
                 >
                   {isReasoningModel(getStageModel('analysis')) && (
-                    <option value={getStageModel('analysis')}>{getStageModel('analysis')} — {t('settings.notRecommendedForAnalysis')}</option>
+                    <option value={getStageModel('analysis')}>
+                      {getStageModel('analysis')} — {t('settings.notRecommendedForAnalysis')}
+                    </option>
                   )}
-                  {!isModelInList(getStageModel('analysis')) && !isReasoningModel(getStageModel('analysis')) && (
-                    <option value={getStageModel('analysis')}>{getStageModel('analysis')}</option>
-                  )}
+                  {!isModelInList(getStageModel('analysis')) &&
+                    !isReasoningModel(getStageModel('analysis')) && (
+                      <option value={getStageModel('analysis')}>{getStageModel('analysis')}</option>
+                    )}
                   <optgroup label={`⭐ ${t('settings.recommendedForAnalysis')}`}>
-                    {ANALYSIS_ALLOWED_MODELS.filter((m) => ANALYSIS_RECOMMENDED.includes(m.value)).map((m) => (
-                      <option key={m.value} value={m.value}>{m.label} — {t(`settings.modelDesc.${m.value}`)}</option>
+                    {ANALYSIS_ALLOWED_MODELS.filter((m) =>
+                      ANALYSIS_RECOMMENDED.includes(m.value)
+                    ).map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label} — {t(`settings.modelDesc.${m.value}`)}
+                      </option>
                     ))}
                   </optgroup>
                   <optgroup label={t('settings.otherModels')}>
-                    {ANALYSIS_ALLOWED_MODELS.filter((m) => !ANALYSIS_RECOMMENDED.includes(m.value)).map((m) => (
-                      <option key={m.value} value={m.value}>{m.label} — {t(`settings.modelDesc.${m.value}`)}</option>
+                    {ANALYSIS_ALLOWED_MODELS.filter(
+                      (m) => !ANALYSIS_RECOMMENDED.includes(m.value)
+                    ).map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label} — {t(`settings.modelDesc.${m.value}`)}
+                      </option>
                     ))}
                   </optgroup>
                 </select>
-                <div class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('analysis')) ? ' slider-disabled' : ''}`}>
+                <div
+                  class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('analysis')) ? ' slider-disabled' : ''}`}
+                >
                   <input
                     type="range"
                     class="slider"
@@ -181,7 +211,9 @@ export function SettingsModal({
                   />
                   <span class="slider-value">{getStageTemperature('analysis').toFixed(1)}</span>
                   {modelUsesDefaultTemperature(getStageModel('analysis')) && (
-                    <span class="slider-hint" title={t('settings.creativityNotConfigurable')}>{t('settings.creativityNotConfigurable')}</span>
+                    <span class="slider-hint" title={t('settings.creativityNotConfigurable')}>
+                      {t('settings.creativityNotConfigurable')}
+                    </span>
                   )}
                 </div>
               </div>
@@ -193,23 +225,38 @@ export function SettingsModal({
                     <select
                       class="setting-select stage-row-select"
                       value={getStageModel('translation')}
-                      onChange={(e) => handleStageModelChange('translation', (e.target as HTMLSelectElement).value)}
+                      onChange={(e) =>
+                        handleStageModelChange('translation', (e.target as HTMLSelectElement).value)
+                      }
                     >
                       {!isModelInList(getStageModel('translation')) && (
-                        <option value={getStageModel('translation')}>{getStageModel('translation')}</option>
+                        <option value={getStageModel('translation')}>
+                          {getStageModel('translation')}
+                        </option>
                       )}
                       <optgroup label={`⭐ ${t('settings.recommendedForTranslation')}`}>
-                        {MODELS.filter((m) => ['gpt-5-mini', 'gpt-4.1-mini', 'o3-mini', 'o4-mini'].includes(m.value)).map((m) => (
-                          <option key={m.value} value={m.value}>{m.label} — {t(`settings.modelDesc.${m.value}`)}</option>
+                        {MODELS.filter((m) =>
+                          ['gpt-5-mini', 'gpt-4.1-mini', 'o3-mini', 'o4-mini'].includes(m.value)
+                        ).map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
+                          </option>
                         ))}
                       </optgroup>
                       <optgroup label={t('settings.otherModels')}>
-                        {MODELS.filter((m) => !['gpt-5-mini', 'gpt-4.1-mini', 'o3-mini', 'o4-mini'].includes(m.value)).map((m) => (
-                          <option key={m.value} value={m.value}>{m.label} — {t(`settings.modelDesc.${m.value}`)}</option>
+                        {MODELS.filter(
+                          (m) =>
+                            !['gpt-5-mini', 'gpt-4.1-mini', 'o3-mini', 'o4-mini'].includes(m.value)
+                        ).map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
+                          </option>
                         ))}
                       </optgroup>
                     </select>
-                    <div class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('translation')) ? ' slider-disabled' : ''}`}>
+                    <div
+                      class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('translation')) ? ' slider-disabled' : ''}`}
+                    >
                       <input
                         type="range"
                         class="slider"
@@ -224,9 +271,13 @@ export function SettingsModal({
                         }}
                         onChange={(e) => handleStageTemperatureChange('translation', e)}
                       />
-                      <span class="slider-value">{getStageTemperature('translation').toFixed(1)}</span>
+                      <span class="slider-value">
+                        {getStageTemperature('translation').toFixed(1)}
+                      </span>
                       {modelUsesDefaultTemperature(getStageModel('translation')) && (
-                        <span class="slider-hint" title={t('settings.creativityNotConfigurable')}>{t('settings.creativityNotConfigurable')}</span>
+                        <span class="slider-hint" title={t('settings.creativityNotConfigurable')}>
+                          {t('settings.creativityNotConfigurable')}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -235,23 +286,40 @@ export function SettingsModal({
                     <select
                       class="setting-select stage-row-select"
                       value={getStageModel('editing')}
-                      onChange={(e) => handleStageModelChange('editing', (e.target as HTMLSelectElement).value)}
+                      onChange={(e) =>
+                        handleStageModelChange('editing', (e.target as HTMLSelectElement).value)
+                      }
                     >
                       {!isModelInList(getStageModel('editing')) && (
                         <option value={getStageModel('editing')}>{getStageModel('editing')}</option>
                       )}
                       <optgroup label={`⭐ ${t('settings.recommendedForEditing')}`}>
-                        {MODELS.filter((m) => ['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5-nano'].includes(m.value)).map((m) => (
-                          <option key={m.value} value={m.value}>{m.label} — {t(`settings.modelDesc.${m.value}`)}</option>
+                        {MODELS.filter((m) =>
+                          ['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5-nano'].includes(
+                            m.value
+                          )
+                        ).map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
+                          </option>
                         ))}
                       </optgroup>
                       <optgroup label={t('settings.otherModels')}>
-                        {MODELS.filter((m) => !['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5-nano'].includes(m.value)).map((m) => (
-                          <option key={m.value} value={m.value}>{m.label} — {t(`settings.modelDesc.${m.value}`)}</option>
+                        {MODELS.filter(
+                          (m) =>
+                            !['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5-nano'].includes(
+                              m.value
+                            )
+                        ).map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
+                          </option>
                         ))}
                       </optgroup>
                     </select>
-                    <div class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('editing')) ? ' slider-disabled' : ''}`}>
+                    <div
+                      class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('editing')) ? ' slider-disabled' : ''}`}
+                    >
                       <input
                         type="range"
                         class="slider"
@@ -268,7 +336,9 @@ export function SettingsModal({
                       />
                       <span class="slider-value">{getStageTemperature('editing').toFixed(1)}</span>
                       {modelUsesDefaultTemperature(getStageModel('editing')) && (
-                        <span class="slider-hint" title={t('settings.creativityNotConfigurable')}>{t('settings.creativityNotConfigurable')}</span>
+                        <span class="slider-hint" title={t('settings.creativityNotConfigurable')}>
+                          {t('settings.creativityNotConfigurable')}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -292,23 +362,32 @@ export function SettingsModal({
               <div class="stage-toggle active">
                 <span class="stage-icon">🔍</span>
                 <span class="stage-name">{t('settings.stageAnalysis')}</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{getStageModel('analysis')}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {getStageModel('analysis')}
+                </span>
               </div>
               <span class="stage-arrow">→</span>
               <div class="stage-toggle active">
                 <span class="stage-icon">🔮</span>
                 <span class="stage-name">{t('settings.stageTranslation')}</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{getStageModel('translation')}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {getStageModel('translation')}
+                </span>
               </div>
               <span class="stage-arrow">→</span>
               <div class="stage-toggle active">
                 <span class="stage-icon">✨</span>
                 <span class="stage-name">{t('settings.stageEditing')}</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{getStageModel('editing')}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {getStageModel('editing')}
+                </span>
               </div>
             </div>
             <span class="setting-hint" style={{ display: 'block', marginTop: '0.5rem' }}>
-              {t('settings.stageModelsHint', 'Стадии перевода выбираются при запуске (панель «Перевод» на главе).')}
+              {t(
+                'settings.stageModelsHint',
+                'Стадии перевода выбираются при запуске (панель «Перевод» на главе).'
+              )}
             </span>
           </div>
         )}

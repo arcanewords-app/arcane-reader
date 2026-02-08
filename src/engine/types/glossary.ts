@@ -50,4 +50,3 @@ export interface GlossaryUpdate {
   updatedLocations: Partial<Location>[];
   updatedTerms: Partial<Term>[];
 }
-

@@ -18,7 +18,13 @@ interface AuthModalProps {
 
 type AuthMode = 'login' | 'register';
 
-export function AuthModal({ isOpen, initialMode = 'login', onSuccess, onClose, onEmailNotConfirmed }: AuthModalProps) {
+export function AuthModal({
+  isOpen,
+  initialMode = 'login',
+  onSuccess,
+  onClose,
+  onEmailNotConfirmed,
+}: AuthModalProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [inviteRequired, setInviteRequired] = useState<boolean | null>(null);
@@ -77,70 +83,74 @@ export function AuthModal({ isOpen, initialMode = 'login', onSuccess, onClose, o
     >
       <>
         <div class="auth-modal-header-row">
-        <div class="auth-tabs">
-        <button
-          type="button"
-          onClick={handleSwitchToLogin}
-          style={{
-            background: 'none',
-            border: 'none',
-            borderBottom: mode === 'login' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: mode === 'login' ? 'var(--primary)' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            padding: '0.5rem 1rem',
-            fontWeight: mode === 'login' ? 'bold' : 'normal',
-          }}
-        >
-          {t('auth.login')}
-        </button>
-        <button
-          type="button"
-          onClick={handleSwitchToRegister}
-          style={{
-            background: 'none',
-            border: 'none',
-            borderBottom:
-              mode === 'register' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: mode === 'register' ? 'var(--primary)' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            padding: '0.5rem 1rem',
-            fontWeight: mode === 'register' ? 'bold' : 'normal',
-          }}
-        >
-          {t('auth.register')}
-        </button>
-      </div>
-        {onClose && (
-          <button
-            type="button"
-            class="auth-modal-close"
-            onClick={onClose}
-            aria-label={t('common.close')}
-          >
-            ×
-          </button>
-        )}
+          <div class="auth-tabs">
+            <button
+              type="button"
+              onClick={handleSwitchToLogin}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom:
+                  mode === 'login' ? '2px solid var(--primary)' : '2px solid transparent',
+                color: mode === 'login' ? 'var(--primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '0.5rem 1rem',
+                fontWeight: mode === 'login' ? 'bold' : 'normal',
+              }}
+            >
+              {t('auth.login')}
+            </button>
+            <button
+              type="button"
+              onClick={handleSwitchToRegister}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom:
+                  mode === 'register' ? '2px solid var(--primary)' : '2px solid transparent',
+                color: mode === 'register' ? 'var(--primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '0.5rem 1rem',
+                fontWeight: mode === 'register' ? 'bold' : 'normal',
+              }}
+            >
+              {t('auth.register')}
+            </button>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              class="auth-modal-close"
+              onClick={onClose}
+              aria-label={t('common.close')}
+            >
+              ×
+            </button>
+          )}
         </div>
 
         {mode === 'login' ? (
-        <LoginForm
-          onSuccess={handleSuccess}
-          onSwitchToRegister={handleSwitchToRegister}
-          onEmailNotConfirmed={onEmailNotConfirmed}
-        />
-      ) : inviteRequired === null ? (
-        <div class="auth-form" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          {t('auth.loading')}
-        </div>
-      ) : showInviteStep ? (
-        <InviteStep onSuccess={handleInviteSuccess} onSwitchToLogin={handleSwitchToLogin} />
-      ) : showRegisterForm ? (
-        <RegisterForm
-          onSuccess={handleSuccess}
-          onSwitchToLogin={handleSwitchToLogin}
-          invitationCode={registerInviteCode}
-        />
-      ) : null}
+          <LoginForm
+            onSuccess={handleSuccess}
+            onSwitchToRegister={handleSwitchToRegister}
+            onEmailNotConfirmed={onEmailNotConfirmed}
+          />
+        ) : inviteRequired === null ? (
+          <div
+            class="auth-form"
+            style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}
+          >
+            {t('auth.loading')}
+          </div>
+        ) : showInviteStep ? (
+          <InviteStep onSuccess={handleInviteSuccess} onSwitchToLogin={handleSwitchToLogin} />
+        ) : showRegisterForm ? (
+          <RegisterForm
+            onSuccess={handleSuccess}
+            onSwitchToLogin={handleSwitchToLogin}
+            invitationCode={registerInviteCode}
+          />
+        ) : null}
       </>
     </Modal>
   );

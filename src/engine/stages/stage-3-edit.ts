@@ -1,6 +1,6 @@
 /**
  * Stage 3: Editing/Polishing
- * 
+ *
  * Refines the translation to:
  * - Improve readability and flow
  * - Fix awkward phrasings
@@ -12,7 +12,11 @@ import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AgentContext } from '../types/agent.js';
 import type { StageResult, EditedTranslation, EditChange } from '../types/pipeline.js';
 import type { TextChunk } from '../types/common.js';
-import { EDITOR_SYSTEM_PROMPT, createEditorPrompt, QUALITY_CHECK_PROMPT } from '../prompts/system/editor.js';
+import {
+  EDITOR_SYSTEM_PROMPT,
+  createEditorPrompt,
+  QUALITY_CHECK_PROMPT,
+} from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
 import { log } from '../logger.js';
@@ -32,18 +36,23 @@ interface QualityCheckResponse {
 
 export class EditStage {
   private provider: ILLMProvider;
-  
+
   constructor(provider: ILLMProvider) {
     if (!provider) {
       throw new Error('EditStage: provider is required but was undefined');
     }
     if (typeof provider.complete !== 'function') {
-      throw new Error(`EditStage: provider is missing complete method. Provider: ${JSON.stringify(provider)}`);
+      throw new Error(
+        `EditStage: provider is missing complete method. Provider: ${JSON.stringify(provider)}`
+      );
     }
     this.provider = provider;
-    log.debug('EditStage initialized', { hasProvider: !!this.provider, hasComplete: typeof this.provider.complete });
+    log.debug('EditStage initialized', {
+      hasProvider: !!this.provider,
+      hasComplete: typeof this.provider.complete,
+    });
   }
-  
+
   async execute(
     translatedText: string,
     originalText: string,
@@ -51,7 +60,7 @@ export class EditStage {
   ): Promise<StageResult<EditedTranslation>> {
     const startTime = Date.now();
     let totalTokens = 0;
-    
+
     if (!this.provider) {
       log.warn('EditStage.execute: provider not initialized');
       return {
@@ -76,27 +85,27 @@ export class EditStage {
         error: `Editing provider is missing complete method. Provider type: ${typeof this.provider}, has complete: ${!!this.provider.complete}`,
       };
     }
-    
+
     try {
       // Prepare glossary
       const glossaryManager = new GlossaryManager(options.context.glossary);
       const glossaryText = glossaryManager.toPromptText();
-      
+
       // Prepare style notes
       const styleNotes = this.buildStyleNotes(options.context);
-      
+
       // Determine if we should use chunked editing
       // Use chunked editing if chunkSize is specified OR if text is too large
       const estimatedTokens = Math.ceil(translatedText.length / 4);
       const useChunkedEditing = options.chunkSize !== undefined || estimatedTokens > 3000;
-      
+
       let editedText: string;
-      
+
       if (useChunkedEditing) {
         // Chunked editing for large texts
         const chunkSize = options.chunkSize ?? 2000;
         log.debug('EditStage: using chunked editing', { estimatedTokens, chunkSize });
-        
+
         const editTemp = options.temperature ?? 0.5;
         const chunkedResult = await this.editChunked(
           translatedText,
@@ -106,59 +115,53 @@ export class EditStage {
           chunkSize,
           editTemp
         );
-        
+
         editedText = chunkedResult.text;
         totalTokens = chunkedResult.tokensUsed;
       } else {
         // Single-request editing for small texts
         log.debug('EditStage: using direct editing', { estimatedTokens });
-        
+
         const messages: Message[] = [
           { role: 'system', content: EDITOR_SYSTEM_PROMPT },
           {
             role: 'user',
-            content: createEditorPrompt(
-              translatedText,
-              originalText,
-              glossaryText,
-              styleNotes
-            ),
+            content: createEditorPrompt(translatedText, originalText, glossaryText, styleNotes),
           },
         ];
-        
+
         const editTemp = options.temperature ?? 0.5;
         const editResponse = await this.provider.complete(messages, {
           temperature: editTemp,
           maxTokens: 8192,
         });
-        
+
         totalTokens += editResponse.tokensUsed.total;
         editedText = editResponse.content.trim();
       }
-      
+
       // Detect changes
       const changes = this.detectChanges(translatedText, editedText);
-      
+
       // Optional quality check (only for small texts to avoid timeout)
       let qualityScore: number | undefined;
-      
+
       if (options.checkQuality && !useChunkedEditing) {
         // Skip quality check for chunked editing to avoid timeout
         try {
-          const qualityResult = await this.checkQuality(
-            editedText,
-            originalText,
-            glossaryText
-          );
+          const qualityResult = await this.checkQuality(editedText, originalText, glossaryText);
           totalTokens += qualityResult.tokensUsed;
           qualityScore = qualityResult.score;
         } catch (qualityError) {
-          log.warn('EditStage: quality check failed', qualityError instanceof Error ? qualityError : undefined);
+          log.warn(
+            'EditStage: quality check failed',
+            qualityError instanceof Error ? qualityError : undefined
+          );
         }
       } else if (options.checkQuality && useChunkedEditing) {
         log.debug('EditStage: quality check skipped for chunked editing to avoid timeouts');
       }
-      
+
       return {
         stage: 'edit',
         success: true,
@@ -170,7 +173,6 @@ export class EditStage {
         tokensUsed: totalTokens,
         duration: Date.now() - startTime,
       };
-      
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
       log.error(`EditStage.execute failed: ${errMsg}`, error instanceof Error ? error : undefined);
@@ -187,7 +189,7 @@ export class EditStage {
   private buildStyleNotes(context: AgentContext): string {
     const { styleProfile } = context;
     const notes: string[] = [];
-    
+
     if (styleProfile.tone) {
       notes.push(`Сохраняйте тон: ${styleProfile.tone}`);
     }
@@ -197,23 +199,23 @@ export class EditStage {
     if (styleProfile.writingStyle) {
       notes.push(`Особенности автора: ${styleProfile.writingStyle}`);
     }
-    
+
     return notes.join('\n');
   }
-  
+
   private detectChanges(before: string, after: string): EditChange[] {
     // Simple change detection - compare paragraphs
     const changes: EditChange[] = [];
-    
+
     const beforeParagraphs = before.split(/\n\n+/);
     const afterParagraphs = after.split(/\n\n+/);
-    
+
     // For now, just note if there were changes
     // A more sophisticated diff could be implemented
     for (let i = 0; i < Math.max(beforeParagraphs.length, afterParagraphs.length); i++) {
       const beforeP = beforeParagraphs[i]?.trim() ?? '';
       const afterP = afterParagraphs[i]?.trim() ?? '';
-      
+
       if (beforeP !== afterP && beforeP && afterP) {
         changes.push({
           before: beforeP.slice(0, 100) + (beforeP.length > 100 ? '...' : ''),
@@ -222,10 +224,10 @@ export class EditStage {
         });
       }
     }
-    
+
     return changes;
   }
-  
+
   /**
    * Edit translation using chunked approach
    * Preserves paragraph markers for later synchronization
@@ -243,24 +245,29 @@ export class EditStage {
       maxTokens: chunkSize,
       preserveParagraphs: true,
     });
-    
+
     const originalChunks = chunkText(originalText, {
       maxTokens: chunkSize,
       preserveParagraphs: true,
     });
-    
-    log.info(`EditStage: split into ${translatedChunks.length} chunks for editing`, { chunksCount: translatedChunks.length });
-    
+
+    log.info(`EditStage: split into ${translatedChunks.length} chunks for editing`, {
+      chunksCount: translatedChunks.length,
+    });
+
     // Edit each chunk
     const editedChunks: { content: string; index: number }[] = [];
     let totalTokensUsed = 0;
-    
+
     for (let i = 0; i < translatedChunks.length; i++) {
       const translatedChunk = translatedChunks[i];
       const originalChunk = originalChunks[i] || { content: '', index: i };
-      
-      log.debug(`EditStage: editing chunk ${i + 1}/${translatedChunks.length}`, { chunkId: translatedChunk.id, tokenCount: translatedChunk.tokenCount });
-      
+
+      log.debug(`EditStage: editing chunk ${i + 1}/${translatedChunks.length}`, {
+        chunkId: translatedChunk.id,
+        tokenCount: translatedChunk.tokenCount,
+      });
+
       try {
         const editResult = await this.editChunk(
           translatedChunk,
@@ -269,9 +276,9 @@ export class EditStage {
           styleNotes,
           temperature
         );
-        
+
         totalTokensUsed += editResult.tokensUsed;
-        
+
         if (!editResult.text || editResult.text.trim().length === 0) {
           log.warn(`EditStage: chunk ${i + 1} returned empty edit`);
           editedChunks.push({
@@ -279,7 +286,10 @@ export class EditStage {
             index: translatedChunk.index,
           });
         } else {
-          log.debug(`EditStage: chunk ${i + 1} edited`, { length: editResult.text.length, tokensUsed: editResult.tokensUsed });
+          log.debug(`EditStage: chunk ${i + 1} edited`, {
+            length: editResult.text.length,
+            tokensUsed: editResult.tokensUsed,
+          });
           editedChunks.push({
             content: editResult.text,
             index: translatedChunk.index,
@@ -287,14 +297,17 @@ export class EditStage {
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        log.error(`EditStage: chunk ${i + 1} edit failed: ${errorMessage}`, error instanceof Error ? error : undefined);
-        
+        log.error(
+          `EditStage: chunk ${i + 1} edit failed: ${errorMessage}`,
+          error instanceof Error ? error : undefined
+        );
+
         // Use original translated chunk if editing failed
         editedChunks.push({
           content: translatedChunk.content,
           index: translatedChunk.index,
         });
-        
+
         // Continue with next chunk instead of failing completely
       }
     }
@@ -303,17 +316,19 @@ export class EditStage {
 
     // Merge edited chunks back together
     const finalText = mergeChunks(editedChunks);
-    
+
     if (!finalText || finalText.trim().length === 0) {
-      log.error('EditStage: critical - final edited text empty after merge', { chunksCount: editedChunks.length });
+      log.error('EditStage: critical - final edited text empty after merge', {
+        chunksCount: editedChunks.length,
+      });
       return { text: translatedText, tokensUsed: totalTokensUsed };
     }
 
     log.debug('EditStage: final edited text length', { length: finalText.length });
-    
+
     return { text: finalText, tokensUsed: totalTokensUsed };
   }
-  
+
   /**
    * Edit a single chunk of translated text
    */
@@ -336,18 +351,18 @@ export class EditStage {
         ),
       },
     ];
-    
+
     const editResponse = await this.provider.complete(messages, {
       temperature,
       maxTokens: 8192,
     });
-    
+
     return {
       text: editResponse.content.trim(),
       tokensUsed: editResponse.tokensUsed?.total || 0,
     };
   }
-  
+
   private async checkQuality(
     translatedText: string,
     originalText: string,
@@ -360,13 +375,13 @@ export class EditStage {
         content: `## Original\n${originalText}\n\n## Translation\n${translatedText}\n\n## Glossary\n${glossaryText}`,
       },
     ];
-    
+
     try {
       const response = await this.provider.completeJSON<QualityCheckResponse>(messages, {
         temperature: 0.3,
         maxTokens: 1024,
       });
-      
+
       return {
         score: response.data.score ?? 7,
         tokensUsed: response.tokensUsed.total,
@@ -376,4 +391,3 @@ export class EditStage {
     }
   }
 }
-

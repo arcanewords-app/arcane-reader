@@ -4,15 +4,15 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [preact()],
-  
+
   root: '.', // Project root
   publicDir: 'public', // Static assets
-  
+
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,
   },
-  
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src/client'),
@@ -20,7 +20,7 @@ export default defineConfig({
       'react-dom': 'preact/compat',
     },
   },
-  
+
   server: {
     port: 5173,
     // Proxy API requests to Express server
@@ -36,4 +36,3 @@ export default defineConfig({
     },
   },
 });
-

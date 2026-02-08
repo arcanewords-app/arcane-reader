@@ -40,7 +40,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, invitationCode }: Reg
     try {
       // Register user (pass invitation code when in invite-only mode)
       await authService.register(email, password, invitationCode);
-      
+
       // Show success message - email confirmation required
       setRegistrationSuccess(true);
     } catch (err) {
@@ -53,15 +53,20 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, invitationCode }: Reg
   if (registrationSuccess) {
     return (
       <div class="auth-form" style={{ textAlign: 'center', padding: '1rem' }}>
-        <div style={{ 
-          color: 'var(--success, var(--primary))', 
-          marginBottom: '1rem',
-          fontSize: '1.1rem',
-          fontWeight: 'bold'
-        }}>
+        <div
+          style={{
+            color: 'var(--success, var(--primary))',
+            marginBottom: '1rem',
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+          }}
+        >
           ✓ {t('auth.registrationSuccess')}
         </div>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: t('auth.emailSentConfirmation', { email }) }} />
+        <p
+          style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.6' }}
+          dangerouslySetInnerHTML={{ __html: t('auth.emailSentConfirmation', { email }) }}
+        />
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.6' }}>
           {t('auth.checkEmail')}
         </p>

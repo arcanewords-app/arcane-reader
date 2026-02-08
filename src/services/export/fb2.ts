@@ -24,13 +24,16 @@ export async function exportToFb2(
   // Use provided outputDir or fallback (but outputDir should always be provided on Vercel)
   const outputDir = options.outputDir || './data/exports';
   const filename = options.filename || `${sanitizeFilename(project.title)}.fb2`;
-  
+
   // Ensure path is absolute
   const outputPath = path.isAbsolute(outputDir)
     ? path.join(outputDir, filename)
     : path.resolve(outputDir, filename);
 
-  logger.debug({ outputDir, outputPath, isAbsolute: path.isAbsolute(outputPath) }, 'FB2 export: output paths');
+  logger.debug(
+    { outputDir, outputPath, isAbsolute: path.isAbsolute(outputPath) },
+    'FB2 export: output paths'
+  );
 
   if (!fs.existsSync(outputDir)) {
     try {
@@ -38,7 +41,9 @@ export async function exportToFb2(
       logger.debug({ outputDir }, 'FB2 export: created output directory');
     } catch (mkdirError: any) {
       logger.error({ err: mkdirError, outputDir }, 'FB2 export: failed to create directory');
-      throw new Error(`Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${mkdirError.message}`);
+      throw new Error(
+        `Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${mkdirError.message}`
+      );
     }
   } else {
     logger.debug({ outputDir }, 'FB2 export: output directory exists');
@@ -142,9 +147,11 @@ function generatePublishInfo(project: ExportProject): string {
  * Generate body section with chapters
  */
 function generateBody(project: ExportProject): string {
-  const sections = project.chapters.map((chapter, index) => {
-    return generateSection(chapter, index === 0);
-  }).join('\n');
+  const sections = project.chapters
+    .map((chapter, index) => {
+      return generateSection(chapter, index === 0);
+    })
+    .join('\n');
 
   return `
   <body>
@@ -182,13 +189,11 @@ function convertTextToFb2Paragraphs(text: string): string {
   // Split into paragraphs (double newlines)
   const paragraphs = text
     .split(/\n\s*\n/)
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
 
   // Convert to FB2 <p> tags
-  return paragraphs
-    .map(p => `<p>${escapeXml(p)}</p>`)
-    .join('\n      ');
+  return paragraphs.map((p) => `<p>${escapeXml(p)}</p>`).join('\n      ');
 }
 
 /**

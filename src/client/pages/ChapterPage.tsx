@@ -25,7 +25,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
       invalidateProject(previousProjectIdRef.current);
     }
     previousProjectIdRef.current = projectId;
-    
+
     loadProject();
   }, [projectId, chapterId]); // Reload when projectId or chapterId changes (user navigates back)
 

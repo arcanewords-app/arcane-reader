@@ -177,7 +177,9 @@
 .glossary-card:hover {
   border-color: var(--accent);
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.3),
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(139, 92, 246, 0.3),
     0 0 24px rgba(139, 92, 246, 0.2);
   z-index: 1;
 }
@@ -421,7 +423,9 @@
   border: 1px solid var(--accent);
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
 }
 
 .glossary-chapter-pill:hover {
@@ -995,7 +999,9 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(26, 26, 36, 0.9) 100%);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .glossary-merge-card:has(input:checked) {
@@ -1057,7 +1063,9 @@
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg-primary);
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
 
 .glossary-merge-entry-card-header {

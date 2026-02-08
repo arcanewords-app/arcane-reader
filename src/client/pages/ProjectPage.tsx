@@ -27,7 +27,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
       invalidateProject(previousProjectIdRef.current);
     }
     previousProjectIdRef.current = projectId;
-    
+
     loadProject();
   }, [projectId]);
 
@@ -83,7 +83,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
     if (!project) return;
     // Navigate to reading mode for the first completed chapter, or first chapter if no completed
     const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
-    const firstCompleted = sortedChapters.find(c => c.status === 'completed');
+    const firstCompleted = sortedChapters.find((c) => c.status === 'completed');
     const firstChapter = sortedChapters[0];
     const chapterId = (firstCompleted || firstChapter)?.id;
     if (chapterId) {

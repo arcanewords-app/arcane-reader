@@ -69,7 +69,10 @@ export const authService = {
   /**
    * Login user
    */
-  async login(email: string, password: string): Promise<{ user: AuthUser; session: Session | null }> {
+  async login(
+    email: string,
+    password: string
+  ): Promise<{ user: AuthUser; session: Session | null }> {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -148,7 +151,7 @@ export const authService = {
     try {
       const response = await fetch('/api/auth/me', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 

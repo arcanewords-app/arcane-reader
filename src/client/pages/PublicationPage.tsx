@@ -91,7 +91,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const langLabel = `${pub.sourceLanguage} → ${pub.targetLanguage}`;
   const chapters = pub.chapters || [];
   const glossaryCount = pub.glossaryCount ?? 0;
-  const translatedChapters = chapters.filter((ch) => ch.hasTranslation).map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
+  const translatedChapters = chapters
+    .filter((ch) => ch.hasTranslation)
+    .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
 
   return (
     <div class="publication-page">
@@ -110,10 +112,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         </div>
         <div class="publication-page-meta">
           <h1 class="publication-page-title">{title}</h1>
-          {pub.description && (
-            <p class="publication-page-description">{pub.description}</p>
-          )}
-          {(authorDisplay || translatorDisplay) ? (
+          {pub.description && <p class="publication-page-description">{pub.description}</p>}
+          {authorDisplay || translatorDisplay ? (
             <div class="publication-page-authors">
               {authorDisplay && (
                 <p class="publication-page-author">

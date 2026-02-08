@@ -37,12 +37,16 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
-                const placeholder = target.parentElement?.querySelector('.publication-card-placeholder');
+                const placeholder = target.parentElement?.querySelector(
+                  '.publication-card-placeholder'
+                );
                 if (placeholder) placeholder.classList.remove('hidden');
               }}
               onLoad={(e) => {
                 const target = e.target as HTMLImageElement;
-                const placeholder = target.parentElement?.querySelector('.publication-card-placeholder');
+                const placeholder = target.parentElement?.querySelector(
+                  '.publication-card-placeholder'
+                );
                 if (placeholder) placeholder.classList.add('hidden');
               }}
             />
@@ -61,7 +65,7 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
         {publication.description && (
           <p class="publication-card-description">{publication.description}</p>
         )}
-        {(authorDisplay || translatorDisplay) ? (
+        {authorDisplay || translatorDisplay ? (
           <div class="publication-card-authors">
             {authorDisplay && (
               <p class="publication-card-author">
@@ -78,9 +82,7 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
           <p class="publication-card-author">{t('publication.unknownAuthor')}</p>
         )}
         <p class="publication-card-lang">{langLabel}</p>
-        {publishedAt && (
-          <p class="publication-card-date">{publishedAt}</p>
-        )}
+        {publishedAt && <p class="publication-card-date">{publishedAt}</p>}
         <button type="button" class="publication-card-read-btn" onClick={onRead}>
           {t('home.read')}
         </button>

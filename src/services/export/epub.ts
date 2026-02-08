@@ -30,7 +30,10 @@ export async function exportToEpub(
     ? path.join(outputDir, filename)
     : path.resolve(outputDir, filename);
 
-  logger.debug({ outputDir, outputPath, isAbsolute: path.isAbsolute(outputPath) }, 'EPUB export: output paths');
+  logger.debug(
+    { outputDir, outputPath, isAbsolute: path.isAbsolute(outputPath) },
+    'EPUB export: output paths'
+  );
 
   if (!fs.existsSync(outputDir)) {
     try {
@@ -64,7 +67,8 @@ export async function exportToEpub(
   logger.debug('EPUB export: starting generation (epub-gen-memory)');
   let buffer: Buffer;
   try {
-    const epub = (epubGen as { default: (opts: unknown, content: unknown[]) => Promise<Buffer> }).default;
+    const epub = (epubGen as { default: (opts: unknown, content: unknown[]) => Promise<Buffer> })
+      .default;
     buffer = await epub(epubOptions, content);
   } catch (epubError: unknown) {
     const msg = epubError instanceof Error ? epubError.message : String(epubError);

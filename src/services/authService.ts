@@ -82,7 +82,10 @@ export const authService = {
    * Get current authenticated user
    */
   async getCurrentUser(): Promise<AuthUser | null> {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
     if (error || !user) {
       return null;
@@ -111,7 +114,10 @@ export const authService = {
       },
     });
 
-    const { data: { user }, error } = await supabaseWithToken.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabaseWithToken.auth.getUser(token);
 
     if (error || !user) {
       return null;
@@ -136,7 +142,10 @@ export const authService = {
    * Get session (for server-side auth)
    */
   async getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
     if (error) {
       throw new Error(`Get session failed: ${error.message}`);
     }

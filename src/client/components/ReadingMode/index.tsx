@@ -8,7 +8,9 @@ import { Modal } from '../ui';
 import './ReadingMode.css';
 
 /** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
-type ReaderChapter = (Chapter & { translatedText?: string }) | { id: string; number: number; title: string; translatedText?: string };
+type ReaderChapter =
+  | (Chapter & { translatedText?: string })
+  | { id: string; number: number; title: string; translatedText?: string };
 
 interface ReadingModeProps {
   project?: Project;
@@ -59,7 +61,8 @@ export function ReadingMode({
   const isPublicationMode = !!publicationId;
 
   // Determine reading mode (project mode only)
-  const isOriginalReadingMode = !isPublicationMode && (project?.settings?.originalReadingMode ?? false);
+  const isOriginalReadingMode =
+    !isPublicationMode && (project?.settings?.originalReadingMode ?? false);
 
   // Publication mode: set chapters from catalog and initial index (own effect so project mode doesn't depend on publicationChapters reference)
   useEffect(() => {
@@ -67,9 +70,7 @@ export function ReadingMode({
     const list: ReaderChapter[] = publicationChapters.map((ch) => ({ ...ch }));
     setChapters(list);
     if (list.length > 0) {
-      const idx = initialChapterId
-        ? list.findIndex((ch) => ch.id === initialChapterId)
-        : 0;
+      const idx = initialChapterId ? list.findIndex((ch) => ch.id === initialChapterId) : 0;
       setCurrentChapterIndex(idx >= 0 ? idx : 0);
     }
   }, [isPublicationMode, publicationChapters, initialChapterId]);
@@ -88,8 +89,7 @@ export function ReadingMode({
         .filter(
           (ch) =>
             ch.status === 'completed' &&
-            (ch.translatedText ||
-              (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)))
+            (ch.translatedText || (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)))
         )
         .sort((a, b) => a.number - b.number);
     }
@@ -157,7 +157,7 @@ export function ReadingMode({
         }
         return; // Don't navigate when settings are open
       }
-      
+
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         handlePrevChapter();
@@ -230,15 +230,15 @@ export function ReadingMode({
               {isPublicationMode
                 ? t('readingMode.noChaptersForReading')
                 : isOriginalReadingMode
-                ? t('readingMode.noChaptersForReading')
-                : t('readingMode.noTranslatedChapters')}
+                  ? t('readingMode.noChaptersForReading')
+                  : t('readingMode.noTranslatedChapters')}
             </h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
               {isPublicationMode
                 ? t('readingMode.noTranslatedChapters')
                 : isOriginalReadingMode
-                ? t('readingMode.noOriginalChaptersForReading')
-                : t('readingMode.needTranslateOneChapter')}
+                  ? t('readingMode.noOriginalChaptersForReading')
+                  : t('readingMode.needTranslateOneChapter')}
             </p>
             <button
               class="reading-mode-exit-btn"
@@ -253,7 +253,9 @@ export function ReadingMode({
                 fontSize: '1rem',
               }}
             >
-              {isPublicationMode ? t('readingMode.backToPublication') : t('readingMode.backToProject')}
+              {isPublicationMode
+                ? t('readingMode.backToPublication')
+                : t('readingMode.backToProject')}
             </button>
           </div>
         </div>
@@ -287,17 +289,16 @@ export function ReadingMode({
       {/* Header */}
       <div class="reading-mode-header">
         <div class="reading-mode-header-left">
-          <button
-            class="reading-mode-exit-btn"
-            onClick={onExit}
-            title={t('readingMode.exitTitle')}
-          >
+          <button class="reading-mode-exit-btn" onClick={onExit} title={t('readingMode.exitTitle')}>
             ← {t('common.back')}
           </button>
           <div class="reading-mode-title">
             <h2>{isPublicationMode ? publicationTitle : project?.name}</h2>
             <span class="reading-mode-chapter-info">
-              {t('readingMode.chapterOf', { current: currentChapterIndex + 1, total: chapters.length })}
+              {t('readingMode.chapterOf', {
+                current: currentChapterIndex + 1,
+                total: chapters.length,
+              })}
             </span>
           </div>
         </div>
@@ -338,10 +339,7 @@ export function ReadingMode({
       {/* Settings Panel */}
       {showSettings && (
         <div class="reading-mode-settings-panel">
-          <ReaderSettingsPanel
-            settings={readerSettings}
-            onChange={handleReaderSettingsChange}
-          />
+          <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
         </div>
       )}
 
@@ -356,7 +354,8 @@ export function ReadingMode({
           ← {t('readingMode.prev')}
         </button>
         <div class="reading-mode-nav-info">
-          {currentChapter?.title || t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
+          {currentChapter?.title ||
+            t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
         </div>
         <button
           class="reading-mode-nav-btn"
@@ -384,8 +383,8 @@ export function ReadingMode({
               {isPublicationMode
                 ? t('readingMode.noTranslatedText')
                 : isOriginalReadingMode
-                ? t('readingMode.noOriginalText')
-                : t('readingMode.noTranslatedText')}
+                  ? t('readingMode.noOriginalText')
+                  : t('readingMode.noTranslatedText')}
             </p>
           )}
         </div>

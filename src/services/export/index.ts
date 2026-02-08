@@ -19,10 +19,7 @@ export interface ExportOptions {
 /**
  * Export project to specified format
  */
-export async function exportProject(
-  project: Project,
-  options: ExportOptions
-): Promise<string> {
+export async function exportProject(project: Project, options: ExportOptions): Promise<string> {
   // Prepare project data
   const exportData = prepareProjectForExport(project, options.author);
 

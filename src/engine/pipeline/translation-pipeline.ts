@@ -1,6 +1,6 @@
 /**
  * Translation Pipeline - Orchestrates the 3-stage translation process
- * 
+ *
  * Stage 1: Analyze (Agent) - Extract entities, analyze style
  * Stage 2: Translate - Accurate translation with glossary
  * Stage 3: Edit - Polish and refine
@@ -33,11 +33,11 @@ export class TranslationPipeline {
     editing: ILLMProvider;
   };
   private agent: NovelAgent;
-  
+
   private analyzeStage: AnalyzeStage;
   private translateStage: TranslateStage;
   private editStage: EditStage;
-  
+
   constructor(config: PipelineConfig) {
     log.debug('Pipeline constructor: starting initialization', {
       hasProviders: !!config.providers,
@@ -63,7 +63,7 @@ export class TranslationPipeline {
     } else {
       throw new Error('Either provider or providers must be provided');
     }
-    
+
     if (!this.providers.analysis || !this.providers.translation || !this.providers.editing) {
       log.error('Pipeline constructor: provider validation failed', {
         analysis: !!this.providers.analysis,
@@ -76,7 +76,9 @@ export class TranslationPipeline {
     log.debug('Pipeline constructor: validating provider methods');
     if (typeof this.providers.analysis.completeJSON !== 'function') {
       log.error('Pipeline constructor: analysis provider missing completeJSON');
-      throw new Error('Analysis provider is missing completeJSON method (needed for structured output)');
+      throw new Error(
+        'Analysis provider is missing completeJSON method (needed for structured output)'
+      );
     }
     if (typeof this.providers.translation.complete !== 'function') {
       log.error('Pipeline constructor: translation provider missing complete');
@@ -87,11 +89,13 @@ export class TranslationPipeline {
       throw new Error('Editing provider is missing complete method');
     }
     if (typeof this.providers.editing.completeJSON !== 'function') {
-      log.warn('Pipeline constructor: editing provider missing completeJSON - quality check will be skipped');
+      log.warn(
+        'Pipeline constructor: editing provider missing completeJSON - quality check will be skipped'
+      );
     }
-    
+
     this.agent = config.agent;
-    
+
     log.debug('Pipeline constructor: creating stages with validated providers', {
       analysis: !!this.providers.analysis,
       translation: !!this.providers.translation,
@@ -107,7 +111,7 @@ export class TranslationPipeline {
     if (!this.providers.editing) {
       throw new Error('Editing provider is undefined before stage creation');
     }
-    
+
     log.debug('Pipeline constructor: creating AnalyzeStage');
     this.analyzeStage = new AnalyzeStage(this.providers.analysis);
     log.debug('Pipeline constructor: AnalyzeStage created');
@@ -128,7 +132,7 @@ export class TranslationPipeline {
 
     log.debug('Pipeline constructor: initialization complete');
   }
-  
+
   /**
    * Translate a chapter through the 3-stage pipeline
    */
@@ -173,7 +177,9 @@ export class TranslationPipeline {
       (options.runOnlyStage === 'editing' && options.existingTranslatedTextForEdit != null);
 
     if (onlyAnalysis) {
-      log.info(`Pipeline: run only analysis (chapter ${chapterNumber})`, { sourceTextLength: sourceText.length });
+      log.info(`Pipeline: run only analysis (chapter ${chapterNumber})`, {
+        sourceTextLength: sourceText.length,
+      });
       const stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
         existingGlossary: context.glossary,
@@ -204,16 +210,15 @@ export class TranslationPipeline {
     if (onlyEditing) {
       const existingText = options.existingTranslatedTextForEdit ?? '';
       log.info(`Pipeline: run only editing (chapter ${chapterNumber})`);
-      const stage3Result = await this.editStage.execute(
-        existingText,
-        sourceText,
-        { context: updatedContext, checkQuality: true, chunkSize: options.chunkSize, temperature: options.temperatureByStage?.editing }
-      );
+      const stage3Result = await this.editStage.execute(existingText, sourceText, {
+        context: updatedContext,
+        checkQuality: true,
+        chunkSize: options.chunkSize,
+        temperature: options.temperatureByStage?.editing,
+      });
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
-        stage3Result.success && stage3Result.data
-          ? stage3Result.data.finalText
-          : existingText;
+        stage3Result.success && stage3Result.data ? stage3Result.data.finalText : existingText;
       return {
         chapterNumber,
         originalText: sourceText,
@@ -275,16 +280,14 @@ export class TranslationPipeline {
             'Editing stage requires existing translated text or run translation first'
           );
         }
-        const stage3Result = await this.editStage.execute(
-          existing,
-          sourceText,
-          { context: this.agent.getContext(), checkQuality: true, chunkSize: options.chunkSize }
-        );
+        const stage3Result = await this.editStage.execute(existing, sourceText, {
+          context: this.agent.getContext(),
+          checkQuality: true,
+          chunkSize: options.chunkSize,
+        });
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
-          stage3Result.success && stage3Result.data
-            ? stage3Result.data.finalText
-            : existing;
+          stage3Result.success && stage3Result.data ? stage3Result.data.finalText : existing;
         return {
           chapterNumber,
           originalText: sourceText,
@@ -340,15 +343,18 @@ export class TranslationPipeline {
       : !options.runOnlyStage && !options.skipEditing;
     if (runStage3) {
       log.info('Pipeline: Stage 3 editing');
-      stage3Result = await this.editStage.execute(
-        stage2Result.data.translatedText,
-        sourceText,
-        { context: ctxAfter1, checkQuality: true, chunkSize: options.chunkSize, temperature: options.temperatureByStage?.editing }
-      );
+      stage3Result = await this.editStage.execute(stage2Result.data.translatedText, sourceText, {
+        context: ctxAfter1,
+        checkQuality: true,
+        chunkSize: options.chunkSize,
+        temperature: options.temperatureByStage?.editing,
+      });
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {
         finalTranslation = stage3Result.data.finalText;
-        log.info('Pipeline: Stage 3 complete', { qualityScore: stage3Result.data.qualityScore ?? 'N/A' });
+        log.info('Pipeline: Stage 3 complete', {
+          qualityScore: stage3Result.data.qualityScore ?? 'N/A',
+        });
       } else {
         finalTranslation = stage2Result.data.translatedText;
         log.warn(`Pipeline: Stage 3 failed, using raw translation: ${stage3Result.error}`);
@@ -358,7 +364,7 @@ export class TranslationPipeline {
       finalTranslation = stage2Result.data.translatedText;
       log.debug('Pipeline: Stage 3 skipped');
     }
-    
+
     // ============ RECORD CHAPTER ============
     const analysisData = stage1Result.data;
     const chapterSummary: ChapterSummary = {
@@ -368,9 +374,9 @@ export class TranslationPipeline {
       activeCharacters: analysisData?.foundCharacters.map((c: { name: string }) => c.name) ?? [],
       location: analysisData?.foundLocations[0]?.name ?? '',
     };
-    
+
     this.agent.recordChapterTranslation(chapterSummary);
-    
+
     const totalDuration = Date.now() - startTime;
     log.info(`Pipeline: translation complete in ${(totalDuration / 1000).toFixed(1)}s`, {
       totalTokens,
@@ -389,7 +395,7 @@ export class TranslationPipeline {
       updatedContext: this.agent.getContext(),
     };
   }
-  
+
   /**
    * Translate multiple chapters in sequence
    */
@@ -398,30 +404,30 @@ export class TranslationPipeline {
     options: PipelineOptions = {}
   ): Promise<PipelineResult[]> {
     const results: PipelineResult[] = [];
-    
+
     for (const chapter of chapters) {
       log.debug(`Pipeline: chapter ${chapter.number}`, { chapterNumber: chapter.number });
       const result = await this.translateChapter(chapter.text, chapter.number, options);
       results.push(result);
     }
-    
+
     return results;
   }
-  
+
   /**
    * Get the current agent (for saving state)
    */
   getAgent(): NovelAgent {
     return this.agent;
   }
-  
+
   /**
    * Update the agent
    */
   setAgent(agent: NovelAgent): void {
     this.agent = agent;
   }
-  
+
   private createFailedResult(
     chapterNumber: number,
     originalText: string,
@@ -451,4 +457,3 @@ export class TranslationPipeline {
     };
   }
 }
-

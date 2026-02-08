@@ -13,9 +13,9 @@ interface ProjectGridProps {
   filterType?: 'all' | 'book' | 'text';
 }
 
-export function ProjectGrid({ 
-  projects, 
-  loading, 
+export function ProjectGrid({
+  projects,
+  loading,
   onSelectProject,
   searchQuery = '',
   filterType = 'all',
@@ -27,16 +27,17 @@ export function ProjectGrid({
 
     // Filter by type
     if (filterType !== 'all') {
-      filtered = filtered.filter(p => p.type === filterType);
+      filtered = filtered.filter((p) => p.type === filterType);
     }
 
     // Search by name
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        p.metadata?.title?.toLowerCase().includes(query) ||
-        p.metadata?.authors?.some(a => a.toLowerCase().includes(query))
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.metadata?.title?.toLowerCase().includes(query) ||
+          p.metadata?.authors?.some((a) => a.toLowerCase().includes(query))
       );
     }
 
@@ -60,22 +61,14 @@ export function ProjectGrid({
         {searchQuery || filterType !== 'all' ? (
           <>
             <div class="project-grid-empty-icon">🔍</div>
-            <div class="project-grid-empty-text">
-              {t('projectGrid.noProjectsFound')}
-            </div>
-            <div class="project-grid-empty-hint">
-              {t('projectGrid.tryChangeSearch')}
-            </div>
+            <div class="project-grid-empty-text">{t('projectGrid.noProjectsFound')}</div>
+            <div class="project-grid-empty-hint">{t('projectGrid.tryChangeSearch')}</div>
           </>
         ) : (
           <>
             <div class="project-grid-empty-icon">📚</div>
-            <div class="project-grid-empty-text">
-              {t('project.noProjects')}
-            </div>
-            <div class="project-grid-empty-hint">
-              {t('projectGrid.createFirstProject')}
-            </div>
+            <div class="project-grid-empty-text">{t('project.noProjects')}</div>
+            <div class="project-grid-empty-hint">{t('projectGrid.createFirstProject')}</div>
           </>
         )}
       </div>
@@ -85,15 +78,11 @@ export function ProjectGrid({
   // For large lists (>50 projects), consider virtualization
   // For now, we use simple grid with lazy loading images
   // Virtualization can be added later if needed using Intersection Observer or a library
-  
+
   return (
     <div class="project-grid">
       {filteredProjects.map((project) => (
-        <ProjectCard
-          key={project.id}
-          project={project}
-          onClick={onSelectProject}
-        />
+        <ProjectCard key={project.id} project={project} onClick={onSelectProject} />
       ))}
     </div>
   );

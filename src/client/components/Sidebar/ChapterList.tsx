@@ -103,7 +103,7 @@ export function ChapterList({
     }
     const tid = window.setTimeout(() => {
       setQueue((prev) => {
-        const next = (prev.filter((it) => it.id !== id) as QueueItem[]);
+        const next = prev.filter((it) => it.id !== id) as QueueItem[];
         queueRef.current = next;
         return next;
       });
@@ -178,19 +178,21 @@ export function ChapterList({
   const filteredChapters = useMemo(() => {
     return sortedChapters.filter((ch) => {
       const matchesFilter = filter === 'all' || ch.status === filter;
-      const matchesSearch =
-        !search || ch.title.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !search || ch.title.toLowerCase().includes(search.toLowerCase());
       return matchesFilter && matchesSearch;
     });
   }, [sortedChapters, filter, search]);
 
-  const counts = useMemo(() => ({
-    all: chapters.length,
-    pending: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'pending').length,
-    completed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'completed').length,
-    analyzed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'analyzed').length,
-    error: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'error').length,
-  }), [chapters, originalReadingMode]);
+  const counts = useMemo(
+    () => ({
+      all: chapters.length,
+      pending: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'pending').length,
+      completed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'completed').length,
+      analyzed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'analyzed').length,
+      error: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'error').length,
+    }),
+    [chapters, originalReadingMode]
+  );
 
   const addFiles = (fileList: FileList | File[]) => {
     if (!projectId) {
@@ -210,7 +212,9 @@ export function ChapterList({
         file,
         title: title || t('chapterList.defaultChapterTitle', { number: chapters.length + 1 }),
         status: supportedFormats.some((ext) => filename.endsWith(ext)) ? 'pending' : 'error',
-        error: supportedFormats.some((ext) => filename.endsWith(ext)) ? undefined : `${t('chapterList.unsupportedFormat')}: ${file.name}`,
+        error: supportedFormats.some((ext) => filename.endsWith(ext))
+          ? undefined
+          : `${t('chapterList.unsupportedFormat')}: ${file.name}`,
         warnings: [],
         retries: 0,
       };
@@ -225,7 +229,7 @@ export function ChapterList({
     });
 
     setQueue((q) => {
-      const next = ([...q, ...newItems] as QueueItem[]);
+      const next = [...q, ...newItems] as QueueItem[];
       queueRef.current = next;
       return next;
     });
@@ -271,13 +275,15 @@ export function ChapterList({
 
     try {
       while (true) {
-          // Find next pending item (use ref to avoid stale closure)
-          const current = queueRef.current.find((it) => it.status === 'pending');
+        // Find next pending item (use ref to avoid stale closure)
+        const current = queueRef.current.find((it) => it.status === 'pending');
         if (!current) break;
 
         // mark uploading
         setQueue((prev) => {
-          const next = (prev.map((it) => (it.id === current.id ? { ...it, status: 'uploading' } : it)) as QueueItem[]);
+          const next = prev.map((it) =>
+            it.id === current.id ? { ...it, status: 'uploading' } : it
+          ) as QueueItem[];
           queueRef.current = next;
           return next;
         });
@@ -286,10 +292,17 @@ export function ChapterList({
         currentAbortRef.current = controller;
 
         try {
-          const result = await api.uploadChapter(projectId as string, current.file, current.title, controller.signal);
+          const result = await api.uploadChapter(
+            projectId as string,
+            current.file,
+            current.title,
+            controller.signal
+          );
 
           setQueue((prev) => {
-            const next = (prev.map((it) => (it.id === current.id ? { ...it, status: 'success', result } : it)) as QueueItem[]);
+            const next = prev.map((it) =>
+              it.id === current.id ? { ...it, status: 'success', result } : it
+            ) as QueueItem[];
             queueRef.current = next;
             return next;
           });
@@ -309,7 +322,9 @@ export function ChapterList({
           // If aborted, mark canceled
           if (err.name === 'AbortError') {
             setQueue((prev) => {
-              const next = (prev.map((it) => (it.id === current.id ? { ...it, status: 'canceled', error: 'Canceled' } : it)) as QueueItem[]);
+              const next = prev.map((it) =>
+                it.id === current.id ? { ...it, status: 'canceled', error: 'Canceled' } : it
+              ) as QueueItem[];
               queueRef.current = next;
               return next;
             });
@@ -319,16 +334,20 @@ export function ChapterList({
           }
 
           const errorMessage = err?.message || t('errors.unknown');
-          const errorDetails = err?.data?.details || err?.data?.parseErrors?.join('; ') || err?.data?.error;
+          const errorDetails =
+            err?.data?.details || err?.data?.parseErrors?.join('; ') || err?.data?.error;
           const parseErrors = err?.data?.parseErrors;
           const warnings = err?.data?.warnings;
 
           let detailsText = `${t('chapterList.selectedFile') || 'File'}: ${current.file.name}`;
           if (errorDetails) detailsText += `\n\n${errorDetails}`;
-          if (parseErrors && parseErrors.length > 0) detailsText += `\n\nОшибки парсинга:\n${parseErrors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}`;
+          if (parseErrors && parseErrors.length > 0)
+            detailsText += `\n\nОшибки парсинга:\n${parseErrors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}`;
 
           setQueue((prev) => {
-            const next = (prev.map((it) => (it.id === current.id ? { ...it, status: 'error', error: detailsText, warnings } : it)) as QueueItem[]);
+            const next = prev.map((it) =>
+              it.id === current.id ? { ...it, status: 'error', error: detailsText, warnings } : it
+            ) as QueueItem[];
             queueRef.current = next;
             return next;
           });
@@ -352,7 +371,9 @@ export function ChapterList({
     // Determine pending ids first
     const pendingIds = queueRef.current.filter((it) => it.status === 'pending').map((it) => it.id);
     setQueue((prev) => {
-      const next = (prev.map((it) => (it.status === 'pending' ? { ...it, status: 'canceled' } : it)) as QueueItem[]);
+      const next = prev.map((it) =>
+        it.status === 'pending' ? { ...it, status: 'canceled' } : it
+      ) as QueueItem[];
       queueRef.current = next;
       return next;
     });
@@ -363,7 +384,9 @@ export function ChapterList({
   const retryItem = (id: string) => {
     clearRemovalTimeout(id);
     setQueue((prev) => {
-      const next = (prev.map((it) => (it.id === id ? { ...it, status: 'pending', error: undefined, retries: it.retries + 1 } : it)) as QueueItem[]);
+      const next = prev.map((it) =>
+        it.id === id ? { ...it, status: 'pending', error: undefined, retries: it.retries + 1 } : it
+      ) as QueueItem[];
       queueRef.current = next;
       return next;
     });
@@ -373,7 +396,7 @@ export function ChapterList({
   const removeItem = (id: string) => {
     clearRemovalTimeout(id);
     setQueue((prev) => {
-      const next = (prev.filter((it) => it.id !== id) as QueueItem[]);
+      const next = prev.filter((it) => it.id !== id) as QueueItem[];
       queueRef.current = next;
       return next;
     });
@@ -381,11 +404,16 @@ export function ChapterList({
 
   const getStatusIcon = (status: ChapterStatus) => {
     switch (status) {
-      case 'completed': return '✅';
-      case 'translating': return '🔮';
-      case 'analyzed': return '🔍';
-      case 'error': return '❌';
-      default: return '⏳';
+      case 'completed':
+        return '✅';
+      case 'translating':
+        return '🔮';
+      case 'analyzed':
+        return '🔍';
+      case 'error':
+        return '❌';
+      default:
+        return '⏳';
     }
   };
 
@@ -403,12 +431,12 @@ export function ChapterList({
 
   const handleSaveNumber = async (chapterId: string) => {
     if (!projectId || savingNumber) return;
-    
-    const chapter = chapters.find(c => c.id === chapterId);
+
+    const chapter = chapters.find((c) => c.id === chapterId);
     if (!chapter) return;
 
     const newNumber = Math.max(1, Math.min(editedNumber, chapters.length));
-    
+
     if (newNumber === chapter.number) {
       setEditingNumber(null);
       return;
@@ -421,10 +449,10 @@ export function ChapterList({
       setEditingNumber(null);
       return;
     }
-    
+
     // Remove the chapter from current position
     const without = sorted.filter((c) => c.id !== chapterId);
-    
+
     // Insert at the new number position (0-based index: newNumber - 1)
     const insertIndex = newNumber - 1;
     const reordered = [...without];
@@ -435,7 +463,7 @@ export function ChapterList({
     setIsSavingOrder(true);
     setIsReverting(false);
     setOptimisticOrder(newIds);
-    
+
     // Store previous order for undo
     const oldIds = sorted.map((c) => c.id);
     lastOrderRef.current = oldIds;
@@ -455,7 +483,7 @@ export function ChapterList({
         await onChaptersUpdate();
       }
       setEditingNumber(null);
-      
+
       // saving finished, allow undo for a short window
       setIsSavingOrder(false);
       // clear any existing timeout
@@ -497,7 +525,7 @@ export function ChapterList({
     if (e.key === 'Enter') {
       handleSaveNumber(chapterId);
     } else if (e.key === 'Escape') {
-      const chapter = chapters.find(c => c.id === chapterId);
+      const chapter = chapters.find((c) => c.id === chapterId);
       if (chapter) {
         handleCancelEditNumber(chapter);
       }
@@ -591,7 +619,7 @@ export function ChapterList({
     // remove pointer listener
     window.removeEventListener('pointermove', onPointerMove);
 
-  if (!activeId || !projectId) return;
+    if (!activeId || !projectId) return;
     if (!overId || activeId === overId) return;
 
     const ids = currentOrderedIds();
@@ -736,9 +764,11 @@ export function ChapterList({
 
     // Start or continue edge-scroll when pointer is in zone
     const inTopZone = relY < EDGE_SCROLL_ZONE && el.scrollTop > 0;
-    const inBottomZone = relY > rect.height - EDGE_SCROLL_ZONE && el.scrollTop < el.scrollHeight - containerHeight;
+    const inBottomZone =
+      relY > rect.height - EDGE_SCROLL_ZONE && el.scrollTop < el.scrollHeight - containerHeight;
     if (inTopZone || inBottomZone) {
-      if (edgeScrollRafRef.current === null) edgeScrollRafRef.current = requestAnimationFrame(runEdgeScroll);
+      if (edgeScrollRafRef.current === null)
+        edgeScrollRafRef.current = requestAnimationFrame(runEdgeScroll);
     } else {
       if (edgeScrollRafRef.current !== null) {
         cancelAnimationFrame(edgeScrollRafRef.current);
@@ -749,27 +779,45 @@ export function ChapterList({
 
   return (
     <Card
-      title={(
+      title={
         <>
           📖 {t('chapterList.title')} <CountBadge count={counts.all} />
           <span style={{ marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center' }}>
             {isSavingOrder && (
               <>
-                <span class="spinner" style={{ marginRight: '0.4rem', width: '12px', height: '12px' }} />
-                <small style={{ color: 'var(--text-dim)' }}>{t('chapterList.savingOrder') || 'Saving order...'}</small>
+                <span
+                  class="spinner"
+                  style={{ marginRight: '0.4rem', width: '12px', height: '12px' }}
+                />
+                <small style={{ color: 'var(--text-dim)' }}>
+                  {t('chapterList.savingOrder') || 'Saving order...'}
+                </small>
               </>
             )}
             {!isSavingOrder && undoAvailable && (
               <>
-                <small style={{ color: 'var(--text-dim)', marginRight: '0.5rem' }}>{isReverting ? t('chapterList.reverting') || 'Reverting...' : t('chapterList.orderSaved') || 'Order saved'}</small>
-                <button class="small" onClick={(e: any) => { e.stopPropagation(); handleUndo(); }} disabled={isReverting}>
-                  {isReverting ? t('chapterList.reverting') || 'Reverting...' : t('chapterList.undo') || 'Undo'}
+                <small style={{ color: 'var(--text-dim)', marginRight: '0.5rem' }}>
+                  {isReverting
+                    ? t('chapterList.reverting') || 'Reverting...'
+                    : t('chapterList.orderSaved') || 'Order saved'}
+                </small>
+                <button
+                  class="small"
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    handleUndo();
+                  }}
+                  disabled={isReverting}
+                >
+                  {isReverting
+                    ? t('chapterList.reverting') || 'Reverting...'
+                    : t('chapterList.undo') || 'Undo'}
                 </button>
               </>
             )}
           </span>
         </>
-      )}
+      }
       className="chapter-list-card"
     >
       <div class="chapter-search">
@@ -783,19 +831,50 @@ export function ChapterList({
       </div>
 
       <div class="chapter-filters">
-        {(['all', ...(originalReadingMode ? [] : ['pending', 'completed', 'analyzed', 'error'] as FilterType[])] as FilterType[]).map((f) => (
+        {(
+          [
+            'all',
+            ...(originalReadingMode
+              ? []
+              : (['pending', 'completed', 'analyzed', 'error'] as FilterType[])),
+          ] as FilterType[]
+        ).map((f) => (
           <button
             key={f}
             class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
             onClick={() => setFilter(f)}
-            title={f === 'all' ? t('chapterList.all') : f === 'pending' ? t('chapterList.filterPending') : f === 'completed' ? t('chapterList.filterCompleted') : f === 'analyzed' ? t('chapterList.filterAnalyzed') : t('chapterList.filterError')}
+            title={
+              f === 'all'
+                ? t('chapterList.all')
+                : f === 'pending'
+                  ? t('chapterList.filterPending')
+                  : f === 'completed'
+                    ? t('chapterList.filterCompleted')
+                    : f === 'analyzed'
+                      ? t('chapterList.filterAnalyzed')
+                      : t('chapterList.filterError')
+            }
           >
-            {f === 'all' ? t('chapterList.all') : f === 'pending' ? '⏳' : f === 'completed' ? '✅' : f === 'analyzed' ? '🔍' : '❌'}
+            {f === 'all'
+              ? t('chapterList.all')
+              : f === 'pending'
+                ? '⏳'
+                : f === 'completed'
+                  ? '✅'
+                  : f === 'analyzed'
+                    ? '🔍'
+                    : '❌'}
           </button>
         ))}
       </div>
 
-      <DndContext sensors={sensors} onDragStart={handleDndStart} onDragEnd={handleDndEnd} collisionDetection={undefined} modifiers={[restrictToVerticalAxis]}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDndStart}
+        onDragEnd={handleDndEnd}
+        collisionDetection={undefined}
+        modifiers={[restrictToVerticalAxis]}
+      >
         <div class="chapter-list" ref={listContainerRef}>
           {filteredChapters.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-dim)' }}>
@@ -810,117 +889,133 @@ export function ChapterList({
                 // Use larger buffer during drag to ensure dragged item and nearby items stay rendered
                 const currentBuffer = isDragging ? DRAG_BUFFER : BUFFER;
                 const start = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - currentBuffer);
-                const end = Math.min(total, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + currentBuffer);
+                const end = Math.min(
+                  total,
+                  Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + currentBuffer
+                );
                 const slice = filteredChapters.slice(start, end);
                 const paddingTop = start * ITEM_HEIGHT;
                 const paddingBottom = Math.max(0, totalHeight - end * ITEM_HEIGHT);
 
                 return (
                   <div style={{ height: totalHeight + 'px', position: 'relative' }}>
-                    <div style={{ paddingTop: paddingTop + 'px', paddingBottom: paddingBottom + 'px' }}>
+                    <div
+                      style={{ paddingTop: paddingTop + 'px', paddingBottom: paddingBottom + 'px' }}
+                    >
                       {slice.map((chapter) => (
                         <SortableItem id={chapter.id} key={chapter.id}>
                           {({ attributes, listeners }) => (
-                          <div
-                            class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
-                            onClick={() => onSelect(chapter.id)}
-                            title={chapter.title}
-                            style={{
-                              height: ITEM_HEIGHT + 'px',
-                              boxSizing: 'border-box',
-                            }}
-                          >
                             <div
-                              class="chapter-item-drag-area"
-                              {...attributes}
-                              {...listeners}
-                              style={isDragging ? { cursor: 'grabbing' } : undefined}
+                              class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
+                              onClick={() => onSelect(chapter.id)}
+                              title={chapter.title}
+                              style={{
+                                height: ITEM_HEIGHT + 'px',
+                                boxSizing: 'border-box',
+                              }}
                             >
-                              {editingNumber === chapter.id ? (
-                              <div class="chapter-number-edit" onClick={(e: any) => e.stopPropagation()} onPointerDown={(e: any) => e.stopPropagation()}>
-                                <input
-                                  ref={editingNumber === chapter.id ? numberInputRef : undefined}
-                                  type="number"
-                                  min="1"
-                                  max={chapters.length}
-                                  value={editedNumber}
-                                  onInput={(e: any) => {
-                                    const value = parseInt((e.target as HTMLInputElement).value, 10);
-                                    if (!isNaN(value)) {
-                                      setEditedNumber(Math.max(1, Math.min(value, chapters.length)));
-                                    }
-                                  }}
-                                  onKeyDown={(e: any) => handleNumberKeyDown(e, chapter.id)}
-                                  onBlur={() => handleSaveNumber(chapter.id)}
-                                  disabled={savingNumber}
-                                  class="chapter-number-input"
-                                  style={{ width: '3rem', textAlign: 'center' }}
-                                />
-                                <div class="chapter-number-edit-actions">
-                                  <button
-                                    class="chapter-number-save-btn"
-                                    onClick={(e: any) => {
-                                      e.stopPropagation();
-                                      handleSaveNumber(chapter.id);
-                                    }}
-                                    disabled={savingNumber}
-                                    title={t('chapterList.saveNumberTitle')}
-                                  >
-                                    ✓
-                                  </button>
-                                  <button
-                                    class="chapter-number-cancel-btn"
-                                    onClick={(e: any) => {
-                                      e.stopPropagation();
-                                      handleCancelEditNumber(chapter);
-                                    }}
-                                    disabled={savingNumber}
-                                    title={t('chapterList.cancelNumberTitle')}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <span
-                                class="chapter-number"
-                                onClick={(e: any) => handleStartEditNumber(chapter, e)}
-                                title={t('chapterList.editNumberTitle')}
-                                style={{ cursor: 'pointer' }}
+                              <div
+                                class="chapter-item-drag-area"
+                                {...attributes}
+                                {...listeners}
+                                style={isDragging ? { cursor: 'grabbing' } : undefined}
                               >
-                                {chapter.number}
-                              </span>
-                            )}
-                              <span class="chapter-item-title">{chapter.title}</span>
+                                {editingNumber === chapter.id ? (
+                                  <div
+                                    class="chapter-number-edit"
+                                    onClick={(e: any) => e.stopPropagation()}
+                                    onPointerDown={(e: any) => e.stopPropagation()}
+                                  >
+                                    <input
+                                      ref={
+                                        editingNumber === chapter.id ? numberInputRef : undefined
+                                      }
+                                      type="number"
+                                      min="1"
+                                      max={chapters.length}
+                                      value={editedNumber}
+                                      onInput={(e: any) => {
+                                        const value = parseInt(
+                                          (e.target as HTMLInputElement).value,
+                                          10
+                                        );
+                                        if (!isNaN(value)) {
+                                          setEditedNumber(
+                                            Math.max(1, Math.min(value, chapters.length))
+                                          );
+                                        }
+                                      }}
+                                      onKeyDown={(e: any) => handleNumberKeyDown(e, chapter.id)}
+                                      onBlur={() => handleSaveNumber(chapter.id)}
+                                      disabled={savingNumber}
+                                      class="chapter-number-input"
+                                      style={{ width: '3rem', textAlign: 'center' }}
+                                    />
+                                    <div class="chapter-number-edit-actions">
+                                      <button
+                                        class="chapter-number-save-btn"
+                                        onClick={(e: any) => {
+                                          e.stopPropagation();
+                                          handleSaveNumber(chapter.id);
+                                        }}
+                                        disabled={savingNumber}
+                                        title={t('chapterList.saveNumberTitle')}
+                                      >
+                                        ✓
+                                      </button>
+                                      <button
+                                        class="chapter-number-cancel-btn"
+                                        onClick={(e: any) => {
+                                          e.stopPropagation();
+                                          handleCancelEditNumber(chapter);
+                                        }}
+                                        disabled={savingNumber}
+                                        title={t('chapterList.cancelNumberTitle')}
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span
+                                    class="chapter-number"
+                                    onClick={(e: any) => handleStartEditNumber(chapter, e)}
+                                    title={t('chapterList.editNumberTitle')}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    {chapter.number}
+                                  </span>
+                                )}
+                                <span class="chapter-item-title">{chapter.title}</span>
+                              </div>
+                              <div
+                                class="chapter-item-actions"
+                                onClick={(e: any) => e.stopPropagation()}
+                                onPointerDown={(e: any) => e.stopPropagation()}
+                                role="group"
+                                aria-label={t('chapterList.deleteTitle')}
+                              >
+                                {!originalReadingMode && (
+                                  <span>{getStatusIcon(chapter.status)}</span>
+                                )}
+                                {onDelete && (
+                                  <button
+                                    type="button"
+                                    class="chapter-delete-btn"
+                                    onClick={(e: any) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      setDeleteConfirmId(chapter.id);
+                                    }}
+                                    onPointerDown={(e: any) => e.stopPropagation()}
+                                    title={t('chapterList.deleteTitle')}
+                                    disabled={deleting}
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <div
-                              class="chapter-item-actions"
-                              onClick={(e: any) => e.stopPropagation()}
-                              onPointerDown={(e: any) => e.stopPropagation()}
-                              role="group"
-                              aria-label={t('chapterList.deleteTitle')}
-                            >
-                              {!originalReadingMode && (
-                                <span>{getStatusIcon(chapter.status)}</span>
-                              )}
-                              {onDelete && (
-                                <button
-                                  type="button"
-                                  class="chapter-delete-btn"
-                                  onClick={(e: any) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    setDeleteConfirmId(chapter.id);
-                                  }}
-                                  onPointerDown={(e: any) => e.stopPropagation()}
-                                  title={t('chapterList.deleteTitle')}
-                                  disabled={deleting}
-                                >
-                                  🗑️
-                                </button>
-                              )}
-                            </div>
-                          </div>
                           )}
                         </SortableItem>
                       ))}
@@ -964,9 +1059,7 @@ export function ChapterList({
           variant="error"
           overlayClassName="error-modal-overlay"
           className="error-modal"
-          footer={
-            <button onClick={() => setError(null)}>{t('common.close')}</button>
-          }
+          footer={<button onClick={() => setError(null)}>{t('common.close')}</button>}
         >
           {error && (
             <>
@@ -1026,7 +1119,9 @@ export function ChapterList({
             <>
               <p>
                 {t('chapter.deleteConfirmMessage', {
-                  title: sortedChapters.find((c) => c.id === deleteConfirmId)?.title || t('chapter.unknownChapter'),
+                  title:
+                    sortedChapters.find((c) => c.id === deleteConfirmId)?.title ||
+                    t('chapter.unknownChapter'),
                 })}
               </p>
               <p style={{ color: 'var(--error)', fontSize: '0.9rem', marginTop: '1rem' }}>
@@ -1074,15 +1169,29 @@ export function ChapterList({
                 {queue.map((item) => (
                   <div key={item.id} class={`queue-item ${item.status}`}>
                     <div class="queue-item-left">
-                      <span class={`queue-status ${item.status}`}>{item.status === 'uploading' ? '⏳' : item.status === 'success' ? '✅' : item.status === 'error' ? '❌' : item.status === 'canceled' ? '✖' : '●'}</span>
+                      <span class={`queue-status ${item.status}`}>
+                        {item.status === 'uploading'
+                          ? '⏳'
+                          : item.status === 'success'
+                            ? '✅'
+                            : item.status === 'error'
+                              ? '❌'
+                              : item.status === 'canceled'
+                                ? '✖'
+                                : '●'}
+                      </span>
                       <span class="queue-name">{item.file.name}</span>
                     </div>
                     <div class="queue-item-actions">
                       {item.status === 'error' && (
-                        <button type="button" class="small" onClick={() => retryItem(item.id)}>{t('common.retry') || 'Retry'}</button>
+                        <button type="button" class="small" onClick={() => retryItem(item.id)}>
+                          {t('common.retry') || 'Retry'}
+                        </button>
                       )}
                       {item.status === 'pending' && (
-                        <button type="button" class="small" onClick={() => removeItem(item.id)}>{t('common.remove') || 'Remove'}</button>
+                        <button type="button" class="small" onClick={() => removeItem(item.id)}>
+                          {t('common.remove') || 'Remove'}
+                        </button>
                       )}
                     </div>
                     {item.error && <pre class="queue-error">{item.error}</pre>}
@@ -1096,4 +1205,3 @@ export function ChapterList({
     </Card>
   );
 }
-

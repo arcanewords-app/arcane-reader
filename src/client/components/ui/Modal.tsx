@@ -33,7 +33,15 @@ export function Modal({
   preventClose = false,
   closeButtonDisabled = false,
 }: ModalProps) {
-  const effectiveVariant = variant ?? (className.includes('toc-modal') ? 'toc' : className.includes('error-modal') ? 'error' : size === 'large' ? 'large' : 'default');
+  const effectiveVariant =
+    variant ??
+    (className.includes('toc-modal')
+      ? 'toc'
+      : className.includes('error-modal')
+        ? 'error'
+        : size === 'large'
+          ? 'large'
+          : 'default');
   // Don't render modal DOM when closed (to avoid layout issues)
   // This check must be at the very beginning to prevent any DOM creation
   if (!isOpen) {
@@ -92,36 +100,52 @@ export function Modal({
     .filter(Boolean)
     .join(' ');
 
-  const headerContent =
-    isErrorVariant ? (
-      <div class="error-modal-header">
-        <h3>{title}</h3>
-        <button type="button" class="error-modal-close" onClick={onClose} aria-label="Close" disabled={closeButtonDisabled}>
-          ×
-        </button>
-      </div>
-    ) : isTocModal ? (
-      <div class="toc-modal-header">
-        <h3 class="toc-modal-title">{title}</h3>
-        <button type="button" class="modal-close-btn toc-modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
-      </div>
-    ) : isLarge ? (
-      <div class="glossary-modal-header">
-        <h3 class="modal-title">{title}</h3>
-        <button type="button" class="modal-close-btn" onClick={onClose}>
-          ×
-        </button>
-      </div>
-    ) : (
-      <div class="modal-header-row">
-        <h3 class="modal-title">{title}</h3>
-        <button type="button" class="modal-close-btn" onClick={onClose} aria-label="Close" disabled={closeButtonDisabled}>
-          ×
-        </button>
-      </div>
-    );
+  const headerContent = isErrorVariant ? (
+    <div class="error-modal-header">
+      <h3>{title}</h3>
+      <button
+        type="button"
+        class="error-modal-close"
+        onClick={onClose}
+        aria-label="Close"
+        disabled={closeButtonDisabled}
+      >
+        ×
+      </button>
+    </div>
+  ) : isTocModal ? (
+    <div class="toc-modal-header">
+      <h3 class="toc-modal-title">{title}</h3>
+      <button
+        type="button"
+        class="modal-close-btn toc-modal-close"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        ×
+      </button>
+    </div>
+  ) : isLarge ? (
+    <div class="glossary-modal-header">
+      <h3 class="modal-title">{title}</h3>
+      <button type="button" class="modal-close-btn" onClick={onClose}>
+        ×
+      </button>
+    </div>
+  ) : (
+    <div class="modal-header-row">
+      <h3 class="modal-title">{title}</h3>
+      <button
+        type="button"
+        class="modal-close-btn"
+        onClick={onClose}
+        aria-label="Close"
+        disabled={closeButtonDisabled}
+      >
+        ×
+      </button>
+    </div>
+  );
 
   const footerWrapperClass = isErrorVariant
     ? 'error-modal-footer'

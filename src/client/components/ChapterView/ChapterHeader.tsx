@@ -53,10 +53,12 @@ export function ChapterHeader({
   const isCompleted = chapter.status === 'completed';
 
   const hasOriginalText = !!(chapter.originalText && chapter.originalText.trim().length > 0);
-  const hasOriginalParagraphs = chapter.paragraphs?.some((p) => p.originalText && p.originalText.trim().length > 0);
+  const hasOriginalParagraphs = chapter.paragraphs?.some(
+    (p) => p.originalText && p.originalText.trim().length > 0
+  );
   const canRead = isOriginalReadingMode
-    ? (hasOriginalText || hasOriginalParagraphs)
-    : (hasTranslations || hasTranslatedText);
+    ? hasOriginalText || hasOriginalParagraphs
+    : hasTranslations || hasTranslatedText;
 
   const handleStartEdit = () => {
     setIsEditingTitle(true);
@@ -157,7 +159,7 @@ export function ChapterHeader({
         >
           ▶
         </button>
-        
+
         {/* Settings button - в навигации, а не в actions */}
         <button
           class="chapter-nav-btn chapter-settings-btn"
@@ -174,7 +176,12 @@ export function ChapterHeader({
         )}
 
         {canRead && onEnterReadingMode && (
-          <Button variant="secondary" size="sm" onClick={onEnterReadingMode} title={t('chapter.readingMode')}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onEnterReadingMode}
+            title={t('chapter.readingMode')}
+          >
             📖 {t('chapter.read')}
           </Button>
         )}
@@ -196,17 +203,24 @@ export function ChapterHeader({
           </Button>
         )}
 
-        {isOriginalReadingMode && onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'analyzed' || chapter.status === 'error') && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onMarkAsTranslated}
-            disabled={translating || markingAsTranslated}
-            title={t('markAsTranslated.title', 'Пометить как переведённую')}
-          >
-            {markingAsTranslated ? <span class="spinner" /> : '✅'} {t('markAsTranslated.button', 'Пометить как переведённую')}
-          </Button>
-        )}
+        {isOriginalReadingMode &&
+          onMarkAsTranslated &&
+          chapter.paragraphs &&
+          chapter.paragraphs.length > 0 &&
+          (chapter.status === 'pending' ||
+            chapter.status === 'analyzed' ||
+            chapter.status === 'error') && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onMarkAsTranslated}
+              disabled={translating || markingAsTranslated}
+              title={t('markAsTranslated.title', 'Пометить как переведённую')}
+            >
+              {markingAsTranslated ? <span class="spinner" /> : '✅'}{' '}
+              {t('markAsTranslated.button', 'Пометить как переведённую')}
+            </Button>
+          )}
       </div>
     </div>
   );

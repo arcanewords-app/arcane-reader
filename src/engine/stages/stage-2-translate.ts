@@ -35,7 +35,10 @@ export class TranslateStage {
       );
     }
     this.provider = provider;
-    log.debug('TranslateStage initialized', { hasProvider: !!this.provider, hasComplete: typeof this.provider.complete });
+    log.debug('TranslateStage initialized', {
+      hasProvider: !!this.provider,
+      hasComplete: typeof this.provider.complete,
+    });
   }
 
   async execute(
@@ -88,54 +91,75 @@ export class TranslateStage {
         preserveParagraphs: true,
       });
 
-      log.info(`TranslateStage: split into ${chunks.length} chunks for translation`, { chunksCount: chunks.length });
+      log.info(`TranslateStage: split into ${chunks.length} chunks for translation`, {
+        chunksCount: chunks.length,
+      });
 
       // Translate each chunk
       const chunkResults: ChunkTranslation[] = [];
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
-        log.debug(`TranslateStage: chunk ${i + 1}/${chunks.length}`, { chunkId: chunk.id, tokenCount: chunk.tokenCount });
+        log.debug(`TranslateStage: chunk ${i + 1}/${chunks.length}`, {
+          chunkId: chunk.id,
+          tokenCount: chunk.tokenCount,
+        });
 
         try {
           const temperature = options.temperature ?? 0.7;
-          const result = await this.translateChunk(chunk, glossaryText, contextText, styleGuide, temperature);
+          const result = await this.translateChunk(
+            chunk,
+            glossaryText,
+            contextText,
+            styleGuide,
+            temperature
+          );
 
           if (!result.translation.translated || result.translation.translated.trim().length === 0) {
-            log.warn(`TranslateStage: chunk ${i + 1} returned empty translation`, { chunkId: chunk.id });
+            log.warn(`TranslateStage: chunk ${i + 1} returned empty translation`, {
+              chunkId: chunk.id,
+            });
           } else {
-            log.debug(`TranslateStage: chunk ${i + 1} translated`, { length: result.translation.translated.length });
+            log.debug(`TranslateStage: chunk ${i + 1} translated`, {
+              length: result.translation.translated.length,
+            });
           }
 
           chunkResults.push(result.translation);
           totalTokens += result.tokensUsed;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          log.error(`TranslateStage: chunk ${i + 1} translation failed: ${errorMessage}`, error instanceof Error ? error : undefined);
-          
+          log.error(
+            `TranslateStage: chunk ${i + 1} translation failed: ${errorMessage}`,
+            error instanceof Error ? error : undefined
+          );
+
           // Add empty translation to maintain chunk order, but mark as failed
           chunkResults.push({
             chunkId: chunk.id,
             original: chunk.content,
             translated: `[ERROR: ${errorMessage}]`,
           });
-          
+
           // Continue with next chunk instead of failing completely
         }
       }
 
-      log.info('TranslateStage: all chunks translated', { chunksCount: chunkResults.length, totalTokens });
+      log.info('TranslateStage: all chunks translated', {
+        chunksCount: chunkResults.length,
+        totalTokens,
+      });
 
       // Merge translated chunks
       // Extract index from chunkId (format: "chunk_0", "chunk_1", etc.)
       const chunksToMerge = chunkResults.map((c) => {
         const indexMatch = c.chunkId.match(/chunk_(\d+)/);
         const index = indexMatch ? parseInt(indexMatch[1], 10) : -1;
-        
+
         if (index === -1) {
           log.error(`TranslateStage: failed to extract index from chunkId: ${c.chunkId}`);
         }
-        
+
         return {
           content: c.translated,
           index: index,
@@ -143,9 +167,11 @@ export class TranslateStage {
       });
 
       // Filter out invalid chunks and log
-      const validChunks = chunksToMerge.filter(c => c.index >= 0);
+      const validChunks = chunksToMerge.filter((c) => c.index >= 0);
       if (validChunks.length !== chunkResults.length) {
-        log.error(`TranslateStage: lost ${chunkResults.length - validChunks.length} chunks when extracting indices`);
+        log.error(
+          `TranslateStage: lost ${chunkResults.length - validChunks.length} chunks when extracting indices`
+        );
       }
 
       log.debug('TranslateStage: merging chunks', { validChunksCount: validChunks.length });
@@ -154,7 +180,9 @@ export class TranslateStage {
       log.debug('TranslateStage: final translation length', { length: translatedText.length });
 
       if (translatedText.length === 0) {
-        log.error('TranslateStage: critical - final translation empty after merging', { validChunksCount: validChunks.length });
+        log.error('TranslateStage: critical - final translation empty after merging', {
+          validChunksCount: validChunks.length,
+        });
       }
 
       if (!translatedText || translatedText.trim().length === 0) {
@@ -163,7 +191,7 @@ export class TranslateStage {
           chunkResultsCount: chunkResults.length,
           validChunksCount: validChunks.length,
         });
-        
+
         return {
           stage: 'translate',
           success: false,
@@ -174,7 +202,9 @@ export class TranslateStage {
       }
 
       if (chunkResults.length !== chunks.length) {
-        log.warn(`TranslateStage: chunk count mismatch: ${chunkResults.length} translated of ${chunks.length}`);
+        log.warn(
+          `TranslateStage: chunk count mismatch: ${chunkResults.length} translated of ${chunks.length}`
+        );
       }
 
       log.info('TranslateStage: translation completed successfully', {
@@ -195,7 +225,10 @@ export class TranslateStage {
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
-      log.error(`TranslateStage.execute failed: ${errMsg}`, error instanceof Error ? error : undefined);
+      log.error(
+        `TranslateStage.execute failed: ${errMsg}`,
+        error instanceof Error ? error : undefined
+      );
       return {
         stage: 'translate',
         success: false,
@@ -220,7 +253,7 @@ export class TranslateStage {
 
     // Try JSON format first (preferred), fallback to text if provider doesn't support it
     const supportsJSON = typeof this.provider.completeJSON === 'function';
-    
+
     if (!supportsJSON && typeof this.provider.complete !== 'function') {
       throw new Error(
         `Translation provider is missing complete or completeJSON method. Provider: ${JSON.stringify(
@@ -269,14 +302,19 @@ export class TranslateStage {
           // Store JSON data in translation for later parsing
           // We'll need to modify ChunkTranslation type to store this
           if (translatedText && translatedText.trim().length > 0) {
-            log.debug(`TranslateStage: chunk ${chunk.id} translated via JSON`, { length: translatedText.length });
+            log.debug(`TranslateStage: chunk ${chunk.id} translated via JSON`, {
+              length: translatedText.length,
+            });
           }
         } else {
           throw new Error('Invalid JSON structure: missing paragraphs array');
         }
       } catch (jsonError) {
-        log.warn(`TranslateStage: JSON translation failed for chunk ${chunk.id}, using text format`, jsonError instanceof Error ? jsonError : undefined);
-        
+        log.warn(
+          `TranslateStage: JSON translation failed for chunk ${chunk.id}, using text format`,
+          jsonError instanceof Error ? jsonError : undefined
+        );
+
         // Fallback to text format
         if (typeof this.provider.complete === 'function') {
           const response = await this.provider.complete(messages, {
@@ -298,9 +336,11 @@ export class TranslateStage {
       translatedText = response.content ? response.content.trim() : '';
       tokensUsed = response.tokensUsed?.total || 0;
     }
-    
+
     if (!translatedText || translatedText.length === 0) {
-      log.error(`TranslateStage: chunk ${chunk.id} returned empty response from provider`, { chunkId: chunk.id });
+      log.error(`TranslateStage: chunk ${chunk.id} returned empty response from provider`, {
+        chunkId: chunk.id,
+      });
     }
 
     return {

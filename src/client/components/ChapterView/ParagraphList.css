@@ -105,7 +105,12 @@
   padding-bottom: 1rem;
   margin-bottom: 0.75rem;
   border-bottom: 1px solid transparent;
-  background-image: linear-gradient(to bottom, transparent 0%, rgba(157, 111, 255, 0.08) 50%, transparent 100%);
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(157, 111, 255, 0.08) 50%,
+    transparent 100%
+  );
   background-size: 100% 1px;
   background-repeat: no-repeat;
   background-position: bottom;

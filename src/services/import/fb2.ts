@@ -60,9 +60,7 @@ export async function parseFb2(fileBuffer: Buffer): Promise<ParseResult> {
           const lastName = extractText(author['last-name']);
           const nickname = extractText(author.nickname);
           return (
-            nickname ||
-            [firstName, middleName, lastName].filter(Boolean).join(' ') ||
-            'Unknown'
+            nickname || [firstName, middleName, lastName].filter(Boolean).join(' ') || 'Unknown'
           );
         });
       }
@@ -191,7 +189,10 @@ function extractText(node: any): string | undefined {
   if (node.p) {
     // Multiple paragraphs
     const paragraphs = Array.isArray(node.p) ? node.p : [node.p];
-    return paragraphs.map((p: any) => extractText(p)).filter(Boolean).join('\n\n');
+    return paragraphs
+      .map((p: any) => extractText(p))
+      .filter(Boolean)
+      .join('\n\n');
   }
   return undefined;
 }
@@ -245,9 +246,7 @@ function extractSectionContent(section: any): string {
 
   // Extract nested sections
   if (section.section) {
-    const nestedSections = Array.isArray(section.section)
-      ? section.section
-      : [section.section];
+    const nestedSections = Array.isArray(section.section) ? section.section : [section.section];
     for (const nested of nestedSections) {
       const nestedContent = extractSectionContent(nested);
       if (nestedContent) paragraphs.push(nestedContent);
@@ -274,9 +273,7 @@ function extractSectionHtml(section: any): string {
 
   // Extract nested sections
   if (section.section) {
-    const nestedSections = Array.isArray(section.section)
-      ? section.section
-      : [section.section];
+    const nestedSections = Array.isArray(section.section) ? section.section : [section.section];
     for (const nested of nestedSections) {
       const nestedHtml = extractSectionHtml(nested);
       if (nestedHtml) htmlParts.push(nestedHtml);

@@ -342,7 +342,8 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
     const history = await getTokenUsageHistory(req.user.id, requireToken(req), days, req.user.role);
     res.json({ history });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage history';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to get token usage history';
     req.log?.error({ err: error }, 'Error getting token usage history');
     res.status(500).json({ error: errorMessage });
   }
@@ -361,7 +362,10 @@ app.get('/api/projects', requireAuth, async (req, res) => {
     const token = requireToken(req);
     const resetCount = await resetStuckChapters(token, undefined);
     if (resetCount > 0) {
-      req.log?.info({ event: 'stuck_chapters.reset', count: resetCount }, `Reset ${resetCount} stuck chapter(s)`);
+      req.log?.info(
+        { event: 'stuck_chapters.reset', count: resetCount },
+        `Reset ${resetCount} stuck chapter(s)`
+      );
     }
 
     const projects = await getAllProjects(req.user.id, token);
@@ -564,7 +568,13 @@ app.put('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
     }
 
     req.log?.info(
-      { event: 'reader.settings.updated', projectId: req.params.id, fontFamily: reader.fontFamily, fontSize: reader.fontSize, colorScheme: reader.colorScheme },
+      {
+        event: 'reader.settings.updated',
+        projectId: req.params.id,
+        fontFamily: reader.fontFamily,
+        fontSize: reader.fontSize,
+        colorScheme: reader.colorScheme,
+      },
       'Reader settings updated'
     );
 
@@ -612,8 +622,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
     try {
       parseResult = await parseFile(req.file.buffer, filename);
     } catch (parseError) {
-      const errorMessage =
-        parseError instanceof Error ? parseError.message : 'File parse error';
+      const errorMessage = parseError instanceof Error ? parseError.message : 'File parse error';
       req.log?.error({ err: parseError }, 'Parse error');
       return res.status(400).json({
         error: 'Ошибка при парсинге файла',
@@ -635,19 +644,17 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
 
     // Determine project type from file format
     const detectedType = getProjectTypeFromFormat(parseResult.format);
-    
+
     // Update project type if not set or if it's the first chapter (auto-detect)
     const isFirstChapter = project.chapters.length === 0;
-    const needsTypeUpdate = !project.type || project.type === 'text' && detectedType !== 'text';
-    
+    const needsTypeUpdate = !project.type || (project.type === 'text' && detectedType !== 'text');
+
     if (isFirstChapter && needsTypeUpdate) {
-      await updateProject(
-        req.params.id,
-        { type: detectedType },
-        req.user.id,
-        token
+      await updateProject(req.params.id, { type: detectedType }, req.user.id, token);
+      req.log?.info(
+        { event: 'project.type.detected', projectId: req.params.id, type: detectedType },
+        `Project type set to ${detectedType}`
       );
-      req.log?.info({ event: 'project.type.detected', projectId: req.params.id, type: detectedType }, `Project type set to ${detectedType}`);
     }
 
     // Update project metadata if available (for EPUB/FB2) and it's the first chapter
@@ -663,7 +670,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
         try {
           const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
           const storagePath = generateUniqueFilename('cover', ext, req.params.id);
-          
+
           const uploadResult = await uploadFile(
             'images',
             storagePath,
@@ -672,7 +679,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
               contentType: parseResult.metadata.coverImage.mimeType,
             }
           );
-          
+
           updatedMetadata.coverImageUrl = uploadResult.publicUrl;
           req.log?.info({ event: 'cover.saved', storagePath }, 'Cover saved to Supabase Storage');
         } catch (coverError) {
@@ -684,16 +691,25 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
 
       // Only update if there's new metadata
       if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-        await updateProject(
-          req.params.id,
-          { metadata: updatedMetadata },
-          req.user.id,
-          token
+        await updateProject(req.params.id, { metadata: updatedMetadata }, req.user.id, token);
+        req.log?.info(
+          {
+            event: 'project.metadata.updated',
+            projectId: req.params.id,
+            title: parseResult.metadata.title,
+          },
+          'Project metadata updated'
         );
-        req.log?.info({ event: 'project.metadata.updated', projectId: req.params.id, title: parseResult.metadata.title }, 'Project metadata updated');
       }
-    } else if (!isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
-      req.log?.debug({ projectId: req.params.id }, 'Skipped metadata update: project already has chapters');
+    } else if (
+      !isFirstChapter &&
+      parseResult.metadata &&
+      Object.keys(parseResult.metadata).length > 0
+    ) {
+      req.log?.debug(
+        { projectId: req.params.id },
+        'Skipped metadata update: project already has chapters'
+      );
     }
 
     // Handle multiple chapters (EPUB/FB2) or single chapter (TXT)
@@ -841,8 +857,18 @@ app.post(
 
       // Only set cancel flag if status is translating; performTranslation will set status to pending when it exits (single source of truth)
       if (chapter.status === 'translating') {
-        translationCancelRegistry.set(translationCancelKey(req.params.projectId, req.params.chapterId), true);
-        req.log?.info({ event: 'translation.cancelled', chapterId: req.params.chapterId, chapterTitle: chapter.title }, 'Translation cancelled (flag set)');
+        translationCancelRegistry.set(
+          translationCancelKey(req.params.projectId, req.params.chapterId),
+          true
+        );
+        req.log?.info(
+          {
+            event: 'translation.cancelled',
+            chapterId: req.params.chapterId,
+            chapterTitle: chapter.title,
+          },
+          'Translation cancelled (flag set)'
+        );
         res.json({ success: true, message: 'Translation cancelled' });
       } else {
         res.json({ success: false, message: 'Chapter is not being translated' });
@@ -960,11 +986,7 @@ app.post(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const chapter = await getChapter(
-        req.params.projectId,
-        req.params.chapterId,
-        token
-      );
+      const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
       if (!chapter) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
@@ -991,11 +1013,10 @@ app.post(
         });
       }
 
-      const syncedParagraphs = syncTranslationToParagraphs(
-        chapter.paragraphs,
-        translatedText,
-        { replaceAll: true, editedBy: 'user' }
-      );
+      const syncedParagraphs = syncTranslationToParagraphs(chapter.paragraphs, translatedText, {
+        replaceAll: true,
+        editedBy: 'user',
+      });
 
       const mergedText = mergeParagraphsToText(syncedParagraphs, 'translatedText');
       const chunks = mergedText
@@ -1025,7 +1046,14 @@ app.post(
       );
 
       if (updatedChapter) {
-        req.log?.info({ event: 'translation.uploaded', chapterId: req.params.chapterId, chapterTitle: chapter.title }, 'Ready-made translation uploaded');
+        req.log?.info(
+          {
+            event: 'translation.uploaded',
+            chapterId: req.params.chapterId,
+            chapterTitle: chapter.title,
+          },
+          'Ready-made translation uploaded'
+        );
         res.json(updatedChapter);
       } else {
         res.status(500).json({ error: 'Failed to update chapter' });
@@ -1057,11 +1085,7 @@ app.post(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const chapter = await getChapter(
-        req.params.projectId,
-        req.params.chapterId,
-        token
-      );
+      const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
       if (!chapter) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
@@ -1081,10 +1105,20 @@ app.post(
       }
 
       // Debug: input state
-      const withOriginal = chapter.paragraphs.filter((p) => (p.originalText || '').trim().length > 0).length;
-      const totalOriginalChars = chapter.paragraphs.reduce((s, p) => s + (p.originalText || '').length, 0);
+      const withOriginal = chapter.paragraphs.filter(
+        (p) => (p.originalText || '').trim().length > 0
+      ).length;
+      const totalOriginalChars = chapter.paragraphs.reduce(
+        (s, p) => s + (p.originalText || '').length,
+        0
+      );
       req.log?.debug(
-        { chapterTitle: chapter.title, paragraphsCount: chapter.paragraphs.length, withOriginal, totalOriginalChars },
+        {
+          chapterTitle: chapter.title,
+          paragraphsCount: chapter.paragraphs.length,
+          withOriginal,
+          totalOriginalChars,
+        },
         'mark-as-translated: input state'
       );
 
@@ -1106,7 +1140,12 @@ app.post(
         .map((p) => p.translatedText || '');
 
       req.log?.debug(
-        { chapterTitle: chapter.title, paragraphsCount: chapter.paragraphs.length, chunksCount: chunks.length, mergedLen: mergedText.length },
+        {
+          chapterTitle: chapter.title,
+          paragraphsCount: chapter.paragraphs.length,
+          chunksCount: chunks.length,
+          mergedLen: mergedText.length,
+        },
         'mark-as-translated: counts'
       );
 
@@ -1132,7 +1171,14 @@ app.post(
       );
 
       if (updatedChapter) {
-        req.log?.info({ event: 'chapter.marked_translated', chapterId: req.params.chapterId, chapterTitle: chapter.title }, 'Chapter marked as translated');
+        req.log?.info(
+          {
+            event: 'chapter.marked_translated',
+            chapterId: req.params.chapterId,
+            chapterTitle: chapter.title,
+          },
+          'Chapter marked as translated'
+        );
         res.json(updatedChapter);
       } else {
         res.status(500).json({ error: 'Failed to update chapter' });
@@ -1179,15 +1225,16 @@ app.post(
 
       // Use chapter.originalText if set; otherwise derive from paragraphs (e.g. after "mark as translated" which clears chapter.originalText but keeps paragraph.originalText)
       const effectiveOriginalText =
-        (chapter.originalText && chapter.originalText.trim().length > 0)
+        chapter.originalText && chapter.originalText.trim().length > 0
           ? chapter.originalText.trim()
-          : (chapter.paragraphs && chapter.paragraphs.length > 0)
+          : chapter.paragraphs && chapter.paragraphs.length > 0
             ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
             : '';
       if (!effectiveOriginalText) {
         return res.status(400).json({
           error: 'No source text',
-          message: 'Глава не содержит исходного текста. Добавьте текст или импортируйте главу заново.',
+          message:
+            'Глава не содержит исходного текста. Добавьте текст или импортируйте главу заново.',
         });
       }
       const chapterForTranslation = { ...chapter, originalText: effectiveOriginalText };
@@ -1227,7 +1274,8 @@ app.post(
       }
 
       const hasTranslatedText =
-        !!chapterForTranslation.translatedText && chapterForTranslation.translatedText.trim().length > 0;
+        !!chapterForTranslation.translatedText &&
+        chapterForTranslation.translatedText.trim().length > 0;
       const hasTranslatedParagraphs = chapterForTranslation.paragraphs?.some(
         (p) => p.translatedText && p.translatedText.trim().length > 0
       );
@@ -1239,7 +1287,11 @@ app.post(
           hasTranslatedText,
           hasTranslatedParagraphs,
           paragraphsCount: chapterForTranslation.paragraphs?.length ?? 0,
-          mode: paragraphIds?.length ? `selected (${paragraphIds.length})` : translateOnlyEmpty ? 'empty only' : 'full',
+          mode: paragraphIds?.length
+            ? `selected (${paragraphIds.length})`
+            : translateOnlyEmpty
+              ? 'empty only'
+              : 'full',
         },
         'Chapter state before translation'
       );
@@ -1265,7 +1317,7 @@ app.post(
 
       // Check token limit before starting translation (limit depends on user role)
       const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
-      
+
       if (!limitCheck.allowed) {
         // Reset chapter status back to pending
         await updateChapter(
@@ -1277,12 +1329,9 @@ app.post(
 
         // Calculate reset time (next midnight UTC)
         const now = new Date();
-        const resetTime = new Date(Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate() + 1,
-          0, 0, 0
-        ));
+        const resetTime = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
+        );
 
         return res.status(429).json({
           error: 'Token limit exceeded',
@@ -1366,9 +1415,9 @@ async function performTranslation(
 
     // Use chapter.originalText if set; otherwise derive from paragraphs (e.g. after "mark as translated")
     const effectiveOriginalText =
-      (chapter.originalText && chapter.originalText.trim().length > 0)
+      chapter.originalText && chapter.originalText.trim().length > 0
         ? chapter.originalText.trim()
-        : (chapter.paragraphs && chapter.paragraphs.length > 0)
+        : chapter.paragraphs && chapter.paragraphs.length > 0
           ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
           : '';
     if (!effectiveOriginalText) {
@@ -1382,7 +1431,10 @@ async function performTranslation(
     }
 
     if (!config.openai.apiKey) {
-      logger.warn({ projectId, chapterId, chapterTitle: chapter.title }, 'Demo mode: API key not configured');
+      logger.warn(
+        { projectId, chapterId, chapterTitle: chapter.title },
+        'Demo mode: API key not configured'
+      );
 
       // Demo mode - translate paragraphs individually
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -1417,7 +1469,13 @@ async function performTranslation(
       );
 
       logger.info(
-        { event: 'translation.demo_completed', projectId, chapterId, durationMs: Date.now() - startTime, paragraphsCount: demoParagraphs.length },
+        {
+          event: 'translation.demo_completed',
+          projectId,
+          chapterId,
+          durationMs: Date.now() - startTime,
+          paragraphsCount: demoParagraphs.length,
+        },
         `Demo translation completed in ${Date.now() - startTime}ms (${demoParagraphs.length} paragraphs)`
       );
       return;
@@ -1525,7 +1583,9 @@ async function performTranslation(
       paragraphsToTranslate = (chapterWithOriginal.paragraphs || []).filter((p) => idSet.has(p.id));
       if (paragraphsToTranslate.length === 0) {
         logger.info({ projectId, chapterId }, 'No selected paragraphs to translate');
-        await updateChapter(projectId, chapterId, { status: 'completed' }, token, { useServiceRole: true });
+        await updateChapter(projectId, chapterId, { status: 'completed' }, token, {
+          useServiceRole: true,
+        });
         return;
       }
       const textToTranslate = mergeParagraphsToText(paragraphsToTranslate, 'originalText');
@@ -1533,7 +1593,12 @@ async function performTranslation(
       chapterToTranslate = { ...chapterWithOriginal, originalText: markedText };
       translateSubsetOnly = true;
       logger.info(
-        { projectId, chapterId, selectedCount: paragraphsToTranslate.length, totalParagraphs: (chapterWithOriginal.paragraphs || []).length },
+        {
+          projectId,
+          chapterId,
+          selectedCount: paragraphsToTranslate.length,
+          totalParagraphs: (chapterWithOriginal.paragraphs || []).length,
+        },
         `Selected paragraphs mode: ${paragraphsToTranslate.length} of ${(chapterWithOriginal.paragraphs || []).length}`
       );
     } else if (translateOnlyEmpty) {
@@ -1542,7 +1607,9 @@ async function performTranslation(
 
       if (emptyParagraphs.length === 0) {
         logger.info({ projectId, chapterId }, 'No empty paragraphs to translate; skipping');
-        await updateChapter(projectId, chapterId, { status: 'completed' }, token, { useServiceRole: true });
+        await updateChapter(projectId, chapterId, { status: 'completed' }, token, {
+          useServiceRole: true,
+        });
         return;
       }
 
@@ -1571,7 +1638,10 @@ async function performTranslation(
         originalText: markedText,
       };
     } else {
-      const markedText = addParagraphMarkers(chapterWithOriginal.originalText, chapterWithOriginal.paragraphs || []);
+      const markedText = addParagraphMarkers(
+        chapterWithOriginal.originalText,
+        chapterWithOriginal.paragraphs || []
+      );
       chapterToTranslate = {
         ...chapterWithOriginal,
         originalText: markedText,
@@ -1592,8 +1662,13 @@ async function performTranslation(
     };
 
     if (isCancelled()) {
-      logger.info({ projectId, chapterId, chapterTitle: chapter.title }, 'Translation cancelled by user before pipeline start');
-      await updateChapter(projectId, chapterId, { status: 'pending' }, token, { useServiceRole: true });
+      logger.info(
+        { projectId, chapterId, chapterTitle: chapter.title },
+        'Translation cancelled by user before pipeline start'
+      );
+      await updateChapter(projectId, chapterId, { status: 'pending' }, token, {
+        useServiceRole: true,
+      });
       return;
     }
 
@@ -1605,14 +1680,17 @@ async function performTranslation(
       result = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
         stages,
         existingTranslatedText: needsExistingText
-          ? (chapterWithOriginal.translatedText?.trim() || '') || undefined
+          ? chapterWithOriginal.translatedText?.trim() || '' || undefined
           : undefined,
         isCancelled,
       });
     } catch (pipelineError) {
       const errorMessage =
         pipelineError instanceof Error ? pipelineError.message : 'Unknown pipeline error';
-      logger.error({ err: pipelineError, projectId, chapterId }, `Pipeline error in translateChapterWithPipeline: ${errorMessage}`);
+      logger.error(
+        { err: pipelineError, projectId, chapterId },
+        `Pipeline error in translateChapterWithPipeline: ${errorMessage}`
+      );
       throw pipelineError;
     }
 
@@ -1653,7 +1731,9 @@ async function performTranslation(
         for (const entryId of result.glossaryAppearanceEntryIds) {
           const entry = await getGlossaryEntry(projectId, entryId, token);
           if (entry) {
-            const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort((a, b) => a - b);
+            const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
+              (a, b) => a - b
+            );
             await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
           }
         }
@@ -1683,7 +1763,10 @@ async function performTranslation(
       try {
         await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
       } catch (tokenError) {
-        logger.warn({ err: tokenError, projectId, chapterId }, 'Failed to update token usage (non-critical)');
+        logger.warn(
+          { err: tokenError, projectId, chapterId },
+          'Failed to update token usage (non-critical)'
+        );
       }
       return;
     }
@@ -1718,7 +1801,11 @@ async function performTranslation(
           : Array.isArray(stages)
             ? stages
                 .map((s) =>
-                  s === 'analysis' ? analysisModel : s === 'translation' ? translationModel : editingModel
+                  s === 'analysis'
+                    ? analysisModel
+                    : s === 'translation'
+                      ? translationModel
+                      : editingModel
                 )
                 .join('/')
             : editingModel;
@@ -1747,7 +1834,10 @@ async function performTranslation(
         try {
           await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
         } catch (tokenError) {
-          logger.warn({ err: tokenError, projectId, chapterId }, 'Failed to update token usage (non-critical)');
+          logger.warn(
+            { err: tokenError, projectId, chapterId },
+            'Failed to update token usage (non-critical)'
+          );
         }
       }
 
@@ -1777,7 +1867,11 @@ async function performTranslation(
       }
     } catch (jsonError) {
       logger.debug(
-        { projectId, chapterId, jsonError: jsonError instanceof Error ? jsonError.message : 'Unknown error' },
+        {
+          projectId,
+          chapterId,
+          jsonError: jsonError instanceof Error ? jsonError.message : 'Unknown error',
+        },
         'JSON parse failed, using text format'
       );
     }
@@ -1846,7 +1940,15 @@ async function performTranslation(
       stages === 'all'
         ? `${analysisModel}/${translationModel}/${editingModel}`
         : Array.isArray(stages)
-          ? stages.map((s) => (s === 'analysis' ? analysisModel : s === 'translation' ? translationModel : editingModel)).join('/')
+          ? stages
+              .map((s) =>
+                s === 'analysis'
+                  ? analysisModel
+                  : s === 'translation'
+                    ? translationModel
+                    : editingModel
+              )
+              .join('/')
           : editingModel;
 
     // Prepare translatedChunks for saving (use from parsedJSON or text-based chunks)
@@ -1874,7 +1976,9 @@ async function performTranslation(
           duration: result.duration,
           model: modelInfo, // Store all models used (or single model if stages skipped)
           translatedAt: nowIso,
-          lastAnalysisAt: ranAnalysis ? nowIso : (chapter.translationMeta?.lastAnalysisAt ?? undefined),
+          lastAnalysisAt: ranAnalysis
+            ? nowIso
+            : (chapter.translationMeta?.lastAnalysisAt ?? undefined),
         },
       },
       token,
@@ -1882,20 +1986,24 @@ async function performTranslation(
     );
 
     logger.info(
-      { event: 'translation.synced', projectId, chapterId, chapterTitle: chapter.title, chunksCount: chunksToSave.length },
+      {
+        event: 'translation.synced',
+        projectId,
+        chapterId,
+        chapterTitle: chapter.title,
+        chunksCount: chunksToSave.length,
+      },
       `Chapter translated and synced: ${chapter.title} (${chunksToSave.length} chunks)`
     );
 
     // Update token usage counter
     try {
-      await incrementTokenUsage(
-        userId,
-        token,
-        result.tokensUsed,
-        result.tokensByStage
-      );
+      await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
     } catch (tokenError) {
-      logger.warn({ err: tokenError, projectId, chapterId }, 'Failed to update token usage (non-critical)');
+      logger.warn(
+        { err: tokenError, projectId, chapterId },
+        'Failed to update token usage (non-critical)'
+      );
     }
 
     // Verify the chapter was saved correctly (service role for same reason)
@@ -1914,16 +2022,30 @@ async function performTranslation(
         ).length || 0;
 
       logger.debug(
-        { projectId, chapterId, savedHasText, savedHasChunks, savedHasParagraphs, syncedCount, status: savedChapter.status },
+        {
+          projectId,
+          chapterId,
+          savedHasText,
+          savedHasChunks,
+          savedHasParagraphs,
+          syncedCount,
+          status: savedChapter.status,
+        },
         'Post-save verification'
       );
 
       if (!savedHasText && !savedHasChunks) {
-        logger.warn({ projectId, chapterId }, 'Chapter saved but translation and chunks are missing');
+        logger.warn(
+          { projectId, chapterId },
+          'Chapter saved but translation and chunks are missing'
+        );
       }
 
       if (savedHasChunks && !savedHasParagraphs) {
-        logger.warn({ projectId, chapterId }, 'Translation saved in chunks but not synced to paragraphs');
+        logger.warn(
+          { projectId, chapterId },
+          'Translation saved in chunks but not synced to paragraphs'
+        );
       }
     } else {
       logger.error({ projectId, chapterId }, 'Failed to load saved chapter for verification');
@@ -1945,7 +2067,9 @@ async function performTranslation(
       for (const entryId of result.glossaryAppearanceEntryIds) {
         const entry = await getGlossaryEntry(projectId, entryId, token);
         if (entry) {
-          const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort((a, b) => a - b);
+          const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
+            (a, b) => a - b
+          );
           await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
         }
       }
@@ -1954,12 +2078,24 @@ async function performTranslation(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     if (errorMessage === 'Cancelled') {
-      logger.info({ projectId, chapterId, chapterTitle: chapter.title }, 'Translation cancelled by user');
-      await updateChapter(projectId, chapterId, { status: 'pending' }, token, { useServiceRole: true });
+      logger.info(
+        { projectId, chapterId, chapterTitle: chapter.title },
+        'Translation cancelled by user'
+      );
+      await updateChapter(projectId, chapterId, { status: 'pending' }, token, {
+        useServiceRole: true,
+      });
       return;
     }
     logger.error(
-      { err: error, projectId, chapterId, chapterTitle: chapter.title, errorMessage, stack: errorStack?.substring(0, 500) },
+      {
+        err: error,
+        projectId,
+        chapterId,
+        chapterTitle: chapter.title,
+        errorMessage,
+        stack: errorStack?.substring(0, 500),
+      },
       `Translation error: ${errorMessage}`
     );
 
@@ -1979,7 +2115,12 @@ async function performTranslation(
     );
 
     logger.warn(
-      { projectId, chapterId, chapterTitle: chapter.title, existingTranslation: !!existingTranslation },
+      {
+        projectId,
+        chapterId,
+        chapterTitle: chapter.title,
+        existingTranslation: !!existingTranslation,
+      },
       'Chapter marked as error; existing translation preserved'
     );
   } finally {
@@ -2051,7 +2192,11 @@ function syncTranslationToParagraphs(
 
   if (translatedParts.length !== originalParagraphs.length) {
     logger.debug(
-      { original: originalParagraphs.length, translatedParts: translatedParts.length, emptyCount: emptyParagraphsCount },
+      {
+        original: originalParagraphs.length,
+        translatedParts: translatedParts.length,
+        emptyCount: emptyParagraphsCount,
+      },
       'Count mismatch: original vs translated parts'
     );
     if (translatedParts.length !== emptyParagraphsCount) {
@@ -2128,7 +2273,11 @@ function syncTranslationToParagraphs(
 
   if (translatedCount === 0 && translatedText.trim().length > 0) {
     logger.error(
-      { translatedTextLength: translatedText.length, translatedPartsLength: translatedParts.length, emptyCount },
+      {
+        translatedTextLength: translatedText.length,
+        translatedPartsLength: translatedParts.length,
+        emptyCount,
+      },
       'Critical: entire translation lost during sync'
     );
   }
@@ -2198,7 +2347,11 @@ function syncTranslationChunksToParagraphs(
 
   if (translatedChunks.length !== originalParagraphs.length) {
     logger.debug(
-      { original: originalParagraphs.length, chunks: translatedChunks.length, emptyCount: emptyParagraphsCount },
+      {
+        original: originalParagraphs.length,
+        chunks: translatedChunks.length,
+        emptyCount: emptyParagraphsCount,
+      },
       'Chunk count mismatch'
     );
     if (translatedChunks.length !== emptyParagraphsCount) {
@@ -2346,7 +2499,10 @@ function syncTranslationJSONToParagraphs(
   };
 
   logger.debug(
-    { originalCount: originalParagraphs.length, jsonParagraphsCount: translationJSON.paragraphs.length },
+    {
+      originalCount: originalParagraphs.length,
+      jsonParagraphsCount: translationJSON.paragraphs.length,
+    },
     `JSON sync: ${originalParagraphs.length} original, ${translationJSON.paragraphs.length} translated paragraphs`
   );
 
@@ -2365,7 +2521,10 @@ function syncTranslationJSONToParagraphs(
     }
   }
 
-  logger.debug({ translationMapSize: translationMap.size }, `Translation map created: ${translationMap.size} paragraphs`);
+  logger.debug(
+    { translationMapSize: translationMap.size },
+    `Translation map created: ${translationMap.size} paragraphs`
+  );
 
   // Map translations to original paragraphs
   const result = originalParagraphs.map((original) => {
@@ -2416,7 +2575,10 @@ function syncTranslationJSONToParagraphs(
 
   if (translatedCount === 0 && translationJSON.paragraphs.length > 0 && !partialTranslation) {
     logger.error(
-      { jsonParagraphsCount: translationJSON.paragraphs.length, translationMapSize: translationMap.size },
+      {
+        jsonParagraphsCount: translationJSON.paragraphs.length,
+        translationMapSize: translationMap.size,
+      },
       'Critical: entire translation lost during JSON sync'
     );
   }
@@ -2448,7 +2610,10 @@ async function translateWithOpenAI(
     }
   }
 
-  logger.debug({ charCount: chapter.originalText.length }, `Sending ${chapter.originalText.length} characters for translation`);
+  logger.debug(
+    { charCount: chapter.originalText.length },
+    `Sending ${chapter.originalText.length} characters for translation`
+  );
 
   const response = await client.chat.completions.create({
     model: config.openai.model,
@@ -2475,7 +2640,10 @@ async function translateWithOpenAI(
   const translatedText = response.choices[0]?.message?.content || '';
   const tokensUsed = response.usage?.total_tokens;
 
-  logger.debug({ receivedLength: translatedText.length }, `Received ${translatedText.length} characters`);
+  logger.debug(
+    { receivedLength: translatedText.length },
+    `Received ${translatedText.length} characters`
+  );
 
   return { text: translatedText, tokensUsed };
 }
@@ -2603,7 +2771,15 @@ app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, r
     // Clear agent cache to reload glossary
     clearAgentCache(req.params.projectId);
 
-    req.log?.info({ event: 'glossary.updated', entryId: entry.id, original: entry.original, translated: entry.translated }, `Glossary updated: ${entry.original} → ${entry.translated}`);
+    req.log?.info(
+      {
+        event: 'glossary.updated',
+        entryId: entry.id,
+        original: entry.original,
+        translated: entry.translated,
+      },
+      `Glossary updated: ${entry.original} → ${entry.translated}`
+    );
 
     res.json(entry);
   } catch (error) {
@@ -2658,7 +2834,8 @@ app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, async 
         message: 'Configure OpenAI API key to use merge suggestions.',
       });
     }
-    const model = project.settings?.stageModels?.analysis ?? project.settings?.model ?? config.openai.model;
+    const model =
+      project.settings?.stageModels?.analysis ?? project.settings?.model ?? config.openai.model;
     const suggestions: MergeSuggestion[] = await suggestGlossaryMerges(project.glossary, {
       apiKey: config.openai.apiKey,
       model,
@@ -2808,14 +2985,9 @@ app.post(
         req.params.projectId
       );
 
-      const uploadResult = await uploadFile(
-        'images',
-        storagePath,
-        req.file.buffer,
-        {
-          contentType: req.file.mimetype,
-        }
-      );
+      const uploadResult = await uploadFile('images', storagePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+      });
 
       // Migrate legacy imageUrl to imageUrls array if needed
       let imageUrls = entry.imageUrls || [];
@@ -2840,7 +3012,9 @@ app.post(
 
       if (!updatedEntry) {
         // Rollback: delete uploaded file if update failed
-        await deleteFile('images', storagePath).catch((err) => logger.error({ err, storagePath }, 'Failed to delete file from storage'));
+        await deleteFile('images', storagePath).catch((err) =>
+          logger.error({ err, storagePath }, 'Failed to delete file from storage')
+        );
         return res.status(404).json({ error: 'Failed to update entry' });
       }
 
@@ -2946,17 +3120,17 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
       imageUrls = [entry.imageUrl, ...imageUrls];
     }
 
-      // Delete all image files from Supabase Storage
-      const storagePaths = imageUrls
-        .map((url) => extractPathFromUrl(url, 'images'))
-        .filter((p): p is string => p !== null);
-      
-      if (storagePaths.length > 0) {
-        await deleteFiles('images', storagePaths).catch((err) => {
-          req.log?.error({ err }, 'Failed to delete images from storage');
-          // Continue even if deletion fails
-        });
-      }
+    // Delete all image files from Supabase Storage
+    const storagePaths = imageUrls
+      .map((url) => extractPathFromUrl(url, 'images'))
+      .filter((p): p is string => p !== null);
+
+    if (storagePaths.length > 0) {
+      await deleteFiles('images', storagePaths).catch((err) => {
+        req.log?.error({ err }, 'Failed to delete images from storage');
+        // Continue even if deletion fails
+      });
+    }
 
     // Update entry to remove all images
     await updateGlossaryEntry(
@@ -3011,16 +3185,11 @@ app.post(
       // Upload to Supabase Storage
       const ext = path.extname(req.file.originalname).slice(1) || 'jpg';
       const storagePath = generateUniqueFilename('cover', ext, req.params.projectId);
-      
-      const uploadResult = await uploadFile(
-        'images',
-        storagePath,
-        req.file.buffer,
-        {
-          contentType: req.file.mimetype,
-        }
-      );
-      
+
+      const uploadResult = await uploadFile('images', storagePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+      });
+
       const coverImageUrl = uploadResult.publicUrl;
 
       // Update project metadata with new cover
@@ -3030,7 +3199,10 @@ app.post(
         coverImageUrl,
       };
 
-      req.log?.info({ event: 'cover.upload.start', projectId: req.params.projectId }, 'Uploading cover for project');
+      req.log?.info(
+        { event: 'cover.upload.start', projectId: req.params.projectId },
+        'Uploading cover for project'
+      );
 
       const updatedProject = await updateProject(
         req.params.projectId,
@@ -3043,11 +3215,16 @@ app.post(
 
       if (!updatedProject) {
         // Rollback: delete uploaded file if update failed
-        await deleteFile('images', storagePath).catch((err) => logger.error({ err, storagePath }, 'Failed to delete file from storage'));
+        await deleteFile('images', storagePath).catch((err) =>
+          logger.error({ err, storagePath }, 'Failed to delete file from storage')
+        );
         return res.status(404).json({ error: 'Failed to update project' });
       }
 
-      req.log?.info({ event: 'cover.upload.done', projectId: req.params.projectId }, 'Cover saved to project');
+      req.log?.info(
+        { event: 'cover.upload.done', projectId: req.params.projectId },
+        'Cover saved to project'
+      );
 
       res.json({ coverImageUrl, project: updatedProject });
     } catch (error) {
@@ -3134,7 +3311,8 @@ app.put('/api/projects/:projectId/metadata', requireAuth, async (req, res) => {
     res.json(updatedProject);
   } catch (error) {
     req.log?.error({ err: error }, 'Failed to update project metadata');
-    const errorMessage = error instanceof Error ? error.message : 'Failed to update project metadata';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to update project metadata';
     res.status(500).json({ error: errorMessage });
   }
 });
@@ -3199,7 +3377,10 @@ app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, async
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    req.log?.info({ event: 'chapter.title.updated', chapterId: req.params.chapterId, title: chapter.title }, `Chapter title updated: "${chapter.title}"`);
+    req.log?.info(
+      { event: 'chapter.title.updated', chapterId: req.params.chapterId, title: chapter.title },
+      `Chapter title updated: "${chapter.title}"`
+    );
 
     res.json(chapter);
   } catch (error) {
@@ -3232,7 +3413,15 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, asyn
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    req.log?.info({ event: 'chapter.number.updated', chapterId: req.params.chapterId, chapterTitle: chapter.title, number }, `Chapter number updated: "${chapter.title}" → ${number}`);
+    req.log?.info(
+      {
+        event: 'chapter.number.updated',
+        chapterId: req.params.chapterId,
+        chapterTitle: chapter.title,
+        number,
+      },
+      `Chapter number updated: "${chapter.title}" → ${number}`
+    );
 
     // Return updated project with reordered chapters
     // No delay needed - Supabase updates are synchronous within the same connection
@@ -3298,7 +3487,10 @@ app.put(
         return res.status(404).json({ error: 'Paragraph not found' });
       }
 
-      req.log?.debug({ paragraphId: paragraph.id.slice(0, 8), status: paragraph.status }, 'Paragraph updated');
+      req.log?.debug(
+        { paragraphId: paragraph.id.slice(0, 8), status: paragraph.status },
+        'Paragraph updated'
+      );
 
       res.json(paragraph);
     } catch (error) {
@@ -3336,7 +3528,10 @@ app.post(
         }
       }
 
-      req.log?.info({ event: 'paragraphs.bulk_updated', count: results.length, status }, `Bulk update: ${results.length} paragraphs -> ${status}`);
+      req.log?.info(
+        { event: 'paragraphs.bulk_updated', count: results.length, status },
+        `Bulk update: ${results.length} paragraphs -> ${status}`
+      );
 
       res.json({ updated: results.length, paragraphs: results });
     } catch (error) {
@@ -3374,7 +3569,15 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
     const tmpPath = path.join(tmpDir, filename);
 
     req.log?.info(
-      { event: 'export.start', projectId: req.params.projectId, projectName: project.name, format, tmpPath, tmpDir, vercel: !!process.env.VERCEL },
+      {
+        event: 'export.start',
+        projectId: req.params.projectId,
+        projectName: project.name,
+        format,
+        tmpPath,
+        tmpDir,
+        vercel: !!process.env.VERCEL,
+      },
       `Export started: ${project.name} -> ${format.toUpperCase()}`
     );
 
@@ -3385,7 +3588,9 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
         req.log?.debug({ tmpDir }, 'Created temp directory');
       } catch (mkdirError: any) {
         req.log?.error({ err: mkdirError, tmpDir }, 'Failed to create temp directory');
-        throw new Error(`Не удалось создать временную директорию: ${tmpDir}. Ошибка: ${mkdirError.message}`);
+        throw new Error(
+          `Не удалось создать временную директорию: ${tmpDir}. Ошибка: ${mkdirError.message}`
+        );
       }
     } else {
       req.log?.debug({ tmpDir }, 'Temp directory exists');
@@ -3414,7 +3619,11 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
           // ignore pseudo-folders
           .filter((f) => f.name && !f.name.endsWith('/'))
           .map((f) => {
-            const ts = Math.max(toTimestamp(f.created_at), toTimestamp(f.updated_at), toTimestamp(f.last_accessed_at));
+            const ts = Math.max(
+              toTimestamp(f.created_at),
+              toTimestamp(f.updated_at),
+              toTimestamp(f.last_accessed_at)
+            );
             return { ...f, __ts: ts };
           })
           .sort((a, b) => (b.__ts || 0) - (a.__ts || 0));
@@ -3429,7 +3638,10 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
 
         if (toDeleteNames.length > 0) {
           const paths = toDeleteNames.map((name) => `${folder}/${name}`);
-          req.log?.debug({ pathsCount: paths.length, folder }, 'Auto-clean exports: deleting old files');
+          req.log?.debug(
+            { pathsCount: paths.length, folder },
+            'Auto-clean exports: deleting old files'
+          );
           await deleteFiles('exports', paths);
         }
       } catch (cleanupErr) {
@@ -3481,7 +3693,14 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       }
 
       req.log?.info(
-        { event: 'export.completed', projectId, projectName: project.name, format, filename, storagePath },
+        {
+          event: 'export.completed',
+          projectId,
+          projectName: project.name,
+          format,
+          filename,
+          storagePath,
+        },
         `Export completed: ${project.name} -> ${format.toUpperCase()} (${filename})`
       );
 
@@ -3542,8 +3761,7 @@ app.get('/api/projects/:id/export/download', requireAuth, async (req, res) => {
     const buffer = await downloadFile('exports', storagePath);
     const filename = storagePath.split('/').pop() || 'export';
 
-    const contentType =
-      filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
+    const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -3651,21 +3869,16 @@ app.post('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
       targetLanguage?: string;
     };
     const status = body.status ?? 'published';
-    const publication = await createOrUpdatePublication(
-      projectId,
-      userId,
-      token,
-      {
-        status,
-        title: body.title,
-        description: body.description,
-        coverImageUrl: body.coverImageUrl,
-        authorDisplay: body.authorDisplay,
-        translatorDisplay: body.translatorDisplay ?? req.user!.email,
-        sourceLanguage: body.sourceLanguage,
-        targetLanguage: body.targetLanguage,
-      }
-    );
+    const publication = await createOrUpdatePublication(projectId, userId, token, {
+      status,
+      title: body.title,
+      description: body.description,
+      coverImageUrl: body.coverImageUrl,
+      authorDisplay: body.authorDisplay,
+      translatorDisplay: body.translatorDisplay ?? req.user!.email,
+      sourceLanguage: body.sourceLanguage,
+      targetLanguage: body.targetLanguage,
+    });
     res.json(publication);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to publish';

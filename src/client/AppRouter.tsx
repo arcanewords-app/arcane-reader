@@ -61,7 +61,7 @@ export function AppRouter() {
       // document.body.style.position = 'fixed';
       // document.body.style.top = `-${scrollY}px`;
       // document.body.style.width = '100%';
-      
+
       return () => {
         // Restore scroll
         document.body.style.overflow = '';
@@ -132,7 +132,8 @@ export function AppRouter() {
 
   // Initialize system status
   useEffect(() => {
-    api.getStatus()
+    api
+      .getStatus()
       .then((data) => {
         setSystemStatus(data);
         setStatus('ready');
@@ -222,7 +223,15 @@ export function AppRouter() {
 
   if (isAuthenticated === null) {
     return (
-      <div class="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+      <div
+        class="app"
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
         <div>{t('common.loading')}</div>
       </div>
     );
@@ -231,54 +240,54 @@ export function AppRouter() {
   // Always render app: public catalog on / for everyone; guests see Header with Login/Register
   return (
     <TokenUsageProvider>
-    <div class="app">
-      <AuthModal
-        isOpen={showAuthModal}
-        initialMode={authModalMode}
-        onSuccess={handleLogin}
-        onClose={() => setShowAuthModal(false)}
-        onEmailNotConfirmed={handleEmailNotConfirmed}
-      />
-      {showEmailConfirmation && (
-        <EmailConfirmationModal
-          isOpen={showEmailConfirmation}
-          email={emailForConfirmation}
-          onClose={() => setShowEmailConfirmation(false)}
+      <div class="app">
+        <AuthModal
+          isOpen={showAuthModal}
+          initialMode={authModalMode}
+          onSuccess={handleLogin}
+          onClose={() => setShowAuthModal(false)}
+          onEmailNotConfirmed={handleEmailNotConfirmed}
         />
-      )}
+        {showEmailConfirmation && (
+          <EmailConfirmationModal
+            isOpen={showEmailConfirmation}
+            email={emailForConfirmation}
+            onClose={() => setShowEmailConfirmation(false)}
+          />
+        )}
 
-      <Header
-        status={status}
-        systemStatus={systemStatus}
-        user={authUser}
-        onLogout={handleLogout}
-        onMenuToggle={handleMenuToggle}
-        onOpenLogin={handleOpenLogin}
-        onOpenRegister={handleOpenRegister}
-      />
-
-      {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
-      {hasSidebar && (
-        <div
-          class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
-          onClick={handleSidebarClose}
+        <Header
+          status={status}
+          systemStatus={systemStatus}
+          user={authUser}
+          onLogout={handleLogout}
+          onMenuToggle={handleMenuToggle}
+          onOpenLogin={handleOpenLogin}
+          onOpenRegister={handleOpenRegister}
         />
-      )}
 
-      <main>
-        <Router>
-          <CatalogPage path="/" />
-          <CatalogPage path="/catalog" />
-          <Dashboard path="/cabinet" />
-          <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
-          <PublicationPage path="/p/:publicationId" />
-          <ProjectPage path="/projects/:projectId" />
-          <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
-          <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />
-          <ReadingModePage path="/projects/:projectId/reading" />
-        </Router>
-      </main>
-    </div>
+        {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
+        {hasSidebar && (
+          <div
+            class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+            onClick={handleSidebarClose}
+          />
+        )}
+
+        <main>
+          <Router>
+            <CatalogPage path="/" />
+            <CatalogPage path="/catalog" />
+            <Dashboard path="/cabinet" />
+            <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
+            <PublicationPage path="/p/:publicationId" />
+            <ProjectPage path="/projects/:projectId" />
+            <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
+            <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />
+            <ReadingModePage path="/projects/:projectId/reading" />
+          </Router>
+        </main>
+      </div>
     </TokenUsageProvider>
   );
 }

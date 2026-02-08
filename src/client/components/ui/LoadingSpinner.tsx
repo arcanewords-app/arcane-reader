@@ -8,7 +8,7 @@ interface LoadingSpinnerProps {
 
 export function LoadingSpinner({ size = 'md', text, fullScreen = false }: LoadingSpinnerProps) {
   const sizeClass = `spinner-${size}`;
-  
+
   if (fullScreen) {
     return (
       <div class="loading-spinner-fullscreen">
@@ -17,7 +17,7 @@ export function LoadingSpinner({ size = 'md', text, fullScreen = false }: Loadin
       </div>
     );
   }
-  
+
   return (
     <div class="loading-spinner-inline">
       <div class={`spinner ${sizeClass}`}></div>

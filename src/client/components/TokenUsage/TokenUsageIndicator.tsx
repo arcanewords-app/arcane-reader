@@ -8,7 +8,10 @@ interface TokenUsageIndicatorProps {
   showDetails?: boolean;
 }
 
-export function TokenUsageIndicator({ className = '', showDetails = false }: TokenUsageIndicatorProps) {
+export function TokenUsageIndicator({
+  className = '',
+  showDetails = false,
+}: TokenUsageIndicatorProps) {
   const { t } = useTranslation();
   const { usage, loading, error } = useTokenUsageContext();
 
@@ -44,7 +47,14 @@ export function TokenUsageIndicator({ className = '', showDetails = false }: Tok
   return (
     <div
       class={`token-usage-indicator ${className} ${unlimited ? 'token-usage-unlimited' : ''}`}
-      title={unlimited ? t('tokenUsage.unlimitedTitle', { used: usage.tokensUsed.toLocaleString() }) : t('tokenUsage.usedTokensTitle', { used: usage.tokensUsed.toLocaleString(), limit: usage.tokensLimit.toLocaleString() })}
+      title={
+        unlimited
+          ? t('tokenUsage.unlimitedTitle', { used: usage.tokensUsed.toLocaleString() })
+          : t('tokenUsage.usedTokensTitle', {
+              used: usage.tokensUsed.toLocaleString(),
+              limit: usage.tokensLimit.toLocaleString(),
+            })
+      }
     >
       <div class="token-usage-content">
         <div class="token-usage-label">
@@ -63,10 +73,7 @@ export function TokenUsageIndicator({ className = '', showDetails = false }: Tok
         </div>
         {!unlimited && (
           <div class={`token-usage-progress ${colorClass}`}>
-            <div
-              class="token-usage-progress-bar"
-              style={{ width: `${progressWidth}%` }}
-            />
+            <div class="token-usage-progress-bar" style={{ width: `${progressWidth}%` }} />
           </div>
         )}
       </div>
@@ -88,9 +95,7 @@ export function TokenUsageIndicator({ className = '', showDetails = false }: Tok
         </div>
       )}
       {!unlimited && usage.warning && (
-        <div class="token-usage-warning-badge">
-          ⚠️ {t('tokenUsage.approachingLimit')}
-        </div>
+        <div class="token-usage-warning-badge">⚠️ {t('tokenUsage.approachingLimit')}</div>
       )}
     </div>
   );

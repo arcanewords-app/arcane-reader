@@ -27,7 +27,9 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
 
   const targetLanguageOptions = useMemo(() => {
-    const codes = [...new Set(publications.map((p) => p.targetLanguage).filter(Boolean))] as string[];
+    const codes = [
+      ...new Set(publications.map((p) => p.targetLanguage).filter(Boolean)),
+    ] as string[];
     codes.sort((a, b) => a.localeCompare(b));
     const options = [{ value: '', label: t('home.languageAll') }];
     codes.forEach((code) => {
@@ -49,10 +51,7 @@ export function HomePage() {
       const author = (p.authorDisplay || '').toLowerCase();
       const translator = (p.translatorDisplay || '').toLowerCase();
       return (
-        title.includes(q) ||
-        description.includes(q) ||
-        author.includes(q) ||
-        translator.includes(q)
+        title.includes(q) || description.includes(q) || author.includes(q) || translator.includes(q)
       );
     });
   }, [publications, searchQuery, targetLanguage]);
@@ -98,7 +97,9 @@ export function HomePage() {
         });
     }
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [filter, isAuthor]);
 
   const switchToAll = useCallback(() => {
@@ -150,7 +151,14 @@ export function HomePage() {
     <div class="home-page">
       {isAuthor && (
         <div class="home-nav">
-          <a href="/cabinet" onClick={(e) => { e.preventDefault(); route('/cabinet'); }} class="home-back-cabinet">
+          <a
+            href="/cabinet"
+            onClick={(e) => {
+              e.preventDefault();
+              route('/cabinet');
+            }}
+            class="home-back-cabinet"
+          >
             ← {t('cabinet.title')}
           </a>
         </div>
@@ -217,11 +225,7 @@ export function HomePage() {
           ) : (
             <div class="home-grid">
               {filteredPublications.map((pub) => (
-                <PublicationCard
-                  key={pub.id}
-                  publication={pub}
-                  onRead={() => handleRead(pub.id)}
-                />
+                <PublicationCard key={pub.id} publication={pub} onRead={() => handleRead(pub.id)} />
               ))}
             </div>
           )}

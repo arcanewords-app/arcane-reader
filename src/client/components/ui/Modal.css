@@ -37,8 +37,9 @@
   overflow-y: auto;
   transform: translateY(20px) scale(0.96);
   transition: all var(--duration-slow) var(--ease-emphasized);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6),
-              0 0 0 1px rgba(157, 111, 255, 0.15);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(157, 111, 255, 0.15);
   position: relative;
 }
 
@@ -115,15 +116,15 @@
     max-width: 95vw;
     border-radius: var(--radius-lg);
   }
-  
+
   .modal-title {
     font-size: 1.25rem;
   }
-  
+
   .modal-footer {
     flex-direction: column;
   }
-  
+
   .modal-footer > * {
     width: 100%;
   }

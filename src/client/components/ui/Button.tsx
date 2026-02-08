@@ -31,13 +31,8 @@ export function Button({
     .join(' ');
 
   return (
-    <button
-      class={classes}
-      disabled={disabled || loading}
-      {...props}
-    >
+    <button class={classes} disabled={disabled || loading} {...props}>
       {loading ? <span class="spinner" /> : children}
     </button>
   );
 }
-

@@ -11,10 +11,7 @@ export type { ChapterTranslationOptions } from '../types';
 /**
  * Get text length for token estimation based on chapter and translation options.
  */
-function getTextLengthForOptions(
-  chapter: Chapter,
-  options: ChapterTranslationOptions
-): number {
+function getTextLengthForOptions(chapter: Chapter, options: ChapterTranslationOptions): number {
   if (options.paragraphIds?.length && chapter.paragraphs?.length) {
     const idSet = new Set(options.paragraphIds);
     return chapter.paragraphs
@@ -107,8 +104,7 @@ export function useChapterTranslation(
               return;
             }
             onChapterUpdate({ ...chapter, status: 'error' });
-            const errorMessage =
-              error instanceof Error ? error.message : t('errors.unknown');
+            const errorMessage = error instanceof Error ? error.message : t('errors.unknown');
             alert(`${t('errors.startTranslation')}: ${errorMessage}`);
           });
       });

@@ -89,10 +89,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     (ch: { originalText?: string; paragraphs?: Array<{ originalText?: string }> }) => {
       const direct = (ch.originalText || '').trim().length;
       if (direct > 0) return direct;
-      return (ch.paragraphs || []).reduce(
-        (s, p) => s + (p.originalText || '').length,
-        0
-      );
+      return (ch.paragraphs || []).reduce((s, p) => s + (p.originalText || '').length, 0);
     },
     []
   );
@@ -158,8 +155,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   }, [batch]);
 
   const isTranslationComplete =
-    translationProgress !== null &&
-    translationProgress.current >= translationProgress.total;
+    translationProgress !== null && translationProgress.current >= translationProgress.total;
 
   const selectedCompletedCount = selectedChaptersForTranslate.filter(
     (c) => c.status === 'completed'
@@ -202,9 +198,13 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               title={t('markAsTranslated.batchTitle', 'Пометить выбранные главы как переведённые')}
             >
               ✅{' '}
-              {t('markAsTranslated.batchButton', {
-                count: selectedChaptersForTranslate.length,
-              }, `Пометить (${selectedChaptersForTranslate.length})`)}
+              {t(
+                'markAsTranslated.batchButton',
+                {
+                  count: selectedChaptersForTranslate.length,
+                },
+                `Пометить (${selectedChaptersForTranslate.length})`
+              )}
             </Button>
             <Button
               onClick={handleTranslateAll}
@@ -320,9 +320,13 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                 textDecoration: 'underline',
               }}
             >
-              {t('projectInfo.presetTranslated', {
-                count: stats.translated,
-              }, 'Переведённые ({{count}})')}
+              {t(
+                'projectInfo.presetTranslated',
+                {
+                  count: stats.translated,
+                },
+                'Переведённые ({{count}})'
+              )}
             </button>
           )}
           {stats.analyzed > 0 && (
@@ -342,7 +346,11 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                 textDecoration: 'underline',
               }}
             >
-              {t('projectInfo.presetAnalyzed', { count: stats.analyzed }, 'Только анализ ({{count}})')}
+              {t(
+                'projectInfo.presetAnalyzed',
+                { count: stats.analyzed },
+                'Только анализ ({{count}})'
+              )}
             </button>
           )}
           {(() => {
@@ -368,9 +376,13 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   textDecoration: 'underline',
                 }}
               >
-                {t('projectInfo.presetNotAnalyzed', {
-                  count: notAnalyzedCount,
-                }, 'Не проанализированные ({{count}})')}
+                {t(
+                  'projectInfo.presetNotAnalyzed',
+                  {
+                    count: notAnalyzedCount,
+                  },
+                  'Не проанализированные ({{count}})'
+                )}
               </button>
             ) : null;
           })()}
@@ -567,9 +579,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   i18nKey="projectInfo.approxTokens"
                   values={{
                     tokens:
-                      estimatedTokensSelected > 0
-                        ? estimatedTokensSelected.toLocaleString()
-                        : '—',
+                      estimatedTokensSelected > 0 ? estimatedTokensSelected.toLocaleString() : '—',
                   }}
                   components={{ strong: <strong style={{ color: 'var(--text-primary)' }} /> }}
                 />{' '}
@@ -630,10 +640,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   })}
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {Math.round(
-                    (translationProgress.current / translationProgress.total) * 100
-                  )}
-                  %
+                  {Math.round((translationProgress.current / translationProgress.total) * 100)}%
                 </span>
               </div>
               <div
@@ -708,25 +715,16 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   const currentChapterProgress = translationProgress.chapters.find(
                     (ch) => ch.chapterId === translationProgress.currentChapterId
                   );
-                  if (
-                    currentChapterProgress?.tokensUsed ||
-                    currentChapterProgress?.duration
-                  ) {
+                  if (currentChapterProgress?.tokensUsed || currentChapterProgress?.duration) {
                     const tokensByStage = currentChapterProgress.tokensByStage;
                     const stageTokens: string[] = [];
                     if (tokensByStage) {
                       if (tokensByStage.analysis) {
-                        stageTokens.push(
-                          `🔍 ${tokensByStage.analysis.toLocaleString()}`
-                        );
+                        stageTokens.push(`🔍 ${tokensByStage.analysis.toLocaleString()}`);
                       }
-                      stageTokens.push(
-                        `🔮 ${tokensByStage.translation.toLocaleString()}`
-                      );
+                      stageTokens.push(`🔮 ${tokensByStage.translation.toLocaleString()}`);
                       if (tokensByStage.editing) {
-                        stageTokens.push(
-                          `✨ ${tokensByStage.editing.toLocaleString()}`
-                        );
+                        stageTokens.push(`✨ ${tokensByStage.editing.toLocaleString()}`);
                       }
                     }
                     return (
@@ -794,8 +792,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                 (s, ch) => s + (ch.glossaryEntries ?? 0),
                 0
               );
-              const batchFinished =
-                translationProgress.current >= translationProgress.total;
+              const batchFinished = translationProgress.current >= translationProgress.total;
               const showStats =
                 batchFinished ||
                 computedTotalTokens > 0 ||
@@ -836,14 +833,12 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                       </span>
                     )}
                     <span>
-                      📝 {t('projectInfo.totalShort')}{' '}
-                      {computedTotalTokens.toLocaleString()}{' '}
+                      📝 {t('projectInfo.totalShort')} {computedTotalTokens.toLocaleString()}{' '}
                       {t('projectInfo.tokensCount')}
                     </span>
                     {computedTotalGlossary > 0 && (
                       <span>
-                        📚 +{computedTotalGlossary}{' '}
-                        {t('projectInfo.glossaryEntriesCount')}
+                        📚 +{computedTotalGlossary} {t('projectInfo.glossaryEntriesCount')}
                       </span>
                     )}
                   </div>
@@ -855,15 +850,9 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                       const totalByStage = completedChapters.reduce(
                         (acc, ch) => {
                           if (ch.tokensByStage) {
-                            acc.analysis =
-                              (acc.analysis || 0) +
-                              (ch.tokensByStage.analysis || 0);
-                            acc.translation =
-                              (acc.translation || 0) +
-                              ch.tokensByStage.translation;
-                            acc.editing =
-                              (acc.editing || 0) +
-                              (ch.tokensByStage.editing || 0);
+                            acc.analysis = (acc.analysis || 0) + (ch.tokensByStage.analysis || 0);
+                            acc.translation = (acc.translation || 0) + ch.tokensByStage.translation;
+                            acc.editing = (acc.editing || 0) + (ch.tokensByStage.editing || 0);
                           }
                           return acc;
                         },
@@ -901,8 +890,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                             borderTop: '1px solid var(--border)',
                           }}
                         >
-                          {t('projectInfo.tokensByStages')}{' '}
-                          {stageTokens.join(' | ')}
+                          {t('projectInfo.tokensByStages')} {stageTokens.join(' | ')}
                         </div>
                       );
                     }

@@ -84,7 +84,7 @@ function transformProjectFromDB(
     // If no type but has metadata, it's likely a book
     projectType = 'book';
   }
-  
+
   return {
     id: row.id,
     name: row.name,
@@ -110,17 +110,17 @@ function transformProjectToDB(project: Partial<Project>): any {
     target_language: project.targetLanguage,
     settings: project.settings,
   };
-  
+
   // Add type if provided
   if (project.type !== undefined) {
     result.type = project.type;
   }
-  
+
   // Add metadata if provided
   if (project.metadata !== undefined) {
     result.metadata = project.metadata;
   }
-  
+
   return result;
 }
 
@@ -346,7 +346,10 @@ export async function createProject(
     throw new Error(`Failed to create project: ${error.message}`);
   }
 
-  logger.info({ event: 'project.created', projectId: project.id, projectName: project.name }, `Project created: ${project.name} (${project.id})`);
+  logger.info(
+    { event: 'project.created', projectId: project.id, projectName: project.name },
+    `Project created: ${project.name} (${project.id})`
+  );
 
   // Return transformed project with empty chapters and glossary
   return transformProjectFromDB(project, [], []);
@@ -551,7 +554,10 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
   // Log loaded chapters order for debugging (only in development)
   if (process.env.NODE_ENV === 'development' && chapters.length <= 5) {
-    logger.debug({ projectId, chaptersCount: chapters.length }, `Chapters loaded: ${chapters.map(c => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', ')}`);
+    logger.debug(
+      { projectId, chaptersCount: chapters.length },
+      `Chapters loaded: ${chapters.map((c) => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', ')}`
+    );
   }
 
   // Load paragraphs for each chapter with auto-sync recovery
@@ -561,20 +567,36 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
       const chapterData = transformChapterFromDB(chapter, paragraphs);
 
       // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
-      const hasTranslation = 
+      const hasTranslation =
         (chapterData.translatedChunks && chapterData.translatedChunks.length > 0) ||
         (chapterData.translatedText && chapterData.translatedText.trim().length > 0);
 
-      const hasEmptyParagraphs = paragraphs.length > 0 && 
+      const hasEmptyParagraphs =
+        paragraphs.length > 0 &&
         !paragraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0);
 
-      if (hasTranslation && hasEmptyParagraphs && chapterData.translatedChunks && chapterData.translatedChunks.length > 0) {
+      if (
+        hasTranslation &&
+        hasEmptyParagraphs &&
+        chapterData.translatedChunks &&
+        chapterData.translatedChunks.length > 0
+      ) {
         // Auto-recovery: sync translatedChunks to paragraphs
-        logger.info({ chapterId: chapter.id, chapterTitle: chapterData.title }, `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`);
-        
-        const syncedParagraphs = autoSyncChunksToParagraphs(paragraphs, chapterData.translatedChunks);
-        
-        if (syncedParagraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0)) {
+        logger.info(
+          { chapterId: chapter.id, chapterTitle: chapterData.title },
+          `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`
+        );
+
+        const syncedParagraphs = autoSyncChunksToParagraphs(
+          paragraphs,
+          chapterData.translatedChunks
+        );
+
+        if (
+          syncedParagraphs.some(
+            (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+          )
+        ) {
           // Update paragraphs in database (batched)
           const BATCH_SIZE = 15;
           for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
@@ -585,15 +607,21 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
                 if (paragraph.translatedText !== undefined)
                   paragraphData.translated_text = paragraph.translatedText || null;
                 if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-                if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
-                if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
+                if (paragraph.editedAt !== undefined)
+                  paragraphData.edited_at = paragraph.editedAt || null;
+                if (paragraph.editedBy !== undefined)
+                  paragraphData.edited_by = paragraph.editedBy || null;
 
                 const { error } = await client
                   .from('paragraphs')
                   .update(paragraphData)
                   .eq('id', paragraph.id)
                   .eq('chapter_id', chapter.id);
-                if (error) logger.warn({ paragraphId: paragraph.id, error: error.message }, 'loadChapters auto-recovery: failed paragraph update');
+                if (error)
+                  logger.warn(
+                    { paragraphId: paragraph.id, error: error.message },
+                    'loadChapters auto-recovery: failed paragraph update'
+                  );
               })
             );
             if (i + BATCH_SIZE < syncedParagraphs.length) {
@@ -603,9 +631,18 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
           // Reload updated paragraphs
           paragraphs = await loadParagraphsForChapter(chapter.id, token);
-          
-          const syncedCount = paragraphs.filter((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0).length;
-          logger.info({ chapterId: chapter.id, syncedCount, chunksCount: chapterData.translatedChunks.length }, `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`);
+
+          const syncedCount = paragraphs.filter(
+            (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+          ).length;
+          logger.info(
+            {
+              chapterId: chapter.id,
+              syncedCount,
+              chunksCount: chapterData.translatedChunks.length,
+            },
+            `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`
+          );
         }
       }
 
@@ -625,12 +662,11 @@ async function loadParagraphsForChapter(
   token: string | null,
   useServiceRole?: boolean
 ): Promise<Paragraph[]> {
-  const client =
-    useServiceRole
-      ? (await import('./supabaseClient.js')).createServiceRoleClient()
-      : token
-        ? createClientWithToken(token)
-        : supabase;
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : token
+      ? createClientWithToken(token)
+      : supabase;
 
   const { data: paragraphs, error } = await client
     .from('paragraphs')
@@ -830,7 +866,14 @@ export async function addChapter(
   await client.from('projects').update({}).eq('id', projectId);
 
   logger.info(
-    { event: 'chapter.added', projectId, chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name, paragraphsCount: paragraphs.length },
+    {
+      event: 'chapter.added',
+      projectId,
+      chapterId: chapter.id,
+      chapterTitle: chapter.title,
+      projectName: project.name,
+      paragraphsCount: paragraphs.length,
+    },
     `Chapter added: ${chapter.title} -> ${project.name} (${paragraphs.length} paragraphs)`
   );
 
@@ -893,8 +936,10 @@ export async function updateChapter(
           if (paragraph.translatedText !== undefined)
             paragraphData.translated_text = paragraph.translatedText || null;
           if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-          if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
-          if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
+          if (paragraph.editedAt !== undefined)
+            paragraphData.edited_at = paragraph.editedAt || null;
+          if (paragraph.editedBy !== undefined)
+            paragraphData.edited_by = paragraph.editedBy || null;
 
           const { error } = await client
             .from('paragraphs')
@@ -912,17 +957,44 @@ export async function updateChapter(
       }
     }
 
-    logger.info({ event: 'paragraphs.updated', chapterId, successCount, failCount, total: updates.paragraphs.length }, `Paragraphs updated: ${successCount} ok, ${failCount} errors, ${updates.paragraphs.length} total`);
+    logger.info(
+      {
+        event: 'paragraphs.updated',
+        chapterId,
+        successCount,
+        failCount,
+        total: updates.paragraphs.length,
+      },
+      `Paragraphs updated: ${successCount} ok, ${failCount} errors, ${updates.paragraphs.length} total`
+    );
   }
 
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
   // Reload with paragraphs (will load updated paragraphs from DB)
-  const paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
-  const withTranslation = paragraphs.filter((p) => p.translatedText && p.translatedText.trim().length > 0).length;
-  if (updates.paragraphs && updates.paragraphs.length > 0 && withTranslation !== updates.paragraphs.length) {
-    logger.debug({ chapterId, paragraphsLength: paragraphs.length, withTranslation, expected: updates.paragraphs.length }, 'updateChapter: after reload, translation count mismatch');
+  const paragraphs = await loadParagraphsForChapter(
+    chapter.id,
+    useServiceRole ? null : token,
+    useServiceRole
+  );
+  const withTranslation = paragraphs.filter(
+    (p) => p.translatedText && p.translatedText.trim().length > 0
+  ).length;
+  if (
+    updates.paragraphs &&
+    updates.paragraphs.length > 0 &&
+    withTranslation !== updates.paragraphs.length
+  ) {
+    logger.debug(
+      {
+        chapterId,
+        paragraphsLength: paragraphs.length,
+        withTranslation,
+        expected: updates.paragraphs.length,
+      },
+      'updateChapter: after reload, translation count mismatch'
+    );
   }
   return transformChapterFromDB(chapter, paragraphs);
 }
@@ -1034,24 +1106,41 @@ export async function getChapter(
   }
 
   // Load paragraphs
-  let paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
+  let paragraphs = await loadParagraphsForChapter(
+    chapter.id,
+    useServiceRole ? null : token,
+    useServiceRole
+  );
   const chapterData = transformChapterFromDB(chapter, paragraphs);
 
   // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
-  const hasTranslation = 
+  const hasTranslation =
     (chapterData.translatedChunks && chapterData.translatedChunks.length > 0) ||
     (chapterData.translatedText && chapterData.translatedText.trim().length > 0);
 
-  const hasEmptyParagraphs = paragraphs.length > 0 && 
-    !paragraphs.some(p => p.translatedText && p.translatedText.trim().length > 0);
+  const hasEmptyParagraphs =
+    paragraphs.length > 0 &&
+    !paragraphs.some((p) => p.translatedText && p.translatedText.trim().length > 0);
 
-  if (hasTranslation && hasEmptyParagraphs && chapterData.translatedChunks && chapterData.translatedChunks.length > 0) {
+  if (
+    hasTranslation &&
+    hasEmptyParagraphs &&
+    chapterData.translatedChunks &&
+    chapterData.translatedChunks.length > 0
+  ) {
     // Auto-recovery: sync translatedChunks to paragraphs
-    logger.info({ chapterId, chapterTitle: chapterData.title }, `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`);
+    logger.info(
+      { chapterId, chapterTitle: chapterData.title },
+      `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`
+    );
 
     const syncedParagraphs = autoSyncChunksToParagraphs(paragraphs, chapterData.translatedChunks);
 
-      if (syncedParagraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0)) {
+    if (
+      syncedParagraphs.some(
+        (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+      )
+    ) {
       const BATCH_SIZE = 15;
       for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
         const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
@@ -1061,8 +1150,10 @@ export async function getChapter(
             if (paragraph.translatedText !== undefined)
               paragraphData.translated_text = paragraph.translatedText || null;
             if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-            if (paragraph.editedAt !== undefined) paragraphData.edited_at = paragraph.editedAt || null;
-            if (paragraph.editedBy !== undefined) paragraphData.edited_by = paragraph.editedBy || null;
+            if (paragraph.editedAt !== undefined)
+              paragraphData.edited_at = paragraph.editedAt || null;
+            if (paragraph.editedBy !== undefined)
+              paragraphData.edited_by = paragraph.editedBy || null;
 
             const { error } = await client
               .from('paragraphs')
@@ -1073,7 +1164,11 @@ export async function getChapter(
           })
         );
         results.forEach((r) => {
-          if (r.error) logger.warn({ paragraphId: r.id, error: r.error?.message }, 'auto-recovery: failed paragraph update');
+          if (r.error)
+            logger.warn(
+              { paragraphId: r.id, error: r.error?.message },
+              'auto-recovery: failed paragraph update'
+            );
         });
         if (i + BATCH_SIZE < syncedParagraphs.length) {
           await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1081,10 +1176,19 @@ export async function getChapter(
       }
 
       // Reload updated paragraphs
-      paragraphs = await loadParagraphsForChapter(chapter.id, useServiceRole ? null : token, useServiceRole);
+      paragraphs = await loadParagraphsForChapter(
+        chapter.id,
+        useServiceRole ? null : token,
+        useServiceRole
+      );
 
-      const syncedCount = paragraphs.filter(p => p.translatedText && p.translatedText.trim().length > 0).length;
-      logger.info({ chapterId, syncedCount, chunksCount: chapterData.translatedChunks.length }, `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`);
+      const syncedCount = paragraphs.filter(
+        (p) => p.translatedText && p.translatedText.trim().length > 0
+      ).length;
+      logger.info(
+        { chapterId, syncedCount, chunksCount: chapterData.translatedChunks.length },
+        `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`
+      );
     }
   }
 
@@ -1127,7 +1231,10 @@ export async function deleteChapter(
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  logger.info({ event: 'chapter.deleted', chapterId, chapterTitle: chapter.title }, `Chapter deleted: ${chapter.title}`);
+  logger.info(
+    { event: 'chapter.deleted', chapterId, chapterTitle: chapter.title },
+    `Chapter deleted: ${chapter.title}`
+  );
 
   return true;
 }
@@ -1180,15 +1287,31 @@ export async function updateChapterNumber(
   // Reorder chapters
   const sortedChapters = [...chapters];
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
-  logger.debug({ projectId, chapterId, sortedOrder: sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', ') }, 'Reorder: initial order');
-  logger.debug({ projectId, chapterId, oldNumber, chapterIndex, newNumber }, `Reorder: moving chapter ${chapterId.substring(0, 8)} from ${oldNumber} to ${newNumber}`);
-  
+  logger.debug(
+    {
+      projectId,
+      chapterId,
+      sortedOrder: sortedChapters.map((c) => `${c.number}: ${c.id.substring(0, 8)}`).join(', '),
+    },
+    'Reorder: initial order'
+  );
+  logger.debug(
+    { projectId, chapterId, oldNumber, chapterIndex, newNumber },
+    `Reorder: moving chapter ${chapterId.substring(0, 8)} from ${oldNumber} to ${newNumber}`
+  );
+
   const [movedChapter] = sortedChapters.splice(chapterIndex, 1);
-  logger.debug({ projectId, afterDelete: sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', ') }, 'Reorder: after remove');
-  
+  logger.debug(
+    {
+      projectId,
+      afterDelete: sortedChapters.map((c) => `${c.number}: ${c.id.substring(0, 8)}`).join(', '),
+    },
+    'Reorder: after remove'
+  );
+
   // Calculate insertion index accounting for the removed chapter
   // newNumber is the desired final position (1-based) AFTER reordering
-  // 
+  //
   // Example: [1,2] move chapter 2 to position 1 (newNumber=1)
   // - Remove chapter 2: [1]
   // - We want chapter 2 to be first (position 1), so insert at index 0
@@ -1208,23 +1331,30 @@ export async function updateChapterNumber(
   // We insert at newNumber - 1 (0-based index in array after removal)
   const insertIndex = newNumber - 1;
   sortedChapters.splice(insertIndex, 0, movedChapter);
-  logger.debug({ projectId, insertIndex, afterInsert: sortedChapters.map(c => `${c.number}: ${c.id.substring(0, 8)}`).join(', ') }, 'Reorder: after insert');
+  logger.debug(
+    {
+      projectId,
+      insertIndex,
+      afterInsert: sortedChapters.map((c) => `${c.number}: ${c.id.substring(0, 8)}`).join(', '),
+    },
+    'Reorder: after insert'
+  );
 
   // Update all chapter numbers using temporary numbers to avoid unique constraint violations
   // Strategy: First set all to temporary negative numbers, then set to final numbers
   // Optimized: Use Promise.all for parallel updates and only update changed chapters
   const updates: Array<{ id: string; oldNum: number; newNum: number }> = [];
-  
+
   // Filter chapters that actually need updating
   const chaptersToUpdate = sortedChapters
     .map((chapter, i) => ({ chapter, newNum: i + 1 }))
     .filter(({ chapter, newNum }) => chapter.number !== newNum);
-  
+
   if (chaptersToUpdate.length === 0) {
     // No changes needed
     return getChapter(projectId, chapterId, token);
   }
-  
+
   // Step 1: Move existing numbers out of the target range by adding a large offset.
   // Using negative numbers caused unique constraint conflicts in some environments
   // (e.g. concurrent operations or leftover negative values). Shifting by an offset
@@ -1232,46 +1362,51 @@ export async function updateChapterNumber(
   const offset = maxNumber + 5;
   const tempUpdates = sortedChapters.map((chapter) => {
     const tempNum = chapter.number + offset; // temp numbers are > maxNumber
-    return client
-      .from('chapters')
-      .update({ number: tempNum })
-      .eq('id', chapter.id)
-      .select('id');
+    return client.from('chapters').update({ number: tempNum }).eq('id', chapter.id).select('id');
   });
-  
+
   const tempResults = await Promise.all(tempUpdates);
-  const tempErrors = tempResults.filter(r => r.error).map(r => r.error);
+  const tempErrors = tempResults.filter((r) => r.error).map((r) => r.error);
   if (tempErrors.length > 0) {
     logger.error({ projectId, tempErrors }, 'Reorder: errors setting temporary numbers');
-    throw new Error(`Failed to set temporary chapter numbers: ${tempErrors[0]?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to set temporary chapter numbers: ${tempErrors[0]?.message || 'Unknown error'}`
+    );
   }
-  
+
   // Step 2: Set all chapters to their final numbers
   // Use Promise.all for parallel updates
   const finalUpdates = chaptersToUpdate.map(({ chapter, newNum }) => {
     updates.push({ id: chapter.id, oldNum: chapter.number, newNum });
-    return client
-      .from('chapters')
-      .update({ number: newNum })
-      .eq('id', chapter.id)
-      .select('id');
+    return client.from('chapters').update({ number: newNum }).eq('id', chapter.id).select('id');
   });
-  
+
   const finalResults = await Promise.all(finalUpdates);
-  const finalErrors = finalResults.filter(r => r.error).map(r => r.error);
+  const finalErrors = finalResults.filter((r) => r.error).map((r) => r.error);
   if (finalErrors.length > 0) {
     logger.error({ projectId, finalErrors }, 'Reorder: errors updating chapter numbers');
-    throw new Error(`Failed to update chapter numbers: ${finalErrors[0]?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to update chapter numbers: ${finalErrors[0]?.message || 'Unknown error'}`
+    );
   }
-  
+
   if (updates.length > 0) {
-    logger.debug({ projectId, updates: updates.map(u => `${u.id.substring(0, 8)}: ${u.oldNum}→${u.newNum}`).join(', ') }, 'Reorder: chapter numbers updated');
+    logger.debug(
+      {
+        projectId,
+        updates: updates.map((u) => `${u.id.substring(0, 8)}: ${u.oldNum}→${u.newNum}`).join(', '),
+      },
+      'Reorder: chapter numbers updated'
+    );
   }
 
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  logger.info({ event: 'chapter.reordered', projectId, chapterId, oldNumber, newNumber, insertIndex }, `Chapter number changed: ${chapterId.substring(0, 8)} ${oldNumber} → ${newNumber}`);
+  logger.info(
+    { event: 'chapter.reordered', projectId, chapterId, oldNumber, newNumber, insertIndex },
+    `Chapter number changed: ${chapterId.substring(0, 8)} ${oldNumber} → ${newNumber}`
+  );
 
   return getChapter(projectId, chapterId, token);
 }
@@ -1502,7 +1637,9 @@ export async function updateGlossaryEntry(
   if (updates.firstAppearance !== undefined)
     entryData.first_appearance = updates.firstAppearance || null;
   if (updates.mentionedInChapters !== undefined)
-    entryData.mentioned_in_chapters = updates.mentionedInChapters?.length ? updates.mentionedInChapters : null;
+    entryData.mentioned_in_chapters = updates.mentionedInChapters?.length
+      ? updates.mentionedInChapters
+      : null;
   if (imageUrls.length > 0 || updates.imageUrls !== undefined) entryData.image_urls = imageUrls;
   if (updates.autoDetected !== undefined) entryData.auto_detected = updates.autoDetected;
 
@@ -1700,7 +1837,23 @@ export async function listPublicationsPublic(options?: {
   offset?: number;
   orderBy?: 'published_at' | 'created_at';
   orderAsc?: boolean;
-}): Promise<{ id: string; projectId: string; status: PublicationStatus; title: string | null; description: string | null; coverImageUrl: string | null; authorDisplay: string | null; translatorDisplay: string | null; sourceLanguage: string; targetLanguage: string; publishedAt: string | null; createdAt: string; updatedAt: string }[]> {
+}): Promise<
+  {
+    id: string;
+    projectId: string;
+    status: PublicationStatus;
+    title: string | null;
+    description: string | null;
+    coverImageUrl: string | null;
+    authorDisplay: string | null;
+    translatorDisplay: string | null;
+    sourceLanguage: string;
+    targetLanguage: string;
+    publishedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }[]
+> {
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
   const orderBy = options?.orderBy ?? 'published_at';
@@ -1777,7 +1930,8 @@ export async function getPublicationWithChapters(publicationId: string): Promise
 
   // Load chapters for this project (we need token for RLS on chapters - but chapters are under project owned by publication owner)
   // Chapters are under project (private by RLS). Use service role to read chapters for published project.
-  let chapters: { id: string; number: number; title: string; translated_text: string | null }[] = [];
+  let chapters: { id: string; number: number; title: string; translated_text: string | null }[] =
+    [];
   try {
     const { createServiceRoleClient } = await import('./supabaseClient.js');
     const serviceClient = createServiceRoleClient();
@@ -1819,7 +1973,12 @@ export async function getPublicationChapterContent(
   const pub = await getPublicationById(publicationId);
   if (!pub) return null;
 
-  let chapter: { id: string; number: number; title: string; translated_text: string | null } | null = null;
+  let chapter: {
+    id: string;
+    number: number;
+    title: string;
+    translated_text: string | null;
+  } | null = null;
   try {
     const { createServiceRoleClient } = await import('./supabaseClient.js');
     const serviceClient = createServiceRoleClient();
@@ -1906,7 +2065,8 @@ export async function createOrUpdatePublication(
       updated_at: row.updated_at,
     };
     if (data.authorDisplay !== undefined) updatePayload.author_display = data.authorDisplay;
-    if (data.translatorDisplay !== undefined) updatePayload.translator_display = data.translatorDisplay;
+    if (data.translatorDisplay !== undefined)
+      updatePayload.translator_display = data.translatorDisplay;
     // Only set published_at when first publishing (keep "first published" date on subsequent updates)
     if (isPublish && !(existing as { published_at?: string | null }).published_at) {
       updatePayload.published_at = row.published_at;
@@ -1948,7 +2108,11 @@ export async function createOrUpdatePublication(
 /**
  * Unpublish (set status to unpublished) or delete publication.
  */
-export async function unpublishProject(projectId: string, userId: string, token: string): Promise<boolean> {
+export async function unpublishProject(
+  projectId: string,
+  userId: string,
+  token: string
+): Promise<boolean> {
   validateToken(token);
   const client = createClientWithToken(token);
 
@@ -1972,7 +2136,10 @@ export async function unpublishProject(projectId: string, userId: string, token:
 /**
  * Get all publications for current user (any status).
  */
-export async function getUserPublications(userId: string, token: string): Promise<ReturnType<typeof transformPublicationFromDB>[]> {
+export async function getUserPublications(
+  userId: string,
+  token: string
+): Promise<ReturnType<typeof transformPublicationFromDB>[]> {
   validateToken(token);
   const client = createClientWithToken(token);
 
@@ -1991,7 +2158,11 @@ export async function getUserPublications(userId: string, token: string): Promis
 /**
  * Get publication by project ID (for owner).
  */
-export async function getPublicationByProjectId(projectId: string, userId: string, token: string): Promise<ReturnType<typeof transformPublicationFromDB> | null> {
+export async function getPublicationByProjectId(
+  projectId: string,
+  userId: string,
+  token: string
+): Promise<ReturnType<typeof transformPublicationFromDB> | null> {
   validateToken(token);
   const client = createClientWithToken(token);
 

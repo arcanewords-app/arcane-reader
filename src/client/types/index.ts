@@ -6,12 +6,12 @@
 // === Declensions (Russian grammar cases) ===
 
 export interface Declensions {
-  nominative: string;   // Именительный (кто? что?)
-  genitive: string;     // Родительный (кого? чего?)
-  dative: string;       // Дательный (кому? чему?)
-  accusative: string;   // Винительный (кого? что?)
+  nominative: string; // Именительный (кто? что?)
+  genitive: string; // Родительный (кого? чего?)
+  dative: string; // Дательный (кому? чему?)
+  accusative: string; // Винительный (кого? что?)
   instrumental: string; // Творительный (кем? чем?)
-  prepositional: string;// Предложный (о ком? о чём?)
+  prepositional: string; // Предложный (о ком? о чём?)
 }
 
 // === Glossary ===
@@ -103,14 +103,14 @@ export interface ReaderSettings {
 export interface ProjectSettings {
   // Legacy: single model (for backward compatibility)
   model?: string;
-  
+
   // Per-stage model configuration
   stageModels?: {
-    analysis: string;    // Stage 1: Extract entities, analyze style
-    translation: string;  // Stage 2: Translate (required)
-    editing: string;     // Stage 3: Polish and refine
+    analysis: string; // Stage 1: Extract entities, analyze style
+    translation: string; // Stage 2: Translate (required)
+    editing: string; // Stage 3: Polish and refine
   };
-  
+
   temperature: number; // Legacy / default when temperatureByStage not set
   /** Per-stage creativity (0–1). Falls back to temperature if not set for a stage. */
   temperatureByStage?: {

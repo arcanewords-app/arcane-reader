@@ -23,7 +23,8 @@ export function TokenLimitWarning({
   const unlimited = usage.tokensLimit <= 0;
   const tokensAfterTranslation = usage.tokensUsed + estimatedTokens;
   const remainingAfter = unlimited ? -1 : Math.max(0, usage.tokensLimit - tokensAfterTranslation);
-  const percentageAfter = unlimited || usage.tokensLimit <= 0 ? 0 : (tokensAfterTranslation / usage.tokensLimit) * 100;
+  const percentageAfter =
+    unlimited || usage.tokensLimit <= 0 ? 0 : (tokensAfterTranslation / usage.tokensLimit) * 100;
   const willExceed = !unlimited && tokensAfterTranslation > usage.tokensLimit;
   const isWarning = !unlimited && percentageAfter >= 80 && !willExceed;
 
@@ -51,7 +52,9 @@ export function TokenLimitWarning({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={willExceed ? `⚠️ ${t('tokenLimit.titleExceeded')}` : `⚠️ ${t('tokenLimit.titleWarning')}`}
+      title={
+        willExceed ? `⚠️ ${t('tokenLimit.titleExceeded')}` : `⚠️ ${t('tokenLimit.titleWarning')}`
+      }
       size="default"
     >
       <div class="token-limit-warning-content">
@@ -61,15 +64,21 @@ export function TokenLimitWarning({
             <div class="token-limit-warning-stats">
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.currentUsage')}</span>
-                <span class="token-limit-stat-value">{usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}</span>
+                <span class="token-limit-stat-value">
+                  {usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
+                </span>
               </div>
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.estimatedUsage')}</span>
-                <span class="token-limit-stat-value">{estimatedTokens.toLocaleString()} {t('projectInfo.tokensCount')}</span>
+                <span class="token-limit-stat-value">
+                  {estimatedTokens.toLocaleString()} {t('projectInfo.tokensCount')}
+                </span>
               </div>
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.afterTranslation')}</span>
-                <span class="token-limit-stat-value critical">{tokensAfterTranslation.toLocaleString()} / {usage.tokensLimit.toLocaleString()}</span>
+                <span class="token-limit-stat-value critical">
+                  {tokensAfterTranslation.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
+                </span>
               </div>
             </div>
             <p class="token-limit-warning-note">{t('tokenLimit.noteResetTomorrow')}</p>
@@ -80,15 +89,21 @@ export function TokenLimitWarning({
             <div class="token-limit-warning-stats">
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.currentUsage')}</span>
-                <span class="token-limit-stat-value">{usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}</span>
+                <span class="token-limit-stat-value">
+                  {usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
+                </span>
               </div>
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.estimatedUsage')}</span>
-                <span class="token-limit-stat-value">{estimatedTokens.toLocaleString()} {t('projectInfo.tokensCount')}</span>
+                <span class="token-limit-stat-value">
+                  {estimatedTokens.toLocaleString()} {t('projectInfo.tokensCount')}
+                </span>
               </div>
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.remainingAfter')}</span>
-                <span class="token-limit-stat-value warning">{remainingAfter.toLocaleString()} {t('projectInfo.tokensCount')}</span>
+                <span class="token-limit-stat-value warning">
+                  {remainingAfter.toLocaleString()} {t('projectInfo.tokensCount')}
+                </span>
               </div>
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.usageAfter')}</span>

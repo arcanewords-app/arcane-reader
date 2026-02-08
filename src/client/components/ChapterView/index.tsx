@@ -65,13 +65,14 @@ export function ChapterView({
 
   // Empty paragraphs (no valid translation) - for "translate empty" / "translate selected"
   const emptyParagraphIds = useMemo(() => {
-    const list = chapter.paragraphs?.filter((p) => {
-      const hasText = p.translatedText && p.translatedText.trim().length > 0;
-      const isError =
-        p.translatedText?.trim().startsWith('❌') ||
-        p.translatedText?.trim().startsWith('[ERROR');
-      return !hasText || isError;
-    }) || [];
+    const list =
+      chapter.paragraphs?.filter((p) => {
+        const hasText = p.translatedText && p.translatedText.trim().length > 0;
+        const isError =
+          p.translatedText?.trim().startsWith('❌') ||
+          p.translatedText?.trim().startsWith('[ERROR');
+        return !hasText || isError;
+      }) || [];
     return list.map((p) => p.id);
   }, [chapter.paragraphs]);
 
@@ -240,12 +241,9 @@ export function ChapterView({
         )}
 
         {showSettings && (
-          <ReaderSettingsPanel
-            settings={readerSettings}
-            onChange={handleReaderSettingsChange}
-          />
+          <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
         )}
-        
+
         {tokenUsage && warningState.isOpen && (
           <TokenLimitWarning
             isOpen={warningState.isOpen}
@@ -264,9 +262,7 @@ export function ChapterView({
                 class="progress-fill"
                 style={{
                   width: `${
-                    (paragraphs.filter((p) => p.translatedText).length /
-                      paragraphs.length) *
-                    100
+                    (paragraphs.filter((p) => p.translatedText).length / paragraphs.length) * 100
                   }%`,
                 }}
               />
@@ -292,9 +288,7 @@ export function ChapterView({
         <Card>
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
             <p>{t('chapter.noParagraphs')}</p>
-            <p style={{ marginTop: '0.5rem' }}>
-              {t('chapter.clickTranslateToStart')}
-            </p>
+            <p style={{ marginTop: '0.5rem' }}>{t('chapter.clickTranslateToStart')}</p>
           </div>
         </Card>
       )}
@@ -306,4 +300,3 @@ export { ChapterHeader } from './ChapterHeader';
 export { ReaderSettingsPanel } from './ReaderSettings';
 export { ParagraphList } from './ParagraphList';
 export { TranslationPanel } from './TranslationPanel';
-

@@ -15,7 +15,13 @@ interface ProjectInfoProps {
   onEnterReadingMode: () => void;
 }
 
-export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProject, onEnterReadingMode }: ProjectInfoProps) {
+export function ProjectInfo({
+  project,
+  onSettingsChange,
+  onDelete,
+  onRefreshProject,
+  onEnterReadingMode,
+}: ProjectInfoProps) {
   const { t } = useTranslation();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -41,7 +47,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
 
   useEffect(() => {
     let cancelled = false;
-    
+
     // Load publication in background with retry logic, don't block on errors
     const loadPublicationWithRetry = async (retries = 2) => {
       try {
@@ -52,11 +58,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
       } catch (error) {
         // If retries left, try again after a delay
         if (retries > 0) {
-          setTimeout(() => {
-            if (!cancelled) {
-              loadPublicationWithRetry(retries - 1);
-            }
-          }, 1000 + Math.random() * 1000); // 1-2s delay + jitter
+          setTimeout(
+            () => {
+              if (!cancelled) {
+                loadPublicationWithRetry(retries - 1);
+              }
+            },
+            1000 + Math.random() * 1000
+          ); // 1-2s delay + jitter
         } else {
           // After all retries, just set to null and move on
           if (!cancelled) {
@@ -70,14 +79,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         }
       }
     };
-    
+
     // Delay initial load slightly to not compete with main project loading
     const loadTimer = setTimeout(() => {
       if (!cancelled) {
         loadPublicationWithRetry();
       }
     }, 500); // Small delay after project loads
-    
+
     return () => {
       cancelled = true;
       clearTimeout(loadTimer);
@@ -91,7 +100,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     setPublishAuthorDisplay(publication?.authorDisplay ?? project.metadata?.authors?.[0] ?? '');
     setPublishTranslatorDisplay(publication?.translatorDisplay ?? user?.email ?? '');
     setShowPublishModal(true);
-  }, [project.metadata?.title, project.metadata?.description, project.metadata?.authors, project.name, publication?.authorDisplay, publication?.translatorDisplay]);
+  }, [
+    project.metadata?.title,
+    project.metadata?.description,
+    project.metadata?.authors,
+    project.name,
+    publication?.authorDisplay,
+    publication?.translatorDisplay,
+  ]);
 
   const handlePublish = useCallback(async () => {
     setPublishing(true);
@@ -110,7 +126,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     } finally {
       setPublishing(false);
     }
-  }, [project.id, publishTitle, publishDescription, publishAuthorDisplay, publishTranslatorDisplay, t]);
+  }, [
+    project.id,
+    publishTitle,
+    publishDescription,
+    publishAuthorDisplay,
+    publishTranslatorDisplay,
+    t,
+  ]);
 
   const handleUnpublish = useCallback(async () => {
     if (!confirm(t('projectInfo.unpublishConfirm'))) return;
@@ -143,7 +166,17 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     } finally {
       setUpdatingPublication(false);
     }
-  }, [project.id, project.metadata?.title, project.metadata?.description, project.metadata?.authors, project.metadata?.coverImageUrl, project.name, publication?.authorDisplay, publication?.translatorDisplay, t]);
+  }, [
+    project.id,
+    project.metadata?.title,
+    project.metadata?.description,
+    project.metadata?.authors,
+    project.metadata?.coverImageUrl,
+    project.name,
+    publication?.authorDisplay,
+    publication?.translatorDisplay,
+    t,
+  ]);
 
   const startEditingDescription = useCallback(() => {
     setDescriptionDraft(project.metadata?.description ?? '');
@@ -191,22 +224,22 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     // Check if translatedText exists and is not an error message
     const translatedText = chapter.translatedText?.trim() || '';
     if (translatedText.length === 0) return false;
-    
+
     // Ignore error messages
-    if (translatedText.startsWith('❌ Ошибка перевода:') || 
-        translatedText.startsWith('[ERROR') ||
-        translatedText.startsWith('❌')) {
+    if (
+      translatedText.startsWith('❌ Ошибка перевода:') ||
+      translatedText.startsWith('[ERROR') ||
+      translatedText.startsWith('❌')
+    ) {
       return false;
     }
-    
+
     // Check if paragraphs have valid translations
-    const hasValidParagraphs = chapter.paragraphs?.some(p => {
+    const hasValidParagraphs = chapter.paragraphs?.some((p) => {
       const pText = p.translatedText?.trim() || '';
-      return pText.length > 0 && 
-             !pText.startsWith('❌') && 
-             !pText.startsWith('[ERROR');
+      return pText.length > 0 && !pText.startsWith('❌') && !pText.startsWith('[ERROR');
     });
-    
+
     return hasValidParagraphs || translatedText.length > 50; // Valid translation should be substantial
   };
 
@@ -216,7 +249,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
     if (chapter.status === 'error') {
       return !hasValidTranslation(chapter);
     }
-    
+
     // For other statuses, check if there's no valid translation
     return !hasValidTranslation(chapter);
   };
@@ -309,7 +342,9 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
           <div>
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{project.name}</h2>
             <span style={{ color: 'var(--text-dim)' }}>
-              {isOriginalReadingMode ? `📖 ${t('projectInfo.originalReading')}` : t('projectInfo.enToRu')}
+              {isOriginalReadingMode
+                ? `📖 ${t('projectInfo.originalReading')}`
+                : t('projectInfo.enToRu')}
             </span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowDeleteModal(true)}>
@@ -345,19 +380,318 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         </div>
 
         {/* Book Metadata Section - only for 'book' type */}
-        {project.type === 'book' && project.metadata && Object.keys(project.metadata).length > 0 && (
-          <div class="book-metadata-section">
-            <div class="metadata-header">
-              <span class="metadata-icon">📚</span>
-              <h3 class="metadata-title">{t('projectInfo.bookInfo')}</h3>
+        {project.type === 'book' &&
+          project.metadata &&
+          Object.keys(project.metadata).length > 0 && (
+            <div class="book-metadata-section">
+              <div class="metadata-header">
+                <span class="metadata-icon">📚</span>
+                <h3 class="metadata-title">{t('projectInfo.bookInfo')}</h3>
+              </div>
+              <div class="metadata-content">
+                {/* Cover Image */}
+                <div
+                  class="metadata-cover"
+                  style={{
+                    cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer',
+                    position: 'relative',
+                  }}
+                  onClick={() => {
+                    if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
+                      const input = document.getElementById(
+                        'cover-upload-input'
+                      ) as HTMLInputElement;
+                      input?.click();
+                    }
+                  }}
+                >
+                  {project.metadata?.coverImageUrl ? (
+                    <>
+                      <img
+                        src={project.metadata.coverImageUrl}
+                        alt={t('projectInfo.coverAlt')}
+                        class="cover-image"
+                      />
+                      {deletingCover ? (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '0.5rem',
+                            right: '0.5rem',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.5rem',
+                            color: 'white',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          ⏳
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!confirm(t('projectInfo.deleteCoverConfirm'))) return;
+                              setDeletingCover(true);
+                              try {
+                                const result = await api.deleteProjectCover(project.id);
+                                await onRefreshProject();
+                              } catch (error) {
+                                console.error('Failed to delete cover:', error);
+                                alert(
+                                  error instanceof Error
+                                    ? error.message
+                                    : t('projectInfo.errorDeleteCover')
+                                );
+                              } finally {
+                                setDeletingCover(false);
+                              }
+                            }}
+                            disabled={deletingCover}
+                            style={{
+                              position: 'absolute',
+                              top: '0.5rem',
+                              right: '0.5rem',
+                              background: 'rgba(255, 255, 255, 0.9)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '4px',
+                              width: '32px',
+                              height: '32px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1rem',
+                              transition: 'all 0.2s',
+                            }}
+                            title={t('projectInfo.deleteCoverTitle')}
+                          >
+                            🗑️
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const input = document.getElementById(
+                                'cover-upload-input'
+                              ) as HTMLInputElement;
+                              input?.click();
+                            }}
+                            disabled={uploadingCover || deletingCover}
+                            style={{
+                              position: 'absolute',
+                              bottom: '0.5rem',
+                              right: '0.5rem',
+                              background: 'rgba(255, 255, 255, 0.9)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '4px',
+                              padding: '0.375rem 0.75rem',
+                              cursor: 'pointer',
+                              fontSize: '0.85rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              transition: 'all 0.2s',
+                            }}
+                            title={t('projectInfo.replaceCoverTitle')}
+                          >
+                            {uploadingCover ? '⏳' : '📤'}
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        minHeight: '300px',
+                        background: 'var(--bg-hover)',
+                        border: '2px dashed var(--border)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.75rem',
+                        transition: 'all 0.2s',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!uploadingCover && !deletingCover) {
+                          e.currentTarget.style.borderColor = 'var(--accent)';
+                          e.currentTarget.style.background = 'var(--accent-glow)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.background = 'var(--bg-hover)';
+                      }}
+                    >
+                      <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
+                      <div
+                        style={{
+                          fontSize: '0.9rem',
+                          color: 'var(--text-secondary)',
+                          textAlign: 'center',
+                          padding: '0 1rem',
+                        }}
+                      >
+                        {uploadingCover
+                          ? `⏳ ${t('projectInfo.uploadCoverLoading')}`
+                          : t('projectInfo.uploadCoverClick')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div class="metadata-details">
+                  {/* Title */}
+                  {project.metadata.title && project.metadata.title !== project.name && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.title')}</span>
+                      <span class="metadata-value">{project.metadata.title}</span>
+                    </div>
+                  )}
+
+                  {/* Authors */}
+                  {project.metadata.authors && project.metadata.authors.length > 0 && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.authors')}</span>
+                      <span class="metadata-value">{project.metadata.authors.join(', ')}</span>
+                    </div>
+                  )}
+
+                  {/* Language */}
+                  {project.metadata.language && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.sourceLanguage')}</span>
+                      <span class="metadata-value">{project.metadata.language.toUpperCase()}</span>
+                    </div>
+                  )}
+
+                  {/* Publisher */}
+                  {project.metadata.publisher && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.publisher')}</span>
+                      <span class="metadata-value">{project.metadata.publisher}</span>
+                    </div>
+                  )}
+
+                  {/* Series */}
+                  {project.metadata.series && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.series')}</span>
+                      <span class="metadata-value">
+                        {project.metadata.series}
+                        {project.metadata.seriesNumber &&
+                          ` (${t('projectInfo.bookInSeries', { n: project.metadata.seriesNumber })})`}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* ISBN */}
+                  {project.metadata.isbn && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.isbn')}</span>
+                      <span class="metadata-value">{project.metadata.isbn}</span>
+                    </div>
+                  )}
+
+                  {/* Published Date */}
+                  {project.metadata.publishedDate && (
+                    <div class="metadata-item">
+                      <span class="metadata-label">{t('projectInfo.publishedDate')}</span>
+                      <span class="metadata-value">
+                        {new Date(project.metadata.publishedDate).toLocaleDateString('ru-RU', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Description - editable */}
+                  <div class="metadata-item metadata-description">
+                    <span class="metadata-label">{t('projectInfo.description')}</span>
+                    {editingDescription ? (
+                      <div class="project-description-editor">
+                        <textarea
+                          ref={descriptionTextareaRef}
+                          class="project-description-textarea"
+                          value={descriptionDraft}
+                          onInput={(e) =>
+                            setDescriptionDraft((e.target as HTMLTextAreaElement).value)
+                          }
+                          onKeyDown={handleDescriptionKeyDown}
+                          placeholder={t('projectInfo.addDescriptionPlaceholder')}
+                          rows={4}
+                        />
+                        <div class="project-description-actions">
+                          <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            onClick={cancelEditingDescription}
+                            disabled={savingDescription}
+                          >
+                            {t('common.cancel')}
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            onClick={saveDescription}
+                            disabled={savingDescription}
+                          >
+                            {savingDescription ? '⏳' : `💾 ${t('common.save')}`}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        class={`metadata-value description-text editable ${!project.metadata?.description ? 'empty' : ''}`}
+                        onClick={startEditingDescription}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && startEditingDescription()}
+                      >
+                        {project.metadata?.description
+                          ? project.metadata.description
+                          : t('projectInfo.clickToAddDescription')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="metadata-content">
-              {/* Cover Image */}
-              <div 
+          )}
+
+        {/* Cover Image Section - for non-book projects or projects without metadata */}
+        {(!project.type ||
+          project.type !== 'book' ||
+          !project.metadata ||
+          Object.keys(project.metadata).length === 0) && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3
+              style={{
+                fontSize: '1rem',
+                fontWeight: 600,
+                marginBottom: '0.75rem',
+                color: 'var(--text-primary)',
+              }}
+            >
+              🖼️ {t('projectInfo.coverAndDescription')}
+            </h3>
+            <div
+              class="metadata-content"
+              style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}
+            >
+              <div
                 class="metadata-cover"
-                style={{ 
+                style={{
+                  position: 'relative',
+                  flexShrink: 0,
                   cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer',
-                  position: 'relative'
                 }}
                 onClick={() => {
                   if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
@@ -368,22 +702,31 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               >
                 {project.metadata?.coverImageUrl ? (
                   <>
-                    <img 
-                      src={project.metadata.coverImageUrl} 
-                      alt={t('projectInfo.coverAlt')}
-                      class="cover-image"
+                    <img
+                      src={project.metadata.coverImageUrl}
+                      alt={t('projectInfo.coverProjectAlt')}
+                      style={{
+                        width: '100%',
+                        maxWidth: '200px',
+                        height: 'auto',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                      }}
                     />
                     {deletingCover ? (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '0.5rem', 
-                        right: '0.5rem',
-                        background: 'rgba(0, 0, 0, 0.7)',
-                        borderRadius: '4px',
-                        padding: '0.25rem 0.5rem',
-                        color: 'white',
-                        fontSize: '0.85rem'
-                      }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '0.5rem',
+                          right: '0.5rem',
+                          background: 'rgba(0, 0, 0, 0.7)',
+                          borderRadius: '4px',
+                          padding: '0.25rem 0.5rem',
+                          color: 'white',
+                          fontSize: '0.85rem',
+                        }}
+                      >
                         ⏳
                       </div>
                     ) : (
@@ -395,10 +738,16 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                             setDeletingCover(true);
                             try {
                               const result = await api.deleteProjectCover(project.id);
+                              // Invalidate project cache
+                              invalidateProject(project.id);
                               await onRefreshProject();
                             } catch (error) {
                               console.error('Failed to delete cover:', error);
-                              alert(error instanceof Error ? error.message : t('projectInfo.errorDeleteCover'));
+                              alert(
+                                error instanceof Error
+                                  ? error.message
+                                  : t('projectInfo.errorDeleteCover')
+                              );
                             } finally {
                               setDeletingCover(false);
                             }
@@ -418,7 +767,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontSize: '1rem',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
                           }}
                           title={t('projectInfo.deleteCoverTitle')}
                         >
@@ -427,7 +776,9 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const input = document.getElementById('cover-upload-input') as HTMLInputElement;
+                            const input = document.getElementById(
+                              'cover-upload-input'
+                            ) as HTMLInputElement;
                             input?.click();
                           }}
                           disabled={uploadingCover || deletingCover}
@@ -444,7 +795,7 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.25rem',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
                           }}
                           title={t('projectInfo.replaceCoverTitle')}
                         >
@@ -454,307 +805,47 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                     )}
                   </>
                 ) : (
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    minHeight: '300px',
-                    background: 'var(--bg-hover)',
-                    border: '2px dashed var(--border)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.75rem',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!uploadingCover && !deletingCover) {
-                      e.currentTarget.style.borderColor = 'var(--accent)';
-                      e.currentTarget.style.background = 'var(--accent-glow)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border)';
-                    e.currentTarget.style.background = 'var(--bg-hover)';
-                  }}
+                  <div
+                    style={{
+                      width: '200px',
+                      height: '300px',
+                      background: 'var(--bg-hover)',
+                      border: '2px dashed var(--border)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.75rem',
+                      transition: 'all 0.2s',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!uploadingCover && !deletingCover) {
+                        e.currentTarget.style.borderColor = 'var(--accent)';
+                        e.currentTarget.style.background = 'var(--accent-glow)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.background = 'var(--bg-hover)';
+                    }}
                   >
                     <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0 1rem' }}>
-                      {uploadingCover ? `⏳ ${t('projectInfo.uploadCoverLoading')}` : t('projectInfo.uploadCoverClick')}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div class="metadata-details">
-                {/* Title */}
-                {project.metadata.title && project.metadata.title !== project.name && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.title')}</span>
-                    <span class="metadata-value">{project.metadata.title}</span>
-                  </div>
-                )}
-                
-                {/* Authors */}
-                {project.metadata.authors && project.metadata.authors.length > 0 && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.authors')}</span>
-                    <span class="metadata-value">{project.metadata.authors.join(', ')}</span>
-                  </div>
-                )}
-                
-                {/* Language */}
-                {project.metadata.language && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.sourceLanguage')}</span>
-                    <span class="metadata-value">{project.metadata.language.toUpperCase()}</span>
-                  </div>
-                )}
-                
-                {/* Publisher */}
-                {project.metadata.publisher && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.publisher')}</span>
-                    <span class="metadata-value">{project.metadata.publisher}</span>
-                  </div>
-                )}
-                
-                {/* Series */}
-                {project.metadata.series && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.series')}</span>
-                    <span class="metadata-value">
-                      {project.metadata.series}
-                      {project.metadata.seriesNumber && ` (${t('projectInfo.bookInSeries', { n: project.metadata.seriesNumber })})`}
-                    </span>
-                  </div>
-                )}
-                
-                {/* ISBN */}
-                {project.metadata.isbn && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.isbn')}</span>
-                    <span class="metadata-value">{project.metadata.isbn}</span>
-                  </div>
-                )}
-                
-                {/* Published Date */}
-                {project.metadata.publishedDate && (
-                  <div class="metadata-item">
-                    <span class="metadata-label">{t('projectInfo.publishedDate')}</span>
-                    <span class="metadata-value">
-                      {new Date(project.metadata.publishedDate).toLocaleDateString('ru-RU', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Description - editable */}
-                <div class="metadata-item metadata-description">
-                  <span class="metadata-label">{t('projectInfo.description')}</span>
-                  {editingDescription ? (
-                    <div class="project-description-editor">
-                      <textarea
-                        ref={descriptionTextareaRef}
-                        class="project-description-textarea"
-                        value={descriptionDraft}
-                        onInput={(e) => setDescriptionDraft((e.target as HTMLTextAreaElement).value)}
-                        onKeyDown={handleDescriptionKeyDown}
-                        placeholder={t('projectInfo.addDescriptionPlaceholder')}
-                        rows={4}
-                      />
-                      <div class="project-description-actions">
-                        <button
-                          type="button"
-                          class="btn btn-secondary btn-sm"
-                          onClick={cancelEditingDescription}
-                          disabled={savingDescription}
-                        >
-                          {t('common.cancel')}
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-primary btn-sm"
-                          onClick={saveDescription}
-                          disabled={savingDescription}
-                        >
-                          {savingDescription ? '⏳' : `💾 ${t('common.save')}`}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
                     <div
-                      class={`metadata-value description-text editable ${!project.metadata?.description ? 'empty' : ''}`}
-                      onClick={startEditingDescription}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && startEditingDescription()}
+                      style={{
+                        fontSize: '0.9rem',
+                        color: 'var(--text-secondary)',
+                        textAlign: 'center',
+                        padding: '0 1rem',
+                      }}
                     >
-                      {project.metadata?.description
-                        ? project.metadata.description
-                        : t('projectInfo.clickToAddDescription')}
+                      {uploadingCover
+                        ? `⏳ ${t('projectInfo.uploadCoverLoading')}`
+                        : t('projectInfo.uploadCoverClick')}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Cover Image Section - for non-book projects or projects without metadata */}
-        {(!project.type || project.type !== 'book' || !project.metadata || Object.keys(project.metadata).length === 0) && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
-              🖼️ {t('projectInfo.coverAndDescription')}
-            </h3>
-            <div class="metadata-content" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <div 
-                class="metadata-cover"
-                style={{ 
-                  position: 'relative', 
-                  flexShrink: 0,
-                  cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer'
-                }}
-                onClick={() => {
-                  if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
-                    const input = document.getElementById('cover-upload-input') as HTMLInputElement;
-                    input?.click();
-                  }
-                }}
-              >
-              {project.metadata?.coverImageUrl ? (
-                <>
-                  <img 
-                    src={project.metadata.coverImageUrl} 
-                    alt={t('projectInfo.coverProjectAlt')}
-                    style={{ 
-                      width: '100%', 
-                      maxWidth: '200px', 
-                      height: 'auto', 
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  {deletingCover ? (
-                    <div style={{ 
-                      position: 'absolute', 
-                      top: '0.5rem', 
-                      right: '0.5rem',
-                      background: 'rgba(0, 0, 0, 0.7)',
-                      borderRadius: '4px',
-                      padding: '0.25rem 0.5rem',
-                      color: 'white',
-                      fontSize: '0.85rem'
-                    }}>
-                      ⏳
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (!confirm(t('projectInfo.deleteCoverConfirm'))) return;
-                          setDeletingCover(true);
-                          try {
-                            const result = await api.deleteProjectCover(project.id);
-                            // Invalidate project cache
-                            invalidateProject(project.id);
-                            await onRefreshProject();
-                          } catch (error) {
-                            console.error('Failed to delete cover:', error);
-                            alert(error instanceof Error ? error.message : t('projectInfo.errorDeleteCover'));
-                          } finally {
-                            setDeletingCover(false);
-                          }
-                        }}
-                        disabled={deletingCover}
-                        style={{
-                          position: 'absolute',
-                          top: '0.5rem',
-                          right: '0.5rem',
-                          background: 'rgba(255, 255, 255, 0.9)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '4px',
-                          width: '32px',
-                          height: '32px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1rem',
-                          transition: 'all 0.2s'
-                        }}
-                        title={t('projectInfo.deleteCoverTitle')}
-                      >
-                        🗑️
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const input = document.getElementById('cover-upload-input') as HTMLInputElement;
-                          input?.click();
-                        }}
-                        disabled={uploadingCover || deletingCover}
-                        style={{
-                          position: 'absolute',
-                          bottom: '0.5rem',
-                          right: '0.5rem',
-                          background: 'rgba(255, 255, 255, 0.9)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '4px',
-                          padding: '0.375rem 0.75rem',
-                          cursor: 'pointer',
-                          fontSize: '0.85rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          transition: 'all 0.2s'
-                        }}
-                        title={t('projectInfo.replaceCoverTitle')}
-                      >
-                        {uploadingCover ? '⏳' : '📤'}
-                      </button>
-                    </>
-                  )}
-                </>
-              ) : (
-                <div style={{
-                  width: '200px',
-                  height: '300px',
-                  background: 'var(--bg-hover)',
-                  border: '2px dashed var(--border)',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                  transition: 'all 0.2s',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  if (!uploadingCover && !deletingCover) {
-                    e.currentTarget.style.borderColor = 'var(--accent)';
-                    e.currentTarget.style.background = 'var(--accent-glow)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.background = 'var(--bg-hover)';
-                }}
-                >
-                  <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0 1rem' }}>
-                    {uploadingCover ? `⏳ ${t('projectInfo.uploadCoverLoading')}` : t('projectInfo.uploadCoverClick')}
                   </div>
-                </div>
-              )}
+                )}
               </div>
               {/* Description - editable, next to cover */}
               <div class="metadata-details" style={{ flex: 1, minWidth: '200px' }}>
@@ -766,7 +857,9 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                         ref={descriptionTextareaRef}
                         class="project-description-textarea"
                         value={descriptionDraft}
-                        onInput={(e) => setDescriptionDraft((e.target as HTMLTextAreaElement).value)}
+                        onInput={(e) =>
+                          setDescriptionDraft((e.target as HTMLTextAreaElement).value)
+                        }
                         onKeyDown={handleDescriptionKeyDown}
                         placeholder={t('projectInfo.addDescriptionPlaceholder')}
                         rows={4}
@@ -817,7 +910,9 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             <h3 class="metadata-title">{t('projectInfo.publicationTitle')}</h3>
           </div>
           {publicationLoading ? (
-            <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>{t('common.loading')}</div>
+            <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+              {t('common.loading')}
+            </div>
           ) : publication?.status === 'published' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -827,13 +922,27 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
                 {t('projectInfo.publicationUpdatesHint')}
               </p>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <Button variant="secondary" size="sm" onClick={() => window.open(`/p/${publication.id}`, '_blank')}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.open(`/p/${publication.id}`, '_blank')}
+                >
                   {t('projectInfo.publicationView')}
                 </Button>
-                <Button variant="secondary" size="sm" onClick={handleUpdatePublication} disabled={updatingPublication}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleUpdatePublication}
+                  disabled={updatingPublication}
+                >
                   {updatingPublication ? t('common.loading') : t('projectInfo.updatePublication')}
                 </Button>
-                <Button variant="secondary" size="sm" onClick={handleUnpublish} disabled={unpublishing}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleUnpublish}
+                  disabled={unpublishing}
+                >
                   {unpublishing ? t('common.loading') : t('projectInfo.unpublish')}
                 </Button>
               </div>
@@ -843,7 +952,12 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                 {t('projectInfo.publicationNotPublished')}
               </p>
-              <Button variant="primary" size="sm" onClick={openPublishModal} disabled={stats.chapters === 0}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={openPublishModal}
+                disabled={stats.chapters === 0}
+              >
                 {t('projectInfo.publish')}
               </Button>
               {stats.chapters === 0 && (
@@ -892,115 +1006,120 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         />
 
         {/* Translation Statistics - hidden in original reading mode */}
-        {!isOriginalReadingMode && (() => {
-          const completedChapters = project.chapters.filter(c => c.status === 'completed' && c.translationMeta);
-          const totalTokens = completedChapters.reduce((sum, c) => sum + (c.translationMeta?.tokensUsed || 0), 0);
-          const totalDuration = completedChapters.reduce((sum, c) => sum + (c.translationMeta?.duration || 0), 0);
-          const lastTranslated = completedChapters
-            .filter(c => c.translationMeta?.translatedAt)
-            .sort((a, b) => {
-              const aDate = a.translationMeta?.translatedAt || '';
-              const bDate = b.translationMeta?.translatedAt || '';
-              return bDate.localeCompare(aDate);
-            })[0];
-          
-          if (completedChapters.length > 0) {
-            return (
-              <div class="translation-stats-section">
-                <div class="metadata-header">
-                  <span class="metadata-icon">📊</span>
-                  <h3 class="metadata-title">{t('projectInfo.translationStats')}</h3>
-                </div>
-                <div class="translation-stats-grid">
-                  {totalTokens > 0 && (
+        {!isOriginalReadingMode &&
+          (() => {
+            const completedChapters = project.chapters.filter(
+              (c) => c.status === 'completed' && c.translationMeta
+            );
+            const totalTokens = completedChapters.reduce(
+              (sum, c) => sum + (c.translationMeta?.tokensUsed || 0),
+              0
+            );
+            const totalDuration = completedChapters.reduce(
+              (sum, c) => sum + (c.translationMeta?.duration || 0),
+              0
+            );
+            const lastTranslated = completedChapters
+              .filter((c) => c.translationMeta?.translatedAt)
+              .sort((a, b) => {
+                const aDate = a.translationMeta?.translatedAt || '';
+                const bDate = b.translationMeta?.translatedAt || '';
+                return bDate.localeCompare(aDate);
+              })[0];
+
+            if (completedChapters.length > 0) {
+              return (
+                <div class="translation-stats-section">
+                  <div class="metadata-header">
+                    <span class="metadata-icon">📊</span>
+                    <h3 class="metadata-title">{t('projectInfo.translationStats')}</h3>
+                  </div>
+                  <div class="translation-stats-grid">
+                    {totalTokens > 0 && (
+                      <div class="translation-stat-item">
+                        <span class="translation-stat-label">{t('projectInfo.totalTokens')}</span>
+                        <span class="translation-stat-value">{totalTokens.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {totalDuration > 0 && (
+                      <div class="translation-stat-item">
+                        <span class="translation-stat-label">
+                          {t('projectInfo.translationTime')}
+                        </span>
+                        <span class="translation-stat-value">
+                          {totalDuration >= 3600000
+                            ? `${(totalDuration / 3600000).toFixed(1)} ${t('projectInfo.timeHours')}`
+                            : totalDuration >= 60000
+                              ? `${(totalDuration / 60000).toFixed(1)} ${t('projectInfo.timeMinutes')}`
+                              : `${(totalDuration / 1000).toFixed(0)} ${t('projectInfo.timeSeconds')}`}
+                        </span>
+                      </div>
+                    )}
+                    {lastTranslated && (
+                      <div class="translation-stat-item">
+                        <span class="translation-stat-label">
+                          {t('projectInfo.lastTranslation')}
+                        </span>
+                        <span class="translation-stat-value">
+                          {new Date(
+                            lastTranslated.translationMeta!.translatedAt
+                          ).toLocaleDateString('ru-RU', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    )}
                     <div class="translation-stat-item">
-                      <span class="translation-stat-label">{t('projectInfo.totalTokens')}</span>
-                      <span class="translation-stat-value">{totalTokens.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {totalDuration > 0 && (
-                    <div class="translation-stat-item">
-                      <span class="translation-stat-label">{t('projectInfo.translationTime')}</span>
+                      <span class="translation-stat-label">{t('projectInfo.created')}</span>
                       <span class="translation-stat-value">
-                        {totalDuration >= 3600000 
-                          ? `${(totalDuration / 3600000).toFixed(1)} ${t('projectInfo.timeHours')}`
-                          : totalDuration >= 60000
-                          ? `${(totalDuration / 60000).toFixed(1)} ${t('projectInfo.timeMinutes')}`
-                          : `${(totalDuration / 1000).toFixed(0)} ${t('projectInfo.timeSeconds')}`}
+                        {new Date(project.createdAt).toLocaleDateString('ru-RU', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
                       </span>
                     </div>
-                  )}
-                  {lastTranslated && (
                     <div class="translation-stat-item">
-                      <span class="translation-stat-label">{t('projectInfo.lastTranslation')}</span>
+                      <span class="translation-stat-label">{t('projectInfo.updated')}</span>
                       <span class="translation-stat-value">
-                        {new Date(lastTranslated.translationMeta!.translatedAt).toLocaleDateString('ru-RU', {
+                        {new Date(project.updatedAt).toLocaleDateString('ru-RU', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
-                          minute: '2-digit'
+                          minute: '2-digit',
                         })}
                       </span>
                     </div>
-                  )}
-                  <div class="translation-stat-item">
-                    <span class="translation-stat-label">{t('projectInfo.created')}</span>
-                    <span class="translation-stat-value">
-                      {new Date(project.createdAt).toLocaleDateString('ru-RU', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                  <div class="translation-stat-item">
-                    <span class="translation-stat-label">{t('projectInfo.updated')}</span>
-                    <span class="translation-stat-value">
-                      {new Date(project.updatedAt).toLocaleDateString('ru-RU', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
                   </div>
                 </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
+              );
+            }
+            return null;
+          })()}
 
         {/* Reading Mode Button */}
-        {isOriginalReadingMode ? (
-          // In original reading mode: show reading button for all chapters
-          stats.chapters > 0 && (
-            <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-              <Button
-                variant="secondary"
-                size="full"
-                onClick={onEnterReadingMode}
-              >
-                📖 {t('projectInfo.readingChapters', { count: stats.chapters })}
-              </Button>
-            </div>
-          )
-        ) : (
-          // In translation mode: show reading button only for translated chapters
-          stats.translated > 0 && (
-            <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-              <Button
-                variant="secondary"
-                size="full"
-                onClick={onEnterReadingMode}
-              >
-                📖 {t('projectInfo.readingModeChapters', { count: stats.translated })}
-              </Button>
-            </div>
-          )
-        )}
+        {isOriginalReadingMode
+          ? // In original reading mode: show reading button for all chapters
+            stats.chapters > 0 && (
+              <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                <Button variant="secondary" size="full" onClick={onEnterReadingMode}>
+                  📖 {t('projectInfo.readingChapters', { count: stats.chapters })}
+                </Button>
+              </div>
+            )
+          : // In translation mode: show reading button only for translated chapters
+            stats.translated > 0 && (
+              <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                <Button variant="secondary" size="full" onClick={onEnterReadingMode}>
+                  📖 {t('projectInfo.readingModeChapters', { count: stats.translated })}
+                </Button>
+              </div>
+            )}
 
         {/* Export Buttons - hidden in original reading mode */}
         {!isOriginalReadingMode && stats.translated > 0 && (
@@ -1029,7 +1148,6 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             </div>
           </div>
         )}
-
       </Card>
 
       {/* Delete Modal */}
@@ -1049,7 +1167,11 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
         }
       >
         <p style={{ color: 'var(--text-secondary)' }}>
-          <Trans i18nKey="projectInfo.confirmDeleteProject" values={{ name: project.name }} components={{ strong: <strong /> }} />
+          <Trans
+            i18nKey="projectInfo.confirmDeleteProject"
+            values={{ name: project.name }}
+            components={{ strong: <strong /> }}
+          />
         </p>
       </Modal>
 
@@ -1080,7 +1202,14 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
             placeholder={project.name}
           />
           <div>
-            <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.35rem',
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
               {t('projectInfo.publishDescriptionLabel')}
             </label>
             <textarea
@@ -1114,8 +1243,6 @@ export function ProjectInfo({ project, onSettingsChange, onDelete, onRefreshProj
           />
         </div>
       </Modal>
-
     </>
   );
 }
-

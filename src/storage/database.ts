@@ -29,7 +29,7 @@ export interface ProjectMetadata {
   description?: string; // Description/annotation
   language?: string; // Source language (if detected)
   coverImageUrl?: string; // URL to cover/image
-  
+
   // Book-specific fields (for type === 'book')
   authors?: string[];
   publisher?: string;
@@ -37,7 +37,7 @@ export interface ProjectMetadata {
   series?: string;
   seriesNumber?: number;
   publishedDate?: string;
-  
+
   // Future: web-specific, document-specific fields can be added here
   // webUrl?: string; // For 'web' type
   // documentType?: string; // For 'document' type
@@ -218,7 +218,10 @@ export async function initDatabase(dataDir: string = './data'): Promise<Low<Data
   // Initialize with defaults if empty
   db.data ||= defaultData;
 
-  logger.info({ dbPath, projectsCount: db.data.projects.length }, `Database initialized: ${dbPath} (${db.data.projects.length} projects)`);
+  logger.info(
+    { dbPath, projectsCount: db.data.projects.length },
+    `Database initialized: ${dbPath} (${db.data.projects.length} projects)`
+  );
 
   return db;
 }
@@ -262,7 +265,18 @@ function migrateProjectSettings(settings: ProjectSettings): ProjectSettings {
 
   // Migrate from legacy model field (free-tier models only)
   const legacyModel = settings.model || 'gpt-4.1-mini';
-  const freeModels = ['gpt-5.1-codex-mini', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o-mini', 'o1-mini', 'o3-mini', 'o4-mini', 'codex-mini-latest'];
+  const freeModels = [
+    'gpt-5.1-codex-mini',
+    'gpt-5-mini',
+    'gpt-5-nano',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'gpt-4o-mini',
+    'o1-mini',
+    'o3-mini',
+    'o4-mini',
+    'codex-mini-latest',
+  ];
   const isFreeModel = freeModels.includes(legacyModel);
   const model = isFreeModel ? legacyModel : 'gpt-4.1-mini';
   const isCheapModel = model.includes('nano') || model.includes('mini');
@@ -317,7 +331,10 @@ export async function resetStuckChapters(projectId?: string): Promise<number> {
         if (isStuck) {
           chapter.status = 'pending';
           resetCount++;
-          logger.info({ chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name }, `Reset stuck status: ${chapter.title} (project: ${project.name})`);
+          logger.info(
+            { chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name },
+            `Reset stuck status: ${chapter.title} (project: ${project.name})`
+          );
         }
       }
     }
@@ -402,7 +419,10 @@ export async function createProject(data: {
   db.data.projects.push(project);
   await db.write();
 
-  logger.info({ event: 'project.created', projectId: project.id, projectName: project.name }, `Project created: ${project.name} (${project.id})`);
+  logger.info(
+    { event: 'project.created', projectId: project.id, projectName: project.name },
+    `Project created: ${project.name} (${project.id})`
+  );
 
   return project;
 }
@@ -476,7 +496,10 @@ export async function deleteProject(id: string): Promise<boolean> {
   const [removed] = db.data.projects.splice(index, 1);
   await db.write();
 
-  logger.info({ event: 'project.deleted', projectName: removed.name }, `Project deleted: ${removed.name}`);
+  logger.info(
+    { event: 'project.deleted', projectName: removed.name },
+    `Project deleted: ${removed.name}`
+  );
 
   return true;
 }
@@ -509,7 +532,14 @@ export async function addChapter(
   await db.write();
 
   logger.info(
-    { event: 'chapter.added', projectId, chapterId: chapter.id, chapterTitle: chapter.title, projectName: project.name, paragraphsCount: paragraphs.length },
+    {
+      event: 'chapter.added',
+      projectId,
+      chapterId: chapter.id,
+      chapterTitle: chapter.title,
+      projectName: project.name,
+      paragraphsCount: paragraphs.length,
+    },
     `Chapter added: ${chapter.title} -> ${project.name} (${paragraphs.length} paragraphs)`
   );
 
@@ -579,7 +609,10 @@ export async function deleteChapter(projectId: string, chapterId: string): Promi
   project.updatedAt = new Date().toISOString();
   await db.write();
 
-  logger.info({ event: 'chapter.deleted', chapterTitle: removed.title }, `Chapter deleted: ${removed.title}`);
+  logger.info(
+    { event: 'chapter.deleted', chapterTitle: removed.title },
+    `Chapter deleted: ${removed.title}`
+  );
 
   return true;
 }
@@ -642,7 +675,16 @@ export async function updateChapterNumber(
   project.updatedAt = new Date().toISOString();
   await db.write();
 
-  logger.info({ event: 'chapter.number_updated', chapterId, chapterTitle: chapter.title, oldNumber, newNumber }, `Chapter number changed: "${chapter.title}" ${oldNumber} → ${newNumber}`);
+  logger.info(
+    {
+      event: 'chapter.number_updated',
+      chapterId,
+      chapterTitle: chapter.title,
+      oldNumber,
+      newNumber,
+    },
+    `Chapter number changed: "${chapter.title}" ${oldNumber} → ${newNumber}`
+  );
 
   return chapter;
 }

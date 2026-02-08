@@ -1,6 +1,6 @@
 /**
  * Translation Service - интеграция с arcane-engine
- * 
+ *
  * Этот сервис связывает UI с движком перевода
  */
 
@@ -39,11 +39,11 @@ export interface GlossaryEntry {
 export class TranslationService {
   private config: AppConfig;
   private isInitialized = false;
-  
+
   constructor(config: AppConfig) {
     this.config = config;
   }
-  
+
   /**
    * Initialize the service and validate API keys
    */
@@ -55,15 +55,15 @@ export class TranslationService {
         error: 'OpenAI API ключ не настроен. Добавьте OPENAI_API_KEY в .env файл.',
       };
     }
-    
+
     // TODO: Test API connection
     // const provider = new OpenAIProvider({ apiKey: this.config.openai.apiKey });
     // const available = await provider.isAvailable();
-    
+
     this.isInitialized = true;
     return { success: true };
   }
-  
+
   /**
    * Translate a chapter
    */
@@ -74,30 +74,30 @@ export class TranslationService {
         return { success: false, error: initResult.error };
       }
     }
-    
+
     const startTime = Date.now();
-    
+
     try {
       // TODO: Полная интеграция с arcane-engine
-      // 
+      //
       // import { TranslationPipeline, OpenAIProvider, NovelAgent } from 'arcane-engine';
-      // 
+      //
       // const provider = new OpenAIProvider({
       //   apiKey: this.config.openai.apiKey,
       //   model: this.config.openai.model,
       // });
-      // 
+      //
       // const agent = await this.loadOrCreateAgent(request.projectId);
       // const pipeline = new TranslationPipeline({ provider, agent });
-      // 
+      //
       // const result = await pipeline.translateChapter(
       //   request.originalText,
       //   request.chapterNumber,
       //   { skipEditing: this.config.translation.skipEditing }
       // );
-      // 
+      //
       // await this.saveAgent(request.projectId, agent);
-      // 
+      //
       // return {
       //   success: true,
       //   translatedText: result.finalTranslation,
@@ -105,17 +105,16 @@ export class TranslationService {
       //   duration: result.totalDuration,
       //   glossaryUpdates: this.extractGlossaryUpdates(result),
       // };
-      
+
       // Временная заглушка - симуляция перевода
       await this.simulateDelay(2000);
-      
+
       return {
         success: true,
         translatedText: this.createDemoTranslation(request),
         tokensUsed: 0,
         duration: Date.now() - startTime,
       };
-      
     } catch (error) {
       return {
         success: false,
@@ -124,14 +123,14 @@ export class TranslationService {
       };
     }
   }
-  
+
   /**
    * Check if service is ready
    */
   isReady(): boolean {
     return Boolean(this.config.openai.apiKey);
   }
-  
+
   /**
    * Get service status
    */
@@ -147,7 +146,7 @@ export class TranslationService {
         model: this.config.openai.model,
       };
     }
-    
+
     if (this.config.anthropic.apiKey) {
       return {
         ready: true,
@@ -155,30 +154,30 @@ export class TranslationService {
         model: 'claude-3-opus',
       };
     }
-    
+
     return {
       ready: false,
       provider: null,
       model: null,
     };
   }
-  
+
   // ============ Helper methods ============
-  
+
   private async simulateDelay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
-  
+
   private createDemoTranslation(request: TranslationRequest): string {
     const lines = request.originalText.split('\n');
-    
+
     let result = `═══════════════════════════════════════════\n`;
     result += `  ДЕМО ПЕРЕВОД — Глава ${request.chapterNumber}\n`;
     result += `═══════════════════════════════════════════\n\n`;
     result += `⚠️ Это демонстрационный режим.\n`;
     result += `Для реального перевода добавьте OPENAI_API_KEY в файл .env\n\n`;
     result += `───────────────────────────────────────────\n\n`;
-    
+
     // Показываем оригинальный текст с пометкой
     for (const line of lines) {
       if (line.trim()) {
@@ -187,10 +186,10 @@ export class TranslationService {
         result += '\n';
       }
     }
-    
+
     result += `\n───────────────────────────────────────────\n`;
     result += `Глоссарий: ${request.glossary.length} записей\n`;
-    
+
     return result;
   }
 }
@@ -206,4 +205,3 @@ export function getTranslationService(config: AppConfig): TranslationService {
   }
   return serviceInstance;
 }
-

@@ -43,7 +43,11 @@ export function PublicationGlossaryModal({
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [detailEntry, setDetailEntry] = useState<GlossaryEntry | null>(null);
-  const [pendingChapter, setPendingChapter] = useState<{ chapterId: string; number: number; title: string } | null>(null);
+  const [pendingChapter, setPendingChapter] = useState<{
+    chapterId: string;
+    number: number;
+    title: string;
+  } | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [retryTrigger, setRetryTrigger] = useState(0);
@@ -137,7 +141,11 @@ export function PublicationGlossaryModal({
               {num}
             </button>
           ) : (
-            <span key={num} class="glossary-chapter-pill glossary-chapter-pill-static" title={t('glossary.chapterNotTranslated')}>
+            <span
+              key={num}
+              class="glossary-chapter-pill glossary-chapter-pill-static"
+              title={t('glossary.chapterNotTranslated')}
+            >
               {num} ({t('glossary.chapterNotTranslated')})
             </span>
           );
@@ -220,9 +228,7 @@ export function PublicationGlossaryModal({
                             class="glossary-card-image"
                           />
                         ) : (
-                          <div class="glossary-card-placeholder">
-                            {typeIcons[entry.type]}
-                          </div>
+                          <div class="glossary-card-placeholder">{typeIcons[entry.type]}</div>
                         )}
                         <div class="glossary-card-header-content">
                           <div class="glossary-card-names">
@@ -239,7 +245,10 @@ export function PublicationGlossaryModal({
                               {typeIcons[entry.type]}
                             </div>
                             {entry.firstAppearance != null && (
-                              <span class="glossary-card-badge glossary-card-chapter" title={t('glossary.firstMention')}>
+                              <span
+                                class="glossary-card-badge glossary-card-chapter"
+                                title={t('glossary.firstMention')}
+                              >
                                 📖 {entry.firstAppearance}
                               </span>
                             )}
@@ -281,7 +290,9 @@ export function PublicationGlossaryModal({
         >
           <div class="publication-glossary-detail">
             <div class="form-group">
-              <span class="form-label">{typeIcons[detailEntry.type]} {typeLabels[detailEntry.type]}</span>
+              <span class="form-label">
+                {typeIcons[detailEntry.type]} {typeLabels[detailEntry.type]}
+              </span>
             </div>
             <div class="form-group">
               <label class="form-label">{t('glossary.originalLabel')}</label>
@@ -294,7 +305,9 @@ export function PublicationGlossaryModal({
             {detailEntry.description && (
               <div class="form-group">
                 <label class="form-label">📝 {t('glossary.description')}</label>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{detailEntry.description}</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                  {detailEntry.description}
+                </p>
               </div>
             )}
             {detailEntry.firstAppearance != null && (
@@ -316,7 +329,9 @@ export function PublicationGlossaryModal({
             {detailEntry.notes && (
               <div class="form-group">
                 <label class="form-label">{t('glossary.notesLabel')}</label>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{detailEntry.notes}</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                  {detailEntry.notes}
+                </p>
               </div>
             )}
             {(detailEntry.imageUrls?.length || detailEntry.imageUrl) && (
@@ -324,7 +339,9 @@ export function PublicationGlossaryModal({
                 <label class="form-label">🖼️ {t('glossary.imageGallery')}</label>
                 <div class="image-gallery-section">
                   <div class="image-gallery-grid">
-                    {(detailEntry.imageUrls || (detailEntry.imageUrl ? [detailEntry.imageUrl] : [])).map((imageUrl, index) => (
+                    {(
+                      detailEntry.imageUrls || (detailEntry.imageUrl ? [detailEntry.imageUrl] : [])
+                    ).map((imageUrl, index) => (
                       <div key={index} class="image-gallery-item publication-glossary-detail-image">
                         <img
                           src={imageUrl}
@@ -364,9 +381,7 @@ export function PublicationGlossaryModal({
               <Button variant="secondary" onClick={() => setPendingChapter(null)}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={confirmGoToChapter}>
-                {t('glossary.goToChapterButton')}
-              </Button>
+              <Button onClick={confirmGoToChapter}>{t('glossary.goToChapterButton')}</Button>
             </>
           )
         }

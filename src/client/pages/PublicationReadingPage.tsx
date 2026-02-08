@@ -82,11 +82,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     return (
       <div class="publication-reading-placeholder">
         <p>{t('publication.notFound')}</p>
-        <button
-          type="button"
-          class="publication-reading-back"
-          onClick={() => route('/catalog')}
-        >
+        <button type="button" class="publication-reading-back" onClick={() => route('/catalog')}>
           {t('common.back')}
         </button>
       </div>

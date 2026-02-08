@@ -67,8 +67,8 @@ export function Sidebar({
               <img src="/arcane_icon.png" alt="Arcane" class="sidebar-mobile-logo" />
               <span>ARCANE</span>
             </div>
-            <button 
-              class="sidebar-mobile-close" 
+            <button
+              class="sidebar-mobile-close"
               onClick={handleCloseSidebar}
               aria-label={t('common.close')}
             >
@@ -78,8 +78,8 @@ export function Sidebar({
         )}
 
         {/* Quick link to projects dashboard (cabinet) */}
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           onClick={() => {
             // Close sidebar on mobile
             if (isMobileOpen) {
@@ -101,8 +101,8 @@ export function Sidebar({
         </div>
 
         {/* Project Settings Button */}
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           onClick={() => {
             // Close sidebar on mobile
             if (isMobileOpen) {
@@ -144,8 +144,7 @@ export function Sidebar({
         />
 
         <Button variant="glossary" onClick={onOpenGlossary}>
-          📝 {t('sidebar.glossary')}{' '}
-          <span class="glossary-count">{project.glossary.length}</span>
+          📝 {t('sidebar.glossary')} <span class="glossary-count">{project.glossary.length}</span>
         </Button>
       </aside>
 
@@ -163,4 +162,3 @@ export function Sidebar({
 }
 
 export { ChapterList } from './ChapterList';
-

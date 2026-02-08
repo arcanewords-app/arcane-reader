@@ -9,8 +9,8 @@ interface ReaderSettingsProps {
 
 const fonts: { key: FontFamily; label: string; style: string }[] = [
   { key: 'literary', label: 'Literata', style: "'Literata', serif" },
-  { key: 'serif', label: 'Charter', style: "Charter, serif" },
-  { key: 'sans', label: 'Inter', style: "Inter, sans-serif" },
+  { key: 'serif', label: 'Charter', style: 'Charter, serif' },
+  { key: 'sans', label: 'Inter', style: 'Inter, sans-serif' },
   { key: 'mono', label: 'Mono', style: "'JetBrains Mono', monospace" },
 ];
 
@@ -20,7 +20,12 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
     { key: 'dark', icon: '🌙', titleKey: 'reader.themeDark', preview: 'theme-preview-dark' },
     { key: 'light', icon: '☀️', titleKey: 'reader.themeLight', preview: 'theme-preview-light' },
     { key: 'sepia', icon: '📜', titleKey: 'reader.themeSepia', preview: 'theme-preview-sepia' },
-    { key: 'contrast', icon: '🔳', titleKey: 'reader.themeContrast', preview: 'theme-preview-contrast' },
+    {
+      key: 'contrast',
+      icon: '🔳',
+      titleKey: 'reader.themeContrast',
+      preview: 'theme-preview-contrast',
+    },
   ];
   return (
     <div class="reader-settings-panel">
@@ -102,4 +107,3 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
     </div>
   );
 }
-

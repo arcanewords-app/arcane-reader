@@ -1,12 +1,16 @@
 /**
  * Token Limits Middleware
- * 
+ *
  * Provides functions to check and manage user token limits
  */
 
 import { createClientWithToken } from '../services/supabaseClient.js';
 import { validateToken } from '../utils/tokenValidation.js';
-import { TOKEN_LIMITS, getTokenLimitForRole, isUnlimitedTokenLimit } from '../config/tokenLimits.js';
+import {
+  TOKEN_LIMITS,
+  getTokenLimitForRole,
+  isUnlimitedTokenLimit,
+} from '../config/tokenLimits.js';
 import type { UserRole } from '../types/roles.js';
 
 export interface TokenUsage {
@@ -75,7 +79,8 @@ export async function getUserTokenUsage(
   const unlimited = isUnlimitedTokenLimit(tokensLimit);
   const tokensRemaining = unlimited ? -1 : Math.max(0, tokensLimit - tokensUsed);
   const percentageUsed = unlimited || tokensLimit <= 0 ? 0 : (tokensUsed / tokensLimit) * 100;
-  const warning = !unlimited && tokensLimit > 0 && percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
+  const warning =
+    !unlimited && tokensLimit > 0 && percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
 
   return {
     date: targetDate,
@@ -170,16 +175,17 @@ export async function incrementTokenUsage(
   };
 
   // Upsert (insert or update)
-  const { error } = await client
-    .from('user_token_usage')
-    .upsert({
+  const { error } = await client.from('user_token_usage').upsert(
+    {
       user_id: userId,
       date,
       tokens_used: newTokensUsed,
       tokens_by_stage: newTokensByStage,
-    }, {
+    },
+    {
       onConflict: 'user_id,date',
-    });
+    }
+  );
 
   if (error) {
     const { logger } = await import('../logger.js');

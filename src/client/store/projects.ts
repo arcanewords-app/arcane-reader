@@ -18,13 +18,13 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Computed: projects with metadata
 export const projectsWithMetadata = computed(() => {
-  return projectsCache.value.filter(p => p.metadata);
+  return projectsCache.value.filter((p) => p.metadata);
 });
 
 // Computed: projects by type
 export const projectsByType = computed(() => {
-  const books = projectsCache.value.filter(p => p.type === 'book');
-  const texts = projectsCache.value.filter(p => p.type === 'text' || !p.type);
+  const books = projectsCache.value.filter((p) => p.type === 'book');
+  const texts = projectsCache.value.filter((p) => p.type === 'text' || !p.type);
   return { books, texts };
 });
 
@@ -32,7 +32,7 @@ export const projectsByType = computed(() => {
 export async function loadProjects(): Promise<void> {
   projectsLoading.value = true;
   projectsError.value = null;
-  
+
   try {
     const projects = await api.getProjects();
     projectsCache.value = projects;
@@ -47,18 +47,18 @@ export async function loadProjects(): Promise<void> {
 // Get project from cache or API
 export async function getProject(id: string, forceRefresh = false): Promise<Project | null> {
   const cached = projectCache.get(id);
-  
+
   // Return cached if valid and not forced refresh
   if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.project;
   }
-  
+
   try {
     const project = await api.getProject(id);
     projectCache.set(id, { project, timestamp: Date.now() });
-    
+
     // Update project in list cache
-    const index = projectsCache.value.findIndex(p => p.id === id);
+    const index = projectsCache.value.findIndex((p) => p.id === id);
     if (index !== -1) {
       projectsCache.value = [
         ...projectsCache.value.slice(0, index),
@@ -67,7 +67,7 @@ export async function getProject(id: string, forceRefresh = false): Promise<Proj
           name: project.name,
           type: project.type,
           chapterCount: project.chapters.length,
-          translatedCount: project.chapters.filter(c => c.status === 'completed').length,
+          translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
           glossaryCount: project.glossary.length,
           originalReadingMode: project.settings?.originalReadingMode ?? false,
           updatedAt: project.updatedAt,
@@ -77,7 +77,7 @@ export async function getProject(id: string, forceRefresh = false): Promise<Proj
         ...projectsCache.value.slice(index + 1),
       ];
     }
-    
+
     return project;
   } catch (error) {
     console.error('Failed to load project:', error);
@@ -90,9 +90,9 @@ export async function getProject(id: string, forceRefresh = false): Promise<Proj
  */
 export function updateProjectCache(project: Project): void {
   projectCache.set(project.id, { project, timestamp: Date.now() });
-  
+
   // Update project in list cache
-  const index = projectsCache.value.findIndex(p => p.id === project.id);
+  const index = projectsCache.value.findIndex((p) => p.id === project.id);
   if (index !== -1) {
     projectsCache.value = [
       ...projectsCache.value.slice(0, index),
@@ -101,7 +101,7 @@ export function updateProjectCache(project: Project): void {
         name: project.name,
         type: project.type,
         chapterCount: project.chapters.length,
-        translatedCount: project.chapters.filter(c => c.status === 'completed').length,
+        translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
         glossaryCount: project.glossary.length,
         originalReadingMode: project.settings?.originalReadingMode ?? false,
         updatedAt: project.updatedAt,
@@ -115,7 +115,7 @@ export function updateProjectCache(project: Project): void {
 // Invalidate project cache
 export function invalidateProject(id: string): void {
   projectCache.delete(id);
-  const index = projectsCache.value.findIndex(p => p.id === id);
+  const index = projectsCache.value.findIndex((p) => p.id === id);
   if (index !== -1) {
     // Trigger update by creating new array
     projectsCache.value = [...projectsCache.value];

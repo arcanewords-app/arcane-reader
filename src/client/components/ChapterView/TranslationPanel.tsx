@@ -1,7 +1,12 @@
 import { useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui';
-import type { Chapter, Project, ChapterTranslationOptions, TranslationStageKind } from '../../types';
+import type {
+  Chapter,
+  Project,
+  ChapterTranslationOptions,
+  TranslationStageKind,
+} from '../../types';
 import './TranslationPanel.css';
 
 type Scope = 'full' | 'empty' | 'selected';
@@ -29,11 +34,7 @@ interface TranslationPanelProps {
 }
 
 /** Get text length for scope (for token estimate). */
-function getTextLengthForScope(
-  chapter: Chapter,
-  scope: Scope,
-  selectedIds: string[]
-): number {
+function getTextLengthForScope(chapter: Chapter, scope: Scope, selectedIds: string[]): number {
   if (scope === 'selected' && selectedIds.length && chapter.paragraphs?.length) {
     const idSet = new Set(selectedIds);
     return chapter.paragraphs
@@ -69,7 +70,11 @@ export function TranslationPanel({
   const { t } = useTranslation();
 
   const [scope, setScope] = useState<Scope>('full');
-  const [selectedStages, setSelectedStages] = useState<TranslationStageKind[]>(['analysis', 'translation', 'editing']);
+  const [selectedStages, setSelectedStages] = useState<TranslationStageKind[]>([
+    'analysis',
+    'translation',
+    'editing',
+  ]);
 
   const textLength = useMemo(
     () => getTextLengthForScope(chapter, scope, selectedParagraphIds),
@@ -123,7 +128,9 @@ export function TranslationPanel({
               onChange={() => setScope('empty')}
               disabled={translating || emptyCount === 0}
             />
-            <span>{t('translationPanel.scopeEmpty', { count: emptyCount }, `Пустые (${emptyCount})`)}</span>
+            <span>
+              {t('translationPanel.scopeEmpty', { count: emptyCount }, `Пустые (${emptyCount})`)}
+            </span>
           </label>
           <label class="translation-panel-radio">
             <input
@@ -133,7 +140,13 @@ export function TranslationPanel({
               onChange={() => setScope('selected')}
               disabled={translating}
             />
-            <span>{t('translationPanel.scopeSelected', { count: selectedParagraphIds.length }, `Выбранные (${selectedParagraphIds.length})`)}</span>
+            <span>
+              {t(
+                'translationPanel.scopeSelected',
+                { count: selectedParagraphIds.length },
+                `Выбранные (${selectedParagraphIds.length})`
+              )}
+            </span>
           </label>
         </div>
         <div class="translation-panel-actions-inline">
@@ -202,7 +215,11 @@ export function TranslationPanel({
       <div class="translation-panel-section translation-panel-estimate">
         {estimatedTokens > 0 && (
           <span class="translation-panel-tokens">
-            {t('translationPanel.estimatedTokens', { tokens: estimatedTokens.toLocaleString() }, `~${estimatedTokens.toLocaleString()} токенов`)}
+            {t(
+              'translationPanel.estimatedTokens',
+              { tokens: estimatedTokens.toLocaleString() },
+              `~${estimatedTokens.toLocaleString()} токенов`
+            )}
           </span>
         )}
       </div>
@@ -227,17 +244,23 @@ export function TranslationPanel({
             >
               🔮 {t('translationPanel.start', 'Запустить')}
             </Button>
-            {onMarkAsTranslated && chapter.paragraphs && chapter.paragraphs.length > 0 && (chapter.status === 'pending' || chapter.status === 'analyzed' || chapter.status === 'error') && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={onMarkAsTranslated}
-                disabled={translating || markingAsTranslated}
-                title={t('markAsTranslated.title', 'Пометить как переведённую')}
-              >
-                {markingAsTranslated ? <span class="spinner" /> : '✅'} {t('markAsTranslated.button', 'Пометить как переведённую')}
-              </Button>
-            )}
+            {onMarkAsTranslated &&
+              chapter.paragraphs &&
+              chapter.paragraphs.length > 0 &&
+              (chapter.status === 'pending' ||
+                chapter.status === 'analyzed' ||
+                chapter.status === 'error') && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onMarkAsTranslated}
+                  disabled={translating || markingAsTranslated}
+                  title={t('markAsTranslated.title', 'Пометить как переведённую')}
+                >
+                  {markingAsTranslated ? <span class="spinner" /> : '✅'}{' '}
+                  {t('markAsTranslated.button', 'Пометить как переведённую')}
+                </Button>
+              )}
           </>
         )}
       </div>
