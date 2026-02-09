@@ -49,7 +49,6 @@ import {
 // Types and utilities from database.ts (still used for compatibility)
 import {
   getChapterStats,
-  parseTextToParagraphs,
   mergeParagraphsToText,
   type Chapter,
   type GlossaryEntry,
@@ -59,6 +58,21 @@ import {
 import { requireAuth } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
 import { logger } from './logger.js';
+import { getDebugLogEntries, clearDebugLogEntries, type DebugLogEntry } from './debugBuffer.js';
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function omitKeys(obj: DebugLogEntry, keys: string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(obj)) if (!keys.includes(k)) out[k] = obj[k];
+  return out;
+}
 import { requireToken } from './utils/requestHelpers.js';
 import {
   getUserTokenUsage,
@@ -66,15 +80,9 @@ import {
   incrementTokenUsage,
   getTokenUsageHistory,
 } from './middleware/tokenLimits.js';
-import {
-  estimateTokensForTranslation,
-  estimateTokensForStages,
-  estimateTokensByStage,
-  type TranslationStages,
-} from './config/tokenLimits.js';
+import { estimateTokensForStages, type TranslationStages } from './config/tokenLimits.js';
 import {
   translateChapterWithPipeline,
-  translateSimple,
   getNameDeclensions,
   clearAgentCache,
 } from './services/engine-integration.js';
@@ -90,13 +98,12 @@ import {
   uploadFile,
   deleteFile,
   deleteFiles,
-  getPublicUrl,
   extractPathFromUrl,
   generateUniqueFilename,
   downloadFile,
+  createSignedUrl,
+  listFiles,
 } from './services/storage.js';
-import { createSignedUrl } from './services/storage.js';
-import { listFiles } from './services/storage.js';
 
 // Load configuration
 const config = loadConfig();
@@ -511,12 +518,6 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const stagesStatus = [
-      updatedSettings.enableAnalysis ? '✅ Анализ' : '⏭️ Анализ',
-      updatedSettings.enableTranslation ? '✅ Перевод' : '⏭️ Перевод',
-      updatedSettings.enableEditing ? '✅ Редактура' : '⏭️ Редактура',
-    ].join(' → ');
-
     req.log?.info(
       {
         event: 'project.settings.updated',
@@ -660,7 +661,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
     // Update project metadata if available (for EPUB/FB2) and it's the first chapter
     // For subsequent chapters, don't update metadata (as per requirement #4)
     if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
-      let updatedMetadata = {
+      const updatedMetadata = {
         ...project.metadata,
         ...parseResult.metadata,
       };
@@ -686,7 +687,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
           req.log?.error({ err: coverError }, 'Failed to save cover image');
         }
         // Remove coverImage buffer from metadata (we only store URL)
-        delete (updatedMetadata as any).coverImage;
+        delete (updatedMetadata as Record<string, unknown>).coverImage;
       }
 
       // Only update if there's new metadata
@@ -855,11 +856,17 @@ app.post(
         return res.status(404).json({ error: 'Chapter not found' });
       }
 
-      // Only set cancel flag if status is translating; performTranslation will set status to pending when it exits (single source of truth)
+      // Set cancel flag and immediately set chapter status to pending so UI updates without waiting for pipeline to exit
       if (chapter.status === 'translating') {
         translationCancelRegistry.set(
           translationCancelKey(req.params.projectId, req.params.chapterId),
           true
+        );
+        await updateChapter(
+          req.params.projectId,
+          req.params.chapterId,
+          { status: 'pending' },
+          requireToken(req)
         );
         req.log?.info(
           {
@@ -867,7 +874,7 @@ app.post(
             chapterId: req.params.chapterId,
             chapterTitle: chapter.title,
           },
-          'Translation cancelled (flag set)'
+          'Translation cancelled (flag set, status updated to pending)'
         );
         res.json({ success: true, message: 'Translation cancelled' });
       } else {
@@ -1408,6 +1415,20 @@ async function performTranslation(
 ): Promise<void> {
   const cancelKey = translationCancelKey(projectId, chapterId);
   const isCancelled = () => translationCancelRegistry.get(cancelKey) === true;
+  let savedDraftThisRun = false;
+
+  logger.info(
+    {
+      event: 'translation.perform_start',
+      projectId,
+      chapterId,
+      chapterTitle: chapter.title,
+      chapterNumber: chapter.number,
+      stages,
+    },
+    `Translation started: "${chapter.title}" (ch. ${chapter.number}), stages: ${Array.isArray(stages) ? stages.join(',') : stages}`
+  );
+
   try {
     if (!chapter) {
       throw new Error('Глава не указана');
@@ -1494,18 +1515,6 @@ async function performTranslation(
     const editingModel = getStageModel('editing');
 
     const projectTemperature = project.settings?.temperature ?? config.translation.temperature;
-
-    const stageLabels: Record<string, string> = {
-      analysis: 'Анализ',
-      translation: 'Перевод',
-      editing: 'Редактура',
-    };
-    const stagesInfo =
-      stages === 'all'
-        ? '✅ Анализ → ✅ Перевод → ✅ Редактура'
-        : Array.isArray(stages)
-          ? stages.map((s) => `✅ ${stageLabels[s] || s}`).join(' → ')
-          : '✅ Редактура';
 
     logger.info(
       {
@@ -1672,15 +1681,28 @@ async function performTranslation(
       return;
     }
 
-    // Use arcane-engine for translation (stages: array or 'all')
+    // Two-phase when both translation and editing: save draft after stage 2, then run stage 3 (refactor 2.1)
+    const runEditing =
+      (stages === 'all' || (Array.isArray(stages) && stages.includes('editing'))) &&
+      (stages === 'all' || (Array.isArray(stages) && stages.includes('translation')));
+    const phase1Stages: TranslationStages = runEditing
+      ? stages === 'all'
+        ? ['analysis', 'translation']
+        : Array.isArray(stages)
+          ? (stages.filter((s) => s !== 'editing') as ('analysis' | 'translation')[])
+          : ['analysis', 'translation']
+      : stages;
+
     let result;
     try {
       const needsExistingText =
         Array.isArray(stages) && stages.includes('editing') && !stages.includes('translation');
       result = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
-        stages,
+        stages: phase1Stages,
         existingTranslatedText: needsExistingText
-          ? chapterWithOriginal.translatedText?.trim() || '' || undefined
+          ? chapterWithOriginal.paragraphs?.length
+            ? buildMarkedTextFromParagraphs(chapterWithOriginal.paragraphs)
+            : chapterWithOriginal.translatedText?.trim() || undefined
           : undefined,
         isCancelled,
       });
@@ -1692,6 +1714,48 @@ async function performTranslation(
         `Pipeline error in translateChapterWithPipeline: ${errorMessage}`
       );
       throw pipelineError;
+    }
+
+    // Cancelled after stage 1: save glossary and set status to pending (refactor 2.2)
+    if (result.cancelled) {
+      logger.info(
+        { projectId, chapterId },
+        'Translation cancelled after analysis; saving glossary and setting status to pending'
+      );
+      if (result.glossaryUpdates?.length) {
+        for (const entry of result.glossaryUpdates) {
+          await addGlossaryEntry(projectId, entry, token);
+        }
+      }
+      if (result.glossaryUpdatesExisting?.length) {
+        for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
+          await updateGlossaryEntry(projectId, entryId, updates, token);
+        }
+      }
+      if (result.glossaryAppearanceEntryIds?.length) {
+        const chapterNum = chapter.number;
+        for (const entryId of result.glossaryAppearanceEntryIds) {
+          const entry = await getGlossaryEntry(projectId, entryId, token);
+          if (entry) {
+            const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
+              (a, b) => a - b
+            );
+            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+          }
+        }
+      }
+      await updateChapter(projectId, chapterId, { status: 'pending' }, token, {
+        useServiceRole: true,
+      });
+      try {
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+      } catch (tokenError) {
+        logger.warn(
+          { err: tokenError, projectId, chapterId },
+          'Failed to update token usage (non-critical)'
+        );
+      }
+      return;
     }
 
     logger.info(
@@ -1823,6 +1887,10 @@ async function performTranslation(
             duration: result.duration,
             model: modelInfoOnError,
             translatedAt: new Date().toISOString(),
+            ...(result.chunksCount !== undefined && { chunksCount: result.chunksCount }),
+            ...(result.failedChunkIndex !== undefined && {
+              failedChunkIndex: result.failedChunkIndex,
+            }),
           },
         },
         token,
@@ -1958,51 +2026,238 @@ async function performTranslation(
         : translatedChunks;
 
     const nowIso = new Date().toISOString();
-    const ranAnalysis = stages === 'all' || (Array.isArray(stages) && stages.includes('analysis'));
+    const ranAnalysis =
+      (typeof phase1Stages === 'string' && phase1Stages === 'all') ||
+      (Array.isArray(phase1Stages) && phase1Stages.includes('analysis'));
 
-    // Save translation with synced paragraphs (service role so JWT expiry during long run doesn't fail)
-    await updateChapter(
-      projectId,
-      chapterId,
-      {
-        translatedText: result.translatedText,
-        translatedChunks: chunksToSave,
-        paragraphs: syncedParagraphs, // Auto-synced paragraphs
-        status: 'completed',
-        translationMeta: {
-          ...(chapter.translationMeta || {}),
-          tokensUsed: result.tokensUsed,
-          tokensByStage: result.tokensByStage,
-          duration: result.duration,
-          model: modelInfo, // Store all models used (or single model if stages skipped)
-          translatedAt: nowIso,
-          lastAnalysisAt: ranAnalysis
-            ? nowIso
-            : (chapter.translationMeta?.lastAnalysisAt ?? undefined),
-        },
-      },
-      token,
-      { useServiceRole: true }
-    );
-
-    logger.info(
-      {
-        event: 'translation.synced',
+    if (runEditing) {
+      // Refactor 2.1: save draft after stage 2, then run stage 3 (editing)
+      await updateChapter(
         projectId,
         chapterId,
-        chapterTitle: chapter.title,
-        chunksCount: chunksToSave.length,
-      },
-      `Chapter translated and synced: ${chapter.title} (${chunksToSave.length} chunks)`
-    );
+        {
+          translatedText: result.translatedText,
+          translatedChunks: chunksToSave,
+          paragraphs: syncedParagraphs,
+          status: 'draft',
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            tokensUsed: result.tokensUsed,
+            tokensByStage: result.tokensByStage,
+            duration: result.duration,
+            model: `${analysisModel}/${translationModel}`,
+            translatedAt: nowIso,
+            lastAnalysisAt: ranAnalysis
+              ? nowIso
+              : (chapter.translationMeta?.lastAnalysisAt ?? undefined),
+            ...(result.chunksCount !== undefined && { chunksCount: result.chunksCount }),
+            ...(result.failedChunkIndex !== undefined && {
+              failedChunkIndex: result.failedChunkIndex,
+            }),
+          },
+        },
+        token,
+        { useServiceRole: true }
+      );
+      savedDraftThisRun = true;
+      try {
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+      } catch (tokenError) {
+        logger.warn(
+          { err: tokenError, projectId, chapterId },
+          'Failed to update token usage after draft (non-critical)'
+        );
+      }
+      logger.info(
+        { projectId, chapterId, chapterTitle: chapter.title },
+        'Draft saved; running editing stage'
+      );
 
-    // Update token usage counter
-    try {
-      await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
-    } catch (tokenError) {
-      logger.warn(
-        { err: tokenError, projectId, chapterId },
-        'Failed to update token usage (non-critical)'
+      // Phase 2: editing only
+      let result2;
+      try {
+        result2 = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
+          stages: ['editing'],
+          existingTranslatedText: buildMarkedTextFromParagraphs(syncedParagraphs),
+          isCancelled,
+        });
+      } catch (phase2Error) {
+        logger.error(
+          { err: phase2Error, projectId, chapterId },
+          'Editing stage failed; draft preserved'
+        );
+        throw phase2Error;
+      }
+
+      const isValidPhase2 =
+        result2.translatedText &&
+        result2.translatedText.trim().length > 0 &&
+        !result2.translatedText.startsWith('[ERROR]');
+      if (!isValidPhase2) {
+        logger.warn(
+          { projectId, chapterId, preview: result2.translatedText?.slice(0, 80) },
+          'Editing returned invalid text; keeping draft'
+        );
+        return;
+      }
+
+      // Sync edited text to paragraphs (prefer marker-based 1:1, fallback to chunk sync)
+      const currentChapter2 = await getChapter(projectId, chapterId, token, {
+        useServiceRole: true,
+      });
+      const paragraphsForSync2 = translateSubsetOnly
+        ? paragraphsToTranslate
+        : (currentChapter2?.paragraphs ?? syncedParagraphs);
+      const parsedByMarkers = parseEditedTextByMarkers(result2.translatedText);
+      let syncedParagraphs2: Paragraph[];
+      let editedChunks: string[];
+      if (parsedByMarkers.length > 0) {
+        syncedParagraphs2 = syncEditedMarkersToParagraphs(paragraphsForSync2, parsedByMarkers);
+        editedChunks = syncedParagraphs2
+          .map((p) => (p.translatedText ?? '').trim())
+          .filter(Boolean);
+        logger.debug(
+          { parsedCount: parsedByMarkers.length, paragraphCount: paragraphsForSync2.length },
+          'Editing sync: used paragraph markers'
+        );
+      } else {
+        editedChunks = result2.translatedText
+          .split(/\n\s*\n/)
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0);
+        syncedParagraphs2 = syncTranslationChunksToParagraphs(
+          paragraphsForSync2,
+          editedChunks,
+          false
+        );
+        logger.debug(
+          { chunksCount: editedChunks.length },
+          'Editing sync: fallback to chunk sync (no markers in response)'
+        );
+      }
+      const finalParagraphs =
+        translateSubsetOnly && currentChapter2?.paragraphs
+          ? currentChapter2.paragraphs.map((p) => syncedParagraphs2.find((s) => s.id === p.id) ?? p)
+          : syncedParagraphs2;
+      const translatedTextToStore = mergeParagraphsToText(finalParagraphs, 'translatedText');
+
+      const nowIso2 = new Date().toISOString();
+      await updateChapter(
+        projectId,
+        chapterId,
+        {
+          translatedText: translatedTextToStore,
+          translatedChunks: editedChunks,
+          paragraphs: finalParagraphs,
+          status: 'completed',
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            tokensUsed: result.tokensUsed + result2.tokensUsed,
+            tokensByStage: {
+              analysis: result.tokensByStage?.analysis,
+              translation: result.tokensByStage?.translation ?? 0,
+              editing: result2.tokensByStage?.editing ?? result2.tokensUsed ?? 0,
+            },
+            duration: result.duration + result2.duration,
+            model: `${analysisModel}/${translationModel}/${editingModel}`,
+            translatedAt: nowIso2,
+            lastAnalysisAt: ranAnalysis ? nowIso2 : chapter.translationMeta?.lastAnalysisAt,
+            ...(result.chunksCount !== undefined && { chunksCount: result.chunksCount }),
+            ...(result.failedChunkIndex !== undefined && {
+              failedChunkIndex: result.failedChunkIndex,
+            }),
+          },
+        },
+        token,
+        { useServiceRole: true }
+      );
+      try {
+        await incrementTokenUsage(userId, token, result2.tokensUsed, result2.tokensByStage);
+      } catch (tokenError) {
+        logger.warn(
+          { err: tokenError, projectId, chapterId },
+          'Failed to update token usage after editing (non-critical)'
+        );
+      }
+      logger.info(
+        {
+          event: 'translation.synced',
+          projectId,
+          chapterId,
+          chapterTitle: chapter.title,
+          chunksCount: editedChunks.length,
+        },
+        `Chapter translated and edited: ${chapter.title}`
+      );
+      // Fall through to glossary save (phase 1 result has glossary; result2 has none)
+    } else {
+      // Single phase: save as completed (translation-only or editing-only)
+      let translatedTextToSave = result.translatedText;
+      let chunksToSaveFinal = chunksToSave;
+      let paragraphsToSave = syncedParagraphs;
+      const editingOnly =
+        Array.isArray(stages) && stages.includes('editing') && !stages.includes('translation');
+      if (editingOnly && currentChapter?.paragraphs?.length) {
+        const parsedByMarkers = parseEditedTextByMarkers(result.translatedText);
+        if (parsedByMarkers.length > 0) {
+          paragraphsToSave = syncEditedMarkersToParagraphs(
+            currentChapter.paragraphs,
+            parsedByMarkers
+          );
+          translatedTextToSave = mergeParagraphsToText(paragraphsToSave, 'translatedText');
+          chunksToSaveFinal = paragraphsToSave
+            .map((p) => (p.translatedText ?? '').trim())
+            .filter(Boolean);
+          logger.debug(
+            { parsedCount: parsedByMarkers.length },
+            'Editing-only sync: used paragraph markers'
+          );
+        }
+      }
+      await updateChapter(
+        projectId,
+        chapterId,
+        {
+          translatedText: translatedTextToSave,
+          translatedChunks: chunksToSaveFinal,
+          paragraphs: paragraphsToSave,
+          status: 'completed',
+          translationMeta: {
+            ...(chapter.translationMeta || {}),
+            tokensUsed: result.tokensUsed,
+            tokensByStage: result.tokensByStage,
+            duration: result.duration,
+            model: modelInfo,
+            translatedAt: nowIso,
+            lastAnalysisAt: ranAnalysis
+              ? nowIso
+              : (chapter.translationMeta?.lastAnalysisAt ?? undefined),
+            ...(result.chunksCount !== undefined && { chunksCount: result.chunksCount }),
+            ...(result.failedChunkIndex !== undefined && {
+              failedChunkIndex: result.failedChunkIndex,
+            }),
+          },
+        },
+        token,
+        { useServiceRole: true }
+      );
+      try {
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+      } catch (tokenError) {
+        logger.warn(
+          { err: tokenError, projectId, chapterId },
+          'Failed to update token usage (non-critical)'
+        );
+      }
+      logger.info(
+        {
+          event: 'translation.synced',
+          projectId,
+          chapterId,
+          chapterTitle: chapter.title,
+          chunksCount: chunksToSaveFinal.length,
+        },
+        `Chapter translated and synced: ${chapter.title} (${chunksToSaveFinal.length} chunks)`
       );
     }
 
@@ -2083,6 +2338,17 @@ async function performTranslation(
         'Translation cancelled by user'
       );
       await updateChapter(projectId, chapterId, { status: 'pending' }, token, {
+        useServiceRole: true,
+      });
+      return;
+    }
+    // Refactor 2.1: if we saved draft before stage 3 failed, keep draft status so user sees translation
+    if (savedDraftThisRun) {
+      logger.warn(
+        { projectId, chapterId, chapterTitle: chapter.title, errorMessage },
+        'Editing stage failed; draft preserved'
+      );
+      await updateChapter(projectId, chapterId, { status: 'draft' }, token, {
         useServiceRole: true,
       });
       return;
@@ -2212,7 +2478,7 @@ function syncTranslationToParagraphs(
   // Use relative index for empty paragraphs instead of direct mapping
   let translationIndex = 0; // Relative index in translatedParts array
 
-  const result = originalParagraphs.map((original, originalIndex) => {
+  const result = originalParagraphs.map((original) => {
     // Skip separator paragraphs - they don't need translation
     if (isSeparatorParagraph(original)) {
       return original; // Keep separator paragraph as-is, don't try to translate it
@@ -2292,6 +2558,75 @@ function syncTranslationToParagraphs(
   return result;
 }
 
+/** Paragraph marker format used for editing stage: --para:{id}-- */
+const PARA_MARKER_PREFIX = '--para:';
+const PARA_MARKER_SUFFIX = '--';
+
+/**
+ * Build a single text with paragraph markers for the editing stage.
+ * Each paragraph becomes "--para:{id}--{text}". After editing, parse with parseEditedTextByMarkers.
+ */
+function buildMarkedTextFromParagraphs(paragraphs: Paragraph[]): string {
+  if (!paragraphs?.length) return '';
+  const sorted = [...paragraphs].sort((a, b) => a.index - b.index);
+  return sorted
+    .map((p) => {
+      const text = (p.translatedText ?? p.originalText ?? '').trim();
+      return `${PARA_MARKER_PREFIX}${p.id}${PARA_MARKER_SUFFIX}${text}`;
+    })
+    .join('\n\n');
+}
+
+/**
+ * Parse edited text that contains --para:{id}-- markers into a list of { id, text }.
+ * Used after the editing stage to restore 1:1 mapping to paragraphs.
+ */
+function parseEditedTextByMarkers(text: string): Array<{ id: string; text: string }> {
+  const results: Array<{ id: string; text: string }> = [];
+  const re = /--para:([^\n]*?)--/g;
+  let match: RegExpExecArray | null;
+  let lastEnd = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (results.length > 0) {
+      results[results.length - 1].text = text.slice(lastEnd, match.index).trim();
+    }
+    results.push({ id: match[1].trim(), text: '' });
+    lastEnd = match.index + match[0].length;
+  }
+  if (results.length > 0) {
+    results[results.length - 1].text = text.slice(lastEnd).trim();
+  }
+  return results;
+}
+
+/**
+ * Map parsed marker-based edits to paragraphs by id. Keeps separators and missing ids unchanged.
+ */
+function syncEditedMarkersToParagraphs(
+  originalParagraphs: Paragraph[],
+  parsed: Array<{ id: string; text: string }>
+): Paragraph[] {
+  const isSeparatorParagraph = (p: Paragraph): boolean => {
+    const t = p.originalText.trim();
+    if (!t.length) return false;
+    return /^[\s*\-_=~#]+$/.test(t);
+  };
+  const byId = new Map(parsed.map((x) => [x.id, x.text]));
+  const now = new Date().toISOString();
+  return originalParagraphs.map((p) => {
+    if (isSeparatorParagraph(p)) return p;
+    const text = byId.get(p.id);
+    if (text === undefined) return p;
+    return {
+      ...p,
+      translatedText: text,
+      status: 'edited' as const,
+      editedAt: now,
+      editedBy: 'ai' as const,
+    };
+  });
+}
+
 /**
  * Sync translated chunks to paragraph structure (mechanical sync stage)
  * Uses saved translatedChunks instead of splitting text
@@ -2341,22 +2676,40 @@ function syncTranslationChunksToParagraphs(
     `Chunk sync: ${originalParagraphs.length} original paragraphs, ${translatedChunks.length} chunks`
   );
 
+  // Normalize chunk count to avoid shift/loss: editing often returns more \n\n-separated blocks
+  // than paragraphs. Merge excess into the last content chunk so we don't lose the tail.
+  const contentParagraphCount = originalParagraphs.filter((p) => !isSeparatorParagraph(p)).length;
+  let chunksToUse = translatedChunks;
+  if (translatedChunks.length > contentParagraphCount && contentParagraphCount > 0) {
+    const head = translatedChunks.slice(0, contentParagraphCount - 1);
+    const tail = translatedChunks.slice(contentParagraphCount - 1).join('\n\n');
+    chunksToUse = [...head, tail];
+    logger.info(
+      {
+        hadChunks: translatedChunks.length,
+        contentParagraphs: contentParagraphCount,
+        event: 'chunk_sync.normalized_excess',
+      },
+      'Chunk sync: merged excess chunks into last paragraph to avoid content loss'
+    );
+  }
+
   const emptyParagraphsCount = originalParagraphs.filter(
     (p) => !isSeparatorParagraph(p) && !hasValidTranslation(p)
   ).length;
 
-  if (translatedChunks.length !== originalParagraphs.length) {
+  if (chunksToUse.length !== originalParagraphs.length) {
     logger.debug(
       {
         original: originalParagraphs.length,
-        chunks: translatedChunks.length,
+        chunks: chunksToUse.length,
         emptyCount: emptyParagraphsCount,
       },
       'Chunk count mismatch'
     );
-    if (translatedChunks.length !== emptyParagraphsCount) {
+    if (chunksToUse.length !== emptyParagraphsCount) {
       logger.warn(
-        { translatedChunks: translatedChunks.length, emptyParagraphsCount },
+        { translatedChunks: chunksToUse.length, emptyParagraphsCount },
         'Chunk count does not match empty paragraphs count'
       );
     }
@@ -2365,9 +2718,9 @@ function syncTranslationChunksToParagraphs(
   // Map translations to original paragraphs
   // For partial translation: preserve existing valid translations, only update empty or error paragraphs
   // For full translation: update all paragraphs regardless of existing translations
-  let translationIndex = 0; // Relative index in translatedChunks array
+  let translationIndex = 0; // Relative index in chunksToUse array
 
-  const result = originalParagraphs.map((original, originalIndex) => {
+  const result = originalParagraphs.map((original) => {
     // Skip separator paragraphs - they don't need translation
     // This handles cases where old chapters have separator paragraphs that weren't filtered
     if (isSeparatorParagraph(original)) {
@@ -2380,8 +2733,8 @@ function syncTranslationChunksToParagraphs(
     }
 
     // Otherwise, get next available translation using relative index
-    if (translationIndex < translatedChunks.length) {
-      const translatedChunk = translatedChunks[translationIndex];
+    if (translationIndex < chunksToUse.length) {
+      const translatedChunk = chunksToUse[translationIndex];
       translationIndex++; // Move to next translation
 
       // Update paragraph with new translation
@@ -2408,10 +2761,10 @@ function syncTranslationChunksToParagraphs(
   const newTranslations = translatedCount - preservedCount;
   const emptyCount = originalParagraphs.length - preservedCount;
 
-  if (translationIndex < translatedChunks.length) {
-    const unusedCount = translatedChunks.length - translationIndex;
+  if (translationIndex < chunksToUse.length) {
+    const unusedCount = chunksToUse.length - translationIndex;
     logger.warn(
-      { unusedCount, translatedChunksCount: translatedChunks.length },
+      { unusedCount, translatedChunksCount: chunksToUse.length },
       'Not all chunks used; possible format mismatch'
     );
   }
@@ -2419,7 +2772,7 @@ function syncTranslationChunksToParagraphs(
   if (
     !partialTranslation &&
     newTranslations < emptyCount &&
-    translationIndex >= translatedChunks.length
+    translationIndex >= chunksToUse.length
   ) {
     const missingCount = emptyCount - newTranslations;
     logger.warn(
@@ -2438,21 +2791,16 @@ function syncTranslationChunksToParagraphs(
     `Chunk sync done: ${translatedCount}/${originalParagraphs.length} paragraphs have translation`
   );
 
-  if (translatedCount === 0 && translatedChunks.length > 0 && !partialTranslation) {
+  if (translatedCount === 0 && chunksToUse.length > 0 && !partialTranslation) {
     logger.error(
-      { translatedChunksLength: translatedChunks.length, emptyCount },
+      { translatedChunksLength: chunksToUse.length, emptyCount },
       'Critical: entire translation lost during chunk sync'
     );
   }
 
-  if (
-    !partialTranslation &&
-    emptyCount > 0 &&
-    newTranslations === 0 &&
-    translatedChunks.length > 0
-  ) {
+  if (!partialTranslation && emptyCount > 0 && newTranslations === 0 && chunksToUse.length > 0) {
     logger.error(
-      { emptyCount, translatedChunksLength: translatedChunks.length },
+      { emptyCount, translatedChunksLength: chunksToUse.length },
       'Translation received but not applied to any paragraph'
     );
   }
@@ -2587,6 +2935,8 @@ function syncTranslationJSONToParagraphs(
 }
 
 // OpenAI translation function
+/** Legacy OpenAI translation helper; kept for potential direct use. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future use
 async function translateWithOpenAI(
   chapter: Chapter,
   glossary: GlossaryEntry[]
@@ -3018,6 +3368,9 @@ app.post(
         return res.status(404).json({ error: 'Failed to update entry' });
       }
 
+      // Clear agent cache so next translation uses updated entry (e.g. imageUrls)
+      clearAgentCache(req.params.projectId);
+
       res.json({
         imageUrl: uploadResult.publicUrl,
         imageUrls: updatedEntry.imageUrls,
@@ -3089,6 +3442,8 @@ app.delete(
         requireToken(req)
       );
 
+      clearAgentCache(req.params.projectId);
+
       res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to delete image');
@@ -3142,6 +3497,8 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
       },
       requireToken(req)
     );
+
+    clearAgentCache(req.params.projectId);
 
     res.json({ success: true });
   } catch (error) {
@@ -3586,11 +3943,10 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       try {
         fs.mkdirSync(tmpDir, { recursive: true });
         req.log?.debug({ tmpDir }, 'Created temp directory');
-      } catch (mkdirError: any) {
+      } catch (mkdirError: unknown) {
+        const msg = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
         req.log?.error({ err: mkdirError, tmpDir }, 'Failed to create temp directory');
-        throw new Error(
-          `Не удалось создать временную директорию: ${tmpDir}. Ошибка: ${mkdirError.message}`
-        );
+        throw new Error(`Не удалось создать временную директорию: ${tmpDir}. Ошибка: ${msg}`);
       }
     } else {
       req.log?.debug({ tmpDir }, 'Temp directory exists');
@@ -3727,9 +4083,11 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       }
       throw exportError;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'Export error');
-    res.status(500).json({ error: error.message || 'Failed to export project' });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : 'Failed to export project' });
   }
 });
 
@@ -3931,6 +4289,143 @@ app.get('/api/projects/:projectId/publication', requireAuth, async (req, res) =>
   }
 });
 
+// ============ Debug log viewer (dev only) ============
+
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/debug', (_req, res) => {
+    const entries = getDebugLogEntries();
+    const levelColors: Record<string, string> = {
+      fatal: '#ef4444',
+      error: '#ef4444',
+      warn: '#eab308',
+      info: '#22c55e',
+      debug: '#06b6d4',
+      trace: '#6b7280',
+    };
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debug logs</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: ui-monospace, monospace; font-size: 12px; margin: 0; background: #0f172a; color: #e2e8f0; padding: 12px; }
+    h1 { font-size: 1.25rem; margin: 0 0 12px 0; }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .toolbar input, .toolbar select, .toolbar button { padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; }
+    .toolbar button { cursor: pointer; }
+    .toolbar button:hover { background: #334155; }
+    #levelFilter { min-width: 100px; }
+    #search { min-width: 180px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; vertical-align: top; }
+    th { position: sticky; top: 0; background: #1e293b; z-index: 1; }
+    .level { font-weight: 600; }
+    .time { color: #94a3b8; white-space: nowrap; }
+    .msg { max-width: 40em; word-break: break-word; }
+    .json { font-size: 11px; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; }
+    tr:hover { background: #1e293b; }
+    .count { color: #94a3b8; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Debug logs <span class="count">(${entries.length} entries)</span></h1>
+  <div class="toolbar">
+    <label>Level <select id="levelFilter"><option value="">all</option><option value="error">error</option><option value="warn">warn</option><option value="info">info</option><option value="debug">debug</option><option value="trace">trace</option></select></label>
+    <label>Search <input type="text" id="search" placeholder="msg, requestId, event..."></label>
+    <label><input type="checkbox" id="autoRefresh"> Auto-refresh</label>
+    <select id="refreshInterval" title="Refresh interval"><option value="2">2s</option><option value="3" selected>3s</option><option value="5">5s</option><option value="10">10s</option></select>
+    <button type="button" id="clearBtn">Clear buffer</button>
+    <button type="button" id="refreshBtn">Refresh</button>
+  </div>
+  <table>
+    <thead><tr><th>Time</th><th>Level</th><th>Message</th><th>Payload</th></tr></thead>
+    <tbody>
+${entries
+  .map(
+    (e) =>
+      `<tr data-level="${e.level}">
+        <td class="time">${escapeHtml(String(e.time ?? ''))}</td>
+        <td class="level" style="color:${levelColors[e.level as keyof typeof levelColors] ?? '#94a3b8'}">${escapeHtml(String(e.level ?? ''))}</td>
+        <td class="msg">${escapeHtml(String(e.msg ?? ''))}</td>
+        <td class="json">${escapeHtml(JSON.stringify(omitKeys(e, ['time', 'level', 'msg'])))}</td>
+      </tr>`
+  )
+  .join('')}
+    </tbody>
+  </table>
+  <script>
+    var levelColors = { fatal: '#ef4444', error: '#ef4444', warn: '#eab308', info: '#22c55e', debug: '#06b6d4', trace: '#6b7280' };
+    function omitKeys(o, keys) { var r = {}; for (var k of Object.keys(o)) if (keys.indexOf(k) === -1) r[k] = o[k]; return r; }
+    function escapeHtml(s) { var div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
+    function renderRow(e) {
+      var level = e.level || '';
+      var color = levelColors[level] || '#94a3b8';
+      var payload = JSON.stringify(omitKeys(e, ['time', 'level', 'msg']));
+      return '<tr data-level="' + escapeHtml(level) + '"><td class="time">' + escapeHtml(String(e.time || '')) + '</td><td class="level" style="color:' + color + '">' + escapeHtml(level) + '</td><td class="msg">' + escapeHtml(String(e.msg || '')) + '</td><td class="json">' + escapeHtml(payload) + '</td></tr>';
+    }
+    function updateTable(entries) {
+      document.querySelector('.count').textContent = '(' + entries.length + ' entries)';
+      document.querySelector('tbody').innerHTML = entries.map(renderRow).join('');
+      applyFilters();
+    }
+    var levelFilter = document.getElementById('levelFilter');
+    var search = document.getElementById('search');
+    function applyFilters() {
+      var level = levelFilter.value;
+      var q = (search.value || '').toLowerCase();
+      var rows = document.querySelectorAll('tbody tr');
+      rows.forEach(function (tr) {
+        var levelOk = !level || tr.dataset.level === level;
+        var text = tr.textContent || '';
+        var searchOk = !q || text.toLowerCase().indexOf(q) !== -1;
+        tr.style.display = levelOk && searchOk ? '' : 'none';
+      });
+    }
+    levelFilter.addEventListener('change', applyFilters);
+    search.addEventListener('input', applyFilters);
+    document.getElementById('clearBtn').addEventListener('click', function () {
+      if (confirm('Clear in-memory log buffer?')) { window.location.href = '/debug/clear'; }
+    });
+    document.getElementById('refreshBtn').addEventListener('click', function () { window.location.reload(); });
+    var autoRefreshTimer = null;
+    document.getElementById('autoRefresh').addEventListener('change', function () {
+      var cb = this;
+      if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+      if (cb.checked) {
+        var sec = parseInt(document.getElementById('refreshInterval').value, 10) || 3;
+        autoRefreshTimer = setInterval(function () {
+          fetch('/api/debug/logs').then(function (r) { return r.json(); }).then(updateTable);
+        }, sec * 1000);
+      }
+    });
+    document.getElementById('refreshInterval').addEventListener('change', function () {
+      if (autoRefreshTimer && document.getElementById('autoRefresh').checked) {
+        clearInterval(autoRefreshTimer);
+        var sec = parseInt(this.value, 10) || 3;
+        autoRefreshTimer = setInterval(function () {
+          fetch('/api/debug/logs').then(function (r) { return r.json(); }).then(updateTable);
+        }, sec * 1000);
+      }
+    });
+  </script>
+</body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  });
+
+  app.get('/api/debug/logs', (_req, res) => {
+    res.json(getDebugLogEntries());
+  });
+
+  app.get('/debug/clear', (_req, res) => {
+    clearDebugLogEntries();
+    res.redirect(302, '/debug');
+  });
+}
+
 // ============ SPA Fallback ============
 
 app.get('*', (_req, res) => {
@@ -3946,14 +4441,9 @@ app.get('*', (_req, res) => {
 // Export app for Vercel (when imported as module)
 export default app;
 
-// Only start server if running directly (not in Vercel)
-// Vercel sets VERCEL=1 environment variable
-if (!process.env.VERCEL) {
-  async function startServer() {
-    // Supabase database is already initialized, no need for local init
-
-    app.listen(PORT, () => {
-      console.log(`
+async function startServer(): Promise<void> {
+  app.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║     █████╗ ██████╗  ██████╗ █████╗ ███╗   ██╗███████╗     ║
@@ -3969,22 +4459,21 @@ if (!process.env.VERCEL) {
 ║                                                           ║
 ║   🌐 Сервер: http://localhost:${PORT}                        ║
 ║   💾 База данных: Supabase PostgreSQL                      ║
-║   🤖 AI: ${
-        config.openai.apiKey ? 'OpenAI ✅' : 'Не настроен ⚠️'
-      }                                   ║
+║   🤖 AI: ${config.openai.apiKey ? 'OpenAI ✅' : 'Не настроен ⚠️'}                                   ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 `);
-      logger.info(
-        {
-          event: 'server.started',
-          port: PORT,
-          hasOpenAI: !!config.openai.apiKey,
-        },
-        `Server listening on http://localhost:${PORT}`
-      );
-    });
-  }
+    logger.info(
+      {
+        event: 'server.started',
+        port: PORT,
+        hasOpenAI: !!config.openai.apiKey,
+      },
+      `Server listening on http://localhost:${PORT}`
+    );
+  });
+}
 
+if (!process.env.VERCEL) {
   startServer().catch((err) => logger.error({ err }, 'Server failed to start'));
 }

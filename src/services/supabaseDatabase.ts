@@ -20,10 +20,8 @@ import type {
 import {
   parseTextToParagraphs,
   mergeParagraphsToText,
-  getChapterStats,
   DEFAULT_READER_SETTINGS,
 } from '../storage/database.js';
-import { randomUUID } from 'crypto';
 import { logger } from '../logger.js';
 
 // ============================================
@@ -74,37 +72,47 @@ function normalizeGlossaryTypeForDB(value: unknown): AllowedEntryType {
  * Transform Supabase project row to Project type
  */
 function transformProjectFromDB(
-  row: any,
+  row: Record<string, unknown>,
   chapters: Chapter[] = [],
   glossary: GlossaryEntry[] = []
 ): Project {
-  // Migrate legacy projects: determine type from metadata
-  let projectType = row.type || 'text';
-  if (!row.type && row.metadata) {
+  const r = row as Record<string, unknown> & {
+    id: string;
+    name: string;
+    type?: string;
+    metadata?: unknown;
+    source_language?: string;
+    target_language?: string;
+    settings?: ProjectSettings;
+    created_at?: string;
+    updated_at?: string;
+  };
+  let projectType = (r.type as string) || 'text';
+  if (!r.type && r.metadata) {
     // If no type but has metadata, it's likely a book
     projectType = 'book';
   }
 
   return {
-    id: row.id,
-    name: row.name,
+    id: r.id,
+    name: r.name,
     type: projectType,
-    sourceLanguage: row.source_language,
-    targetLanguage: row.target_language,
-    settings: (row.settings as ProjectSettings) || getDefaultProjectSettings(),
-    metadata: row.metadata || undefined,
+    sourceLanguage: r.source_language ?? 'en',
+    targetLanguage: r.target_language ?? 'ru',
+    settings: (r.settings as ProjectSettings) || getDefaultProjectSettings(),
+    metadata: r.metadata || undefined,
     chapters,
     glossary,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: r.created_at ?? '',
+    updatedAt: r.updated_at ?? '',
   };
 }
 
 /**
  * Transform Project to Supabase insert/update format
  */
-function transformProjectToDB(project: Partial<Project>): any {
-  const result: any = {
+function transformProjectToDB(project: Partial<Project>): Record<string, unknown> {
+  const result: Record<string, unknown> = {
     name: project.name,
     source_language: project.sourceLanguage,
     target_language: project.targetLanguage,
@@ -127,28 +135,40 @@ function transformProjectToDB(project: Partial<Project>): any {
 /**
  * Transform Supabase chapter row to Chapter type
  */
-function transformChapterFromDB(row: any, paragraphs: Paragraph[] = []): Chapter {
+function transformChapterFromDB(
+  row: Record<string, unknown>,
+  paragraphs: Paragraph[] = []
+): Chapter {
+  const r = row as Record<string, unknown> & {
+    id: string;
+    number: number;
+    title: string;
+    original_text?: string;
+    translated_text?: string;
+    translated_chunks?: unknown;
+    status: string;
+    translation_meta?: unknown;
+  };
   return {
-    id: row.id,
-    number: row.number,
-    title: row.title,
-    originalText: row.original_text,
-    translatedText: row.translated_text || undefined,
-    translatedChunks: row.translated_chunks || undefined,
-    status: row.status as ChapterStatus,
-    translationMeta: row.translation_meta
-      ? (row.translation_meta as Chapter['translationMeta'])
+    id: r.id,
+    number: r.number,
+    title: r.title,
+    originalText: r.original_text ?? '',
+    translatedText: r.translated_text || undefined,
+    translatedChunks: r.translated_chunks as Chapter['translatedChunks'] | undefined,
+    status: r.status as ChapterStatus,
+    translationMeta: r.translation_meta
+      ? (r.translation_meta as Chapter['translationMeta'])
       : undefined,
     paragraphs,
-    // Note: paragraphs are loaded separately and attached
   };
 }
 
 /**
  * Transform Chapter to Supabase insert/update format
  */
-function transformChapterToDB(chapter: Partial<Chapter>): any {
-  const result: any = {};
+function transformChapterToDB(chapter: Partial<Chapter>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
   if (chapter.number !== undefined) result.number = chapter.number;
   if (chapter.title !== undefined) result.title = chapter.title;
   if (chapter.originalText !== undefined) result.original_text = chapter.originalText;
@@ -162,48 +182,68 @@ function transformChapterToDB(chapter: Partial<Chapter>): any {
 /**
  * Transform Supabase paragraph row to Paragraph type
  */
-function transformParagraphFromDB(row: any): Paragraph {
+function transformParagraphFromDB(row: Record<string, unknown>): Paragraph {
+  const r = row as Record<string, unknown> & {
+    id: string;
+    index: number;
+    original_text?: string;
+    translated_text?: string;
+    status: string;
+    edited_at?: string;
+    edited_by?: string;
+  };
   return {
-    id: row.id,
-    index: row.index,
-    originalText: row.original_text,
-    translatedText: row.translated_text || undefined,
-    status: row.status as ParagraphStatus,
-    editedAt: row.edited_at || undefined,
-    editedBy: (row.edited_by as 'ai' | 'user') || undefined,
+    id: r.id,
+    index: r.index,
+    originalText: r.original_text ?? '',
+    translatedText: r.translated_text || undefined,
+    status: r.status as ParagraphStatus,
+    editedAt: r.edited_at || undefined,
+    editedBy: (r.edited_by as 'ai' | 'user') || undefined,
   };
 }
 
 /**
  * Transform Supabase glossary entry row to GlossaryEntry type
  */
-function transformGlossaryEntryFromDB(row: any): GlossaryEntry {
-  // Migrate imageUrl to imageUrls array if needed (legacy support)
-  let imageUrls = row.image_urls || [];
-  if (row.image_url && !imageUrls.includes(row.image_url)) {
-    imageUrls = [row.image_url, ...imageUrls];
+function transformGlossaryEntryFromDB(row: Record<string, unknown>): GlossaryEntry {
+  const r = row as Record<string, unknown> & {
+    id: string;
+    image_urls?: string[];
+    image_url?: string;
+    mentioned_in_chapters?: number[];
+    [k: string]: unknown;
+  };
+  let imageUrls = (r.image_urls as string[]) || [];
+  if (r.image_url && !imageUrls.includes(r.image_url as string)) {
+    imageUrls = [r.image_url as string, ...imageUrls];
   }
 
-  const mentionedInChapters = row.mentioned_in_chapters;
+  const mentionedInChapters = r.mentioned_in_chapters;
   const mentionedInChaptersArr =
     Array.isArray(mentionedInChapters) && mentionedInChapters.length > 0
-      ? [...mentionedInChapters].sort((a, b) => a - b)
+      ? [...(mentionedInChapters as number[])].sort((a, b) => a - b)
       : undefined;
 
   return {
-    id: row.id,
-    type: row.type as 'character' | 'location' | 'term',
-    original: row.original,
-    translated: row.translated,
-    gender: (row.gender as GlossaryEntry['gender']) || undefined,
-    declensions: row.declensions ? (row.declensions as GlossaryEntry['declensions']) : undefined,
-    description: row.description || undefined,
-    notes: row.notes || undefined,
-    firstAppearance: row.first_appearance || undefined,
+    id: r.id,
+    type: r.type as 'character' | 'location' | 'term',
+    original: r.original as string,
+    translated: r.translated as string,
+    gender: (r.gender as GlossaryEntry['gender']) || undefined,
+    declensions: r.declensions ? (r.declensions as GlossaryEntry['declensions']) : undefined,
+    description: (r.description as string) || undefined,
+    notes: (r.notes as string) || undefined,
+    firstAppearance: (() => {
+      const fa = r.first_appearance;
+      if (fa == null) return undefined;
+      const num = typeof fa === 'number' ? fa : parseInt(String(fa), 10);
+      return Number.isNaN(num) ? undefined : num;
+    })(),
     mentionedInChapters: mentionedInChaptersArr,
     imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-    imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Legacy support
-    autoDetected: row.auto_detected || false,
+    imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
+    autoDetected: (r.auto_detected as boolean) || false,
   };
 }
 
@@ -371,7 +411,7 @@ export async function updateProject(
 
   const projectData = transformProjectToDB(updates);
 
-  const { data: project, error } = await client
+  const { error } = await client
     .from('projects')
     .update(projectData)
     .eq('id', id)
@@ -603,7 +643,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
             const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
             await Promise.all(
               batch.map(async (paragraph: Paragraph) => {
-                const paragraphData: any = {};
+                const paragraphData: Record<string, unknown> = {};
                 if (paragraph.translatedText !== undefined)
                   paragraphData.translated_text = paragraph.translatedText || null;
                 if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
@@ -812,7 +852,7 @@ export async function addChapter(
   }
 
   // Get next chapter number
-  const { data: maxChapter, error: maxError } = await client
+  const { data: maxChapter } = await client
     .from('chapters')
     .select('number')
     .eq('project_id', projectId)
@@ -932,7 +972,7 @@ export async function updateChapter(
       const batch = updates.paragraphs.slice(i, i + BATCH_SIZE);
       const results = await Promise.all(
         batch.map(async (paragraph) => {
-          const paragraphData: any = {};
+          const paragraphData: Record<string, unknown> = {};
           if (paragraph.translatedText !== undefined)
             paragraphData.translated_text = paragraph.translatedText || null;
           if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
@@ -1146,7 +1186,7 @@ export async function getChapter(
         const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
         const results = await Promise.all(
           batch.map(async (paragraph: Paragraph) => {
-            const paragraphData: any = {};
+            const paragraphData: Record<string, unknown> = {};
             if (paragraph.translatedText !== undefined)
               paragraphData.translated_text = paragraph.translatedText || null;
             if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
@@ -1626,7 +1666,7 @@ export async function updateGlossaryEntry(
     imageUrls = [updates.imageUrl, ...imageUrls];
   }
 
-  const entryData: any = {};
+  const entryData: Record<string, unknown> = {};
   if (updates.type !== undefined) entryData.type = normalizeGlossaryTypeForDB(updates.type);
   if (updates.original !== undefined) entryData.original = updates.original;
   if (updates.translated !== undefined) entryData.translated = updates.translated;
@@ -1723,7 +1763,7 @@ export async function updateParagraph(
   }
 
   // Build update data
-  const paragraphData: any = {};
+  const paragraphData: Record<string, unknown> = {};
   if (updates.translatedText !== undefined)
     paragraphData.translated_text = updates.translatedText || null;
   if (updates.status !== undefined) paragraphData.status = updates.status;

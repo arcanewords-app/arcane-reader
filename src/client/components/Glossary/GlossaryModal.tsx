@@ -227,7 +227,19 @@ export function GlossaryModal({
               const firstImage = entry.imageUrls?.[0] || entry.imageUrl;
 
               return (
-                <div key={entry.id} class="glossary-card" onClick={() => setEditingEntry(entry)}>
+                <div
+                  key={entry.id}
+                  class="glossary-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setEditingEntry(entry)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setEditingEntry(entry);
+                    }
+                  }}
+                >
                   <div class="glossary-card-header">
                     {firstImage ? (
                       <img src={firstImage} alt={entry.translated} class="glossary-card-image" />
@@ -274,7 +286,6 @@ export function GlossaryModal({
                       {chapters?.length && onNavigateToChapter
                         ? entry.mentionedInChapters.map((num) => {
                             const ch = chapters.find((c) => c.number === num);
-                            const title = ch ? `${num}: ${ch.title}` : String(num);
                             const isClickable = !!ch?.id;
                             return isClickable ? (
                               <button
@@ -371,125 +382,136 @@ export function GlossaryModal({
         ) : mergeSuggestions.length === 0 ? (
           <p class="glossary-merge-empty">{t('glossary.noSuggestions')}</p>
         ) : (
-          <div class="glossary-merge-list">
-            {mergeSuggestions.map((suggestion, index) => {
-              const suggestedEntries = suggestion.entryIds
-                .map((id) => entries.find((x) => x.id === id))
-                .filter(Boolean) as GlossaryEntry[];
-              const keepId =
-                keepEntryIdByIndex[index] ??
-                suggestion.suggestedPrimaryId ??
-                suggestion.entryIds[0];
-              const keepEntry = entries.find((x) => x.id === keepId);
-              return (
-                <div key={index} class="glossary-merge-card">
-                  <div class="glossary-merge-card-head">
-                    <label class="glossary-merge-card-select">
-                      <input
-                        type="checkbox"
-                        checked={selectedMergeIndexes.has(index)}
-                        onChange={() => toggleMergeSelection(index)}
-                      />
-                      <span class="glossary-merge-card-title">
-                        {t('glossary.mergeReason', { reason: suggestion.reason })}
-                      </span>
-                    </label>
-                  </div>
-                  <div class="glossary-merge-columns">
-                    <div class="glossary-merge-col glossary-merge-col-sources">
-                      <div class="glossary-merge-col-label">{t('glossary.entriesToMerge')}</div>
-                      <div class="glossary-merge-entry-cards">
-                        {suggestedEntries.map((entry) => (
-                          <div
-                            key={entry.id}
-                            class={`glossary-merge-entry-card ${entry.id === keepId ? 'is-primary' : ''}`}
-                            title={entry.description ?? undefined}
-                          >
+          <>
+            <p class="glossary-merge-hint">{t('glossary.mergeSuggestionsHint')}</p>
+            <div class="glossary-merge-list">
+              {mergeSuggestions.map((suggestion, index) => {
+                const suggestedEntries = suggestion.entryIds
+                  .map((id) => entries.find((x) => x.id === id))
+                  .filter(Boolean) as GlossaryEntry[];
+                const keepId =
+                  keepEntryIdByIndex[index] ??
+                  suggestion.suggestedPrimaryId ??
+                  suggestion.entryIds[0];
+                const keepEntry = entries.find((x) => x.id === keepId);
+                return (
+                  <div key={index} class="glossary-merge-card">
+                    <div class="glossary-merge-card-head">
+                      <label class="glossary-merge-card-select">
+                        <input
+                          type="checkbox"
+                          checked={selectedMergeIndexes.has(index)}
+                          onChange={() => toggleMergeSelection(index)}
+                        />
+                        <span class="glossary-merge-card-title">
+                          {t('glossary.mergeReason', { reason: suggestion.reason })}
+                        </span>
+                      </label>
+                    </div>
+                    <div class="glossary-merge-columns">
+                      <div class="glossary-merge-col glossary-merge-col-sources">
+                        <div class="glossary-merge-col-label">{t('glossary.entriesToMerge')}</div>
+                        <div class="glossary-merge-entry-cards">
+                          {suggestedEntries.map((entry) => (
+                            <div
+                              key={entry.id}
+                              class={`glossary-merge-entry-card ${entry.id === keepId ? 'is-primary' : ''}`}
+                              title={entry.description ?? undefined}
+                            >
+                              <div class="glossary-merge-entry-card-header">
+                                <span
+                                  class="glossary-merge-entry-card-icon"
+                                  title={typeLabels[entry.type]}
+                                >
+                                  {typeIcons[entry.type]}
+                                </span>
+                                <div class="glossary-merge-entry-card-names">
+                                  <span class="glossary-merge-entry-original">
+                                    {entry.original}
+                                  </span>
+                                  <span class="glossary-merge-entry-arrow">→</span>
+                                  <span class="glossary-merge-entry-translated">
+                                    {entry.translated}
+                                  </span>
+                                </div>
+                              </div>
+                              {entry.description && (
+                                <p class="glossary-merge-entry-desc" title={entry.description}>
+                                  {entry.description.length > 60
+                                    ? `${entry.description.slice(0, 60)}…`
+                                    : entry.description}
+                                </p>
+                              )}
+                              {entry.mentionedInChapters &&
+                                entry.mentionedInChapters.length > 0 && (
+                                  <div class="glossary-merge-entry-chapters">
+                                    📖 {entry.mentionedInChapters.length} ch.
+                                  </div>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div class="glossary-merge-col glossary-merge-col-result">
+                        <div
+                          class="glossary-merge-col-label"
+                          title={t('glossary.keepAsPrimaryHint')}
+                        >
+                          {t('glossary.keepAsPrimary')}
+                        </div>
+                        {keepEntry && (
+                          <div class="glossary-merge-entry-card glossary-merge-entry-card-keep">
                             <div class="glossary-merge-entry-card-header">
                               <span
                                 class="glossary-merge-entry-card-icon"
-                                title={typeLabels[entry.type]}
+                                title={typeLabels[keepEntry.type]}
                               >
-                                {typeIcons[entry.type]}
+                                {typeIcons[keepEntry.type]}
                               </span>
                               <div class="glossary-merge-entry-card-names">
-                                <span class="glossary-merge-entry-original">{entry.original}</span>
+                                <span class="glossary-merge-entry-original">
+                                  {keepEntry.original}
+                                </span>
                                 <span class="glossary-merge-entry-arrow">→</span>
                                 <span class="glossary-merge-entry-translated">
-                                  {entry.translated}
+                                  {keepEntry.translated}
                                 </span>
                               </div>
                             </div>
-                            {entry.description && (
-                              <p class="glossary-merge-entry-desc" title={entry.description}>
-                                {entry.description.length > 60
-                                  ? `${entry.description.slice(0, 60)}…`
-                                  : entry.description}
+                            {keepEntry.description && (
+                              <p class="glossary-merge-entry-desc" title={keepEntry.description}>
+                                {keepEntry.description.length > 60
+                                  ? `${keepEntry.description.slice(0, 60)}…`
+                                  : keepEntry.description}
                               </p>
                             )}
-                            {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
-                              <div class="glossary-merge-entry-chapters">
-                                📖 {entry.mentionedInChapters.length} ch.
-                              </div>
-                            )}
+                            <select
+                              class="glossary-merge-keep-select"
+                              value={keepId}
+                              onChange={(e) =>
+                                setKeepForMerge(index, (e.target as HTMLSelectElement).value)
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {suggestion.entryIds.map((id) => {
+                                const e = entries.find((x) => x.id === id);
+                                const label = e ? `${e.original} → ${e.translated}` : id;
+                                return (
+                                  <option key={id} value={id}>
+                                    {label}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
-                    <div class="glossary-merge-col glossary-merge-col-result">
-                      <div class="glossary-merge-col-label">{t('glossary.keepAsPrimary')}</div>
-                      {keepEntry && (
-                        <div class="glossary-merge-entry-card glossary-merge-entry-card-keep">
-                          <div class="glossary-merge-entry-card-header">
-                            <span
-                              class="glossary-merge-entry-card-icon"
-                              title={typeLabels[keepEntry.type]}
-                            >
-                              {typeIcons[keepEntry.type]}
-                            </span>
-                            <div class="glossary-merge-entry-card-names">
-                              <span class="glossary-merge-entry-original">
-                                {keepEntry.original}
-                              </span>
-                              <span class="glossary-merge-entry-arrow">→</span>
-                              <span class="glossary-merge-entry-translated">
-                                {keepEntry.translated}
-                              </span>
-                            </div>
-                          </div>
-                          {keepEntry.description && (
-                            <p class="glossary-merge-entry-desc" title={keepEntry.description}>
-                              {keepEntry.description.length > 60
-                                ? `${keepEntry.description.slice(0, 60)}…`
-                                : keepEntry.description}
-                            </p>
-                          )}
-                          <select
-                            class="glossary-merge-keep-select"
-                            value={keepId}
-                            onChange={(e) =>
-                              setKeepForMerge(index, (e.target as HTMLSelectElement).value)
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {suggestion.entryIds.map((id) => {
-                              const e = entries.find((x) => x.id === id);
-                              const label = e ? `${e.original} → ${e.translated}` : id;
-                              return (
-                                <option key={id} value={id}>
-                                  {label}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      )}
-                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </Modal>
 
@@ -943,12 +965,11 @@ function EditGlossaryModal({
             <div class="image-gallery-grid">
               {currentImageUrls.map((imageUrl, index) => (
                 <div key={index} class="image-gallery-item">
-                  <img
-                    src={imageUrl}
-                    alt={`${translated} - изображение ${index + 1}`}
-                    class="gallery-image-preview"
+                  <button
+                    type="button"
+                    class="gallery-image-button"
+                    style={{ cursor: 'pointer', padding: 0, border: 'none', background: 'none' }}
                     onClick={() => {
-                      // Open image in fullscreen viewer
                       const viewer = document.createElement('div');
                       viewer.className = 'image-viewer-modal active';
                       viewer.innerHTML = `
@@ -960,8 +981,13 @@ function EditGlossaryModal({
                       };
                       document.body.appendChild(viewer);
                     }}
-                    style={{ cursor: 'pointer' }}
-                  />
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`${translated} - изображение ${index + 1}`}
+                      class="gallery-image-preview"
+                    />
+                  </button>
                   <button
                     class="gallery-image-delete"
                     onClick={() => handleImageDelete(index)}

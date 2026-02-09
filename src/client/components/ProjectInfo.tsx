@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'preact/hooks';
+import { useState, useRef, useCallback, useEffect } from 'preact/hooks';
 import { useTranslation, Trans } from 'react-i18next';
 import type { Project, ProjectSettings, Chapter, Publication } from '../types';
 import { Card, Button, Modal, Input } from './ui';
@@ -17,7 +17,6 @@ interface ProjectInfoProps {
 
 export function ProjectInfo({
   project,
-  onSettingsChange,
   onDelete,
   onRefreshProject,
   onEnterReadingMode,
@@ -192,7 +191,7 @@ export function ProjectInfo({
   const saveDescription = useCallback(async () => {
     setSavingDescription(true);
     try {
-      const updated = await api.updateProjectMetadata(project.id, {
+      await api.updateProjectMetadata(project.id, {
         ...project.metadata,
         description: descriptionDraft.trim() || undefined,
       });
@@ -322,14 +321,18 @@ export function ProjectInfo({
       }
 
       console.log(`✅ Экспорт ${format.toUpperCase()} завершен: ${result.filename}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Ignore 401 errors - they are handled globally and will show login page
       if (error instanceof ApiError && error.status === 401) {
         // Auth error - handled globally
         return;
       }
       console.error(`Failed to export ${format}:`, error);
-      alert(error.message || t('projectInfo.exportError', { format: format.toUpperCase() }));
+      alert(
+        error instanceof Error
+          ? error.message
+          : t('projectInfo.exportError', { format: format.toUpperCase() })
+      );
     } finally {
       setExporting(null);
     }
@@ -392,6 +395,11 @@ export function ProjectInfo({
                 {/* Cover Image */}
                 <div
                   class="metadata-cover"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={
+                    project.metadata?.coverImageUrl ? undefined : t('projectInfo.uploadCoverClick')
+                  }
                   style={{
                     cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer',
                     position: 'relative',
@@ -402,6 +410,17 @@ export function ProjectInfo({
                         'cover-upload-input'
                       ) as HTMLInputElement;
                       input?.click();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
+                        const input = document.getElementById(
+                          'cover-upload-input'
+                        ) as HTMLInputElement;
+                        input?.click();
+                      }
                     }
                   }}
                 >
@@ -435,7 +454,7 @@ export function ProjectInfo({
                               if (!confirm(t('projectInfo.deleteCoverConfirm'))) return;
                               setDeletingCover(true);
                               try {
-                                const result = await api.deleteProjectCover(project.id);
+                                await api.deleteProjectCover(project.id);
                                 await onRefreshProject();
                               } catch (error) {
                                 console.error('Failed to delete cover:', error);
@@ -688,6 +707,11 @@ export function ProjectInfo({
             >
               <div
                 class="metadata-cover"
+                role="button"
+                tabIndex={0}
+                aria-label={
+                  project.metadata?.coverImageUrl ? undefined : t('projectInfo.uploadCoverClick')
+                }
                 style={{
                   position: 'relative',
                   flexShrink: 0,
@@ -697,6 +721,17 @@ export function ProjectInfo({
                   if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
                     const input = document.getElementById('cover-upload-input') as HTMLInputElement;
                     input?.click();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
+                      const input = document.getElementById(
+                        'cover-upload-input'
+                      ) as HTMLInputElement;
+                      input?.click();
+                    }
                   }
                 }}
               >
@@ -737,8 +772,7 @@ export function ProjectInfo({
                             if (!confirm(t('projectInfo.deleteCoverConfirm'))) return;
                             setDeletingCover(true);
                             try {
-                              const result = await api.deleteProjectCover(project.id);
-                              // Invalidate project cache
+                              await api.deleteProjectCover(project.id);
                               invalidateProject(project.id);
                               await onRefreshProject();
                             } catch (error) {
@@ -979,16 +1013,8 @@ export function ProjectInfo({
             setUploadingCover(true);
             try {
               const result = await api.uploadProjectCover(project.id, file);
-              // Invalidate project cache
               invalidateProject(project.id);
-              // Update local project state with new metadata
               if (result.project) {
-                // Update project state directly with new metadata
-                const updatedProject = {
-                  ...project,
-                  metadata: result.project.metadata,
-                };
-                // Call onRefreshProject to reload from server
                 await onRefreshProject();
               } else {
                 await onRefreshProject();

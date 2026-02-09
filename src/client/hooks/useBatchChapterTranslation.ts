@@ -46,15 +46,15 @@ async function pollChapterUntilDone(
   chapterId: string,
   isCancelled: () => boolean,
   _t: (key: string) => string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; cancelled?: boolean; error?: string }> {
   let delayMs = INITIAL_POLL_MS;
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     if (isCancelled()) {
-      return { success: false, error: _t('projectInfo.errorCanceled') };
+      return { success: false, cancelled: true, error: _t('projectInfo.errorCanceled') };
     }
     try {
       const { status } = await api.getChapterStatus(projectId, chapterId);
-      if (status === 'completed' || status === 'analyzed') {
+      if (status === 'completed' || status === 'analyzed' || status === 'draft') {
         return { success: true };
       }
       if (status === 'error') {
@@ -308,6 +308,17 @@ export function useBatchChapterTranslation(
                       : null
                   );
                   initialGlossaryCountRef.current = currentGlossaryCount;
+                } else if (result.cancelled) {
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          chapters: prev.chapters.map((c) =>
+                            c.chapterId === chapter.id ? { ...c, status: 'pending' as const } : c
+                          ),
+                        }
+                      : null
+                  );
                 } else {
                   setProgress((prev) =>
                     prev

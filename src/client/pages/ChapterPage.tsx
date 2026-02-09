@@ -18,6 +18,8 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const previousProjectIdRef = useRef<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
 
   useEffect(() => {
     // If projectId changed, invalidate previous project cache
@@ -27,7 +29,20 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     previousProjectIdRef.current = projectId;
 
     loadProject();
-  }, [projectId, chapterId]); // Reload when projectId or chapterId changes (user navigates back)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject is stable, avoid refetch loop
+  }, [projectId, chapterId]);
+
+  useEffect(() => {
+    const handleSidebarState = () => {
+      const state = (window as { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen;
+      if (state !== undefined) {
+        setSidebarOpen(state);
+      }
+    };
+    handleSidebarState();
+    window.addEventListener('arcane:sidebar-change', handleSidebarState);
+    return () => window.removeEventListener('arcane:sidebar-change', handleSidebarState);
+  }, []);
 
   const loadProject = async () => {
     setLoading(true);
@@ -101,33 +116,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     }
   };
 
-  // Get sidebar state from AppRouter (stored in window for cross-component communication)
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showGlossary, setShowGlossary] = useState(false);
-
-  useEffect(() => {
-    // Listen for sidebar state changes from AppRouter
-    const handleSidebarState = () => {
-      const state = (window as any).__arcaneSidebarOpen;
-      if (state !== undefined) {
-        setSidebarOpen(state);
-      }
-    };
-
-    // Check initial state
-    handleSidebarState();
-
-    // Listen for custom events from AppRouter
-    window.addEventListener('arcane:sidebar-change', handleSidebarState);
-    return () => {
-      window.removeEventListener('arcane:sidebar-change', handleSidebarState);
-    };
-  }, []);
-
   const handleSidebarClose = () => {
     setSidebarOpen(false);
-    // Notify AppRouter
-    (window as any).__arcaneSidebarOpen = false;
+    (window as { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = false;
     window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
   };
 

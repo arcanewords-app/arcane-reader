@@ -20,7 +20,18 @@ interface TranslateStageOptions {
   context: AgentContext;
   chunkSize?: number;
   temperature?: number;
+  /** Check before each retry; when true, throw to cancel. */
+  isCancelled?: () => boolean;
+  /** Number of retries for a failed chunk (default 2 = up to 3 attempts total). */
+  chunkRetryAttempts?: number;
+  /** Delay in ms before each retry (default 1500). */
+  chunkRetryDelayMs?: number;
+  /** When true, never split a paragraph into smaller chunks (default true). */
+  neverSplitParagraphs?: boolean;
 }
+
+const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
+const DEFAULT_CHUNK_RETRY_DELAY_MS = 1500;
 
 export class TranslateStage {
   private provider: ILLMProvider;
@@ -89,10 +100,17 @@ export class TranslateStage {
       const chunks = chunkText(sourceText, {
         maxTokens: options.chunkSize ?? 2000,
         preserveParagraphs: true,
+        neverSplitParagraphs: options.neverSplitParagraphs,
       });
 
-      log.info(`TranslateStage: split into ${chunks.length} chunks for translation`, {
+      const retryAttempts = options.chunkRetryAttempts ?? DEFAULT_CHUNK_RETRY_ATTEMPTS;
+      const retryDelayMs = options.chunkRetryDelayMs ?? DEFAULT_CHUNK_RETRY_DELAY_MS;
+
+      log.info('TranslateStage: starting chunked translation', {
         chunksCount: chunks.length,
+        retryAttempts,
+        retryDelayMs,
+        chunkSize: options.chunkSize,
       });
 
       // Translate each chunk
@@ -100,48 +118,113 @@ export class TranslateStage {
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
-        log.debug(`TranslateStage: chunk ${i + 1}/${chunks.length}`, {
+        const chunkStartTime = Date.now();
+        log.info('TranslateStage: chunk start', {
+          chunkIndex: i + 1,
+          chunkTotal: chunks.length,
           chunkId: chunk.id,
           tokenCount: chunk.tokenCount,
         });
 
-        try {
-          const temperature = options.temperature ?? 0.7;
-          const result = await this.translateChunk(
-            chunk,
-            glossaryText,
-            contextText,
-            styleGuide,
-            temperature
-          );
+        const temperature = options.temperature ?? 0.7;
+        let lastError: Error | undefined;
+        let succeeded = false;
 
-          if (!result.translation.translated || result.translation.translated.trim().length === 0) {
-            log.warn(`TranslateStage: chunk ${i + 1} returned empty translation`, {
-              chunkId: chunk.id,
+        for (let attempt = 0; attempt <= retryAttempts && !succeeded; attempt++) {
+          if (attempt > 0) {
+            if (options.isCancelled?.()) {
+              throw new Error('Cancelled');
+            }
+            const errMsg = lastError?.message ?? 'unknown';
+            const errName = lastError?.name ?? 'Error';
+            log.warn('TranslateStage: chunk retry after failure', {
+              chunkIndex: i + 1,
+              chunkTotal: chunks.length,
+              retryNumber: attempt,
+              retryMax: retryAttempts,
+              delayMs: retryDelayMs,
+              errMessage: errMsg,
+              errName,
+              ...(lastError &&
+                'type' in lastError &&
+                typeof (lastError as { type: string }).type === 'string' && {
+                  errType: (lastError as { type: string }).type,
+                }),
             });
-          } else {
-            log.debug(`TranslateStage: chunk ${i + 1} translated`, {
-              length: result.translation.translated.length,
-            });
+            if (lastError) log.warn('TranslateStage: previous error details', lastError);
+            await new Promise((r) => setTimeout(r, retryDelayMs));
+            if (options.isCancelled?.()) {
+              throw new Error('Cancelled');
+            }
           }
 
-          chunkResults.push(result.translation);
-          totalTokens += result.tokensUsed;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          log.error(
-            `TranslateStage: chunk ${i + 1} translation failed: ${errorMessage}`,
-            error instanceof Error ? error : undefined
-          );
+          try {
+            const result = await this.translateChunk(
+              chunk,
+              glossaryText,
+              contextText,
+              styleGuide,
+              temperature
+            );
 
-          // Add empty translation to maintain chunk order, but mark as failed
-          chunkResults.push({
-            chunkId: chunk.id,
-            original: chunk.content,
-            translated: `[ERROR: ${errorMessage}]`,
-          });
+            const chunkDurationMs = Date.now() - chunkStartTime;
+            if (
+              !result.translation.translated ||
+              result.translation.translated.trim().length === 0
+            ) {
+              log.warn(`TranslateStage: chunk ${i + 1} returned empty translation`, {
+                chunkId: chunk.id,
+              });
+            } else {
+              log.debug(`TranslateStage: chunk ${i + 1} translated`, {
+                length: result.translation.translated.length,
+              });
+            }
+            log.info('TranslateStage: chunk done', {
+              chunkIndex: i + 1,
+              chunkTotal: chunks.length,
+              tokens: result.tokensUsed,
+              durationMs: chunkDurationMs,
+              success: true,
+            });
 
-          // Continue with next chunk instead of failing completely
+            chunkResults.push(result.translation);
+            totalTokens += result.tokensUsed;
+            succeeded = true;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            const errorMessage = lastError.message;
+            if (attempt < retryAttempts) {
+              log.info('TranslateStage: chunk attempt failed, will retry', {
+                chunkIndex: i + 1,
+                chunkTotal: chunks.length,
+                attempt: attempt + 1,
+                maxAttempts: retryAttempts + 1,
+                errMessage: errorMessage,
+                errName: lastError.name,
+              });
+            }
+            if (attempt === retryAttempts) {
+              const chunkDurationMs = Date.now() - chunkStartTime;
+              log.error(
+                `TranslateStage: chunk ${i + 1} translation failed after ${retryAttempts + 1} attempts: ${errorMessage}`,
+                lastError
+              );
+              log.info('TranslateStage: chunk done', {
+                chunkIndex: i + 1,
+                chunkTotal: chunks.length,
+                durationMs: chunkDurationMs,
+                success: false,
+                errMessage: errorMessage,
+                errName: lastError.name,
+              });
+              chunkResults.push({
+                chunkId: chunk.id,
+                original: chunk.content,
+                translated: `[ERROR: ${errorMessage}]`,
+              });
+            }
+          }
         }
       }
 
@@ -251,7 +334,8 @@ export class TranslateStage {
       throw new Error('Translation provider is not initialized');
     }
 
-    // Try JSON format first (preferred), fallback to text if provider doesn't support it
+    // Output format: primary = JSON with paragraphs[] (see TRANSLATOR_SYSTEM_PROMPT); fallback = plain
+    // text with paragraphs separated by double newline. Server sync accepts both (ENGINE_E2E 1.3).
     const supportsJSON = typeof this.provider.completeJSON === 'function';
 
     if (!supportsJSON && typeof this.provider.complete !== 'function') {
@@ -273,7 +357,7 @@ export class TranslateStage {
     let translatedText = '';
     let tokensUsed = 0;
 
-    // Try JSON format first
+    // Primary path: JSON (model returns paragraphs array; we merge with \n\n)
     if (supportsJSON) {
       try {
         const response = await this.provider.completeJSON<{
@@ -311,11 +395,11 @@ export class TranslateStage {
         }
       } catch (jsonError) {
         log.warn(
-          `TranslateStage: JSON translation failed for chunk ${chunk.id}, using text format`,
+          `TranslateStage: JSON translation failed for chunk ${chunk.id}, using text fallback`,
           jsonError instanceof Error ? jsonError : undefined
         );
 
-        // Fallback to text format
+        // Fallback: plain text (paragraphs separated by \n\n on server sync)
         if (typeof this.provider.complete === 'function') {
           const response = await this.provider.complete(messages, {
             temperature,

@@ -54,6 +54,9 @@ export interface PipelineResult {
   totalDuration: number;
 
   updatedContext: AgentContext;
+
+  /** When true, user cancelled after stage 1; server should save glossary and set status to pending. */
+  cancelled?: boolean;
 }
 
 export interface PipelineOptions {
@@ -75,4 +78,8 @@ export interface PipelineOptions {
   };
   /** When true, pipeline should throw 'Cancelled' and stop (used when user clicks Cancel on UI). */
   isCancelled?: () => boolean;
+  /** Delay in ms before retrying a failed chunk (Stage 2). Default 1500. */
+  chunkRetryDelayMs?: number;
+  /** When true, never split a single paragraph into smaller chunks (chunker). Default true. */
+  neverSplitParagraphs?: boolean;
 }

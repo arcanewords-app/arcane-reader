@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Modal } from '../ui';
-import { Button } from '../ui';
+import { Modal, Button } from '../ui';
 import type { TokenUsage } from '../../types';
 import './TokenLimitWarning.css';
 
@@ -26,7 +25,6 @@ export function TokenLimitWarning({
   const percentageAfter =
     unlimited || usage.tokensLimit <= 0 ? 0 : (tokensAfterTranslation / usage.tokensLimit) * 100;
   const willExceed = !unlimited && tokensAfterTranslation > usage.tokensLimit;
-  const isWarning = !unlimited && percentageAfter >= 80 && !willExceed;
 
   if (unlimited) {
     return (

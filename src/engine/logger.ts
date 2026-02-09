@@ -9,12 +9,24 @@
 
 import { logger as appLogger } from '../logger.js';
 
+function errorToObject(err: Error): Record<string, unknown> {
+  const obj: Record<string, unknown> = {
+    err,
+    errMessage: err.message,
+    errName: err.name,
+  };
+  if ('type' in err && typeof (err as { type: string }).type === 'string') {
+    obj.errType = (err as { type: string }).type;
+  }
+  return obj;
+}
+
 function withData(
   msg: string,
   data?: Record<string, unknown> | Error
 ): [Record<string, unknown>, string] {
   if (data instanceof Error) {
-    return [{ err: data }, msg];
+    return [{ ...errorToObject(data) }, msg];
   }
   if (data && typeof data === 'object' && Object.keys(data).length > 0) {
     return [data as Record<string, unknown>, msg];

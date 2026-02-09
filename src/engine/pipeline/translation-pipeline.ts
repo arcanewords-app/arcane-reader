@@ -255,6 +255,22 @@ export class TranslationPipeline {
       } else {
         log.warn(`Pipeline: Stage 1 failed: ${stage1Result.error}`);
       }
+      // Return partial result on cancel so server can save glossary (refactor 2.2)
+      if (options.isCancelled?.()) {
+        log.info('Pipeline: cancelled after Stage 1, returning partial result for glossary save');
+        return {
+          chapterNumber,
+          originalText: sourceText,
+          stage1: stage1Result,
+          stage2: dummyStage2,
+          stage3: dummyStage3,
+          finalTranslation: '',
+          totalTokensUsed: totalTokens,
+          totalDuration: Date.now() - startTime,
+          updatedContext: this.agent.getContext(),
+          cancelled: true,
+        };
+      }
     } else {
       stage1Result = dummyStage1;
       if (!runStages || !runStages.includes('translation')) log.debug('Pipeline: Stage 1 skipped');
@@ -311,12 +327,16 @@ export class TranslationPipeline {
         'Editing-only requires existingTranslatedTextForEdit'
       );
     }
-    log.info('Pipeline: Stage 2 translating');
+    log.info('Pipeline: Stage 2 translating', { chapterNumber });
     const ctxAfter1 = this.agent.getContext();
     const stage2Result = await this.translateStage.execute(sourceText, {
       context: ctxAfter1,
       chunkSize: options.chunkSize,
       temperature: options.temperatureByStage?.translation,
+      isCancelled: options.isCancelled,
+      chunkRetryAttempts: options.retryAttempts ?? 2,
+      chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
+      neverSplitParagraphs: options.neverSplitParagraphs,
     });
     totalTokens += stage2Result.tokensUsed;
 

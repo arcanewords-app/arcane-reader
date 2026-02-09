@@ -8,7 +8,6 @@ import type {
   NovelAgentState,
   StyleProfile,
   ChapterSummary,
-  CurrentContext,
   AnalysisResult,
   AgentContext,
 } from '../types/agent.js';

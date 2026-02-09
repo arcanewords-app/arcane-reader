@@ -94,22 +94,24 @@ export class EditStage {
       // Prepare style notes
       const styleNotes = this.buildStyleNotes(options.context);
 
-      // Determine if we should use chunked editing
-      // Use chunked editing if chunkSize is specified OR if text is too large
+      let editedText: string;
+      let usedChunkedOrPairs = false;
+
+      // Chunked or single-request editing (glossary + style only; no original text in prompt)
       const estimatedTokens = Math.ceil(translatedText.length / 4);
       const useChunkedEditing = options.chunkSize !== undefined || estimatedTokens > 3000;
 
-      let editedText: string;
-
       if (useChunkedEditing) {
-        // Chunked editing for large texts
+        usedChunkedOrPairs = true;
         const chunkSize = options.chunkSize ?? 2000;
-        log.debug('EditStage: using chunked editing', { estimatedTokens, chunkSize });
+        log.debug('EditStage: using chunked editing', {
+          estimatedTokens,
+          chunkSize,
+        });
 
         const editTemp = options.temperature ?? 0.5;
         const chunkedResult = await this.editChunked(
           translatedText,
-          originalText,
           glossaryText,
           styleNotes,
           chunkSize,
@@ -119,14 +121,13 @@ export class EditStage {
         editedText = chunkedResult.text;
         totalTokens = chunkedResult.tokensUsed;
       } else {
-        // Single-request editing for small texts
         log.debug('EditStage: using direct editing', { estimatedTokens });
 
         const messages: Message[] = [
           { role: 'system', content: EDITOR_SYSTEM_PROMPT },
           {
             role: 'user',
-            content: createEditorPrompt(translatedText, originalText, glossaryText, styleNotes),
+            content: createEditorPrompt(translatedText, glossaryText, styleNotes),
           },
         ];
 
@@ -146,7 +147,7 @@ export class EditStage {
       // Optional quality check (only for small texts to avoid timeout)
       let qualityScore: number | undefined;
 
-      if (options.checkQuality && !useChunkedEditing) {
+      if (options.checkQuality && !usedChunkedOrPairs) {
         // Skip quality check for chunked editing to avoid timeout
         try {
           const qualityResult = await this.checkQuality(editedText, originalText, glossaryText);
@@ -158,8 +159,8 @@ export class EditStage {
             qualityError instanceof Error ? qualityError : undefined
           );
         }
-      } else if (options.checkQuality && useChunkedEditing) {
-        log.debug('EditStage: quality check skipped for chunked editing to avoid timeouts');
+      } else if (options.checkQuality && usedChunkedOrPairs) {
+        log.debug('EditStage: quality check skipped for chunked/pairs editing to avoid timeouts');
       }
 
       return {
@@ -229,24 +230,16 @@ export class EditStage {
   }
 
   /**
-   * Edit translation using chunked approach
-   * Preserves paragraph markers for later synchronization
+   * Edit translation using chunked approach (translated text only; glossary + style in prompt).
    */
   private async editChunked(
     translatedText: string,
-    originalText: string,
     glossaryText: string,
     styleNotes: string,
     chunkSize: number,
     temperature: number = 0.5
   ): Promise<{ text: string; tokensUsed: number }> {
-    // Chunk both translated and original texts
     const translatedChunks = chunkText(translatedText, {
-      maxTokens: chunkSize,
-      preserveParagraphs: true,
-    });
-
-    const originalChunks = chunkText(originalText, {
       maxTokens: chunkSize,
       preserveParagraphs: true,
     });
@@ -255,13 +248,11 @@ export class EditStage {
       chunksCount: translatedChunks.length,
     });
 
-    // Edit each chunk
     const editedChunks: { content: string; index: number }[] = [];
     let totalTokensUsed = 0;
 
     for (let i = 0; i < translatedChunks.length; i++) {
       const translatedChunk = translatedChunks[i];
-      const originalChunk = originalChunks[i] || { content: '', index: i };
 
       log.debug(`EditStage: editing chunk ${i + 1}/${translatedChunks.length}`, {
         chunkId: translatedChunk.id,
@@ -271,7 +262,6 @@ export class EditStage {
       try {
         const editResult = await this.editChunk(
           translatedChunk,
-          originalChunk,
           glossaryText,
           styleNotes,
           temperature
@@ -330,11 +320,10 @@ export class EditStage {
   }
 
   /**
-   * Edit a single chunk of translated text
+   * Edit a single chunk of translated text (glossary + style only; no original in prompt).
    */
   private async editChunk(
     translatedChunk: TextChunk,
-    originalChunk: TextChunk,
     glossaryText: string,
     styleNotes: string,
     temperature: number = 0.5
@@ -343,12 +332,7 @@ export class EditStage {
       { role: 'system', content: EDITOR_SYSTEM_PROMPT },
       {
         role: 'user',
-        content: createEditorPrompt(
-          translatedChunk.content,
-          originalChunk.content,
-          glossaryText,
-          styleNotes
-        ),
+        content: createEditorPrompt(translatedChunk.content, glossaryText, styleNotes),
       },
     ];
 

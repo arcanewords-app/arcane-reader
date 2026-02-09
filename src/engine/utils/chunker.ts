@@ -9,12 +9,21 @@ export interface ChunkerOptions {
   maxTokens: number; // Max tokens per chunk
   overlapSentences: number; // Sentences to overlap between chunks
   preserveParagraphs: boolean;
+  /**
+   * When true, never split a single paragraph into smaller chunks (e.g. by sentences).
+   * Keeps 1:1 paragraph boundaries and reduces sync/merge errors. Oversized paragraphs
+   * become one chunk (may exceed maxTokens; consider increasing timeout for such chunks).
+   * Default true for translation/editing.
+   */
+  neverSplitParagraphs?: boolean;
 }
 
+/** Fallback when options omit a value. Should match app config MAX_TOKENS_PER_CHUNK (2000); pipeline passes config value. */
 const DEFAULT_OPTIONS: ChunkerOptions = {
   maxTokens: 2000,
   overlapSentences: 2,
   preserveParagraphs: true,
+  neverSplitParagraphs: true,
 };
 
 /**
@@ -46,7 +55,6 @@ function splitIntoParagraphs(text: string): string[] {
  */
 export function chunkText(text: string, options: Partial<ChunkerOptions> = {}): TextChunk[] {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const chunks: TextChunk[] = [];
 
   if (opts.preserveParagraphs) {
     return chunkByParagraphs(text, opts);
@@ -69,7 +77,7 @@ function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
     const paragraphTokens = estimateTokens(paragraph);
     const currentTokens = estimateTokens(currentChunk);
 
-    // If single paragraph exceeds limit, split it by sentences
+    // If single paragraph exceeds limit: either keep as one chunk or split by sentences
     if (paragraphTokens > opts.maxTokens) {
       // Save current chunk if not empty
       if (currentChunk.trim()) {
@@ -77,10 +85,19 @@ function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
         currentChunk = '';
       }
 
-      // Split large paragraph into sentence-based chunks
-      const sentenceChunks = chunkBySentences(paragraph, opts);
-      for (const sc of sentenceChunks) {
-        chunks.push(createChunk(sc.content, chunkIndex++));
+      if (opts.neverSplitParagraphs !== false) {
+        // Keep paragraph whole to preserve structure and reduce sync errors (1:1 mapping)
+        log.warn(
+          'Chunker: paragraph exceeds maxTokens; keeping as single chunk (neverSplitParagraphs)',
+          { paragraphTokens, maxTokens: opts.maxTokens }
+        );
+        chunks.push(createChunk(paragraph, chunkIndex++));
+      } else {
+        // Legacy: split large paragraph into sentence-based chunks
+        const sentenceChunks = chunkBySentences(paragraph, opts);
+        for (const sc of sentenceChunks) {
+          chunks.push(createChunk(sc.content, chunkIndex++));
+        }
       }
       continue;
     }

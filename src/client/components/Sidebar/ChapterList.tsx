@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'preact/hooks';
 // dnd-kit imports for modern drag & drop
 import {
@@ -43,7 +44,6 @@ export function ChapterList({
   originalReadingMode = false,
   onSelect,
   onDelete,
-  onUpload,
   onChaptersUpdate,
   onProjectUpdate,
 }: ChapterListProps) {
@@ -82,7 +82,7 @@ export function ChapterList({
     status: 'pending' | 'uploading' | 'success' | 'error' | 'canceled';
     error?: string;
     warnings?: string[];
-    result?: any;
+    result?: unknown;
     retries: number;
   };
 
@@ -156,10 +156,18 @@ export function ChapterList({
   };
 
   // Sortable item: drag only from the handle, so delete/other buttons stay clickable
-  const SortableItem = (props: any) => {
+  const SortableItem = (props: {
+    id: string;
+    children:
+      | ComponentChildren
+      | ((x: {
+          attributes: Record<string, unknown>;
+          listeners: Record<string, unknown>;
+        }) => ComponentChildren);
+  }) => {
     const { id, children } = props;
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-    const style: any = {
+    const style: { transform?: string; transition?: string } = {
       transform: transform ? CSS.Transform.toString(transform) : undefined,
       transition,
     };
@@ -188,6 +196,7 @@ export function ChapterList({
       all: chapters.length,
       pending: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'pending').length,
       completed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'completed').length,
+      draft: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'draft').length,
       analyzed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'analyzed').length,
       error: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'error').length,
     }),
@@ -238,8 +247,6 @@ export function ChapterList({
     setTimeout(() => startProcessing(), 0);
   };
 
-  const handleFileSelect = (file: File) => addFiles([file]);
-
   const handleFileDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragover(false);
@@ -274,8 +281,8 @@ export function ChapterList({
     setUploading(true);
 
     try {
+      // eslint-disable-next-line no-constant-condition -- queue processing loop exits when no pending item
       while (true) {
-        // Find next pending item (use ref to avoid stale closure)
         const current = queueRef.current.find((it) => it.status === 'pending');
         if (!current) break;
 
@@ -318,9 +325,18 @@ export function ChapterList({
               console.warn('Refresh after upload failed', err);
             }
           }
-        } catch (err: any) {
-          // If aborted, mark canceled
-          if (err.name === 'AbortError') {
+        } catch (err: unknown) {
+          const errObj = err as {
+            name?: string;
+            message?: string;
+            data?: {
+              details?: string;
+              parseErrors?: string[];
+              error?: string;
+              warnings?: string[];
+            };
+          };
+          if (errObj.name === 'AbortError') {
             setQueue((prev) => {
               const next = prev.map((it) =>
                 it.id === current.id ? { ...it, status: 'canceled', error: 'Canceled' } : it
@@ -333,13 +349,13 @@ export function ChapterList({
             break; // stop processing further
           }
 
-          const errorMessage = err?.message || t('errors.unknown');
           const errorDetails =
-            err?.data?.details || err?.data?.parseErrors?.join('; ') || err?.data?.error;
-          const parseErrors = err?.data?.parseErrors;
-          const warnings = err?.data?.warnings;
+            errObj.data?.details || errObj.data?.parseErrors?.join('; ') || errObj.data?.error;
+          const parseErrors = errObj.data?.parseErrors;
+          const warnings = errObj.data?.warnings;
 
           let detailsText = `${t('chapterList.selectedFile') || 'File'}: ${current.file.name}`;
+          if (errObj.message) detailsText += `\n\n${errObj.message}`;
           if (errorDetails) detailsText += `\n\n${errorDetails}`;
           if (parseErrors && parseErrors.length > 0)
             detailsText += `\n\nОшибки парсинга:\n${parseErrors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}`;
@@ -406,6 +422,8 @@ export function ChapterList({
     switch (status) {
       case 'completed':
         return '✅';
+      case 'draft':
+        return '📝';
       case 'translating':
         return '🔮';
       case 'analyzed':
@@ -592,8 +610,8 @@ export function ChapterList({
   }, [selectedId, filteredChapters, containerHeight]);
 
   // dnd-kit drag start handler
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- event required by DndContext signature
   const handleDndStart = (event: DragStartEvent) => {
-    const activeId = event.active?.id as string | undefined;
     // starting a new drag clears previous undo (we don't keep multiple undo slots)
     clearUndoImmediate();
     setIsDragging(true);
@@ -752,7 +770,7 @@ export function ChapterList({
     }
 
     edgeScrollRafRef.current = requestAnimationFrame(runEdgeScroll);
-  }, [containerHeight]);
+  }, [containerHeight, isDragging]);
 
   const onPointerMove = (e: PointerEvent) => {
     pointerYRef.current = e.clientY;
@@ -803,7 +821,7 @@ export function ChapterList({
                 </small>
                 <button
                   class="small"
-                  onClick={(e: any) => {
+                  onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     handleUndo();
                   }}
@@ -826,7 +844,9 @@ export function ChapterList({
           class="chapter-search-input"
           placeholder={`🔍 ${t('chapterList.searchPlaceholder')}`}
           value={search}
-          onInput={(e: any) => setSearch((e.target as HTMLInputElement).value)}
+          onInput={(e: JSX.TargetedEvent<HTMLInputElement>) =>
+            setSearch((e.target as HTMLInputElement).value)
+          }
         />
       </div>
 
@@ -836,7 +856,7 @@ export function ChapterList({
             'all',
             ...(originalReadingMode
               ? []
-              : (['pending', 'completed', 'analyzed', 'error'] as FilterType[])),
+              : (['pending', 'completed', 'draft', 'analyzed', 'error'] as FilterType[])),
           ] as FilterType[]
         ).map((f) => (
           <button
@@ -850,9 +870,11 @@ export function ChapterList({
                   ? t('chapterList.filterPending')
                   : f === 'completed'
                     ? t('chapterList.filterCompleted')
-                    : f === 'analyzed'
-                      ? t('chapterList.filterAnalyzed')
-                      : t('chapterList.filterError')
+                    : f === 'draft'
+                      ? t('chapterList.filterDraft')
+                      : f === 'analyzed'
+                        ? t('chapterList.filterAnalyzed')
+                        : t('chapterList.filterError')
             }
           >
             {f === 'all'
@@ -861,9 +883,11 @@ export function ChapterList({
                 ? '⏳'
                 : f === 'completed'
                   ? '✅'
-                  : f === 'analyzed'
-                    ? '🔍'
-                    : '❌'}
+                  : f === 'draft'
+                    ? '📝'
+                    : f === 'analyzed'
+                      ? '🔍'
+                      : '❌'}
           </button>
         ))}
       </div>
@@ -907,7 +931,15 @@ export function ChapterList({
                           {({ attributes, listeners }) => (
                             <div
                               class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
+                              role="button"
+                              tabIndex={0}
                               onClick={() => onSelect(chapter.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  onSelect(chapter.id);
+                                }
+                              }}
                               title={chapter.title}
                               style={{
                                 height: ITEM_HEIGHT + 'px',
@@ -923,8 +955,13 @@ export function ChapterList({
                                 {editingNumber === chapter.id ? (
                                   <div
                                     class="chapter-number-edit"
-                                    onClick={(e: any) => e.stopPropagation()}
-                                    onPointerDown={(e: any) => e.stopPropagation()}
+                                    role="presentation"
+                                    onClick={(e: JSX.TargetedMouseEvent<HTMLDivElement>) =>
+                                      e.stopPropagation()
+                                    }
+                                    onPointerDown={(e: JSX.TargetedEvent<HTMLDivElement>) =>
+                                      e.stopPropagation()
+                                    }
                                   >
                                     <input
                                       ref={
@@ -934,7 +971,7 @@ export function ChapterList({
                                       min="1"
                                       max={chapters.length}
                                       value={editedNumber}
-                                      onInput={(e: any) => {
+                                      onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => {
                                         const value = parseInt(
                                           (e.target as HTMLInputElement).value,
                                           10
@@ -945,7 +982,9 @@ export function ChapterList({
                                           );
                                         }
                                       }}
-                                      onKeyDown={(e: any) => handleNumberKeyDown(e, chapter.id)}
+                                      onKeyDown={(e: JSX.TargetedKeyboardEvent<HTMLInputElement>) =>
+                                        handleNumberKeyDown(e, chapter.id)
+                                      }
                                       onBlur={() => handleSaveNumber(chapter.id)}
                                       disabled={savingNumber}
                                       class="chapter-number-input"
@@ -954,7 +993,7 @@ export function ChapterList({
                                     <div class="chapter-number-edit-actions">
                                       <button
                                         class="chapter-number-save-btn"
-                                        onClick={(e: any) => {
+                                        onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
                                           e.stopPropagation();
                                           handleSaveNumber(chapter.id);
                                         }}
@@ -965,7 +1004,7 @@ export function ChapterList({
                                       </button>
                                       <button
                                         class="chapter-number-cancel-btn"
-                                        onClick={(e: any) => {
+                                        onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
                                           e.stopPropagation();
                                           handleCancelEditNumber(chapter);
                                         }}
@@ -977,23 +1016,42 @@ export function ChapterList({
                                     </div>
                                   </div>
                                 ) : (
-                                  <span
+                                  <button
+                                    type="button"
                                     class="chapter-number"
-                                    onClick={(e: any) => handleStartEditNumber(chapter, e)}
+                                    onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) =>
+                                      handleStartEditNumber(chapter, e)
+                                    }
                                     title={t('chapterList.editNumberTitle')}
-                                    style={{ cursor: 'pointer' }}
+                                    style={{
+                                      cursor: 'pointer',
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      font: 'inherit',
+                                    }}
                                   >
                                     {chapter.number}
-                                  </span>
+                                  </button>
                                 )}
                                 <span class="chapter-item-title">{chapter.title}</span>
                               </div>
+                              {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
                               <div
                                 class="chapter-item-actions"
-                                onClick={(e: any) => e.stopPropagation()}
-                                onPointerDown={(e: any) => e.stopPropagation()}
                                 role="group"
                                 aria-label={t('chapterList.deleteTitle')}
+                                onClick={(e: JSX.TargetedMouseEvent<HTMLDivElement>) =>
+                                  e.stopPropagation()
+                                }
+                                onPointerDown={(e: JSX.TargetedEvent<HTMLDivElement>) =>
+                                  e.stopPropagation()
+                                }
+                                onKeyDown={(e) =>
+                                  e.key === 'Enter' || e.key === ' '
+                                    ? e.stopPropagation()
+                                    : undefined
+                                }
                               >
                                 {!originalReadingMode && (
                                   <span>{getStatusIcon(chapter.status)}</span>
@@ -1002,12 +1060,14 @@ export function ChapterList({
                                   <button
                                     type="button"
                                     class="chapter-delete-btn"
-                                    onClick={(e: any) => {
+                                    onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
                                       e.stopPropagation();
                                       e.preventDefault();
                                       setDeleteConfirmId(chapter.id);
                                     }}
-                                    onPointerDown={(e: any) => e.stopPropagation()}
+                                    onPointerDown={(e: JSX.TargetedEvent<HTMLButtonElement>) =>
+                                      e.stopPropagation()
+                                    }
                                     title={t('chapterList.deleteTitle')}
                                     disabled={deleting}
                                   >
@@ -1030,8 +1090,16 @@ export function ChapterList({
 
       <div
         class={`upload-area ${dragover ? 'dragover' : ''}`}
+        role="button"
+        tabIndex={0}
         style={{ marginTop: '1rem' }}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDrop={handleFileDrop}
         onDragOver={handleFileDragOver}
         onDragLeave={handleFileDragLeave}

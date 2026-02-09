@@ -54,7 +54,13 @@ export interface Paragraph {
 
 // === Chapters ===
 
-export type ChapterStatus = 'pending' | 'translating' | 'analyzed' | 'completed' | 'error';
+export type ChapterStatus =
+  | 'pending'
+  | 'translating'
+  | 'analyzed'
+  | 'draft' // Translation saved, editing not applied
+  | 'completed'
+  | 'error';
 
 export interface TranslationMeta {
   tokensUsed: number; // Total tokens (for backward compatibility)
@@ -70,6 +76,10 @@ export interface TranslationMeta {
   source?: 'uploaded' | 'ai';
   /** When analysis was last run successfully (ISO). Used to avoid duplicate analysis and show "Analyzed" in UI. */
   lastAnalysisAt?: string;
+  /** Number of translation chunks (for debugging / UI). */
+  chunksCount?: number;
+  /** Index of first failed chunk (0-based), or -1 if none (for debugging / UI). */
+  failedChunkIndex?: number;
 }
 
 export interface Chapter {

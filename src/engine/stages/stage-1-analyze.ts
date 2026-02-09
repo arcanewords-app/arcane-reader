@@ -40,7 +40,8 @@ const LOCATION_TYPES = ['city', 'country', 'building', 'region', 'world', 'other
 function normalizeLocationType(value: unknown): (typeof LOCATION_TYPES)[number] {
   if (value == null || value === '') return 'other';
   const s = String(value).trim().toLowerCase();
-  if (LOCATION_TYPES.includes(s as any)) return s as (typeof LOCATION_TYPES)[number];
+  if ((LOCATION_TYPES as readonly string[]).includes(s))
+    return s as (typeof LOCATION_TYPES)[number];
   if (s === 'town' || s === 'village' || s === 'place') return 'city';
   if (s === 'area' || s === 'zone') return 'region';
   return 'other';
@@ -58,7 +59,8 @@ const TERM_CATEGORIES = [
 function normalizeTermCategory(value: unknown): (typeof TERM_CATEGORIES)[number] {
   if (value == null || value === '') return 'other';
   const s = String(value).trim().toLowerCase();
-  if (TERM_CATEGORIES.includes(s as any)) return s as (typeof TERM_CATEGORIES)[number];
+  if ((TERM_CATEGORIES as readonly string[]).includes(s))
+    return s as (typeof TERM_CATEGORIES)[number];
   if (s === 'spell' || s === 'ability') return 'magic';
   if (s === 'rank' || s === 'position') return 'title';
   if (s === 'group' || s === 'guild' || s === 'faction') return 'organization';
@@ -118,13 +120,13 @@ export class AnalyzeStage {
     }
     if (typeof provider.completeJSON !== 'function') {
       throw new Error(
-        `AnalyzeStage: provider is missing completeJSON method. Provider type: ${typeof provider}, model: ${(provider as any)?.model || 'unknown'}`
+        `AnalyzeStage: provider is missing completeJSON method. Provider type: ${typeof provider}, model: ${(provider as { model?: string })?.model || 'unknown'}`
       );
     }
     this.provider = provider;
     log.debug('AnalyzeStage initialized', {
       hasProvider: !!this.provider,
-      model: (this.provider as any)?.model || 'unknown',
+      model: (this.provider as { model?: string })?.model || 'unknown',
       hasCompleteJSON: typeof this.provider.completeJSON,
     });
   }

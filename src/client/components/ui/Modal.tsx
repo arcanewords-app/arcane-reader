@@ -42,13 +42,7 @@ export function Modal({
         : size === 'large'
           ? 'large'
           : 'default');
-  // Don't render modal DOM when closed (to avoid layout issues)
-  // This check must be at the very beginning to prevent any DOM creation
-  if (!isOpen) {
-    return null;
-  }
 
-  // Close on Escape key
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !preventClose) {
@@ -59,13 +53,18 @@ export function Modal({
   );
 
   useEffect(() => {
+    if (!isOpen) return;
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [handleKeyDown]);
+  }, [isOpen, handleKeyDown]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   // Handle overlay click
   const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
@@ -156,7 +155,21 @@ export function Modal({
         : 'form-actions';
 
   const content = (
-    <div class={overlayClasses} onClick={handleOverlayClick}>
+    <div
+      class={overlayClasses}
+      role="button"
+      tabIndex={0}
+      aria-label="Close modal"
+      onClick={handleOverlayClick}
+      onKeyDown={(e) => {
+        // Only close on Space/Enter when focus is on the overlay (clicked backdrop), not when
+        // focus is inside modal content (e.g. Space in glossary card would close otherwise)
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget && !preventClose) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
+    >
       <div class={modalClasses}>
         {headerContent}
 

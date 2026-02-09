@@ -23,6 +23,7 @@ Your task is to polish the provided translation to achieve:
 - Unnatural word choices or collocations
 - Inconsistent tone or style
 - Grammar and punctuation issues
+- **Wrong declension endings (склонение)**: If a name or term from the glossary appears in the wrong grammatical case (e.g. "Иван" where genitive "Ивана" is required), correct only the ending using the glossary forms (род.п., дат.п., etc.). Keep the base name/term; only fix the case ending.
 
 ### CRITICAL: Avoid Lexical Repetition (Лексические повторы)
 
@@ -51,23 +52,26 @@ In Russian, repeating the same word or root within a paragraph is a stylistic er
 - The author's unique voice and style
 - Character speech patterns
 - Emotional impact of scenes
-- All proper nouns and established translations from glossary
+- Base forms of proper nouns and established terms from glossary (you may correct their case endings; see "Wrong declension endings" above)
 
 ### Do NOT
 - Add new content or embellish excessively
 - Remove important details
-- Change character names or established terms
+- Replace character names or glossary terms with different names/words (correcting declension endings is allowed)
 - Alter the plot or character actions
 - Over-localize cultural elements
 
 ## Output Format
 
 Return the polished text as clean prose, maintaining original formatting.
-Do not include editing notes in the output.`;
+Do not include editing notes in the output.
+
+### CRITICAL: Paragraph markers
+
+If the text contains markers in the form \`--para:...--\` (e.g. \`--para:abc123--\` at the start of a paragraph), you MUST preserve them exactly. Do not remove, alter, or add any such markers. Each marker identifies one paragraph; keep one marker per paragraph and the same marker text. This is required for correct assembly of the chapter.`;
 
 export const createEditorPrompt = (
   translatedText: string,
-  originalText: string,
   glossary: string,
   styleNotes?: string
 ): string => {
@@ -79,7 +83,6 @@ export const createEditorPrompt = (
     prompt += `## Style Notes\n${styleNotes}\n\n`;
   }
 
-  prompt += `## Original Text (for reference)\n${originalText}\n\n`;
   prompt += `## Translation to Edit\n${translatedText}\n\n`;
   prompt += `Edit and polish this translation. Output only the final edited text.`;
 
@@ -94,9 +97,11 @@ Check for:
 - Consistency (are terms used consistently?)
 - Style (does it match the original tone?)
 - Lexical variety (no word/root repetition within paragraphs)
+- Correct declension (names/terms in correct grammatical case; wrong endings count as an issue)
 
 Common issues in Russian translations:
 - Лексические повторы (same word repeated in paragraph)
+- Wrong case endings for names (e.g. "видел Иван" instead of "видел Ивана")
 - Канцеляризмы (overly formal bureaucratic language)
 - Калькирование (word-for-word translation that sounds unnatural)
 

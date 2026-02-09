@@ -2,13 +2,12 @@ import { useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
-import type { Project } from '../types';
+import type { Project, ProjectSettings } from '../types';
 import { getProject, invalidateProject } from '../store/projects';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
 import { api } from '../api/client';
-import type { ProjectSettings, Chapter } from '../types';
 
 interface ProjectPageProps {
   projectId: string;
@@ -20,6 +19,8 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const [loading, setLoading] = useState(true);
   const refreshTrigger = useSignal(0);
   const previousProjectIdRef = useRef<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
 
   useEffect(() => {
     // If projectId changed, invalidate previous project cache
@@ -29,7 +30,20 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
     previousProjectIdRef.current = projectId;
 
     loadProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject is stable, avoid refetch loop
   }, [projectId]);
+
+  useEffect(() => {
+    const handleSidebarState = () => {
+      const state = (window as { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen;
+      if (state !== undefined) {
+        setSidebarOpen(state);
+      }
+    };
+    handleSidebarState();
+    window.addEventListener('arcane:sidebar-change', handleSidebarState);
+    return () => window.removeEventListener('arcane:sidebar-change', handleSidebarState);
+  }, []);
 
   const loadProject = async () => {
     setLoading(true);
@@ -71,19 +85,13 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
     }
   };
 
-  const handleChapterUpdate = (chapter: Chapter) => {
-    if (!project) return;
-    setProject({
-      ...project,
-      chapters: project.chapters.map((c) => (c.id === chapter.id ? chapter : c)),
-    });
-  };
-
   const handleEnterReadingMode = () => {
     if (!project) return;
-    // Navigate to reading mode for the first completed chapter, or first chapter if no completed
+    // Navigate to reading mode for the first translated chapter (completed or draft), or first chapter
     const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
-    const firstCompleted = sortedChapters.find((c) => c.status === 'completed');
+    const firstCompleted = sortedChapters.find(
+      (c) => c.status === 'completed' || c.status === 'draft'
+    );
     const firstChapter = sortedChapters[0];
     const chapterId = (firstCompleted || firstChapter)?.id;
     if (chapterId) {
@@ -99,33 +107,9 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
     return <div>{t('project.notFound')}</div>;
   }
 
-  // Get sidebar state from AppRouter (stored in window for cross-component communication)
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showGlossary, setShowGlossary] = useState(false);
-
-  useEffect(() => {
-    // Listen for sidebar state changes from AppRouter
-    const handleSidebarState = () => {
-      const state = (window as any).__arcaneSidebarOpen;
-      if (state !== undefined) {
-        setSidebarOpen(state);
-      }
-    };
-
-    // Check initial state
-    handleSidebarState();
-
-    // Listen for custom events from AppRouter
-    window.addEventListener('arcane:sidebar-change', handleSidebarState);
-    return () => {
-      window.removeEventListener('arcane:sidebar-change', handleSidebarState);
-    };
-  }, []);
-
   const handleSidebarClose = () => {
     setSidebarOpen(false);
-    // Notify AppRouter
-    (window as any).__arcaneSidebarOpen = false;
+    (window as { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = false;
     window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
   };
 
@@ -139,22 +123,12 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           route(`/projects/${projectId}/chapters/${id}`);
         }}
         onUploadChapter={async (file, title) => {
-          try {
-            const result = await api.uploadChapter(project.id, file, title);
-            // Handle both single chapter and multiple chapters response
-            if ('chapters' in result && Array.isArray(result.chapters)) {
-              // Multiple chapters uploaded (EPUB/FB2)
-              if (result.warnings && result.warnings.length > 0) {
-                // Warnings are handled by the upload component
-              }
-            }
-            // Invalidate cache and refresh project immediately
-            invalidateProject(project.id);
-            await handleRefreshProject();
-          } catch (error) {
-            // Error is handled by ChapterList component
-            throw error;
+          const result = await api.uploadChapter(project.id, file, title);
+          if ('chapters' in result && Array.isArray(result.chapters) && result.warnings?.length) {
+            // Warnings are handled by the upload component
           }
+          invalidateProject(project.id);
+          await handleRefreshProject();
         }}
         onOpenGlossary={() => {
           handleSidebarClose(); // Close sidebar on mobile

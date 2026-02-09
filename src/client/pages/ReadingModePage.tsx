@@ -17,6 +17,7 @@ export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) 
 
   useEffect(() => {
     loadProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject is stable
   }, [projectId]);
 
   const loadProject = async () => {

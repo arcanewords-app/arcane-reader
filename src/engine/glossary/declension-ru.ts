@@ -5,7 +5,7 @@
  * https://github.com/petrovich/petrovich-js
  */
 
-// @ts-ignore - petrovich doesn't have types
+// @ts-expect-error - petrovich doesn't have types
 import petrovich from 'petrovich';
 import type { Declensions, Gender } from '../types/common.js';
 

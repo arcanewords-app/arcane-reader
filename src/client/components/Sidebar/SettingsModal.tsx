@@ -1,4 +1,3 @@
-import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Project, ProjectSettings } from '../../types';
 import { Modal, Button } from '../ui';
@@ -141,6 +140,7 @@ export function SettingsModal({
                 checked={isOriginalReadingMode}
                 onChange={toggleOriginalReadingMode}
                 style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                aria-label={t('settings.originalReadingMode')}
               />
             </label>
           </div>

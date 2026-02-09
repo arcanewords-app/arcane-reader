@@ -218,7 +218,15 @@ export function PublicationGlossaryModal({
                     <div
                       key={entry.id}
                       class="glossary-card glossary-viewer-card"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setDetailEntry(entry)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setDetailEntry(entry);
+                        }
+                      }}
                     >
                       <div class="glossary-card-header">
                         {firstImage ? (
@@ -343,10 +351,15 @@ export function PublicationGlossaryModal({
                       detailEntry.imageUrls || (detailEntry.imageUrl ? [detailEntry.imageUrl] : [])
                     ).map((imageUrl, index) => (
                       <div key={index} class="image-gallery-item publication-glossary-detail-image">
-                        <img
-                          src={imageUrl}
-                          alt={`${detailEntry.translated} ${index + 1}`}
-                          class="gallery-image-preview"
+                        <button
+                          type="button"
+                          class="gallery-image-button"
+                          style={{
+                            cursor: 'pointer',
+                            padding: 0,
+                            border: 'none',
+                            background: 'none',
+                          }}
                           onClick={() => {
                             const viewer = document.createElement('div');
                             viewer.className = 'image-viewer-modal active';
@@ -357,8 +370,13 @@ export function PublicationGlossaryModal({
                             viewer.onclick = () => document.body.removeChild(viewer);
                             document.body.appendChild(viewer);
                           }}
-                          style={{ cursor: 'pointer' }}
-                        />
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`${detailEntry.translated} ${index + 1}`}
+                            class="gallery-image-preview"
+                          />
+                        </button>
                       </div>
                     ))}
                   </div>

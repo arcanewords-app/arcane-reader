@@ -89,11 +89,11 @@ export function getTranslatedText(chapter: Chapter): string {
  * Filters and prepares only completed chapters
  */
 export function prepareProjectForExport(project: Project, author?: string): ExportProject {
-  // Filter only completed chapters with translations
+  // Filter completed or draft chapters with translations (draft = translation saved, editing not applied)
   const completedChapters = project.chapters
     .filter((ch) => {
       const hasTranslation =
-        ch.status === 'completed' &&
+        (ch.status === 'completed' || ch.status === 'draft') &&
         (ch.translatedText || (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)));
       return hasTranslation;
     })

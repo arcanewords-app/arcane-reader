@@ -88,7 +88,7 @@ export function ReadingMode({
       availableChapters = project.chapters
         .filter(
           (ch) =>
-            ch.status === 'completed' &&
+            (ch.status === 'completed' || ch.status === 'draft') &&
             (ch.translatedText || (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)))
         )
         .sort((a, b) => a.number - b.number);
@@ -233,7 +233,7 @@ export function ReadingMode({
                   ? t('readingMode.noChaptersForReading')
                   : t('readingMode.noTranslatedChapters')}
             </h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+            <p style={{ color: 'var(--reader-text-dim)', marginBottom: '2rem' }}>
               {isPublicationMode
                 ? t('readingMode.noTranslatedChapters')
                 : isOriginalReadingMode
@@ -245,8 +245,8 @@ export function ReadingMode({
               onClick={onExit}
               style={{
                 padding: '0.75rem 1.5rem',
-                background: 'var(--accent)',
-                color: 'white',
+                background: 'var(--reader-accent)',
+                color: 'var(--reader-accent-text)',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -371,7 +371,9 @@ export function ReadingMode({
       <div class="reading-mode-content">
         <div class="reading-mode-text">
           {chapterContentLoading ? (
-            <p style={{ color: 'var(--text-dim)', textAlign: 'center' }}>{t('common.loading')}</p>
+            <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
+              {t('common.loading')}
+            </p>
           ) : displayText ? (
             displayText.split('\n\n').map((paragraph, idx) => (
               <p key={idx} class="reading-mode-paragraph">
@@ -379,7 +381,7 @@ export function ReadingMode({
               </p>
             ))
           ) : (
-            <p style={{ color: 'var(--text-dim)', textAlign: 'center' }}>
+            <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
               {isPublicationMode
                 ? t('readingMode.noTranslatedText')
                 : isOriginalReadingMode
@@ -437,6 +439,7 @@ export function ReadingMode({
       </Modal>
 
       <Modal
+        className="reading-share-modal"
         isOpen={showShareModal}
         onClose={() => {
           setShowShareModal(false);
@@ -449,8 +452,8 @@ export function ReadingMode({
             onClick={handleCopyShareLink}
             style={{
               padding: '0.75rem 1.5rem',
-              background: shareCopied ? 'var(--success)' : 'var(--accent)',
-              color: 'white',
+              background: shareCopied ? 'var(--success)' : 'var(--reader-accent)',
+              color: 'var(--reader-accent-text)',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -464,7 +467,7 @@ export function ReadingMode({
         }
       >
         <div style={{ marginBottom: '1rem' }}>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+          <p style={{ color: 'var(--reader-text-dim)', marginBottom: '0.5rem' }}>
             {t('readingMode.linkLabel')}
           </p>
           <input
@@ -474,10 +477,10 @@ export function ReadingMode({
             style={{
               width: '100%',
               padding: '0.75rem',
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
+              background: 'var(--reader-chrome-bg)',
+              border: '1px solid var(--reader-chrome-border)',
               borderRadius: '8px',
-              color: 'var(--text-primary)',
+              color: 'var(--reader-text)',
               fontSize: '0.9rem',
               fontFamily: 'var(--font-mono)',
             }}

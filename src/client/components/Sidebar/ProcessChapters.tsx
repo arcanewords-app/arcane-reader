@@ -62,6 +62,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     () => ({
       chapters: project.chapters.length,
       translated: project.chapters.filter((c) => c.status === 'completed').length,
+      draft: project.chapters.filter((c) => c.status === 'draft').length,
       analyzed: project.chapters.filter((c) => c.status === 'analyzed').length,
       error: project.chapters.filter((c) => c.status === 'error').length,
       empty: project.chapters.filter(isChapterEmpty).length,
@@ -329,6 +330,26 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               )}
             </button>
           )}
+          {stats.draft > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setTranslateSelectionIds(
+                  project.chapters.filter((c) => c.status === 'draft').map((c) => c.id)
+                )
+              }
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                cursor: 'pointer',
+                padding: '0.25rem 0',
+                textDecoration: 'underline',
+              }}
+            >
+              {t('projectInfo.presetDraft', { count: stats.draft }, 'Черновики ({{count}})')}
+            </button>
+          )}
           {stats.analyzed > 0 && (
             <button
               type="button"
@@ -408,6 +429,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               const isEmpty = isChapterEmpty(chapter);
               const isError = chapter.status === 'error';
               const isCompleted = chapter.status === 'completed';
+              const isDraft = chapter.status === 'draft';
               const isAnalyzed = chapter.status === 'analyzed';
               return (
                 <label
@@ -455,7 +477,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   >
                     {chapter.title}
                   </span>
-                  {(isEmpty || isError || isCompleted || isAnalyzed) && (
+                  {(isEmpty || isError || isCompleted || isDraft || isAnalyzed) && (
                     <span
                       style={{
                         fontSize: '0.7rem',
@@ -465,13 +487,15 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                           ? 'var(--error)'
                           : isCompleted
                             ? 'var(--success)'
-                            : isAnalyzed
+                            : isDraft
                               ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
-                              : 'var(--text-dim)',
+                              : isAnalyzed
+                                ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
+                                : 'var(--text-dim)',
                         color:
                           isError || isCompleted
                             ? 'white'
-                            : isAnalyzed
+                            : isDraft || isAnalyzed
                               ? 'var(--accent)'
                               : 'var(--bg-secondary)',
                         flexShrink: 0,
@@ -481,12 +505,14 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                           ? t('projectInfo.chapterStatusError')
                           : isCompleted
                             ? t('projectInfo.chapterStatusTranslated')
-                            : isAnalyzed
-                              ? t('projectInfo.chapterStatusAnalyzed', 'Только анализ')
-                              : t('projectInfo.chapterStatusEmpty')
+                            : isDraft
+                              ? t('projectInfo.chapterStatusDraft')
+                              : isAnalyzed
+                                ? t('projectInfo.chapterStatusAnalyzed', 'Только анализ')
+                                : t('projectInfo.chapterStatusEmpty')
                       }
                     >
-                      {isError ? '!' : isCompleted ? '✓' : isAnalyzed ? '🔍' : '○'}
+                      {isError ? '!' : isCompleted ? '✓' : isDraft ? '📝' : isAnalyzed ? '🔍' : '○'}
                     </span>
                   )}
                 </label>
@@ -719,13 +745,12 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                     const tokensByStage = currentChapterProgress.tokensByStage;
                     const stageTokens: string[] = [];
                     if (tokensByStage) {
-                      if (tokensByStage.analysis) {
+                      if (tokensByStage.analysis !== undefined && tokensByStage.analysis > 0) {
                         stageTokens.push(`🔍 ${tokensByStage.analysis.toLocaleString()}`);
                       }
-                      stageTokens.push(`🔮 ${tokensByStage.translation.toLocaleString()}`);
-                      if (tokensByStage.editing) {
-                        stageTokens.push(`✨ ${tokensByStage.editing.toLocaleString()}`);
-                      }
+                      stageTokens.push(`🔮 ${(tokensByStage.translation ?? 0).toLocaleString()}`);
+                      // Always show editing when we have stage breakdown (0 or value)
+                      stageTokens.push(`✨ ${(tokensByStage.editing ?? 0).toLocaleString()}`);
                     }
                     return (
                       <div
@@ -875,11 +900,10 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                       stageTokens.push(
                         `🔮 ${t('projectInfo.stageTranslation')}: ${totalByStage.translation.toLocaleString()}`
                       );
-                      if (totalByStage.editing > 0) {
-                        stageTokens.push(
-                          `✨ ${t('projectInfo.stageEditing')}: ${totalByStage.editing.toLocaleString()}`
-                        );
-                      }
+                      // Always show editing in batch summary (0 or value)
+                      stageTokens.push(
+                        `✨ ${t('projectInfo.stageEditing')}: ${(totalByStage.editing ?? 0).toLocaleString()}`
+                      );
                       return (
                         <div
                           style={{

@@ -17,8 +17,8 @@
 }
 
 .reading-mode-header {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border-bottom: 1px solid var(--reader-chrome-border);
   padding: var(--reading-header-padding-mobile);
   display: flex;
   align-items: center;
@@ -38,10 +38,10 @@
 
 .reading-mode-exit-btn {
   padding: 0.5rem 1rem;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: 6px;
-  color: var(--text-primary);
+  color: var(--reader-text);
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.2s;
@@ -49,15 +49,15 @@
 }
 
 .reading-mode-exit-btn:hover {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: white;
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
 }
 
 .reading-mode-title h2 {
   font-size: 1rem; /* Mobile first - меньший размер */
   margin: 0;
-  color: var(--text-primary);
+  color: var(--reader-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -65,7 +65,7 @@
 
 .reading-mode-chapter-info {
   font-size: 0.85rem;
-  color: var(--text-dim);
+  color: var(--reader-text-dim);
   margin-left: 0.5rem;
 }
 
@@ -82,19 +82,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--reader-text-dim);
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.2s;
 }
 
 .reading-mode-header-btn:hover {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: white;
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
 }
 
 .reading-mode-settings-btn {
@@ -104,24 +104,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--reader-text-dim);
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.2s;
 }
 
 .reading-mode-settings-btn:hover {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: white;
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
 }
 
 .reading-mode-settings-panel {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border-bottom: 1px solid var(--reader-chrome-border);
   padding: var(--reading-header-padding-mobile);
   flex-shrink: 0;
 }
@@ -131,8 +131,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--reading-header-padding-mobile);
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border-bottom: 1px solid var(--reader-chrome-border);
   gap: 0.75rem;
   flex-shrink: 0;
   flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
@@ -140,10 +140,10 @@
 
 .reading-mode-nav-btn {
   padding: 0.5rem 1rem;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: 6px;
-  color: var(--text-primary);
+  color: var(--reader-text);
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.2s;
@@ -151,9 +151,9 @@
 }
 
 .reading-mode-nav-btn:hover:not(:disabled) {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: white;
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
 }
 
 .reading-mode-nav-btn:disabled {
@@ -165,7 +165,7 @@
   flex: 1;
   text-align: center;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--reader-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -190,6 +190,8 @@
 }
 
 .reading-mode-paragraph {
+  color: var(--reader-text);
+  line-height: var(--reader-line-height);
   margin-bottom: var(--reader-paragraph-spacing, 1.2em);
   text-align: justify;
   text-indent: 1.5em;
@@ -204,8 +206,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--reading-header-padding-mobile);
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border-top: 1px solid var(--reader-chrome-border);
   gap: 0.75rem;
   flex-shrink: 0;
   flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
@@ -213,7 +215,7 @@
 
 .reading-mode-progress {
   font-size: 0.9rem;
-  color: var(--text-dim);
+  color: var(--reader-text-dim);
   font-weight: 500;
 }
 
@@ -225,7 +227,76 @@
   padding: 2rem;
 }
 
-/* ===== Table of Contents Modal (dedicated, not glossary) ===== */
+/* Reader settings panel inside reading mode uses reader theme */
+.reading-mode .reader-settings-panel {
+  background: var(--reader-bg);
+  border: 1px solid var(--reader-chrome-border);
+}
+
+.reading-mode .reader-settings-panel .settings-label {
+  color: var(--reader-text-dim);
+}
+
+.reading-mode .reader-settings-panel .font-option {
+  background: var(--reader-chrome-bg);
+}
+
+.reading-mode .reader-settings-panel .font-option:hover {
+  border-color: var(--reader-accent);
+}
+
+.reading-mode .reader-settings-panel .font-option.active {
+  border-color: var(--reader-accent);
+  background: var(--reader-accent);
+  color: var(--reader-accent-text);
+}
+
+.reading-mode .reader-settings-panel .font-preview {
+  color: var(--reader-text);
+}
+
+.reading-mode .reader-settings-panel .font-option.active .font-preview {
+  color: var(--reader-accent-text);
+}
+
+.reading-mode .reader-settings-panel .font-name {
+  color: var(--reader-text-dim);
+}
+
+.reading-mode .reader-settings-panel .font-option.active .font-name {
+  color: var(--reader-accent-text);
+}
+
+.reading-mode .reader-settings-panel .slider-label,
+.reading-mode .reader-settings-panel .slider-row {
+  color: var(--reader-text-dim);
+}
+
+.reading-mode .reader-settings-panel .settings-slider {
+  background: var(--reader-chrome-bg);
+}
+
+.reading-mode .reader-settings-panel .settings-slider::-webkit-slider-thumb {
+  background: var(--reader-accent);
+}
+
+.reading-mode .reader-settings-panel .slider-value {
+  color: var(--reader-accent);
+}
+
+.reading-mode .reader-settings-panel .theme-option {
+  background: transparent;
+}
+
+.reading-mode .reader-settings-panel .theme-option:hover {
+  border-color: var(--reader-accent);
+}
+
+.reading-mode .reader-settings-panel .theme-option.active {
+  border-color: var(--reader-accent);
+}
+
+/* ===== Table of Contents Modal (uses reader vars when data-reader-theme is on root) ===== */
 .modal.toc-modal {
   width: 100%;
   max-width: min(420px, 92vw);
@@ -233,54 +304,53 @@
   display: flex;
   flex-direction: column;
   padding: 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--reader-chrome-border);
 }
 
-.toc-modal-header {
+.modal.toc-modal .toc-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--reader-chrome-border);
+  background: var(--reader-chrome-bg);
   flex-shrink: 0;
 }
 
-.toc-modal-title {
+.modal.toc-modal .toc-modal-title {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--reader-text);
   letter-spacing: -0.02em;
   margin: 0;
 }
 
-.modal-close-btn.toc-modal-close {
-  color: var(--text-secondary);
+.modal.toc-modal .modal-close-btn.toc-modal-close {
+  color: var(--reader-text-dim);
   background: transparent;
-  border-color: var(--border);
+  border-color: var(--reader-chrome-border);
 }
 
-.modal-close-btn.toc-modal-close:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
+.modal.toc-modal .modal-close-btn.toc-modal-close:hover {
+  color: var(--reader-accent-text);
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
 }
 
-.toc-modal-footer {
+.modal.toc-modal .toc-modal-footer {
   flex-shrink: 0;
   padding: var(--space-md) var(--space-lg);
-  border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
+  border-top: 1px solid var(--reader-chrome-border);
+  background: var(--reader-chrome-bg);
 }
 
-/* TOC list - scrollable, readable */
-.reading-toc-list {
+.modal.toc-modal .reading-toc-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -290,13 +360,13 @@
   overflow-x: hidden;
 }
 
-.reading-toc-item {
+.modal.toc-modal .reading-toc-item {
   display: flex;
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-md);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
@@ -305,76 +375,104 @@
     color var(--duration-normal) var(--ease-standard);
   text-align: left;
   width: 100%;
-  color: var(--text-primary);
+  color: var(--reader-text);
 }
 
-.reading-toc-item:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
+.modal.toc-modal .reading-toc-item:hover {
+  background: var(--reader-bg);
+  border-color: var(--reader-chrome-border);
 }
 
-.reading-toc-item:focus-visible {
-  outline: 2px solid var(--accent);
+.modal.toc-modal .reading-toc-item:focus-visible {
+  outline: 2px solid var(--reader-accent);
   outline-offset: 2px;
 }
 
-.reading-toc-item.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.modal.toc-modal .reading-toc-item.active {
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
 }
 
-.reading-toc-number {
+.modal.toc-modal .reading-toc-number {
   min-width: 1.75rem;
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--text-secondary);
+  color: var(--reader-text-dim);
   flex-shrink: 0;
 }
 
-.reading-toc-item.active .reading-toc-number {
-  color: rgba(255, 255, 255, 0.95);
+.modal.toc-modal .reading-toc-item.active .reading-toc-number {
+  color: var(--reader-accent-text);
 }
 
-.reading-toc-title {
+.modal.toc-modal .reading-toc-title {
   flex: 1;
   font-weight: 500;
   font-size: 0.9375rem;
   line-height: 1.4;
-  color: var(--text-primary);
+  color: var(--reader-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
 
-.reading-toc-item.active .reading-toc-title {
-  color: #fff;
+.modal.toc-modal .reading-toc-item.active .reading-toc-title {
+  color: var(--reader-accent-text);
 }
 
-/* Long chapter names: allow wrap on small screens for readability */
 @media (max-width: 380px) {
-  .reading-toc-title {
+  .modal.toc-modal .reading-toc-title {
     white-space: normal;
     word-break: break-word;
   }
 }
 
-.reading-toc-current {
+.modal.toc-modal .reading-toc-current {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--accent-bright);
+  color: var(--reader-accent);
   flex-shrink: 0;
 }
 
-.reading-toc-item.active .reading-toc-current {
-  color: rgba(255, 255, 255, 0.9);
+.modal.toc-modal .reading-toc-item.active .reading-toc-current {
+  color: var(--reader-accent-text);
 }
 
 .reading-share-copy-btn {
   transition: all 0.2s;
+}
+
+/* Share modal in reading mode uses reader theme (modal is portaled to body; root has data-reader-theme) */
+.modal.reading-share-modal {
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
+}
+
+.modal.reading-share-modal .modal-header-row {
+  border-bottom-color: var(--reader-chrome-border);
+}
+
+.modal.reading-share-modal .modal-title {
+  color: var(--reader-text);
+}
+
+.modal.reading-share-modal .modal-close-btn {
+  color: var(--reader-text-dim);
+  border-color: var(--reader-chrome-border);
+}
+
+.modal.reading-share-modal .modal-close-btn:hover {
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
+}
+
+.modal.reading-share-modal .form-actions {
+  border-top: 1px solid var(--reader-chrome-border);
 }
 
 /* Responsive Styles */

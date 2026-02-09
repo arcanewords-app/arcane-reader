@@ -10,8 +10,10 @@ export interface AppConfig {
   openai: {
     apiKey: string;
     model: string;
-    /** Request timeout in ms (e.g. for long analysis/translation). Default 120000 (2 min). */
+    /** Request timeout in ms (e.g. for long analysis/translation). Default 300000 (5 min). */
     timeout?: number;
+    /** SDK-level retries per request (OpenAI client). Default 3. */
+    maxRetries?: number;
   };
   anthropic: {
     apiKey: string;
@@ -22,6 +24,12 @@ export interface AppConfig {
     maxTokensPerChunk: number;
     temperature: number;
     skipEditing: boolean;
+    /** Never split a paragraph into smaller chunks; keep 1:1 paragraph boundaries. Default true. */
+    neverSplitParagraphs?: boolean;
+    /** Number of retries for a failed translation chunk (default 2 = up to 3 attempts). */
+    chunkRetryAttempts?: number;
+    /** Delay in ms before each chunk retry (default 1500). */
+    chunkRetryDelayMs?: number;
   };
 
   // Storage
@@ -41,7 +49,8 @@ export function loadConfig(): AppConfig {
     openai: {
       apiKey: process.env.OPENAI_API_KEY ?? '',
       model: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
-      timeout: parseInt(process.env.OPENAI_TIMEOUT_MS ?? '120000', 10),
+      timeout: parseInt(process.env.OPENAI_TIMEOUT_MS ?? '300000', 10),
+      maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES ?? '3', 10),
     },
 
     anthropic: {
@@ -52,6 +61,9 @@ export function loadConfig(): AppConfig {
       maxTokensPerChunk: parseInt(process.env.MAX_TOKENS_PER_CHUNK ?? '2000', 10),
       temperature: parseFloat(process.env.TRANSLATION_TEMPERATURE ?? '0.7'),
       skipEditing: process.env.SKIP_EDITING === 'true',
+      neverSplitParagraphs: process.env.NEVER_SPLIT_PARAGRAPHS !== 'false',
+      chunkRetryAttempts: parseInt(process.env.CHUNK_RETRY_ATTEMPTS ?? '2', 10),
+      chunkRetryDelayMs: parseInt(process.env.CHUNK_RETRY_DELAY_MS ?? '1500', 10),
     },
 
     storage: {

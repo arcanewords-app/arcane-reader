@@ -76,10 +76,12 @@ export function ChapterView({
     return list.map((p) => p.id);
   }, [chapter.paragraphs]);
 
+  const emptyParagraphIdsKey = useMemo(() => emptyParagraphIds.join(','), [emptyParagraphIds]);
+
   // When chapter or empty list changes, pre-select all empty paragraphs for translation
   useEffect(() => {
     setSelectedParagraphIds(emptyParagraphIds.length > 0 ? [...emptyParagraphIds] : []);
-  }, [chapter.id, emptyParagraphIds.join(',')]);
+  }, [chapter.id, emptyParagraphIdsKey, emptyParagraphIds]);
 
   // Apply reader settings as CSS variables
   useEffect(() => {
@@ -136,7 +138,8 @@ export function ChapterView({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [chapter.status, chapter.id, project.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onChapterUpdate from parent; pollingInterval is managed inside
+  }, [chapter.status, chapter.id, project.id, onChapterUpdate]);
 
   const handleSelectAllEmpty = () => setSelectedParagraphIds([...emptyParagraphIds]);
   const handleDeselectAll = () => setSelectedParagraphIds([]);
@@ -150,6 +153,8 @@ export function ChapterView({
   const handleCancelTranslation = async () => {
     try {
       await api.cancelTranslation(project.id, chapter.id);
+      // Optimistic update so UI stops showing "translating" immediately (avoids cache/304)
+      onChapterUpdate({ ...chapter, status: 'pending' });
       const updated = await api.getChapter(project.id, chapter.id);
       onChapterUpdate(updated);
     } catch (error) {

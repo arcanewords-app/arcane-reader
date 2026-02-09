@@ -39,11 +39,10 @@ export async function exportToFb2(
     try {
       fs.mkdirSync(outputDir, { recursive: true });
       logger.debug({ outputDir }, 'FB2 export: created output directory');
-    } catch (mkdirError: any) {
+    } catch (mkdirError: unknown) {
+      const msg = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
       logger.error({ err: mkdirError, outputDir }, 'FB2 export: failed to create directory');
-      throw new Error(
-        `Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${mkdirError.message}`
-      );
+      throw new Error(`Не удалось создать директорию для экспорта: ${outputDir}. Ошибка: ${msg}`);
     }
   } else {
     logger.debug({ outputDir }, 'FB2 export: output directory exists');
@@ -63,9 +62,10 @@ export async function exportToFb2(
 
     const stats = fs.statSync(outputPath);
     logger.debug({ outputPath, size: stats.size }, 'FB2 export: file size');
-  } catch (writeError: any) {
-    logger.error({ err: writeError }, `FB2 export: error writing file: ${writeError.message}`);
-    throw new Error(`Ошибка записи FB2 файла: ${writeError.message}`);
+  } catch (writeError: unknown) {
+    const msg = writeError instanceof Error ? writeError.message : String(writeError);
+    logger.error({ err: writeError }, `FB2 export: error writing file: ${msg}`);
+    throw new Error(`Ошибка записи FB2 файла: ${msg}`);
   }
 
   return outputPath;

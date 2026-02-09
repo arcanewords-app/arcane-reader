@@ -63,7 +63,7 @@ export class OpenAIProvider implements ILLMProvider {
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl,
-      timeout: config.timeout ?? 120000, // 2 min default (analysis/translation can be slow)
+      timeout: config.timeout ?? 300000, // 5 min default (chunks can be large, models vary in speed)
       maxRetries: config.maxRetries ?? 3,
     });
   }

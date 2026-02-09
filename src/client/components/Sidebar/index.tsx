@@ -53,7 +53,7 @@ export function Sidebar({
   };
 
   const handleCloseSidebar = () => {
-    (window as any).__arcaneSidebarOpen = false;
+    (window as Window & { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = false;
     window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
   };
 
@@ -83,7 +83,7 @@ export function Sidebar({
           onClick={() => {
             // Close sidebar on mobile
             if (isMobileOpen) {
-              (window as any).__arcaneSidebarOpen = false;
+              (window as Window & { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = false;
               window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
             }
             route('/cabinet');
@@ -106,7 +106,7 @@ export function Sidebar({
           onClick={() => {
             // Close sidebar on mobile
             if (isMobileOpen) {
-              (window as any).__arcaneSidebarOpen = false;
+              (window as Window & { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = false;
               window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
             }
             route(`/projects/${project.id}`);

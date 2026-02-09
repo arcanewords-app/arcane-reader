@@ -46,7 +46,15 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
   return (
     <div
       class="project-card"
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(project.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(project.id);
+        }
+      }}
       style={{
         borderLeftColor: typeColor,
       }}

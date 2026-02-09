@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Chapter } from '../../types';
 import { Button, StatusBadge } from '../ui';
@@ -44,9 +44,16 @@ export function ChapterHeader({
   markingAsTranslated = false,
 }: ChapterHeaderProps) {
   const { t } = useTranslation();
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(chapter.title);
   const [savingTitle, setSavingTitle] = useState(false);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+    }
+  }, [isEditingTitle]);
 
   const hasTranslations = chapter.paragraphs?.some((p) => p.translatedText);
   const hasTranslatedText = !!chapter.translatedText;
@@ -111,6 +118,7 @@ export function ChapterHeader({
         {isEditingTitle ? (
           <div class="chapter-title-edit">
             <input
+              ref={titleInputRef}
               type="text"
               class="chapter-title-input"
               value={editedTitle}
@@ -118,7 +126,6 @@ export function ChapterHeader({
               onKeyDown={handleKeyDown}
               onBlur={handleSaveTitle}
               disabled={savingTitle}
-              autoFocus
             />
             <div class="chapter-title-edit-actions">
               <button

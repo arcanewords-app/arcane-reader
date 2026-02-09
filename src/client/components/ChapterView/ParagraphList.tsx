@@ -40,6 +40,13 @@ export function ParagraphList({
     }
   }, [editText]);
 
+  // Focus textarea when entering edit mode (avoids autoFocus a11y issue)
+  useEffect(() => {
+    if (editingId && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [editingId]);
+
   const startEditing = (paragraph: Paragraph) => {
     setEditingId(paragraph.id);
     setEditText(paragraph.translatedText || '');
@@ -132,7 +139,9 @@ export function ParagraphList({
                   style={singleColumn ? { width: '100%' } : {}}
                 >
                   {showCheckbox && (
+                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- label wraps checkbox; onClick only stops propagation
                     <label
+                      htmlFor={`para-select-${paragraph.id}`}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -143,10 +152,12 @@ export function ParagraphList({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <input
+                        id={`para-select-${paragraph.id}`}
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => onToggleParagraphSelection?.(paragraph.id)}
                         style={{ accentColor: 'var(--accent)' }}
+                        aria-label={t('paragraphList.selectParagraph', { index: index + 1 })}
                       />
                     </label>
                   )}
@@ -170,7 +181,6 @@ export function ParagraphList({
                         value={editText}
                         onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
                         onKeyDown={handleKeyDown}
-                        autoFocus
                       />
                       <div class="paragraph-actions">
                         <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
@@ -187,8 +197,16 @@ export function ParagraphList({
                     </div>
                   ) : (
                     <div
+                      role="button"
+                      tabIndex={0}
                       class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
                       onClick={() => startEditing(paragraph)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          startEditing(paragraph);
+                        }
+                      }}
                       dangerouslySetInnerHTML={{
                         __html: paragraph.translatedText
                           ? escapeHtml(paragraph.translatedText)

@@ -54,7 +54,7 @@ export async function parseFb2(fileBuffer: Buffer): Promise<ParseResult> {
       const authors = titleInfo.author;
       if (authors) {
         const authorsList = Array.isArray(authors) ? authors : [authors];
-        metadata.authors = authorsList.map((author: any) => {
+        metadata.authors = authorsList.map((author: Record<string, unknown>) => {
           const firstName = extractText(author['first-name']);
           const middleName = extractText(author['middle-name']);
           const lastName = extractText(author['last-name']);
@@ -104,7 +104,9 @@ export async function parseFb2(fileBuffer: Buffer): Promise<ParseResult> {
           if (binary) {
             const binaries = Array.isArray(binary) ? binary : [binary];
             const coverBinary = binaries.find(
-              (b: any) => b['@_id'] === imageId || b['@_id'] === imageId.replace('#', '')
+              (b: Record<string, unknown>) =>
+                (b['@_id'] as string) === imageId ||
+                (b['@_id'] as string) === imageId.replace('#', '')
             );
             if (coverBinary) {
               const imageData = Buffer.from(coverBinary['#text'], 'base64');
@@ -182,15 +184,15 @@ export async function parseFb2(fileBuffer: Buffer): Promise<ParseResult> {
 /**
  * Extract text from FB2 text node (can be string or object with #text)
  */
-function extractText(node: any): string | undefined {
+function extractText(node: unknown): string | undefined {
   if (!node) return undefined;
   if (typeof node === 'string') return node;
-  if (node['#text']) return node['#text'];
-  if (node.p) {
-    // Multiple paragraphs
-    const paragraphs = Array.isArray(node.p) ? node.p : [node.p];
+  const n = node as Record<string, unknown>;
+  if (n['#text']) return String(n['#text']);
+  if (n.p) {
+    const paragraphs = Array.isArray(n.p) ? n.p : [n.p];
     return paragraphs
-      .map((p: any) => extractText(p))
+      .map((p: unknown) => extractText(p))
       .filter(Boolean)
       .join('\n\n');
   }
@@ -200,20 +202,19 @@ function extractText(node: any): string | undefined {
 /**
  * Extract title from title element
  */
-function extractTitle(titleNode: any): string | undefined {
+function extractTitle(titleNode: unknown): string | undefined {
   if (!titleNode) return undefined;
   if (typeof titleNode === 'string') return titleNode;
-  if (titleNode.p) {
-    return extractText(titleNode.p);
-  }
+  const t = titleNode as Record<string, unknown>;
+  if (t.p) return extractText(t.p);
   return extractText(titleNode);
 }
 
 /**
  * Extract sections recursively from body
  */
-function extractSections(body: any): any[] {
-  const sections: any[] = [];
+function extractSections(body: Record<string, unknown>): Record<string, unknown>[] {
+  const sections: Record<string, unknown>[] = [];
 
   if (body.section) {
     const sectionList = Array.isArray(body.section) ? body.section : [body.section];
@@ -232,7 +233,7 @@ function extractSections(body: any): any[] {
 /**
  * Extract plain text content from section
  */
-function extractSectionContent(section: any): string {
+function extractSectionContent(section: Record<string, unknown>): string {
   const paragraphs: string[] = [];
 
   // Extract paragraphs
@@ -259,7 +260,7 @@ function extractSectionContent(section: any): string {
 /**
  * Extract HTML content from section (preserves structure)
  */
-function extractSectionHtml(section: any): string {
+function extractSectionHtml(section: Record<string, unknown>): string {
   const htmlParts: string[] = [];
 
   // Extract paragraphs
@@ -286,22 +287,21 @@ function extractSectionHtml(section: any): string {
 /**
  * Extract plain text from paragraph element
  */
-function extractParagraphText(p: any): string {
+function extractParagraphText(p: unknown): string {
   if (typeof p === 'string') return p;
-  if (p['#text']) return p['#text'];
+  const rec = p as Record<string, unknown>;
+  if (rec['#text']) return String(rec['#text']);
 
   // Handle inline elements
   const parts: string[] = [];
-  if (typeof p === 'object') {
-    for (const key in p) {
+  if (typeof rec === 'object' && rec !== null) {
+    for (const key in rec) {
       if (key === '#text') {
-        parts.push(p[key]);
+        parts.push(String(rec[key]));
       } else if (key.startsWith('@_')) {
-        // Skip attributes
         continue;
       } else {
-        // Recursively extract from child elements
-        const child = p[key];
+        const child = rec[key];
         if (Array.isArray(child)) {
           for (const item of child) {
             parts.push(extractParagraphText(item));
@@ -319,19 +319,20 @@ function extractParagraphText(p: any): string {
 /**
  * Extract HTML from paragraph element (preserves formatting)
  */
-function extractParagraphHtml(p: any): string {
+function extractParagraphHtml(p: unknown): string {
   if (typeof p === 'string') return escapeHtml(p);
-  if (p['#text']) return escapeHtml(p['#text']);
+  const rec = p as Record<string, unknown>;
+  if (rec['#text']) return escapeHtml(String(rec['#text']));
 
   const parts: string[] = [];
-  if (typeof p === 'object') {
-    for (const key in p) {
+  if (typeof rec === 'object' && rec !== null) {
+    for (const key in rec) {
       if (key === '#text') {
-        parts.push(escapeHtml(p[key]));
+        parts.push(escapeHtml(String(rec[key])));
       } else if (key.startsWith('@_')) {
         continue;
       } else {
-        const child = p[key];
+        const child = rec[key];
         const tag = key === 'strong' ? 'strong' : key === 'emphasis' ? 'em' : 'span';
         if (Array.isArray(child)) {
           for (const item of child) {

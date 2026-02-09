@@ -72,7 +72,13 @@ export interface Paragraph {
 }
 
 /** Chapter status */
-export type ChapterStatus = 'pending' | 'translating' | 'analyzed' | 'completed' | 'error';
+export type ChapterStatus =
+  | 'pending'
+  | 'translating'
+  | 'analyzed'
+  | 'draft' // Translation saved, editing not applied (refactor 2.1)
+  | 'completed'
+  | 'error';
 
 export interface Chapter {
   id: string;
@@ -100,6 +106,10 @@ export interface Chapter {
     source?: 'uploaded' | 'ai';
     /** When analysis was last run successfully (ISO). Used to avoid duplicate analysis and show "Analyzed" in UI. */
     lastAnalysisAt?: string;
+    /** Number of translation chunks (for debugging / UI). */
+    chunksCount?: number;
+    /** Index of first failed chunk (0-based), or -1 if none (for debugging / UI). */
+    failedChunkIndex?: number;
   };
 }
 
@@ -578,10 +588,6 @@ export async function getChapter(
   // Auto-sync: if chapter has translatedChunks but paragraphs are not synced,
   // attempt to sync them automatically (recovery mechanism)
   if (chapter && chapter.translatedChunks && chapter.translatedChunks.length > 0) {
-    const hasSyncedParagraphs = chapter.paragraphs?.some(
-      (p) => p.translatedText && p.translatedText.trim().length > 0
-    );
-
     // If chunks exist but no paragraphs have translations, this is likely unsynced
     // However, we don't auto-sync here to avoid side effects.
     // Sync should happen automatically after translation, or manually via /sync endpoint.

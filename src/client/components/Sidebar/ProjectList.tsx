@@ -112,7 +112,15 @@ export function ProjectList({
                 <div
                   key={project.id}
                   class={`project-item ${selectedId === project.id ? 'active' : ''}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelect(project.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelect(project.id);
+                    }
+                  }}
                   style={{
                     borderLeftColor: selectedId === project.id ? typeColor : 'transparent',
                   }}
@@ -161,7 +169,6 @@ export function ProjectList({
           value={newProjectName}
           onInput={(e) => setNewProjectName((e.target as HTMLInputElement).value)}
           onKeyDown={handleKeyDown}
-          autoFocus
         />
       </Modal>
     </>

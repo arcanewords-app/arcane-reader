@@ -2,10 +2,9 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from './ProjectGrid';
-import { Button, Input, Modal, Card } from '../ui';
+import { Button, Input, Modal } from '../ui';
 import { projectsCache, projectsLoading, loadProjects } from '../../store/projects';
 import { api } from '../../api/client';
-import type { ProjectListItem } from '../../types';
 import './Dashboard.css';
 
 export function Dashboard() {
@@ -143,7 +142,6 @@ export function Dashboard() {
               handleCreateProject();
             }
           }}
-          autoFocus
         />
       </Modal>
     </div>

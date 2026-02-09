@@ -985,6 +985,16 @@
   color: var(--text-secondary);
 }
 
+.glossary-merge-hint {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+
 .glossary-merge-list {
   display: flex;
   flex-direction: column;

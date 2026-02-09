@@ -36,7 +36,7 @@ export function AppRouter() {
 
   // Sync sidebar state to window for pages to access
   useEffect(() => {
-    (window as any).__arcaneSidebarOpen = sidebarOpen;
+    (window as Window & { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = sidebarOpen;
     window.dispatchEvent(new CustomEvent('arcane:sidebar-change'));
   }, [sidebarOpen]);
 
@@ -270,7 +270,16 @@ export function AppRouter() {
         {hasSidebar && (
           <div
             class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label="Close sidebar"
             onClick={handleSidebarClose}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSidebarClose();
+              }
+            }}
           />
         )}
 

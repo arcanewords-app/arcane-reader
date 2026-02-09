@@ -8,14 +8,11 @@ import {
   TranslationPipeline,
   OpenAIProvider,
   NovelAgent,
-  GlossaryManager,
   TRANSLATOR_SYSTEM_PROMPT,
   createGlossaryPromptSection,
   chunkText,
   translateAndDeclineName,
-  type PipelineResult,
   type PipelineOptions,
-  type Character,
   type Glossary,
 } from '../engine/index.js';
 
@@ -152,12 +149,16 @@ export function createPipeline(config: AppConfig, project: Project): Translation
   let translationProvider: OpenAIProvider;
   let editingProvider: OpenAIProvider;
 
+  const openaiTimeout = config.openai.timeout ?? 300000;
+  const openaiMaxRetries = config.openai.maxRetries ?? 3;
+
   try {
     // Analysis = one request per chapter (no chunking). Timeout should allow for slow/reasoning models.
     analysisProvider = new OpenAIProvider({
       apiKey: config.openai.apiKey,
       model: analysisModel,
-      timeout: config.openai.timeout,
+      timeout: openaiTimeout,
+      maxRetries: openaiMaxRetries,
     });
     logger.debug('Analysis provider created');
   } catch (error) {
@@ -172,7 +173,8 @@ export function createPipeline(config: AppConfig, project: Project): Translation
     translationProvider = new OpenAIProvider({
       apiKey: config.openai.apiKey,
       model: translationModel,
-      timeout: config.openai.timeout,
+      timeout: openaiTimeout,
+      maxRetries: openaiMaxRetries,
     });
     logger.debug('Translation provider created');
   } catch (error) {
@@ -187,7 +189,8 @@ export function createPipeline(config: AppConfig, project: Project): Translation
     editingProvider = new OpenAIProvider({
       apiKey: config.openai.apiKey,
       model: editingModel,
-      timeout: config.openai.timeout,
+      timeout: openaiTimeout,
+      maxRetries: openaiMaxRetries,
     });
     logger.debug('Editing provider created');
   } catch (error) {
@@ -238,11 +241,11 @@ export function createPipeline(config: AppConfig, project: Project): Translation
   logger.debug(
     {
       hasAnalysis: !!providers.analysis,
-      analysisModel: (providers.analysis as any)?.model,
+      analysisModel: (providers.analysis as { model?: string })?.model,
       hasTranslation: !!providers.translation,
-      translationModel: (providers.translation as any)?.model,
+      translationModel: (providers.translation as { model?: string })?.model,
       hasEditing: !!providers.editing,
-      editingModel: (providers.editing as any)?.model,
+      editingModel: (providers.editing as { model?: string })?.model,
       hasAgent: !!agent,
     },
     'Creating TranslationPipeline with providers'
@@ -295,6 +298,12 @@ export async function translateChapterWithPipeline(
   }>;
   /** Entry IDs that appeared in this chapter (for merging chapter into mentionedInChapters) */
   glossaryAppearanceEntryIds?: string[];
+  /** When true, user cancelled after stage 1; server should save glossary and set status to pending. */
+  cancelled?: boolean;
+  /** Number of translation chunks (for translationMeta). */
+  chunksCount?: number;
+  /** Index of first failed chunk (0-based), or -1 if none (for translationMeta). */
+  failedChunkIndex?: number;
 }> {
   try {
     const pipeline = createPipeline(config, project);
@@ -308,6 +317,9 @@ export async function translateChapterWithPipeline(
         translation: project.settings.temperatureByStage?.translation ?? fallbackTemp,
         editing: project.settings.temperatureByStage?.editing ?? fallbackTemp,
       },
+      neverSplitParagraphs: config.translation.neverSplitParagraphs,
+      retryAttempts: config.translation.chunkRetryAttempts,
+      chunkRetryDelayMs: config.translation.chunkRetryDelayMs,
       ...(options.isCancelled && { isCancelled: options.isCancelled }),
     };
     if (Array.isArray(stages)) {
@@ -331,6 +343,124 @@ export async function translateChapterWithPipeline(
     );
     const result = await pipeline.translateChapter(sourceText, chapter.number, pipelineOpts);
 
+    // Cancelled after stage 1: return partial result so server can save glossary (refactor 2.2)
+    if (result.cancelled) {
+      const glossaryUpdates: GlossaryEntry[] = [];
+      const glossaryUpdatesExisting: Array<{
+        id: string;
+        updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>>;
+      }> = [];
+      let glossaryAppearanceEntryIds: string[] = [];
+      if (result.stage1.success && result.stage1.data) {
+        const analysis = result.stage1.data;
+        const glossaryUpdate = analysis.glossaryUpdate;
+        const chapterNum = chapter.number;
+        const newCharacters = glossaryUpdate.newCharacters.map((c, idx) => ({
+          id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+          type: 'character' as const,
+          original: c.originalName,
+          translated: c.translatedName,
+          description: c.description || undefined,
+          gender: c.gender,
+          declensions: c.declensions,
+          firstAppearance: chapterNum,
+          mentionedInChapters: [chapterNum],
+          autoDetected: true,
+        }));
+        const newLocations = glossaryUpdate.newLocations.map((l, idx) => ({
+          id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+          type: 'location' as const,
+          original: l.originalName,
+          translated: l.translatedName,
+          description: l.description || undefined,
+          firstAppearance: chapterNum,
+          mentionedInChapters: [chapterNum],
+          autoDetected: true,
+        }));
+        const newTerms = glossaryUpdate.newTerms.map((t, idx) => ({
+          id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+          type: 'term' as const,
+          original: t.originalTerm,
+          translated: t.translatedTerm,
+          description: t.description || undefined,
+          notes: t.category,
+          firstAppearance: chapterNum,
+          mentionedInChapters: [chapterNum],
+          autoDetected: true,
+        }));
+        glossaryUpdates.push(...newCharacters, ...newLocations, ...newTerms);
+        const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
+          project.glossary.find(
+            (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
+          );
+        const ids = new Set<string>();
+        for (const c of analysis.foundCharacters ?? []) {
+          if (!c.isNew) {
+            const entry = byOriginal(c.name, 'character');
+            if (entry?.id) ids.add(entry.id);
+          }
+        }
+        for (const l of analysis.foundLocations ?? []) {
+          if (!l.isNew) {
+            const entry = byOriginal(l.name, 'location');
+            if (entry?.id) ids.add(entry.id);
+          }
+        }
+        for (const t of analysis.foundTerms ?? []) {
+          if (!t.isNew) {
+            const entry = byOriginal(t.term, 'term');
+            if (entry?.id) ids.add(entry.id);
+          }
+        }
+        for (const c of glossaryUpdate.updatedCharacters ?? []) {
+          if (c.id) ids.add(c.id);
+        }
+        for (const l of glossaryUpdate.updatedLocations ?? []) {
+          if (l.id) ids.add(l.id);
+        }
+        for (const t of glossaryUpdate.updatedTerms ?? []) {
+          if (t.id) ids.add(t.id);
+        }
+        glossaryAppearanceEntryIds = [...ids];
+        for (const c of glossaryUpdate.updatedCharacters ?? []) {
+          if (!c.id) continue;
+          const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+          if (c.description !== undefined) updates.description = c.description;
+          if (c.translatedName !== undefined) updates.translated = c.translatedName;
+          if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: c.id, updates });
+        }
+        for (const l of glossaryUpdate.updatedLocations ?? []) {
+          if (!l.id) continue;
+          const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+          if (l.description !== undefined) updates.description = l.description;
+          if (l.translatedName !== undefined) updates.translated = l.translatedName;
+          if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: l.id, updates });
+        }
+        for (const t of glossaryUpdate.updatedTerms ?? []) {
+          if (!t.id) continue;
+          const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+          if (t.description !== undefined) updates.description = t.description;
+          if (t.translatedTerm !== undefined) updates.translated = t.translatedTerm;
+          if (t.category !== undefined) updates.notes = t.category;
+          if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: t.id, updates });
+        }
+      }
+      return {
+        translatedText: '',
+        tokensUsed: result.totalTokensUsed,
+        tokensByStage: result.stage1.tokensUsed
+          ? { analysis: result.stage1.tokensUsed, translation: 0, editing: 0 }
+          : undefined,
+        duration: result.totalDuration,
+        glossaryUpdates: glossaryUpdates.length > 0 ? glossaryUpdates : undefined,
+        glossaryUpdatesExisting:
+          glossaryUpdatesExisting.length > 0 ? glossaryUpdatesExisting : undefined,
+        glossaryAppearanceEntryIds:
+          glossaryAppearanceEntryIds.length > 0 ? glossaryAppearanceEntryIds : undefined,
+        cancelled: true,
+      };
+    }
+
     const analysisOnly = Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis';
     if (
       !analysisOnly &&
@@ -345,7 +475,7 @@ export async function translateChapterWithPipeline(
 
     // Extract glossary updates from analysis stage (new + updates for existing)
     let glossaryUpdates: GlossaryEntry[] = [];
-    let glossaryUpdatesExisting: Array<{
+    const glossaryUpdatesExisting: Array<{
       id: string;
       updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>>;
     }> = [];
@@ -477,6 +607,14 @@ export async function translateChapterWithPipeline(
       ...(ranEditing ? { editing: result.stage3.tokensUsed } : {}),
     };
 
+    const chunkResults = result.stage2?.data?.chunkResults;
+    const chunksCount = chunkResults?.length;
+    const failedChunkIndex =
+      chunkResults !== undefined
+        ? chunkResults.findIndex((c) => (c.translated || '').startsWith('[ERROR'))
+        : undefined;
+    const failedChunkIndexNorm = failedChunkIndex === -1 ? undefined : failedChunkIndex;
+
     return {
       translatedText: result.finalTranslation,
       tokensUsed: result.totalTokensUsed,
@@ -487,6 +625,8 @@ export async function translateChapterWithPipeline(
         glossaryUpdatesExisting.length > 0 ? glossaryUpdatesExisting : undefined,
       glossaryAppearanceEntryIds:
         glossaryAppearanceEntryIds.length > 0 ? glossaryAppearanceEntryIds : undefined,
+      ...(chunksCount !== undefined && { chunksCount }),
+      ...(failedChunkIndexNorm !== undefined && { failedChunkIndex: failedChunkIndexNorm }),
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

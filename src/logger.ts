@@ -15,39 +15,58 @@
  *   or a custom stream that POSTs batches to your log service. Put API keys in env.
  */
 
+import { PassThrough } from 'node:stream';
 import pino from 'pino';
+import { addDebugLogEntry } from './debugBuffer.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const level = (process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')).toLowerCase();
 
-function createStream(): pino.DestinationStream {
-  if (isProduction) {
-    return pino.destination(1); // stdout, JSON
-  }
-  // Development: pretty print (pino-pretty is devDependency)
+const baseOptions: pino.LoggerOptions = {
+  level,
+  base: undefined,
+  formatters: {
+    level: (label) => ({ level: label }),
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
+};
+
+function createDevStream(): pino.DestinationStream {
+  // Tee: pino -> passThrough -> pino-pretty; on data push copy to debug buffer for /debug page
+  const passThrough = new PassThrough();
+  passThrough.on('data', (chunk: Buffer | string) => {
+    const str = typeof chunk === 'string' ? chunk : chunk.toString();
+    str
+      .split('\n')
+      .filter(Boolean)
+      .forEach((line) => {
+        try {
+          const parsed = JSON.parse(line) as Record<string, unknown>;
+          addDebugLogEntry(parsed as Parameters<typeof addDebugLogEntry>[0]);
+        } catch {
+          // ignore non-JSON or parse errors
+        }
+      });
+  });
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pretty = require('pino-pretty');
-    return pretty({
+    // eslint-disable-next-line @typescript-eslint/no-var-requires -- dynamic require for optional dev dependency
+    const pretty = require('pino-pretty')({
       colorize: true,
       translateTime: 'SYS:standard',
+      levelFirst: true,
+      customColors: 'fatal:red,error:red,warn:yellow,info:green,debug:cyan,trace:gray',
+      errorLikeObjectKeys: ['err', 'error'],
     });
+    passThrough.pipe(pretty).pipe(process.stdout);
   } catch {
-    return pino.destination(1);
+    passThrough.pipe(process.stdout);
   }
+  return passThrough;
 }
 
-const base = pino(
-  {
-    level,
-    base: undefined,
-    formatters: {
-      level: (label) => ({ level: label }),
-    },
-    timestamp: pino.stdTimeFunctions.isoTime,
-  },
-  createStream()
-);
+const base = isProduction
+  ? pino(baseOptions, pino.destination(1))
+  : pino(baseOptions, createDevStream());
 
 /** Default app logger. Use req.log in request handlers when available. */
 export const logger = base;

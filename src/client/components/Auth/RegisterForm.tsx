@@ -11,7 +11,7 @@ interface RegisterFormProps {
   invitationCode?: string;
 }
 
-export function RegisterForm({ onSuccess, onSwitchToLogin, invitationCode }: RegisterFormProps) {
+export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

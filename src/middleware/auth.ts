@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
-import { parseRole } from '../types/roles.js';
-import { isAtLeastRole } from '../types/roles.js';
+import { parseRole, isAtLeastRole } from '../types/roles.js';
 import type { UserRole } from '../types/roles.js';
 
 const supabaseUrl = process.env.SUPABASE_URL!;

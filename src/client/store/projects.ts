@@ -36,8 +36,8 @@ export async function loadProjects(): Promise<void> {
   try {
     const projects = await api.getProjects();
     projectsCache.value = projects;
-  } catch (error: any) {
-    projectsError.value = error.message || 'Ошибка загрузки проектов';
+  } catch (error: unknown) {
+    projectsError.value = error instanceof Error ? error.message : 'Ошибка загрузки проектов';
     console.error('Failed to load projects:', error);
   } finally {
     projectsLoading.value = false;
@@ -67,7 +67,9 @@ export async function getProject(id: string, forceRefresh = false): Promise<Proj
           name: project.name,
           type: project.type,
           chapterCount: project.chapters.length,
-          translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
+          translatedCount: project.chapters.filter(
+            (c) => c.status === 'completed' || c.status === 'draft'
+          ).length,
           glossaryCount: project.glossary.length,
           originalReadingMode: project.settings?.originalReadingMode ?? false,
           updatedAt: project.updatedAt,
@@ -101,7 +103,9 @@ export function updateProjectCache(project: Project): void {
         name: project.name,
         type: project.type,
         chapterCount: project.chapters.length,
-        translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
+        translatedCount: project.chapters.filter(
+          (c) => c.status === 'completed' || c.status === 'draft'
+        ).length,
         glossaryCount: project.glossary.length,
         originalReadingMode: project.settings?.originalReadingMode ?? false,
         updatedAt: project.updatedAt,

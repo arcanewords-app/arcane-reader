@@ -12,6 +12,7 @@ const statusIcons: Record<StatusType, { icon: string; className: string }> = {
   pending: { icon: '⏳', className: 'status-pending' },
   translating: { icon: '🔮', className: 'status-translating' },
   analyzed: { icon: '🔍', className: 'status-analyzed' },
+  draft: { icon: '📝', className: 'status-draft' },
   completed: { icon: '✅', className: 'status-completed' },
   error: { icon: '❌', className: 'status-error' },
   translated: { icon: '📝', className: 'status-translated' },

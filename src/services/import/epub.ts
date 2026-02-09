@@ -20,7 +20,8 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
     // epub2 library expects a file path or buffer, but we need to handle it differently
     // Since we have a buffer, we'll need to use a temporary approach
     // Note: epub2 may require file path, so we'll handle buffer conversion
-    const epub = new EPub(fileBuffer as any);
+    // EPub typings declare (path: string) but runtime accepts Buffer
+    const epub = new EPub(fileBuffer as unknown as string);
 
     // Wait for metadata to be parsed
     await new Promise<void>((resolve, reject) => {
@@ -101,7 +102,9 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
         }
 
         // Extract title from TOC or use default
-        const tocItem = epub.toc?.find((t: any) => t.href === item.href);
+        const tocItem = epub.toc?.find(
+          (t: { href?: string; title?: string }) => t.href === item.href
+        );
         const title = tocItem?.title || `Глава ${i + 1}`;
 
         // Convert HTML to plain text and preserve HTML

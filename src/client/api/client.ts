@@ -375,9 +375,7 @@ export const api = {
   },
 
   /** Get LLM suggestions for merging duplicate/alias glossary entries */
-  async suggestGlossaryMerges(
-    projectId: string
-  ): Promise<{
+  async suggestGlossaryMerges(projectId: string): Promise<{
     suggestions: Array<{ entryIds: string[]; reason: string; suggestedPrimaryId?: string }>;
   }> {
     return fetchJson(`/api/projects/${projectId}/glossary/suggest-merges`, {

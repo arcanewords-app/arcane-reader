@@ -54,6 +54,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when id or glossaryCount changes
   }, [data?.id, data?.glossaryCount]);
 
   if (!publicationId) {

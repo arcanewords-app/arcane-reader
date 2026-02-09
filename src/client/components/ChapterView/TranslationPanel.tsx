@@ -55,7 +55,6 @@ function getTextLengthForScope(chapter: Chapter, scope: Scope, selectedIds: stri
 
 export function TranslationPanel({
   chapter,
-  projectId,
   startTranslation,
   translating,
   estimate,

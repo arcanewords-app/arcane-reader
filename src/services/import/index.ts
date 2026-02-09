@@ -7,7 +7,6 @@ import type { ParseResult } from './types.js';
 import { parseEpub } from './epub.js';
 import { parseFb2 } from './fb2.js';
 import { parseText } from './txt.js';
-import { getProjectTypeFromFormat } from './project-type.js';
 
 export type { ParseResult, BookMetadata, ParsedChapter, ImportFormat } from './types.js';
 export {

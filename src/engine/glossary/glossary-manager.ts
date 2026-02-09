@@ -4,7 +4,7 @@
 
 import type { Glossary, Character, Location, Term, GlossaryUpdate } from '../types/glossary.js';
 import type { Gender, Declensions } from '../types/common.js';
-import { declineName, translateName, COMMON_NAME_TRANSLATIONS } from './declension.js';
+import { declineName, translateName } from './declension.js';
 
 export class GlossaryManager {
   private glossary: Glossary;

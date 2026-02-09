@@ -36,6 +36,10 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
   const log = (req as Request & { log: ReturnType<typeof createRequestLogger> }).log ?? logger;
 
   res.on('finish', () => {
+    // Skip logging debug viewer traffic (polling and page) to avoid noise
+    if (req.path === '/api/debug/logs' || req.path === '/debug' || req.path === '/debug/clear') {
+      return;
+    }
     const durationMs = Date.now() - start;
     const userId = req.user?.id;
     log.info(

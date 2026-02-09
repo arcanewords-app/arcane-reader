@@ -14,7 +14,7 @@ declare module 'epub-gen' {
     output?: string;
     publisher?: string;
     description?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   class Epub {
