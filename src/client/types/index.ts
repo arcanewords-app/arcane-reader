@@ -131,6 +131,12 @@ export interface ProjectSettings {
   enableAnalysis?: boolean;
   enableTranslation?: boolean;
   enableEditing?: boolean;
+  /** When false, analysis stage does not receive existing glossary (saves tokens). Default true. */
+  includeGlossaryInAnalysis?: boolean;
+  /** When false, translation stage does not receive glossary; chunks 3500 (terms aligned in editing). Default true. */
+  includeGlossaryInTranslation?: boolean;
+  /** When false, editing stage does not receive glossary; chunks 3500. Default true. */
+  includeGlossaryInEditing?: boolean;
   reader?: ReaderSettings;
 }
 

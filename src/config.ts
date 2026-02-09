@@ -10,7 +10,7 @@ export interface AppConfig {
   openai: {
     apiKey: string;
     model: string;
-    /** Request timeout in ms (e.g. for long analysis/translation). Default 300000 (5 min). */
+    /** Request timeout in ms (e.g. for long analysis/translation). Default 600000 (10 min). */
     timeout?: number;
     /** SDK-level retries per request (OpenAI client). Default 3. */
     maxRetries?: number;
@@ -49,7 +49,7 @@ export function loadConfig(): AppConfig {
     openai: {
       apiKey: process.env.OPENAI_API_KEY ?? '',
       model: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
-      timeout: parseInt(process.env.OPENAI_TIMEOUT_MS ?? '300000', 10),
+      timeout: parseInt(process.env.OPENAI_TIMEOUT_MS ?? '600000', 10),
       maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES ?? '3', 10),
     },
 

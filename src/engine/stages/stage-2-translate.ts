@@ -20,6 +20,8 @@ interface TranslateStageOptions {
   context: AgentContext;
   chunkSize?: number;
   temperature?: number;
+  /** When false, do not include glossary in prompt (saves tokens; use when Stage 3 editing will run and will apply glossary). Default true. */
+  includeGlossary?: boolean;
   /** Check before each retry; when true, throw to cancel. */
   isCancelled?: () => boolean;
   /** Number of retries for a failed chunk (default 2 = up to 3 attempts total). */
@@ -85,9 +87,11 @@ export class TranslateStage {
     }
 
     try {
-      // Prepare glossary text
-      const glossaryManager = new GlossaryManager(options.context.glossary);
-      const glossaryText = glossaryManager.toPromptText();
+      // Prepare glossary text (omit when editing will run to save tokens; editor stage applies glossary)
+      const includeGlossary = options.includeGlossary !== false;
+      const glossaryText = includeGlossary
+        ? new GlossaryManager(options.context.glossary).toPromptText()
+        : '';
 
       // Prepare context text
       const contextText = this.buildContextText(options.context);
@@ -111,6 +115,7 @@ export class TranslateStage {
         retryAttempts,
         retryDelayMs,
         chunkSize: options.chunkSize,
+        includeGlossary,
       });
 
       // Translate each chunk

@@ -25,6 +25,8 @@ interface EditStageOptions {
   context: AgentContext;
   checkQuality?: boolean;
   chunkSize?: number; // Max tokens per chunk for chunked editing
+  /** When false, do not include glossary in prompt (saves tokens; use larger chunks). Default true. */
+  includeGlossary?: boolean;
   temperature?: number;
 }
 
@@ -87,9 +89,10 @@ export class EditStage {
     }
 
     try {
-      // Prepare glossary
-      const glossaryManager = new GlossaryManager(options.context.glossary);
-      const glossaryText = glossaryManager.toPromptText();
+      const includeGlossary = options.includeGlossary !== false;
+      const glossaryText = includeGlossary
+        ? new GlossaryManager(options.context.glossary).toPromptText()
+        : '';
 
       // Prepare style notes
       const styleNotes = this.buildStyleNotes(options.context);
@@ -107,6 +110,7 @@ export class EditStage {
         log.debug('EditStage: using chunked editing', {
           estimatedTokens,
           chunkSize,
+          includeGlossary,
         });
 
         const editTemp = options.temperature ?? 0.5;

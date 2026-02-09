@@ -110,6 +110,31 @@ export function SettingsModal({
     }
   };
 
+  const includeGlossaryInAnalysis = settings.includeGlossaryInAnalysis ?? true;
+  const includeGlossaryInTranslation = settings.includeGlossaryInTranslation ?? true;
+  const includeGlossaryInEditing = settings.includeGlossaryInEditing ?? true;
+
+  const toggleIncludeGlossaryInAnalysis = async () => {
+    const updated = await api.updateSettings(project.id, {
+      includeGlossaryInAnalysis: !includeGlossaryInAnalysis,
+    });
+    onSettingsChange(updated);
+  };
+
+  const toggleIncludeGlossaryInTranslation = async () => {
+    const updated = await api.updateSettings(project.id, {
+      includeGlossaryInTranslation: !includeGlossaryInTranslation,
+    });
+    onSettingsChange(updated);
+  };
+
+  const toggleIncludeGlossaryInEditing = async () => {
+    const updated = await api.updateSettings(project.id, {
+      includeGlossaryInEditing: !includeGlossaryInEditing,
+    });
+    onSettingsChange(updated);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`⚙️ ${t('settings.title')}`} size="large">
       <div class="settings-modal">
@@ -145,6 +170,91 @@ export function SettingsModal({
             </label>
           </div>
         </div>
+
+        {/* Glossary usage (when translation is available) */}
+        {!isOriginalReadingMode && (
+          <div
+            style={{
+              marginBottom: '1.5rem',
+              padding: '1rem',
+              background: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+              📚 {t('settings.glossarySectionTitle')}
+            </div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={includeGlossaryInAnalysis}
+                onChange={toggleIncludeGlossaryInAnalysis}
+                style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
+                aria-label={t('settings.includeGlossaryInAnalysis')}
+              />
+              <div>
+                <div style={{ fontWeight: 500 }}>{t('settings.includeGlossaryInAnalysis')}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {t('settings.includeGlossaryInAnalysisHint')}
+                </div>
+              </div>
+            </label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={includeGlossaryInTranslation}
+                onChange={toggleIncludeGlossaryInTranslation}
+                style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
+                aria-label={t('settings.includeGlossaryInTranslation')}
+              />
+              <div>
+                <div style={{ fontWeight: 500 }}>{t('settings.includeGlossaryInTranslation')}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {t('settings.includeGlossaryInTranslationHint')}
+                </div>
+              </div>
+            </label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                marginTop: '0.75rem',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={includeGlossaryInEditing}
+                onChange={toggleIncludeGlossaryInEditing}
+                style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
+                aria-label={t('settings.includeGlossaryInEditing')}
+              />
+              <div>
+                <div style={{ fontWeight: 500 }}>{t('settings.includeGlossaryInEditing')}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {t('settings.includeGlossaryInEditingHint')}
+                </div>
+              </div>
+            </label>
+          </div>
+        )}
 
         {/* Settings Panel: one row per stage = model + creativity */}
         <div class="settings-panel">

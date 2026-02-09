@@ -77,7 +77,9 @@ export const createEditorPrompt = (
 ): string => {
   let prompt = '';
 
-  prompt += `## Reference Glossary (do not change these terms)\n${glossary}\n\n`;
+  if (glossary && glossary.trim()) {
+    prompt += `## Reference Glossary (do not change these terms)\n${glossary}\n\n`;
+  }
 
   if (styleNotes) {
     prompt += `## Style Notes\n${styleNotes}\n\n`;

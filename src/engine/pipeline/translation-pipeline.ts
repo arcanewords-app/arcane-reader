@@ -15,6 +15,13 @@ import { TranslateStage } from '../stages/stage-2-translate.js';
 import { EditStage } from '../stages/stage-3-edit.js';
 import { log } from '../logger.js';
 
+/** When editing runs after translation, we omit glossary from Stage 2 and use larger chunks. */
+const TRANSLATION_CHUNK_SIZE_WHEN_EDITING = 3500;
+const DEFAULT_TRANSLATION_CHUNK_SIZE = 2000;
+/** When editing runs without glossary in prompt, use larger chunks. */
+const EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY = 3500;
+const DEFAULT_EDIT_CHUNK_SIZE = 2000;
+
 export interface PipelineConfig {
   // Support both single provider (legacy) and per-stage providers
   provider?: ILLMProvider; // Legacy: single provider for all stages
@@ -210,10 +217,15 @@ export class TranslationPipeline {
     if (onlyEditing) {
       const existingText = options.existingTranslatedTextForEdit ?? '';
       log.info(`Pipeline: run only editing (chapter ${chapterNumber})`);
+      const onlyEditIncludeGlossary = options.includeGlossaryInEditing !== false;
+      const onlyEditChunkSize =
+        options.chunkSize ??
+        (onlyEditIncludeGlossary ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
       const stage3Result = await this.editStage.execute(existingText, sourceText, {
         context: updatedContext,
         checkQuality: true,
-        chunkSize: options.chunkSize,
+        chunkSize: onlyEditChunkSize,
+        includeGlossary: onlyEditIncludeGlossary,
         temperature: options.temperatureByStage?.editing,
       });
       totalTokens += stage3Result.tokensUsed;
@@ -241,7 +253,8 @@ export class TranslationPipeline {
       log.info(`Pipeline: Stage 1 analyzing chapter ${chapterNumber}`);
       stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
-        existingGlossary: context.glossary,
+        existingGlossary:
+          options.includeGlossaryInAnalysis !== false ? context.glossary : undefined,
         temperature: options.temperatureByStage?.analysis,
       });
       checkCancelled();
@@ -296,10 +309,15 @@ export class TranslationPipeline {
             'Editing stage requires existing translated text or run translation first'
           );
         }
+        const editOnlyIncludeGlossary = options.includeGlossaryInEditing !== false;
+        const editOnlyChunkSize =
+          options.chunkSize ??
+          (editOnlyIncludeGlossary ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
         const stage3Result = await this.editStage.execute(existing, sourceText, {
           context: this.agent.getContext(),
           checkQuality: true,
-          chunkSize: options.chunkSize,
+          chunkSize: editOnlyChunkSize,
+          includeGlossary: editOnlyIncludeGlossary,
         });
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
@@ -327,11 +345,30 @@ export class TranslationPipeline {
         'Editing-only requires existingTranslatedTextForEdit'
       );
     }
-    log.info('Pipeline: Stage 2 translating', { chapterNumber });
+    const willRunEditing = runStages
+      ? runStages.includes('editing')
+      : !options.runOnlyStage && !options.skipEditing;
+    const includeGlossaryInTranslation =
+      options.includeGlossaryInTranslation === false
+        ? false
+        : options.includeGlossaryInTranslation === true
+          ? true
+          : !willRunEditing;
+    const translationChunkSize =
+      options.chunkSize ??
+      (includeGlossaryInTranslation
+        ? DEFAULT_TRANSLATION_CHUNK_SIZE
+        : TRANSLATION_CHUNK_SIZE_WHEN_EDITING);
+    log.info('Pipeline: Stage 2 translating', {
+      chapterNumber,
+      includeGlossary: includeGlossaryInTranslation,
+      chunkSize: translationChunkSize,
+    });
     const ctxAfter1 = this.agent.getContext();
     const stage2Result = await this.translateStage.execute(sourceText, {
       context: ctxAfter1,
-      chunkSize: options.chunkSize,
+      chunkSize: translationChunkSize,
+      includeGlossary: includeGlossaryInTranslation,
       temperature: options.temperatureByStage?.translation,
       isCancelled: options.isCancelled,
       chunkRetryAttempts: options.retryAttempts ?? 2,
@@ -358,15 +395,20 @@ export class TranslationPipeline {
     // ============ STAGE 3: EDIT ============
     let stage3Result;
     let finalTranslation: string;
-    const runStage3 = runStages
-      ? runStages.includes('editing')
-      : !options.runOnlyStage && !options.skipEditing;
-    if (runStage3) {
-      log.info('Pipeline: Stage 3 editing');
+    if (willRunEditing) {
+      const includeGlossaryInEditing = options.includeGlossaryInEditing !== false;
+      const editChunkSize =
+        options.chunkSize ??
+        (includeGlossaryInEditing ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
+      log.info('Pipeline: Stage 3 editing', {
+        includeGlossary: includeGlossaryInEditing,
+        chunkSize: editChunkSize,
+      });
       stage3Result = await this.editStage.execute(stage2Result.data.translatedText, sourceText, {
         context: ctxAfter1,
         checkQuality: true,
-        chunkSize: options.chunkSize,
+        chunkSize: editChunkSize,
+        includeGlossary: includeGlossaryInEditing,
         temperature: options.temperatureByStage?.editing,
       });
       totalTokens += stage3Result.tokensUsed;

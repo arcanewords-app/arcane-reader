@@ -261,6 +261,9 @@ function getDefaultProjectSettings(): ProjectSettings {
     enableAnalysis: true,
     enableTranslation: true,
     enableEditing: true,
+    includeGlossaryInAnalysis: true,
+    includeGlossaryInTranslation: true,
+    includeGlossaryInEditing: true,
     reader: { ...DEFAULT_READER_SETTINGS },
   };
 }

@@ -82,4 +82,10 @@ export interface PipelineOptions {
   chunkRetryDelayMs?: number;
   /** When true, never split a single paragraph into smaller chunks (chunker). Default true. */
   neverSplitParagraphs?: boolean;
+  /** When false, analysis stage does not receive existing glossary (saves tokens). Default true. */
+  includeGlossaryInAnalysis?: boolean;
+  /** When false, translation stage does not receive glossary; chunks 3500 (terms in editing). Default true. */
+  includeGlossaryInTranslation?: boolean;
+  /** When false, editing stage does not receive glossary; chunks 3500. Default true. */
+  includeGlossaryInEditing?: boolean;
 }

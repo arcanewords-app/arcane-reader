@@ -189,6 +189,12 @@ export interface ProjectSettings {
   enableTranslation: boolean; // Stage 2: Translate (always true, required)
   enableEditing: boolean; // Stage 3: Polish and refine
   originalReadingMode?: boolean; // Режим оригинального чтения (только анализ, без перевода)
+  /** When false, analysis stage does not receive existing glossary (saves tokens). Default true. */
+  includeGlossaryInAnalysis?: boolean;
+  /** When false, translation stage does not receive glossary; chunks 3500 (terms aligned in editing). Default true. */
+  includeGlossaryInTranslation?: boolean;
+  /** When false, editing stage does not receive glossary; chunks 3500. Default true. */
+  includeGlossaryInEditing?: boolean;
   // Reader display settings
   reader: ReaderSettings;
 }
@@ -420,6 +426,9 @@ export async function createProject(data: {
       enableAnalysis: true,
       enableTranslation: true,
       enableEditing: true,
+      includeGlossaryInAnalysis: true,
+      includeGlossaryInTranslation: true,
+      includeGlossaryInEditing: true,
       reader: { ...DEFAULT_READER_SETTINGS },
     },
     createdAt: new Date().toISOString(),

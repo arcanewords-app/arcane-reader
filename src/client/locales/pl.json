@@ -186,6 +186,13 @@
     "stagesTitle": "Etapy",
     "stagesOriginalOnly": "W trybie oryginału dostępna jest tylko analiza tekstu",
     "differentStagesHint": "Różne modele na etapy obniżają koszt przy zachowaniu jakości",
+    "glossarySectionTitle": "Użycie glosariusza",
+    "includeGlossaryInAnalysis": "Glosariusz w analizie",
+    "includeGlossaryInAnalysisHint": "Przekazywać istniejący glosariusz do analizy (wył. = oszczędność tokenów)",
+    "includeGlossaryInTranslation": "Glosariusz w tłumaczeniu",
+    "includeGlossaryInTranslationHint": "Wył.: terminy w redakcji, większe chunki (3500). Mniej tokenów.",
+    "includeGlossaryInEditing": "Glosariusz w redakcji",
+    "includeGlossaryInEditingHint": "Wył.: redakcja bez glosariusza w prompcie, większe chunki (3500). Mniej tokenów.",
     "modelDesc": {
       "gpt-5-mini": "Najlepsza jakość tłumaczenia, uniwersalna",
       "gpt-5-nano": "Szybka i tania, lekkie zadania",

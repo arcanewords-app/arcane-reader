@@ -85,7 +85,9 @@ export const createTranslatorPrompt = (
     prompt += `## Previous Context\n${context}\n\n`;
   }
 
-  prompt += `## Glossary (USE THESE TRANSLATIONS)\n${glossary}\n\n`;
+  if (glossary && glossary.trim()) {
+    prompt += `## Glossary (USE THESE TRANSLATIONS)\n${glossary}\n\n`;
+  }
 
   if (styleGuide) {
     prompt += `## Style Guide\n${styleGuide}\n\n`;

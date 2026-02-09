@@ -186,6 +186,13 @@
     "stagesTitle": "Этапы",
     "stagesOriginalOnly": "В режиме оригинального чтения доступен только анализ текста",
     "differentStagesHint": "Разные модели для разных стадий снижают стоимость при сохранении качества",
+    "glossarySectionTitle": "Использование глоссария",
+    "includeGlossaryInAnalysis": "Глоссарий в анализе",
+    "includeGlossaryInAnalysisHint": "Передавать существующий глоссарий в стадию анализа (выкл — экономия токенов)",
+    "includeGlossaryInTranslation": "Глоссарий в переводе",
+    "includeGlossaryInTranslationHint": "Выкл: термины выровняются в редактуре, чанки перевода крупнее (3500). Меньше токенов.",
+    "includeGlossaryInEditing": "Глоссарий в редактуре",
+    "includeGlossaryInEditingHint": "Выкл: редактура без глоссария в промпте, чанки крупнее (3500). Меньше токенов.",
     "modelDesc": {
       "gpt-5-mini": "Лучшее качество перевода, универсальная",
       "gpt-5-nano": "Быстрая и дешёвая, лёгкие задачи",

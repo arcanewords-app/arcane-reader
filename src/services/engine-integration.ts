@@ -149,7 +149,7 @@ export function createPipeline(config: AppConfig, project: Project): Translation
   let translationProvider: OpenAIProvider;
   let editingProvider: OpenAIProvider;
 
-  const openaiTimeout = config.openai.timeout ?? 300000;
+  const openaiTimeout = config.openai.timeout ?? 600000;
   const openaiMaxRetries = config.openai.maxRetries ?? 3;
 
   try {
@@ -269,6 +269,9 @@ export function createPipeline(config: AppConfig, project: Project): Translation
 export type TranslatePipelineOptions = PipelineOptions & {
   stages?: ('analysis' | 'translation' | 'editing')[] | 'all';
   existingTranslatedText?: string;
+  includeGlossaryInAnalysis?: boolean;
+  includeGlossaryInTranslation?: boolean;
+  includeGlossaryInEditing?: boolean;
 };
 
 /**
@@ -320,6 +323,14 @@ export async function translateChapterWithPipeline(
       neverSplitParagraphs: config.translation.neverSplitParagraphs,
       retryAttempts: config.translation.chunkRetryAttempts,
       chunkRetryDelayMs: config.translation.chunkRetryDelayMs,
+      includeGlossaryInAnalysis:
+        options.includeGlossaryInAnalysis ?? project.settings?.includeGlossaryInAnalysis ?? true,
+      includeGlossaryInTranslation:
+        options.includeGlossaryInTranslation ??
+        project.settings?.includeGlossaryInTranslation ??
+        true,
+      includeGlossaryInEditing:
+        options.includeGlossaryInEditing ?? project.settings?.includeGlossaryInEditing ?? true,
       ...(options.isCancelled && { isCancelled: options.isCancelled }),
     };
     if (Array.isArray(stages)) {

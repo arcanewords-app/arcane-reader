@@ -186,6 +186,13 @@
     "stagesTitle": "Stages",
     "stagesOriginalOnly": "In original reading mode only text analysis is available",
     "differentStagesHint": "Different models per stage reduce cost while keeping quality",
+    "glossarySectionTitle": "Glossary usage",
+    "includeGlossaryInAnalysis": "Glossary in analysis",
+    "includeGlossaryInAnalysisHint": "Send existing glossary to analysis stage (off = save tokens)",
+    "includeGlossaryInTranslation": "Glossary in translation",
+    "includeGlossaryInTranslationHint": "Off: terms aligned in editing, larger translation chunks (3500). Fewer tokens.",
+    "includeGlossaryInEditing": "Glossary in editing",
+    "includeGlossaryInEditingHint": "Off: editing without glossary in prompt, larger chunks (3500). Fewer tokens.",
     "modelDesc": {
       "gpt-5-mini": "Best translation quality, versatile",
       "gpt-5-nano": "Fast and cheap, light tasks",

@@ -475,6 +475,9 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       enableEditing,
       enableTranslation, // Allow toggling translation (for original reading mode)
       originalReadingMode, // New: original reading mode flag
+      includeGlossaryInAnalysis,
+      includeGlossaryInTranslation,
+      includeGlossaryInEditing,
     } = req.body;
 
     // Preserve existing reader settings
@@ -488,6 +491,12 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       enableTranslation: enableTranslation ?? project.settings.enableTranslation ?? true,
       enableEditing: enableEditing ?? project.settings.enableEditing ?? true,
       originalReadingMode: originalReadingMode ?? project.settings.originalReadingMode ?? false,
+      includeGlossaryInAnalysis:
+        includeGlossaryInAnalysis ?? project.settings.includeGlossaryInAnalysis ?? true,
+      includeGlossaryInTranslation:
+        includeGlossaryInTranslation ?? project.settings.includeGlossaryInTranslation ?? true,
+      includeGlossaryInEditing:
+        includeGlossaryInEditing ?? project.settings.includeGlossaryInEditing ?? true,
       reader: existingReader,
     };
 
@@ -1705,6 +1714,9 @@ async function performTranslation(
             : chapterWithOriginal.translatedText?.trim() || undefined
           : undefined,
         isCancelled,
+        includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
+        includeGlossaryInTranslation: project.settings?.includeGlossaryInTranslation ?? true,
+        includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
       });
     } catch (pipelineError) {
       const errorMessage =
