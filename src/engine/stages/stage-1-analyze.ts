@@ -246,7 +246,7 @@ export class AnalyzeStage {
       for (const c of raw.updatedCharacters ?? []) {
         const existing = findExistingChar(c.originalName);
         if (!existing) continue;
-        const entry: Partial<Character> = { id: existing.id };
+        const entry: Partial<Character> = { id: existing.id, originalName: c.originalName };
         if ((c.description?.trim() ?? '').length > 0) entry.description = c.description!.trim();
         if ((c.suggestedTranslation?.trim() ?? '').length > 0)
           entry.translatedName = c.suggestedTranslation!.trim();
@@ -259,7 +259,7 @@ export class AnalyzeStage {
       for (const l of raw.updatedLocations ?? []) {
         const existing = findExistingLoc(l.originalName);
         if (!existing) continue;
-        const entry: Partial<Location> = { id: existing.id };
+        const entry: Partial<Location> = { id: existing.id, originalName: l.originalName };
         if ((l.description?.trim() ?? '').length > 0) entry.description = l.description!.trim();
         if ((l.suggestedTranslation?.trim() ?? '').length > 0)
           entry.translatedName = l.suggestedTranslation!.trim();
@@ -272,7 +272,7 @@ export class AnalyzeStage {
       for (const t of raw.updatedTerms ?? []) {
         const existing = findExistingTerm(t.originalTerm);
         if (!existing) continue;
-        const entry: Partial<Term> = { id: existing.id };
+        const entry: Partial<Term> = { id: existing.id, originalTerm: t.originalTerm };
         if ((t.description?.trim() ?? '').length > 0) entry.description = t.description!.trim();
         if ((t.suggestedTranslation?.trim() ?? '').length > 0)
           entry.translatedTerm = t.suggestedTranslation!.trim();

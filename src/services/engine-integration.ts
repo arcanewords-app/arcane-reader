@@ -366,7 +366,28 @@ export async function translateChapterWithPipeline(
         const analysis = result.stage1.data;
         const glossaryUpdate = analysis.glossaryUpdate;
         const chapterNum = chapter.number;
-        const newCharacters = glossaryUpdate.newCharacters.map((c, idx) => ({
+        const byShortFormCancel = (name: string, type: 'character' | 'location' | 'term') => {
+          const n = name.trim().toLowerCase();
+          if (n.length < 2) return undefined;
+          return project.glossary.find(
+            (e) =>
+              e.type === type &&
+              e.original
+                .trim()
+                .toLowerCase()
+                .startsWith(n + ' ')
+          );
+        };
+        const newCharactersFilteredCancel = glossaryUpdate.newCharacters.filter(
+          (c) => !byShortFormCancel(c.originalName, 'character')
+        );
+        const newLocationsFilteredCancel = glossaryUpdate.newLocations.filter(
+          (l) => !byShortFormCancel(l.originalName, 'location')
+        );
+        const newTermsFilteredCancel = glossaryUpdate.newTerms.filter(
+          (t) => !byShortFormCancel(t.originalTerm, 'term')
+        );
+        const newCharacters = newCharactersFilteredCancel.map((c, idx) => ({
           id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
           type: 'character' as const,
           original: c.originalName,
@@ -378,7 +399,7 @@ export async function translateChapterWithPipeline(
           mentionedInChapters: [chapterNum],
           autoDetected: true,
         }));
-        const newLocations = glossaryUpdate.newLocations.map((l, idx) => ({
+        const newLocations = newLocationsFilteredCancel.map((l, idx) => ({
           id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
           type: 'location' as const,
           original: l.originalName,
@@ -388,7 +409,7 @@ export async function translateChapterWithPipeline(
           mentionedInChapters: [chapterNum],
           autoDetected: true,
         }));
-        const newTerms = glossaryUpdate.newTerms.map((t, idx) => ({
+        const newTerms = newTermsFilteredCancel.map((t, idx) => ({
           id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
           type: 'term' as const,
           original: t.originalTerm,
@@ -400,60 +421,84 @@ export async function translateChapterWithPipeline(
           autoDetected: true,
         }));
         glossaryUpdates.push(...newCharacters, ...newLocations, ...newTerms);
-        const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
+        const byOriginalCancel = (orig: string, type: 'character' | 'location' | 'term') =>
           project.glossary.find(
             (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
           );
         const ids = new Set<string>();
         for (const c of analysis.foundCharacters ?? []) {
-          if (!c.isNew) {
-            const entry = byOriginal(c.name, 'character');
-            if (entry?.id) ids.add(entry.id);
-          }
+          const entry = c.isNew
+            ? byShortFormCancel(c.name, 'character')
+            : byOriginalCancel(c.name, 'character');
+          if (entry?.id) ids.add(entry.id);
         }
         for (const l of analysis.foundLocations ?? []) {
-          if (!l.isNew) {
-            const entry = byOriginal(l.name, 'location');
-            if (entry?.id) ids.add(entry.id);
-          }
+          const entry = l.isNew
+            ? byShortFormCancel(l.name, 'location')
+            : byOriginalCancel(l.name, 'location');
+          if (entry?.id) ids.add(entry.id);
         }
         for (const t of analysis.foundTerms ?? []) {
-          if (!t.isNew) {
-            const entry = byOriginal(t.term, 'term');
-            if (entry?.id) ids.add(entry.id);
-          }
+          const entry = t.isNew
+            ? byShortFormCancel(t.term, 'term')
+            : byOriginalCancel(t.term, 'term');
+          if (entry?.id) ids.add(entry.id);
         }
+        const resolveUpdatedCharIdCancel = (c: { id?: string; originalName?: string }) => {
+          if (!c.originalName) return c.id;
+          const found = byOriginalCancel(c.originalName, 'character');
+          return found?.id ?? c.id;
+        };
+        const resolveUpdatedLocIdCancel = (l: { id?: string; originalName?: string }) => {
+          if (!l.originalName) return l.id;
+          const found = byOriginalCancel(l.originalName, 'location');
+          return found?.id ?? l.id;
+        };
+        const resolveUpdatedTermIdCancel = (t: { id?: string; originalTerm?: string }) => {
+          if (!t.originalTerm) return t.id;
+          const found = byOriginalCancel(t.originalTerm, 'term');
+          return found?.id ?? t.id;
+        };
         for (const c of glossaryUpdate.updatedCharacters ?? []) {
-          if (c.id) ids.add(c.id);
+          const resolvedId = resolveUpdatedCharIdCancel(c);
+          if (resolvedId) ids.add(resolvedId);
         }
         for (const l of glossaryUpdate.updatedLocations ?? []) {
-          if (l.id) ids.add(l.id);
+          const resolvedId = resolveUpdatedLocIdCancel(l);
+          if (resolvedId) ids.add(resolvedId);
         }
         for (const t of glossaryUpdate.updatedTerms ?? []) {
-          if (t.id) ids.add(t.id);
+          const resolvedId = resolveUpdatedTermIdCancel(t);
+          if (resolvedId) ids.add(resolvedId);
         }
         glossaryAppearanceEntryIds = [...ids];
         for (const c of glossaryUpdate.updatedCharacters ?? []) {
-          if (!c.id) continue;
+          const resolvedId = resolveUpdatedCharIdCancel(c);
+          if (!resolvedId) continue;
           const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
           if (c.description !== undefined) updates.description = c.description;
           if (c.translatedName !== undefined) updates.translated = c.translatedName;
-          if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: c.id, updates });
+          if (Object.keys(updates).length > 0)
+            glossaryUpdatesExisting.push({ id: resolvedId, updates });
         }
         for (const l of glossaryUpdate.updatedLocations ?? []) {
-          if (!l.id) continue;
+          const resolvedId = resolveUpdatedLocIdCancel(l);
+          if (!resolvedId) continue;
           const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
           if (l.description !== undefined) updates.description = l.description;
           if (l.translatedName !== undefined) updates.translated = l.translatedName;
-          if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: l.id, updates });
+          if (Object.keys(updates).length > 0)
+            glossaryUpdatesExisting.push({ id: resolvedId, updates });
         }
         for (const t of glossaryUpdate.updatedTerms ?? []) {
-          if (!t.id) continue;
+          const resolvedId = resolveUpdatedTermIdCancel(t);
+          if (!resolvedId) continue;
           const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
           if (t.description !== undefined) updates.description = t.description;
           if (t.translatedTerm !== undefined) updates.translated = t.translatedTerm;
           if (t.category !== undefined) updates.notes = t.category;
-          if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: t.id, updates });
+          if (Object.keys(updates).length > 0)
+            glossaryUpdatesExisting.push({ id: resolvedId, updates });
         }
       }
       return {
@@ -494,10 +539,39 @@ export async function translateChapterWithPipeline(
     if (result.stage1.success && result.stage1.data) {
       const analysis = result.stage1.data;
       const glossaryUpdate = analysis.glossaryUpdate;
+      const chapterNum = chapter.number;
+
+      const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
+        project.glossary.find(
+          (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
+        );
+      /** Find existing entry when model returned a short form (e.g. "Harry" matches "Harry Potter") */
+      const byShortForm = (name: string, type: 'character' | 'location' | 'term') => {
+        const n = name.trim().toLowerCase();
+        if (n.length < 2) return undefined;
+        return project.glossary.find(
+          (e) =>
+            e.type === type &&
+            e.original
+              .trim()
+              .toLowerCase()
+              .startsWith(n + ' ')
+        );
+      };
 
       // New entries (first appearance + mentionedInChapters for this chapter)
-      const chapterNum = chapter.number;
-      const newCharacters = glossaryUpdate.newCharacters.map((c, idx) => ({
+      // Exclude entries that match existing by short form to avoid duplicates
+      const newCharactersFiltered = glossaryUpdate.newCharacters.filter(
+        (c) => !byShortForm(c.originalName, 'character')
+      );
+      const newLocationsFiltered = glossaryUpdate.newLocations.filter(
+        (l) => !byShortForm(l.originalName, 'location')
+      );
+      const newTermsFiltered = glossaryUpdate.newTerms.filter(
+        (t) => !byShortForm(t.originalTerm, 'term')
+      );
+
+      const newCharacters = newCharactersFiltered.map((c, idx) => ({
         id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
         type: 'character' as const,
         original: c.originalName,
@@ -509,7 +583,7 @@ export async function translateChapterWithPipeline(
         mentionedInChapters: [chapterNum],
         autoDetected: true,
       }));
-      const newLocations = glossaryUpdate.newLocations.map((l, idx) => ({
+      const newLocations = newLocationsFiltered.map((l, idx) => ({
         id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
         type: 'location' as const,
         original: l.originalName,
@@ -519,7 +593,7 @@ export async function translateChapterWithPipeline(
         mentionedInChapters: [chapterNum],
         autoDetected: true,
       }));
-      const newTerms = glossaryUpdate.newTerms.map((t, idx) => ({
+      const newTerms = newTermsFiltered.map((t, idx) => ({
         id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
         type: 'term' as const,
         original: t.originalTerm,
@@ -533,64 +607,79 @@ export async function translateChapterWithPipeline(
       glossaryUpdates = [...newCharacters, ...newLocations, ...newTerms];
 
       // Entry IDs that appeared in this chapter — server will merge chapter into their mentionedInChapters
-      // Source 1: found* with isNew=false (model put entity in characters/locations/terms and we matched by original)
-      const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
-        project.glossary.find(
-          (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
-        );
+      // Source 1: found* with isNew=false (exact match) or isNew=true but short-form match (e.g. "Harry" → "Harry Potter")
       const ids = new Set<string>();
       for (const c of analysis.foundCharacters ?? []) {
-        if (!c.isNew) {
-          const entry = byOriginal(c.name, 'character');
-          if (entry?.id) ids.add(entry.id);
-        }
+        const entry = c.isNew ? byShortForm(c.name, 'character') : byOriginal(c.name, 'character');
+        if (entry?.id) ids.add(entry.id);
       }
       for (const l of analysis.foundLocations ?? []) {
-        if (!l.isNew) {
-          const entry = byOriginal(l.name, 'location');
-          if (entry?.id) ids.add(entry.id);
-        }
+        const entry = l.isNew ? byShortForm(l.name, 'location') : byOriginal(l.name, 'location');
+        if (entry?.id) ids.add(entry.id);
       }
       for (const t of analysis.foundTerms ?? []) {
-        if (!t.isNew) {
-          const entry = byOriginal(t.term, 'term');
-          if (entry?.id) ids.add(entry.id);
-        }
+        const entry = t.isNew ? byShortForm(t.term, 'term') : byOriginal(t.term, 'term');
+        if (entry?.id) ids.add(entry.id);
       }
       // Source 2: updated* (model put entity only in updatedCharacters/updatedLocations/updatedTerms — still counts as "appeared in this chapter")
+      // Resolve id via project.glossary: updated* ids come from agent (may be engine ids for entries added in prev chapter)
+      const resolveUpdatedCharId = (c: { id?: string; originalName?: string }) => {
+        if (!c.originalName) return c.id;
+        const found = byOriginal(c.originalName, 'character');
+        return found?.id ?? c.id;
+      };
+      const resolveUpdatedLocId = (l: { id?: string; originalName?: string }) => {
+        if (!l.originalName) return l.id;
+        const found = byOriginal(l.originalName, 'location');
+        return found?.id ?? l.id;
+      };
+      const resolveUpdatedTermId = (t: { id?: string; originalTerm?: string }) => {
+        if (!t.originalTerm) return t.id;
+        const found = byOriginal(t.originalTerm, 'term');
+        return found?.id ?? t.id;
+      };
       for (const c of glossaryUpdate.updatedCharacters ?? []) {
-        if (c.id) ids.add(c.id);
+        const resolvedId = resolveUpdatedCharId(c);
+        if (resolvedId) ids.add(resolvedId);
       }
       for (const l of glossaryUpdate.updatedLocations ?? []) {
-        if (l.id) ids.add(l.id);
+        const resolvedId = resolveUpdatedLocId(l);
+        if (resolvedId) ids.add(resolvedId);
       }
       for (const t of glossaryUpdate.updatedTerms ?? []) {
-        if (t.id) ids.add(t.id);
+        const resolvedId = resolveUpdatedTermId(t);
+        if (resolvedId) ids.add(resolvedId);
       }
       glossaryAppearanceEntryIds = [...ids];
 
       // Updates for existing entries (from analysis re-appearance in this chapter)
       for (const c of glossaryUpdate.updatedCharacters ?? []) {
-        if (!c.id) continue;
+        const resolvedId = resolveUpdatedCharId(c);
+        if (!resolvedId) continue;
         const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
         if (c.description !== undefined) updates.description = c.description;
         if (c.translatedName !== undefined) updates.translated = c.translatedName;
-        if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: c.id, updates });
+        if (Object.keys(updates).length > 0)
+          glossaryUpdatesExisting.push({ id: resolvedId, updates });
       }
       for (const l of glossaryUpdate.updatedLocations ?? []) {
-        if (!l.id) continue;
+        const resolvedId = resolveUpdatedLocId(l);
+        if (!resolvedId) continue;
         const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
         if (l.description !== undefined) updates.description = l.description;
         if (l.translatedName !== undefined) updates.translated = l.translatedName;
-        if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: l.id, updates });
+        if (Object.keys(updates).length > 0)
+          glossaryUpdatesExisting.push({ id: resolvedId, updates });
       }
       for (const t of glossaryUpdate.updatedTerms ?? []) {
-        if (!t.id) continue;
+        const resolvedId = resolveUpdatedTermId(t);
+        if (!resolvedId) continue;
         const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
         if (t.description !== undefined) updates.description = t.description;
         if (t.translatedTerm !== undefined) updates.translated = t.translatedTerm;
         if (t.category !== undefined) updates.notes = t.category;
-        if (Object.keys(updates).length > 0) glossaryUpdatesExisting.push({ id: t.id, updates });
+        if (Object.keys(updates).length > 0)
+          glossaryUpdatesExisting.push({ id: resolvedId, updates });
       }
 
       logger.info(

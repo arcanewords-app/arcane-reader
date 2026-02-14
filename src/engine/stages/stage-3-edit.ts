@@ -18,6 +18,7 @@ import {
   QUALITY_CHECK_PROMPT,
 } from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
+import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
 import { log } from '../logger.js';
 
@@ -90,15 +91,14 @@ export class EditStage {
 
     try {
       const includeGlossary = options.includeGlossary !== false;
-      const glossaryText = includeGlossary
-        ? new GlossaryManager(options.context.glossary).toPromptText()
-        : '';
+      const fullGlossary = options.context.glossary;
 
       // Prepare style notes
       const styleNotes = this.buildStyleNotes(options.context);
 
       let editedText: string;
       let usedChunkedOrPairs = false;
+      let glossaryTextForQuality = '';
 
       // Chunked or single-request editing (glossary + style only; no original text in prompt)
       const estimatedTokens = Math.ceil(translatedText.length / 4);
@@ -116,10 +116,11 @@ export class EditStage {
         const editTemp = options.temperature ?? 0.5;
         const chunkedResult = await this.editChunked(
           translatedText,
-          glossaryText,
+          fullGlossary,
           styleNotes,
           chunkSize,
-          editTemp
+          editTemp,
+          includeGlossary
         );
 
         editedText = chunkedResult.text;
@@ -127,11 +128,18 @@ export class EditStage {
       } else {
         log.debug('EditStage: using direct editing', { estimatedTokens });
 
+        glossaryTextForQuality =
+          includeGlossary && fullGlossary
+            ? new GlossaryManager(
+                filterGlossaryForChunk(translatedText, fullGlossary)
+              ).toPromptText()
+            : '';
+
         const messages: Message[] = [
           { role: 'system', content: EDITOR_SYSTEM_PROMPT },
           {
             role: 'user',
-            content: createEditorPrompt(translatedText, glossaryText, styleNotes),
+            content: createEditorPrompt(translatedText, glossaryTextForQuality, styleNotes),
           },
         ];
 
@@ -154,7 +162,11 @@ export class EditStage {
       if (options.checkQuality && !usedChunkedOrPairs) {
         // Skip quality check for chunked editing to avoid timeout
         try {
-          const qualityResult = await this.checkQuality(editedText, originalText, glossaryText);
+          const qualityResult = await this.checkQuality(
+            editedText,
+            originalText,
+            glossaryTextForQuality
+          );
           totalTokens += qualityResult.tokensUsed;
           qualityScore = qualityResult.score;
         } catch (qualityError) {
@@ -235,13 +247,15 @@ export class EditStage {
 
   /**
    * Edit translation using chunked approach (translated text only; glossary + style in prompt).
+   * Glossary is filtered per chunk to reduce token usage.
    */
   private async editChunked(
     translatedText: string,
-    glossaryText: string,
+    fullGlossary: import('../types/agent.js').AgentContext['glossary'],
     styleNotes: string,
     chunkSize: number,
-    temperature: number = 0.5
+    temperature: number = 0.5,
+    includeGlossary: boolean = true
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -266,9 +280,10 @@ export class EditStage {
       try {
         const editResult = await this.editChunk(
           translatedChunk,
-          glossaryText,
+          fullGlossary,
           styleNotes,
-          temperature
+          temperature,
+          includeGlossary
         );
 
         totalTokensUsed += editResult.tokensUsed;
@@ -325,13 +340,22 @@ export class EditStage {
 
   /**
    * Edit a single chunk of translated text (glossary + style only; no original in prompt).
+   * Glossary is filtered to entries that appear in this chunk.
    */
   private async editChunk(
     translatedChunk: TextChunk,
-    glossaryText: string,
+    fullGlossary: import('../types/agent.js').AgentContext['glossary'],
     styleNotes: string,
-    temperature: number = 0.5
+    temperature: number = 0.5,
+    includeGlossary: boolean = true
   ): Promise<{ text: string; tokensUsed: number }> {
+    const glossaryText =
+      includeGlossary && fullGlossary
+        ? new GlossaryManager(
+            filterGlossaryForChunk(translatedChunk.content, fullGlossary)
+          ).toPromptText()
+        : '';
+
     const messages: Message[] = [
       { role: 'system', content: EDITOR_SYSTEM_PROMPT },
       {

@@ -98,8 +98,8 @@
   --sidebar-width-desktop: 320px;
   --main-padding-desktop: 2rem;
   --header-padding-desktop: 2rem;
-  --modal-width-desktop: 800px;
-  --modal-max-width-desktop: 900px;
+  --modal-width-desktop: 1100px;
+  --modal-max-width-desktop: 1100px;
 
   /* Reading Mode - Mobile (≤767px) */
   --reading-header-padding-mobile: 0.75rem 1rem;
@@ -144,10 +144,10 @@
   --panel-header-padding-desktop: 1rem 1.5rem;
 
   /* Glossary Card - Mobile (≤767px) */
-  --glossary-grid-min-width-mobile: 320px;
-  --glossary-grid-gap-mobile: 0.75rem;
-  --glossary-card-padding-mobile: 1.25rem;
-  --glossary-card-image-size-mobile: 70px;
+  --glossary-grid-min-width-mobile: 300px;
+  --glossary-grid-gap-mobile: 0.875rem;
+  --glossary-card-padding-mobile: 1rem;
+  --glossary-card-image-size-mobile: 56px;
   --glossary-card-min-height-mobile: 0; /* Убираем фиксированную высоту, чтобы карточки не ужимались */
   --glossary-card-border-radius-mobile: 12px;
   --glossary-card-header-gap-mobile: 0.75rem;
@@ -155,13 +155,13 @@
   --glossary-card-delete-size-mobile: 32px;
   --glossary-card-delete-offset-mobile: 0.75rem;
   --glossary-card-names-lines-mobile: 2;
-  --glossary-card-description-lines-mobile: 3;
+  --glossary-card-description-lines-mobile: 2;
 
   /* Glossary Card - Tablet (768px - 1023px) */
-  --glossary-grid-min-width-tablet: 360px;
-  --glossary-grid-gap-tablet: 1.5rem;
-  --glossary-card-padding-tablet: 1.5rem;
-  --glossary-card-image-size-tablet: 80px;
+  --glossary-grid-min-width-tablet: 340px;
+  --glossary-grid-gap-tablet: 1rem;
+  --glossary-card-padding-tablet: 1.25rem;
+  --glossary-card-image-size-tablet: 64px;
   --glossary-card-min-height-tablet: 0; /* Убираем фиксированную высоту, чтобы карточки не ужимались */
   --glossary-card-border-radius-tablet: 14px;
   --glossary-card-header-gap-tablet: 1rem;
@@ -172,10 +172,10 @@
   --glossary-card-description-lines-tablet: 4;
 
   /* Glossary Card - Desktop (≥1024px) */
-  --glossary-grid-min-width-desktop: 420px;
-  --glossary-grid-gap-desktop: 1.5rem;
-  --glossary-card-padding-desktop: 1.75rem;
-  --glossary-card-image-size-desktop: 90px;
+  --glossary-grid-min-width-desktop: 320px;
+  --glossary-grid-gap-desktop: 1rem;
+  --glossary-card-padding-desktop: 1.25rem;
+  --glossary-card-image-size-desktop: 72px;
   --glossary-card-min-height-desktop: 0; /* Убираем фиксированную высоту, чтобы карточки не ужимались */
   --glossary-card-border-radius-desktop: 14px;
   --glossary-card-header-gap-desktop: 1rem;

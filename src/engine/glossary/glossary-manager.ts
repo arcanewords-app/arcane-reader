@@ -263,22 +263,22 @@ export class GlossaryManager {
   }
 
   /**
-   * Generate prompt-friendly glossary text
+   * Options for prompt-friendly glossary text
+   * @param compact - When true, omit description and gender; shorten labels (saves tokens)
    */
-  toPromptText(): string {
+  toPromptText(options?: { compact?: boolean }): string {
+    const compact = options?.compact ?? true; // Default compact for token savings
     let text = '';
 
     if (this.glossary.characters.length > 0) {
       text += '### Персонажи (Characters)\n';
       for (const char of this.glossary.characters) {
-        text += `- ${char.originalName} → ${char.translatedName}`;
-        text += ` [${char.gender}]`;
-        text += ` (род.п.: ${char.declensions.genitive}, дат.п.: ${char.declensions.dative})`;
-        if (char.description) {
+        text += `- ${char.originalName} → ${char.translatedName} [${char.gender}]`;
+        if (!compact && char.description) {
           text += ` - ${char.description}`;
         }
         if (char.aliases.length > 0) {
-          text += ` Также: ${char.aliases.join(', ')}`;
+          text += ` | ${char.aliases.join(', ')}`;
         }
         text += '\n';
       }
@@ -289,7 +289,7 @@ export class GlossaryManager {
       text += '### Локации (Locations)\n';
       for (const loc of this.glossary.locations) {
         text += `- ${loc.originalName} → ${loc.translatedName}`;
-        if (loc.description) {
+        if (!compact && loc.description) {
           text += ` - ${loc.description}`;
         }
         text += '\n';
@@ -301,7 +301,7 @@ export class GlossaryManager {
       text += '### Термины (Terms)\n';
       for (const term of this.glossary.terms) {
         text += `- ${term.originalTerm} → ${term.translatedTerm}`;
-        if (term.description) {
+        if (!compact && term.description) {
           text += ` (${term.description})`;
         }
         text += '\n';

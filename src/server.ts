@@ -1706,6 +1706,11 @@ async function performTranslation(
     try {
       const needsExistingText =
         Array.isArray(stages) && stages.includes('editing') && !stages.includes('translation');
+      // When runEditing (two-phase): phase 1 gets stages ['analysis','translation']; pipeline cannot
+      // infer willRunEditing from runStages. Pass includeGlossaryInTranslation explicitly: when
+      // editing will run, default false (omit glossary, 3500 chunks); else default true.
+      const phase1IncludeGlossaryInTranslation =
+        project.settings?.includeGlossaryInTranslation ?? (runEditing ? false : true);
       result = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
         stages: phase1Stages,
         existingTranslatedText: needsExistingText
@@ -1715,7 +1720,7 @@ async function performTranslation(
           : undefined,
         isCancelled,
         includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
-        includeGlossaryInTranslation: project.settings?.includeGlossaryInTranslation ?? true,
+        includeGlossaryInTranslation: phase1IncludeGlossaryInTranslation,
         includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
       });
     } catch (pipelineError) {

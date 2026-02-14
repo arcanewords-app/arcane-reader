@@ -5,7 +5,8 @@ import { Modal, Button, Input, Select } from '../ui';
 import { api } from '../../api/client';
 import './GlossaryModal.css';
 
-type FilterType = 'all' | GlossaryEntryType;
+type FilterType = 'all' | GlossaryEntryType | 'noDescription' | 'autoDetected';
+type SortBy = 'original' | 'translated' | 'firstChapter' | 'type';
 
 /** Optional: for showing chapter titles and "go to chapter" from mentioned-in-chapters */
 export interface ChapterRef {
@@ -47,21 +48,49 @@ export function GlossaryModal({
     if (!onNavigateToChapter || !chapters?.length) return;
     const ch = chapters.find((c) => c.number === num);
     if (!ch) return;
-    const title = ch.title ? ch.title : String(num);
-    if (!confirm(t('glossary.goToChapterConfirm', { num, title }))) return;
-    onNavigateToChapter(ch.id);
+    setPendingChapter({
+      chapterId: ch.id,
+      number: num,
+      title: ch.title ? ch.title : String(num),
+    });
   };
+
+  const confirmGoToChapter = () => {
+    if (!pendingChapter || !onNavigateToChapter) return;
+    onNavigateToChapter(pendingChapter.chapterId);
+    setPendingChapter(null);
+  };
+
   const typeLabels: Record<GlossaryEntryType, string> = {
     character: t('glossary.characters'),
     location: t('glossary.locations'),
     term: t('glossary.terms'),
   };
   const [filter, setFilter] = useState<FilterType>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('original');
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkMarking, setBulkMarking] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
+  const [inlineEditingValue, setInlineEditingValue] = useState('');
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    entry: GlossaryEntry;
+  } | null>(null);
   const [editingEntry, setEditingEntry] = useState<GlossaryEntry | null>(null);
   const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<GlossaryEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pendingChapter, setPendingChapter] = useState<{
+    chapterId: string;
+    number: number;
+    title: string;
+  } | null>(null);
 
   type MergeSuggestionItem = { entryIds: string[]; reason: string; suggestedPrimaryId?: string };
   const [mergeSuggestions, setMergeSuggestions] = useState<MergeSuggestionItem[] | null>(null);
@@ -72,15 +101,39 @@ export function GlossaryModal({
   const [applyingMerges, setApplyingMerges] = useState(false);
 
   const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => {
-      const matchesFilter = filter === 'all' || entry.type === filter;
+    let list = entries.filter((entry) => {
+      const matchesFilter =
+        filter === 'all'
+          ? true
+          : filter === 'noDescription'
+            ? !entry.description || entry.description.trim() === ''
+            : filter === 'autoDetected'
+              ? entry.autoDetected === true
+              : entry.type === filter;
       const matchesSearch =
         !search ||
         entry.original.toLowerCase().includes(search.toLowerCase()) ||
-        entry.translated.toLowerCase().includes(search.toLowerCase());
+        entry.translated.toLowerCase().includes(search.toLowerCase()) ||
+        (entry.description ?? '').toLowerCase().includes(search.toLowerCase());
       return matchesFilter && matchesSearch;
     });
-  }, [entries, filter, search]);
+    // Sort
+    const typeOrder = { character: 0, location: 1, term: 2 };
+    list = [...list].sort((a, b) => {
+      if (sortBy === 'original')
+        return a.original.localeCompare(b.original, undefined, { sensitivity: 'base' });
+      if (sortBy === 'translated')
+        return a.translated.localeCompare(b.translated, undefined, { sensitivity: 'base' });
+      if (sortBy === 'firstChapter') {
+        const fa = a.firstAppearance ?? 9999;
+        const fb = b.firstAppearance ?? 9999;
+        return fa - fb;
+      }
+      if (sortBy === 'type') return typeOrder[a.type] - typeOrder[b.type];
+      return 0;
+    });
+    return list;
+  }, [entries, filter, search, sortBy]);
 
   const counts = useMemo(
     () => ({
@@ -88,6 +141,8 @@ export function GlossaryModal({
       character: entries.filter((e) => e.type === 'character').length,
       location: entries.filter((e) => e.type === 'location').length,
       term: entries.filter((e) => e.type === 'term').length,
+      noDescription: entries.filter((e) => !e.description || e.description.trim() === '').length,
+      autoDetected: entries.filter((e) => e.autoDetected === true).length,
     }),
     [entries]
   );
@@ -139,6 +194,98 @@ export function GlossaryModal({
     setKeepEntryIdByIndex((prev) => ({ ...prev, [index]: entryId }));
   };
 
+  const toggleSelectEntry = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredEntries.map((e) => e.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(t('glossary.deleteSelectedConfirm', { count: selectedIds.size }))) return;
+    setBulkDeleting(true);
+    try {
+      for (const id of selectedIds) {
+        await api.deleteGlossaryEntry(projectId, id);
+      }
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      onUpdate();
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleInlineTranslatedStart = (entry: GlossaryEntry, e: Event) => {
+    e.stopPropagation();
+    if (selectMode) return;
+    setInlineEditingId(entry.id);
+    setInlineEditingValue(entry.translated);
+  };
+
+  const handleInlineTranslatedSave = async (entryId: string) => {
+    const entry = entries.find((e) => e.id === entryId);
+    if (!entry || inlineEditingValue.trim() === entry.translated) {
+      setInlineEditingId(null);
+      return;
+    }
+    try {
+      await api.updateGlossaryEntry(projectId, entryId, { translated: inlineEditingValue.trim() });
+      onUpdate();
+    } catch (err) {
+      console.error('Inline save failed:', err);
+    }
+    setInlineEditingId(null);
+  };
+
+  const handleInlineTranslatedKeyDown = (entryId: string, e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleInlineTranslatedSave(entryId);
+    } else if (e.key === 'Escape') {
+      setInlineEditingId(null);
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  useEffect(() => {
+    const closeContextMenu = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener('click', closeContextMenu);
+      return () => document.removeEventListener('click', closeContextMenu);
+    }
+  }, [contextMenu]);
+
+  const handleBulkMarkReviewed = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkMarking(true);
+    try {
+      for (const id of selectedIds) {
+        await api.updateGlossaryEntry(projectId, id, { autoDetected: false });
+      }
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      onUpdate();
+    } catch (err) {
+      console.error('Bulk mark reviewed failed:', err);
+    } finally {
+      setBulkMarking(false);
+    }
+  };
+
   const handleApplyMerges = async () => {
     if (!mergeSuggestions?.length || selectedMergeIndexes.size === 0) return;
     setApplyingMerges(true);
@@ -174,20 +321,66 @@ export function GlossaryModal({
         size="large"
         footer={
           <>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleSuggestMerges}
-              disabled={entries.length < 2 || loadingMergeSuggestions}
-              title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
-            >
-              {loadingMergeSuggestions
-                ? t('glossary.suggestMergesLoading')
-                : `🔀 ${t('glossary.suggestMerges')}`}
-            </Button>
-            <Button onClick={() => setShowAddModal(true)}>＋ {t('glossary.addEntry')}</Button>
+            {selectMode ? (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                >
+                  {t('glossary.cancelSelect')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={selectAllFiltered}
+                  disabled={filteredEntries.length === 0}
+                >
+                  {t('chapter.selectAll')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.size === 0}
+                  loading={bulkDeleting}
+                >
+                  🗑️ {t('glossary.deleteSelected', { count: selectedIds.size })}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkMarkReviewed}
+                  disabled={selectedIds.size === 0}
+                  loading={bulkMarking}
+                >
+                  ✓ {t('glossary.markReviewed', { count: selectedIds.size })}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={onClose}>
+                  {t('common.close')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setSelectMode(true)}
+                  disabled={entries.length === 0}
+                >
+                  ☑️ {t('glossary.selectMode')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleSuggestMerges}
+                  disabled={entries.length < 2 || loadingMergeSuggestions}
+                  title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
+                >
+                  {loadingMergeSuggestions
+                    ? t('glossary.suggestMergesLoading')
+                    : `🔀 ${t('glossary.suggestMerges')}`}
+                </Button>
+                <Button onClick={() => setShowAddModal(true)}>＋ {t('glossary.addEntry')}</Button>
+              </>
+            )}
           </>
         }
       >
@@ -202,20 +395,68 @@ export function GlossaryModal({
             />
           </div>
           <div class="glossary-filters">
-            {(['all', 'character', 'location', 'term'] as FilterType[]).map((f) => (
+            {(
+              [
+                'all',
+                'character',
+                'location',
+                'term',
+                'noDescription',
+                'autoDetected',
+              ] as FilterType[]
+            ).map((f) => (
               <button
                 key={f}
                 class={`filter-btn ${filter === f ? 'active' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'all' ? t('glossary.all') : `${typeIcons[f]} ${typeLabels[f]}`}
+                {f === 'all'
+                  ? t('glossary.all')
+                  : f === 'noDescription'
+                    ? `📝 ${t('glossary.filterNoDescription')}`
+                    : f === 'autoDetected'
+                      ? `🤖 ${t('glossary.filterAutoDetected')}`
+                      : `${typeIcons[f]} ${typeLabels[f]}`}
                 <span>{counts[f]}</span>
               </button>
             ))}
           </div>
+          <div class="glossary-toolbar-row">
+            <div class="glossary-sort-row">
+              <label class="glossary-sort-label">{t('glossary.sortBy')}:</label>
+              <select
+                class="glossary-sort-select form-input"
+                value={sortBy}
+                onChange={(e) => setSortBy((e.target as HTMLSelectElement).value as SortBy)}
+              >
+                <option value="original">{t('glossary.sortOriginal')}</option>
+                <option value="translated">{t('glossary.sortTranslated')}</option>
+                <option value="firstChapter">{t('glossary.sortFirstChapter')}</option>
+                <option value="type">{t('glossary.sortType')}</option>
+              </select>
+            </div>
+            <div class="glossary-view-toggle">
+              <button
+                type="button"
+                class={`glossary-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                onClick={() => setViewMode('cards')}
+                title={t('glossary.viewCards')}
+              >
+                ⊞
+              </button>
+              <button
+                type="button"
+                class={`glossary-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
+                title={t('glossary.viewList')}
+              >
+                ≡
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div class="glossary-grid">
+        <div class={`glossary-grid ${viewMode === 'list' ? 'glossary-grid-list' : ''}`}>
           {filteredEntries.length === 0 ? (
             <div class="glossary-empty">
               <div class="glossary-empty-icon">📚</div>
@@ -225,21 +466,46 @@ export function GlossaryModal({
             filteredEntries.map((entry) => {
               // Get first image from gallery (support legacy imageUrl)
               const firstImage = entry.imageUrls?.[0] || entry.imageUrl;
+              const isSelected = selectedIds.has(entry.id);
 
               return (
                 <div
                   key={entry.id}
-                  class="glossary-card"
+                  data-type={entry.type}
+                  class={`glossary-card ${selectMode ? 'glossary-card-select-mode' : ''} ${isSelected ? 'glossary-card-selected' : ''}`}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setEditingEntry(entry)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
+                  aria-label={`${typeLabels[entry.type]}: ${entry.original}, ${t('glossary.translated')}: ${entry.translated}`}
+                  onClick={() => {
+                    if (selectMode) {
+                      toggleSelectEntry(entry.id);
+                    } else if (inlineEditingId !== entry.id) {
                       setEditingEntry(entry);
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (selectMode) return;
+                    setContextMenu({ x: e.clientX, y: e.clientY, entry });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (selectMode) toggleSelectEntry(entry.id);
+                      else if (inlineEditingId !== entry.id) setEditingEntry(entry);
+                    }
+                  }}
                 >
+                  {selectMode && (
+                    <div class="glossary-card-checkbox" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectEntry(entry.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  )}
                   <div class="glossary-card-header">
                     {firstImage ? (
                       <img src={firstImage} alt={entry.translated} class="glossary-card-image" />
@@ -252,77 +518,153 @@ export function GlossaryModal({
                           {entry.original}
                         </span>
                         <span class="glossary-card-arrow">→</span>
-                        <span class="glossary-card-translated" title={entry.translated}>
-                          {entry.translated}
-                        </span>
+                        {inlineEditingId === entry.id ? (
+                          <input
+                            type="text"
+                            class="glossary-card-inline-input form-input"
+                            value={inlineEditingValue}
+                            onInput={(e) =>
+                              setInlineEditingValue((e.target as HTMLInputElement).value)
+                            }
+                            onBlur={() => handleInlineTranslatedSave(entry.id)}
+                            onKeyDown={(e) => handleInlineTranslatedKeyDown(entry.id, e)}
+                            onClick={(e) => e.stopPropagation()}
+                            ref={(el) => el?.focus()}
+                          />
+                        ) : (
+                          <span
+                            class="glossary-card-translated glossary-card-translated-editable"
+                            title={`${entry.translated} (${t('glossary.contextEdit')})`}
+                            onDblClick={(e) => handleInlineTranslatedStart(entry, e)}
+                          >
+                            {entry.translated}
+                          </span>
+                        )}
                       </div>
                       <div class="glossary-card-header-badges">
-                        <div class="glossary-card-type-badge" title={typeLabels[entry.type]}>
-                          {typeIcons[entry.type]}
-                        </div>
-                        {entry.firstAppearance && (
+                        {entry.type === 'character' &&
+                          entry.gender &&
+                          entry.gender !== 'unknown' && (
+                            <span
+                              class="glossary-card-gender"
+                              title={
+                                entry.gender === 'male'
+                                  ? t('glossary.genderMale')
+                                  : entry.gender === 'female'
+                                    ? t('glossary.genderFemale')
+                                    : t('glossary.genderNeutral')
+                              }
+                            >
+                              {entry.gender === 'male'
+                                ? '♂'
+                                : entry.gender === 'female'
+                                  ? '♀'
+                                  : '⚧'}
+                            </span>
+                          )}
+                        {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
                           <span
-                            class="glossary-card-badge glossary-card-chapter"
-                            title={t('glossary.firstMention')}
+                            class="glossary-card-badge glossary-card-chapters-count"
+                            title={
+                              t('glossary.chaptersMentionedLabel') +
+                              ': ' +
+                              entry.mentionedInChapters.join(', ')
+                            }
                           >
-                            📖 {entry.firstAppearance}
+                            📑 {entry.mentionedInChapters.length}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {entry.description && (
-                    <div class="glossary-card-description" title={entry.description}>
+                  {entry.description?.trim() && (
+                    <div
+                      class={`glossary-card-description ${expandedDescriptionId === entry.id ? 'glossary-card-description-expanded' : ''}`}
+                      title={entry.description}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedDescriptionId((id) => (id === entry.id ? null : entry.id));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandedDescriptionId((id) => (id === entry.id ? null : entry.id));
+                        }
+                      }}
+                    >
                       {entry.description}
                     </div>
                   )}
 
-                  {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
-                    <div
-                      class="glossary-card-chapters"
-                      title={t('glossary.chaptersMentionedLabel')}
-                    >
-                      {chapters?.length && onNavigateToChapter
-                        ? entry.mentionedInChapters.map((num) => {
-                            const ch = chapters.find((c) => c.number === num);
-                            const isClickable = !!ch?.id;
-                            return isClickable ? (
-                              <button
-                                key={num}
-                                type="button"
-                                class="glossary-chapter-pill"
-                                title={t('glossary.goToChapterConfirm', {
-                                  num,
-                                  title: ch?.title ?? num,
-                                })}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleChapterClick(num);
-                                }}
-                              >
-                                {num}
-                              </button>
-                            ) : (
-                              <span
-                                key={num}
-                                class="glossary-chapter-pill glossary-chapter-pill-static"
-                              >
-                                {num}
-                              </span>
-                            );
-                          })
-                        : t('glossary.mentionedInChapters', {
-                            chapters: entry.mentionedInChapters.join(', '),
-                          })}
-                    </div>
-                  )}
-
-                  {entry.notes && (
+                  {entry.notes?.trim() && (
                     <div class="glossary-card-notes" title={entry.notes}>
                       {entry.notes}
                     </div>
                   )}
+
+                  {entry.mentionedInChapters &&
+                    entry.mentionedInChapters.length > 0 &&
+                    (() => {
+                      const chList = entry.mentionedInChapters!;
+                      const maxPills = 5;
+                      const showPills = chList.slice(0, maxPills);
+                      const restCount = chList.length - maxPills;
+                      const fullList = chList.join(', ');
+                      return (
+                        <div
+                          class="glossary-card-chapters"
+                          title={t('glossary.chaptersMentionedLabel') + ': ' + fullList}
+                        >
+                          {chapters?.length && onNavigateToChapter ? (
+                            <>
+                              {showPills.map((num) => {
+                                const ch = chapters.find((c) => c.number === num);
+                                const isClickable = !!ch?.id;
+                                return isClickable ? (
+                                  <button
+                                    key={num}
+                                    type="button"
+                                    class="glossary-chapter-pill"
+                                    title={t('glossary.goToChapterConfirm', {
+                                      num,
+                                      title: ch?.title ?? num,
+                                    })}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleChapterClick(num);
+                                    }}
+                                  >
+                                    {num}
+                                  </button>
+                                ) : (
+                                  <span
+                                    key={num}
+                                    class="glossary-chapter-pill glossary-chapter-pill-static"
+                                  >
+                                    {num}
+                                  </span>
+                                );
+                              })}
+                              {restCount > 0 && (
+                                <span
+                                  class="glossary-chapter-pill glossary-chapter-pill-more"
+                                  title={fullList}
+                                >
+                                  +{restCount}
+                                </span>
+                              )}
+                            </>
+                          ) : restCount > 0 ? (
+                            `${showPills.join(', ')} +${restCount}`
+                          ) : (
+                            t('glossary.mentionedInChapters', { chapters: fullList })
+                          )}
+                        </div>
+                      );
+                    })()}
 
                   <button
                     class="glossary-card-delete"
@@ -531,6 +873,9 @@ export function GlossaryModal({
           projectId={projectId}
           entry={editingEntry}
           chapters={chapters}
+          onRequestNavigateToChapter={(chapterId, num, title) =>
+            setPendingChapter({ chapterId, number: num, title })
+          }
           onNavigateToChapter={onNavigateToChapter}
           onUpdate={() => {
             setEditingEntry(null);
@@ -541,6 +886,51 @@ export function GlossaryModal({
             setDeleteConfirmEntry(entry);
           }}
         />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          class="glossary-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            class="glossary-context-menu-item"
+            onClick={() => {
+              setEditingEntry(contextMenu.entry);
+              setContextMenu(null);
+            }}
+          >
+            ✏️ {t('glossary.contextEdit')}
+          </button>
+          {contextMenu.entry.autoDetected && (
+            <button
+              type="button"
+              class="glossary-context-menu-item"
+              onClick={async () => {
+                await api.updateGlossaryEntry(projectId, contextMenu.entry.id, {
+                  autoDetected: false,
+                });
+                onUpdate();
+                setContextMenu(null);
+              }}
+            >
+              ✓ {t('glossary.contextMarkReviewed')}
+            </button>
+          )}
+          <button
+            type="button"
+            class="glossary-context-menu-item glossary-context-menu-item-danger"
+            onClick={() => {
+              setDeleteConfirmEntry(contextMenu.entry);
+              setContextMenu(null);
+            }}
+          >
+            🗑️ {t('glossary.contextDelete')}
+          </button>
+        </div>
       )}
 
       {/* Delete Confirm Modal */}
@@ -565,6 +955,33 @@ export function GlossaryModal({
             original: deleteConfirmEntry?.original ?? '',
           })}
         </p>
+      </Modal>
+
+      {/* Go to chapter confirmation modal */}
+      <Modal
+        isOpen={pendingChapter !== null}
+        onClose={() => setPendingChapter(null)}
+        title={`📖 ${t('glossary.goToChapterTitle')}`}
+        className="nested glossary-go-to-chapter-confirm-modal"
+        footer={
+          pendingChapter && (
+            <>
+              <Button variant="secondary" onClick={() => setPendingChapter(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={confirmGoToChapter}>{t('glossary.goToChapterButton')}</Button>
+            </>
+          )
+        }
+      >
+        {pendingChapter && (
+          <p class="glossary-go-to-chapter-confirm-text">
+            {t('glossary.goToChapterConfirm', {
+              num: pendingChapter.number,
+              title: pendingChapter.title,
+            })}
+          </p>
+        )}
       </Modal>
     </>
   );
@@ -693,6 +1110,8 @@ interface EditGlossaryModalProps {
   projectId: string;
   entry: GlossaryEntry;
   chapters?: ChapterRef[];
+  /** Opens confirmation modal; parent handles actual navigation on confirm */
+  onRequestNavigateToChapter?: (chapterId: string, num: number, title: string) => void;
   onNavigateToChapter?: (chapterId: string) => void;
   onUpdate: () => void;
   onDelete: (entry: GlossaryEntry) => void;
@@ -704,6 +1123,7 @@ function EditGlossaryModal({
   projectId,
   entry,
   chapters,
+  onRequestNavigateToChapter,
   onNavigateToChapter,
   onUpdate,
   onDelete,
@@ -711,12 +1131,16 @@ function EditGlossaryModal({
   const { t } = useTranslation();
 
   const handleChapterClick = (num: number) => {
-    if (!onNavigateToChapter || !chapters?.length) return;
+    if (!chapters?.length) return;
     const ch = chapters.find((c) => c.number === num);
     if (!ch) return;
     const title = ch.title ? ch.title : String(num);
-    if (!confirm(t('glossary.goToChapterConfirm', { num, title }))) return;
-    onNavigateToChapter(ch.id);
+    if (onRequestNavigateToChapter) {
+      onRequestNavigateToChapter(ch.id, num, title);
+    } else if (onNavigateToChapter) {
+      if (!confirm(t('glossary.goToChapterConfirm', { num, title }))) return;
+      onNavigateToChapter(ch.id);
+    }
   };
   const [type, setType] = useState(entry.type);
   const [original, setOriginal] = useState(entry.original);
@@ -932,7 +1356,7 @@ function EditGlossaryModal({
         <div class="form-group">
           <label class="form-label">📑 {t('glossary.chaptersMentionedLabel')}</label>
           <div class="edit-modal-chapters-block">
-            {chapters?.length && onNavigateToChapter
+            {chapters?.length && (onRequestNavigateToChapter || onNavigateToChapter)
               ? entry.mentionedInChapters.map((num) => {
                   const ch = chapters.find((c) => c.number === num);
                   const isClickable = !!ch?.id;

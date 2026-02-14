@@ -9,10 +9,12 @@
 
 import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AgentContext } from '../types/agent.js';
+import type { Glossary } from '../types/glossary.js';
 import type { StageResult, TranslationDraft, ChunkTranslation } from '../types/pipeline.js';
 import type { TextChunk } from '../types/common.js';
 import { TRANSLATOR_SYSTEM_PROMPT, createTranslatorPrompt } from '../prompts/system/translator.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
+import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
 import { log } from '../logger.js';
 
@@ -87,11 +89,9 @@ export class TranslateStage {
     }
 
     try {
-      // Prepare glossary text (omit when editing will run to save tokens; editor stage applies glossary)
+      // Prepare full glossary for filtering (omit when editing will run to save tokens)
       const includeGlossary = options.includeGlossary !== false;
-      const glossaryText = includeGlossary
-        ? new GlossaryManager(options.context.glossary).toPromptText()
-        : '';
+      const fullGlossary = options.context.glossary;
 
       // Prepare context text
       const contextText = this.buildContextText(options.context);
@@ -166,10 +166,11 @@ export class TranslateStage {
           try {
             const result = await this.translateChunk(
               chunk,
-              glossaryText,
+              fullGlossary,
               contextText,
               styleGuide,
-              temperature
+              temperature,
+              includeGlossary
             );
 
             const chunkDurationMs = Date.now() - chunkStartTime;
@@ -329,11 +330,18 @@ export class TranslateStage {
 
   private async translateChunk(
     chunk: TextChunk,
-    glossaryText: string,
+    fullGlossary: Glossary,
     contextText: string,
     styleGuide: string,
-    temperature: number = 0.7
+    temperature: number = 0.7,
+    includeGlossary: boolean = true
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
+    // Filter glossary to entries that appear in this chunk (saves tokens)
+    const glossaryText =
+      includeGlossary && fullGlossary
+        ? new GlossaryManager(filterGlossaryForChunk(chunk.content, fullGlossary)).toPromptText()
+        : '';
+
     // Validate provider before use
     if (!this.provider) {
       throw new Error('Translation provider is not initialized');
