@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
 import type { PublicationWithChapters, GlossaryEntry } from '../types';
+import { usePageMeta } from '../hooks/usePageMeta';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
 import { LoadingSpinner } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
@@ -87,6 +88,13 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
 
   const pub = data;
   const title = pub.title || t('publication.untitled');
+  const description =
+    pub.description || (pub.authorDisplay ? `${title} by ${pub.authorDisplay}` : title);
+  usePageMeta({
+    title,
+    description,
+    imageUrl: pub.coverImageUrl,
+  });
   const authorDisplay = pub.authorDisplay || null;
   const translatorDisplay = pub.translatorDisplay || null;
   const langLabel = `${pub.sourceLanguage} → ${pub.targetLanguage}`;

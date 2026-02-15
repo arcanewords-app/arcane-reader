@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
 import type { GlossaryEntry } from '../types';
+import { usePageMeta } from '../hooks/usePageMeta';
 import { ReadingMode } from '../components/ReadingMode';
 import { LoadingSpinner } from '../components/ui';
 import './PublicationReadingPage.css';
@@ -15,7 +16,12 @@ interface PublicationReadingPageProps {
 export function PublicationReadingPage({ publicationId, chapterId }: PublicationReadingPageProps) {
   const { t } = useTranslation();
   const [data, setData] = useState<{
-    publication: { id: string; title: string | null };
+    publication: {
+      id: string;
+      title: string | null;
+      description: string | null;
+      coverImageUrl: string | null;
+    };
     chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
     glossaryCount: number;
   } | null>(null);
@@ -34,7 +40,12 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       .then((result) => {
         if (!cancelled) {
           setData({
-            publication: { id: result.id, title: result.title },
+            publication: {
+              id: result.id,
+              title: result.title,
+              description: result.description,
+              coverImageUrl: result.coverImageUrl,
+            },
             chapters: result.chapters || [],
             glossaryCount: result.glossaryCount ?? 0,
           });
@@ -93,6 +104,24 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const publicationChapters = data.chapters
     .filter((ch) => ch.hasTranslation)
     .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
+
+  const bookTitle = data.publication.title || t('publication.untitled');
+  const currentChapter = chapterId
+    ? data.chapters.find((ch) => ch.id === chapterId)
+    : publicationChapters[0];
+  const chapterTitle = currentChapter
+    ? currentChapter.title ||
+      t('chapterList.defaultChapterTitle', { number: currentChapter.number })
+    : bookTitle;
+  const pageTitle = currentChapter ? `${chapterTitle} — ${bookTitle}` : bookTitle;
+  const pageDescription = currentChapter
+    ? `${chapterTitle} — ${bookTitle}`
+    : data.publication.description || (data.publication.title ? `${bookTitle}` : bookTitle);
+  usePageMeta({
+    title: pageTitle,
+    description: pageDescription,
+    imageUrl: data.publication.coverImageUrl,
+  });
 
   if (publicationChapters.length === 0) {
     return (

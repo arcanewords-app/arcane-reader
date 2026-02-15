@@ -68,6 +68,76 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+/** Escape string for use in HTML meta content attribute (quotes, ampersands) */
+function escapeMetaContent(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Inject publication-specific meta tags into index.html for SEO (Open Graph, Twitter Card).
+ * Used for /p/:id and /p/:id/chapters/:cid/reading routes so crawlers get correct previews.
+ */
+function injectPublicationMeta(
+  html: string,
+  opts: {
+    title: string;
+    description: string;
+    imageUrl: string | null;
+    pageUrl: string;
+  }
+): string {
+  const t = escapeMetaContent(opts.title);
+  const d = escapeMetaContent(opts.description);
+  const origin = opts.pageUrl.startsWith('http') ? new URL(opts.pageUrl).origin : '';
+  const img =
+    opts.imageUrl && opts.imageUrl.startsWith('http') ? opts.imageUrl : `${origin}/arcane_icon.png`;
+  const url = escapeMetaContent(opts.pageUrl);
+
+  let out = html
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${t} — Arcane</title>`)
+    .replace(
+      /<meta name="description" content="[^"]*" *\/?>/,
+      `<meta name="description" content="${d}" />`
+    )
+    .replace(
+      /<meta property="og:title" content="[^"]*" *\/?>/,
+      `<meta property="og:title" content="${t}" />`
+    )
+    .replace(
+      /<meta property="og:description" content="[^"]*" *\/?>/,
+      `<meta property="og:description" content="${d}" />`
+    )
+    .replace(
+      /<meta property="og:image" content="[^"]*" *\/?>/,
+      `<meta property="og:image" content="${img}" />`
+    );
+  if (!out.includes('og:url')) {
+    out = out.replace(
+      /<meta property="og:type" content="[^"]*" *\/?>/,
+      `<meta property="og:url" content="${url}" />\n    <meta property="og:type" content="website" />`
+    );
+  } else {
+    out = out.replace(
+      /<meta property="og:url" content="[^"]*" *\/?>/,
+      `<meta property="og:url" content="${url}" />`
+    );
+  }
+  out = out
+    .replace(
+      /<meta name="twitter:title" content="[^"]*" *\/?>/,
+      `<meta name="twitter:title" content="${t}" />`
+    )
+    .replace(
+      /<meta name="twitter:description" content="[^"]*" *\/?>/,
+      `<meta name="twitter:description" content="${d}" />`
+    );
+  return out;
+}
 function omitKeys(obj: DebugLogEntry, keys: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(obj)) if (!keys.includes(k)) out[k] = obj[k];
@@ -4442,6 +4512,103 @@ ${entries
     res.redirect(302, '/debug');
   });
 }
+
+// ============ SEO: robots.txt & sitemap.xml ============
+
+app.get('/robots.txt', (req, res) => {
+  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  res.type('text/plain').send(
+    `User-agent: *
+Allow: /
+
+Sitemap: ${base}/sitemap.xml
+`
+  );
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  let pubUrls = '';
+  try {
+    const pubs = await listPublicationsPublic({ limit: 1000 });
+    for (const p of pubs) {
+      pubUrls += `  <url>
+    <loc>${escapeHtml(base + '/p/' + p.id)}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+`;
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to load publications for sitemap');
+  }
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${escapeHtml(base + '/')}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+${pubUrls}</urlset>
+`
+  );
+});
+
+// ============ SEO: Publication pages with dynamic meta ============
+
+async function servePublicationHtml(
+  req: express.Request,
+  res: express.Response,
+  publicationId: string,
+  chapterId?: string
+): Promise<void> {
+  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  const indexPath = fs.existsSync(path.join(clientPath, 'index.html'))
+    ? path.join(clientPath, 'index.html')
+    : path.join(publicPath, 'index.html');
+
+  const data = await getPublicationWithChapters(publicationId);
+  if (!data) {
+    res.sendFile(indexPath);
+    return;
+  }
+
+  const pub = data.publication;
+  const title = pub.title || 'Publication';
+  const description =
+    pub.description || (pub.authorDisplay ? `${title} by ${pub.authorDisplay}` : title);
+  const pageUrl = chapterId
+    ? `${base}/p/${publicationId}/chapters/${chapterId}/reading`
+    : `${base}/p/${publicationId}`;
+
+  let pageTitle = title;
+  let pageDesc = description;
+  if (chapterId) {
+    const ch = data.chapters.find((c) => c.id === chapterId);
+    if (ch) {
+      pageTitle = `${ch.title || `Chapter ${ch.number}`} — ${title}`;
+      pageDesc = `${ch.title || `Chapter ${ch.number}`} of ${title}`;
+    }
+  }
+
+  let html = fs.readFileSync(indexPath, 'utf-8');
+  html = injectPublicationMeta(html, {
+    title: pageTitle,
+    description: pageDesc,
+    imageUrl: pub.coverImageUrl,
+    pageUrl,
+  });
+  res.type('html').send(html);
+}
+
+app.get('/p/:publicationId', (req, res, next) => {
+  servePublicationHtml(req, res, req.params.publicationId).catch(next);
+});
+
+app.get('/p/:publicationId/chapters/:chapterId/reading', (req, res, next) => {
+  servePublicationHtml(req, res, req.params.publicationId, req.params.chapterId).catch(next);
+});
 
 // ============ SPA Fallback ============
 
