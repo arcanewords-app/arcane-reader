@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
+import { route } from 'preact-router';
 import { Button, Input } from '../ui';
 import { authService } from '../../services/authService';
 import type { AuthUser } from '../../types';
@@ -16,6 +17,7 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
@@ -32,6 +34,11 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
 
     if (password !== confirmPassword) {
       setError(t('auth.passwordsMismatch'));
+      return;
+    }
+
+    if (!consent) {
+      setError(t('auth.consentRequired'));
       return;
     }
 
@@ -135,6 +142,24 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
         disabled={loading}
         minLength={6}
       />
+
+      <label class="auth-consent-label">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent((e.target as HTMLInputElement).checked)}
+          disabled={loading}
+        />
+        <span>
+          <Trans
+            i18nKey="auth.consentLabel"
+            components={[
+              <a href="/privacy" onClick={(e) => { e.preventDefault(); route('/privacy'); }} />,
+              <a href="/terms" onClick={(e) => { e.preventDefault(); route('/terms'); }} />,
+            ]}
+          />
+        </span>
+      </label>
 
       <Button type="submit" loading={loading} size="full">
         {t('auth.submitRegister')}

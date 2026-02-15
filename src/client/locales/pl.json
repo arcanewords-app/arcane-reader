@@ -342,7 +342,9 @@
     "inviteCodePlaceholder": "Wprowadź kod",
     "inviteContinue": "Kontynuuj",
     "inviteCodeRequired": "Wprowadź kod zaproszenia",
-    "inviteCodeInvalid": "Nieprawidłowy kod zaproszenia"
+    "inviteCodeInvalid": "Nieprawidłowy kod zaproszenia",
+    "consentLabel": "Akceptuję <0>Politykę prywatności</0> i <1>Regulamin</1>",
+    "consentRequired": "Musisz zaakceptować regulamin"
   },
   "projectInfo": {
     "delete": "Usuń",
@@ -616,5 +618,74 @@
     "translated": "Przetłumaczono",
     "approved": "Zatwierdzono",
     "edited": "Zmieniono"
+  },
+  "info": {
+    "menu": "Info",
+    "about": "O projekcie",
+    "contact": "Kontakt",
+    "privacy": "Polityka prywatności",
+    "terms": "Regulamin"
+  },
+  "about": {
+    "title": "O projekcie Arcane",
+    "whatIs": "Co to jest?",
+    "whatIsDesc": "Arcane to interfejs webowy do tłumaczenia powieści z obsługą AI i glosariusza. Import EPUB, FB2, TXT. Trójetapowy pipeline: analiza → tłumaczenie → redakcja.",
+    "features": "Funkcje",
+    "feature1": "Tłumaczenie AI z kontekstem i glosariuszem",
+    "feature2": "Inteligentny glosariusz z automatyczną odmianą imion (Petrovich)",
+    "feature3": "Tryb czytania, eksport EPUB/FB2",
+    "feature4": "Publiczny katalog przetłumaczonych dzieł",
+    "feature5": "Panel autora dla tłumaczy",
+    "mission": "Misja",
+    "missionDesc": "Dać ludziom szybszy dostęp do jakościowych tłumaczeń w języku ojczystym — lepszych niż surowe tłumaczenie maszynowe.",
+    "author": "Autor",
+    "authorDesc": "Ilya Murashka. Pomysły, pomoc, współpraca — napisz na LinkedIn.",
+    "license": "Licencja",
+    "licenseDesc": "Projekt tworzony z Cursor AI. Licencja MIT."
+  },
+  "contact": {
+    "title": "Kontakt",
+    "desc": "W sprawie pytań, sugestii i współpracy:",
+    "topics": "Możesz napisać o",
+    "topic1": "Pomysłach na ulepszenie serwisu",
+    "topic2": "Chęci pomocy projektowi",
+    "topic3": "Zapytaniach o dane osobowe (RODO)"
+  },
+  "privacy": {
+    "title": "Polityka prywatności",
+    "updated": "Zaktualizowano: luty 2026",
+    "controller": "Administrator danych",
+    "controllerDesc": "Arcane to projekt hobbystyczny. Administrator: Ilya Murashka. Kontakt: ilya.murashka.w@gmail.com",
+    "dataWeCollect": "Jakie dane zbieramy",
+    "guests": "Goście (czytelnicy)",
+    "guestsDesc": "Tylko język interfejsu w localStorage przeglądarki. Serwer nie przechowuje danych gości.",
+    "authors": "Autorzy (zarejestrowani)",
+    "authorsDesc": "Email, hasło (hash), projekty, rozdziały, tłumaczenia, glosariusz, publikacje, użycie tokenów. Przechowywane w Supabase (PostgreSQL, Storage).",
+    "purpose": "Cel przetwarzania",
+    "purposeDesc": "Działanie serwisu, uwierzytelnianie, tłumaczenie, śledzenie limitów tokenów. Dane przechowywane do usunięcia konta.",
+    "localStorage": "Pamięć lokalna (nie cookies)",
+    "localStorageDesc": "Używamy localStorage: tokeny auth, cache użytkownika, język interfejsu. Nie używamy cookies.",
+    "thirdParty": "Strony trzecie",
+    "thirdPartyDesc": "Supabase (hosting, baza, auth), OpenAI (tłumaczenie tekstu — bez email i user ID). Dane mogą być przetwarzane w USA; dostawcy stosują SCC.",
+    "yourRights": "Twoje prawa (RODO)",
+    "yourRightsDesc": "Dostęp, sprostowanie, usunięcie, ograniczenie, przenoszenie, sprzeciw. Skarga do organu nadzorczego (UE). Kontakt: ilya.murashka.w@gmail.com",
+    "contact": "Kontakt",
+    "contactDesc": "Zapytania o dane osobowe: ilya.murashka.w@gmail.com"
+  },
+  "terms": {
+    "title": "Regulamin",
+    "updated": "Zaktualizowano: luty 2026",
+    "acceptance": "Akceptacja",
+    "acceptanceDesc": "Korzystanie z Arcane oznacza akceptację regulaminu.",
+    "readers": "Dla czytelników",
+    "readersDesc": "Katalog i czytanie publikacji są bezpłatne. Treści tworzą autorzy-tłumacze.",
+    "authors": "Dla autorów",
+    "authorsDesc": "Panel, tłumaczenie, eksport. Dzienne limity tokenów według roli. Odpowiadasz za swoje treści.",
+    "contentResponsibility": "Odpowiedzialność za treści",
+    "contentResponsibilityDesc": "Arcane to narzędzie do tłumaczenia. Odpowiadasz za to, co tłumaczysz i publikujesz. Dla utworów chronionych prawem autorskim wymagana jest zgoda uprawnionego. Nie rościmy praw do tłumaczeń.",
+    "changes": "Zmiany",
+    "changesDesc": "Regulamin może być aktualizowany. Kontynuacja korzystania po zmianach oznacza akceptację.",
+    "contact": "Kontakt",
+    "contactDesc": "Pytania: ilya.murashka.w@gmail.com"
   }
 }

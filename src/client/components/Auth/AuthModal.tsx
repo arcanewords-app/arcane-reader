@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import { Modal } from '../ui';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
@@ -151,6 +152,15 @@ export function AuthModal({
             invitationCode={registerInviteCode}
           />
         ) : null}
+
+        <div class="auth-modal-footer-links">
+          <a href="/privacy" onClick={(e) => { e.preventDefault(); route('/privacy'); }}>
+            {t('info.privacy')}
+          </a>
+          <a href="/terms" onClick={(e) => { e.preventDefault(); route('/terms'); }}>
+            {t('info.terms')}
+          </a>
+        </div>
       </>
     </Modal>
   );

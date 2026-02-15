@@ -8,6 +8,10 @@ import { Header } from './components/Header';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { api } from './api/client';
 import { Dashboard, CatalogPage } from './pages';
+import { AboutPage } from './pages/AboutPage';
+import { ContactPage } from './pages/ContactPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { ChapterPage } from './pages/ChapterPage';
 import { ReadingModePage } from './pages/ReadingModePage';
@@ -287,6 +291,10 @@ export function AppRouter() {
           <Router>
             <CatalogPage path="/" />
             <CatalogPage path="/catalog" />
+            <AboutPage path="/about" />
+            <ContactPage path="/contact" />
+            <PrivacyPage path="/privacy" />
+            <TermsPage path="/terms" />
             <Dashboard path="/cabinet" />
             <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
             <PublicationPage path="/p/:publicationId" />

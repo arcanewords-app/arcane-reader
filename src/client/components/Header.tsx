@@ -32,6 +32,7 @@ export function Header({
   const [isMobile, setIsMobile] = useState(false);
   const [hasSidebar, setHasSidebar] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [infoOpen, setInfoOpen] = useState(false);
   const currentLocale = (i18n.language || 'ru') as AppLocale;
 
   useEffect(() => {
@@ -125,6 +126,38 @@ export function Header({
 
         {/* Right section - Системная информация и управление */}
         <div class="header-actions">
+          {/* More menu (About, Contact, Privacy, Terms) - рядом с языком */}
+          <div class="header-info-wrap">
+            <button
+              type="button"
+              class="header-info-btn"
+              onClick={() => setInfoOpen((o) => !o)}
+              onBlur={() => setTimeout(() => setInfoOpen(false), 150)}
+              aria-expanded={infoOpen}
+              aria-haspopup="true"
+              aria-label={t('info.menu')}
+              title={t('info.menu')}
+            >
+              <span class="header-info-icon" aria-hidden="true">⋮</span>
+            </button>
+            {infoOpen && (
+              <div class="header-info-dropdown" role="menu">
+                <a href="/about" onClick={(e) => { e.preventDefault(); route('/about'); setInfoOpen(false); }} role="menuitem">
+                  {t('info.about')}
+                </a>
+                <a href="/contact" onClick={(e) => { e.preventDefault(); route('/contact'); setInfoOpen(false); }} role="menuitem">
+                  {t('info.contact')}
+                </a>
+                <a href="/privacy" onClick={(e) => { e.preventDefault(); route('/privacy'); setInfoOpen(false); }} role="menuitem">
+                  {t('info.privacy')}
+                </a>
+                <a href="/terms" onClick={(e) => { e.preventDefault(); route('/terms'); setInfoOpen(false); }} role="menuitem">
+                  {t('info.terms')}
+                </a>
+              </div>
+            )}
+          </div>
+
           {user ? (
             <>
               {/* System Status */}

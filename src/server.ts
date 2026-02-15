@@ -4542,6 +4542,17 @@ app.get('/sitemap.xml', async (req, res) => {
   } catch (err) {
     logger.warn({ err }, 'Failed to load publications for sitemap');
   }
+  const staticPages = ['/about', '/contact', '/privacy', '/terms']
+    .map(
+      (p) => `  <url>
+    <loc>${escapeHtml(base + p)}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+`
+    )
+    .join('');
+
   res.type('application/xml').send(
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -4550,7 +4561,7 @@ app.get('/sitemap.xml', async (req, res) => {
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-${pubUrls}</urlset>
+${staticPages}${pubUrls}</urlset>
 `
   );
 });
