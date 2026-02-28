@@ -111,8 +111,15 @@
   margin: 0;
 }
 
-/* Glossary: subtle button — clearly clickable, still minimal */
-.publication-page-glossary-btn {
+/* Action buttons (Glossary, TOC) */
+.publication-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.publication-page-glossary-btn,
+.publication-page-toc-btn {
   padding: 0.35rem 0.65rem;
   margin: 0;
   background: var(--bg-secondary);
@@ -128,13 +135,15 @@
     background 0.15s ease;
 }
 
-.publication-page-glossary-btn:hover {
+.publication-page-glossary-btn:hover,
+.publication-page-toc-btn:hover {
   color: var(--text-primary);
   border-color: var(--border-hover, rgba(255, 255, 255, 0.15));
   background: var(--bg-hover);
 }
 
-.publication-page-glossary-btn:focus-visible {
+.publication-page-glossary-btn:focus-visible,
+.publication-page-toc-btn:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
@@ -148,6 +157,65 @@
   font-weight: 600;
   margin: 0 0 0.75rem 0;
   color: var(--text-primary);
+}
+
+.publication-page-chapters-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.publication-page-chapter-search {
+  width: 100%;
+  max-width: 280px;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.publication-page-chapter-search::placeholder {
+  color: var(--text-dim);
+}
+
+.publication-page-chapter-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.publication-page-chapter-filters {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.publication-page-chapter-filters button {
+  padding: 0.35rem 0.65rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.publication-page-chapter-filters button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover, rgba(255, 255, 255, 0.15));
+}
+
+.publication-page-chapter-filters button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.publication-page-chapter-read {
+  font-size: 0.875rem;
+  color: var(--success, #22c55e);
 }
 
 .publication-page-chapters ul {
@@ -169,6 +237,10 @@
   flex: 1;
   font-size: 0.95rem;
   color: var(--text-primary);
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .publication-page-read-chapter {

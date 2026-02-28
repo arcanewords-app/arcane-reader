@@ -138,20 +138,54 @@ export function Header({
               aria-label={t('info.menu')}
               title={t('info.menu')}
             >
-              <span class="header-info-icon" aria-hidden="true">⋮</span>
+              <span class="header-info-icon" aria-hidden="true">
+                ⋮
+              </span>
             </button>
             {infoOpen && (
               <div class="header-info-dropdown" role="menu">
-                <a href="/about" onClick={(e) => { e.preventDefault(); route('/about'); setInfoOpen(false); }} role="menuitem">
+                <a
+                  href="/about"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    route('/about');
+                    setInfoOpen(false);
+                  }}
+                  role="menuitem"
+                >
                   {t('info.about')}
                 </a>
-                <a href="/contact" onClick={(e) => { e.preventDefault(); route('/contact'); setInfoOpen(false); }} role="menuitem">
+                <a
+                  href="/contact"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    route('/contact');
+                    setInfoOpen(false);
+                  }}
+                  role="menuitem"
+                >
                   {t('info.contact')}
                 </a>
-                <a href="/privacy" onClick={(e) => { e.preventDefault(); route('/privacy'); setInfoOpen(false); }} role="menuitem">
+                <a
+                  href="/privacy"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    route('/privacy');
+                    setInfoOpen(false);
+                  }}
+                  role="menuitem"
+                >
                   {t('info.privacy')}
                 </a>
-                <a href="/terms" onClick={(e) => { e.preventDefault(); route('/terms'); setInfoOpen(false); }} role="menuitem">
+                <a
+                  href="/terms"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    route('/terms');
+                    setInfoOpen(false);
+                  }}
+                  role="menuitem"
+                >
                   {t('info.terms')}
                 </a>
               </div>

@@ -57,6 +57,24 @@ export interface Project {
   updatedAt: string;
 }
 
+/** Project with lightweight chapter list (for lazy loading) */
+export type ProjectWithChapterList = Omit<Project, 'chapters'> & {
+  chapters: ChapterListItem[];
+};
+
+/** Chapter summary for ProcessChapters (no full text loaded) */
+export interface ChapterSummary {
+  id: string;
+  number: number;
+  title: string;
+  status: ChapterStatus;
+  hasTranslation: boolean;
+  hasOriginalText: boolean;
+  paragraphCount: number;
+  translatedParagraphCount: number;
+  lastAnalysisAt?: string;
+}
+
 /** Status of individual paragraph */
 export type ParagraphStatus = 'pending' | 'translated' | 'edited' | 'approved';
 
@@ -79,6 +97,16 @@ export type ChapterStatus =
   | 'draft' // Translation saved, editing not applied (refactor 2.1)
   | 'completed'
   | 'error';
+
+/** Lightweight chapter for list view (no paragraphs, no text) */
+export interface ChapterListItem {
+  id: string;
+  number: number;
+  title: string;
+  status: ChapterStatus;
+  hasTranslation: boolean;
+  translationMeta?: Chapter['translationMeta'];
+}
 
 export interface Chapter {
   id: string;
@@ -418,9 +446,9 @@ export async function createProject(data: {
     settings: {
       // Default models: optimized for cost/quality using promotional models
       stageModels: {
-        analysis: 'gpt-4.1-mini', // Best price/quality for structured JSON output
-        translation: 'gpt-5-mini', // Best quality for main translation (if available)
-        editing: 'gpt-4.1-mini', // Good balance for polishing
+        analysis: 'gpt-4.1-mini', // Price/quality balance, analysis and editing
+        translation: 'gpt-4.1-mini', // Price/quality balance for all stages
+        editing: 'gpt-4.1-mini', // Price/quality balance for polishing
       },
       temperature: 0.7,
       enableAnalysis: true,

@@ -119,9 +119,9 @@
     "filterError": "Błędy",
     "noChapters": "Brak rozdziałów",
     "noResults": "Brak wyników",
-    "dragFileOrClick": "Przeciągnij plik<br />(.txt, .epub, .fb2)<br />lub kliknij",
+    "dragFileOrClick": "Przeciągnij plik<br />(.txt, .epub, .fb2, .csv)<br />lub kliknij",
     "unsupportedFormat": "Nieobsługiwany format",
-    "supportedFormats": "Obsługiwane formaty: .txt, .epub, .fb2",
+    "supportedFormats": "Obsługiwane formaty: .txt, .epub, .fb2, .csv",
     "selectedFile": "Wybrany plik",
     "uploadQueue": "Kolejka przesyłania",
     "uploadModalTitle": "Przesyłanie rozdziałów",
@@ -492,6 +492,10 @@
     "messageLow": "Po tym tłumaczeniu zostanie dziś mało tokenów.",
     "dailyExhaustedShort": "Dzienny limit tokenów wyczerpany. Spróbuj jutro."
   },
+  "toc": {
+    "searchPlaceholder": "Szukaj po tytule lub numerze...",
+    "noResults": "Brak wyników"
+  },
   "readingMode": {
     "toc": "Spis treści",
     "current": "Aktualny",
@@ -594,6 +598,10 @@
     "notFound": "Nie znaleziono publikacji",
     "chapters": "Rozdziały",
     "notTranslated": "Brak tłumaczenia",
+    "read": "Przeczytane",
+    "filterAll": "Wszystkie",
+    "filterUnread": "Nieprzeczytane",
+    "filterRead": "Przeczytane",
     "readingComingSoon": "Tryb czytania publikacji będzie dostępny w następnej aktualizacji."
   },
   "language": {
@@ -618,6 +626,13 @@
     "translated": "Przetłumaczono",
     "approved": "Zatwierdzono",
     "edited": "Zmieniono"
+  },
+  "serviceHealth": {
+    "down": "Serwis tymczasowo niedostępny. Spróbuj ponownie później.",
+    "degraded": "Serwis działa wolniej. Niektóre operacje mogą trwać dłużej niż zwykle.",
+    "recovered": "Połączenie przywrócone",
+    "retry": "Ponów",
+    "details": "Szczegóły"
   },
   "info": {
     "menu": "Info",

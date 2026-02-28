@@ -211,7 +211,9 @@
   font-size: 0.875rem;
   font-weight: 500;
   border-radius: var(--radius-sm);
-  transition: background var(--duration-normal), color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    color var(--duration-normal);
 }
 
 .header-info-dropdown a:hover {

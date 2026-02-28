@@ -7,11 +7,13 @@ import { authService } from '../services/authService';
 import type {
   SystemStatus,
   Project,
+  ProjectWithChapterList,
   ProjectListItem,
   ProjectMetadata,
   ProjectSettings,
   ReaderSettings,
   Chapter,
+  ChapterSummary,
   ChapterStats,
   GlossaryEntry,
   Paragraph,
@@ -31,7 +33,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public data?: unknown
+    public data?: unknown,
+    public code?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -44,6 +47,11 @@ export class ApiError extends Error {
  * Custom event name for authentication errors
  */
 const AUTH_ERROR_EVENT = 'arcane:auth-error';
+
+/**
+ * Custom event name for service unavailability (503)
+ */
+const SERVICE_DEGRADED_EVENT = 'arcane:service-degraded';
 
 /**
  * Helper to handle 401 errors consistently
@@ -91,7 +99,28 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   if (response.status === 401) {
     handleAuthError(response);
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(data.error || 'Unauthorized', 401, data);
+    throw new ApiError(data.error || 'Unauthorized', 401, data, data.code);
+  }
+
+  // Handle 503 - service unavailable (Supabase/infrastructure)
+  if (response.status === 503) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+      service?: string;
+    };
+    const isServiceUnavailable = data?.code === 'SERVICE_UNAVAILABLE' || data?.service != null;
+    if (isServiceUnavailable) {
+      window.dispatchEvent(
+        new CustomEvent(SERVICE_DEGRADED_EVENT, {
+          detail: {
+            message: data.error || 'Service temporarily unavailable',
+            service: data.service || 'supabase',
+          },
+        })
+      );
+    }
+    throw new ApiError(data?.error || `HTTP ${response.status}`, 503, data, data?.code);
   }
 
   if (!response.ok) {
@@ -129,7 +158,28 @@ async function fetchFormData<T>(
   if (response.status === 401) {
     handleAuthError(response);
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(data.error || 'Unauthorized', 401, data);
+    throw new ApiError(data.error || 'Unauthorized', 401, data, data.code);
+  }
+
+  // Handle 503 - service unavailable (Supabase/infrastructure)
+  if (response.status === 503) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+      service?: string;
+    };
+    const isServiceUnavailable = data?.code === 'SERVICE_UNAVAILABLE' || data?.service != null;
+    if (isServiceUnavailable) {
+      window.dispatchEvent(
+        new CustomEvent(SERVICE_DEGRADED_EVENT, {
+          detail: {
+            message: data.error || 'Service temporarily unavailable',
+            service: data.service || 'supabase',
+          },
+        })
+      );
+    }
+    throw new ApiError(data?.error || `HTTP ${response.status}`, 503, data, data?.code);
   }
 
   if (!response.ok) {
@@ -155,8 +205,12 @@ export const api = {
     return fetchJson('/api/projects');
   },
 
-  async getProject(id: string): Promise<Project> {
+  async getProject(id: string): Promise<ProjectWithChapterList> {
     return fetchJson(`/api/projects/${id}`);
+  },
+
+  async getChaptersSummary(projectId: string): Promise<ChapterSummary[]> {
+    return fetchJson(`/api/projects/${projectId}/chapters/summary`);
   },
 
   async createProject(name: string): Promise<Project> {
@@ -201,6 +255,19 @@ export const api = {
     settings: Partial<ReaderSettings>
   ): Promise<ReaderSettings> {
     return fetchJson(`/api/projects/${projectId}/settings/reader`, {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  },
+
+  /** Get current user's reader settings (auth required). Returns null if none saved. */
+  async getUserReaderSettings(): Promise<ReaderSettings | null> {
+    return fetchJson(`/api/user/reader-settings`);
+  },
+
+  /** Update current user's reader settings (auth required). */
+  async updateUserReaderSettings(settings: Partial<ReaderSettings>): Promise<ReaderSettings> {
+    return fetchJson(`/api/user/reader-settings`, {
       method: 'PUT',
       body: JSON.stringify(settings),
     });
@@ -505,6 +572,18 @@ export const api = {
   /** Get publication glossary (public, read-only). Returns empty array if not published. */
   async getPublicationGlossary(publicationId: string): Promise<GlossaryEntry[]> {
     return fetchJson(`/api/publications/${publicationId}/glossary`);
+  },
+
+  /** Get read progress for publication (chapter IDs user has read). Returns [] for guests. */
+  async getReadProgress(publicationId: string): Promise<{ chapterIds: string[] }> {
+    return fetchJson(`/api/publications/${publicationId}/read-progress`);
+  },
+
+  /** Mark chapter as read (auth required). */
+  async markChapterAsRead(publicationId: string, chapterId: string): Promise<{ success: boolean }> {
+    return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}/read`, {
+      method: 'POST',
+    });
   },
 
   /** Get single chapter content for public reading (translated text only) */

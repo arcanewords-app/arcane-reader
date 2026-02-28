@@ -154,10 +154,22 @@ export function AuthModal({
         ) : null}
 
         <div class="auth-modal-footer-links">
-          <a href="/privacy" onClick={(e) => { e.preventDefault(); route('/privacy'); }}>
+          <a
+            href="/privacy"
+            onClick={(e) => {
+              e.preventDefault();
+              route('/privacy');
+            }}
+          >
             {t('info.privacy')}
           </a>
-          <a href="/terms" onClick={(e) => { e.preventDefault(); route('/terms'); }}>
+          <a
+            href="/terms"
+            onClick={(e) => {
+              e.preventDefault();
+              route('/terms');
+            }}
+          >
             {t('info.terms')}
           </a>
         </div>

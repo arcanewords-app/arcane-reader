@@ -18,7 +18,13 @@ import {
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
-import type { Chapter, ChapterStatus, Project } from '../../types';
+import type {
+  Chapter,
+  ChapterListItem,
+  ChapterStatus,
+  Project,
+  ProjectWithChapterList,
+} from '../../types';
 import { Card, CountBadge, Modal, Button } from '../ui';
 import { api } from '../../api/client';
 import './ChapterList.css';
@@ -26,7 +32,7 @@ import './ChapterList.css';
 type FilterType = 'all' | ChapterStatus;
 
 interface ChapterListProps {
-  chapters: Chapter[];
+  chapters: Chapter[] | ChapterListItem[];
   selectedId: string | null;
   projectId: string | null;
   originalReadingMode?: boolean;
@@ -34,7 +40,7 @@ interface ChapterListProps {
   onDelete?: (id: string) => void;
   onUpload: (file: File, title: string) => Promise<void>;
   onChaptersUpdate?: () => void | Promise<void>;
-  onProjectUpdate?: (project: Project) => void;
+  onProjectUpdate?: (project: Project | ProjectWithChapterList) => void;
 }
 
 export function ChapterList({
@@ -209,7 +215,7 @@ export function ChapterList({
       return;
     }
 
-    const supportedFormats = ['.txt', '.epub', '.fb2'];
+    const supportedFormats = ['.txt', '.epub', '.fb2', '.csv'];
     const newItems: QueueItem[] = Array.from(fileList).map((file) => {
       const filename = file.name.toLowerCase();
       const title = filename.endsWith('.txt')
@@ -1116,7 +1122,7 @@ export function ChapterList({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".txt,.epub,.fb2"
+          accept=".txt,.epub,.fb2,.csv"
           style={{ display: 'none' }}
           onChange={handleFileInput}
         />

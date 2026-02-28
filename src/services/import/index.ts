@@ -7,6 +7,7 @@ import type { ParseResult } from './types.js';
 import { parseEpub } from './epub.js';
 import { parseFb2 } from './fb2.js';
 import { parseText } from './txt.js';
+import { parseCsv } from './csv.js';
 
 export type { ParseResult, BookMetadata, ParsedChapter, ImportFormat } from './types.js';
 export {
@@ -31,6 +32,8 @@ export async function parseFile(fileBuffer: Buffer, filename: string): Promise<P
       return await parseFb2(fileBuffer);
     case 'txt':
       return await parseText(fileBuffer, filename);
+    case 'csv':
+      return await parseCsv(fileBuffer);
     default:
       throw new Error(`Неподдерживаемый формат файла: .${extension}`);
   }
@@ -41,5 +44,5 @@ export async function parseFile(fileBuffer: Buffer, filename: string): Promise<P
  */
 export function isSupportedFormat(filename: string): boolean {
   const extension = filename.toLowerCase().split('.').pop() || '';
-  return ['txt', 'epub', 'fb2'].includes(extension);
+  return ['txt', 'epub', 'fb2', 'csv'].includes(extension);
 }

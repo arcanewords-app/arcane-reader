@@ -69,7 +69,7 @@ export function SettingsModal({
   ) => {
     const currentStageModels = settings.stageModels || {
       analysis: settings.model || 'gpt-4.1-mini',
-      translation: settings.model || 'gpt-5-mini',
+      translation: settings.model || 'gpt-4.1-mini',
       editing: settings.model || 'gpt-4.1-mini',
     };
 

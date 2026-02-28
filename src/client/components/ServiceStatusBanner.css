@@ -1,0 +1,60 @@
+/* Service Status Banner - horizontal bar under header */
+
+.service-status-banner {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  transition:
+    opacity var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
+  animation: service-status-banner-in 0.25s var(--ease-standard);
+}
+
+@keyframes service-status-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.service-status-banner--down {
+  background: rgba(239, 68, 68, 0.15);
+  border-bottom: 1px solid var(--error);
+  color: var(--text-primary);
+}
+
+.service-status-banner--degraded {
+  background: rgba(245, 158, 11, 0.15);
+  border-bottom: 1px solid var(--warning);
+  color: var(--text-primary);
+}
+
+.service-status-banner--recovered {
+  background: rgba(34, 197, 94, 0.15);
+  border-bottom: 1px solid var(--success);
+  color: var(--text-primary);
+}
+
+.service-status-banner__content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.service-status-banner__message {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.service-status-banner__retry {
+  flex-shrink: 0;
+}

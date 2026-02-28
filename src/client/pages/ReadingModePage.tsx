@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import type { Project } from '../types';
+import type { ProjectWithChapterList } from '../types';
 import { getProject } from '../store/projects';
 import { ReadingMode } from '../components/ReadingMode';
 
@@ -12,7 +12,7 @@ interface ReadingModePageProps {
 
 export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) {
   const { t } = useTranslation();
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<ProjectWithChapterList | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

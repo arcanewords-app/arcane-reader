@@ -17,7 +17,12 @@ import {
 } from '../engine/index.js';
 
 import type { AppConfig } from '../config.js';
-import type { Project, Chapter, GlossaryEntry } from '../storage/database.js';
+import type {
+  Project,
+  ProjectWithChapterList,
+  Chapter,
+  GlossaryEntry,
+} from '../storage/database.js';
 import { logger } from '../logger.js';
 
 // Cache for NovelAgents per project
@@ -26,7 +31,7 @@ const agentCache = new Map<string, NovelAgent>();
 /**
  * Get or create NovelAgent for a project
  */
-export function getAgentForProject(project: Project): NovelAgent {
+export function getAgentForProject(project: Project | ProjectWithChapterList): NovelAgent {
   let agent = agentCache.get(project.id);
 
   if (!agent) {
@@ -86,7 +91,7 @@ export function getAgentForProject(project: Project): NovelAgent {
  * Get model for a specific stage, with fallbacks
  */
 function getStageModel(
-  project: Project,
+  project: Project | ProjectWithChapterList,
   stage: 'analysis' | 'translation' | 'editing',
   defaultModel: string
 ): string {
@@ -103,7 +108,7 @@ function getStageModel(
 
 /** Models that only support v1/responses (not chat/completions). Fallback for old saved settings. */
 const RESPONSES_ONLY_MODELS = new Set(['gpt-5.1-codex-mini', 'codex-mini-latest']);
-const FALLBACK_MODEL = 'gpt-4o-mini';
+const FALLBACK_MODEL = 'gpt-4.1-mini';
 
 function modelForChatCompletions(id: string): string {
   return RESPONSES_ONLY_MODELS.has(id) ? FALLBACK_MODEL : id;
@@ -112,14 +117,17 @@ function modelForChatCompletions(id: string): string {
 /**
  * Create translation pipeline for a project
  */
-export function createPipeline(config: AppConfig, project: Project): TranslationPipeline {
+export function createPipeline(
+  config: AppConfig,
+  project: Project | ProjectWithChapterList
+): TranslationPipeline {
   // Validate API key
   if (!config.openai.apiKey) {
     throw new Error('OpenAI API key is not configured');
   }
 
   const rawAnalysisModel = modelForChatCompletions(
-    getStageModel(project, 'analysis', 'gpt-4.1-mini') || 'gpt-4o-mini'
+    getStageModel(project, 'analysis', 'gpt-4.1-mini')
   );
   // Analysis: forbid reasoning models (gpt-5*, o1*, o3*, o4*) — they take 1–5 min per request and are not suitable
   const isReasoningModel = (m: string) => /^gpt-5|^o1-|^o3-|^o4-/i.test(m);
@@ -132,13 +140,9 @@ export function createPipeline(config: AppConfig, project: Project): Translation
   }
 
   const translationModel = modelForChatCompletions(
-    getStageModel(project, 'translation', 'gpt-5-mini') ||
-      getStageModel(project, 'translation', 'gpt-4.1-mini') ||
-      config.openai.model
+    getStageModel(project, 'translation', 'gpt-4.1-mini') || config.openai.model
   );
-  const editingModel = modelForChatCompletions(
-    getStageModel(project, 'editing', 'gpt-4.1-mini') || 'gpt-4o-mini'
-  );
+  const editingModel = modelForChatCompletions(getStageModel(project, 'editing', 'gpt-4.1-mini'));
 
   logger.debug(
     { analysisModel, translationModel, editingModel, hasApiKey: !!config.openai.apiKey },
@@ -281,7 +285,7 @@ export type TranslatePipelineOptions = PipelineOptions & {
  */
 export async function translateChapterWithPipeline(
   config: AppConfig,
-  project: Project,
+  project: Project | ProjectWithChapterList,
   chapter: Chapter,
   options: TranslatePipelineOptions = {}
 ): Promise<{

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import type { Project, Chapter, ProjectSettings } from '../types';
+import type { ProjectWithChapterList, Chapter, ProjectSettings } from '../types';
 import { getProject, invalidateProject } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
@@ -15,7 +15,8 @@ interface ChapterPageProps {
 
 export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const { t } = useTranslation();
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<ProjectWithChapterList | null>(null);
+  const [chapter, setChapter] = useState<Chapter | null>(null);
   const [loading, setLoading] = useState(true);
   const previousProjectIdRef = useRef<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -46,12 +47,15 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
 
   const loadProject = async () => {
     setLoading(true);
+    if (chapterId) setChapter(null);
     try {
-      // Always refresh when navigating to a project to ensure fresh data
-      // Cache will still be used internally if it's very fresh (< 5 seconds)
-      const loadedProject = await getProject(projectId, true);
+      const [loadedProject, loadedChapter] = await Promise.all([
+        getProject(projectId, true),
+        chapterId ? api.getChapter(projectId, chapterId) : Promise.resolve(null),
+      ]);
       if (loadedProject) {
         setProject(loadedProject);
+        setChapter(loadedChapter ?? null);
       } else {
         route('/');
       }
@@ -63,11 +67,26 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     }
   };
 
-  const handleChapterUpdate = (chapter: Chapter) => {
+  const handleChapterUpdate = (updatedChapter: Chapter) => {
     if (!project) return;
+    setChapter(updatedChapter);
     setProject({
       ...project,
-      chapters: project.chapters.map((c) => (c.id === chapter.id ? chapter : c)),
+      chapters: project.chapters.map((c) =>
+        c.id === updatedChapter.id
+          ? {
+              ...c,
+              status: updatedChapter.status,
+              hasTranslation:
+                updatedChapter.status === 'completed' ||
+                updatedChapter.status === 'draft' ||
+                (updatedChapter.paragraphs?.some(
+                  (p) => p.translatedText && p.translatedText.trim().length > 0
+                ) ??
+                  false),
+            }
+          : c
+      ),
     });
   };
 
@@ -96,12 +115,17 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   }
 
   const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
-  const currentChapter = sortedChapters.find((c) => c.id === chapterId);
+  const chapterListItem = sortedChapters.find((c) => c.id === chapterId);
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
 
-  if (!currentChapter) {
+  if (!chapterListItem) {
     route(`/projects/${projectId}`);
     return null;
+  }
+
+  // Full chapter loaded via api.getChapter (lazy load)
+  if (!chapter) {
+    return <div>{t('common.loading')}</div>;
   }
 
   const handlePrevChapter = () => {
@@ -162,7 +186,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
       <section class="content">
         <ChapterView
           project={project}
-          chapter={currentChapter}
+          chapter={chapter}
           chapterIndex={chapterIndex}
           totalChapters={sortedChapters.length}
           onPrev={handlePrevChapter}

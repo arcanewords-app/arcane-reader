@@ -15,6 +15,7 @@ export function getProjectTypeFromFormat(format: ImportFormat): ProjectType {
     case 'fb2':
       return 'book';
     case 'txt':
+    case 'csv':
       return 'text';
     default:
       // Future: add more formats here

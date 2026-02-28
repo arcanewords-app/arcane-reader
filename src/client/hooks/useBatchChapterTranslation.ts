@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import { authService } from '../services/authService';
 import { useTokenEstimate } from './useTokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
-import type { Chapter, Project } from '../types';
+import type { Chapter, ChapterSummary, Project, ProjectWithChapterList } from '../types';
 import type { ChapterTranslationOptions } from './useChapterTranslation';
 
 export interface BatchChapterProgressItem {
@@ -77,7 +77,7 @@ async function pollChapterUntilDone(
  */
 export function useBatchChapterTranslation(
   projectId: string,
-  project: Project,
+  project: Project | ProjectWithChapterList,
   onRefreshProject: () => Promise<void>
 ) {
   const { t } = useTranslation();
@@ -110,7 +110,7 @@ export function useBatchChapterTranslation(
   }, []);
 
   const startMarkAsTranslatedBatch = useCallback(
-    (chapters: Chapter[]) => {
+    (chapters: Array<{ id: string; title: string; status?: string }>) => {
       if (chapters.length === 0) return;
 
       cancelledRef.current = false;
@@ -193,10 +193,19 @@ export function useBatchChapterTranslation(
   );
 
   const startBatch = useCallback(
-    (chapters: Chapter[], optionsPerChapter?: ChapterTranslationOptions) => {
+    (chapters: Array<Chapter | ChapterSummary>, optionsPerChapter?: ChapterTranslationOptions) => {
       if (chapters.length === 0) return;
 
-      const totalLength = chapters.reduce((sum, ch) => sum + ch.originalText.length, 0);
+      const totalLength = chapters.reduce((sum, ch) => {
+        const full = ch as Chapter;
+        if (full.originalText) return sum + full.originalText.length;
+        const fromPar = (full.paragraphs || []).reduce(
+          (s, p) => s + (p.originalText || '').length,
+          0
+        );
+        if (fromPar > 0) return sum + fromPar;
+        return sum + ((ch as ChapterSummary).paragraphCount ?? 0) * 150;
+      }, 0);
       const stagesForEstimate = optionsPerChapter?.stages ?? 'all';
       const estimatedTokens = estimate(totalLength, stagesForEstimate);
 

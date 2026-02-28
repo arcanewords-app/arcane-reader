@@ -41,6 +41,7 @@
     "@supabase/supabase-js": "^2.90.1",
     "@xmldom/xmldom": "^0.8.11",
     "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
     "dotenv": "^16.3.1",
     "epub-gen-memory": "^1.1.2",
     "epub2": "^3.0.2",
@@ -51,11 +52,11 @@
     "multer": "^1.4.5-lts.1",
     "openai": "^4.104.0",
     "petrovich": "^0.2.1",
+    "pino": "^9.5.0",
     "preact": "^10.28.2",
     "preact-router": "^4.1.2",
     "react-i18next": "^14.0.0",
-    "zod": "^3.22.0",
-    "pino": "^9.5.0"
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.8.2",
@@ -72,8 +73,8 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^5.0.0",
-    "prettier": "^3.4.2",
     "pino-pretty": "^11.3.0",
+    "prettier": "^3.4.2",
     "stylelint": "^16.15.0",
     "stylelint-config-standard": "^36.0.1",
     "tsx": "^4.6.0",

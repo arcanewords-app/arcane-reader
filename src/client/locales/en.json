@@ -119,9 +119,9 @@
     "filterError": "Errors",
     "noChapters": "No chapters",
     "noResults": "No results",
-    "dragFileOrClick": "Drag file<br />(.txt, .epub, .fb2)<br />or click",
+    "dragFileOrClick": "Drag file<br />(.txt, .epub, .fb2, .csv)<br />or click",
     "unsupportedFormat": "Unsupported format",
-    "supportedFormats": "Supported formats: .txt, .epub, .fb2",
+    "supportedFormats": "Supported formats: .txt, .epub, .fb2, .csv",
     "selectedFile": "Selected file",
     "uploadQueue": "Upload queue",
     "uploadModalTitle": "Upload chapters",
@@ -491,6 +491,10 @@
     "messageLow": "You will have few tokens left for today after this translation.",
     "dailyExhaustedShort": "Daily token limit exhausted. Try again tomorrow."
   },
+  "toc": {
+    "searchPlaceholder": "Search by title or number...",
+    "noResults": "No results"
+  },
   "readingMode": {
     "toc": "Table of contents",
     "current": "Current",
@@ -593,6 +597,10 @@
     "notFound": "Publication not found",
     "chapters": "Chapters",
     "notTranslated": "No translation",
+    "read": "Read",
+    "filterAll": "All",
+    "filterUnread": "Unread",
+    "filterRead": "Read",
     "readingComingSoon": "Reading mode for publications will be available in the next update."
   },
   "language": {
@@ -617,6 +625,13 @@
     "translated": "Translated",
     "approved": "Approved",
     "edited": "Edited"
+  },
+  "serviceHealth": {
+    "down": "Service temporarily unavailable. Please try again later.",
+    "degraded": "Service is experiencing slowdowns. Some operations may take longer than usual.",
+    "recovered": "Connection restored",
+    "retry": "Retry",
+    "details": "Details"
   },
   "info": {
     "menu": "Info",

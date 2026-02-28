@@ -1,9 +1,18 @@
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Project, Chapter, ReaderSettings, GlossaryEntry } from '../../types';
+import type {
+  Project,
+  ProjectWithChapterList,
+  Chapter,
+  ChapterListItem,
+  ReaderSettings,
+  GlossaryEntry,
+} from '../../types';
 import { api } from '../../api/client';
+import { authService } from '../../services/authService';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
+import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal } from '../ui';
 import './ReadingMode.css';
 
@@ -13,7 +22,7 @@ type ReaderChapter =
   | { id: string; number: number; title: string; translatedText?: string };
 
 interface ReadingModeProps {
-  project?: Project;
+  project?: Project | ProjectWithChapterList;
   /** Publication mode: show translated text from catalog */
   publicationId?: string;
   publicationTitle?: string;
@@ -23,7 +32,13 @@ interface ReadingModeProps {
   /** Preloaded glossary entries (modal opens without loading when set). */
   publicationGlossaryPreloaded?: GlossaryEntry[] | null;
   initialChapterId?: string;
+  /** Preloaded chapter content (chapterId -> text) for initial chapter when opening via direct link. */
+  initialChapterContent?: Record<string, string>;
   onExit: () => void;
+  /** Called when user has read chapter (scrolled to 85%+ and pressed Next, or last chapter scrolled to 85%+). Auth only. */
+  onChapterRead?: (chapterId: string) => void;
+  /** Set of chapter IDs marked as read (for TOC indicator). */
+  readChapterIds?: Set<string>;
 }
 
 const defaultReaderSettings: ReaderSettings = {
@@ -41,7 +56,10 @@ export function ReadingMode({
   publicationGlossaryCount = 0,
   publicationGlossaryPreloaded,
   initialChapterId,
+  initialChapterContent,
   onExit,
+  onChapterRead,
+  readChapterIds,
 }: ReadingModeProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
@@ -53,16 +71,54 @@ export function ReadingMode({
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
     project?.settings?.reader || defaultReaderSettings
   );
+  const [readerSettingsLoaded, setReaderSettingsLoaded] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [chapters, setChapters] = useState<ReaderChapter[]>([]);
-  const [chapterContentMap, setChapterContentMap] = useState<Record<string, string>>({});
+  const [chapterContentMap, setChapterContentMap] = useState<Record<string, string>>(
+    () => initialChapterContent ?? {}
+  );
   const [chapterContentLoading, setChapterContentLoading] = useState(false);
 
   const isPublicationMode = !!publicationId;
 
+  // Merge initialChapterContent when it arrives (e.g. from preload in PublicationReadingPage)
+  useEffect(() => {
+    if (initialChapterContent && Object.keys(initialChapterContent).length > 0) {
+      setChapterContentMap((prev) => ({ ...prev, ...initialChapterContent }));
+    }
+  }, [initialChapterContent]);
+
+  // Read progress: scrolled to end (85%+), and already-marked set to avoid duplicate API calls
+  const scrolledToEndRef = useRef(false);
+  const markedThisSessionRef = useRef<Set<string>>(new Set());
+  const lastParagraphRef = useRef<HTMLParagraphElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
   // Determine reading mode (project mode only)
   const isOriginalReadingMode =
     !isPublicationMode && (project?.settings?.originalReadingMode ?? false);
+
+  // Load user's saved reader settings when authenticated (user preferences override project/defaults)
+  useEffect(() => {
+    if (!authService.isAuthenticated() || readerSettingsLoaded) return;
+    let cancelled = false;
+    api
+      .getUserReaderSettings()
+      .then((userSettings) => {
+        if (cancelled || !userSettings) return;
+        setReaderSettings(userSettings);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setReaderSettingsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [readerSettingsLoaded]);
+
+  // Track last synced initialChapterId so we don't reset index on parent re-renders (e.g. readChapterIds update)
+  const lastInitialChapterIdRef = useRef<string | undefined>(undefined);
 
   // Publication mode: set chapters from catalog and initial index (own effect so project mode doesn't depend on publicationChapters reference)
   useEffect(() => {
@@ -70,27 +126,28 @@ export function ReadingMode({
     const list: ReaderChapter[] = publicationChapters.map((ch) => ({ ...ch }));
     setChapters(list);
     if (list.length > 0) {
-      const idx = initialChapterId ? list.findIndex((ch) => ch.id === initialChapterId) : 0;
-      setCurrentChapterIndex(idx >= 0 ? idx : 0);
+      // Only sync index when initialChapterId changed (URL navigation) or first mount. Do NOT reset when
+      // parent re-renders (e.g. readChapterIds update) — publicationChapters gets new ref every render.
+      const syncFromUrl = lastInitialChapterIdRef.current !== initialChapterId;
+      if (syncFromUrl) {
+        lastInitialChapterIdRef.current = initialChapterId;
+        const idx = initialChapterId ? list.findIndex((ch) => ch.id === initialChapterId) : 0;
+        setCurrentChapterIndex(idx >= 0 ? idx : 0);
+      }
     }
   }, [isPublicationMode, publicationChapters, initialChapterId]);
 
-  // Project mode: filter and load chapters from project (separate effect so it only runs when project/initialChapterId change, not on every render)
+  // Project mode: filter chapters from project (ChapterListItem - lightweight)
   useEffect(() => {
     if (isPublicationMode || !project) return;
 
-    let availableChapters: Chapter[];
+    let availableChapters: ReaderChapter[];
+    const projectChapters = project.chapters as ChapterListItem[];
     if (isOriginalReadingMode) {
-      availableChapters = project.chapters
-        .filter((ch) => ch.originalText)
-        .sort((a, b) => a.number - b.number);
+      availableChapters = [...projectChapters].sort((a, b) => a.number - b.number);
     } else {
-      availableChapters = project.chapters
-        .filter(
-          (ch) =>
-            (ch.status === 'completed' || ch.status === 'draft') &&
-            (ch.translatedText || (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)))
-        )
+      availableChapters = projectChapters
+        .filter((ch) => ch.hasTranslation || ch.status === 'completed' || ch.status === 'draft')
         .sort((a, b) => a.number - b.number);
     }
 
@@ -119,6 +176,78 @@ export function ReadingMode({
       .finally(() => setChapterContentLoading(false));
   }, [isPublicationMode, publicationId, chapters, currentChapterIndex, chapterContentMap]);
 
+  // Project mode: load current chapter content (lazy)
+  useEffect(() => {
+    if (isPublicationMode || !project || chapters.length === 0) return;
+    const ch = chapters[currentChapterIndex];
+    if (!ch || chapterContentMap[ch.id]) return;
+
+    setChapterContentLoading(true);
+    api
+      .getChapter(project.id, ch.id)
+      .then((fullChapter) => {
+        const text = isOriginalReadingMode
+          ? fullChapter.originalText || ''
+          : fullChapter.paragraphs && fullChapter.paragraphs.length > 0
+            ? fullChapter.paragraphs
+                .sort((a, b) => a.index - b.index)
+                .filter((p) => p.translatedText)
+                .map((p) => p.translatedText!)
+                .join('\n\n')
+            : fullChapter.translatedText || '';
+        setChapterContentMap((prev) => ({ ...prev, [fullChapter.id]: text }));
+      })
+      .catch(() => {})
+      .finally(() => setChapterContentLoading(false));
+  }, [
+    isPublicationMode,
+    project,
+    chapters,
+    currentChapterIndex,
+    chapterContentMap,
+    isOriginalReadingMode,
+  ]);
+
+  // Reset "scrolled to end" flag when chapter changes
+  useEffect(() => {
+    scrolledToEndRef.current = false;
+  }, [currentChapterIndex]);
+
+  // IntersectionObserver: detect when user has scrolled to 85%+ (last paragraph visible)
+  useEffect(() => {
+    if (!onChapterRead || !isPublicationMode) return;
+    const el = lastParagraphRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry || entry.intersectionRatio < 0.85) return;
+        scrolledToEndRef.current = true;
+
+        const ch = chapters[currentChapterIndex];
+        if (!ch || markedThisSessionRef.current.has(ch.id)) return;
+
+        const isLastChapter = currentChapterIndex >= chapters.length - 1;
+        if (isLastChapter) {
+          markedThisSessionRef.current.add(ch.id);
+          onChapterRead(ch.id);
+        }
+      },
+      { threshold: 0.85, rootMargin: '0px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [
+    onChapterRead,
+    isPublicationMode,
+    chapters,
+    currentChapterIndex,
+    chapterContentMap,
+    chapterContentLoading,
+  ]);
+
   // Apply reader settings as CSS variables
   useEffect(() => {
     const root = document.documentElement;
@@ -128,25 +257,29 @@ export function ReadingMode({
     root.setAttribute('data-reader-theme', readerSettings.colorScheme);
   }, [readerSettings]);
 
+  // Scroll content area to top when chapter changes
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+  }, [currentChapterIndex]);
+
   const handlePrevChapter = useCallback(() => {
-    setCurrentChapterIndex((prev) => {
-      if (prev > 0) {
-        window.scrollTo(0, 0);
-        return prev - 1;
-      }
-      return prev;
-    });
+    setCurrentChapterIndex((prev) => (prev > 0 ? prev - 1 : prev));
   }, []);
 
   const handleNextChapter = useCallback(() => {
-    setCurrentChapterIndex((prev) => {
-      if (prev < chapters.length - 1) {
-        window.scrollTo(0, 0);
-        return prev + 1;
-      }
-      return prev;
-    });
-  }, [chapters.length]);
+    const ch = chapters[currentChapterIndex];
+    if (
+      ch &&
+      onChapterRead &&
+      scrolledToEndRef.current &&
+      !markedThisSessionRef.current.has(ch.id)
+    ) {
+      markedThisSessionRef.current.add(ch.id);
+      onChapterRead(ch.id);
+    }
+
+    setCurrentChapterIndex((prev) => (prev < chapters.length - 1 ? prev + 1 : prev));
+  }, [chapters, currentChapterIndex, onChapterRead]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -177,6 +310,10 @@ export function ReadingMode({
   const handleReaderSettingsChange = async (updates: Partial<ReaderSettings>) => {
     const newSettings = { ...readerSettings, ...updates };
     setReaderSettings(newSettings);
+    const isAuth = authService.isAuthenticated();
+    if (isAuth) {
+      api.updateUserReaderSettings(newSettings).catch(() => {});
+    }
     if (!isPublicationMode && project) {
       await api.updateReaderSettings(project.id, newSettings);
     }
@@ -223,7 +360,11 @@ export function ReadingMode({
 
   if (chapters.length === 0) {
     return (
-      <div class="reading-mode">
+      <div
+        class="reading-mode"
+        data-reader-font={readerSettings.fontFamily}
+        data-reader-theme={readerSettings.colorScheme}
+      >
         <div class="reading-mode-empty">
           <div style={{ textAlign: 'center', padding: '3rem' }}>
             <h2 style={{ marginBottom: '1rem' }}>
@@ -263,29 +404,19 @@ export function ReadingMode({
     );
   }
 
-  // Get text: publication mode from chapterContentMap, project mode from chapter
+  // Get text: publication/project mode from chapterContentMap (lazy loaded)
   const getText = (chapter: ReaderChapter): string => {
-    if (isPublicationMode) {
-      return chapterContentMap[chapter.id] ?? '';
-    }
-    const ch = chapter as Chapter;
-    if (isOriginalReadingMode) {
-      return ch.originalText || '';
-    }
-    if (ch.paragraphs && ch.paragraphs.length > 0) {
-      const paragraphs = ch.paragraphs
-        .sort((a, b) => a.index - b.index)
-        .filter((p) => p.translatedText)
-        .map((p) => p.translatedText!);
-      return paragraphs.join('\n\n');
-    }
-    return ch.translatedText || '';
+    return chapterContentMap[chapter.id] ?? '';
   };
 
   const displayText = currentChapter ? getText(currentChapter) : '';
 
   return (
-    <div class="reading-mode">
+    <div
+      class="reading-mode"
+      data-reader-font={readerSettings.fontFamily}
+      data-reader-theme={readerSettings.colorScheme}
+    >
       {/* Header */}
       <div class="reading-mode-header">
         <div class="reading-mode-header-left">
@@ -368,18 +499,25 @@ export function ReadingMode({
       </div>
 
       {/* Content */}
-      <div class="reading-mode-content">
+      <div ref={contentRef} class="reading-mode-content">
         <div class="reading-mode-text">
           {chapterContentLoading ? (
             <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
               {t('common.loading')}
             </p>
           ) : displayText ? (
-            displayText.split('\n\n').map((paragraph, idx) => (
-              <p key={idx} class="reading-mode-paragraph">
-                {paragraph}
-              </p>
-            ))
+            (() => {
+              const paragraphs = displayText.split('\n\n');
+              return paragraphs.map((paragraph, idx) => (
+                <p
+                  key={idx}
+                  ref={idx === paragraphs.length - 1 ? lastParagraphRef : undefined}
+                  class="reading-mode-paragraph"
+                >
+                  {paragraph}
+                </p>
+              ));
+            })()
           ) : (
             <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
               {isPublicationMode
@@ -413,30 +551,23 @@ export function ReadingMode({
         </button>
       </div>
 
-      {/* Table of Contents Modal - dedicated TOC styling (not glossary modal) */}
-      <Modal
+      <ChapterTocModal
         isOpen={showTOC}
         onClose={() => setShowTOC(false)}
-        title={`📑 ${t('readingMode.toc')}`}
-        size="large"
-        className="toc-modal"
-      >
-        <div class="reading-toc-list">
-          {chapters.map((chapter, index) => (
-            <button
-              key={chapter.id}
-              class={`reading-toc-item ${index === currentChapterIndex ? 'active' : ''}`}
-              onClick={() => handleSelectChapter(index)}
-            >
-              <span class="reading-toc-number">{index + 1}</span>
-              <span class="reading-toc-title">{chapter.title}</span>
-              {index === currentChapterIndex && (
-                <span class="reading-toc-current">{t('readingMode.current')}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </Modal>
+        chapters={chapters.map((ch) => ({
+          id: ch.id,
+          number: ch.number,
+          title: ch.title ?? '',
+        }))}
+        currentChapterId={currentChapter?.id}
+        readChapterIds={readChapterIds}
+        onSelectChapter={(chapterId) => {
+          const index = chapters.findIndex((ch) => ch.id === chapterId);
+          if (index >= 0) {
+            handleSelectChapter(index);
+          }
+        }}
+      />
 
       <Modal
         className="reading-share-modal"

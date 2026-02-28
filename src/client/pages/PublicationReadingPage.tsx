@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
+import { authService } from '../services/authService';
 import type { GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { ReadingMode } from '../components/ReadingMode';
@@ -28,6 +29,9 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
+  const [initialChapterContent, setInitialChapterContent] = useState<Record<string, string>>({});
+  const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     if (!publicationId) {
@@ -79,6 +83,55 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when publicationId or glossaryCount changes
   }, [publicationId, data?.glossaryCount]);
+
+  // Preload initial chapter content when opening a specific chapter (ensures fetch happens with initial load)
+  useEffect(() => {
+    if (!publicationId || !data || !chapterId) return;
+    const hasTranslation = data.chapters.some((ch) => ch.id === chapterId && ch.hasTranslation);
+    if (!hasTranslation) return;
+
+    let cancelled = false;
+    api
+      .getPublicationChapter(publicationId, chapterId)
+      .then((result) => {
+        if (!cancelled) {
+          setInitialChapterContent({ [result.id]: result.translatedText });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [publicationId, chapterId, data?.chapters]);
+
+  // Check auth and load read progress for authenticated users
+  useEffect(() => {
+    let cancelled = false;
+    authService.getCurrentUser().then((user) => {
+      if (cancelled) return;
+      setIsAuthenticated(!!user);
+      if (user && publicationId) {
+        api
+          .getReadProgress(publicationId)
+          .then(({ chapterIds }) => {
+            if (!cancelled) setReadChapterIds(new Set(chapterIds));
+          })
+          .catch(() => {});
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [publicationId]);
+
+  const handleChapterRead = useCallback(
+    (chapterId: string) => {
+      if (!publicationId) return;
+      setReadChapterIds((prev) => new Set([...prev, chapterId]));
+      api.markChapterAsRead(publicationId, chapterId).catch(() => {});
+    },
+    [publicationId]
+  );
 
   if (!publicationId) return null;
 
@@ -146,7 +199,12 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       publicationGlossaryCount={data.glossaryCount}
       publicationGlossaryPreloaded={preloadedGlossary ?? undefined}
       initialChapterId={chapterId}
+      initialChapterContent={
+        Object.keys(initialChapterContent).length > 0 ? initialChapterContent : undefined
+      }
       onExit={() => route(`/p/${publicationId}`)}
+      onChapterRead={isAuthenticated ? handleChapterRead : undefined}
+      readChapterIds={isAuthenticated ? readChapterIds : undefined}
     />
   );
 }

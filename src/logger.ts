@@ -22,9 +22,29 @@ import { addDebugLogEntry } from './debugBuffer.js';
 const isProduction = process.env.NODE_ENV === 'production';
 const level = (process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')).toLowerCase();
 
+/**
+ * Error serializer: in production, omit stack trace to avoid leaking file paths.
+ * Stack traces can reveal server structure and are a security concern in shared logs.
+ */
+function serializeError(err: unknown): Record<string, unknown> | undefined {
+  if (!err || typeof err !== 'object') return undefined;
+  const e = err as Error & { code?: string };
+  const base: Record<string, unknown> = {
+    type: e.name || 'Error',
+    message: e.message ?? String(err),
+  };
+  if (e.code) base.code = e.code;
+  if (!isProduction && e.stack) base.stack = e.stack;
+  return base;
+}
+
 const baseOptions: pino.LoggerOptions = {
   level,
   base: undefined,
+  serializers: {
+    err: serializeError,
+    error: serializeError,
+  },
   formatters: {
     level: (label) => ({ level: label }),
   },

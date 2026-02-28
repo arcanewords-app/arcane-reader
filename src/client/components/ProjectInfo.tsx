@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'preact/hooks';
 import { useTranslation, Trans } from 'react-i18next';
-import type { Project, ProjectSettings, Chapter, Publication } from '../types';
+import type {
+  Project,
+  ProjectWithChapterList,
+  ProjectSettings,
+  Chapter,
+  Publication,
+} from '../types';
 import { Card, Button, Modal, Input } from './ui';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
@@ -8,7 +14,7 @@ import { invalidateProject } from '../store/projects';
 import '../components/ChapterView/ReaderSettings.css';
 
 interface ProjectInfoProps {
-  project: Project;
+  project: Project | ProjectWithChapterList;
   onSettingsChange: (settings: ProjectSettings) => void;
   onDelete: () => void;
   onRefreshProject: () => Promise<void>;
@@ -218,39 +224,28 @@ export function ProjectInfo({
     [saveDescription, cancelEditingDescription]
   );
 
-  // Helper function to check if chapter has valid translation (not error message)
-  const hasValidTranslation = (chapter: Chapter): boolean => {
-    // Check if translatedText exists and is not an error message
-    const translatedText = chapter.translatedText?.trim() || '';
+  // Helper: chapter has valid translation (works with Chapter or ChapterListItem)
+  const hasValidTranslation = (
+    chapter:
+      | Chapter
+      | {
+          status: string;
+          hasTranslation?: boolean;
+          translatedText?: string;
+          paragraphs?: Array<{ translatedText?: string }>;
+        }
+  ): boolean => {
+    if ('hasTranslation' in chapter && chapter.hasTranslation) return true;
+    if (chapter.status === 'completed' || chapter.status === 'draft') return true;
+    const ch = chapter as Chapter;
+    const translatedText = ch.translatedText?.trim() || '';
     if (translatedText.length === 0) return false;
-
-    // Ignore error messages
-    if (
-      translatedText.startsWith('❌ Ошибка перевода:') ||
-      translatedText.startsWith('[ERROR') ||
-      translatedText.startsWith('❌')
-    ) {
-      return false;
-    }
-
-    // Check if paragraphs have valid translations
-    const hasValidParagraphs = chapter.paragraphs?.some((p) => {
+    if (translatedText.startsWith('❌') || translatedText.startsWith('[ERROR')) return false;
+    const hasValidParagraphs = ch.paragraphs?.some((p) => {
       const pText = p.translatedText?.trim() || '';
       return pText.length > 0 && !pText.startsWith('❌') && !pText.startsWith('[ERROR');
     });
-
-    return hasValidParagraphs || translatedText.length > 50; // Valid translation should be substantial
-  };
-
-  // Helper function to check if chapter is empty (no valid translation)
-  const isChapterEmpty = (chapter: Chapter): boolean => {
-    // If chapter has error status, it's considered empty (needs retranslation)
-    if (chapter.status === 'error') {
-      return !hasValidTranslation(chapter);
-    }
-
-    // For other statuses, check if there's no valid translation
-    return !hasValidTranslation(chapter);
+    return hasValidParagraphs === true || translatedText.length > 50;
   };
 
   const stats = {
@@ -259,7 +254,7 @@ export function ProjectInfo({
     pending: project.chapters.filter((c) => c.status === 'pending').length,
     analyzed: project.chapters.filter((c) => c.status === 'analyzed').length,
     error: project.chapters.filter((c) => c.status === 'error').length,
-    empty: project.chapters.filter(isChapterEmpty).length, // Chapters without valid translation
+    empty: project.chapters.filter((c) => !hasValidTranslation(c)).length,
     glossary: project.glossary.length,
   };
 

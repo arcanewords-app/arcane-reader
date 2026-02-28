@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
 import { authService } from './services/authService';
 import { TokenUsageProvider } from './contexts/TokenUsageContext';
+import { ServiceHealthProvider } from './contexts/ServiceHealthContext';
 import { Header } from './components/Header';
+import { ServiceStatusBanner } from './components/ServiceStatusBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { api } from './api/client';
 import { Dashboard, CatalogPage } from './pages';
@@ -244,67 +246,71 @@ export function AppRouter() {
   // Always render app: public catalog on / for everyone; guests see Header with Login/Register
   return (
     <TokenUsageProvider>
-      <div class="app">
-        <AuthModal
-          isOpen={showAuthModal}
-          initialMode={authModalMode}
-          onSuccess={handleLogin}
-          onClose={() => setShowAuthModal(false)}
-          onEmailNotConfirmed={handleEmailNotConfirmed}
-        />
-        {showEmailConfirmation && (
-          <EmailConfirmationModal
-            isOpen={showEmailConfirmation}
-            email={emailForConfirmation}
-            onClose={() => setShowEmailConfirmation(false)}
+      <ServiceHealthProvider>
+        <div class="app">
+          <AuthModal
+            isOpen={showAuthModal}
+            initialMode={authModalMode}
+            onSuccess={handleLogin}
+            onClose={() => setShowAuthModal(false)}
+            onEmailNotConfirmed={handleEmailNotConfirmed}
           />
-        )}
+          {showEmailConfirmation && (
+            <EmailConfirmationModal
+              isOpen={showEmailConfirmation}
+              email={emailForConfirmation}
+              onClose={() => setShowEmailConfirmation(false)}
+            />
+          )}
 
-        <Header
-          status={status}
-          systemStatus={systemStatus}
-          user={authUser}
-          onLogout={handleLogout}
-          onMenuToggle={handleMenuToggle}
-          onOpenLogin={handleOpenLogin}
-          onOpenRegister={handleOpenRegister}
-        />
-
-        {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
-        {hasSidebar && (
-          <div
-            class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
-            role="button"
-            tabIndex={0}
-            aria-label="Close sidebar"
-            onClick={handleSidebarClose}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSidebarClose();
-              }
-            }}
+          <Header
+            status={status}
+            systemStatus={systemStatus}
+            user={authUser}
+            onLogout={handleLogout}
+            onMenuToggle={handleMenuToggle}
+            onOpenLogin={handleOpenLogin}
+            onOpenRegister={handleOpenRegister}
           />
-        )}
 
-        <main>
-          <Router>
-            <CatalogPage path="/" />
-            <CatalogPage path="/catalog" />
-            <AboutPage path="/about" />
-            <ContactPage path="/contact" />
-            <PrivacyPage path="/privacy" />
-            <TermsPage path="/terms" />
-            <Dashboard path="/cabinet" />
-            <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
-            <PublicationPage path="/p/:publicationId" />
-            <ProjectPage path="/projects/:projectId" />
-            <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
-            <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />
-            <ReadingModePage path="/projects/:projectId/reading" />
-          </Router>
-        </main>
-      </div>
+          <ServiceStatusBanner />
+
+          {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
+          {hasSidebar && (
+            <div
+              class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label="Close sidebar"
+              onClick={handleSidebarClose}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleSidebarClose();
+                }
+              }}
+            />
+          )}
+
+          <main>
+            <Router>
+              <CatalogPage path="/" />
+              <CatalogPage path="/catalog" />
+              <AboutPage path="/about" />
+              <ContactPage path="/contact" />
+              <PrivacyPage path="/privacy" />
+              <TermsPage path="/terms" />
+              <Dashboard path="/cabinet" />
+              <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
+              <PublicationPage path="/p/:publicationId" />
+              <ProjectPage path="/projects/:projectId" />
+              <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
+              <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />
+              <ReadingModePage path="/projects/:projectId/reading" />
+            </Router>
+          </main>
+        </div>
+      </ServiceHealthProvider>
     </TokenUsageProvider>
   );
 }

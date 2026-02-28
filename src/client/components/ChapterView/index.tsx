@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Chapter, Project, ReaderSettings } from '../../types';
+import type { Chapter, Project, ProjectWithChapterList, ReaderSettings } from '../../types';
 import { api } from '../../api/client';
 import { useChapterTranslation } from '../../hooks/useChapterTranslation';
 import { Card } from '../ui';
@@ -11,7 +11,7 @@ import { TranslationPanel } from './TranslationPanel';
 import { TokenLimitWarning } from '../TokenUsage';
 
 interface ChapterViewProps {
-  project: Project;
+  project: Project | ProjectWithChapterList;
   chapter: Chapter;
   chapterIndex: number;
   totalChapters: number;

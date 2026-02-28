@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
-import type { Project, ProjectSettings } from '../types';
+import type { ProjectWithChapterList, ProjectSettings } from '../types';
 import { getProject, invalidateProject } from '../store/projects';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
@@ -15,7 +15,7 @@ interface ProjectPageProps {
 
 export function ProjectPage({ projectId }: ProjectPageProps) {
   const { t } = useTranslation();
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<ProjectWithChapterList | null>(null);
   const [loading, setLoading] = useState(true);
   const refreshTrigger = useSignal(0);
   const previousProjectIdRef = useRef<string | null>(null);

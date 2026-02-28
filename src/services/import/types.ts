@@ -2,7 +2,7 @@
  * Types for file import/parsing
  */
 
-export type ImportFormat = 'txt' | 'epub' | 'fb2';
+export type ImportFormat = 'txt' | 'epub' | 'fb2' | 'csv';
 
 /**
  * Book metadata extracted from file

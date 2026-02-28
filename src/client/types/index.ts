@@ -92,9 +92,37 @@ export interface Chapter {
   paragraphs?: Paragraph[];
   status: ChapterStatus;
   translationMeta?: TranslationMeta;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+/** Lightweight chapter for list view (no paragraphs, no text) */
+export interface ChapterListItem {
+  id: string;
+  number: number;
+  title: string;
+  status: ChapterStatus;
+  hasTranslation: boolean;
+  translationMeta?: TranslationMeta;
+}
+
+/** Chapter summary for ProcessChapters (no full text loaded) */
+export interface ChapterSummary {
+  id: string;
+  number: number;
+  title: string;
+  status: ChapterStatus;
+  hasTranslation: boolean;
+  hasOriginalText: boolean;
+  paragraphCount: number;
+  translatedParagraphCount: number;
+  lastAnalysisAt?: string;
+}
+
+/** Project with lightweight chapter list (for lazy loading) */
+export type ProjectWithChapterList = Omit<Project, 'chapters'> & {
+  chapters: ChapterListItem[];
+};
 
 // === Reader Settings ===
 

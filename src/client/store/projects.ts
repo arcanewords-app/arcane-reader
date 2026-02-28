@@ -4,7 +4,7 @@
  */
 
 import { signal, computed } from '@preact/signals';
-import type { ProjectListItem, Project } from '../types';
+import type { ProjectListItem, Project, ProjectWithChapterList } from '../types';
 import { api } from '../api/client';
 
 // Projects cache
@@ -12,8 +12,8 @@ export const projectsCache = signal<ProjectListItem[]>([]);
 export const projectsLoading = signal(false);
 export const projectsError = signal<string | null>(null);
 
-// Individual project cache (full project data)
-const projectCache = new Map<string, { project: Project; timestamp: number }>();
+// Individual project cache (project with lightweight chapter list)
+const projectCache = new Map<string, { project: ProjectWithChapterList; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Computed: projects with metadata
@@ -45,7 +45,10 @@ export async function loadProjects(): Promise<void> {
 }
 
 // Get project from cache or API
-export async function getProject(id: string, forceRefresh = false): Promise<Project | null> {
+export async function getProject(
+  id: string,
+  forceRefresh = false
+): Promise<ProjectWithChapterList | null> {
   const cached = projectCache.get(id);
 
   // Return cached if valid and not forced refresh
@@ -90,7 +93,7 @@ export async function getProject(id: string, forceRefresh = false): Promise<Proj
 /**
  * Update project cache directly (useful when API returns updated project)
  */
-export function updateProjectCache(project: Project): void {
+export function updateProjectCache(project: ProjectWithChapterList | Project): void {
   projectCache.set(project.id, { project, timestamp: Date.now() });
 
   // Update project in list cache

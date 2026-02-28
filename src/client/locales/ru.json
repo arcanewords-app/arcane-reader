@@ -119,9 +119,9 @@
     "filterError": "Ошибки",
     "noChapters": "Нет глав",
     "noResults": "Нет результатов",
-    "dragFileOrClick": "Перетащите файл<br />(.txt, .epub, .fb2)<br />или нажмите",
+    "dragFileOrClick": "Перетащите файл<br />(.txt, .epub, .fb2, .csv)<br />или нажмите",
     "unsupportedFormat": "Неподдерживаемый формат",
-    "supportedFormats": "Поддерживаемые форматы: .txt, .epub, .fb2",
+    "supportedFormats": "Поддерживаемые форматы: .txt, .epub, .fb2, .csv",
     "selectedFile": "Выбранный файл",
     "uploadQueue": "Очередь загрузки",
     "uploadModalTitle": "Загрузка глав",
@@ -491,6 +491,10 @@
     "messageLow": "После этого перевода у вас останется мало токенов на сегодня.",
     "dailyExhaustedShort": "Дневной лимит токенов исчерпан. Попробуйте завтра."
   },
+  "toc": {
+    "searchPlaceholder": "Поиск по названию или номеру...",
+    "noResults": "Нет результатов"
+  },
   "readingMode": {
     "toc": "Оглавление",
     "current": "Текущая",
@@ -591,6 +595,10 @@
     "notFound": "Публикация не найдена",
     "chapters": "Главы",
     "notTranslated": "Нет перевода",
+    "read": "Прочитано",
+    "filterAll": "Все",
+    "filterUnread": "Непрочитанные",
+    "filterRead": "Прочитанные",
     "readingComingSoon": "Режим чтения публикаций будет доступен в следующем обновлении."
   },
   "language": {
@@ -615,6 +623,13 @@
     "translated": "Переведено",
     "approved": "Одобрено",
     "edited": "Изменено"
+  },
+  "serviceHealth": {
+    "down": "Сервис временно недоступен. Попробуйте позже.",
+    "degraded": "Сервис работает с задержками. Некоторые операции могут выполняться дольше обычного.",
+    "recovered": "Соединение восстановлено",
+    "retry": "Повторить",
+    "details": "Подробнее"
   },
   "info": {
     "menu": "Инфо",

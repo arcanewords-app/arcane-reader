@@ -9,7 +9,10 @@ import { supabase, createClientWithToken } from './supabaseClient.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import type {
   Project,
+  ProjectWithChapterList,
   Chapter,
+  ChapterListItem,
+  ChapterSummary,
   GlossaryEntry,
   Paragraph,
   ProjectSettings,
@@ -66,6 +69,44 @@ function normalizeGlossaryTypeForDB(value: unknown): AllowedEntryType {
   if (s === 'term' || s === 't') return 'term';
   if (ALLOWED_ENTRY_TYPES.includes(s as AllowedEntryType)) return s as AllowedEntryType;
   return 'term';
+}
+
+/**
+ * Transform Supabase project row to ProjectWithChapterList (lightweight chapters)
+ */
+function transformProjectFromDBWithChapterList(
+  row: Record<string, unknown>,
+  chapters: ChapterListItem[] = [],
+  glossary: GlossaryEntry[] = []
+): ProjectWithChapterList {
+  const r = row as Record<string, unknown> & {
+    id: string;
+    name: string;
+    type?: string;
+    metadata?: unknown;
+    source_language?: string;
+    target_language?: string;
+    settings?: ProjectSettings;
+    created_at?: string;
+    updated_at?: string;
+  };
+  let projectType = (r.type as string) || 'text';
+  if (!r.type && r.metadata) {
+    projectType = 'book';
+  }
+  return {
+    id: r.id,
+    name: r.name,
+    type: projectType,
+    sourceLanguage: r.source_language ?? 'en',
+    targetLanguage: r.target_language ?? 'ru',
+    settings: (r.settings as ProjectSettings) || getDefaultProjectSettings(),
+    metadata: r.metadata || undefined,
+    chapters,
+    glossary,
+    createdAt: r.created_at ?? '',
+    updatedAt: r.updated_at ?? '',
+  };
 }
 
 /**
@@ -253,9 +294,9 @@ function transformGlossaryEntryFromDB(row: Record<string, unknown>): GlossaryEnt
 function getDefaultProjectSettings(): ProjectSettings {
   return {
     stageModels: {
-      analysis: 'gpt-4o-mini',
-      translation: 'gpt-4o-mini',
-      editing: 'gpt-4o-mini',
+      analysis: 'gpt-4.1-mini',
+      translation: 'gpt-4.1-mini',
+      editing: 'gpt-4.1-mini',
     },
     temperature: 0.5,
     enableAnalysis: true,
@@ -271,6 +312,125 @@ function getDefaultProjectSettings(): ProjectSettings {
 // ============================================
 // Project Operations
 // ============================================
+
+/** Lightweight project list item (no chapters/paragraphs/glossary loaded) */
+export interface ProjectListItemDB {
+  id: string;
+  name: string;
+  type?: string;
+  chapterCount: number;
+  translatedCount: number;
+  glossaryCount: number;
+  originalReadingMode?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: unknown;
+}
+
+/**
+ * Get all projects for a user (lightweight - no chapters, paragraphs, or glossary).
+ * Uses SQL counts instead of loading full data.
+ */
+export async function getAllProjectsLightweight(
+  userId: string,
+  token: string
+): Promise<ProjectListItemDB[]> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data: projects, error } = await client
+    .from('projects')
+    .select('id, name, type, settings, created_at, updated_at, metadata')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to get projects: ${error.message}`);
+  }
+
+  if (!projects || projects.length === 0) {
+    return [];
+  }
+
+  const projectIds = projects.map((p) => p.id);
+
+  const [chapterCounts, translatedCounts, glossaryCounts] = await Promise.all([
+    getChapterCountsByProject(client, projectIds),
+    getTranslatedChapterCountsByProject(client, projectIds),
+    getGlossaryCountsByProject(client, projectIds),
+  ]);
+
+  return projects.map((p) => {
+    const settings = (p.settings as ProjectSettings) || getDefaultProjectSettings();
+    return {
+      id: p.id,
+      name: p.name,
+      type: p.type || 'text',
+      chapterCount: chapterCounts[p.id] ?? 0,
+      translatedCount: translatedCounts[p.id] ?? 0,
+      glossaryCount: glossaryCounts[p.id] ?? 0,
+      originalReadingMode: settings?.originalReadingMode ?? false,
+      createdAt: p.created_at ?? '',
+      updatedAt: p.updated_at ?? '',
+      metadata: p.metadata || undefined,
+    };
+  });
+}
+
+async function getChapterCountsByProject(
+  client: ReturnType<typeof createClientWithToken>,
+  projectIds: string[]
+): Promise<Record<string, number>> {
+  if (projectIds.length === 0) return {};
+  const { data, error } = await client
+    .from('chapters')
+    .select('project_id')
+    .in('project_id', projectIds);
+  if (error) throw new Error(`Failed to get chapter counts: ${error.message}`);
+  const counts: Record<string, number> = {};
+  for (const row of data || []) {
+    const pid = row.project_id as string;
+    counts[pid] = (counts[pid] ?? 0) + 1;
+  }
+  return counts;
+}
+
+async function getTranslatedChapterCountsByProject(
+  client: ReturnType<typeof createClientWithToken>,
+  projectIds: string[]
+): Promise<Record<string, number>> {
+  if (projectIds.length === 0) return {};
+  const { data, error } = await client
+    .from('chapters')
+    .select('project_id')
+    .eq('status', 'completed')
+    .in('project_id', projectIds);
+  if (error) throw new Error(`Failed to get translated chapter counts: ${error.message}`);
+  const counts: Record<string, number> = {};
+  for (const row of data || []) {
+    const pid = row.project_id as string;
+    counts[pid] = (counts[pid] ?? 0) + 1;
+  }
+  return counts;
+}
+
+async function getGlossaryCountsByProject(
+  client: ReturnType<typeof createClientWithToken>,
+  projectIds: string[]
+): Promise<Record<string, number>> {
+  if (projectIds.length === 0) return {};
+  const { data, error } = await client
+    .from('glossary_entries')
+    .select('project_id')
+    .in('project_id', projectIds);
+  if (error) throw new Error(`Failed to get glossary counts: ${error.message}`);
+  const counts: Record<string, number> = {};
+  for (const row of data || []) {
+    const pid = row.project_id as string;
+    counts[pid] = (counts[pid] ?? 0) + 1;
+  }
+  return counts;
+}
 
 /**
  * Get all projects for a user
@@ -312,13 +472,13 @@ export async function getAllProjects(userId: string, token: string): Promise<Pro
 }
 
 /**
- * Get a single project by ID
+ * Get a single project by ID (with lightweight chapter list, no paragraphs/text)
  */
 export async function getProject(
   id: string,
   userId: string,
   token: string
-): Promise<Project | undefined> {
+): Promise<ProjectWithChapterList | undefined> {
   validateToken(token);
   const client = createClientWithToken(token);
 
@@ -344,13 +504,141 @@ export async function getProject(
   // Reset stuck chapters
   await resetStuckChapters(token, id);
 
-  // Load chapters and glossary
+  // Load lightweight chapters and glossary (no paragraphs, no text)
+  const [chapters, glossary] = await Promise.all([
+    loadChaptersForProjectLightweight(project.id, token),
+    loadGlossaryForProject(project.id, token),
+  ]);
+
+  return transformProjectFromDBWithChapterList(project, chapters, glossary);
+}
+
+/**
+ * Get project with full chapters (for export, etc.)
+ */
+export async function getProjectFull(
+  id: string,
+  userId: string,
+  token: string
+): Promise<Project | undefined> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data: project, error } = await client
+    .from('projects')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !project) return undefined;
+
   const [chapters, glossary] = await Promise.all([
     loadChaptersForProject(project.id, token),
     loadGlossaryForProject(project.id, token),
   ]);
 
   return transformProjectFromDB(project, chapters, glossary);
+}
+
+/**
+ * Verify user has access to a chapter (project belongs to user).
+ * Uses a single join query instead of loading full project.
+ */
+export async function verifyChapterAccess(
+  projectId: string,
+  chapterId: string,
+  userId: string,
+  token: string
+): Promise<boolean> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('chapters')
+    .select('id, projects!inner(user_id)')
+    .eq('id', chapterId)
+    .eq('project_id', projectId)
+    .eq('projects.user_id', userId)
+    .single();
+
+  return !error && !!data;
+}
+
+/**
+ * Get chapters summary for a project (for ProcessChapters - no full text loaded).
+ */
+export async function getChaptersSummary(
+  projectId: string,
+  userId: string,
+  token: string
+): Promise<ChapterSummary[]> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data: project } = await client
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!project) {
+    return [];
+  }
+
+  const { data: chapters, error } = await client
+    .from('chapters')
+    .select('id, number, title, status, translation_meta')
+    .eq('project_id', projectId)
+    .order('number', { ascending: true });
+
+  if (error) throw new Error(`Failed to get chapters: ${error.message}`);
+  if (!chapters || chapters.length === 0) return [];
+
+  const chapterIds = chapters.map((c) => c.id);
+
+  const [paragraphRows, translatedParagraphRows] = await Promise.all([
+    client.from('paragraphs').select('chapter_id').in('chapter_id', chapterIds),
+    client
+      .from('paragraphs')
+      .select('chapter_id')
+      .in('chapter_id', chapterIds)
+      .not('translated_text', 'is', null),
+  ]);
+
+  const paragraphCounts: Record<string, number> = {};
+  for (const row of paragraphRows.data || []) {
+    const cid = row.chapter_id as string;
+    paragraphCounts[cid] = (paragraphCounts[cid] ?? 0) + 1;
+  }
+
+  const translatedCounts: Record<string, number> = {};
+  for (const row of translatedParagraphRows.data || []) {
+    const cid = row.chapter_id as string;
+    translatedCounts[cid] = (translatedCounts[cid] ?? 0) + 1;
+  }
+
+  return chapters.map((ch) => {
+    const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
+    const paragraphCount = paragraphCounts[ch.id] ?? 0;
+    const translatedParagraphCount = translatedCounts[ch.id] ?? 0;
+    const hasTranslation =
+      ch.status === 'completed' ||
+      (ch.status === 'draft' && translatedParagraphCount > 0) ||
+      (translatedParagraphCount > 0 && ch.status !== 'error');
+    return {
+      id: ch.id,
+      number: ch.number,
+      title: ch.title,
+      status: ch.status as ChapterStatus,
+      hasTranslation,
+      hasOriginalText: paragraphCount > 0,
+      paragraphCount,
+      translatedParagraphCount,
+      lastAnalysisAt: meta?.lastAnalysisAt,
+    };
+  });
 }
 
 /**
@@ -408,7 +696,7 @@ export async function updateProject(
   updates: Partial<Project>,
   userId: string,
   token: string
-): Promise<Project | undefined> {
+): Promise<ProjectWithChapterList | undefined> {
   validateToken(token);
   const client = createClientWithToken(token);
 
@@ -499,8 +787,93 @@ export async function updateReaderSettings(
 /**
  * Get reader settings from project
  */
-export function getReaderSettings(project: Project): ReaderSettings {
+export function getReaderSettings(project: Project | ProjectWithChapterList): ReaderSettings {
   return project.settings.reader || DEFAULT_READER_SETTINGS;
+}
+
+/**
+ * Get user's saved reader settings (for registered users).
+ * Returns null if no settings saved or on error.
+ */
+export async function getUserReaderSettings(
+  userId: string,
+  token: string
+): Promise<ReaderSettings | null> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('user_reader_settings')
+    .select('settings')
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !data?.settings) {
+    return null;
+  }
+
+  const s = data.settings as Record<string, unknown>;
+  if (typeof s !== 'object' || s === null) return null;
+
+  return {
+    fontFamily:
+      (s.fontFamily as ReaderSettings['fontFamily']) ?? DEFAULT_READER_SETTINGS.fontFamily,
+    fontSize: Math.max(14, Math.min(24, Number(s.fontSize) || DEFAULT_READER_SETTINGS.fontSize)),
+    lineHeight: Math.max(
+      1.4,
+      Math.min(2.0, Number(s.lineHeight) || DEFAULT_READER_SETTINGS.lineHeight)
+    ),
+    colorScheme:
+      (s.colorScheme as ReaderSettings['colorScheme']) ?? DEFAULT_READER_SETTINGS.colorScheme,
+    paragraphSpacing:
+      s.paragraphSpacing != null
+        ? Math.max(0.5, Math.min(2.0, Number(s.paragraphSpacing)))
+        : DEFAULT_READER_SETTINGS.paragraphSpacing,
+  };
+}
+
+/**
+ * Update user's reader settings (for registered users).
+ */
+export async function updateUserReaderSettings(
+  userId: string,
+  updates: Partial<ReaderSettings>,
+  token: string
+): Promise<ReaderSettings> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const existing = await getUserReaderSettings(userId, token);
+  const merged: ReaderSettings = {
+    ...DEFAULT_READER_SETTINGS,
+    ...existing,
+    ...updates,
+  };
+  // Clamp values
+  merged.fontSize = Math.max(14, Math.min(24, merged.fontSize));
+  merged.lineHeight = Math.max(1.4, Math.min(2.0, merged.lineHeight));
+  merged.paragraphSpacing = Math.max(0.5, Math.min(2.0, merged.paragraphSpacing ?? 1.2));
+
+  const { error } = await client.from('user_reader_settings').upsert(
+    {
+      user_id: userId,
+      settings: {
+        fontFamily: merged.fontFamily,
+        fontSize: merged.fontSize,
+        lineHeight: merged.lineHeight,
+        colorScheme: merged.colorScheme,
+        paragraphSpacing: merged.paragraphSpacing,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  );
+
+  if (error) {
+    throw new Error(`Failed to update user reader settings: ${error.message}`);
+  }
+
+  return merged;
 }
 
 /**
@@ -576,14 +949,52 @@ export async function resetStuckChapters(token: string, projectId?: string): Pro
 // ============================================
 
 /**
- * Load all chapters for a project (with paragraphs)
+ * Load lightweight chapter list for a project (no paragraphs, no text).
+ */
+async function loadChaptersForProjectLightweight(
+  projectId: string,
+  token: string
+): Promise<ChapterListItem[]> {
+  const client = createClientWithToken(token);
+
+  const { data: chapters, error } = await client
+    .from('chapters')
+    .select('id, number, title, status, translation_meta, created_at, updated_at')
+    .eq('project_id', projectId)
+    .order('number', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load chapters: ${error.message}`);
+  }
+
+  if (!chapters || chapters.length === 0) {
+    return [];
+  }
+
+  return chapters.map((ch) => {
+    const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
+    const hasTranslation = ch.status === 'completed' || ch.status === 'draft';
+    return {
+      id: ch.id,
+      number: ch.number,
+      title: ch.title,
+      status: ch.status as ChapterStatus,
+      hasTranslation,
+      translationMeta: meta,
+    };
+  });
+}
+
+/**
+ * Load all chapters for a project (with paragraphs).
+ * Uses nested select to fetch chapters + paragraphs in one query (avoids N+1).
  */
 async function loadChaptersForProject(projectId: string, token: string): Promise<Chapter[]> {
   const client = createClientWithToken(token);
 
   const { data: chapters, error } = await client
     .from('chapters')
-    .select('*')
+    .select('*, paragraphs(*)')
     .eq('project_id', projectId)
     .order('number', { ascending: true });
 
@@ -603,11 +1014,15 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
     );
   }
 
-  // Load paragraphs for each chapter with auto-sync recovery
+  // Extract and transform paragraphs from nested response (one query instead of N)
   const chaptersWithParagraphs = await Promise.all(
     chapters.map(async (chapter) => {
-      let paragraphs = await loadParagraphsForChapter(chapter.id, token);
-      const chapterData = transformChapterFromDB(chapter, paragraphs);
+      const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
+      const paragraphs = rawParagraphs
+        .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
+        .map(transformParagraphFromDB);
+      let paragraphsList = paragraphs;
+      const chapterData = transformChapterFromDB(chapter, paragraphsList);
 
       // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
       const hasTranslation =
@@ -615,8 +1030,10 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
         (chapterData.translatedText && chapterData.translatedText.trim().length > 0);
 
       const hasEmptyParagraphs =
-        paragraphs.length > 0 &&
-        !paragraphs.some((p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0);
+        paragraphsList.length > 0 &&
+        !paragraphsList.some(
+          (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+        );
 
       if (
         hasTranslation &&
@@ -631,7 +1048,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
         );
 
         const syncedParagraphs = autoSyncChunksToParagraphs(
-          paragraphs,
+          paragraphsList,
           chapterData.translatedChunks
         );
 
@@ -673,9 +1090,9 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
           }
 
           // Reload updated paragraphs
-          paragraphs = await loadParagraphsForChapter(chapter.id, token);
+          paragraphsList = await loadParagraphsForChapter(chapter.id, token);
 
-          const syncedCount = paragraphs.filter(
+          const syncedCount = paragraphsList.filter(
             (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
           ).length;
           logger.info(
@@ -689,7 +1106,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
         }
       }
 
-      return transformChapterFromDB(chapter, paragraphs);
+      return transformChapterFromDB(chapter, paragraphsList);
     })
   );
 
@@ -1383,68 +1800,13 @@ export async function updateChapterNumber(
     'Reorder: after insert'
   );
 
-  // Update all chapter numbers using temporary numbers to avoid unique constraint violations
-  // Strategy: First set all to temporary negative numbers, then set to final numbers
-  // Optimized: Use Promise.all for parallel updates and only update changed chapters
-  const updates: Array<{ id: string; oldNum: number; newNum: number }> = [];
-
-  // Filter chapters that actually need updating
-  const chaptersToUpdate = sortedChapters
-    .map((chapter, i) => ({ chapter, newNum: i + 1 }))
-    .filter(({ chapter, newNum }) => chapter.number !== newNum);
-
-  if (chaptersToUpdate.length === 0) {
-    // No changes needed
+  const orderedIds = sortedChapters.map((c) => c.id);
+  const hasChanges = orderedIds.some((id, i) => chapters[i]?.id !== id);
+  if (!hasChanges) {
     return getChapter(projectId, chapterId, token);
   }
 
-  // Step 1: Move existing numbers out of the target range by adding a large offset.
-  // Using negative numbers caused unique constraint conflicts in some environments
-  // (e.g. concurrent operations or leftover negative values). Shifting by an offset
-  // ensures temporary numbers don't collide with current or previous values.
-  const offset = maxNumber + 5;
-  const tempUpdates = sortedChapters.map((chapter) => {
-    const tempNum = chapter.number + offset; // temp numbers are > maxNumber
-    return client.from('chapters').update({ number: tempNum }).eq('id', chapter.id).select('id');
-  });
-
-  const tempResults = await Promise.all(tempUpdates);
-  const tempErrors = tempResults.filter((r) => r.error).map((r) => r.error);
-  if (tempErrors.length > 0) {
-    logger.error({ projectId, tempErrors }, 'Reorder: errors setting temporary numbers');
-    throw new Error(
-      `Failed to set temporary chapter numbers: ${tempErrors[0]?.message || 'Unknown error'}`
-    );
-  }
-
-  // Step 2: Set all chapters to their final numbers
-  // Use Promise.all for parallel updates
-  const finalUpdates = chaptersToUpdate.map(({ chapter, newNum }) => {
-    updates.push({ id: chapter.id, oldNum: chapter.number, newNum });
-    return client.from('chapters').update({ number: newNum }).eq('id', chapter.id).select('id');
-  });
-
-  const finalResults = await Promise.all(finalUpdates);
-  const finalErrors = finalResults.filter((r) => r.error).map((r) => r.error);
-  if (finalErrors.length > 0) {
-    logger.error({ projectId, finalErrors }, 'Reorder: errors updating chapter numbers');
-    throw new Error(
-      `Failed to update chapter numbers: ${finalErrors[0]?.message || 'Unknown error'}`
-    );
-  }
-
-  if (updates.length > 0) {
-    logger.debug(
-      {
-        projectId,
-        updates: updates.map((u) => `${u.id.substring(0, 8)}: ${u.oldNum}→${u.newNum}`).join(', '),
-      },
-      'Reorder: chapter numbers updated'
-    );
-  }
-
-  // Update project updated_at
-  await client.from('projects').update({}).eq('id', projectId);
+  await updateChaptersOrder(projectId, orderedIds, token);
 
   logger.info(
     { event: 'chapter.reordered', projectId, chapterId, oldNumber, newNumber, insertIndex },
@@ -1483,8 +1845,7 @@ function releaseReorderLock(projectId: string) {
 
 /**
  * Update full chapters order using an array of ordered ids.
- * This function acquires a per-project lock to avoid concurrent reorders,
- * then applies a safe offset-based renumbering to avoid unique constraint collisions.
+ * Uses PostgreSQL RPC for atomic transaction - no partial state on failure.
  */
 export async function updateChaptersOrder(
   projectId: string,
@@ -1496,10 +1857,10 @@ export async function updateChaptersOrder(
 
   await acquireReorderLock(projectId);
   try {
-    // Load current chapters ordered by number
+    // Load current chapters to validate
     const { data: chapters, error: chaptersError } = await client
       .from('chapters')
-      .select('id, number')
+      .select('id')
       .eq('project_id', projectId)
       .order('number', { ascending: true });
 
@@ -1519,64 +1880,32 @@ export async function updateChaptersOrder(
       throw new Error('Ordered ids do not match current chapter ids');
     }
 
-    const maxNumber = chapters.length;
-    const offset = maxNumber + 5;
-
-    // Step 1: Shift current numbers out of the way by adding offset
-    const tempUpdates = chapters.map((chapter) => {
-      const tempNum = chapter.number + offset;
-      return client.from('chapters').update({ number: tempNum }).eq('id', chapter.id).select('id');
+    const { error: rpcError } = await client.rpc('reorder_chapters', {
+      p_project_id: projectId,
+      p_ordered_ids: orderedIds,
     });
-    const tempResults = await Promise.all(tempUpdates);
-    const tempErrors = tempResults.filter((r) => r.error).map((r) => r.error);
-    if (tempErrors.length > 0) {
-      logger.error({ err: tempErrors }, 'Errors setting temporary numbers for reorder');
-      throw new Error(tempErrors[0]?.message || 'Failed to set temporary numbers');
-    }
 
-    // Step 2: Apply final numbers according to orderedIds
-    const finalUpdates = orderedIds.map((id, idx) => {
-      const newNum = idx + 1;
-      return client.from('chapters').update({ number: newNum }).eq('id', id).select('id');
-    });
-    const finalResults = await Promise.all(finalUpdates);
-    const finalErrors = finalResults.filter((r) => r.error).map((r) => r.error);
-    if (finalErrors.length > 0) {
-      logger.error({ err: finalErrors }, 'Errors applying final numbers for reorder');
-      throw new Error(finalErrors[0]?.message || 'Failed to apply final numbers');
+    if (rpcError) {
+      logger.error({ projectId, err: rpcError }, 'reorder_chapters RPC failed');
+      throw new Error(rpcError.message || 'Failed to reorder chapters');
     }
-
-    // Update project updated_at
-    await client.from('projects').update({}).eq('id', projectId);
   } finally {
     releaseReorderLock(projectId);
   }
 }
 
 /**
- * Helper: Renumber chapters sequentially starting from 1
+ * Helper: Renumber chapters sequentially starting from 1 (atomic via RPC)
  */
 async function renumberChapters(projectId: string, token: string): Promise<void> {
   const client = createClientWithToken(token);
 
-  const { data: chapters, error } = await client
-    .from('chapters')
-    .select('id')
-    .eq('project_id', projectId)
-    .order('number', { ascending: true });
+  const { error } = await client.rpc('renumber_chapters_atomic', {
+    p_project_id: projectId,
+  });
 
   if (error) {
-    throw new Error(`Failed to get chapters for renumbering: ${error.message}`);
-  }
-
-  if (!chapters || chapters.length === 0) {
-    return;
-  }
-
-  // Update each chapter's number sequentially
-  for (let i = 0; i < chapters.length; i++) {
-    const newNumber = i + 1;
-    await client.from('chapters').update({ number: newNumber }).eq('id', chapters[i].id);
+    throw new Error(`Failed to renumber chapters: ${error.message}`);
   }
 }
 
@@ -2222,4 +2551,69 @@ export async function getPublicationByProjectId(
     return null;
   }
   return transformPublicationFromDB(data as PublicationRow);
+}
+
+// ============================================
+// User chapter read progress (publications)
+// ============================================
+
+/**
+ * Mark a chapter as read for a user in a publication.
+ * Uses user token for RLS (user can only insert own records).
+ */
+export async function markChapterAsRead(
+  userId: string,
+  publicationId: string,
+  chapterId: string,
+  token: string
+): Promise<void> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { error } = await client.from('user_chapter_reads').upsert(
+    {
+      user_id: userId,
+      publication_id: publicationId,
+      chapter_id: chapterId,
+      read_at: new Date().toISOString(),
+    },
+    {
+      onConflict: 'user_id,publication_id,chapter_id',
+      ignoreDuplicates: false,
+    }
+  );
+
+  if (error) {
+    throw new Error(`Failed to mark chapter as read: ${error.message}`);
+  }
+}
+
+/**
+ * Get list of chapter IDs the user has read for a publication.
+ * Returns empty array if userId or token is null (guest).
+ */
+export async function getReadProgress(
+  publicationId: string,
+  userId: string | null,
+  token: string | null
+): Promise<string[]> {
+  if (!userId || !token) {
+    return [];
+  }
+
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('user_chapter_reads')
+    .select('chapter_id')
+    .eq('publication_id', publicationId)
+    .eq('user_id', userId);
+
+  if (error) {
+    logger.warn({ err: error, publicationId, userId }, 'Failed to get read progress');
+    return [];
+  }
+
+  return (data || []).map((r) => r.chapter_id as string);
 }

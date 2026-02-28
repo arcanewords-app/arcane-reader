@@ -154,8 +154,20 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
           <Trans
             i18nKey="auth.consentLabel"
             components={[
-              <a href="/privacy" onClick={(e) => { e.preventDefault(); route('/privacy'); }} />,
-              <a href="/terms" onClick={(e) => { e.preventDefault(); route('/terms'); }} />,
+              <a
+                href="/privacy"
+                onClick={(e) => {
+                  e.preventDefault();
+                  route('/privacy');
+                }}
+              />,
+              <a
+                href="/terms"
+                onClick={(e) => {
+                  e.preventDefault();
+                  route('/terms');
+                }}
+              />,
             ]}
           />
         </span>

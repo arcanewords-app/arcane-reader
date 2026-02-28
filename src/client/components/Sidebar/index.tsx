@@ -4,19 +4,19 @@ import { ChapterList } from './ChapterList';
 import { ProcessChapters } from './ProcessChapters';
 import { Button } from '../ui';
 import { route } from 'preact-router';
-import type { Project, ProjectSettings } from '../../types';
+import type { Project, ProjectWithChapterList, ProjectSettings } from '../../types';
 import { SettingsModal } from './SettingsModal';
 import './Sidebar.css';
 
 interface SidebarProps {
-  project: Project | null;
+  project: Project | ProjectWithChapterList | null;
   selectedChapterId: string | null;
   onSelectChapter: (id: string) => void;
   onDeleteChapter?: (id: string) => void;
   onUploadChapter: (file: File, title: string) => Promise<void>;
   onOpenGlossary: () => void;
   onChaptersUpdate?: () => void | Promise<void>;
-  onProjectUpdate?: (project: Project) => void;
+  onProjectUpdate?: (project: Project | ProjectWithChapterList) => void;
   onSettingsChange?: (settings: ProjectSettings) => void;
   onRefreshProject?: () => Promise<void>;
   isMobileOpen?: boolean;

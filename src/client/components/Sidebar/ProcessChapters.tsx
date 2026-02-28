@@ -1,7 +1,14 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation, Trans } from 'react-i18next';
-import type { Project, Chapter, TranslationStageKind } from '../../types';
+import type {
+  Project,
+  ProjectWithChapterList,
+  Chapter,
+  ChapterSummary,
+  TranslationStageKind,
+} from '../../types';
 import { Button, Modal } from '../ui';
+import { api } from '../../api/client';
 import { useTokenEstimate } from '../../hooks/useTokenEstimate';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
 import { TokenLimitWarning } from '../TokenUsage';
@@ -11,32 +18,12 @@ import '../ChapterView/ChapterHeader.css';
 const BATCH_STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translation', 'editing'];
 
 interface ProcessChaptersProps {
-  project: Project;
+  project: Project | ProjectWithChapterList;
   onRefreshProject: () => Promise<void>;
 }
 
-function hasValidTranslation(chapter: Chapter): boolean {
-  const translatedText = chapter.translatedText?.trim() || '';
-  if (translatedText.length === 0) return false;
-  if (
-    translatedText.startsWith('❌ Ошибка перевода:') ||
-    translatedText.startsWith('[ERROR') ||
-    translatedText.startsWith('❌')
-  ) {
-    return false;
-  }
-  const hasValidParagraphs = chapter.paragraphs?.some((p) => {
-    const pText = p.translatedText?.trim() || '';
-    return pText.length > 0 && !pText.startsWith('❌') && !pText.startsWith('[ERROR');
-  });
-  return hasValidParagraphs || translatedText.length > 50;
-}
-
-function isChapterEmpty(chapter: Chapter): boolean {
-  if (chapter.status === 'error') {
-    return !hasValidTranslation(chapter);
-  }
-  return !hasValidTranslation(chapter);
+function isChapterEmptyFromSummary(chapter: ChapterSummary): boolean {
+  return !chapter.hasTranslation;
 }
 
 export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersProps) {
@@ -49,7 +36,15 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     'editing',
   ]);
   const [cancelling, setCancelling] = useState(false);
+  const [summary, setSummary] = useState<ChapterSummary[] | null>(null);
   const translateModalWasOpenRef = useRef(false);
+
+  useEffect(() => {
+    api
+      .getChaptersSummary(project.id)
+      .then(setSummary)
+      .catch(() => setSummary([]));
+  }, [project.id]);
 
   const estimate = useTokenEstimate();
   const batch = useBatchChapterTranslation(project.id, project, onRefreshProject);
@@ -58,27 +53,46 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     if (translationProgress === null) setCancelling(false);
   }, [translationProgress]);
 
-  const stats = useMemo(
-    () => ({
-      chapters: project.chapters.length,
-      translated: project.chapters.filter((c) => c.status === 'completed').length,
-      draft: project.chapters.filter((c) => c.status === 'draft').length,
-      analyzed: project.chapters.filter((c) => c.status === 'analyzed').length,
-      error: project.chapters.filter((c) => c.status === 'error').length,
-      empty: project.chapters.filter(isChapterEmpty).length,
-    }),
-    [project.chapters]
-  );
+  const stats = useMemo(() => {
+    const chapters = summary ?? project.chapters;
+    const toSummary = (
+      c:
+        | ChapterSummary
+        | { id: string; number: number; title: string; status: string; hasTranslation?: boolean }
+    ) =>
+      'hasTranslation' in c
+        ? c
+        : {
+            ...c,
+            hasTranslation:
+              (c as { status: string }).status === 'completed' ||
+              (c as { status: string }).status === 'draft',
+          };
+    return {
+      chapters: chapters.length,
+      translated: chapters.filter((c) => (c as ChapterSummary).status === 'completed').length,
+      draft: chapters.filter((c) => (c as ChapterSummary).status === 'draft').length,
+      analyzed: chapters.filter((c) => (c as ChapterSummary).status === 'analyzed').length,
+      error: chapters.filter((c) => (c as ChapterSummary).status === 'error').length,
+      empty: chapters.filter((c) => !toSummary(c).hasTranslation).length,
+    };
+  }, [summary, project.chapters]);
 
   const allChaptersSorted = useMemo(
-    () => [...project.chapters].sort((a, b) => a.number - b.number),
-    [project.chapters]
+    () => [...(summary ?? project.chapters)].sort((a, b) => a.number - b.number),
+    [summary, project.chapters]
   );
 
   const defaultSelectionIds = useMemo(
     () =>
-      project.chapters.filter((c) => c.status === 'error' || isChapterEmpty(c)).map((c) => c.id),
-    [project.chapters]
+      (summary ?? project.chapters)
+        .filter(
+          (c) =>
+            (c as ChapterSummary).status === 'error' ||
+            isChapterEmptyFromSummary(c as ChapterSummary)
+        )
+        .map((c) => c.id),
+    [summary, project.chapters]
   );
 
   const selectedChaptersForTranslate = useMemo(() => {
@@ -87,10 +101,19 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   }, [allChaptersSorted, translateSelectionIds]);
 
   const getChapterTextLength = useCallback(
-    (ch: { originalText?: string; paragraphs?: Array<{ originalText?: string }> }) => {
+    (ch: {
+      originalText?: string;
+      paragraphs?: Array<{ originalText?: string }>;
+      paragraphCount?: number;
+    }) => {
       const direct = (ch.originalText || '').trim().length;
       if (direct > 0) return direct;
-      return (ch.paragraphs || []).reduce((s, p) => s + (p.originalText || '').length, 0);
+      const fromParagraphs = (ch.paragraphs || []).reduce(
+        (s, p) => s + (p.originalText || '').length,
+        0
+      );
+      if (fromParagraphs > 0) return fromParagraphs;
+      return ((ch as { paragraphCount?: number }).paragraphCount ?? 0) * 150;
     },
     []
   );
@@ -271,7 +294,11 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
           <button
             type="button"
             onClick={() =>
-              setTranslateSelectionIds(project.chapters.filter(isChapterEmpty).map((c) => c.id))
+              setTranslateSelectionIds(
+                (summary ?? project.chapters)
+                  .filter((c) => !(c as ChapterSummary).hasTranslation)
+                  .map((c) => c.id)
+              )
             }
             style={{
               background: 'none',
@@ -289,7 +316,9 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               type="button"
               onClick={() =>
                 setTranslateSelectionIds(
-                  project.chapters.filter((c) => c.status === 'error').map((c) => c.id)
+                  (summary ?? project.chapters)
+                    .filter((c) => (c as ChapterSummary).status === 'error')
+                    .map((c) => c.id)
                 )
               }
               style={{
@@ -309,7 +338,9 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               type="button"
               onClick={() =>
                 setTranslateSelectionIds(
-                  project.chapters.filter((c) => c.status === 'completed').map((c) => c.id)
+                  (summary ?? project.chapters)
+                    .filter((c) => (c as ChapterSummary).status === 'completed')
+                    .map((c) => c.id)
                 )
               }
               style={{
@@ -426,7 +457,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
             allChaptersSorted.map((chapter, index) => {
               const checked = translateSelectionIds.includes(chapter.id);
               const isLast = index === allChaptersSorted.length - 1;
-              const isEmpty = isChapterEmpty(chapter);
+              const isEmpty = !(chapter as ChapterSummary).hasTranslation;
               const isError = chapter.status === 'error';
               const isCompleted = chapter.status === 'completed';
               const isDraft = chapter.status === 'draft';

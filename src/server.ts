@@ -18,6 +18,7 @@ import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
 import {
   getAllProjects,
+  getAllProjectsLightweight,
   getProject,
   createProject,
   updateProject,
@@ -25,6 +26,9 @@ import {
   addChapter,
   updateChapter,
   getChapter,
+  getChaptersSummary,
+  getProjectFull,
+  verifyChapterAccess,
   deleteChapter,
   updateChapterNumber,
   updateChaptersOrder,
@@ -45,6 +49,10 @@ import {
   unpublishProject,
   getUserPublications,
   getPublicationByProjectId,
+  markChapterAsRead,
+  getReadProgress,
+  getUserReaderSettings,
+  updateUserReaderSettings,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
 import {
@@ -53,11 +61,14 @@ import {
   type Chapter,
   type GlossaryEntry,
   type Project,
+  type ProjectWithChapterList,
   type Paragraph,
 } from './storage/database.js';
-import { requireAuth } from './middleware/auth.js';
+import { requireAuth, optionalAuth } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
+import { handleServiceError, serviceUnavailableErrorHandler } from './middleware/serviceHealth.js';
 import { logger } from './logger.js';
+import { serviceHealthManager } from './services/serviceHealth.js';
 import { getDebugLogEntries, clearDebugLogEntries, type DebugLogEntry } from './debugBuffer.js';
 
 function escapeHtml(s: string): string {
@@ -206,9 +217,11 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (increased for EPUB/FB2)
   fileFilter: (_req, file, cb) => {
     const filename = decodeMultipartFilename(file.originalname).toLowerCase();
-    const allowedExtensions = ['.txt', '.epub', '.fb2'];
+    const allowedExtensions = ['.txt', '.epub', '.fb2', '.csv'];
     const allowedMimes = [
       'text/plain',
+      'text/csv',
+      'application/csv',
       'application/epub+zip',
       'application/x-epub+zip',
       'application/xml',
@@ -221,7 +234,7 @@ const upload = multer({
     if (hasValidExtension || hasValidMime) {
       cb(null, true);
     } else {
-      cb(new Error('Поддерживаемые форматы: .txt, .epub, .fb2'));
+      cb(new Error('Поддерживаемые форматы: .txt, .epub, .fb2, .csv'));
     }
   },
 });
@@ -366,6 +379,7 @@ app.get('/api/auth/me', async (req, res) => {
     }
     res.json({ user });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const message = error instanceof Error ? error.message : 'Failed to get user';
     res.status(500).json({ error: message });
   }
@@ -387,6 +401,27 @@ app.get('/api/status', (_req, res) => {
     },
     storage: 'supabase',
   });
+});
+
+// Service health (public, no auth) - runtime connectivity to external services.
+// Uses a simple projects select(id) query; actual API handlers (e.g. GET /api/projects)
+// do many more queries (chapters, glossary, etc.) and may fail independently.
+app.get('/api/health', async (_req, res) => {
+  try {
+    await serviceHealthManager.checkAll();
+    const result = serviceHealthManager.getHealthResult();
+    const statusCode = result.status === 'down' ? 503 : 200;
+    res.status(statusCode).json(result);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Health check failed';
+    logger.error({ err: error }, 'Health check error');
+    res.status(503).json({
+      status: 'down',
+      services: {},
+      timestamp: new Date().toISOString(),
+      error: errorMessage,
+    });
+  }
 });
 
 // ============ Token Usage ============
@@ -435,31 +470,38 @@ app.get('/api/projects', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Reset stuck chapters across all projects on startup/refresh
     const token = requireToken(req);
-    const resetCount = await resetStuckChapters(token, undefined);
-    if (resetCount > 0) {
-      req.log?.info(
-        { event: 'stuck_chapters.reset', count: resetCount },
-        `Reset ${resetCount} stuck chapter(s)`
-      );
+
+    // Reset stuck chapters across all projects on startup/refresh
+    let resetCount = 0;
+    try {
+      resetCount = await resetStuckChapters(token, undefined);
+      if (resetCount > 0) {
+        req.log?.info(
+          { event: 'stuck_chapters.reset', count: resetCount },
+          `Reset ${resetCount} stuck chapter(s)`
+        );
+      }
+    } catch (resetErr) {
+      req.log?.error({ err: resetErr, phase: 'resetStuckChapters' }, 'resetStuckChapters failed');
+      throw resetErr;
     }
 
-    const projects = await getAllProjects(req.user.id, token);
-    const projectList = projects.map((p) => ({
-      id: p.id,
-      name: p.name,
-      type: p.type, // Include project type
-      chapterCount: p.chapters.length,
-      translatedCount: p.chapters.filter((c) => c.status === 'completed').length,
-      glossaryCount: p.glossary.length,
-      originalReadingMode: p.settings?.originalReadingMode ?? false, // Include original reading mode flag
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      metadata: p.metadata || undefined, // Include metadata (for cover images, etc.)
-    }));
+    let projectList;
+    try {
+      projectList = await getAllProjectsLightweight(req.user.id, token);
+    } catch (getAllErr) {
+      req.log?.error(
+        { err: getAllErr, phase: 'getAllProjectsLightweight' },
+        'getAllProjectsLightweight failed'
+      );
+      throw getAllErr;
+    }
+
     res.json(projectList);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to get projects');
     res.status(500).json({ error: 'Failed to get projects' });
   }
 });
@@ -480,6 +522,7 @@ app.post('/api/projects', requireAuth, async (req, res) => {
     );
     res.json(project);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to create project' });
   }
 });
@@ -502,7 +545,24 @@ app.get('/api/projects/:id', requireAuth, async (req, res) => {
 
     res.json(project);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get project' });
+  }
+});
+
+// Get chapters summary (for ProcessChapters - lightweight)
+app.get('/api/projects/:id/chapters/summary', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const summary = await getChaptersSummary(req.params.id, req.user.id, token);
+    res.json(summary);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    res.status(500).json({ error: 'Failed to get chapters summary' });
   }
 });
 
@@ -519,6 +579,7 @@ app.delete('/api/projects/:id', requireAuth, async (req, res) => {
     }
     res.json({ success: true });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to delete project' });
   }
 });
@@ -664,6 +725,39 @@ app.put('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
   }
 });
 
+// Get current user's reader settings (requires auth)
+app.get('/api/user/reader-settings', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const reader = await getUserReaderSettings(req.user.id, token);
+    if (!reader) {
+      return res.json(null);
+    }
+    res.json(reader);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get reader settings' });
+  }
+});
+
+// Update current user's reader settings (requires auth)
+app.put('/api/user/reader-settings', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = requireToken(req);
+    const reader = await updateUserReaderSettings(req.user.id, req.body, token);
+    res.json(reader);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update reader settings' });
+  }
+});
+
 // ============ Chapters ============
 
 // Upload chapter to project (requires auth)
@@ -693,7 +787,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
     if (!isSupportedFormat(filename)) {
       return res.status(400).json({
         error: 'Неподдерживаемый формат файла',
-        details: 'Поддерживаемые форматы: .txt, .epub, .fb2',
+        details: 'Поддерживаемые форматы: .txt, .epub, .fb2, .csv',
       });
     }
 
@@ -865,13 +959,18 @@ app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req,
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Verify project belongs to user (RLS will check automatically, but good to verify)
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+    const token = requireToken(req);
+    const hasAccess = await verifyChapterAccess(
+      req.params.projectId,
+      req.params.chapterId,
+      req.user.id,
+      token
+    );
+    if (!hasAccess) {
+      return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId, requireToken(req));
+    const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -888,17 +987,18 @@ app.delete('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (r
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Verify project belongs to user
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const success = await deleteChapter(
+    const token = requireToken(req);
+    const hasAccess = await verifyChapterAccess(
       req.params.projectId,
       req.params.chapterId,
-      requireToken(req)
+      req.user.id,
+      token
     );
+    if (!hasAccess) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+
+    const success = await deleteChapter(req.params.projectId, req.params.chapterId, token);
     if (!success) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -1290,12 +1390,13 @@ app.post(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const chapter = project.chapters.find((c) => c.id === req.params.chapterId);
+      const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
       if (!chapter) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
@@ -1382,7 +1483,6 @@ app.post(
         'Chapter state before translation'
       );
 
-      const token = requireToken(req);
       const startTime = Date.now();
       const wordCount = Math.max(1, textLength / 5);
 
@@ -1484,7 +1584,7 @@ async function performTranslation(
   projectId: string,
   chapterId: string,
   chapter: Chapter,
-  project: Project,
+  project: Project | ProjectWithChapterList,
   startTime: number,
   translateOnlyEmpty: boolean = false,
   token: string,
@@ -4000,7 +4100,8 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
     }
 
-    const project = await getProject(projectId, req.user.id, requireToken(req));
+    const token = requireToken(req);
+    const project = await getProjectFull(projectId, req.user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -4015,7 +4116,7 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
     req.log?.info(
       {
         event: 'export.start',
-        projectId: req.params.projectId,
+        projectId: req.params.id,
         projectName: project.name,
         format,
         tmpPath,
@@ -4293,6 +4394,56 @@ app.get('/api/publications/:id/glossary', async (req, res) => {
     res.json(entries);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get glossary';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get read progress for publication (optionalAuth: returns [] for guests)
+app.get('/api/publications/:id/read-progress', optionalAuth, async (req, res) => {
+  try {
+    const publicationId = req.params.id;
+    const userId = req.user?.id ?? null;
+    const token = req.token ?? null;
+    const chapterIds = await getReadProgress(publicationId, userId, token);
+    res.json({ chapterIds });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get read progress';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Mark chapter as read (auth required)
+app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const publicationId = req.params.id;
+    const chapterId = req.params.chapterId;
+
+    // Verify publication exists and is published
+    const pub = await getPublicationById(publicationId);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+
+    // Verify chapter belongs to publication's project
+    const { createServiceRoleClient } = await import('./services/supabaseClient.js');
+    const serviceClient = createServiceRoleClient();
+    const { data: chapter } = await serviceClient
+      .from('chapters')
+      .select('id')
+      .eq('id', chapterId)
+      .eq('project_id', pub.projectId)
+      .single();
+
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+
+    await markChapterAsRead(userId, publicationId, chapterId, token);
+    res.json({ success: true });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to mark chapter as read';
     res.status(500).json({ error: msg });
   }
 });
@@ -4621,6 +4772,10 @@ app.get('/p/:publicationId/chapters/:chapterId/reading', (req, res, next) => {
   servePublicationHtml(req, res, req.params.publicationId, req.params.chapterId).catch(next);
 });
 
+// ============ Error Handler ============
+
+app.use(serviceUnavailableErrorHandler);
+
 // ============ SPA Fallback ============
 
 app.get('*', (_req, res) => {
@@ -4666,6 +4821,7 @@ async function startServer(): Promise<void> {
       },
       `Server listening on http://localhost:${PORT}`
     );
+    serviceHealthManager.startPeriodicChecks(30_000);
   });
 }
 

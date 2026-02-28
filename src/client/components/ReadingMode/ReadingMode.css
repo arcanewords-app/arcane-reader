@@ -184,7 +184,7 @@
   max-width: var(--reading-text-max-width-mobile);
   width: 100%;
   font-family: var(--reader-font);
-  font-size: var(--reading-font-size-mobile);
+  font-size: var(--reader-font-size);
   line-height: var(--reader-line-height);
   color: var(--reader-text);
 }
@@ -508,7 +508,7 @@
 
   .reading-mode-text {
     max-width: var(--reading-text-max-width-tablet);
-    font-size: var(--reading-font-size-tablet);
+    font-size: var(--reader-font-size);
   }
 
   .reading-mode-footer {
@@ -549,7 +549,7 @@
 
   .reading-mode-text {
     max-width: var(--reading-text-max-width-desktop);
-    font-size: var(--reading-font-size-desktop);
+    font-size: var(--reader-font-size);
   }
 
   .reading-mode-footer {
@@ -593,7 +593,7 @@
   }
 
   .reading-mode-text {
-    font-size: 15px; /* Немного меньше на очень маленьких экранах */
+    font-size: max(15px, min(var(--reader-font-size), 18px));
   }
 
   .reading-mode-footer {
