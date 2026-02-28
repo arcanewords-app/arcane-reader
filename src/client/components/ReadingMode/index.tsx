@@ -1,3 +1,4 @@
+import { Fragment } from 'preact';
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -514,7 +515,12 @@ export function ReadingMode({
                   ref={idx === paragraphs.length - 1 ? lastParagraphRef : undefined}
                   class="reading-mode-paragraph"
                 >
-                  {paragraph}
+                  {paragraph.split('\n').map((line, lineIdx) => (
+                    <Fragment key={lineIdx}>
+                      {lineIdx > 0 && <br />}
+                      {line}
+                    </Fragment>
+                  ))}
                 </p>
               ));
             })()
