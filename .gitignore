@@ -33,6 +33,7 @@ npm-debug.log*
 *.tsbuildinfo
 
 supabase/migrations/
+scripts/input-files/
 
 docs
 

@@ -54,9 +54,18 @@
   color: var(--reader-accent-text);
 }
 
-.reading-mode-title h2 {
-  font-size: 1rem; /* Mobile first - меньший размер */
-  margin: 0;
+.reading-mode-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.reading-mode-chapter-title {
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--reader-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -64,15 +73,15 @@
 }
 
 .reading-mode-chapter-info {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--reader-text-dim);
-  margin-left: 0.5rem;
 }
 
 .reading-mode-header-right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .reading-mode-header-btn {
@@ -119,6 +128,21 @@
   color: var(--reader-accent-text);
 }
 
+.reading-mode-settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  cursor: default;
+}
+
+.reading-mode-settings-overlay .reading-mode-settings-panel {
+  cursor: default;
+}
+
 .reading-mode-settings-panel {
   background: var(--reader-chrome-bg);
   border-bottom: 1px solid var(--reader-chrome-border);
@@ -159,6 +183,17 @@
 .reading-mode-nav-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.reading-mode-nav-btn-icon {
+  width: 40px;
+  min-width: 40px;
+  padding: 0.5rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reading-mode-nav-info {
@@ -350,6 +385,20 @@
   background: var(--reader-chrome-bg);
 }
 
+.modal.toc-modal .toc-modal-footer .btn,
+.modal.toc-modal .toc-modal-footer .btn-secondary {
+  background: var(--reader-chrome-bg);
+  color: var(--reader-text);
+  border-color: var(--reader-chrome-border);
+}
+
+.modal.toc-modal .toc-modal-footer .btn:hover,
+.modal.toc-modal .toc-modal-footer .btn-secondary:hover {
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
+}
+
 .modal.toc-modal .reading-toc-list {
   display: flex;
   flex-direction: column;
@@ -476,13 +525,52 @@
 }
 
 /* Responsive Styles */
+
+/* Mobile: hide duplicate nav (footer has Prev/Next), font applies correctly */
+@media (max-width: 768px) {
+  .reading-mode-nav {
+    display: none;
+  }
+
+  /* Scroll-based hide: slide chrome off-screen when scrolling down */
+  .reading-mode-chrome-hidden .reading-mode-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition: transform 0.25s ease-out;
+  }
+
+  .reading-mode-chrome-hidden .reading-mode-settings-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+    transition: transform 0.25s ease-out;
+  }
+
+  .reading-mode-chrome-hidden .reading-mode-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+    transition: transform 0.25s ease-out;
+  }
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .reading-mode-header {
     padding: var(--reading-header-padding-tablet);
     gap: 0.875rem;
   }
 
-  .reading-mode-title h2 {
+  .reading-mode-chapter-title {
     font-size: 1.125rem;
   }
 
@@ -523,7 +611,7 @@
     gap: 1rem;
   }
 
-  .reading-mode-title h2 {
+  .reading-mode-chapter-title {
     font-size: 1.25rem;
   }
 
@@ -564,7 +652,7 @@
     gap: 0.5rem;
   }
 
-  .reading-mode-title h2 {
+  .reading-mode-chapter-title {
     font-size: 0.9rem;
   }
 
@@ -581,11 +669,10 @@
     gap: 0.5rem;
   }
 
-  .reading-mode-nav-btn {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.85rem;
-    flex: 1;
-    min-width: 0;
+  .reading-mode-nav-btn-icon {
+    width: 44px;
+    min-width: 44px;
+    font-size: 1.4rem;
   }
 
   .reading-mode-content {
@@ -593,7 +680,8 @@
   }
 
   .reading-mode-text {
-    font-size: max(15px, min(var(--reader-font-size), 18px));
+    font-size: var(--reader-font-size);
+    font-family: var(--reader-font);
   }
 
   .reading-mode-footer {

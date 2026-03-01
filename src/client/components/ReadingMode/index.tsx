@@ -80,8 +80,12 @@ export function ReadingMode({
     () => initialChapterContent ?? {}
   );
   const [chapterContentLoading, setChapterContentLoading] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(true);
 
   const isPublicationMode = !!publicationId;
+  const lastScrollTopRef = useRef(0);
+  const scrollAccumRef = useRef(0);
+  const scrollThreshold = 50;
 
   // Merge initialChapterContent when it arrives (e.g. from preload in PublicationReadingPage)
   useEffect(() => {
@@ -261,7 +265,47 @@ export function ReadingMode({
 
   // Scroll content area to top when chapter changes
   useEffect(() => {
-    if (contentRef.current) contentRef.current.scrollTop = 0;
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+      lastScrollTopRef.current = 0;
+      scrollAccumRef.current = 0;
+      setMenuVisible(true);
+    }
+  }, [currentChapterIndex]);
+
+  // Mobile: hide menu on scroll down, show on scroll up
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    let rafId: number;
+
+    const handleScroll = () => {
+      if (!mq.matches) return;
+      rafId = requestAnimationFrame(() => {
+        const scrollTop = el.scrollTop;
+        const delta = scrollTop - lastScrollTopRef.current;
+        lastScrollTopRef.current = scrollTop;
+
+        if (delta > 0) {
+          scrollAccumRef.current += delta;
+          if (scrollAccumRef.current > scrollThreshold) {
+            setMenuVisible(false);
+            setShowSettings(false);
+            scrollAccumRef.current = 0;
+          }
+        } else if (delta < 0) {
+          scrollAccumRef.current = 0;
+          setMenuVisible(true);
+        }
+      });
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(rafId);
+    };
   }, [currentChapterIndex]);
 
   const handlePrevChapter = useCallback(() => {
@@ -415,18 +459,21 @@ export function ReadingMode({
 
   return (
     <div
-      class="reading-mode"
+      class={`reading-mode${!menuVisible ? ' reading-mode-chrome-hidden' : ''}`}
       data-reader-font={readerSettings.fontFamily}
       data-reader-theme={readerSettings.colorScheme}
     >
-      {/* Header */}
+      {/* Header: back, chapter title (no work title), actions */}
       <div class="reading-mode-header">
         <div class="reading-mode-header-left">
           <button class="reading-mode-exit-btn" onClick={onExit} title={t('readingMode.exitTitle')}>
             ← {t('common.back')}
           </button>
           <div class="reading-mode-title">
-            <h2>{isPublicationMode ? publicationTitle : project?.name}</h2>
+            <span class="reading-mode-chapter-title">
+              {currentChapter?.title ||
+                t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
+            </span>
             <span class="reading-mode-chapter-info">
               {t('readingMode.chapterOf', {
                 current: currentChapterIndex + 1,
@@ -469,34 +516,43 @@ export function ReadingMode({
         </div>
       </div>
 
-      {/* Settings Panel */}
+      {/* Settings Panel with overlay - click outside to close */}
       {showSettings && (
-        <div class="reading-mode-settings-panel">
-          <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
+        <div
+          class="reading-mode-settings-overlay"
+          onClick={() => setShowSettings(false)}
+          role="presentation"
+        >
+          <div
+            class="reading-mode-settings-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
+          </div>
         </div>
       )}
 
       {/* Navigation */}
       <div class="reading-mode-nav">
         <button
-          class="reading-mode-nav-btn"
+          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
           onClick={handlePrevChapter}
           disabled={currentChapterIndex === 0}
-          title={`${t('chapter.prevChapter')} (←)`}
+          title={t('chapter.prevChapter')}
         >
-          ← {t('readingMode.prev')}
+          ‹
         </button>
         <div class="reading-mode-nav-info">
           {currentChapter?.title ||
             t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
         </div>
         <button
-          class="reading-mode-nav-btn"
+          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
           onClick={handleNextChapter}
           disabled={currentChapterIndex >= chapters.length - 1}
-          title={`${t('chapter.nextChapter')} (→)`}
+          title={t('chapter.nextChapter')}
         >
-          {t('readingMode.next')} →
+          ›
         </button>
       </div>
 
@@ -540,21 +596,23 @@ export function ReadingMode({
       {/* Bottom Navigation */}
       <div class="reading-mode-footer">
         <button
-          class="reading-mode-nav-btn"
+          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
           onClick={handlePrevChapter}
           disabled={currentChapterIndex === 0}
+          title={t('chapter.prevChapter')}
         >
-          ← {t('readingMode.prev')}
+          ‹
         </button>
         <div class="reading-mode-progress">
           {currentChapterIndex + 1} / {chapters.length}
         </div>
         <button
-          class="reading-mode-nav-btn"
+          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
           onClick={handleNextChapter}
           disabled={currentChapterIndex >= chapters.length - 1}
+          title={t('chapter.nextChapter')}
         >
-          {t('readingMode.next')} →
+          ›
         </button>
       </div>
 

@@ -1,0 +1,38 @@
+{
+  "outputFormat": "block-markers",
+  "blockTypes": {
+    "system-message": {
+      "htmlTag": "aside",
+      "cssClass": "system-message",
+      "description": "System messages (stats, levels, notifications)"
+    },
+    "note": {
+      "htmlTag": "section",
+      "cssClass": "note",
+      "description": "Letters, notes, book excerpts within the story"
+    }
+  },
+  "patterns": [
+    {
+      "id": "system-brackets",
+      "blockType": "system-message",
+      "pattern": "\\[\\s*[Сс]истем[аеы]\\s*\\][\\s\\S]*?(?=\\n\\s*\\n|$)",
+      "flags": "g",
+      "description": "[Система] ... (until double newline)"
+    },
+    {
+      "id": "system-double-brackets",
+      "blockType": "system-message",
+      "pattern": "【[^】]+】[\\s\\S]*?(?=\\n\\s*\\n|$)",
+      "flags": "g",
+      "description": "【System】... (CJK brackets, until double newline)"
+    },
+    {
+      "id": "note-letter-start",
+      "blockType": "note",
+      "pattern": "(?:Дорогой|Уважаемый|Милостивый государь|Dear|To whom)[\\s\\S]*?(?=\\n\\s*\\n|$)",
+      "flags": "gi",
+      "description": "Letter openings (until double newline)"
+    }
+  ]
+}

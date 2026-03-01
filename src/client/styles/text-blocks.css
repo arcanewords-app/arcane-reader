@@ -1,14 +1,14 @@
 /* =============================================================
    Text Block Styles - Special formatting (system messages, notes, etc.)
-   Works with reader themes (dark, light, sepia, contrast)
+   Fully adapted for reader themes (dark, light, sepia, contrast)
    ============================================================= */
 
 /* Block-level: system messages (game stats, level-ups, notifications) */
 .system-message,
 div.system-message {
   display: block;
-  border-left: 4px solid var(--accent, var(--reader-accent));
-  background: var(--reader-bg-alt, rgba(157, 111, 255, 0.15));
+  border-left: 4px solid var(--reader-accent, var(--accent));
+  background: var(--reader-bg-alt);
   padding: 0.75rem 1rem;
   margin: 0.5rem 0;
   font-family: var(--font-mono), monospace;
@@ -19,8 +19,9 @@ div.system-message {
 
 /* Block-level: notes, letters, documents within story */
 .note {
-  border: 1px solid var(--reader-text-dim, rgba(255, 255, 255, 0.2));
-  background: var(--reader-bg-alt, rgba(128, 128, 128, 0.05));
+  border: 1px solid var(--reader-chrome-border, var(--border));
+  background: var(--reader-bg-alt);
+  color: var(--reader-text);
   padding: 1rem;
   margin: 0.5rem 0;
   font-style: italic;
@@ -32,11 +33,13 @@ div.system-message {
   font-style: italic;
   opacity: 0.9;
   padding: 0.25rem 0;
+  color: var(--reader-text-dim, inherit);
 }
 
 /* Inline: notifications, tooltips */
 .notification {
-  background: rgba(157, 111, 255, 0.15);
+  background: var(--reader-bg-alt);
+  color: var(--reader-text);
   padding: 0.1em 0.35em;
   border-radius: 4px;
   font-size: 0.95em;
@@ -45,13 +48,14 @@ div.system-message {
 /* Inline: skill names, spell names */
 .skill {
   font-weight: 600;
-  color: var(--accent, var(--reader-accent));
+  color: var(--reader-accent, var(--accent));
 }
 
 /* Letter: alias for note, used in epistolary preset */
 .letter {
-  border: 1px solid var(--reader-text-dim, rgba(255, 255, 255, 0.2));
-  background: var(--reader-bg-alt, rgba(128, 128, 128, 0.05));
+  border: 1px solid var(--reader-chrome-border, var(--border));
+  background: var(--reader-bg-alt);
+  color: var(--reader-text);
   padding: 1rem;
   margin: 0.5rem 0;
   font-style: italic;

@@ -13,6 +13,7 @@
     "build:server": "tsc",
     "start": "node dist/server.js",
     "kill-port": "node scripts/kill-port.js",
+    "csv-patterns": "tsx scripts/csv-pattern-replace.ts",
     "predev:force": "node scripts/kill-port.js 3000",
     "dev:force": "tsx watch src/server.ts",
     "lint": "eslint src --ext .ts,.tsx",
