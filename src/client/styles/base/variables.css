@@ -234,6 +234,17 @@
   --reader-accent-text: #000000;
 }
 
+[data-reader-theme='paper'] {
+  --reader-bg: #f5f1e5;
+  --reader-bg-alt: rgba(139, 105, 20, 0.1);
+  --reader-text: #28282a;
+  --reader-text-dim: #5a5a5d;
+  --reader-accent: #7d5a3c;
+  --reader-chrome-bg: #e8e2d0;
+  --reader-chrome-border: rgba(40, 40, 42, 0.12);
+  --reader-accent-text: #ffffff;
+}
+
 /* === Reader Font Families === */
 
 [data-reader-font='literary'] {
@@ -250,4 +261,8 @@
 
 [data-reader-font='mono'] {
   --reader-font: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+[data-reader-font='helvetica'] {
+  --reader-font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }

@@ -11,6 +11,7 @@ const fonts: { key: FontFamily; label: string; style: string }[] = [
   { key: 'literary', label: 'Literata', style: "'Literata', serif" },
   { key: 'serif', label: 'Charter', style: 'Charter, serif' },
   { key: 'sans', label: 'Inter', style: 'Inter, sans-serif' },
+  { key: 'helvetica', label: 'Helvetica', style: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   { key: 'mono', label: 'Mono', style: "'JetBrains Mono', monospace" },
 ];
 
@@ -20,6 +21,7 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
     { key: 'dark', icon: '🌙', titleKey: 'reader.themeDark', preview: 'theme-preview-dark' },
     { key: 'light', icon: '☀️', titleKey: 'reader.themeLight', preview: 'theme-preview-light' },
     { key: 'sepia', icon: '📜', titleKey: 'reader.themeSepia', preview: 'theme-preview-sepia' },
+    { key: 'paper', icon: '📄', titleKey: 'reader.themePaper', preview: 'theme-preview-paper' },
     {
       key: 'contrast',
       icon: '🔳',

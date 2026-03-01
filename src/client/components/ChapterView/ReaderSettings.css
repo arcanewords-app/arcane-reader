@@ -146,6 +146,11 @@
   border: 1px solid #d4c4a8;
 }
 
+.theme-preview-paper {
+  background: #f5f1e5;
+  border: 1px solid #d4d0c4;
+}
+
 .theme-preview-contrast {
   background: #000000;
   border: 1px solid #333;

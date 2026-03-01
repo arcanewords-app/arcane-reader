@@ -146,8 +146,8 @@ export interface CustomInstructions {
 
 // === Reader Settings ===
 
-export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast';
-export type FontFamily = 'literary' | 'serif' | 'sans' | 'mono';
+export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast' | 'paper';
+export type FontFamily = 'literary' | 'serif' | 'sans' | 'mono' | 'helvetica';
 
 export interface ReaderSettings {
   fontSize: number;
