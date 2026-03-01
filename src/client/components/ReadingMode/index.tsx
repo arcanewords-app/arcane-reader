@@ -523,10 +523,7 @@ export function ReadingMode({
           onClick={() => setShowSettings(false)}
           role="presentation"
         >
-          <div
-            class="reading-mode-settings-panel"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div class="reading-mode-settings-panel" onClick={(e) => e.stopPropagation()}>
             <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
           </div>
         </div>

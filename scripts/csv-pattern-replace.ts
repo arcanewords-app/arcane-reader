@@ -89,7 +89,10 @@ function htmlToBlockMarkers(content: string): string {
       `<${tag}[^>]*class\\s*=\\s*["'][^"']*${cls}[^"']*["'][^>]*>([\\s\\S]*?)</${tag}\\s*>`,
       'gi'
     );
-    result = result.replace(re, (_, inner) => `{{block:${blockType}}}${inner}{{/block:${blockType}}}`);
+    result = result.replace(
+      re,
+      (_, inner) => `{{block:${blockType}}}${inner}{{/block:${blockType}}}`
+    );
   }
   return result;
 }
@@ -140,8 +143,8 @@ function processCsv(
   }) as Record<string, string>[];
 
   const textKeys = ['text', 'Text', 'content', 'Content'];
-  const textCol = Object.keys(records[0] || {}).find((k) =>
-    textKeys.includes(k) || k.toLowerCase() === 'text'
+  const textCol = Object.keys(records[0] || {}).find(
+    (k) => textKeys.includes(k) || k.toLowerCase() === 'text'
   );
 
   if (!textCol) {
