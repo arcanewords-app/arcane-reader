@@ -303,3 +303,100 @@
   font-size: 1.2rem;
   font-weight: 600;
 }
+
+/* Text Blocks: two-column layout (settings | preview) */
+.settings-modal .text-blocks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-modal .text-block-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .settings-modal .text-block-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-modal .text-block-left {
+  min-width: 0;
+}
+
+.settings-modal .text-block-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.settings-modal .text-block-preview-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-modal .text-block-preview-content {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  padding: 0.5rem;
+  background: var(--reader-bg, var(--bg-secondary));
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.settings-modal .text-block-preview-content .system-message,
+.settings-modal .text-block-preview-content .note,
+.settings-modal .text-block-preview-content .letter,
+.settings-modal .text-block-preview-content .inner-voice,
+.settings-modal .text-block-preview-content .notification,
+.settings-modal .text-block-preview-content .skill {
+  margin: 0;
+}
+
+/* Format for integration help */
+.settings-modal .text-blocks-format-help {
+  margin-top: 0.5rem;
+}
+
+.settings-modal .text-blocks-format-content {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.settings-modal .text-blocks-format-code {
+  display: inline-block;
+  padding: 0.2em 0.4em;
+  background: var(--bg-hover);
+  border-radius: 4px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.9em;
+}
+
+.settings-modal .text-blocks-format-pre {
+  margin: 0;
+  padding: 0.5rem;
+  background: var(--bg-hover);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

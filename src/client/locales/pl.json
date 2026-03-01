@@ -583,7 +583,9 @@
     "catalogTab": "Wszystkie tłumaczenia",
     "myWorksTab": "Moje prace",
     "noMyPublications": "Nie masz jeszcze opublikowanych prac",
-    "emptyMyWorksHint": "Opublikuj projekt w panelu — pojawi się tutaj."
+    "emptyMyWorksHint": "Opublikuj projekt w panelu — pojawi się tutaj.",
+    "orderNewest": "Najnowsze najpierw",
+    "orderOldest": "Najstarsze najpierw"
   },
   "cabinet": {
     "title": "Moje projekty",
@@ -602,7 +604,10 @@
     "filterAll": "Wszystkie",
     "filterUnread": "Nieprzeczytane",
     "filterRead": "Przeczytane",
-    "readingComingSoon": "Tryb czytania publikacji będzie dostępny w następnej aktualizacji."
+    "orderFromStart": "Od pierwszej do ostatniej",
+    "orderFromEnd": "Od ostatniej do pierwszej",
+    "readingComingSoon": "Tryb czytania publikacji będzie dostępny w następnej aktualizacji.",
+    "exportLoginRequired": "Zaloguj się, aby wyeksportować publikację."
   },
   "language": {
     "en": "Angielski",

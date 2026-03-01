@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import type { PublicationWithChapters, GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
-import { LoadingSpinner } from '../components/ui';
+import { LoadingSpinner, Modal, Button } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
 import { ChapterTocModal } from '../components/ChapterTocModal';
 import './PublicationPage.css';
@@ -27,6 +27,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('asc');
+  const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   useEffect(() => {
     if (!publicationId) return;
@@ -132,7 +136,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
 
   const filteredChapters = useMemo(() => {
-    return chapters.filter((ch) => {
+    const filtered = chapters.filter((ch) => {
       const matchesSearch =
         !chapterSearch ||
         (ch.title || '').toLowerCase().includes(chapterSearch.toLowerCase()) ||
@@ -144,7 +148,55 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       if (chapterFilter === 'unread') return !isRead;
       return true;
     });
-  }, [chapters, chapterSearch, chapterFilter, isAuthenticated, readChapterIds]);
+    return [...filtered].sort((a, b) =>
+      chapterOrder === 'desc' ? b.number - a.number : a.number - b.number
+    );
+  }, [chapters, chapterSearch, chapterFilter, chapterOrder, isAuthenticated, readChapterIds]);
+
+  const handleExport = async (format: 'epub' | 'fb2') => {
+    if (!pub || translatedChapters.length === 0) return;
+    if (!isAuthenticated) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setExporting(format);
+    try {
+      const result = await api.exportPublication(pub.id, format);
+      if (result.downloadUrl) {
+        const token = authService.getToken();
+        const res = await fetch(result.downloadUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(res.statusText || 'Download failed');
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = result.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+      } else {
+        const link = document.createElement('a');
+        link.href = result.url;
+        link.download = result.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
+      console.error('Export failed:', err);
+      setExportError(
+        err instanceof Error
+          ? err.message
+          : t('projectInfo.exportError', { format: format.toUpperCase() })
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <div class="publication-page">
@@ -202,6 +254,28 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                 {t('readingMode.toc')}
               </button>
             )}
+            {translatedChapters.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  class="publication-page-toc-btn"
+                  onClick={() => handleExport('epub')}
+                  disabled={exporting !== null}
+                  title={t('export.epub')}
+                >
+                  {exporting === 'epub' ? '...' : '📚'} {t('export.epub')}
+                </button>
+                <button
+                  type="button"
+                  class="publication-page-toc-btn"
+                  onClick={() => handleExport('fb2')}
+                  disabled={exporting !== null}
+                  title={t('export.fb2')}
+                >
+                  {exporting === 'fb2' ? '...' : '📖'} {t('export.fb2')}
+                </button>
+              </>
+            )}
           </div>
           {chapters.length > 0 && (
             <div class="publication-page-chapters">
@@ -214,6 +288,22 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   value={chapterSearch}
                   onInput={(e: Event) => setChapterSearch((e.target as HTMLInputElement).value)}
                 />
+                <div class="publication-page-chapter-filters">
+                  <button
+                    type="button"
+                    class={chapterOrder === 'asc' ? 'active' : ''}
+                    onClick={() => setChapterOrder('asc')}
+                  >
+                    {t('publication.orderFromStart')}
+                  </button>
+                  <button
+                    type="button"
+                    class={chapterOrder === 'desc' ? 'active' : ''}
+                    onClick={() => setChapterOrder('desc')}
+                  >
+                    {t('publication.orderFromEnd')}
+                  </button>
+                </div>
                 {isAuthenticated && (
                   <div class="publication-page-chapter-filters">
                     <button
@@ -291,6 +381,38 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           route(`/p/${pub.id}/chapters/${chapterId}/reading`);
         }}
       />
+      <Modal
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title={t('publication.exportLoginRequired')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowLoginPrompt(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                setShowLoginPrompt(false);
+                window.dispatchEvent(
+                  new CustomEvent('arcane:auth-error', { detail: { message: '' } })
+                );
+              }}
+            >
+              {t('auth.login')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ color: 'var(--text-secondary)' }}>{t('publication.exportLoginRequired')}</p>
+      </Modal>
+      <Modal
+        isOpen={!!exportError}
+        onClose={() => setExportError(null)}
+        title={t('projectInfo.exportError', { format: 'EPUB/FB2' })}
+        footer={<Button onClick={() => setExportError(null)}>{t('common.close')}</Button>}
+      >
+        <p style={{ color: 'var(--text-secondary)' }}>{exportError}</p>
+      </Modal>
     </div>
   );
 }

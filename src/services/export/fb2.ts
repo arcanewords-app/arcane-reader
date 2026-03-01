@@ -7,7 +7,20 @@
 import path from 'path';
 import fs from 'fs';
 import type { ExportProject, ExportChapter } from './common.js';
+import type { TextBlockType } from '../../engine/types/common.js';
+import { stripBlockMarkers } from '../../engine/utils/text-blocks.js';
 import { logger } from '../../logger.js';
+
+/** Preset IDs that map to FB2 <cite> (block-level) */
+const FB2_CITE_TYPES = new Set(
+  ['system-message', 'note', 'letter', 'inner-voice'].map((s) => s.toLowerCase())
+);
+
+/** Preset ID for <emphasis> (inline) */
+const FB2_EMPHASIS_TYPE = 'notification';
+
+/** Preset ID for <strong> (inline) */
+const FB2_STRONG_TYPE = 'skill';
 
 export interface Fb2ExportOptions {
   outputDir?: string;
@@ -149,7 +162,7 @@ function generatePublishInfo(project: ExportProject): string {
 function generateBody(project: ExportProject): string {
   const sections = project.chapters
     .map((chapter, index) => {
-      return generateSection(chapter, index === 0);
+      return generateSection(chapter, index === 0, project.textBlockTypes);
     })
     .join('\n');
 
@@ -165,9 +178,13 @@ function generateBody(project: ExportProject): string {
 /**
  * Generate section (chapter) for FB2
  */
-function generateSection(chapter: ExportChapter, isFirst: boolean): string {
+function generateSection(
+  chapter: ExportChapter,
+  isFirst: boolean,
+  textBlockTypes?: TextBlockType[]
+): string {
   const title = escapeXml(chapter.title);
-  const paragraphs = convertTextToFb2Paragraphs(chapter.textContent);
+  const paragraphs = convertTextToFb2Paragraphs(chapter.textContent, textBlockTypes);
 
   return `
     <section${isFirst ? '' : ''}>
@@ -178,22 +195,86 @@ function generateSection(chapter: ExportChapter, isFirst: boolean): string {
     </section>`;
 }
 
+const BLOCK_MARKER_REGEX = /\{\{block:([\w-]+)\}\}([\s\S]*?)\{\{\/block:\1\}\}/g;
+
 /**
- * Convert plain text to FB2 paragraphs
+ * Convert block markers to FB2 elements (cite, emphasis, strong).
+ * Only preset types are mapped; unknown types use stripBlockMarkers.
  */
-function convertTextToFb2Paragraphs(text: string): string {
+function convertMarkersToFb2(text: string, blockTypes: TextBlockType[]): string {
+  const typeMap = new Map(blockTypes.map((bt) => [bt.id.toLowerCase(), bt]));
+  const parts: string[] = [];
+  let lastIndex = 0;
+  const re = new RegExp(BLOCK_MARKER_REGEX.source, 'g');
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(text)) !== null) {
+    parts.push(escapeXml(text.slice(lastIndex, m.index)));
+    const typeId = m[1].toLowerCase();
+    const content = m[2];
+    const bt = typeMap.get(typeId);
+    if (bt?.enabled) {
+      if (FB2_CITE_TYPES.has(typeId)) {
+        const innerParas = content
+          .split(/\n\s*\n/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        const inner = innerParas
+          .map((para) => `<p>${escapeXml(para)}</p>`)
+          .join('\n        <empty-line/>\n        ');
+        parts.push(`<cite>\n        ${inner}\n      </cite>`);
+      } else if (typeId === FB2_EMPHASIS_TYPE) {
+        parts.push(`<emphasis>${escapeXml(content)}</emphasis>`);
+      } else if (typeId === FB2_STRONG_TYPE) {
+        parts.push(`<strong>${escapeXml(content)}</strong>`);
+      } else {
+        parts.push(escapeXml(content));
+      }
+    } else {
+      parts.push(escapeXml(content));
+    }
+    lastIndex = re.lastIndex;
+  }
+  parts.push(escapeXml(text.slice(lastIndex)));
+  return parts.join('');
+}
+
+/**
+ * Convert plain text to FB2 paragraphs.
+ * When textBlockTypes provided, converts block markers to FB2 elements.
+ */
+function convertTextToFb2Paragraphs(text: string, textBlockTypes?: TextBlockType[]): string {
   if (!text || text.trim().length === 0) {
     return '<p></p>';
   }
 
-  // Split into paragraphs (double newlines)
-  const paragraphs = text
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+  const blockTypes = textBlockTypes?.filter((bt) => bt.enabled) ?? [];
+  const hasBlocks = blockTypes.length > 0 && text.includes('{{block:');
 
-  // Convert to FB2 <p> tags
-  return paragraphs.map((p) => `<p>${escapeXml(p)}</p>`).join('\n      ');
+  if (!hasBlocks) {
+    const plain = text.includes('{{block:') ? stripBlockMarkers(text) : text;
+    const paragraphs = plain
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    return paragraphs.map((p) => `<p>${escapeXml(p)}</p>`).join('\n      ');
+  }
+
+  const segments = text
+    .split(/\n\s*\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const result: string[] = [];
+  for (const seg of segments) {
+    const converted = convertMarkersToFb2(seg, blockTypes);
+    if (converted.startsWith('<cite>')) {
+      result.push(converted);
+    } else {
+      result.push(`<p>${converted}</p>`);
+    }
+  }
+  return result.join('\n      ');
 }
 
 /**

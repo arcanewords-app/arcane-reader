@@ -31,6 +31,7 @@ export function ChapterTocModal({
 }: ChapterTocModalProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
 
   // Reset search when modal closes
   useEffect(() => {
@@ -40,14 +41,17 @@ export function ChapterTocModal({
   }, [isOpen]);
 
   const filteredChapters = useMemo(() => {
-    return chapters.filter((ch) => {
+    const filtered = chapters.filter((ch) => {
       if (!search) return true;
       const q = search.toLowerCase();
       const titleMatch = (ch.title || '').toLowerCase().includes(q);
       const numberMatch = String(ch.number).includes(search);
       return titleMatch || numberMatch;
     });
-  }, [chapters, search]);
+    return [...filtered].sort((a, b) =>
+      order === 'desc' ? b.number - a.number : a.number - b.number
+    );
+  }, [chapters, search, order]);
 
   const displayTitle = title ?? `📑 ${t('readingMode.toc')}`;
 
@@ -72,6 +76,22 @@ export function ChapterTocModal({
           value={search}
           onInput={(e: Event) => setSearch((e.target as HTMLInputElement).value)}
         />
+        <div class="toc-order-btns">
+          <button
+            type="button"
+            class={`toc-order-btn ${order === 'asc' ? 'active' : ''}`}
+            onClick={() => setOrder('asc')}
+          >
+            {t('publication.orderFromStart')}
+          </button>
+          <button
+            type="button"
+            class={`toc-order-btn ${order === 'desc' ? 'active' : ''}`}
+            onClick={() => setOrder('desc')}
+          >
+            {t('publication.orderFromEnd')}
+          </button>
+        </div>
       </div>
       <div class="reading-toc-list">
         {filteredChapters.length === 0 ? (

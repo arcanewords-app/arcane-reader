@@ -49,6 +49,7 @@ import {
   unpublishProject,
   getUserPublications,
   getPublicationByProjectId,
+  getProjectForPublicationExport,
   markChapterAsRead,
   getReadProgress,
   getUserReaderSettings,
@@ -609,6 +610,8 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       includeGlossaryInAnalysis,
       includeGlossaryInTranslation,
       includeGlossaryInEditing,
+      textBlockTypes,
+      customInstructions,
     } = req.body;
 
     // Preserve existing reader settings
@@ -648,6 +651,13 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
     } else if (model) {
       // Legacy: update single model (will be migrated to stageModels on next load)
       updatedSettings.model = model;
+    }
+
+    if (textBlockTypes !== undefined) {
+      updatedSettings.textBlockTypes = textBlockTypes;
+    }
+    if (customInstructions !== undefined) {
+      updatedSettings.customInstructions = customInstructions;
     }
 
     await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);
@@ -4320,12 +4330,273 @@ app.get('/api/projects/:id/export/download', requireAuth, async (req, res) => {
   }
 });
 
-// Helper function to sanitize filename
+// ============ Publication Export (auth required for any registered user) ============
+
+app.post('/api/publications/:id/export', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { format, author } = req.body;
+    const publicationId = req.params.id;
+
+    if (!format || (format !== 'epub' && format !== 'fb2')) {
+      return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
+    }
+
+    const pub = await getPublicationById(publicationId);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+
+    const project = await getProjectForPublicationExport(pub.projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const translatedCount = project.chapters.filter(
+      (ch) =>
+        (ch.status === 'completed' || ch.status === 'draft') &&
+        (ch.translatedText || (ch.paragraphs && ch.paragraphs.some((p) => p.translatedText)))
+    ).length;
+    if (translatedCount === 0) {
+      return res.status(400).json({ error: 'Нет переведенных глав для экспорта' });
+    }
+
+    const tmpDir = process.env.VERCEL ? '/tmp' : os.tmpdir();
+    const title = pub.title || project.name;
+    const filename = `${sanitizeFilename(title)}-${Date.now()}.${format}`;
+    const tmpPath = path.join(tmpDir, filename);
+
+    req.log?.info(
+      { event: 'export.publication.start', publicationId, projectName: project.name, format },
+      `Publication export started: ${title} -> ${format.toUpperCase()}`
+    );
+
+    if (!fs.existsSync(tmpDir)) {
+      try {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      } catch (mkdirError: unknown) {
+        const msg = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
+        return res.status(500).json({ error: `Не удалось создать директорию: ${msg}` });
+      }
+    }
+
+    try {
+      const EXPORT_RETENTION_DAYS = 7;
+      const EXPORT_KEEP_LATEST = 5;
+      const folder = `publication-${publicationId}`;
+      try {
+        const files = await listFiles('exports', folder, { limit: 100 });
+        const now = Date.now();
+        const toTimestamp = (d?: string): number => {
+          if (!d) return 0;
+          const t = Date.parse(d);
+          return Number.isFinite(t) ? t : 0;
+        };
+        const withTs = files
+          .filter((f) => f.name && !f.name.endsWith('/'))
+          .map((f) => ({
+            ...f,
+            __ts: Math.max(
+              toTimestamp(f.created_at),
+              toTimestamp(f.updated_at),
+              toTimestamp(f.last_accessed_at)
+            ),
+          }))
+          .sort(
+            (a, b) => ((b as { __ts?: number }).__ts ?? 0) - ((a as { __ts?: number }).__ts ?? 0)
+          );
+        const cutoff = now - EXPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+        const oldByAge = withTs.filter(
+          (f) =>
+            ((f as { __ts?: number }).__ts ?? 0) > 0 &&
+            ((f as { __ts?: number }).__ts ?? 0) < cutoff
+        );
+        const oldByCount = withTs.slice(EXPORT_KEEP_LATEST);
+        const toDeleteNames = Array.from(new Set([...oldByAge, ...oldByCount].map((f) => f.name)));
+        if (toDeleteNames.length > 0) {
+          await deleteFiles(
+            'exports',
+            toDeleteNames.map((name) => `${folder}/${name}`)
+          );
+        }
+      } catch (cleanupErr) {
+        req.log?.warn({ err: cleanupErr }, 'Publication export cleanup failed');
+      }
+
+      const exportedPath = await exportProject(project, {
+        format,
+        outputDir: tmpDir,
+        filename,
+        author: author || pub.translatorDisplay || pub.authorDisplay,
+      });
+
+      if (!fs.existsSync(exportedPath)) {
+        throw new Error(`Файл не был создан: ${exportedPath}`);
+      }
+
+      const fileBuffer = fs.readFileSync(exportedPath);
+      const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
+      const storagePath = `${folder}/${filename}`;
+
+      await uploadFile('exports', storagePath, fileBuffer, {
+        contentType,
+        cacheControl: '3600',
+        upsert: true,
+      });
+
+      const { signedUrl } = await createSignedUrl('exports', storagePath, 60 * 30);
+
+      try {
+        fs.unlinkSync(exportedPath);
+      } catch {
+        /* ignore */
+      }
+
+      req.log?.info(
+        { event: 'export.publication.completed', publicationId, format, filename },
+        `Publication export completed: ${title} -> ${format.toUpperCase()}`
+      );
+
+      const downloadUrl = `/api/publications/${publicationId}/export/download?path=${encodeURIComponent(storagePath)}`;
+
+      return res.json({
+        success: true,
+        format,
+        filename,
+        path: storagePath,
+        url: signedUrl,
+        downloadUrl,
+      });
+    } catch (exportError) {
+      try {
+        if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+      } catch {
+        /* ignore */
+      }
+      throw exportError;
+    }
+  } catch (error: unknown) {
+    req.log?.error({ err: error }, 'Publication export error');
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : 'Failed to export publication' });
+  }
+});
+
+app.get('/api/publications/:id/export/download', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const publicationId = req.params.id;
+    const pathParam = req.query.path as string;
+
+    if (!pathParam || typeof pathParam !== 'string') {
+      return res.status(400).json({ error: 'Missing path query parameter' });
+    }
+
+    const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
+    const expectedPrefix = `publication-${publicationId}/`;
+
+    if (!storagePath.startsWith(expectedPrefix) || storagePath.includes('..')) {
+      return res.status(403).json({ error: 'Forbidden: invalid path' });
+    }
+
+    const pub = await getPublicationById(publicationId);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+
+    const buffer = await downloadFile('exports', storagePath);
+    const filename = storagePath.split('/').pop() || 'export';
+
+    const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.send(buffer);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Download failed';
+    req.log?.error({ err: error }, 'Publication export download error');
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Cyrillic (Russian/Ukrainian) to Latin transliteration for readable export filenames.
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'j',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+  і: 'i',
+  ї: 'yi',
+  є: 'ye',
+  ґ: 'g', // Ukrainian
+};
+const CYRILLIC_RE = /[\u0400-\u04FF]/;
+
+function transliterateCyrillic(text: string): string {
+  return text
+    .split('')
+    .map((c) => {
+      const lower = c.toLowerCase();
+      const mapped = CYRILLIC_TO_LATIN[lower];
+      if (mapped !== undefined)
+        return c === lower ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1);
+      return CYRILLIC_RE.test(c) ? '_' : c;
+    })
+    .join('');
+}
+
+// Helper function to sanitize filename for local FS and Supabase Storage.
+// Storage keys must be ASCII-safe (no Cyrillic etc.) to avoid "Invalid key" errors.
+// Cyrillic is transliterated to Latin for readable names (e.g. "Зенит Колдовства" -> "Zenit_Koldovstva").
 function sanitizeFilename(filename: string): string {
-  return filename
-    .replace(/[<>:"/\\|?*]/g, '') // Remove invalid characters
-    .replace(/\s+/g, '_') // Replace spaces with underscores
-    .substring(0, 100); // Limit length
+  const transliterated = transliterateCyrillic(filename);
+  return (
+    transliterated
+      .replace(/[<>:"/\\|?*]/g, '') // Remove invalid characters
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/[\u0080-\uFFFF]/g, '_') // Replace remaining non-ASCII for storage compatibility
+      .replace(/_+/g, '_') // Collapse multiple underscores
+      .replace(/^_|_$/g, '') // Trim leading/trailing underscores
+      .substring(0, 100) || // Limit length
+    'export'
+  ); // Fallback if empty after sanitization
 }
 
 // ============ Publications (public catalog) ============

@@ -11,5 +11,8 @@
 @import './layout/layout.css';
 @import './pages/pages.css';
 
+/* Text block formatting (system messages, notes, etc.) */
+@import './text-blocks.css';
+
 /* Component modules are imported directly in component files */
 /* This file now only contains base and layout styles */

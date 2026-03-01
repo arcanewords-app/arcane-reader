@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Paragraph } from '../../types';
+import type { Paragraph, TextBlockType } from '../../types';
+import { renderTextWithBlocks } from '../../utils/text-blocks';
 import './ParagraphList.css';
 
 interface ParagraphListProps {
@@ -14,6 +15,8 @@ interface ParagraphListProps {
   /** Selected paragraph IDs for "translate selected" */
   selectedParagraphIds?: string[];
   onToggleParagraphSelection?: (id: string) => void;
+  /** Text block types for special formatting (system messages, notes, etc.) */
+  textBlockTypes?: TextBlockType[];
 }
 
 export function ParagraphList({
@@ -24,6 +27,7 @@ export function ParagraphList({
   emptyParagraphIds = [],
   selectedParagraphIds = [],
   onToggleParagraphSelection,
+  textBlockTypes = [],
 }: ParagraphListProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,14 +79,6 @@ export function ParagraphList({
     } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleSave();
     }
-  };
-
-  const escapeHtml = (text: string) => {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   };
 
   // Calculate stats
@@ -209,7 +205,7 @@ export function ParagraphList({
                       }}
                       dangerouslySetInnerHTML={{
                         __html: paragraph.translatedText
-                          ? escapeHtml(paragraph.translatedText)
+                          ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
                           : `<em>${t('paragraphList.clickToEdit')}</em>`,
                       }}
                     />

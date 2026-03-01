@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import epubGen from 'epub-gen-memory';
 import type { ExportProject } from './common.js';
+import { EPUB_CSS } from './epub-styles.js';
 import { logger } from '../../logger.js';
 
 export interface EpubExportOptions {
@@ -62,6 +63,7 @@ export async function exportToEpub(
     description: project.metadata?.translatedAt
       ? `Переведено: ${new Date(project.metadata.translatedAt).toLocaleDateString('ru-RU')}`
       : undefined,
+    css: EPUB_CSS,
   };
 
   logger.debug('EPUB export: starting generation (epub-gen-memory)');

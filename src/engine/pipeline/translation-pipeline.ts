@@ -227,6 +227,7 @@ export class TranslationPipeline {
         chunkSize: onlyEditChunkSize,
         includeGlossary: onlyEditIncludeGlossary,
         temperature: options.temperatureByStage?.editing,
+        customInstructions: options.customInstructions?.editing,
       });
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
@@ -318,6 +319,7 @@ export class TranslationPipeline {
           checkQuality: true,
           chunkSize: editOnlyChunkSize,
           includeGlossary: editOnlyIncludeGlossary,
+          customInstructions: options.customInstructions?.editing,
         });
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
@@ -374,6 +376,8 @@ export class TranslationPipeline {
       chunkRetryAttempts: options.retryAttempts ?? 2,
       chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
       neverSplitParagraphs: options.neverSplitParagraphs,
+      textBlockTypes: options.textBlockTypes,
+      customInstructions: options.customInstructions?.translation,
     });
     totalTokens += stage2Result.tokensUsed;
 
@@ -410,6 +414,7 @@ export class TranslationPipeline {
         chunkSize: editChunkSize,
         includeGlossary: includeGlossaryInEditing,
         temperature: options.temperatureByStage?.editing,
+        customInstructions: options.customInstructions?.editing,
       });
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {

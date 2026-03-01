@@ -1,0 +1,76 @@
+/* =============================================================
+   Text Block Styles - Special formatting (system messages, notes, etc.)
+   Works with reader themes (dark, light, sepia, contrast)
+   ============================================================= */
+
+/* Block-level: system messages (game stats, level-ups, notifications) */
+.system-message,
+div.system-message {
+  display: block;
+  border-left: 4px solid var(--accent, var(--reader-accent));
+  background: var(--reader-bg-alt, rgba(157, 111, 255, 0.15));
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.9em;
+  border-radius: 4px;
+  color: var(--reader-text);
+}
+
+/* Block-level: notes, letters, documents within story */
+.note {
+  border: 1px solid var(--reader-text-dim, rgba(255, 255, 255, 0.2));
+  background: var(--reader-bg-alt, rgba(128, 128, 128, 0.05));
+  padding: 1rem;
+  margin: 0.5rem 0;
+  font-style: italic;
+  border-radius: 6px;
+}
+
+/* Block-level: inner voice, thoughts */
+.inner-voice {
+  font-style: italic;
+  opacity: 0.9;
+  padding: 0.25rem 0;
+}
+
+/* Inline: notifications, tooltips */
+.notification {
+  background: rgba(157, 111, 255, 0.15);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+/* Inline: skill names, spell names */
+.skill {
+  font-weight: 600;
+  color: var(--accent, var(--reader-accent));
+}
+
+/* Letter: alias for note, used in epistolary preset */
+.letter {
+  border: 1px solid var(--reader-text-dim, rgba(255, 255, 255, 0.2));
+  background: var(--reader-bg-alt, rgba(128, 128, 128, 0.05));
+  padding: 1rem;
+  margin: 0.5rem 0;
+  font-style: italic;
+  border-radius: 6px;
+}
+
+/* Reading mode: ensure text blocks keep their styles and are not overridden */
+.reading-mode .system-message,
+.reading-mode .note,
+.reading-mode .letter,
+.reading-mode .inner-voice,
+.reading-mode .notification,
+.reading-mode .skill {
+  text-indent: 0;
+}
+
+.reading-mode .reading-mode-paragraph .system-message,
+.reading-mode .reading-mode-paragraph .note,
+.reading-mode .reading-mode-paragraph .letter,
+.reading-mode .reading-mode-paragraph .inner-voice {
+  margin: 0.5em 0;
+}

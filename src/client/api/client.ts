@@ -579,6 +579,25 @@ export const api = {
     return fetchJson(`/api/publications/${publicationId}/read-progress`);
   },
 
+  /** Export publication to EPUB or FB2 (auth required). */
+  async exportPublication(
+    publicationId: string,
+    format: 'epub' | 'fb2',
+    author?: string
+  ): Promise<{
+    success: boolean;
+    format: string;
+    filename: string;
+    url: string;
+    path: string;
+    downloadUrl?: string;
+  }> {
+    return fetchJson(`/api/publications/${publicationId}/export`, {
+      method: 'POST',
+      body: JSON.stringify({ format, author }),
+    });
+  },
+
   /** Mark chapter as read (auth required). */
   async markChapterAsRead(publicationId: string, chapterId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}/read`, {

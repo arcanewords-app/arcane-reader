@@ -1,4 +1,3 @@
-import { Fragment } from 'preact';
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -15,6 +14,8 @@ import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal } from '../ui';
+import { renderTextWithBlocks } from '../../utils/text-blocks';
+import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import './ReadingMode.css';
 
 /** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
@@ -92,7 +93,7 @@ export function ReadingMode({
   // Read progress: scrolled to end (85%+), and already-marked set to avoid duplicate API calls
   const scrolledToEndRef = useRef(false);
   const markedThisSessionRef = useRef<Set<string>>(new Set());
-  const lastParagraphRef = useRef<HTMLParagraphElement | null>(null);
+  const lastParagraphRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   // Determine reading mode (project mode only)
@@ -508,20 +509,20 @@ export function ReadingMode({
             </p>
           ) : displayText ? (
             (() => {
+              const textBlockTypes =
+                (project?.settings?.textBlockTypes?.length ?? 0) > 0
+                  ? (project?.settings?.textBlockTypes ?? [])
+                  : DEFAULT_TEXT_BLOCK_TYPES;
               const paragraphs = displayText.split('\n\n');
               return paragraphs.map((paragraph, idx) => (
-                <p
+                <div
                   key={idx}
                   ref={idx === paragraphs.length - 1 ? lastParagraphRef : undefined}
                   class="reading-mode-paragraph"
-                >
-                  {paragraph.split('\n').map((line, lineIdx) => (
-                    <Fragment key={lineIdx}>
-                      {lineIdx > 0 && <br />}
-                      {line}
-                    </Fragment>
-                  ))}
-                </p>
+                  dangerouslySetInnerHTML={{
+                    __html: renderTextWithBlocks(paragraph, textBlockTypes),
+                  }}
+                />
               ));
             })()
           ) : (

@@ -68,12 +68,17 @@ Do not include editing notes in the output.
 
 ### CRITICAL: Paragraph markers
 
-If the text contains markers in the form \`--para:...--\` (e.g. \`--para:abc123--\` at the start of a paragraph), you MUST preserve them exactly. Do not remove, alter, or add any such markers. Each marker identifies one paragraph; keep one marker per paragraph and the same marker text. This is required for correct assembly of the chapter.`;
+If the text contains markers in the form \`--para:...--\` (e.g. \`--para:abc123--\` at the start of a paragraph), you MUST preserve them exactly. Do not remove, alter, or add any such markers. Each marker identifies one paragraph; keep one marker per paragraph and the same marker text. This is required for correct assembly of the chapter.
+
+### CRITICAL: Text block markers
+
+If the text contains markers \`{{block:...}}\` and \`{{/block:...}}\`, you MUST preserve them exactly. Do not remove, alter, or add any such markers. They identify special text elements (system messages, notes, etc.).`;
 
 export const createEditorPrompt = (
   translatedText: string,
   glossary: string,
-  styleNotes?: string
+  styleNotes?: string,
+  customInstructions?: string
 ): string => {
   let prompt = '';
 
@@ -83,6 +88,10 @@ export const createEditorPrompt = (
 
   if (styleNotes) {
     prompt += `## Style Notes\n${styleNotes}\n\n`;
+  }
+
+  if (customInstructions?.trim()) {
+    prompt += `## Additional Editing Instructions\n${customInstructions.trim()}\n\n`;
   }
 
   prompt += `## Translation to Edit\n${translatedText}\n\n`;

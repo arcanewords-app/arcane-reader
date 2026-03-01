@@ -288,6 +288,7 @@ export function ChapterView({
           emptyParagraphIds={emptyParagraphIds}
           selectedParagraphIds={selectedParagraphIds}
           onToggleParagraphSelection={handleToggleParagraphSelection}
+          textBlockTypes={project.settings?.textBlockTypes ?? []}
         />
       ) : (
         <Card>

@@ -42,6 +42,7 @@
     "@xmldom/xmldom": "^0.8.11",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
+    "dompurify": "^3.3.1",
     "dotenv": "^16.3.1",
     "epub-gen-memory": "^1.1.2",
     "epub2": "^3.0.2",

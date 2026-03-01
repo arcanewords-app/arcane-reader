@@ -1,7 +1,15 @@
+import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Project, ProjectSettings } from '../../types';
+import type { Project, ProjectSettings, TextBlockType, CustomInstructions } from '../../types';
 import { Modal, Button } from '../ui';
 import { api } from '../../api/client';
+import {
+  DEFAULT_TEXT_BLOCK_TYPES,
+  LITRPG_PRESET,
+  EPISTOLARY_PRESET,
+  BLOCK_PREVIEW_SAMPLES,
+  getCustomBlockPreview,
+} from '../../constants/text-block-presets';
 import './SettingsModal.css';
 
 /**
@@ -135,6 +143,50 @@ export function SettingsModal({
     onSettingsChange(updated);
   };
 
+  // Text blocks & custom instructions
+  const textBlockTypes = settings.textBlockTypes ?? [];
+  const customInstructions = settings.customInstructions ?? {};
+
+  const handleTextBlockTypesChange = async (newTypes: TextBlockType[]) => {
+    const updated = await api.updateSettings(project.id, { textBlockTypes: newTypes });
+    onSettingsChange(updated);
+  };
+
+  const handleToggleBlockType = async (id: string, enabled: boolean) => {
+    const current = textBlockTypes.length > 0 ? textBlockTypes : DEFAULT_TEXT_BLOCK_TYPES;
+    const updated = await api.updateSettings(project.id, {
+      textBlockTypes: current.map((bt) => (bt.id === id ? { ...bt, enabled } : bt)),
+    });
+    onSettingsChange(updated);
+  };
+
+  const handleLoadPreset = async (preset: TextBlockType[]) => {
+    const updated = await api.updateSettings(project.id, { textBlockTypes: preset });
+    onSettingsChange(updated);
+  };
+
+  const handleCustomInstructionsChange = async (
+    field: 'translation' | 'editing',
+    value: string
+  ) => {
+    const next = { ...customInstructions, [field]: value || undefined };
+    const updated = await api.updateSettings(project.id, {
+      customInstructions: Object.keys(next).length ? next : undefined,
+    });
+    onSettingsChange(updated);
+  };
+
+  const displayBlockTypes = textBlockTypes.length > 0 ? textBlockTypes : DEFAULT_TEXT_BLOCK_TYPES;
+
+  const [customInstructionsLocal, setCustomInstructionsLocal] = useState<CustomInstructions>({});
+  const [showFormatHelp, setShowFormatHelp] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCustomInstructionsLocal({ ...customInstructions });
+    }
+  }, [isOpen, project.id, customInstructions.translation, customInstructions.editing]);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`⚙️ ${t('settings.title')}`} size="large">
       <div class="settings-modal">
@@ -253,6 +305,190 @@ export function SettingsModal({
                 </div>
               </div>
             </label>
+          </div>
+        )}
+
+        {/* Text Blocks & Custom Instructions */}
+        {!isOriginalReadingMode && (
+          <div
+            style={{
+              marginBottom: '1.5rem',
+              padding: '1rem',
+              background: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+              📦 Text Blocks & Custom Instructions
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.75rem' }}>
+              Special formatting (system messages, notes, letters) and extra rules for
+              translator/editor.
+            </div>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Presets:</span>{' '}
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onClick={() => handleLoadPreset(LITRPG_PRESET)}
+                style={{ marginRight: '0.5rem' }}
+              >
+                LitRPG
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onClick={() => handleLoadPreset(EPISTOLARY_PRESET)}
+              >
+                Epistolary
+              </button>
+            </div>
+            <div class="text-blocks-list">
+              {displayBlockTypes.map((bt) => {
+                const previewSample = BLOCK_PREVIEW_SAMPLES[bt.id];
+                const previewHtml = previewSample ? previewSample.html : getCustomBlockPreview(bt);
+                return (
+                  <div key={bt.id} class="text-block-row">
+                    <div class="text-block-left">
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.5rem',
+                          cursor: 'pointer',
+                          marginBottom: '0.25rem',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={bt.enabled}
+                          onChange={() => handleToggleBlockType(bt.id, !bt.enabled)}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            marginTop: '2px',
+                            cursor: 'pointer',
+                          }}
+                          aria-label={bt.name}
+                        />
+                        <div>
+                          <span style={{ fontWeight: 500 }}>
+                            {bt.icon ? `${bt.icon} ` : ''}
+                            {bt.name}
+                          </span>
+                          <div
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--text-dim)',
+                              marginTop: '0.2rem',
+                            }}
+                          >
+                            {bt.description}
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                    <div class="text-block-preview">
+                      <span class="text-block-preview-label">Пример:</span>
+                      <div
+                        class="text-block-preview-content"
+                        dangerouslySetInnerHTML={{ __html: previewHtml }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              Для кастомных типов: при создании выберите пресет стиля (system-message, note, skill и
+              т.д.) — он задаст внешний вид.
+            </div>
+            <div class="text-blocks-format-help">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onClick={() => setShowFormatHelp(!showFormatHelp)}
+                style={{ marginTop: '0.75rem' }}
+              >
+                {showFormatHelp ? '▼' : '▶'} Формат для интеграции
+              </button>
+              {showFormatHelp && (
+                <div class="text-blocks-format-content">
+                  <p style={{ marginBottom: '0.5rem' }}>
+                    Если перевод уже содержит выделения, используйте маркеры (не HTML):
+                  </p>
+                  <code class="text-blocks-format-code">
+                    {'{{block:тип-id}}'}текст{'{{/block:тип-id}}'}
+                  </code>
+                  <p style={{ marginTop: '0.75rem', marginBottom: '0.35rem' }}>Примеры:</p>
+                  <pre class="text-blocks-format-pre">
+                    {`{{block:system-message}}Level Up! Сила +5{{/block:system-message}}
+{{block:note}}Дорогой друг, надеюсь это письмо...{{/block:note}}
+Маг призвал {{block:skill}}Огненный шар{{/block:skill}} к врагу.`}
+                  </pre>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
+                    Типы: system-message, note, notification, skill, inner-voice. HTML не
+                    поддерживается.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: '1rem' }}>
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
+                Custom instructions for translator
+              </label>
+              <textarea
+                value={customInstructionsLocal.translation ?? customInstructions.translation ?? ''}
+                onBlur={(e) =>
+                  handleCustomInstructionsChange(
+                    'translation',
+                    (e.target as HTMLTextAreaElement).value
+                  )
+                }
+                onInput={(e) => {
+                  const v = (e.target as HTMLTextAreaElement).value;
+                  setCustomInstructionsLocal((p) => ({ ...p, translation: v }));
+                }}
+                placeholder="e.g. Wrap system messages in {{block:system-message}}..."
+                rows={2}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                }}
+              />
+            </div>
+            <div style={{ marginTop: '0.75rem' }}>
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
+                Custom instructions for editor
+              </label>
+              <textarea
+                value={customInstructionsLocal.editing ?? customInstructions.editing ?? ''}
+                onBlur={(e) =>
+                  handleCustomInstructionsChange('editing', (e.target as HTMLTextAreaElement).value)
+                }
+                onInput={(e) => {
+                  const v = (e.target as HTMLTextAreaElement).value;
+                  setCustomInstructionsLocal((p) => ({ ...p, editing: v }));
+                }}
+                placeholder="e.g. Preserve all {{block:...}} markers exactly."
+                rows={2}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                }}
+              />
+            </div>
           </div>
         )}
 

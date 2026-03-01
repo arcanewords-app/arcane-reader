@@ -29,6 +29,8 @@ interface EditStageOptions {
   /** When false, do not include glossary in prompt (saves tokens; use larger chunks). Default true. */
   includeGlossary?: boolean;
   temperature?: number;
+  /** Custom instructions for editor */
+  customInstructions?: string;
 }
 
 interface QualityCheckResponse {
@@ -120,7 +122,8 @@ export class EditStage {
           styleNotes,
           chunkSize,
           editTemp,
-          includeGlossary
+          includeGlossary,
+          options.customInstructions
         );
 
         editedText = chunkedResult.text;
@@ -139,7 +142,12 @@ export class EditStage {
           { role: 'system', content: EDITOR_SYSTEM_PROMPT },
           {
             role: 'user',
-            content: createEditorPrompt(translatedText, glossaryTextForQuality, styleNotes),
+            content: createEditorPrompt(
+              translatedText,
+              glossaryTextForQuality,
+              styleNotes,
+              options.customInstructions
+            ),
           },
         ];
 
@@ -255,7 +263,8 @@ export class EditStage {
     styleNotes: string,
     chunkSize: number,
     temperature: number = 0.5,
-    includeGlossary: boolean = true
+    includeGlossary: boolean = true,
+    customInstructions?: string
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -283,7 +292,8 @@ export class EditStage {
           fullGlossary,
           styleNotes,
           temperature,
-          includeGlossary
+          includeGlossary,
+          customInstructions
         );
 
         totalTokensUsed += editResult.tokensUsed;
@@ -347,7 +357,8 @@ export class EditStage {
     fullGlossary: import('../types/agent.js').AgentContext['glossary'],
     styleNotes: string,
     temperature: number = 0.5,
-    includeGlossary: boolean = true
+    includeGlossary: boolean = true,
+    customInstructions?: string
   ): Promise<{ text: string; tokensUsed: number }> {
     const glossaryText =
       includeGlossary && fullGlossary
@@ -360,7 +371,12 @@ export class EditStage {
       { role: 'system', content: EDITOR_SYSTEM_PROMPT },
       {
         role: 'user',
-        content: createEditorPrompt(translatedChunk.content, glossaryText, styleNotes),
+        content: createEditorPrompt(
+          translatedChunk.content,
+          glossaryText,
+          styleNotes,
+          customInstructions
+        ),
       },
     ];
 

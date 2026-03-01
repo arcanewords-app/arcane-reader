@@ -1114,6 +1114,68 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 }
 
 /**
+ * Load all chapters for a project using service role (no auth).
+ * Used for publication export where project is loaded by publication.projectId.
+ */
+async function loadChaptersForProjectWithServiceRole(projectId: string): Promise<Chapter[]> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: chapters, error } = await client
+    .from('chapters')
+    .select('*, paragraphs(*)')
+    .eq('project_id', projectId)
+    .order('number', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load chapters: ${error.message}`);
+  }
+
+  if (!chapters || chapters.length === 0) {
+    return [];
+  }
+
+  return chapters.map((chapter) => {
+    const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
+    const paragraphs = rawParagraphs
+      .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
+      .map(transformParagraphFromDB);
+    return transformChapterFromDB(chapter, paragraphs);
+  });
+}
+
+/**
+ * Get project with full chapters for publication export.
+ * Uses service role (no user auth) - call only when publication is verified published.
+ */
+export async function getProjectForPublicationExport(projectId: string): Promise<Project | null> {
+  try {
+    const { createServiceRoleClient } = await import('./supabaseClient.js');
+    const client = createServiceRoleClient();
+
+    const { data: project, error } = await client
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (error || !project) {
+      return null;
+    }
+
+    const [chapters, glossary] = await Promise.all([
+      loadChaptersForProjectWithServiceRole(projectId),
+      loadGlossaryForProjectPublic(projectId),
+    ]);
+
+    return transformProjectFromDB(project, chapters, glossary);
+  } catch (err) {
+    logger.warn({ err, projectId }, 'getProjectForPublicationExport failed');
+    return null;
+  }
+}
+
+/**
  * Load all paragraphs for a chapter.
  * When useServiceRole is true, uses service role client (for long-running server flows where JWT may expire).
  */

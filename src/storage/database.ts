@@ -195,6 +195,27 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   paragraphSpacing: 1.2,
 };
 
+/** Text block HTML tag options */
+export type TextBlockHtmlTag = 'aside' | 'section' | 'div' | 'span' | 'blockquote';
+
+/** Special text block type for formatting (system messages, notes, letters, etc.) */
+export interface TextBlockType {
+  id: string;
+  name: string;
+  description: string;
+  htmlTag: TextBlockHtmlTag;
+  cssClass: string;
+  isInline: boolean;
+  icon?: string;
+  enabled: boolean;
+}
+
+/** Custom instructions for translator and editor stages */
+export interface CustomInstructions {
+  translation?: string;
+  editing?: string;
+}
+
 export interface ProjectSettings {
   // Legacy: single model (for backward compatibility)
   model?: string;
@@ -225,6 +246,10 @@ export interface ProjectSettings {
   includeGlossaryInEditing?: boolean;
   // Reader display settings
   reader: ReaderSettings;
+  /** Special text block types for formatting (system messages, notes, letters, etc.) */
+  textBlockTypes?: TextBlockType[];
+  /** Custom instructions for translator and editor stages */
+  customInstructions?: CustomInstructions;
 }
 
 export interface DatabaseSchema {

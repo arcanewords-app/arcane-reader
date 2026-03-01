@@ -16,6 +16,8 @@ export type {
   Declensions,
   TextChunk,
   TranslationConfig,
+  TextBlockType,
+  TextBlockHtmlTag,
 } from './types/common.js';
 export type { Character, Location, Term, Glossary, GlossaryUpdate } from './types/glossary.js';
 export type {

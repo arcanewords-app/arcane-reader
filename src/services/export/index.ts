@@ -3,6 +3,7 @@
  */
 
 import type { Project } from '../../storage/database.js';
+import { DEFAULT_TEXT_BLOCK_TYPES } from '../../engine/constants/text-block-presets.js';
 import { prepareProjectForExport } from './common.js';
 import { exportToEpub } from './epub.js';
 import { exportToFb2 } from './fb2.js';
@@ -20,8 +21,12 @@ export interface ExportOptions {
  * Export project to specified format
  */
 export async function exportProject(project: Project, options: ExportOptions): Promise<string> {
-  // Prepare project data
-  const exportData = prepareProjectForExport(project, options.author);
+  // Prepare project data (use project types or defaults for text block conversion)
+  const textBlockTypes =
+    (project.settings?.textBlockTypes?.length ?? 0) > 0
+      ? project.settings!.textBlockTypes!
+      : DEFAULT_TEXT_BLOCK_TYPES;
+  const exportData = prepareProjectForExport(project, options.author, textBlockTypes);
 
   // Check if there are any chapters to export
   if (exportData.chapters.length === 0) {

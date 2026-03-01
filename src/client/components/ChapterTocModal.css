@@ -54,11 +54,45 @@
   background: var(--reader-chrome-bg, var(--bg-card));
 }
 
-/* Search input */
+/* Search input and order buttons */
 .modal.toc-modal.chapter-toc-modal .toc-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--reader-chrome-border, var(--border));
   flex-shrink: 0;
+}
+
+.modal.toc-modal.chapter-toc-modal .toc-order-btns {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.modal.toc-modal.chapter-toc-modal .toc-order-btn {
+  padding: 0.35rem 0.65rem;
+  background: var(--reader-chrome-bg, var(--bg-secondary));
+  border: 1px solid var(--reader-chrome-border, var(--border));
+  border-radius: 6px;
+  color: var(--reader-text-dim, var(--text-dim));
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.modal.toc-modal.chapter-toc-modal .toc-order-btn:hover {
+  color: var(--reader-text, var(--text-primary));
+  border-color: var(--reader-chrome-border, var(--border));
+}
+
+.modal.toc-modal.chapter-toc-modal .toc-order-btn.active {
+  background: var(--reader-accent, var(--accent));
+  border-color: var(--reader-accent, var(--accent));
+  color: var(--reader-accent-text, #fff);
 }
 
 .modal.toc-modal.chapter-toc-modal .toc-search-input {

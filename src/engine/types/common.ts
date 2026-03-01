@@ -35,3 +35,17 @@ export interface TranslationConfig {
   maxTokensPerChunk: number;
   temperature: number;
 }
+
+/** Text block type for special formatting (system messages, notes, etc.) */
+export type TextBlockHtmlTag = 'aside' | 'section' | 'div' | 'span' | 'blockquote';
+
+export interface TextBlockType {
+  id: string;
+  name: string;
+  description: string;
+  htmlTag: TextBlockHtmlTag;
+  cssClass: string;
+  isInline: boolean;
+  icon?: string;
+  enabled: boolean;
+}

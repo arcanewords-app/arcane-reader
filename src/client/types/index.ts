@@ -124,6 +124,26 @@ export type ProjectWithChapterList = Omit<Project, 'chapters'> & {
   chapters: ChapterListItem[];
 };
 
+// === Text Block Types (special formatting) ===
+
+export type TextBlockHtmlTag = 'aside' | 'section' | 'div' | 'span' | 'blockquote';
+
+export interface TextBlockType {
+  id: string;
+  name: string;
+  description: string; // Description for LLM: "Game system notifications, stat updates, level-ups"
+  htmlTag: TextBlockHtmlTag;
+  cssClass: string;
+  isInline: boolean; // true = span (within paragraph), false = block-level
+  icon?: string;
+  enabled: boolean;
+}
+
+export interface CustomInstructions {
+  translation?: string; // Additional instructions for translator
+  editing?: string; // Additional instructions for editor
+}
+
 // === Reader Settings ===
 
 export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast';
@@ -166,6 +186,10 @@ export interface ProjectSettings {
   /** When false, editing stage does not receive glossary; chunks 3500. Default true. */
   includeGlossaryInEditing?: boolean;
   reader?: ReaderSettings;
+  /** Special text block types for formatting (system messages, notes, letters, etc.) */
+  textBlockTypes?: TextBlockType[];
+  /** Custom instructions for translator and editor stages */
+  customInstructions?: CustomInstructions;
 }
 
 // === Project Metadata ===

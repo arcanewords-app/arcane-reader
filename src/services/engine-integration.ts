@@ -336,6 +336,12 @@ export async function translateChapterWithPipeline(
       includeGlossaryInEditing:
         options.includeGlossaryInEditing ?? project.settings?.includeGlossaryInEditing ?? true,
       ...(options.isCancelled && { isCancelled: options.isCancelled }),
+      ...(project.settings?.textBlockTypes?.length && {
+        textBlockTypes: project.settings.textBlockTypes.filter((bt) => bt.enabled),
+      }),
+      ...(project.settings?.customInstructions && {
+        customInstructions: project.settings.customInstructions,
+      }),
     };
     if (Array.isArray(stages)) {
       pipelineOpts.runStages = stages;

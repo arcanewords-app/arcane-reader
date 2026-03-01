@@ -4,7 +4,9 @@
  */
 
 import type { Project, Chapter } from '../../storage/database.js';
+import type { TextBlockType } from '../../engine/types/common.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
+import { convertMarkersToHtml } from '../../engine/utils/text-blocks.js';
 
 /**
  * Export chapter data structure
@@ -13,7 +15,7 @@ export interface ExportChapter {
   title: string;
   number: number;
   htmlContent: string; // HTML formatted content
-  textContent: string; // Plain text content
+  textContent: string; // Plain text content (may contain block markers for FB2)
 }
 
 /**
@@ -24,6 +26,7 @@ export interface ExportProject {
   author?: string;
   language: string;
   chapters: ExportChapter[];
+  textBlockTypes?: TextBlockType[];
   metadata?: {
     translatedAt?: string;
     model?: string;
@@ -67,6 +70,58 @@ export function textToHtml(text: string, includeTitle: boolean = false, title?: 
   return htmlParagraphs;
 }
 
+/** Block-level HTML tags that should not be wrapped in <p> */
+const BLOCK_TAGS = /^<(div|section|article|aside|blockquote)(\s|>)/i;
+
+/**
+ * Convert plain text to HTML with text block markers converted to HTML.
+ * Uses convertMarkersToHtml for each paragraph segment.
+ */
+export function textToHtmlWithBlocks(
+  text: string,
+  blockTypes: TextBlockType[],
+  includeTitle: boolean = false,
+  title?: string
+): string {
+  if (!text || text.trim().length === 0) {
+    return '<p></p>';
+  }
+
+  const enabledTypes = blockTypes.filter((bt) => bt.enabled);
+  if (enabledTypes.length === 0 || !text.includes('{{block:')) {
+    return textToHtml(text, includeTitle, title);
+  }
+
+  const segments = text
+    .split(/\n\s*\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const parts: string[] = [];
+  if (includeTitle && title) {
+    const escapeHtml = (str: string): string =>
+      str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    parts.push(`<h1>${escapeHtml(title)}</h1>`);
+  }
+
+  for (const seg of segments) {
+    const html = convertMarkersToHtml(seg, enabledTypes);
+    if (BLOCK_TAGS.test(html)) {
+      parts.push(html);
+    } else {
+      const withBr = html.replace(/\n/g, '<br>');
+      parts.push(`<p>${withBr}</p>`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
 /**
  * Get translated text from chapter
  * Uses paragraphs if available, falls back to chapter.translatedText
@@ -88,7 +143,11 @@ export function getTranslatedText(chapter: Chapter): string {
  * Prepare project data for export
  * Filters and prepares only completed chapters
  */
-export function prepareProjectForExport(project: Project, author?: string): ExportProject {
+export function prepareProjectForExport(
+  project: Project,
+  author?: string,
+  textBlockTypes?: TextBlockType[]
+): ExportProject {
   // Filter completed or draft chapters with translations (draft = translation saved, editing not applied)
   const completedChapters = project.chapters
     .filter((ch) => {
@@ -99,10 +158,15 @@ export function prepareProjectForExport(project: Project, author?: string): Expo
     })
     .sort((a, b) => a.number - b.number);
 
+  const blockTypes = textBlockTypes && textBlockTypes.length > 0 ? textBlockTypes : [];
+
   // Prepare chapters for export
   const exportChapters: ExportChapter[] = completedChapters.map((chapter) => {
     const translatedText = getTranslatedText(chapter);
-    const htmlContent = textToHtml(translatedText, true, chapter.title);
+    const htmlContent =
+      blockTypes.length > 0
+        ? textToHtmlWithBlocks(translatedText, blockTypes, true, chapter.title)
+        : textToHtml(translatedText, true, chapter.title);
     const textContent = translatedText;
 
     return {
@@ -127,6 +191,7 @@ export function prepareProjectForExport(project: Project, author?: string): Expo
     author: author || 'Переведено Arcane',
     language: project.targetLanguage || 'ru',
     chapters: exportChapters,
+    textBlockTypes: blockTypes.length > 0 ? blockTypes : undefined,
     metadata: {
       translatedAt: latestTranslation?.translationMeta?.translatedAt,
       model: latestTranslation?.translationMeta?.model,

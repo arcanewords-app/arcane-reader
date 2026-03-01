@@ -31,7 +31,6 @@
   width: var(--modal-width-mobile);
   max-width: var(--modal-max-width-mobile);
   height: 85vh;
-  min-height: 400px;
   max-height: 95vh;
   display: flex;
   flex-direction: column;

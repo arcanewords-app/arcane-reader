@@ -11,7 +11,7 @@ import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AgentContext } from '../types/agent.js';
 import type { Glossary } from '../types/glossary.js';
 import type { StageResult, TranslationDraft, ChunkTranslation } from '../types/pipeline.js';
-import type { TextChunk } from '../types/common.js';
+import type { TextChunk, TextBlockType } from '../types/common.js';
 import { TRANSLATOR_SYSTEM_PROMPT, createTranslatorPrompt } from '../prompts/system/translator.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
@@ -32,6 +32,10 @@ interface TranslateStageOptions {
   chunkRetryDelayMs?: number;
   /** When true, never split a paragraph into smaller chunks (default true). */
   neverSplitParagraphs?: boolean;
+  /** Text block types for special formatting (system messages, notes, etc.) */
+  textBlockTypes?: TextBlockType[];
+  /** Custom instructions for translator */
+  customInstructions?: string;
 }
 
 const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
@@ -170,7 +174,9 @@ export class TranslateStage {
               contextText,
               styleGuide,
               temperature,
-              includeGlossary
+              includeGlossary,
+              options.textBlockTypes,
+              options.customInstructions
             );
 
             const chunkDurationMs = Date.now() - chunkStartTime;
@@ -334,7 +340,9 @@ export class TranslateStage {
     contextText: string,
     styleGuide: string,
     temperature: number = 0.7,
-    includeGlossary: boolean = true
+    includeGlossary: boolean = true,
+    textBlockTypes?: TextBlockType[],
+    customInstructions?: string
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     // Filter glossary to entries that appear in this chunk (saves tokens)
     const glossaryText =
@@ -363,7 +371,14 @@ export class TranslateStage {
       { role: 'system', content: TRANSLATOR_SYSTEM_PROMPT },
       {
         role: 'user',
-        content: createTranslatorPrompt(chunk.content, glossaryText, contextText, styleGuide),
+        content: createTranslatorPrompt(
+          chunk.content,
+          glossaryText,
+          contextText,
+          styleGuide,
+          textBlockTypes,
+          customInstructions
+        ),
       },
     ];
 

@@ -7,6 +7,8 @@
  * - Style guidelines
  */
 
+import type { TextBlockType } from '../../types/common.js';
+
 export const TRANSLATOR_SYSTEM_PROMPT = `You are an expert literary translator specializing in novel translation.
 
 Your task is to produce an accurate, natural-sounding translation that:
@@ -71,13 +73,23 @@ If the original text does not contain paragraph markers, return a simple JSON:
   "paragraphs": [
     {"id": "auto_0", "translated": "Full translation text here..."}
   ]
-}`;
+}
+
+## Special Text Blocks
+
+When text block types are configured in the user prompt section "Text Block Types", wrap special text with markers:
+- Format: {{block:type-name}}text{{/block:type-name}}
+- Markers can be block-level (wrapping entire paragraphs) or inline (within text)
+- ONLY use the types listed in the user prompt section "Text Block Types"
+- If no types are configured, do NOT add any markers`;
 
 export const createTranslatorPrompt = (
   sourceText: string,
   glossary: string,
   context: string,
-  styleGuide: string
+  styleGuide: string,
+  textBlockTypes?: TextBlockType[],
+  customInstructions?: string
 ): string => {
   let prompt = '';
 
@@ -91,6 +103,25 @@ export const createTranslatorPrompt = (
 
   if (styleGuide) {
     prompt += `## Style Guide\n${styleGuide}\n\n`;
+  }
+
+  if (textBlockTypes?.length) {
+    const enabled = textBlockTypes.filter((bt) => bt.enabled);
+    if (enabled.length > 0) {
+      prompt += `## Text Block Types\n`;
+      prompt += `Wrap special text with these markers:\n`;
+      for (const bt of enabled) {
+        prompt += `- {{block:${bt.id}}} ... {{/block:${bt.id}}} — ${bt.description}\n`;
+      }
+      prompt += `\nRules:\n`;
+      prompt += `- Only use these types, do not invent new ones\n`;
+      prompt += `- Inline types can appear inside a sentence\n`;
+      prompt += `- Block types wrap entire paragraphs or multi-line content\n\n`;
+    }
+  }
+
+  if (customInstructions?.trim()) {
+    prompt += `## Additional Translation Instructions\n${customInstructions.trim()}\n\n`;
   }
 
   prompt += `## Text to Translate\n\n${sourceText}\n\n`;

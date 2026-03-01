@@ -68,6 +68,8 @@
   --reader-chrome-bg: #151520;
   --reader-chrome-border: rgba(255, 255, 255, 0.08);
   --reader-accent-text: #ffffff;
+  /* Alt background for text blocks (system-message, note, etc.) */
+  --reader-bg-alt: rgba(157, 111, 255, 0.12);
 
   /* =============================================================
      RESPONSIVE LAYOUT - Fixed Sizes for 3 Devices
@@ -190,6 +192,7 @@
 
 [data-reader-theme='dark'] {
   --reader-bg: #1a1a2e;
+  --reader-bg-alt: rgba(157, 111, 255, 0.12);
   --reader-text: #f0f0f3;
   --reader-text-dim: #b4b9c5;
   --reader-accent: #9d6fff;
@@ -200,6 +203,7 @@
 
 [data-reader-theme='light'] {
   --reader-bg: #fafafa;
+  --reader-bg-alt: rgba(124, 58, 237, 0.1);
   --reader-text: #1f1f1f;
   --reader-text-dim: #6b7280;
   --reader-accent: #7c3aed;
@@ -210,6 +214,7 @@
 
 [data-reader-theme='sepia'] {
   --reader-bg: #f4ecd8;
+  --reader-bg-alt: rgba(139, 105, 20, 0.15);
   --reader-text: #5c4b37;
   --reader-text-dim: #8b7355;
   --reader-accent: #8b6914;
@@ -220,6 +225,7 @@
 
 [data-reader-theme='contrast'] {
   --reader-bg: #000000;
+  --reader-bg-alt: rgba(255, 204, 0, 0.15);
   --reader-text: #ffffff;
   --reader-text-dim: #cccccc;
   --reader-accent: #ffcc00;

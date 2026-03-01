@@ -88,4 +88,8 @@ export interface PipelineOptions {
   includeGlossaryInTranslation?: boolean;
   /** When false, editing stage does not receive glossary; chunks 3500. Default true. */
   includeGlossaryInEditing?: boolean;
+  /** Text block types for special formatting (system messages, notes, etc.) */
+  textBlockTypes?: import('./common.js').TextBlockType[];
+  /** Custom instructions for translator and editor stages */
+  customInstructions?: { translation?: string; editing?: string };
 }

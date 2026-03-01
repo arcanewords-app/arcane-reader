@@ -22,6 +22,7 @@ export function HomePage() {
   const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
   const [searchQuery, setSearchQuery] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('');
+  const [orderAsc, setOrderAsc] = useState(false);
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,18 +44,27 @@ export function HomePage() {
     if (targetLanguage) {
       list = list.filter((p) => p.targetLanguage === targetLanguage);
     }
-    if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase().trim();
-    return list.filter((p) => {
-      const title = (p.title || '').toLowerCase();
-      const description = (p.description || '').toLowerCase();
-      const author = (p.authorDisplay || '').toLowerCase();
-      const translator = (p.translatorDisplay || '').toLowerCase();
-      return (
-        title.includes(q) || description.includes(q) || author.includes(q) || translator.includes(q)
-      );
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((p) => {
+        const title = (p.title || '').toLowerCase();
+        const description = (p.description || '').toLowerCase();
+        const author = (p.authorDisplay || '').toLowerCase();
+        const translator = (p.translatorDisplay || '').toLowerCase();
+        return (
+          title.includes(q) ||
+          description.includes(q) ||
+          author.includes(q) ||
+          translator.includes(q)
+        );
+      });
+    }
+    return [...list].sort((a, b) => {
+      const ta = new Date(a.publishedAt || 0).getTime();
+      const tb = new Date(b.publishedAt || 0).getTime();
+      return orderAsc ? ta - tb : tb - ta;
     });
-  }, [publications, searchQuery, targetLanguage]);
+  }, [publications, searchQuery, targetLanguage, orderAsc]);
 
   // Sync filter from URL (e.g. browser back/forward)
   useEffect(() => {
@@ -206,6 +216,22 @@ export function HomePage() {
                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
                 className="home-search-input"
               />
+            </div>
+            <div class="home-order-btns">
+              <button
+                type="button"
+                class={`home-order-btn ${!orderAsc ? 'active' : ''}`}
+                onClick={() => setOrderAsc(false)}
+              >
+                {t('home.orderNewest')}
+              </button>
+              <button
+                type="button"
+                class={`home-order-btn ${orderAsc ? 'active' : ''}`}
+                onClick={() => setOrderAsc(true)}
+              >
+                {t('home.orderOldest')}
+              </button>
             </div>
             <div class="home-language-filter">
               <Select

@@ -582,7 +582,9 @@
     "catalogTab": "All translations",
     "myWorksTab": "My works",
     "noMyPublications": "You have no published works yet",
-    "emptyMyWorksHint": "Publish a project from the cabinet — it will appear here."
+    "emptyMyWorksHint": "Publish a project from the cabinet — it will appear here.",
+    "orderNewest": "Newest first",
+    "orderOldest": "Oldest first"
   },
   "cabinet": {
     "title": "My projects",
@@ -601,7 +603,10 @@
     "filterAll": "All",
     "filterUnread": "Unread",
     "filterRead": "Read",
-    "readingComingSoon": "Reading mode for publications will be available in the next update."
+    "orderFromStart": "First to last",
+    "orderFromEnd": "Last to first",
+    "readingComingSoon": "Reading mode for publications will be available in the next update.",
+    "exportLoginRequired": "Sign in to export this publication."
   },
   "language": {
     "en": "English",
