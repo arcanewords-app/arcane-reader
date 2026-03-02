@@ -14,6 +14,7 @@ data/
 *.db
 
 # IDE
+.cursor/
 .idea/
 .vscode/
 *.swp

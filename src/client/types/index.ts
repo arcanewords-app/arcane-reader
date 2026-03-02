@@ -146,15 +146,43 @@ export interface CustomInstructions {
 
 // === Reader Settings ===
 
-export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast' | 'paper';
-export type FontFamily = 'literary' | 'serif' | 'sans' | 'mono' | 'helvetica';
+export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast' | 'paper' | 'custom';
+export type FontFamily =
+  | 'default'
+  | 'merriweather'
+  | 'montserrat'
+  | 'noto_sans'
+  | 'oswald'
+  | 'roboto'
+  | 'cormorant_garamond'
+  | 'eb_garamond'
+  | 'times_new_roman'
+  | 'georgia'
+  | 'arial'
+  | 'helvetica';
 
 export interface ReaderSettings {
   fontSize: number;
   lineHeight: number;
   fontFamily: FontFamily;
   colorScheme: ColorScheme;
+  textIndent: boolean;
+  textAlign: 'left' | 'justify';
+  hideChapterHeader: boolean;
+  paragraphSpacing: number; // px, 0-24
+  containerWidth: number; // %, 50-100
+  customBg?: string;
+  customText?: string;
 }
+
+/** Legacy font keys for migration from old settings */
+export const LEGACY_FONT_MAP: Record<string, FontFamily> = {
+  literary: 'default',
+  serif: 'cormorant_garamond',
+  sans: 'roboto',
+  mono: 'roboto',
+  helvetica: 'helvetica',
+};
 
 // === Project Settings ===
 

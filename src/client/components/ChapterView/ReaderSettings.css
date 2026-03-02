@@ -13,6 +13,104 @@
   gap: 1.5rem;
 }
 
+.reader-settings-panel-expanded {
+  grid-template-columns: 1fr;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.reader-settings-panel-expanded .settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 520px) {
+  .reader-settings-panel-expanded {
+    grid-template-columns: auto auto;
+    gap: 1.5rem 1.5rem;
+    justify-content: start;
+  }
+}
+
+.reader-settings-panel-expanded .settings-section-theme {
+  grid-column: 1 / -1;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
+.reader-settings-select {
+  max-width: 240px;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toggle-option {
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-hover);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-option:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+.toggle-option.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--text-primary);
+}
+
+.settings-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.settings-checkbox-label input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.theme-preview-colors {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  min-width: 36px;
+  min-height: 36px;
+}
+
 .settings-section {
   display: flex;
   flex-direction: column;
@@ -68,6 +166,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  max-width: 240px;
 }
 
 .slider-label {
@@ -129,31 +228,6 @@
   height: 36px;
   border-radius: 6px;
   font-size: 1.2rem;
-}
-
-.theme-preview-dark {
-  background: #1a1a2e;
-  border: 1px solid #2a2a3a;
-}
-
-.theme-preview-light {
-  background: #fafafa;
-  border: 1px solid #e5e5e5;
-}
-
-.theme-preview-sepia {
-  background: #f4ecd8;
-  border: 1px solid #d4c4a8;
-}
-
-.theme-preview-paper {
-  background: #f5f1e5;
-  border: 1px solid #d4d0c4;
-}
-
-.theme-preview-contrast {
-  background: #000000;
-  border: 1px solid #333;
 }
 
 /* === Settings Panel (General) === */

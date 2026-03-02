@@ -217,30 +217,31 @@ export function HomePage() {
                 className="home-search-input"
               />
             </div>
-            <div class="home-order-btns">
-              <button
-                type="button"
-                class={`home-order-btn ${!orderAsc ? 'active' : ''}`}
-                onClick={() => setOrderAsc(false)}
-              >
-                {t('home.orderNewest')}
-              </button>
-              <button
-                type="button"
-                class={`home-order-btn ${orderAsc ? 'active' : ''}`}
-                onClick={() => setOrderAsc(true)}
-              >
-                {t('home.orderOldest')}
-              </button>
-            </div>
-            <div class="home-language-filter">
-              <Select
-                label={t('home.targetLanguageLabel')}
-                options={targetLanguageOptions}
-                value={targetLanguage}
-                onChange={(e) => setTargetLanguage((e.target as HTMLSelectElement).value)}
-                className="home-language-select"
-              />
+            <div class="home-filters-actions">
+              <div class="home-order-btns">
+                <button
+                  type="button"
+                  class={`home-order-btn ${!orderAsc ? 'active' : ''}`}
+                  onClick={() => setOrderAsc(false)}
+                >
+                  {t('home.orderNewest')}
+                </button>
+                <button
+                  type="button"
+                  class={`home-order-btn ${orderAsc ? 'active' : ''}`}
+                  onClick={() => setOrderAsc(true)}
+                >
+                  {t('home.orderOldest')}
+                </button>
+              </div>
+              <div class="home-language-filter">
+                <Select
+                  options={targetLanguageOptions}
+                  value={targetLanguage}
+                  onChange={(e) => setTargetLanguage((e.target as HTMLSelectElement).value)}
+                  className="home-language-select"
+                />
+              </div>
             </div>
           </div>
           {filteredPublications.length === 0 ? (

@@ -24,6 +24,8 @@ import {
   parseTextToParagraphs,
   mergeParagraphsToText,
   DEFAULT_READER_SETTINGS,
+  getReaderSettings as getReaderSettingsFromStorage,
+  LEGACY_FONT_MAP,
 } from '../storage/database.js';
 import { logger } from '../logger.js';
 
@@ -759,11 +761,14 @@ export async function updateReaderSettings(
     return undefined;
   }
 
-  // Merge reader settings
-  const updatedReaderSettings = {
-    ...project.settings.reader,
-    ...updates,
-  };
+  // Merge reader settings (getReaderSettings handles legacy migration)
+  const current = getReaderSettingsFromStorage(project);
+  const merged: ReaderSettings = { ...current, ...updates };
+  merged.fontSize = Math.max(14, Math.min(24, merged.fontSize));
+  merged.lineHeight = Math.max(1.4, Math.min(2.0, merged.lineHeight));
+  merged.paragraphSpacing = Math.max(0, Math.min(24, merged.paragraphSpacing));
+  merged.containerWidth = Math.max(50, Math.min(100, merged.containerWidth));
+  const updatedReaderSettings = merged;
 
   // Update project settings
   const updatedSettings = {
@@ -785,10 +790,10 @@ export async function updateReaderSettings(
 }
 
 /**
- * Get reader settings from project
+ * Get reader settings from project (with defaults and legacy migration)
  */
 export function getReaderSettings(project: Project | ProjectWithChapterList): ReaderSettings {
-  return project.settings.reader || DEFAULT_READER_SETTINGS;
+  return getReaderSettingsFromStorage(project as Project);
 }
 
 /**
@@ -815,9 +820,21 @@ export async function getUserReaderSettings(
   const s = data.settings as Record<string, unknown>;
   if (typeof s !== 'object' || s === null) return null;
 
+  let fontFamily =
+    (s.fontFamily as ReaderSettings['fontFamily']) ?? DEFAULT_READER_SETTINGS.fontFamily;
+  const legacyMapped = LEGACY_FONT_MAP[fontFamily as string];
+  if (legacyMapped) fontFamily = legacyMapped;
+
+  let paragraphSpacing =
+    s.paragraphSpacing != null
+      ? Number(s.paragraphSpacing)
+      : DEFAULT_READER_SETTINGS.paragraphSpacing;
+  if (paragraphSpacing > 0 && paragraphSpacing <= 2)
+    paragraphSpacing = DEFAULT_READER_SETTINGS.paragraphSpacing;
+
   return {
-    fontFamily:
-      (s.fontFamily as ReaderSettings['fontFamily']) ?? DEFAULT_READER_SETTINGS.fontFamily,
+    ...DEFAULT_READER_SETTINGS,
+    fontFamily,
     fontSize: Math.max(14, Math.min(24, Number(s.fontSize) || DEFAULT_READER_SETTINGS.fontSize)),
     lineHeight: Math.max(
       1.4,
@@ -825,10 +842,20 @@ export async function getUserReaderSettings(
     ),
     colorScheme:
       (s.colorScheme as ReaderSettings['colorScheme']) ?? DEFAULT_READER_SETTINGS.colorScheme,
-    paragraphSpacing:
-      s.paragraphSpacing != null
-        ? Math.max(0.5, Math.min(2.0, Number(s.paragraphSpacing)))
-        : DEFAULT_READER_SETTINGS.paragraphSpacing,
+    textIndent:
+      s.textIndent !== undefined ? Boolean(s.textIndent) : DEFAULT_READER_SETTINGS.textIndent,
+    textAlign: (s.textAlign as ReaderSettings['textAlign']) ?? DEFAULT_READER_SETTINGS.textAlign,
+    hideChapterHeader:
+      s.hideChapterHeader !== undefined
+        ? Boolean(s.hideChapterHeader)
+        : DEFAULT_READER_SETTINGS.hideChapterHeader,
+    paragraphSpacing: Math.max(0, Math.min(24, paragraphSpacing)),
+    containerWidth: Math.max(
+      50,
+      Math.min(100, Number(s.containerWidth) || DEFAULT_READER_SETTINGS.containerWidth)
+    ),
+    customBg: typeof s.customBg === 'string' ? s.customBg : undefined,
+    customText: typeof s.customText === 'string' ? s.customText : undefined,
   };
 }
 
@@ -852,7 +879,14 @@ export async function updateUserReaderSettings(
   // Clamp values
   merged.fontSize = Math.max(14, Math.min(24, merged.fontSize));
   merged.lineHeight = Math.max(1.4, Math.min(2.0, merged.lineHeight));
-  merged.paragraphSpacing = Math.max(0.5, Math.min(2.0, merged.paragraphSpacing ?? 1.2));
+  merged.paragraphSpacing = Math.max(
+    0,
+    Math.min(24, merged.paragraphSpacing ?? DEFAULT_READER_SETTINGS.paragraphSpacing)
+  );
+  merged.containerWidth = Math.max(
+    50,
+    Math.min(100, merged.containerWidth ?? DEFAULT_READER_SETTINGS.containerWidth)
+  );
 
   const { error } = await client.from('user_reader_settings').upsert(
     {
@@ -862,7 +896,13 @@ export async function updateUserReaderSettings(
         fontSize: merged.fontSize,
         lineHeight: merged.lineHeight,
         colorScheme: merged.colorScheme,
+        textIndent: merged.textIndent,
+        textAlign: merged.textAlign,
+        hideChapterHeader: merged.hideChapterHeader,
         paragraphSpacing: merged.paragraphSpacing,
+        containerWidth: merged.containerWidth,
+        customBg: merged.customBg,
+        customText: merged.customText,
       },
       updated_at: new Date().toISOString(),
     },

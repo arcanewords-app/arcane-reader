@@ -139,8 +139,14 @@
   cursor: default;
 }
 
+.reading-mode-settings-overlay {
+  align-items: flex-end;
+}
+
 .reading-mode-settings-overlay .reading-mode-settings-panel {
   cursor: default;
+  width: fit-content;
+  max-width: min(560px, 95vw);
 }
 
 .reading-mode-settings-panel {
@@ -216,7 +222,7 @@
 }
 
 .reading-mode-text {
-  max-width: var(--reading-text-max-width-mobile);
+  max-width: min(var(--reader-container-width, 69%), 900px);
   width: 100%;
   font-family: var(--reader-font);
   font-size: var(--reader-font-size);
@@ -227,7 +233,7 @@
 .reading-mode-paragraph {
   color: var(--reader-text);
   line-height: var(--reader-line-height);
-  margin-bottom: var(--reader-paragraph-spacing, 1.2em);
+  margin-bottom: var(--reader-paragraph-spacing, 8px);
   text-align: justify;
   text-indent: 1.5em;
 }

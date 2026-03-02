@@ -8,6 +8,7 @@ import type {
   ReaderSettings,
   GlossaryEntry,
 } from '../../types';
+import { LEGACY_FONT_MAP } from '../../types';
 import { api } from '../../api/client';
 import { authService } from '../../services/authService';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
@@ -44,10 +45,15 @@ interface ReadingModeProps {
 }
 
 const defaultReaderSettings: ReaderSettings = {
-  fontSize: 18,
-  lineHeight: 1.7,
-  fontFamily: 'literary',
+  fontSize: 16,
+  lineHeight: 1.6,
+  fontFamily: 'default',
   colorScheme: 'dark',
+  textIndent: true,
+  textAlign: 'justify',
+  hideChapterHeader: false,
+  paragraphSpacing: 8,
+  containerWidth: 69,
 };
 
 export function ReadingMode({
@@ -70,9 +76,14 @@ export function ReadingMode({
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(
-    project?.settings?.reader || defaultReaderSettings
-  );
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
+    const raw = project?.settings?.reader;
+    if (!raw) return { ...defaultReaderSettings };
+    let fontFamily = raw.fontFamily ?? defaultReaderSettings.fontFamily;
+    const legacy = LEGACY_FONT_MAP[fontFamily as keyof typeof LEGACY_FONT_MAP];
+    if (legacy) fontFamily = legacy;
+    return { ...defaultReaderSettings, ...raw, fontFamily };
+  });
   const [readerSettingsLoaded, setReaderSettingsLoaded] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [chapters, setChapters] = useState<ReaderChapter[]>([]);
@@ -259,8 +270,22 @@ export function ReadingMode({
     const root = document.documentElement;
     root.style.setProperty('--reader-font-size', `${readerSettings.fontSize}px`);
     root.style.setProperty('--reader-line-height', `${readerSettings.lineHeight}`);
+    root.style.setProperty(
+      '--reader-paragraph-spacing',
+      `${readerSettings.paragraphSpacing ?? 8}px`
+    );
+    root.style.setProperty('--reader-container-width', `${readerSettings.containerWidth ?? 69}%`);
     root.setAttribute('data-reader-font', readerSettings.fontFamily);
     root.setAttribute('data-reader-theme', readerSettings.colorScheme);
+    root.setAttribute('data-reader-indent', (readerSettings.textIndent ?? true) ? 'true' : 'false');
+    root.setAttribute('data-reader-align', readerSettings.textAlign ?? 'justify');
+    if (readerSettings.colorScheme === 'custom') {
+      root.style.setProperty('--reader-bg', readerSettings.customBg ?? '#f2f2f3');
+      root.style.setProperty('--reader-text', readerSettings.customText ?? '#212529');
+    } else {
+      root.style.removeProperty('--reader-bg');
+      root.style.removeProperty('--reader-text');
+    }
   }, [readerSettings]);
 
   // Scroll content area to top when chapter changes
@@ -469,18 +494,20 @@ export function ReadingMode({
           <button class="reading-mode-exit-btn" onClick={onExit} title={t('readingMode.exitTitle')}>
             ← {t('common.back')}
           </button>
-          <div class="reading-mode-title">
-            <span class="reading-mode-chapter-title">
-              {currentChapter?.title ||
-                t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
-            </span>
-            <span class="reading-mode-chapter-info">
-              {t('readingMode.chapterOf', {
-                current: currentChapterIndex + 1,
-                total: chapters.length,
-              })}
-            </span>
-          </div>
+          {!readerSettings.hideChapterHeader && (
+            <div class="reading-mode-title">
+              <span class="reading-mode-chapter-title">
+                {currentChapter?.title ||
+                  t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
+              </span>
+              <span class="reading-mode-chapter-info">
+                {t('readingMode.chapterOf', {
+                  current: currentChapterIndex + 1,
+                  total: chapters.length,
+                })}
+              </span>
+            </div>
+          )}
         </div>
         <div class="reading-mode-header-right">
           {isPublicationMode && publicationGlossaryCount > 0 && (
@@ -539,10 +566,12 @@ export function ReadingMode({
         >
           ‹
         </button>
-        <div class="reading-mode-nav-info">
-          {currentChapter?.title ||
-            t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
-        </div>
+        {!readerSettings.hideChapterHeader && (
+          <div class="reading-mode-nav-info">
+            {currentChapter?.title ||
+              t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
+          </div>
+        )}
         <button
           class="reading-mode-nav-btn reading-mode-nav-btn-icon"
           onClick={handleNextChapter}

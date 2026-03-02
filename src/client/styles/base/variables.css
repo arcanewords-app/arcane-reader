@@ -57,10 +57,11 @@
   --duration-slow: 0.3s;
 
   /* ===== READER SETTINGS ===== */
-  --reader-font: 'Literata', Georgia, serif;
-  --reader-font-size: 18px;
-  --reader-line-height: 1.75;
-  --reader-paragraph-spacing: 1.2em;
+  --reader-font: Georgia, 'Times New Roman', serif;
+  --reader-font-size: 16px;
+  --reader-line-height: 1.6;
+  --reader-paragraph-spacing: 8px;
+  --reader-container-width: 69%;
   --reader-bg: #1a1a2e;
   --reader-text: #f0f0f3;
   --reader-text-dim: #b4b9c5;
@@ -247,22 +248,62 @@
 
 /* === Reader Font Families === */
 
-[data-reader-font='literary'] {
-  --reader-font: 'Literata', Georgia, serif;
+[data-reader-font='default'] {
+  --reader-font: Georgia, 'Times New Roman', serif;
 }
 
-[data-reader-font='serif'] {
-  --reader-font: 'Charter', 'Bitstream Charter', Cambria, serif;
+[data-reader-font='merriweather'] {
+  --reader-font: 'Merriweather', Georgia, serif;
 }
 
-[data-reader-font='sans'] {
-  --reader-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+[data-reader-font='montserrat'] {
+  --reader-font: 'Montserrat', sans-serif;
 }
 
-[data-reader-font='mono'] {
-  --reader-font: 'JetBrains Mono', 'Fira Code', monospace;
+[data-reader-font='noto_sans'] {
+  --reader-font: 'Noto Sans', sans-serif;
+}
+
+[data-reader-font='oswald'] {
+  --reader-font: 'Oswald', sans-serif;
+}
+
+[data-reader-font='roboto'] {
+  --reader-font: 'Roboto', sans-serif;
+}
+
+[data-reader-font='cormorant_garamond'] {
+  --reader-font: 'Cormorant Garamond', Georgia, serif;
+}
+
+[data-reader-font='eb_garamond'] {
+  --reader-font: 'EB Garamond', Georgia, serif;
+}
+
+[data-reader-font='times_new_roman'] {
+  --reader-font: 'Times New Roman', Times, serif;
+}
+
+[data-reader-font='georgia'] {
+  --reader-font: Georgia, serif;
+}
+
+[data-reader-font='arial'] {
+  --reader-font: Arial, Helvetica, sans-serif;
 }
 
 [data-reader-font='helvetica'] {
-  --reader-font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --reader-font: Helvetica, sans-serif;
+}
+
+/* === Reader Indent & Align === */
+
+[data-reader-indent='false'] .reading-mode-paragraph,
+[data-reader-indent='false'] .paragraph-cell {
+  text-indent: 0;
+}
+
+[data-reader-align='left'] .reading-mode-paragraph,
+[data-reader-align='left'] .paragraph-cell {
+  text-align: left;
 }

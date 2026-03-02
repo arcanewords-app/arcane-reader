@@ -167,10 +167,22 @@ export interface GlossaryEntry {
 }
 
 /** Font family options for reader */
-export type FontFamily = 'literary' | 'serif' | 'sans' | 'mono';
+export type FontFamily =
+  | 'default'
+  | 'merriweather'
+  | 'montserrat'
+  | 'noto_sans'
+  | 'oswald'
+  | 'roboto'
+  | 'cormorant_garamond'
+  | 'eb_garamond'
+  | 'times_new_roman'
+  | 'georgia'
+  | 'arial'
+  | 'helvetica';
 
 /** Color scheme options */
-export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast';
+export type ColorScheme = 'dark' | 'light' | 'sepia' | 'contrast' | 'paper' | 'custom';
 
 /** Reader display settings */
 export interface ReaderSettings {
@@ -181,18 +193,37 @@ export interface ReaderSettings {
 
   // Colors
   colorScheme: ColorScheme;
+  customBg?: string;
+  customText?: string;
 
-  // Spacing
-  paragraphSpacing: number; // 0.5-2.0em
+  // Layout
+  textIndent: boolean;
+  textAlign: 'left' | 'justify';
+  hideChapterHeader: boolean;
+  paragraphSpacing: number; // px, 0-24
+  containerWidth: number; // %, 50-100
 }
 
 /** Default reader settings */
 export const DEFAULT_READER_SETTINGS: ReaderSettings = {
-  fontFamily: 'literary',
-  fontSize: 18,
-  lineHeight: 1.7,
+  fontFamily: 'default',
+  fontSize: 16,
+  lineHeight: 1.6,
   colorScheme: 'dark',
-  paragraphSpacing: 1.2,
+  textIndent: true,
+  textAlign: 'justify',
+  hideChapterHeader: false,
+  paragraphSpacing: 8,
+  containerWidth: 69,
+};
+
+/** Legacy font keys for migration from old settings */
+export const LEGACY_FONT_MAP: Record<string, FontFamily> = {
+  literary: 'default',
+  serif: 'cormorant_garamond',
+  sans: 'roboto',
+  mono: 'roboto',
+  helvetica: 'helvetica',
 };
 
 /** Text block HTML tag options */
@@ -526,13 +557,26 @@ export async function updateReaderSettings(
 
   if (!project) return undefined;
 
-  // Ensure reader settings exist (migration for old projects)
+  // Ensure reader settings exist and have all fields (migration for old projects)
   if (!project.settings.reader) {
     project.settings.reader = { ...DEFAULT_READER_SETTINGS };
   }
-
-  // Merge updates with validation
   const reader = project.settings.reader;
+
+  // Migrate legacy reader: ensure all new fields exist
+  const defaults = DEFAULT_READER_SETTINGS;
+  if (reader.textIndent === undefined) reader.textIndent = defaults.textIndent;
+  if (reader.textAlign === undefined) reader.textAlign = defaults.textAlign;
+  if (reader.hideChapterHeader === undefined) reader.hideChapterHeader = defaults.hideChapterHeader;
+  if (reader.containerWidth === undefined) reader.containerWidth = defaults.containerWidth;
+  if (
+    reader.paragraphSpacing === undefined ||
+    (reader.paragraphSpacing > 0 && reader.paragraphSpacing <= 2)
+  ) {
+    reader.paragraphSpacing = defaults.paragraphSpacing;
+  }
+  const legacyFont = LEGACY_FONT_MAP[reader.fontFamily as string];
+  if (legacyFont) reader.fontFamily = legacyFont;
 
   if (updates.fontFamily) reader.fontFamily = updates.fontFamily;
   if (updates.fontSize !== undefined) {
@@ -541,9 +585,17 @@ export async function updateReaderSettings(
   if (updates.lineHeight !== undefined) {
     reader.lineHeight = Math.max(1.4, Math.min(2.0, updates.lineHeight));
   }
-  if (updates.colorScheme) reader.colorScheme = updates.colorScheme;
+  if (updates.colorScheme !== undefined) reader.colorScheme = updates.colorScheme;
+  if (updates.customBg !== undefined) reader.customBg = updates.customBg;
+  if (updates.customText !== undefined) reader.customText = updates.customText;
+  if (updates.textIndent !== undefined) reader.textIndent = updates.textIndent;
+  if (updates.textAlign !== undefined) reader.textAlign = updates.textAlign;
+  if (updates.hideChapterHeader !== undefined) reader.hideChapterHeader = updates.hideChapterHeader;
   if (updates.paragraphSpacing !== undefined) {
-    reader.paragraphSpacing = Math.max(0.5, Math.min(2.0, updates.paragraphSpacing));
+    reader.paragraphSpacing = Math.max(0, Math.min(24, updates.paragraphSpacing));
+  }
+  if (updates.containerWidth !== undefined) {
+    reader.containerWidth = Math.max(50, Math.min(100, updates.containerWidth));
   }
 
   project.updatedAt = new Date().toISOString();
@@ -553,10 +605,40 @@ export async function updateReaderSettings(
 }
 
 /**
- * Get reader settings for a project (with defaults for old projects)
+ * Get reader settings for a project (with defaults for old projects).
+ * Accepts Project or ProjectWithChapterList - only settings.reader is used.
  */
-export function getReaderSettings(project: Project): ReaderSettings {
-  return project.settings.reader || { ...DEFAULT_READER_SETTINGS };
+export function getReaderSettings(
+  project: Project | { settings: ProjectSettings }
+): ReaderSettings {
+  const raw = project.settings.reader;
+  if (!raw) return { ...DEFAULT_READER_SETTINGS };
+
+  let fontFamily = raw.fontFamily ?? DEFAULT_READER_SETTINGS.fontFamily;
+  const legacyMapped = LEGACY_FONT_MAP[fontFamily as string];
+  if (legacyMapped) fontFamily = legacyMapped;
+
+  // Legacy paragraphSpacing was 0.5-2.0 (em); new is 0-24 (px). Use default for old format.
+  let paragraphSpacing = raw.paragraphSpacing ?? DEFAULT_READER_SETTINGS.paragraphSpacing;
+  if (paragraphSpacing > 0 && paragraphSpacing <= 2)
+    paragraphSpacing = DEFAULT_READER_SETTINGS.paragraphSpacing;
+
+  const merged: ReaderSettings = {
+    ...DEFAULT_READER_SETTINGS,
+    fontFamily,
+    fontSize: raw.fontSize ?? DEFAULT_READER_SETTINGS.fontSize,
+    lineHeight: raw.lineHeight ?? DEFAULT_READER_SETTINGS.lineHeight,
+    colorScheme: raw.colorScheme ?? DEFAULT_READER_SETTINGS.colorScheme,
+    textIndent: raw.textIndent ?? DEFAULT_READER_SETTINGS.textIndent,
+    textAlign: raw.textAlign ?? DEFAULT_READER_SETTINGS.textAlign,
+    hideChapterHeader: raw.hideChapterHeader ?? DEFAULT_READER_SETTINGS.hideChapterHeader,
+    paragraphSpacing,
+    containerWidth: raw.containerWidth ?? DEFAULT_READER_SETTINGS.containerWidth,
+  };
+  if (raw.customBg != null) merged.customBg = raw.customBg;
+  if (raw.customText != null) merged.customText = raw.customText;
+
+  return merged;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
