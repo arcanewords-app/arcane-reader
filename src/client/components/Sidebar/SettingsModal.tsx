@@ -465,6 +465,38 @@ export function SettingsModal({
             </div>
             <div style={{ marginTop: '0.75rem' }}>
               <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
+                {t('settings.editingStylePreset')}
+              </label>
+              <select
+                class="setting-select"
+                value={settings.editingStylePreset ?? 'default'}
+                onChange={async (e) => {
+                  const value = (e.target as HTMLSelectElement).value as
+                    | 'default'
+                    | 'literary'
+                    | 'minimal';
+                  const updated = await api.updateSettings(project.id, {
+                    editingStylePreset: value,
+                  });
+                  onSettingsChange(updated);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <option value="default">{t('settings.editingStylePreset.default')}</option>
+                <option value="literary">{t('settings.editingStylePreset.literary')}</option>
+                <option value="minimal">{t('settings.editingStylePreset.minimal')}</option>
+              </select>
+            </div>
+            <div style={{ marginTop: '0.75rem' }}>
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
                 Custom instructions for editor
               </label>
               <textarea

@@ -92,4 +92,6 @@ export interface PipelineOptions {
   textBlockTypes?: import('./common.js').TextBlockType[];
   /** Custom instructions for translator and editor stages */
   customInstructions?: { translation?: string; editing?: string };
+  /** Editing style preset: default, literary, minimal */
+  editingStylePreset?: import('../prompts/system/editor.js').EditingStylePreset;
 }

@@ -96,7 +96,9 @@ export function ReadingMode({
   const isPublicationMode = !!publicationId;
   const lastScrollTopRef = useRef(0);
   const scrollAccumRef = useRef(0);
+  const scrollUpAccumRef = useRef(0);
   const scrollThreshold = 50;
+  const scrollUpThreshold = 50;
 
   // Merge initialChapterContent when it arrives (e.g. from preload in PublicationReadingPage)
   useEffect(() => {
@@ -225,6 +227,70 @@ export function ReadingMode({
     isOriginalReadingMode,
   ]);
 
+  // Preload adjacent chapters (prev, next) in background — does not block UI
+  useEffect(() => {
+    if (chapters.length <= 1) return;
+
+    const controller = new AbortController();
+    const toPreload: ReaderChapter[] = [];
+    if (currentChapterIndex > 0) toPreload.push(chapters[currentChapterIndex - 1]);
+    if (currentChapterIndex < chapters.length - 1) toPreload.push(chapters[currentChapterIndex + 1]);
+
+    const needPreload = toPreload.filter((ch) => !chapterContentMap[ch.id]);
+    if (needPreload.length === 0) return;
+
+    const runPreload = () => {
+      needPreload.forEach((ch) => {
+        if (controller.signal.aborted) return;
+
+        if (isPublicationMode && publicationId) {
+          api
+            .getPublicationChapter(publicationId, ch.id, controller.signal)
+            .then((data) => {
+              if (controller.signal.aborted) return;
+              setChapterContentMap((prev) => ({ ...prev, [data.id]: data.translatedText }));
+            })
+            .catch(() => {});
+        } else if (project) {
+          api
+            .getChapter(project.id, ch.id, controller.signal)
+            .then((fullChapter) => {
+              if (controller.signal.aborted) return;
+              const text = isOriginalReadingMode
+                ? fullChapter.originalText || ''
+                : fullChapter.paragraphs && fullChapter.paragraphs.length > 0
+                  ? fullChapter.paragraphs
+                      .sort((a, b) => a.index - b.index)
+                      .filter((p) => p.translatedText)
+                      .map((p) => p.translatedText!)
+                      .join('\n\n')
+                  : fullChapter.translatedText || '';
+              setChapterContentMap((prev) => ({ ...prev, [fullChapter.id]: text }));
+            })
+            .catch(() => {});
+        }
+      });
+    };
+
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(runPreload, { timeout: 500 });
+      return () => {
+        cancelIdleCallback(id);
+        controller.abort();
+      };
+    }
+    runPreload();
+    return () => controller.abort();
+  }, [
+    chapters,
+    currentChapterIndex,
+    chapterContentMap,
+    isPublicationMode,
+    publicationId,
+    project,
+    isOriginalReadingMode,
+  ]);
+
   // Reset "scrolled to end" flag when chapter changes
   useEffect(() => {
     scrolledToEndRef.current = false;
@@ -294,6 +360,7 @@ export function ReadingMode({
       contentRef.current.scrollTop = 0;
       lastScrollTopRef.current = 0;
       scrollAccumRef.current = 0;
+      scrollUpAccumRef.current = 0;
       setMenuVisible(true);
     }
   }, [currentChapterIndex]);
@@ -313,6 +380,7 @@ export function ReadingMode({
         lastScrollTopRef.current = scrollTop;
 
         if (delta > 0) {
+          scrollUpAccumRef.current = 0;
           scrollAccumRef.current += delta;
           if (scrollAccumRef.current > scrollThreshold) {
             setMenuVisible(false);
@@ -321,7 +389,11 @@ export function ReadingMode({
           }
         } else if (delta < 0) {
           scrollAccumRef.current = 0;
-          setMenuVisible(true);
+          scrollUpAccumRef.current += Math.abs(delta);
+          if (scrollUpAccumRef.current > scrollUpThreshold) {
+            setMenuVisible(true);
+            scrollUpAccumRef.current = 0;
+          }
         }
       });
     };

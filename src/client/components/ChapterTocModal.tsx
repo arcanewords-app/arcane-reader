@@ -32,26 +32,35 @@ export function ChapterTocModal({
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
-  // Reset search when modal closes
+  // Reset search and filter when modal closes
   useEffect(() => {
     if (!isOpen) {
       setSearch('');
+      setFilter('all');
     }
   }, [isOpen]);
 
   const filteredChapters = useMemo(() => {
-    const filtered = chapters.filter((ch) => {
+    let filtered = chapters.filter((ch) => {
       if (!search) return true;
       const q = search.toLowerCase();
       const titleMatch = (ch.title || '').toLowerCase().includes(q);
       const numberMatch = String(ch.number).includes(search);
       return titleMatch || numberMatch;
     });
+    if (readChapterIds) {
+      if (filter === 'read') {
+        filtered = filtered.filter((ch) => readChapterIds.has(ch.id));
+      } else if (filter === 'unread') {
+        filtered = filtered.filter((ch) => !readChapterIds.has(ch.id));
+      }
+    }
     return [...filtered].sort((a, b) =>
       order === 'desc' ? b.number - a.number : a.number - b.number
     );
-  }, [chapters, search, order]);
+  }, [chapters, search, order, filter, readChapterIds]);
 
   const displayTitle = title ?? `📑 ${t('readingMode.toc')}`;
 
@@ -92,6 +101,31 @@ export function ChapterTocModal({
             {t('publication.orderFromEnd')}
           </button>
         </div>
+        {readChapterIds && (
+          <div class="toc-filter-btns">
+            <button
+              type="button"
+              class={`toc-order-btn ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              {t('publication.filterAll')}
+            </button>
+            <button
+              type="button"
+              class={`toc-order-btn ${filter === 'unread' ? 'active' : ''}`}
+              onClick={() => setFilter('unread')}
+            >
+              {t('publication.filterUnread')}
+            </button>
+            <button
+              type="button"
+              class={`toc-order-btn ${filter === 'read' ? 'active' : ''}`}
+              onClick={() => setFilter('read')}
+            >
+              {t('publication.filterRead')}
+            </button>
+          </div>
+        )}
       </div>
       <div class="reading-toc-list">
         {filteredChapters.length === 0 ? (

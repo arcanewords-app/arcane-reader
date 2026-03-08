@@ -1,0 +1,23 @@
+---
+description: Express server, middleware, Supabase
+globs: src/server.ts,src/middleware/**,api/**
+alwaysApply: false
+---
+
+# API Rules
+
+## Server
+
+- Express. Entry: `src/server.ts`. Routes: projects, chapters, glossary, publications, import, export.
+- Auth: `requireAuth`, `optionalAuth` from `@src/middleware/auth.ts`.
+- Errors: `handleServiceError`, `serviceUnavailableErrorHandler` from `@src/middleware/serviceHealth.ts`.
+
+## Database
+
+- Supabase: `@src/services/supabaseDatabase.ts`. Types: `@src/storage/database.ts`.
+- snake_case for columns. Use existing DB functions.
+
+## Middleware
+
+- `requestContext` — request ID. `requestLogging` — access logs.
+- `auth` — JWT, optionalAuth for public routes.

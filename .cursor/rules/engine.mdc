@@ -1,0 +1,29 @@
+---
+description: Engine, pipeline, glossary, prompts, Text Blocks
+globs: src/engine/**
+alwaysApply: false
+---
+
+# Engine Rules
+
+## Pipeline
+
+3 stages: Analyze → Translate → Edit. See `@src/engine/index.ts` exports.
+
+- Stages in `src/engine/stages/`. Each stage returns `StageResult`.
+- Types: `@src/engine/types/pipeline.ts`, `@src/engine/types/glossary.ts`.
+
+## Glossary
+
+- `GlossaryManager` — CRUD. `filterGlossaryForChunk` — inject into prompts.
+- Declension: `declineName`, `declineNameRu` from `glossary/declension*.ts`.
+- DB: snake_case (gender, location_type, term_category).
+
+## Prompts
+
+- `src/engine/prompts/system/` — analyzer, translator, editor.
+- `createAnalyzerPrompt`, `createTranslatorPrompt`, `createEditorPrompt` — use these, don't inline prompts.
+
+## Text Blocks
+
+Markers: `{{block:type-id}}text{{/block:type-id}}`. Types in `@src/engine/constants/text-block-presets.ts`. Use markers, not raw HTML.

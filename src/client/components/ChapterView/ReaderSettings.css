@@ -746,6 +746,11 @@
 
 /* Responsive Styles */
 @media (max-width: 767px) {
+  /* Hide container width on mobile - always 97% */
+  .reader-settings-panel .settings-section-container-width {
+    display: none;
+  }
+
   .reader-settings-panel {
     padding: 1rem;
     gap: 1.25rem;

@@ -532,10 +532,31 @@
 
 /* Responsive Styles */
 
-/* Mobile: hide duplicate nav (footer has Prev/Next), font applies correctly */
-@media (max-width: 768px) {
+/* Mobile: hide duplicate nav (footer has Prev/Next), full-width text, font applies correctly */
+@media (max-width: 767px) {
   .reading-mode-nav {
     display: none;
+  }
+
+  .reading-mode-text {
+    max-width: 97%;
+    font-size: max(var(--reader-font-size), 16px);
+  }
+
+  /* Bottom sheet for settings panel on mobile */
+  .reading-mode-settings-overlay {
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+
+  .reading-mode-settings-overlay .reading-mode-settings-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    border-top: 1px solid var(--reader-chrome-border);
   }
 
   /* Scroll-based hide: slide chrome off-screen when scrolling down */
@@ -686,8 +707,13 @@
   }
 
   .reading-mode-text {
-    font-size: var(--reader-font-size);
+    font-size: max(var(--reader-font-size), 16px);
     font-family: var(--reader-font);
+  }
+
+  /* Smaller indent on narrow screens */
+  [data-reader-indent='true'] .reading-mode-paragraph:not(:first-child) {
+    text-indent: 1em;
   }
 
   .reading-mode-footer {

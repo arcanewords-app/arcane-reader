@@ -342,6 +342,7 @@ export async function translateChapterWithPipeline(
       ...(project.settings?.customInstructions && {
         customInstructions: project.settings.customInstructions,
       }),
+      editingStylePreset: project.settings.editingStylePreset ?? 'default',
     };
     if (Array.isArray(stages)) {
       pipelineOpts.runStages = stages;

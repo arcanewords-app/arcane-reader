@@ -294,8 +294,12 @@ export const api = {
     );
   },
 
-  async getChapter(projectId: string, chapterId: string): Promise<Chapter> {
-    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`);
+  async getChapter(
+    projectId: string,
+    chapterId: string,
+    signal?: AbortSignal
+  ): Promise<Chapter> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
   },
 
   /** Lightweight: only chapter status (for polling during translation) */
@@ -608,9 +612,10 @@ export const api = {
   /** Get single chapter content for public reading (translated text only) */
   async getPublicationChapter(
     publicationId: string,
-    chapterId: string
+    chapterId: string,
+    signal?: AbortSignal
   ): Promise<{ id: string; number: number; title: string; translatedText: string }> {
-    return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}`);
+    return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}`, { signal });
   },
 
   /** Publish project (auth required) */

@@ -228,6 +228,7 @@ export class TranslationPipeline {
         includeGlossary: onlyEditIncludeGlossary,
         temperature: options.temperatureByStage?.editing,
         customInstructions: options.customInstructions?.editing,
+        editingStylePreset: options.editingStylePreset,
       });
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
@@ -320,6 +321,7 @@ export class TranslationPipeline {
           chunkSize: editOnlyChunkSize,
           includeGlossary: editOnlyIncludeGlossary,
           customInstructions: options.customInstructions?.editing,
+          editingStylePreset: options.editingStylePreset,
         });
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
@@ -415,6 +417,7 @@ export class TranslationPipeline {
         includeGlossary: includeGlossaryInEditing,
         temperature: options.temperatureByStage?.editing,
         customInstructions: options.customInstructions?.editing,
+        editingStylePreset: options.editingStylePreset,
       });
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {

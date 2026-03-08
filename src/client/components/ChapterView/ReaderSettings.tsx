@@ -171,7 +171,7 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section settings-section-container-width">
           <label class="settings-label">{t('reader.containerWidth')}</label>
           <div class="slider-row">
             <input

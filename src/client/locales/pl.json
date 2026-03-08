@@ -193,6 +193,10 @@
     "includeGlossaryInTranslationHint": "Wył.: terminy w redakcji, większe chunki (3500). Mniej tokenów.",
     "includeGlossaryInEditing": "Glosariusz w redakcji",
     "includeGlossaryInEditingHint": "Wył.: redakcja bez glosariusza w prompcie, większe chunki (3500). Mniej tokenów.",
+    "editingStylePreset": "Styl redakcji",
+    "editingStylePreset.default": "Standardowy",
+    "editingStylePreset.literary": "Literacki",
+    "editingStylePreset.minimal": "Minimalny",
     "modelDesc": {
       "gpt-5-mini": "Najlepsza jakość tłumaczenia, uniwersalna",
       "gpt-5-nano": "Szybka i tania, lekkie zadania",

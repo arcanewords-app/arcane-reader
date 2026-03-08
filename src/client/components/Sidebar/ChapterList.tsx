@@ -1258,11 +1258,16 @@ export function ChapterList({
                     </div>
                     <div class="queue-item-actions">
                       {item.status === 'error' && (
-                        <button type="button" class="small" onClick={() => retryItem(item.id)}>
-                          {t('common.retry') || 'Retry'}
-                        </button>
+                        <>
+                          <button type="button" class="small" onClick={() => retryItem(item.id)}>
+                            {t('common.retry') || 'Retry'}
+                          </button>
+                          <button type="button" class="small" onClick={() => removeItem(item.id)}>
+                            {t('common.remove') || 'Remove'}
+                          </button>
+                        </>
                       )}
-                      {item.status === 'pending' && (
+                      {(item.status === 'pending' || item.status === 'canceled') && (
                         <button type="button" class="small" onClick={() => removeItem(item.id)}>
                           {t('common.remove') || 'Remove'}
                         </button>

@@ -612,6 +612,7 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
       includeGlossaryInEditing,
       textBlockTypes,
       customInstructions,
+      editingStylePreset,
     } = req.body;
 
     // Preserve existing reader settings
@@ -658,6 +659,9 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
     }
     if (customInstructions !== undefined) {
       updatedSettings.customInstructions = customInstructions;
+    }
+    if (editingStylePreset !== undefined) {
+      updatedSettings.editingStylePreset = editingStylePreset;
     }
 
     await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);

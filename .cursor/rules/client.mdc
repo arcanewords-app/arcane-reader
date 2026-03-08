@@ -1,0 +1,27 @@
+---
+description: Preact components, hooks, i18n
+globs: src/client/**
+alwaysApply: false
+---
+
+# Client Rules
+
+## Components
+
+- Preact (functional). Use `class` not `className`.
+- Import CSS alongside component: `import './Component.css'`.
+- UI primitives: `@src/client/components/ui/` (Button, Modal, Input, Badge, etc.).
+
+## Hooks
+
+- `useTokenLimitCheck`, `useChapterTranslation`, `useUserRole`, `useTokenEstimate` — see `src/client/hooks/`.
+- Contexts: `TokenUsageContext`, `ServiceHealthContext`.
+
+## i18n
+
+- `react-i18next`. Keys in `src/client/locales/` (en.json, ru.json, pl.json).
+- Use `useTranslation()` hook. Add new keys to all locale files.
+
+## Routing
+
+- `preact-router`. Routes in `@src/client/AppRouter.tsx`.

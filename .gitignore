@@ -14,7 +14,10 @@ data/
 *.db
 
 # IDE
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/agents/
+!.cursor/skills/
 .idea/
 .vscode/
 *.swp

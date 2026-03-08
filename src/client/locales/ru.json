@@ -193,6 +193,10 @@
     "includeGlossaryInTranslationHint": "Выкл: термины выровняются в редактуре, чанки перевода крупнее (3500). Меньше токенов.",
     "includeGlossaryInEditing": "Глоссарий в редактуре",
     "includeGlossaryInEditingHint": "Выкл: редактура без глоссария в промпте, чанки крупнее (3500). Меньше токенов.",
+    "editingStylePreset": "Стиль редактуры",
+    "editingStylePreset.default": "Стандартный",
+    "editingStylePreset.literary": "Художественный",
+    "editingStylePreset.minimal": "Минимальный",
     "modelDesc": {
       "gpt-5-mini": "Лучшее качество перевода, универсальная",
       "gpt-5-nano": "Быстрая и дешёвая, лёгкие задачи",

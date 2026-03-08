@@ -281,6 +281,8 @@ export interface ProjectSettings {
   textBlockTypes?: TextBlockType[];
   /** Custom instructions for translator and editor stages */
   customInstructions?: CustomInstructions;
+  /** Editing style preset: default, literary, minimal */
+  editingStylePreset?: 'default' | 'literary' | 'minimal';
 }
 
 export interface DatabaseSchema {

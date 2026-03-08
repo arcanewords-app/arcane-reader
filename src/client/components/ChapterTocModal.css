@@ -64,7 +64,8 @@
   flex-shrink: 0;
 }
 
-.modal.toc-modal.chapter-toc-modal .toc-order-btns {
+.modal.toc-modal.chapter-toc-modal .toc-order-btns,
+.modal.toc-modal.chapter-toc-modal .toc-filter-btns {
   display: flex;
   gap: 0.35rem;
   flex-wrap: wrap;

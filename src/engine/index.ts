@@ -95,6 +95,9 @@ export {
 
 export {
   EDITOR_SYSTEM_PROMPT,
+  EDITOR_SYSTEM_PROMPTS,
   createEditorPrompt,
+  getEditorSystemPrompt,
   QUALITY_CHECK_PROMPT,
+  type EditingStylePreset,
 } from './prompts/system/editor.js';

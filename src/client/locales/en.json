@@ -193,6 +193,10 @@
     "includeGlossaryInTranslationHint": "Off: terms aligned in editing, larger translation chunks (3500). Fewer tokens.",
     "includeGlossaryInEditing": "Glossary in editing",
     "includeGlossaryInEditingHint": "Off: editing without glossary in prompt, larger chunks (3500). Fewer tokens.",
+    "editingStylePreset": "Editing style",
+    "editingStylePreset.default": "Standard",
+    "editingStylePreset.literary": "Literary",
+    "editingStylePreset.minimal": "Minimal",
     "modelDesc": {
       "gpt-5-mini": "Best translation quality, versatile",
       "gpt-5-nano": "Fast and cheap, light tasks",

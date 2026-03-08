@@ -12,9 +12,10 @@ import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AgentContext } from '../types/agent.js';
 import type { StageResult, EditedTranslation, EditChange } from '../types/pipeline.js';
 import type { TextChunk } from '../types/common.js';
+import type { EditingStylePreset } from '../prompts/system/editor.js';
 import {
-  EDITOR_SYSTEM_PROMPT,
   createEditorPrompt,
+  getEditorSystemPrompt,
   QUALITY_CHECK_PROMPT,
 } from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
@@ -31,6 +32,8 @@ interface EditStageOptions {
   temperature?: number;
   /** Custom instructions for editor */
   customInstructions?: string;
+  /** Editing style preset: default, literary, minimal */
+  editingStylePreset?: EditingStylePreset;
 }
 
 interface QualityCheckResponse {
@@ -116,6 +119,7 @@ export class EditStage {
         });
 
         const editTemp = options.temperature ?? 0.5;
+        const preset = options.editingStylePreset ?? 'default';
         const chunkedResult = await this.editChunked(
           translatedText,
           fullGlossary,
@@ -123,7 +127,8 @@ export class EditStage {
           chunkSize,
           editTemp,
           includeGlossary,
-          options.customInstructions
+          options.customInstructions,
+          preset
         );
 
         editedText = chunkedResult.text;
@@ -138,8 +143,9 @@ export class EditStage {
               ).toPromptText()
             : '';
 
+        const systemPrompt = getEditorSystemPrompt(options.editingStylePreset ?? 'default');
         const messages: Message[] = [
-          { role: 'system', content: EDITOR_SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           {
             role: 'user',
             content: createEditorPrompt(
@@ -264,7 +270,8 @@ export class EditStage {
     chunkSize: number,
     temperature: number = 0.5,
     includeGlossary: boolean = true,
-    customInstructions?: string
+    customInstructions?: string,
+    editingStylePreset: EditingStylePreset = 'default'
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -293,7 +300,8 @@ export class EditStage {
           styleNotes,
           temperature,
           includeGlossary,
-          customInstructions
+          customInstructions,
+          editingStylePreset
         );
 
         totalTokensUsed += editResult.tokensUsed;
@@ -358,7 +366,8 @@ export class EditStage {
     styleNotes: string,
     temperature: number = 0.5,
     includeGlossary: boolean = true,
-    customInstructions?: string
+    customInstructions?: string,
+    editingStylePreset: EditingStylePreset = 'default'
   ): Promise<{ text: string; tokensUsed: number }> {
     const glossaryText =
       includeGlossary && fullGlossary
@@ -367,8 +376,9 @@ export class EditStage {
           ).toPromptText()
         : '';
 
+    const systemPrompt = getEditorSystemPrompt(editingStylePreset);
     const messages: Message[] = [
-      { role: 'system', content: EDITOR_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       {
         role: 'user',
         content: createEditorPrompt(

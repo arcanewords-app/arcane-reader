@@ -1,0 +1,27 @@
+---
+description: Core coding standards and project structure
+alwaysApply: true
+---
+
+# Core Standards
+
+## Code style
+
+- TypeScript strict. Preact (use `preact`, not `react`).
+- Functional components. Named exports.
+- 2 spaces, LF. See `.editorconfig`.
+- Run `npm run lint` and `npm run typecheck` before committing.
+
+## Structure
+
+- `src/client/` — UI (Preact, Vite)
+- `src/engine/` — translation pipeline, glossary, prompts
+- `src/services/` — import/export, auth, storage
+- `src/storage/` — DB layer
+- `src/middleware/` — Express middleware
+
+## Patterns
+
+- Prefer `@file.ts` references over copying code into rules.
+- Use existing components from `src/client/components/ui/` (Button, Modal, Input, etc.).
+- DB: snake_case columns. See `@src/storage/database.ts` for types.
