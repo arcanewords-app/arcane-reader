@@ -6,7 +6,10 @@
 import type { Project, Chapter } from '../../storage/database.js';
 import type { TextBlockType } from '../../engine/types/common.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
-import { convertMarkersToHtml } from '../../engine/utils/text-blocks.js';
+import {
+  convertMarkersToHtml,
+  mergeSegmentsWithUnclosedBlocks,
+} from '../../engine/utils/text-blocks.js';
 
 /**
  * Export chapter data structure
@@ -92,10 +95,7 @@ export function textToHtmlWithBlocks(
     return textToHtml(text, includeTitle, title);
   }
 
-  const segments = text
-    .split(/\n\s*\n/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const segments = mergeSegmentsWithUnclosedBlocks(text, /\n\s*\n/);
 
   const parts: string[] = [];
   if (includeTitle && title) {

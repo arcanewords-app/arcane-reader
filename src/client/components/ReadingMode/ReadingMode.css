@@ -532,6 +532,47 @@
   border-top: 1px solid var(--reader-chrome-border);
 }
 
+/* Scroll-based hide: slide chrome off-screen when scrolling down (all viewports) */
+.reading-mode-chrome-hidden .reading-mode-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: transform 0.25s ease-out;
+}
+
+.reading-mode-chrome-hidden .reading-mode-settings-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: transform 0.25s ease-out;
+}
+
+.reading-mode-chrome-hidden .reading-mode-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+  transition: transform 0.25s ease-out;
+}
+
+.reading-mode-chrome-hidden .reading-mode-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+  transition: transform 0.25s ease-out;
+}
+
 /* Responsive Styles */
 
 /* Mobile: hide duplicate nav (footer has Prev/Next), full-width text, font applies correctly */
@@ -564,37 +605,6 @@
     border-radius: 16px 16px 0 0;
     border-bottom: none;
     border-top: 1px solid var(--reader-chrome-border);
-  }
-
-  /* Scroll-based hide: slide chrome off-screen when scrolling down */
-  .reading-mode-chrome-hidden .reading-mode-header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    transform: translateY(-100%);
-    pointer-events: none;
-    transition: transform 0.25s ease-out;
-  }
-
-  .reading-mode-chrome-hidden .reading-mode-settings-panel {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    transform: translateY(-100%);
-    pointer-events: none;
-    transition: transform 0.25s ease-out;
-  }
-
-  .reading-mode-chrome-hidden .reading-mode-footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    transform: translateY(100%);
-    pointer-events: none;
-    transition: transform 0.25s ease-out;
   }
 }
 

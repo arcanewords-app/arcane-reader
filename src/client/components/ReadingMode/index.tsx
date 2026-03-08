@@ -15,7 +15,7 @@ import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal } from '../ui';
-import { renderTextWithBlocks } from '../../utils/text-blocks';
+import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import './ReadingMode.css';
 
@@ -366,17 +366,15 @@ export function ReadingMode({
     }
   }, [currentChapterIndex]);
 
-  // Mobile: hide menu on scroll down, show on scroll up
+  // Hide menu on scroll down, show on scroll up (mobile, tablet, desktop)
   // Depends on chapters.length so effect re-runs when chapters load (first chapter); otherwise
   // currentChapterIndex stays 0 and the listener would never attach on initial open.
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    const mq = window.matchMedia('(max-width: 768px)');
     let rafId: number;
 
     const handleScroll = () => {
-      if (!mq.matches) return;
       rafId = requestAnimationFrame(() => {
         const scrollTop = el.scrollTop;
         const delta = scrollTop - lastScrollTopRef.current;
@@ -670,14 +668,14 @@ export function ReadingMode({
                 (project?.settings?.textBlockTypes?.length ?? 0) > 0
                   ? (project?.settings?.textBlockTypes ?? [])
                   : DEFAULT_TEXT_BLOCK_TYPES;
-              const paragraphs = displayText.split('\n\n');
-              return paragraphs.map((paragraph, idx) => (
+              const segments = mergeSegmentsWithUnclosedBlocks(displayText);
+              return segments.map((segment, idx) => (
                 <div
                   key={idx}
-                  ref={idx === paragraphs.length - 1 ? lastParagraphRef : undefined}
+                  ref={idx === segments.length - 1 ? lastParagraphRef : undefined}
                   class="reading-mode-paragraph"
                   dangerouslySetInnerHTML={{
-                    __html: renderTextWithBlocks(paragraph, textBlockTypes),
+                    __html: renderTextWithBlocks(segment, textBlockTypes),
                   }}
                 />
               ));

@@ -41,6 +41,7 @@ const TEXT_BLOCK_CSS = `
 .system-message,
 div.system-message {
   display: block;
+  text-align: center;
   border-left: 4px solid #9d6fff;
   background: rgba(157, 111, 255, 0.15);
   padding: 0.75rem 1rem;
@@ -50,9 +51,8 @@ div.system-message {
   border-radius: 4px;
 }
 
-/* Block: note, letter */
-.note,
-.letter {
+/* Block: note */
+.note {
   border: 1px solid rgba(128, 128, 128, 0.4);
   background: rgba(128, 128, 128, 0.08);
   padding: 1rem;
@@ -61,11 +61,26 @@ div.system-message {
   border-radius: 6px;
 }
 
+/* Block: letter (epistolary style, distinct from note) */
+.letter {
+  text-align: center;
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: rgba(128, 128, 128, 0.08);
+  padding: 1.25rem 1.5rem;
+  margin: 0.5rem 0;
+  font-style: italic;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 /* Block: inner-voice */
 .inner-voice {
   font-style: italic;
   opacity: 0.9;
-  padding: 0.25rem 0;
+  padding: 0.25rem 0 0.25rem 1em;
 }
 
 /* Inline: notification */

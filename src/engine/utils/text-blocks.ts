@@ -135,3 +135,60 @@ function escapeHtml(s: string): string {
 function escapeAttr(s: string): string {
   return s.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+/**
+ * Get the stack of unclosed block markers after processing text.
+ * Used to detect when a segment has unmatched {{block:X}} (needs merge with next).
+ */
+function getBlockMarkerStack(text: string): string[] {
+  const stack: string[] = [];
+  const matches: { pos: number; type: 'open' | 'close'; id: string }[] = [];
+  let m: RegExpExecArray | null;
+  const openRe = new RegExp(OPEN_MARKER_REGEX.source, 'g');
+  while ((m = openRe.exec(text)) !== null) {
+    matches.push({ pos: m.index, type: 'open', id: m[1].toLowerCase() });
+  }
+  const closeRe = new RegExp(CLOSE_MARKER_REGEX.source, 'g');
+  while ((m = closeRe.exec(text)) !== null) {
+    matches.push({ pos: m.index, type: 'close', id: m[1].toLowerCase() });
+  }
+  matches.sort((a, b) => a.pos - b.pos);
+  for (const { type, id } of matches) {
+    if (type === 'open') {
+      stack.push(id);
+    } else if (stack.length > 0 && stack[stack.length - 1] === id) {
+      stack.pop();
+    }
+  }
+  return stack;
+}
+
+/**
+ * Split text by paragraph boundaries but merge segments that contain unclosed block markers.
+ * When translator splits a {{block:X}}...{{/block:X}} across paragraphs, this merges them
+ * so the block is rendered correctly.
+ */
+export function mergeSegmentsWithUnclosedBlocks(
+  text: string,
+  splitRe: RegExp = /\n\s*\n/
+): string[] {
+  const segments = text
+    .split(splitRe)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (segments.length === 0) return [];
+  const result: string[] = [];
+  let i = 0;
+  while (i < segments.length) {
+    let merged = segments[i];
+    let stack = getBlockMarkerStack(merged);
+    while (stack.length > 0 && i + 1 < segments.length) {
+      i++;
+      merged += '\n\n' + segments[i];
+      stack = getBlockMarkerStack(merged);
+    }
+    result.push(merged);
+    i++;
+  }
+  return result;
+}
