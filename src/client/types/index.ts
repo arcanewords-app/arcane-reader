@@ -386,6 +386,8 @@ export interface Publication {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** SEO-friendly URL path (e.g. zenit-koldovstva). Use for links when available. */
+  slug?: string | null;
 }
 
 export interface PublicationListItem {
@@ -402,6 +404,7 @@ export interface PublicationListItem {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  slug?: string | null;
 }
 
 export interface PublicationWithChapters extends Publication {

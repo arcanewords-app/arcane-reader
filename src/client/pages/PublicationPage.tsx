@@ -89,6 +89,46 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     };
   }, [publicationId]);
 
+  const pub = data;
+  const meta =
+    pub && publicationId
+      ? {
+          title: pub.title || t('publication.untitled'),
+          description: (() => {
+            const baseDesc =
+              pub.description || (pub.authorDisplay ? `${pub.title || ''} by ${pub.authorDisplay}` : pub.title || '');
+            const hasExport = (pub.chapters || []).some((ch) => ch.hasTranslation);
+            return hasExport
+              ? `${baseDesc} Читать онлайн или скачать EPUB, FB2.`
+              : `${baseDesc} Читать онлайн.`;
+          })(),
+          imageUrl: pub.coverImageUrl,
+          authorDisplay: pub.authorDisplay,
+          translatorDisplay: pub.translatorDisplay,
+          targetLanguage: pub.targetLanguage,
+        }
+      : null;
+  usePageMeta(meta);
+
+  const chapters = pub?.chapters || [];
+  const filteredChapters = useMemo(() => {
+    const filtered = chapters.filter((ch) => {
+      const matchesSearch =
+        !chapterSearch ||
+        (ch.title || '').toLowerCase().includes(chapterSearch.toLowerCase()) ||
+        String(ch.number).includes(chapterSearch);
+      if (!matchesSearch) return false;
+      if (!isAuthenticated || chapterFilter === 'all') return true;
+      const isRead = readChapterIds.has(ch.id);
+      if (chapterFilter === 'read') return isRead;
+      if (chapterFilter === 'unread') return !isRead;
+      return true;
+    });
+    return [...filtered].sort((a, b) =>
+      chapterOrder === 'desc' ? b.number - a.number : a.number - b.number
+    );
+  }, [chapters, chapterSearch, chapterFilter, chapterOrder, isAuthenticated, readChapterIds]);
+
   if (!publicationId) {
     route('/catalog');
     return null;
@@ -117,41 +157,16 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     );
   }
 
-  const pub = data;
+  const pubPath = pub.slug || pub.id;
   const title = pub.title || t('publication.untitled');
-  const description =
-    pub.description || (pub.authorDisplay ? `${title} by ${pub.authorDisplay}` : title);
-  usePageMeta({
-    title,
-    description,
-    imageUrl: pub.coverImageUrl,
-  });
   const authorDisplay = pub.authorDisplay || null;
   const translatorDisplay = pub.translatorDisplay || null;
   const langLabel = `${pub.sourceLanguage} → ${pub.targetLanguage}`;
-  const chapters = pub.chapters || [];
+  const hasExport = chapters.some((ch) => ch.hasTranslation);
   const glossaryCount = pub.glossaryCount ?? 0;
   const translatedChapters = chapters
     .filter((ch) => ch.hasTranslation)
     .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
-
-  const filteredChapters = useMemo(() => {
-    const filtered = chapters.filter((ch) => {
-      const matchesSearch =
-        !chapterSearch ||
-        (ch.title || '').toLowerCase().includes(chapterSearch.toLowerCase()) ||
-        String(ch.number).includes(chapterSearch);
-      if (!matchesSearch) return false;
-      if (!isAuthenticated || chapterFilter === 'all') return true;
-      const isRead = readChapterIds.has(ch.id);
-      if (chapterFilter === 'read') return isRead;
-      if (chapterFilter === 'unread') return !isRead;
-      return true;
-    });
-    return [...filtered].sort((a, b) =>
-      chapterOrder === 'desc' ? b.number - a.number : a.number - b.number
-    );
-  }, [chapters, chapterSearch, chapterFilter, chapterOrder, isAuthenticated, readChapterIds]);
 
   const handleExport = async (format: 'epub' | 'fb2') => {
     if (!pub || translatedChapters.length === 0) return;
@@ -347,7 +362,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                         <button
                           type="button"
                           class="publication-page-read-chapter"
-                          onClick={() => route(`/p/${pub.id}/chapters/${ch.id}/reading`)}
+                          onClick={() => route(`/p/${pubPath}/chapters/${ch.id}/reading`)}
                         >
                           {t('home.read')}
                         </button>
@@ -378,7 +393,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         readChapterIds={isAuthenticated ? readChapterIds : undefined}
         onSelectChapter={(chapterId) => {
           setShowToc(false);
-          route(`/p/${pub.id}/chapters/${chapterId}/reading`);
+          route(`/p/${pubPath}/chapters/${chapterId}/reading`);
         }}
       />
       <Modal

@@ -7,6 +7,29 @@
 
 import { supabase, createClientWithToken } from './supabaseClient.js';
 import { validateToken } from '../utils/tokenValidation.js';
+import { titleToSlug } from '../utils/slug.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+async function ensureUniqueSlug(
+  client: SupabaseClient,
+  baseSlug: string,
+  excludePublicationId: string | null
+): Promise<string> {
+  let slug = baseSlug;
+  let suffix = 0;
+  for (;;) {
+    let query = client.from('publications').select('id').eq('slug', slug);
+    if (excludePublicationId) {
+      query = query.neq('id', excludePublicationId);
+    }
+    const { data: existing } = await query.maybeSingle();
+    if (!existing) return slug;
+    suffix += 1;
+    slug = `${baseSlug}-${suffix}`;
+    if (suffix > 100) return baseSlug + '-' + Date.now().toString(36);
+  }
+}
+
 import type {
   Project,
   ProjectWithChapterList,
@@ -2265,6 +2288,7 @@ export interface PublicationRow {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  slug?: string | null;
 }
 
 function transformPublicationFromDB(row: PublicationRow): {
@@ -2282,6 +2306,7 @@ function transformPublicationFromDB(row: PublicationRow): {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  slug: string | null;
 } {
   return {
     id: row.id,
@@ -2298,6 +2323,7 @@ function transformPublicationFromDB(row: PublicationRow): {
     publishedAt: row.published_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    slug: (row as { slug?: string | null }).slug ?? null,
   };
 }
 
@@ -2325,6 +2351,7 @@ export async function listPublicationsPublic(options?: {
     publishedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    slug: string | null;
   }[]
 > {
   const limit = options?.limit ?? 50;
@@ -2350,25 +2377,37 @@ export async function listPublicationsPublic(options?: {
 }
 
 /**
+ * Get publication by slug or ID (public for published).
+ * Tries slug first (if looks like slug: no hyphens in UUID pattern), then ID.
+ */
+export async function getPublicationBySlugOrId(slugOrId: string): Promise<ReturnType<
+  typeof transformPublicationFromDB
+> | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+  if (isUuid) {
+    return getPublicationById(slugOrId);
+  }
+  const { data, error } = await supabase
+    .from('publications')
+    .select('*')
+    .eq('slug', slugOrId)
+    .eq('status', 'published')
+    .single();
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw new Error(`Failed to get publication: ${error.message}`);
+  }
+  if (!data) return null;
+  return transformPublicationFromDB(data as PublicationRow);
+}
+
+/**
  * Get a single publication by ID (public for published).
  * Uses anon client - RLS allows SELECT for published or own.
  */
-export async function getPublicationById(publicationId: string): Promise<{
-  id: string;
-  projectId: string;
-  userId: string;
-  status: PublicationStatus;
-  title: string | null;
-  description: string | null;
-  coverImageUrl: string | null;
-  authorDisplay: string | null;
-  translatorDisplay: string | null;
-  sourceLanguage: string;
-  targetLanguage: string;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-} | null> {
+export async function getPublicationById(publicationId: string): Promise<ReturnType<
+  typeof transformPublicationFromDB
+> | null> {
   const { data, error } = await supabase
     .from('publications')
     .select('*')
@@ -2390,15 +2429,15 @@ export async function getPublicationById(publicationId: string): Promise<{
 }
 
 /**
- * Get publication by ID with chapters list (for reading page).
+ * Get publication by slug or ID with chapters list (for reading page).
  * Returns only published; chapters are minimal (id, number, title, hasTranslation); glossaryCount for showing Glossary button.
  */
-export async function getPublicationWithChapters(publicationId: string): Promise<{
+export async function getPublicationWithChapters(slugOrId: string): Promise<{
   publication: ReturnType<typeof transformPublicationFromDB>;
   chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
   glossaryCount: number;
 } | null> {
-  const pub = await getPublicationById(publicationId);
+  const pub = await getPublicationBySlugOrId(slugOrId);
   if (!pub) return null;
 
   // Load chapters for this project (we need token for RLS on chapters - but chapters are under project owned by publication owner)
@@ -2505,12 +2544,21 @@ export async function createOrUpdatePublication(
 
   const now = new Date().toISOString();
   const isPublish = data.status === 'published';
+  const title = data.title ?? project.metadata?.title ?? project.name;
+
+  const { data: existing } = await client
+    .from('publications')
+    .select('id, published_at')
+    .eq('project_id', projectId)
+    .single();
+
+  const slug = title ? await ensureUniqueSlug(client, titleToSlug(title), existing?.id ?? null) : null;
 
   const row = {
     project_id: projectId,
     user_id: userId,
     status: data.status,
-    title: data.title ?? project.metadata?.title ?? project.name,
+    title,
     description: data.description ?? project.metadata?.description ?? null,
     cover_image_url: data.coverImageUrl ?? project.metadata?.coverImageUrl ?? null,
     author_display: data.authorDisplay ?? undefined,
@@ -2519,13 +2567,8 @@ export async function createOrUpdatePublication(
     target_language: data.targetLanguage ?? project.targetLanguage,
     published_at: isPublish ? now : null,
     updated_at: now,
+    slug,
   };
-
-  const { data: existing } = await client
-    .from('publications')
-    .select('id, published_at')
-    .eq('project_id', projectId)
-    .single();
 
   if (existing) {
     const updatePayload: Record<string, unknown> = {
@@ -2536,6 +2579,7 @@ export async function createOrUpdatePublication(
       source_language: row.source_language,
       target_language: row.target_language,
       updated_at: row.updated_at,
+      slug: slug ?? undefined,
     };
     if (data.authorDisplay !== undefined) updatePayload.author_display = data.authorDisplay;
     if (data.translatorDisplay !== undefined)

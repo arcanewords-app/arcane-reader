@@ -41,7 +41,7 @@ import {
   getReaderSettings,
   resetStuckChapters,
   listPublicationsPublic,
-  getPublicationById,
+  getPublicationBySlugOrId,
   getPublicationWithChapters,
   getPublicationChapterContent,
   getGlossaryForPublication,
@@ -101,6 +101,7 @@ function injectPublicationMeta(
     description: string;
     imageUrl: string | null;
     pageUrl: string;
+    isChapter?: boolean;
   }
 ): string {
   const t = escapeMetaContent(opts.title);
@@ -109,9 +110,10 @@ function injectPublicationMeta(
   const img =
     opts.imageUrl && opts.imageUrl.startsWith('http') ? opts.imageUrl : `${origin}/arcane_icon.png`;
   const url = escapeMetaContent(opts.pageUrl);
+  const titleSuffix = opts.isChapter ? ' — Arcane' : ' — читать онлайн | Arcane';
 
   let out = html
-    .replace(/<title>[\s\S]*?<\/title>/, `<title>${t} — Arcane</title>`)
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${t}${titleSuffix}</title>`)
     .replace(
       /<meta name="description" content="[^"]*" *\/?>/,
       `<meta name="description" content="${d}" />`
@@ -148,8 +150,104 @@ function injectPublicationMeta(
       /<meta name="twitter:description" content="[^"]*" *\/?>/,
       `<meta name="twitter:description" content="${d}" />`
     );
+
+  const canonicalTag = `<link rel="canonical" href="${url}" />`;
+  if (out.includes('rel="canonical"')) {
+    out = out.replace(/<link rel="canonical" href="[^"]*" *\/?>/i, canonicalTag);
+  } else {
+    out = out.replace('</head>', `    ${canonicalTag}\n  </head>`);
+  }
   return out;
 }
+
+/**
+ * Inject visible content into #app for crawlers (SPA renders empty HTML otherwise).
+ * H1, description, author, links "Читать онлайн" and "Скачать" so bots see intent.
+ */
+function injectPublicationContent(
+  html: string,
+  opts: {
+    title: string;
+    description: string;
+    authorDisplay: string | null;
+    translatorDisplay: string | null;
+    pageUrl: string;
+    publicationUrl: string;
+    hasExport: boolean;
+  }
+): string {
+  const title = escapeHtml(opts.title);
+  const desc = escapeHtml(
+    opts.description.length > 400 ? opts.description.slice(0, 397) + '...' : opts.description
+  );
+  const author = opts.authorDisplay ? escapeHtml(opts.authorDisplay) : '';
+  const translator = opts.translatorDisplay ? escapeHtml(opts.translatorDisplay) : '';
+  const metaParts: string[] = [];
+  if (author) metaParts.push(`Автор: ${author}`);
+  if (translator) metaParts.push(`Переводчик: ${translator}`);
+  const metaLine = metaParts.length > 0 ? `<p class="publication-page-seo-meta">${metaParts.join(' · ')}</p>` : '';
+
+  const readLink = `<a href="${escapeHtml(opts.publicationUrl)}">Читать онлайн</a>`;
+  const downloadLink = opts.hasExport
+    ? `<a href="${escapeHtml(opts.publicationUrl)}#download">Скачать EPUB, FB2</a>`
+    : '';
+  const actionLinks = opts.hasExport ? `${readLink} · ${downloadLink}` : readLink;
+
+  const content = `<main class="publication-page-seo">
+    <h1>${title}</h1>
+    <p class="publication-page-seo-desc">${desc}</p>
+    ${metaLine}
+    <p class="publication-page-seo-actions">${actionLinks}</p>
+  </main>`;
+
+  return html.replace(/<div id="app">\s*<\/div>/, `<div id="app">${content}</div>`);
+}
+
+/**
+ * Inject JSON-LD Book schema for publication pages (schema.org).
+ */
+function injectPublicationJsonLd(
+  html: string,
+  opts: {
+    title: string;
+    description: string;
+    url: string;
+    imageUrl: string | null;
+    authorDisplay: string | null;
+    translatorDisplay: string | null;
+    targetLanguage: string;
+  }
+): string {
+  const base = opts.url.startsWith('http') ? new URL(opts.url).origin : '';
+  const img =
+    opts.imageUrl && opts.imageUrl.startsWith('http')
+      ? opts.imageUrl
+      : opts.imageUrl
+        ? `${base}${opts.imageUrl.startsWith('/') ? '' : '/'}${opts.imageUrl}`
+        : base
+          ? `${base}/arcane_icon.png`
+          : '/arcane_icon.png';
+
+  const book: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    name: opts.title,
+    description: opts.description,
+    url: opts.url,
+    image: img,
+    inLanguage: opts.targetLanguage,
+  };
+  if (opts.authorDisplay) {
+    (book as Record<string, unknown>).author = { '@type': 'Person', name: opts.authorDisplay };
+  }
+  if (opts.translatorDisplay) {
+    (book as Record<string, unknown>).translator = { '@type': 'Person', name: opts.translatorDisplay };
+  }
+
+  const jsonLd = `<script type="application/ld+json">${JSON.stringify(book)}</script>`;
+  return html.replace('</head>', `    ${jsonLd}\n  </head>`);
+}
+
 function omitKeys(obj: DebugLogEntry, keys: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(obj)) if (!keys.includes(k)) out[k] = obj[k];
@@ -4364,13 +4462,12 @@ app.post('/api/publications/:id/export', requireAuth, async (req, res) => {
     }
 
     const { format, author } = req.body;
-    const publicationId = req.params.id;
 
     if (!format || (format !== 'epub' && format !== 'fb2')) {
       return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
     }
 
-    const pub = await getPublicationById(publicationId);
+    const pub = await getPublicationBySlugOrId(req.params.id);
     if (!pub) {
       return res.status(404).json({ error: 'Publication not found' });
     }
@@ -4389,6 +4486,7 @@ app.post('/api/publications/:id/export', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Нет переведенных глав для экспорта' });
     }
 
+    const publicationId = pub.id;
     const tmpDir = process.env.VERCEL ? '/tmp' : os.tmpdir();
     const title = pub.title || project.name;
     const filename = `${sanitizeFilename(title)}-${Date.now()}.${format}`;
@@ -4516,8 +4614,12 @@ app.get('/api/publications/:id/export/download', requireAuth, async (req, res) =
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
 
-    const publicationId = req.params.id;
+    const publicationId = pub.id;
     const pathParam = req.query.path as string;
 
     if (!pathParam || typeof pathParam !== 'string') {
@@ -4529,11 +4631,6 @@ app.get('/api/publications/:id/export/download', requireAuth, async (req, res) =
 
     if (!storagePath.startsWith(expectedPrefix) || storagePath.includes('..')) {
       return res.status(403).json({ error: 'Forbidden: invalid path' });
-    }
-
-    const pub = await getPublicationById(publicationId);
-    if (!pub) {
-      return res.status(404).json({ error: 'Publication not found' });
     }
 
     const buffer = await downloadFile('exports', storagePath);
@@ -4644,7 +4741,7 @@ app.get('/api/publications', async (req, res) => {
 // Get single publication (public)
 app.get('/api/publications/:id', async (req, res) => {
   try {
-    const pub = await getPublicationById(req.params.id);
+    const pub = await getPublicationBySlugOrId(req.params.id);
     if (!pub) {
       return res.status(404).json({ error: 'Publication not found' });
     }
@@ -4672,7 +4769,12 @@ app.get('/api/publications/:id/chapters', async (req, res) => {
 // Get single chapter content for public reading (translated text only)
 app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
   try {
-    const chapter = await getPublicationChapterContent(req.params.id, req.params.chapterId);
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+    const chapter = await getPublicationChapterContent(pub.id, req.params.chapterId);
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -4686,7 +4788,12 @@ app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
 // Get publication glossary (public, read-only; returns empty array if not published)
 app.get('/api/publications/:id/glossary', async (req, res) => {
   try {
-    const entries = await getGlossaryForPublication(req.params.id);
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+    const entries = await getGlossaryForPublication(pub.id);
     res.json(entries);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get glossary';
@@ -4697,7 +4804,12 @@ app.get('/api/publications/:id/glossary', async (req, res) => {
 // Get read progress for publication (optionalAuth: returns [] for guests)
 app.get('/api/publications/:id/read-progress', optionalAuth, async (req, res) => {
   try {
-    const publicationId = req.params.id;
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+    const publicationId = pub.id;
     const userId = req.user?.id ?? null;
     const token = req.token ?? null;
     const chapterIds = await getReadProgress(publicationId, userId, token);
@@ -4713,11 +4825,9 @@ app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, async (r
   try {
     const userId = req.user!.id;
     const token = req.token!;
-    const publicationId = req.params.id;
     const chapterId = req.params.chapterId;
 
-    // Verify publication exists and is published
-    const pub = await getPublicationById(publicationId);
+    const pub = await getPublicationBySlugOrId(req.params.id);
     if (!pub) {
       return res.status(404).json({ error: 'Publication not found' });
     }
@@ -4736,7 +4846,7 @@ app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, async (r
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    await markChapterAsRead(userId, publicationId, chapterId, token);
+    await markChapterAsRead(userId, pub.id, chapterId, token);
     res.json({ success: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to mark chapter as read';
@@ -4979,9 +5089,14 @@ app.get('/sitemap.xml', async (req, res) => {
   try {
     const pubs = await listPublicationsPublic({ limit: 1000 });
     for (const p of pubs) {
+      const pubPath = (p as { slug?: string | null }).slug || p.id;
+      const lastmod = p.updatedAt
+        ? `<lastmod>${new Date(p.updatedAt).toISOString().slice(0, 10)}</lastmod>
+    `
+        : '';
       pubUrls += `  <url>
-    <loc>${escapeHtml(base + '/p/' + p.id)}</loc>
-    <changefreq>weekly</changefreq>
+    <loc>${escapeHtml(base + '/p/' + pubPath)}</loc>
+    ${lastmod}<changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 `;
@@ -4989,7 +5104,7 @@ app.get('/sitemap.xml', async (req, res) => {
   } catch (err) {
     logger.warn({ err }, 'Failed to load publications for sitemap');
   }
-  const staticPages = ['/about', '/contact', '/privacy', '/terms']
+  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog']
     .map(
       (p) => `  <url>
     <loc>${escapeHtml(base + p)}</loc>
@@ -5033,22 +5148,33 @@ async function servePublicationHtml(
   }
 
   const pub = data.publication;
+  const pubPath = (pub as { slug?: string | null }).slug || publicationId;
   const title = pub.title || 'Publication';
-  const description =
+  const baseDesc =
     pub.description || (pub.authorDisplay ? `${title} by ${pub.authorDisplay}` : title);
   const pageUrl = chapterId
-    ? `${base}/p/${publicationId}/chapters/${chapterId}/reading`
-    : `${base}/p/${publicationId}`;
+    ? `${base}/p/${pubPath}/chapters/${chapterId}/reading`
+    : `${base}/p/${pubPath}`;
 
   let pageTitle = title;
-  let pageDesc = description;
+  let pageDesc = baseDesc;
   if (chapterId) {
     const ch = data.chapters.find((c) => c.id === chapterId);
     if (ch) {
       pageTitle = `${ch.title || `Chapter ${ch.number}`} — ${title}`;
       pageDesc = `${ch.title || `Chapter ${ch.number}`} of ${title}`;
     }
+  } else {
+    const hasTranslated = data.chapters.some((c) => c.hasTranslation);
+    if (hasTranslated) {
+      pageDesc = `${pageDesc} Читать онлайн или скачать EPUB, FB2.`;
+    } else {
+      pageDesc = `${pageDesc} Читать онлайн.`;
+    }
   }
+
+  const hasExport = data.chapters.some((c) => c.hasTranslation);
+  const publicationUrl = `${base}/p/${pubPath}`;
 
   let html = fs.readFileSync(indexPath, 'utf-8');
   html = injectPublicationMeta(html, {
@@ -5056,6 +5182,25 @@ async function servePublicationHtml(
     description: pageDesc,
     imageUrl: pub.coverImageUrl,
     pageUrl,
+    isChapter: !!chapterId,
+  });
+  html = injectPublicationContent(html, {
+    title: pageTitle,
+    description: pageDesc,
+    authorDisplay: pub.authorDisplay,
+    translatorDisplay: pub.translatorDisplay,
+    pageUrl,
+    publicationUrl,
+    hasExport,
+  });
+  html = injectPublicationJsonLd(html, {
+    title: pageTitle,
+    description: pageDesc,
+    url: pageUrl,
+    imageUrl: pub.coverImageUrl,
+    authorDisplay: pub.authorDisplay,
+    translatorDisplay: pub.translatorDisplay,
+    targetLanguage: pub.targetLanguage,
   });
   res.type('html').send(html);
 }

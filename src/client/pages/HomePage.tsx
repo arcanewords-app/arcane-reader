@@ -122,8 +122,8 @@ export function HomePage() {
     route('/catalog?filter=mine');
   }, []);
 
-  const handleRead = useCallback((id: string) => {
-    route(`/p/${id}`);
+  const handleRead = useCallback((path: string) => {
+    route(`/p/${path}`);
   }, []);
 
   const showMyWorksTab = isAuthor;
@@ -252,7 +252,7 @@ export function HomePage() {
           ) : (
             <div class="home-grid">
               {filteredPublications.map((pub) => (
-                <PublicationCard key={pub.id} publication={pub} onRead={() => handleRead(pub.id)} />
+                <PublicationCard key={pub.id} publication={pub} onRead={() => handleRead(pub.slug || pub.id)} />
               ))}
             </div>
           )}

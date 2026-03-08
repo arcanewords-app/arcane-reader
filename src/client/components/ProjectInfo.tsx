@@ -954,7 +954,7 @@ export function ProjectInfo({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => window.open(`/p/${publication.id}`, '_blank')}
+                  onClick={() => window.open(`/p/${publication.slug || publication.id}`, '_blank')}
                 >
                   {t('projectInfo.publicationView')}
                 </Button>

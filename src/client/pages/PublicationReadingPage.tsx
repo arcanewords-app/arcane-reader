@@ -133,6 +133,32 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     [publicationId]
   );
 
+  const pubPath = data?.publication ? (data.publication.slug || data.publication.id) : publicationId;
+  const publicationChaptersForMeta = data?.chapters?.filter((ch) => ch.hasTranslation) ?? [];
+  const currentChapterForMeta = chapterId
+    ? data?.chapters?.find((ch) => ch.id === chapterId)
+    : publicationChaptersForMeta[0];
+  const bookTitleForMeta = data?.publication?.title || t('publication.untitled');
+  const chapterTitleForMeta = currentChapterForMeta
+    ? currentChapterForMeta.title ||
+      t('chapterList.defaultChapterTitle', { number: currentChapterForMeta.number })
+    : bookTitleForMeta;
+  const readingMeta =
+    data?.publication && publicationId
+      ? {
+          title: currentChapterForMeta ? `${chapterTitleForMeta} — ${bookTitleForMeta}` : bookTitleForMeta,
+          description: currentChapterForMeta
+            ? `${chapterTitleForMeta} — ${bookTitleForMeta}`
+            : data.publication.description || bookTitleForMeta,
+          imageUrl: data.publication.coverImageUrl,
+          isChapter: !!currentChapterForMeta,
+          authorDisplay: data.publication.authorDisplay,
+          translatorDisplay: data.publication.translatorDisplay,
+          targetLanguage: data.publication.targetLanguage,
+        }
+      : null;
+  usePageMeta(readingMeta);
+
   if (!publicationId) return null;
 
   if (loading) {
@@ -162,19 +188,6 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const currentChapter = chapterId
     ? data.chapters.find((ch) => ch.id === chapterId)
     : publicationChapters[0];
-  const chapterTitle = currentChapter
-    ? currentChapter.title ||
-      t('chapterList.defaultChapterTitle', { number: currentChapter.number })
-    : bookTitle;
-  const pageTitle = currentChapter ? `${chapterTitle} — ${bookTitle}` : bookTitle;
-  const pageDescription = currentChapter
-    ? `${chapterTitle} — ${bookTitle}`
-    : data.publication.description || (data.publication.title ? `${bookTitle}` : bookTitle);
-  usePageMeta({
-    title: pageTitle,
-    description: pageDescription,
-    imageUrl: data.publication.coverImageUrl,
-  });
 
   if (publicationChapters.length === 0) {
     return (
@@ -183,7 +196,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
         <button
           type="button"
           class="publication-reading-back"
-          onClick={() => route(`/p/${publicationId}`)}
+          onClick={() => route(`/p/${pubPath}`)}
         >
           {t('common.back')}
         </button>
@@ -202,7 +215,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       initialChapterContent={
         Object.keys(initialChapterContent).length > 0 ? initialChapterContent : undefined
       }
-      onExit={() => route(`/p/${publicationId}`)}
+      onExit={() => route(`/p/${pubPath}`)}
       onChapterRead={isAuthenticated ? handleChapterRead : undefined}
       readChapterIds={isAuthenticated ? readChapterIds : undefined}
     />
