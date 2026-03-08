@@ -60,7 +60,7 @@
   --reader-font: Georgia, 'Times New Roman', serif;
   --reader-font-size: 16px;
   --reader-line-height: 1.6;
-  --reader-paragraph-spacing: 8px;
+  --reader-paragraph-spacing: 0.5em;
   --reader-container-width: 69%;
   --reader-bg: #1a1a2e;
   --reader-text: #f0f0f3;
@@ -106,7 +106,7 @@
 
   /* Reading Mode - Mobile (≤767px) */
   --reading-header-padding-mobile: 0.75rem 1rem;
-  --reading-content-padding-mobile: 1rem;
+  --reading-content-padding-mobile: 1.25rem;
   --reading-text-max-width-mobile: 100%;
   --reading-font-size-mobile: 16px;
 

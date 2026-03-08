@@ -98,7 +98,12 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
         warnings,
       };
     }
-    return { format: 'csv', metadata: {}, chapters, warnings: warnings.length > 0 ? warnings : undefined };
+    return {
+      format: 'csv',
+      metadata: {},
+      chapters,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
   }
 
   // 2. Text-only: text, content, or body (optional title)

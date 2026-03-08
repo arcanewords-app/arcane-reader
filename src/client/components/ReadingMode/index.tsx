@@ -52,7 +52,7 @@ const defaultReaderSettings: ReaderSettings = {
   textIndent: true,
   textAlign: 'justify',
   hideChapterHeader: false,
-  paragraphSpacing: 8,
+  paragraphSpacing: 0.5,
   containerWidth: 69,
 };
 
@@ -234,7 +234,8 @@ export function ReadingMode({
     const controller = new AbortController();
     const toPreload: ReaderChapter[] = [];
     if (currentChapterIndex > 0) toPreload.push(chapters[currentChapterIndex - 1]);
-    if (currentChapterIndex < chapters.length - 1) toPreload.push(chapters[currentChapterIndex + 1]);
+    if (currentChapterIndex < chapters.length - 1)
+      toPreload.push(chapters[currentChapterIndex + 1]);
 
     const needPreload = toPreload.filter((ch) => !chapterContentMap[ch.id]);
     if (needPreload.length === 0) return;
@@ -338,7 +339,7 @@ export function ReadingMode({
     root.style.setProperty('--reader-line-height', `${readerSettings.lineHeight}`);
     root.style.setProperty(
       '--reader-paragraph-spacing',
-      `${readerSettings.paragraphSpacing ?? 8}px`
+      `${Math.max(0.5, readerSettings.paragraphSpacing ?? 0.5)}em`
     );
     root.style.setProperty('--reader-container-width', `${readerSettings.containerWidth ?? 69}%`);
     root.setAttribute('data-reader-font', readerSettings.fontFamily);
@@ -366,6 +367,8 @@ export function ReadingMode({
   }, [currentChapterIndex]);
 
   // Mobile: hide menu on scroll down, show on scroll up
+  // Depends on chapters.length so effect re-runs when chapters load (first chapter); otherwise
+  // currentChapterIndex stays 0 and the listener would never attach on initial open.
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -403,7 +406,7 @@ export function ReadingMode({
       el.removeEventListener('scroll', handleScroll);
       cancelAnimationFrame(rafId);
     };
-  }, [currentChapterIndex]);
+  }, [currentChapterIndex, chapters.length]);
 
   const handlePrevChapter = useCallback(() => {
     setCurrentChapterIndex((prev) => (prev > 0 ? prev - 1 : prev));

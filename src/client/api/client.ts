@@ -294,11 +294,7 @@ export const api = {
     );
   },
 
-  async getChapter(
-    projectId: string,
-    chapterId: string,
-    signal?: AbortSignal
-  ): Promise<Chapter> {
+  async getChapter(projectId: string, chapterId: string, signal?: AbortSignal): Promise<Chapter> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
   },
 

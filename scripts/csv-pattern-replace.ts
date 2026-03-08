@@ -13,8 +13,8 @@
  * Uses presets: system-message (aside), note (section)
  */
 
-import { readFileSync, writeFileSync } from 'fs';
-import { dirname, resolve } from 'path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
+import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
 
@@ -178,12 +178,16 @@ function main(): void {
     ? resolve(process.cwd(), configArg.replace('--config=', ''))
     : resolve(__dirname, 'csv-pattern-config.json');
 
-  if (!input) {
+  const inputDir = resolve(__dirname, 'input-files');
+  const outputDir = resolve(__dirname, 'output');
+
+  if (args.includes('--help') || args.includes('-h')) {
     console.log(`
 CSV Pattern Replacement - wraps text in block markers or HTML tags
 
 Usage:
-  npx tsx scripts/csv-pattern-replace.ts input.csv [output.csv] [options]
+  npm run csv-patterns                    Process all CSV in scripts/input-files → scripts/output
+  npx tsx scripts/csv-pattern-replace.ts input.csv [output.csv] [options]   Single file mode
 
 Options:
   --config=path   Custom config path (default: scripts/csv-pattern-config.json)
@@ -198,16 +202,40 @@ Edit csv-pattern-config.json to add/modify patterns.
     process.exit(0);
   }
 
-  const inputPath = resolve(process.cwd(), input);
-  const pos = args.indexOf(input);
-  const nextArg = args[pos + 1];
-  const outputPath =
-    nextArg && !nextArg.startsWith('--')
-      ? resolve(process.cwd(), nextArg)
-      : inputPath.replace(/\.csv$/i, '.out.csv');
-
   try {
-    processCsv(inputPath, outputPath, configPath, htmlOutput);
+    if (!input) {
+      // Batch mode: all files from input-files → output
+      if (!existsSync(inputDir)) {
+        console.error(`Input folder not found: ${inputDir}`);
+        process.exit(1);
+      }
+      if (!existsSync(outputDir)) {
+        mkdirSync(outputDir, { recursive: true });
+      }
+
+      const files = readdirSync(inputDir).filter((f) => /\.csv$/i.test(f));
+      if (files.length === 0) {
+        console.log(`No CSV files in ${inputDir}`);
+        process.exit(0);
+      }
+
+      for (const file of files) {
+        const inputPath = join(inputDir, file);
+        const outputPath = join(outputDir, file);
+        processCsv(inputPath, outputPath, configPath, htmlOutput);
+      }
+      console.log(`Done. Processed ${files.length} file(s).`);
+    } else {
+      // Single file mode
+      const inputPath = resolve(process.cwd(), input);
+      const pos = args.indexOf(input);
+      const nextArg = args[pos + 1];
+      const outputPath =
+        nextArg && !nextArg.startsWith('--')
+          ? resolve(process.cwd(), nextArg)
+          : inputPath.replace(/\.csv$/i, '.out.csv');
+      processCsv(inputPath, outputPath, configPath, htmlOutput);
+    }
   } catch (err) {
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);

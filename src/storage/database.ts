@@ -200,7 +200,7 @@ export interface ReaderSettings {
   textIndent: boolean;
   textAlign: 'left' | 'justify';
   hideChapterHeader: boolean;
-  paragraphSpacing: number; // px, 0-24
+  paragraphSpacing: number; // em, 0-2.0
   containerWidth: number; // %, 50-100
 }
 
@@ -213,7 +213,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   textIndent: true,
   textAlign: 'justify',
   hideChapterHeader: false,
-  paragraphSpacing: 8,
+  paragraphSpacing: 0.5,
   containerWidth: 69,
 };
 
@@ -571,11 +571,11 @@ export async function updateReaderSettings(
   if (reader.textAlign === undefined) reader.textAlign = defaults.textAlign;
   if (reader.hideChapterHeader === undefined) reader.hideChapterHeader = defaults.hideChapterHeader;
   if (reader.containerWidth === undefined) reader.containerWidth = defaults.containerWidth;
-  if (
-    reader.paragraphSpacing === undefined ||
-    (reader.paragraphSpacing > 0 && reader.paragraphSpacing <= 2)
-  ) {
+  if (reader.paragraphSpacing === undefined) {
     reader.paragraphSpacing = defaults.paragraphSpacing;
+  } else if (reader.paragraphSpacing > 2) {
+    /* Legacy px (3-24): convert to em */
+    reader.paragraphSpacing = Math.min(2, reader.paragraphSpacing / 16);
   }
   const legacyFont = LEGACY_FONT_MAP[reader.fontFamily as string];
   if (legacyFont) reader.fontFamily = legacyFont;
@@ -594,7 +594,7 @@ export async function updateReaderSettings(
   if (updates.textAlign !== undefined) reader.textAlign = updates.textAlign;
   if (updates.hideChapterHeader !== undefined) reader.hideChapterHeader = updates.hideChapterHeader;
   if (updates.paragraphSpacing !== undefined) {
-    reader.paragraphSpacing = Math.max(0, Math.min(24, updates.paragraphSpacing));
+    reader.paragraphSpacing = Math.max(0, Math.min(2, updates.paragraphSpacing));
   }
   if (updates.containerWidth !== undefined) {
     reader.containerWidth = Math.max(50, Math.min(100, updates.containerWidth));
@@ -620,10 +620,9 @@ export function getReaderSettings(
   const legacyMapped = LEGACY_FONT_MAP[fontFamily as string];
   if (legacyMapped) fontFamily = legacyMapped;
 
-  // Legacy paragraphSpacing was 0.5-2.0 (em); new is 0-24 (px). Use default for old format.
+  // paragraphSpacing: em 0-2.0. Legacy px (3-24) converted on write; old em (0.5-2) kept as is.
   let paragraphSpacing = raw.paragraphSpacing ?? DEFAULT_READER_SETTINGS.paragraphSpacing;
-  if (paragraphSpacing > 0 && paragraphSpacing <= 2)
-    paragraphSpacing = DEFAULT_READER_SETTINGS.paragraphSpacing;
+  if (paragraphSpacing > 2) paragraphSpacing = Math.min(2, paragraphSpacing / 16);
 
   const merged: ReaderSettings = {
     ...DEFAULT_READER_SETTINGS,

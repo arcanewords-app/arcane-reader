@@ -44,7 +44,7 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
   const textIndent = settings.textIndent ?? true;
   const textAlign = settings.textAlign ?? 'justify';
   const hideChapterHeader = settings.hideChapterHeader ?? false;
-  const paragraphSpacing = settings.paragraphSpacing ?? 8;
+  const paragraphSpacing = settings.paragraphSpacing ?? 0.5;
   const containerWidth = settings.containerWidth ?? 69;
 
   return (
@@ -117,14 +117,15 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
               type="range"
               class="settings-slider"
               min="0"
-              max="24"
-              value={paragraphSpacing}
+              max="20"
+              step="1"
+              value={Math.round(paragraphSpacing * 10)}
               onInput={(e) => {
                 const value = parseInt((e.target as HTMLInputElement).value, 10);
-                onChange({ paragraphSpacing: value });
+                onChange({ paragraphSpacing: value / 10 });
               }}
             />
-            <span class="slider-value">{paragraphSpacing}px</span>
+            <span class="slider-value">{paragraphSpacing.toFixed(1)}em</span>
           </div>
         </div>
       </div>

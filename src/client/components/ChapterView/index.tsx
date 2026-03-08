@@ -30,7 +30,7 @@ const defaultReaderSettings: ReaderSettings = {
   textIndent: true,
   textAlign: 'justify',
   hideChapterHeader: false,
-  paragraphSpacing: 8,
+  paragraphSpacing: 0.5,
   containerWidth: 69,
 };
 
@@ -101,7 +101,7 @@ export function ChapterView({
     root.style.setProperty('--reader-line-height', `${readerSettings.lineHeight}`);
     root.style.setProperty(
       '--reader-paragraph-spacing',
-      `${readerSettings.paragraphSpacing ?? 8}px`
+      `${Math.max(0.5, readerSettings.paragraphSpacing ?? 0.5)}em`
     );
     root.style.setProperty('--reader-container-width', `${readerSettings.containerWidth ?? 69}%`);
     root.setAttribute('data-reader-font', readerSettings.fontFamily);

@@ -169,7 +169,7 @@ export interface ReaderSettings {
   textIndent: boolean;
   textAlign: 'left' | 'justify';
   hideChapterHeader: boolean;
-  paragraphSpacing: number; // px, 0-24
+  paragraphSpacing: number; // em, 0-2.0 (scales with font size)
   containerWidth: number; // %, 50-100
   customBg?: string;
   customText?: string;

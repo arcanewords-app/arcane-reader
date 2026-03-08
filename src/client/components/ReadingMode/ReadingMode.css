@@ -228,12 +228,14 @@
   font-size: var(--reader-font-size);
   line-height: var(--reader-line-height);
   color: var(--reader-text);
+  font-weight: 400;
 }
 
 .reading-mode-paragraph {
   color: var(--reader-text);
   line-height: var(--reader-line-height);
-  margin-bottom: var(--reader-paragraph-spacing, 8px);
+  margin-bottom: max(var(--reader-paragraph-spacing, 0.5em), 0.5em);
+  font-weight: 400;
   text-align: justify;
   text-indent: 1.5em;
 }
@@ -541,6 +543,11 @@
   .reading-mode-text {
     max-width: 97%;
     font-size: max(var(--reader-font-size), 16px);
+    line-height: max(var(--reader-line-height), 1.5);
+  }
+
+  .reading-mode-paragraph {
+    line-height: max(var(--reader-line-height), 1.5);
   }
 
   /* Bottom sheet for settings panel on mobile */
@@ -703,7 +710,7 @@
   }
 
   .reading-mode-content {
-    padding: 0.75rem;
+    padding: 1rem;
   }
 
   .reading-mode-text {

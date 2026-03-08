@@ -2,10 +2,21 @@
 
 Скрипт для оборачивания паттернов в CSV-файлах в теги блоков (system-message, note и т.д.).
 
+**Папки:**
+
+- `scripts/input-files/` — исходные CSV (в пакетном режиме)
+- `scripts/output/` — обработанные файлы (создаётся автоматически)
+
 ## Использование
 
 ```bash
-# Базовый запуск (результат в input.out.csv)
+# Пакетный режим: все CSV из scripts/input-files → scripts/output
+npm run csv-patterns
+
+# С флагом --html
+npx tsx scripts/csv-pattern-replace.ts --html
+
+# Один файл (результат в input.out.csv)
 npx tsx scripts/csv-pattern-replace.ts input.csv
 
 # Указать выходной файл

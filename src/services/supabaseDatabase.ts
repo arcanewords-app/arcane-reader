@@ -766,7 +766,7 @@ export async function updateReaderSettings(
   const merged: ReaderSettings = { ...current, ...updates };
   merged.fontSize = Math.max(14, Math.min(24, merged.fontSize));
   merged.lineHeight = Math.max(1.4, Math.min(2.0, merged.lineHeight));
-  merged.paragraphSpacing = Math.max(0, Math.min(24, merged.paragraphSpacing));
+  merged.paragraphSpacing = Math.max(0, Math.min(2, merged.paragraphSpacing));
   merged.containerWidth = Math.max(50, Math.min(100, merged.containerWidth));
   const updatedReaderSettings = merged;
 
@@ -829,8 +829,7 @@ export async function getUserReaderSettings(
     s.paragraphSpacing != null
       ? Number(s.paragraphSpacing)
       : DEFAULT_READER_SETTINGS.paragraphSpacing;
-  if (paragraphSpacing > 0 && paragraphSpacing <= 2)
-    paragraphSpacing = DEFAULT_READER_SETTINGS.paragraphSpacing;
+  if (paragraphSpacing > 2) paragraphSpacing = Math.min(2, paragraphSpacing / 16);
 
   return {
     ...DEFAULT_READER_SETTINGS,
@@ -849,7 +848,7 @@ export async function getUserReaderSettings(
       s.hideChapterHeader !== undefined
         ? Boolean(s.hideChapterHeader)
         : DEFAULT_READER_SETTINGS.hideChapterHeader,
-    paragraphSpacing: Math.max(0, Math.min(24, paragraphSpacing)),
+    paragraphSpacing: Math.max(0, Math.min(2, paragraphSpacing)),
     containerWidth: Math.max(
       50,
       Math.min(100, Number(s.containerWidth) || DEFAULT_READER_SETTINGS.containerWidth)
@@ -881,7 +880,7 @@ export async function updateUserReaderSettings(
   merged.lineHeight = Math.max(1.4, Math.min(2.0, merged.lineHeight));
   merged.paragraphSpacing = Math.max(
     0,
-    Math.min(24, merged.paragraphSpacing ?? DEFAULT_READER_SETTINGS.paragraphSpacing)
+    Math.min(2, merged.paragraphSpacing ?? DEFAULT_READER_SETTINGS.paragraphSpacing)
   );
   merged.containerWidth = Math.max(
     50,
