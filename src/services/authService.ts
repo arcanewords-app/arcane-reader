@@ -151,4 +151,36 @@ export const authService = {
     }
     return session;
   },
+
+  /**
+   * Refresh session using refresh token. Returns new access/refresh token pair.
+   * Uses a dedicated client to avoid affecting the main supabase instance.
+   */
+  async refreshSession(refreshToken: string): Promise<{
+    access_token: string;
+    refresh_token: string;
+    expires_at: number;
+  } | null> {
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+
+    const refreshClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false },
+    });
+
+    const {
+      data: { session },
+      error,
+    } = await refreshClient.auth.refreshSession({ refresh_token: refreshToken });
+
+    if (error || !session) {
+      return null;
+    }
+
+    return {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at ?? 0,
+    };
+  },
 };

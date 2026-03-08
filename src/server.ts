@@ -386,6 +386,27 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
+// Refresh session (exchange refresh_token for new access_token)
+app.post('/api/auth/refresh', async (req, res) => {
+  try {
+    const { refresh_token: refreshToken } = req.body;
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      return res.status(400).json({ error: 'refresh_token is required' });
+    }
+
+    const session = await authService.refreshSession(refreshToken);
+    if (!session) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    res.json({ session });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const message = error instanceof Error ? error.message : 'Refresh failed';
+    res.status(500).json({ error: message });
+  }
+});
+
 // System status
 app.get('/api/status', (_req, res) => {
   res.json({

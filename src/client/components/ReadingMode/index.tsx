@@ -659,32 +659,6 @@ export function ReadingMode({
         </div>
       )}
 
-      {/* Navigation */}
-      <div class="reading-mode-nav">
-        <button
-          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
-          onClick={handlePrevChapter}
-          disabled={currentChapterIndex === 0}
-          title={t('chapter.prevChapter')}
-        >
-          ‹
-        </button>
-        {!readerSettings.hideChapterHeader && (
-          <div class="reading-mode-nav-info">
-            {currentChapter?.title ||
-              t('readingMode.chapterFallback', { n: currentChapterIndex + 1 })}
-          </div>
-        )}
-        <button
-          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
-          onClick={handleNextChapter}
-          disabled={currentChapterIndex >= chapters.length - 1}
-          title={t('chapter.nextChapter')}
-        >
-          ›
-        </button>
-      </div>
-
       {/* Content */}
       <div ref={contentRef} class="reading-mode-content">
         <div class="reading-mode-text">

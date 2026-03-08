@@ -4,6 +4,7 @@ import { route } from 'preact-router';
 import type { SystemStatus, AuthUser } from '../types';
 import { Button } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
+import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import { setSavedLocale, type AppLocale } from '../i18n';
 import './Header.css';
 
@@ -200,8 +201,8 @@ export function Header({
                 <span class="status-text">{getStatusText()}</span>
               </div>
 
-              {/* Token Usage */}
-              <TokenUsageIndicator />
+              {/* Token Usage - only on cabinet/project pages */}
+              {isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
 
               {/* Language Selector */}
               <div class="header-locale">

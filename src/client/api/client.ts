@@ -53,6 +53,8 @@ const AUTH_ERROR_EVENT = 'arcane:auth-error';
  */
 const SERVICE_DEGRADED_EVENT = 'arcane:service-degraded';
 
+const REFRESH_URL = '/api/auth/refresh';
+
 /**
  * Helper to handle 401 errors consistently
  * Clears auth storage, dispatches event for app to handle, and redirects if needed
@@ -82,7 +84,24 @@ function handleAuthError(response: Response): void {
   }
 }
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+/** Shared refresh promise so concurrent 401s wait for the same refresh */
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = authService.refresh();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+async function fetchJson<T>(
+  url: string,
+  options?: RequestInit,
+  isRetry = false
+): Promise<T> {
   // Get token from authService
   const token = authService.getToken();
 
@@ -95,8 +114,15 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     },
   });
 
-  // Handle 401 - unauthorized (token expired or invalid)
+  // Handle 401 - try refresh first (except for refresh endpoint and retries)
   if (response.status === 401) {
+    const isRefreshEndpoint = url.includes(REFRESH_URL);
+    if (!isRefreshEndpoint && !isRetry) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        return fetchJson<T>(url, options, true);
+      }
+    }
     handleAuthError(response);
     const data = await response.json().catch(() => ({}));
     throw new ApiError(data.error || 'Unauthorized', 401, data, data.code);
@@ -134,6 +160,8 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 /**
  * Fetch helper for FormData requests (multipart/form-data)
  * Does not set Content-Type header (browser will set it with boundary)
+ * Note: FormData body is consumed on send, so we cannot retry. On 401 we try refresh;
+ * if refresh succeeds we throw ApiError (token is fresh, user can retry the action).
  */
 async function fetchFormData<T>(
   url: string,
@@ -154,8 +182,17 @@ async function fetchFormData<T>(
     body: formData,
   });
 
-  // Handle 401 - unauthorized (token expired or invalid)
+  // Handle 401 - try refresh first (FormData cannot be retried, but token will be fresh for user retry)
   if (response.status === 401) {
+    const isRefreshEndpoint = url.includes(REFRESH_URL);
+    if (!isRefreshEndpoint) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        // Token is fresh; throw so caller can retry the action
+        const data = await response.json().catch(() => ({}));
+        throw new ApiError(data.error || 'Unauthorized', 401, data, data.code);
+      }
+    }
     handleAuthError(response);
     const data = await response.json().catch(() => ({}));
     throw new ApiError(data.error || 'Unauthorized', 401, data, data.code);

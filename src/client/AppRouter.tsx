@@ -293,7 +293,13 @@ export function AppRouter() {
           )}
 
           <main>
-            <Router>
+            <Router
+              onChange={(e: { url: string }) => {
+                window.dispatchEvent(
+                  new CustomEvent('arcane:route-change', { detail: { url: e.url } })
+                );
+              }}
+            >
               <CatalogPage path="/" />
               <CatalogPage path="/catalog" />
               <AboutPage path="/about" />

@@ -8,12 +8,14 @@ import type { AuthUser, LoginResponse, RegisterResponse, Session } from '../type
 const TOKEN_KEY = 'arcane_auth_token';
 const REFRESH_KEY = 'arcane_auth_refresh';
 const USER_KEY = 'arcane_user';
+const EXPIRES_KEY = 'arcane_auth_expires';
 
 // Helper function to clear storage
 function clearAuthStorage(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(EXPIRES_KEY);
 }
 
 export const authService = {
@@ -91,9 +93,43 @@ export const authService = {
       localStorage.setItem(TOKEN_KEY, data.session.access_token);
       localStorage.setItem(REFRESH_KEY, data.session.refresh_token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      if (data.session.expires_at) {
+        localStorage.setItem(EXPIRES_KEY, String(data.session.expires_at));
+      }
     }
 
     return data;
+  },
+
+  /**
+   * Refresh session using refresh_token. Returns true if successful.
+   * Uses raw fetch to avoid circular 401 handling in API client.
+   */
+  async refresh(): Promise<boolean> {
+    const refreshToken = localStorage.getItem(REFRESH_KEY);
+    if (!refreshToken) return false;
+
+    try {
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      const data = (await response.json()) as { session?: Session };
+      if (!data.session) return false;
+
+      localStorage.setItem(TOKEN_KEY, data.session.access_token);
+      localStorage.setItem(REFRESH_KEY, data.session.refresh_token);
+      if (data.session.expires_at) {
+        localStorage.setItem(EXPIRES_KEY, String(data.session.expires_at));
+      }
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   /**
@@ -104,6 +140,7 @@ export const authService = {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(EXPIRES_KEY);
 
     // Call API logout endpoint
     try {
@@ -149,11 +186,21 @@ export const authService = {
     }
 
     try {
-      const response = await fetch('/api/auth/me', {
+      let response = await fetch('/api/auth/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      // On 401, try refresh and retry once
+      if (response.status === 401 && (await this.refresh())) {
+        const newToken = localStorage.getItem(TOKEN_KEY);
+        if (newToken) {
+          response = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${newToken}` },
+          });
+        }
+      }
 
       if (!response.ok) {
         // Token invalid, clear storage
