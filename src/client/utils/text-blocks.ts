@@ -32,7 +32,7 @@ export function renderTextWithBlocks(text: string, blockTypes: TextBlockType[] =
 
   const enabledTypes = blockTypes.filter((bt) => bt.enabled);
   if (enabledTypes.length === 0 || !text.includes('{{block:')) {
-    return escapeHtml(text);
+    return escapeHtml(text).replace(/\n/g, '<br>');
   }
 
   const typeMap = new Map(enabledTypes.map((bt) => [bt.id.toLowerCase(), bt]));
@@ -101,11 +101,23 @@ export function mergeSegmentsWithUnclosedBlocks(
   text: string,
   splitRe: RegExp = /\n\s*\n/
 ): string[] {
-  const segments = text
+  const normalized = text.replace(/\r\n|\r/g, '\n');
+  let segments = normalized
     .split(splitRe)
     .map((s) => s.trim())
     .filter(Boolean);
   if (segments.length === 0) return [];
+  if (
+    segments.length === 1 &&
+    normalized.includes('\n') &&
+    /[\u2014\u2013\u2012\u2015\u2212-]/.test(normalized)
+  ) {
+    segments = normalized
+      .split(/\n(?=\s*[\u2014\u2013\u2012\u2015\u2212\-])/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (segments.length === 0) return [];
+  }
   const result: string[] = [];
   let i = 0;
   while (i < segments.length) {

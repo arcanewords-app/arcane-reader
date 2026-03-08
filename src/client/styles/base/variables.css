@@ -105,6 +105,8 @@
   --modal-max-width-desktop: 1100px;
 
   /* Reading Mode - Mobile (≤767px) */
+  --reading-header-height: 56px;
+  --reading-footer-height: 100px;
   --reading-header-padding-mobile: 0.75rem 1rem;
   --reading-content-padding-mobile: 1.25rem;
   --reading-text-max-width-mobile: 100%;

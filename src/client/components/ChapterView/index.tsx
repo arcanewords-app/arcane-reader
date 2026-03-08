@@ -27,7 +27,7 @@ const defaultReaderSettings: ReaderSettings = {
   lineHeight: 1.6,
   fontFamily: 'default',
   colorScheme: 'dark',
-  textIndent: true,
+  textIndent: false,
   textAlign: 'justify',
   hideChapterHeader: false,
   paragraphSpacing: 0.5,
@@ -106,7 +106,10 @@ export function ChapterView({
     root.style.setProperty('--reader-container-width', `${readerSettings.containerWidth ?? 69}%`);
     root.setAttribute('data-reader-font', readerSettings.fontFamily);
     root.setAttribute('data-reader-theme', readerSettings.colorScheme);
-    root.setAttribute('data-reader-indent', (readerSettings.textIndent ?? true) ? 'true' : 'false');
+    root.setAttribute(
+      'data-reader-indent',
+      (readerSettings.textIndent ?? false) ? 'true' : 'false'
+    );
     root.setAttribute('data-reader-align', readerSettings.textAlign ?? 'justify');
     if (readerSettings.colorScheme === 'custom') {
       root.style.setProperty('--reader-bg', readerSettings.customBg ?? '#f2f2f3');

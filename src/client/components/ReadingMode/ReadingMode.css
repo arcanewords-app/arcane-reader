@@ -16,7 +16,13 @@
   overflow: hidden;
 }
 
+/* Header always overlay - no layout shift when hiding */
 .reading-mode-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   background: var(--reader-chrome-bg);
   border-bottom: 1px solid var(--reader-chrome-border);
   padding: var(--reading-header-padding-mobile);
@@ -24,8 +30,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-shrink: 0;
-  flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
+  flex-wrap: wrap;
+  transition: transform 0.25s ease-out;
 }
 
 .reading-mode-header-left {
@@ -157,6 +163,7 @@
 }
 
 .reading-mode-nav {
+  margin-top: var(--reading-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -165,7 +172,7 @@
   border-bottom: 1px solid var(--reader-chrome-border);
   gap: 0.75rem;
   flex-shrink: 0;
-  flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
+  flex-wrap: wrap;
 }
 
 .reading-mode-nav-btn {
@@ -215,10 +222,11 @@
 .reading-mode-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--reading-content-padding-mobile);
+  padding: var(--reading-header-height) var(--reading-content-padding-mobile)
+    var(--reading-footer-height);
   display: flex;
   justify-content: center;
-  min-width: 0; /* Защита от overflow */
+  min-width: 0;
 }
 
 .reading-mode-text {
@@ -244,22 +252,51 @@
   text-indent: 0;
 }
 
+/* Footer always overlay - back, prev, next in column on right, more visible */
 .reading-mode-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--reading-header-padding-mobile);
-  background: var(--reader-chrome-bg);
-  border-top: 1px solid var(--reader-chrome-border);
-  gap: 0.75rem;
-  flex-shrink: 0;
-  flex-wrap: wrap; /* Перенос элементов на маленьких экранах */
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0.5rem 0.75rem;
+  gap: 0.25rem;
+  background: transparent;
+  pointer-events: none;
+  transition: transform 0.25s ease-out;
 }
 
-.reading-mode-progress {
-  font-size: 0.9rem;
-  color: var(--reader-text-dim);
-  font-weight: 500;
+.reading-mode-footer .reading-mode-footer-btn {
+  pointer-events: auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--reader-text);
+  background: color-mix(in srgb, var(--reader-chrome-bg) 75%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.reading-mode-footer .reading-mode-footer-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--reader-chrome-bg) 95%, transparent);
+  color: var(--reader-accent);
+}
+
+.reading-mode-footer .reading-mode-footer-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .reading-mode-empty {
@@ -532,15 +569,16 @@
   border-top: 1px solid var(--reader-chrome-border);
 }
 
-/* Scroll-based hide: slide chrome off-screen when scrolling down (all viewports) */
+/* Scroll-based hide: slide chrome off-screen (transform only, no layout change) */
+/* Header/footer stay visible when near top/bottom of chapter */
 .reading-mode-chrome-hidden .reading-mode-header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
   transform: translateY(-100%);
   pointer-events: none;
-  transition: transform 0.25s ease-out;
+}
+
+.reading-mode-chrome-hidden[data-header-visible='true'] .reading-mode-header {
+  transform: none;
+  pointer-events: auto;
 }
 
 .reading-mode-chrome-hidden .reading-mode-settings-panel {
@@ -564,13 +602,13 @@
 }
 
 .reading-mode-chrome-hidden .reading-mode-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
   transform: translateY(100%);
   pointer-events: none;
-  transition: transform 0.25s ease-out;
+}
+
+.reading-mode-chrome-hidden[data-footer-visible='true'] .reading-mode-footer {
+  transform: none;
+  pointer-events: auto;
 }
 
 /* Responsive Styles */
@@ -589,6 +627,7 @@
 
   .reading-mode-paragraph {
     line-height: max(var(--reader-line-height), 1.5);
+    margin-bottom: max(1em, var(--reader-paragraph-spacing, 0.5em));
   }
 
   /* Bottom sheet for settings panel on mobile */
@@ -635,7 +674,8 @@
   }
 
   .reading-mode-content {
-    padding: var(--reading-content-padding-tablet);
+    /* Nav visible on tablet+ - no extra padding-top needed */
+    padding: 0 var(--reading-content-padding-tablet) var(--reading-footer-height);
   }
 
   .reading-mode-text {
@@ -644,8 +684,8 @@
   }
 
   .reading-mode-footer {
-    padding: var(--reading-header-padding-tablet);
-    gap: 0.875rem;
+    padding: 0.5rem 1rem;
+    gap: 0.25rem;
   }
 }
 
@@ -676,7 +716,8 @@
   }
 
   .reading-mode-content {
-    padding: var(--reading-content-padding-desktop);
+    /* Nav visible on desktop - no extra padding-top needed */
+    padding: 0 var(--reading-content-padding-desktop) var(--reading-footer-height);
   }
 
   .reading-mode-text {
@@ -685,8 +726,8 @@
   }
 
   .reading-mode-footer {
-    padding: var(--reading-header-padding-desktop);
-    gap: 1rem;
+    padding: 0.5rem 1.25rem;
+    gap: 0.25rem;
   }
 }
 
@@ -720,7 +761,7 @@
   }
 
   .reading-mode-content {
-    padding: 1rem;
+    padding: var(--reading-header-height) 1rem var(--reading-footer-height);
   }
 
   .reading-mode-text {
@@ -734,7 +775,13 @@
   }
 
   .reading-mode-footer {
-    padding: 0.5rem 0.75rem;
-    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    gap: 0.2rem;
+  }
+
+  .reading-mode-footer .reading-mode-footer-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
   }
 }

@@ -92,6 +92,8 @@ export function ReadingMode({
   );
   const [chapterContentLoading, setChapterContentLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(true);
+  const [isNearTop, setIsNearTop] = useState(true);
+  const [isNearBottom, setIsNearBottom] = useState(false);
 
   const isPublicationMode = !!publicationId;
   const lastScrollTopRef = useRef(0);
@@ -207,13 +209,20 @@ export function ReadingMode({
       .then((fullChapter) => {
         const text = isOriginalReadingMode
           ? fullChapter.originalText || ''
-          : fullChapter.paragraphs && fullChapter.paragraphs.length > 0
-            ? fullChapter.paragraphs
-                .sort((a, b) => a.index - b.index)
-                .filter((p) => p.translatedText)
-                .map((p) => p.translatedText!)
-                .join('\n\n')
-            : fullChapter.translatedText || '';
+          : (() => {
+              const withTranslated =
+                fullChapter.paragraphs &&
+                fullChapter.paragraphs.length > 0 &&
+                fullChapter.paragraphs.some((p) => p.translatedText?.trim());
+              if (withTranslated) {
+                return fullChapter
+                  .paragraphs!.sort((a, b) => a.index - b.index)
+                  .filter((p) => p.translatedText)
+                  .map((p) => p.translatedText!)
+                  .join('\n\n');
+              }
+              return fullChapter.translatedText || '';
+            })();
         setChapterContentMap((prev) => ({ ...prev, [fullChapter.id]: text }));
       })
       .catch(() => {})
@@ -259,13 +268,20 @@ export function ReadingMode({
               if (controller.signal.aborted) return;
               const text = isOriginalReadingMode
                 ? fullChapter.originalText || ''
-                : fullChapter.paragraphs && fullChapter.paragraphs.length > 0
-                  ? fullChapter.paragraphs
-                      .sort((a, b) => a.index - b.index)
-                      .filter((p) => p.translatedText)
-                      .map((p) => p.translatedText!)
-                      .join('\n\n')
-                  : fullChapter.translatedText || '';
+                : (() => {
+                    const withTranslated =
+                      fullChapter.paragraphs &&
+                      fullChapter.paragraphs.length > 0 &&
+                      fullChapter.paragraphs.some((p) => p.translatedText?.trim());
+                    if (withTranslated) {
+                      return fullChapter
+                        .paragraphs!.sort((a, b) => a.index - b.index)
+                        .filter((p) => p.translatedText)
+                        .map((p) => p.translatedText!)
+                        .join('\n\n');
+                    }
+                    return fullChapter.translatedText || '';
+                  })();
               setChapterContentMap((prev) => ({ ...prev, [fullChapter.id]: text }));
             })
             .catch(() => {});
@@ -363,6 +379,8 @@ export function ReadingMode({
       scrollAccumRef.current = 0;
       scrollUpAccumRef.current = 0;
       setMenuVisible(true);
+      setIsNearTop(true);
+      setIsNearBottom(false);
     }
   }, [currentChapterIndex]);
 
@@ -374,11 +392,19 @@ export function ReadingMode({
     if (!el) return;
     let rafId: number;
 
+    const edgeThreshold = 100;
     const handleScroll = () => {
       rafId = requestAnimationFrame(() => {
         const scrollTop = el.scrollTop;
         const delta = scrollTop - lastScrollTopRef.current;
         lastScrollTopRef.current = scrollTop;
+
+        const nearTop = scrollTop <= edgeThreshold;
+        const nearBottom =
+          el.scrollHeight <= el.clientHeight ||
+          scrollTop + el.clientHeight >= el.scrollHeight - edgeThreshold;
+        setIsNearTop(nearTop);
+        setIsNearBottom(nearBottom);
 
         if (delta > 0) {
           scrollUpAccumRef.current = 0;
@@ -554,12 +580,16 @@ export function ReadingMode({
   };
 
   const displayText = currentChapter ? getText(currentChapter) : '';
+  const headerVisible = menuVisible || isNearTop;
+  const footerVisible = menuVisible || isNearBottom;
 
   return (
     <div
       class={`reading-mode${!menuVisible ? ' reading-mode-chrome-hidden' : ''}`}
       data-reader-font={readerSettings.fontFamily}
       data-reader-theme={readerSettings.colorScheme}
+      data-header-visible={headerVisible ? 'true' : 'false'}
+      data-footer-visible={footerVisible ? 'true' : 'false'}
     >
       {/* Header: back, chapter title (no work title), actions */}
       <div class="reading-mode-header">
@@ -692,21 +722,18 @@ export function ReadingMode({
         </div>
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - prev/next in column on right */}
       <div class="reading-mode-footer">
         <button
-          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
+          class="reading-mode-footer-btn"
           onClick={handlePrevChapter}
           disabled={currentChapterIndex === 0}
           title={t('chapter.prevChapter')}
         >
           ‹
         </button>
-        <div class="reading-mode-progress">
-          {currentChapterIndex + 1} / {chapters.length}
-        </div>
         <button
-          class="reading-mode-nav-btn reading-mode-nav-btn-icon"
+          class="reading-mode-footer-btn"
           onClick={handleNextChapter}
           disabled={currentChapterIndex >= chapters.length - 1}
           title={t('chapter.nextChapter')}

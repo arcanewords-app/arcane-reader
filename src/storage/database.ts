@@ -210,7 +210,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   fontSize: 16,
   lineHeight: 1.6,
   colorScheme: 'dark',
-  textIndent: true,
+  textIndent: false,
   textAlign: 'justify',
   hideChapterHeader: false,
   paragraphSpacing: 0.5,

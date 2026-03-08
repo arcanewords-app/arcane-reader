@@ -41,7 +41,7 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
     { key: 'contrast', titleKey: 'reader.themeContrast', bg: '#000000', text: '#ffffff' },
   ];
 
-  const textIndent = settings.textIndent ?? true;
+  const textIndent = settings.textIndent ?? false;
   const textAlign = settings.textAlign ?? 'justify';
   const hideChapterHeader = settings.hideChapterHeader ?? false;
   const paragraphSpacing = settings.paragraphSpacing ?? 0.5;
