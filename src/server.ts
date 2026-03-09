@@ -193,7 +193,7 @@ function injectPublicationContent(
     : '';
   const actionLinks = opts.hasExport ? `${readLink} · ${downloadLink}` : readLink;
 
-  const content = `<main class="publication-page-seo">
+  const content = `<main class="publication-page-seo" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
     <h1>${title}</h1>
     <p class="publication-page-seo-desc">${desc}</p>
     ${metaLine}
