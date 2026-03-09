@@ -176,7 +176,9 @@
   flex-shrink: 0;
 }
 
-
+.reading-mode-content .reading-mode-text {
+  align-self: center;
+}
 
 .reading-mode-text {
   max-width: min(var(--reader-container-width, 69%), 900px);
