@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type {
   Project,
@@ -94,13 +94,41 @@ export function ReadingMode({
   const [menuVisible, setMenuVisible] = useState(true);
   const [isNearTop, setIsNearTop] = useState(true);
   const [isNearBottom, setIsNearBottom] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(80);
+  const [footerHeight, setFooterHeight] = useState(80);
 
   const isPublicationMode = !!publicationId;
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollTopRef = useRef(0);
   const scrollAccumRef = useRef(0);
   const scrollUpAccumRef = useRef(0);
   const scrollThreshold = 50;
   const scrollUpThreshold = 50;
+
+  // Measure header/footer and sync spacer heights (immediate + ResizeObserver)
+  const measureChrome = useCallback(() => {
+    const headerEl = headerRef.current;
+    const footerEl = footerRef.current;
+    if (headerEl) setHeaderHeight(Math.ceil(headerEl.getBoundingClientRect().height));
+    if (footerEl) setFooterHeight(Math.ceil(footerEl.getBoundingClientRect().height));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (chapters.length === 0) return;
+    measureChrome();
+  }, [chapters.length, measureChrome]);
+
+  useEffect(() => {
+    const headerEl = headerRef.current;
+    const footerEl = footerRef.current;
+    if (!headerEl || !footerEl || chapters.length === 0) return;
+
+    const ro = new ResizeObserver(() => measureChrome());
+    ro.observe(headerEl);
+    ro.observe(footerEl);
+    return () => ro.disconnect();
+  }, [chapters.length, measureChrome]);
 
   // Merge initialChapterContent when it arrives (e.g. from preload in PublicationReadingPage)
   useEffect(() => {
@@ -592,7 +620,7 @@ export function ReadingMode({
       data-footer-visible={footerVisible ? 'true' : 'false'}
     >
       {/* Header: back, chapter title (no work title), actions */}
-      <div class="reading-mode-header">
+      <div ref={headerRef} class="reading-mode-header">
         <div class="reading-mode-header-left">
           <button class="reading-mode-exit-btn" onClick={onExit} title={t('readingMode.exitTitle')}>
             ← {t('common.back')}
@@ -660,7 +688,12 @@ export function ReadingMode({
       )}
 
       {/* Content */}
-      <div ref={contentRef} class="reading-mode-content">
+      <div
+        ref={contentRef}
+        class="reading-mode-content"
+        style={{ paddingBottom: `${Math.max(0, footerHeight - 20)}px` }}
+      >
+        <div class="reading-mode-spacer-top" style={{ minHeight: `${headerHeight}px` }} />
         <div class="reading-mode-text">
           {chapterContentLoading ? (
             <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
@@ -696,8 +729,8 @@ export function ReadingMode({
         </div>
       </div>
 
-      {/* Bottom Navigation - prev/next in column on right */}
-      <div class="reading-mode-footer">
+      {/* Bottom Navigation - prev/next in row, centered */}
+      <div ref={footerRef} class="reading-mode-footer">
         <button
           class="reading-mode-footer-btn"
           onClick={handlePrevChapter}
