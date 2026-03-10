@@ -70,7 +70,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   };
 
   const handleDeleteProject = () => {
-    route('/cabinet');
+    route('/projects');
   };
 
   const handleRefreshProject = async () => {

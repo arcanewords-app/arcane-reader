@@ -52,8 +52,10 @@ import {
   getProjectForPublicationExport,
   markChapterAsRead,
   getReadProgress,
+  updateReadingPosition,
   getUserReaderSettings,
   updateUserReaderSettings,
+  getUserReadingHistory,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
 import {
@@ -65,7 +67,7 @@ import {
   type ProjectWithChapterList,
   type Paragraph,
 } from './storage/database.js';
-import { requireAuth, optionalAuth } from './middleware/auth.js';
+import { requireAuth, optionalAuth, requireRole } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
 import { handleServiceError, serviceUnavailableErrorHandler } from './middleware/serviceHealth.js';
 import { logger } from './logger.js';
@@ -581,10 +583,127 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
   }
 });
 
+// Get reading history (publications user has read, with progress)
+app.get('/api/user/reading-history', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const items = await getUserReadingHistory(req.user.id, requireToken(req));
+    res.json({ items });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to get reading history';
+    req.log?.error({ err: error }, 'Error getting reading history');
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
+// Get user profile (id, email, role, avatar_url)
+app.get('/api/user/profile', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    res.json({
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      avatarUrl: req.user.avatarUrl ?? null,
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to get profile';
+    req.log?.error({ err: error }, 'Error getting profile');
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
+// Update user profile (avatar_url only)
+app.put('/api/user/profile', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { avatarUrl } = req.body;
+    if (typeof avatarUrl !== 'string' && avatarUrl !== null) {
+      return res.status(400).json({ error: 'avatarUrl must be a string or null' });
+    }
+    const { createClientWithToken } = await import('./services/supabaseClient.js');
+    const client = createClientWithToken(requireToken(req));
+    const { data, error } = await client
+      .from('profiles')
+      .update({ avatar_url: avatarUrl === '' ? null : avatarUrl })
+      .eq('id', req.user.id)
+      .select('avatar_url')
+      .single();
+    if (error) {
+      req.log?.error({ err: error }, 'Failed to update profile');
+      return res.status(500).json({ error: 'Failed to update profile' });
+    }
+    res.json({ avatarUrl: data?.avatar_url ?? null });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to update profile';
+    req.log?.error({ err: error }, 'Error updating profile');
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
+// Upload avatar (multipart, updates profile avatar_url)
+const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (jpg, png, gif, webp) are allowed'));
+    }
+  },
+});
+
+app.post('/api/user/profile/avatar', requireAuth, uploadAvatar.single('avatar'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const ext = req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/gif' ? 'gif' : req.file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+    const storagePath = `${req.user.id}/avatar.${ext}`;
+    const { publicUrl } = await uploadFile('avatars', storagePath, req.file.buffer, {
+      contentType: req.file.mimetype,
+      upsert: true,
+    });
+    const { createClientWithToken } = await import('./services/supabaseClient.js');
+    const client = createClientWithToken(requireToken(req));
+    const { data, error } = await client
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', req.user.id)
+      .select('avatar_url')
+      .single();
+    if (error) {
+      req.log?.error({ err: error }, 'Failed to update profile');
+      return res.status(500).json({ error: 'Failed to update profile' });
+    }
+    res.json({ avatarUrl: data?.avatar_url ?? null });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to upload avatar';
+    req.log?.error({ err: error }, 'Error uploading avatar');
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
 // ============ Projects ============
 
 // Get all projects (requires auth)
-app.get('/api/projects', requireAuth, async (req, res) => {
+app.get('/api/projects', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -627,7 +746,7 @@ app.get('/api/projects', requireAuth, async (req, res) => {
 });
 
 // Create new project (requires auth)
-app.post('/api/projects', requireAuth, async (req, res) => {
+app.post('/api/projects', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -648,7 +767,7 @@ app.post('/api/projects', requireAuth, async (req, res) => {
 });
 
 // Get project by ID (requires auth)
-app.get('/api/projects/:id', requireAuth, async (req, res) => {
+app.get('/api/projects/:id', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -671,7 +790,7 @@ app.get('/api/projects/:id', requireAuth, async (req, res) => {
 });
 
 // Get chapters summary (for ProcessChapters - lightweight)
-app.get('/api/projects/:id/chapters/summary', requireAuth, async (req, res) => {
+app.get('/api/projects/:id/chapters/summary', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -687,7 +806,7 @@ app.get('/api/projects/:id/chapters/summary', requireAuth, async (req, res) => {
 });
 
 // Delete project (requires auth)
-app.delete('/api/projects/:id', requireAuth, async (req, res) => {
+app.delete('/api/projects/:id', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -705,7 +824,7 @@ app.delete('/api/projects/:id', requireAuth, async (req, res) => {
 });
 
 // Update project settings (requires auth)
-app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
+app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -809,7 +928,7 @@ app.put('/api/projects/:id/settings', requireAuth, async (req, res) => {
 });
 
 // Get reader settings (requires auth)
-app.get('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
+app.get('/api/projects/:id/settings/reader', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -829,7 +948,7 @@ app.get('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
 });
 
 // Update reader settings (requires auth)
-app.put('/api/projects/:id/settings/reader', requireAuth, async (req, res) => {
+app.put('/api/projects/:id/settings/reader', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -894,7 +1013,7 @@ app.put('/api/user/reader-settings', requireAuth, async (req, res) => {
 // ============ Chapters ============
 
 // Upload chapter to project (requires auth)
-app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async (req, res) => {
+app.post('/api/projects/:id/chapters', requireAuth, requireRole('author'), upload.single('file'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -1066,7 +1185,7 @@ app.post('/api/projects/:id/chapters', requireAuth, upload.single('file'), async
 });
 
 // Get chapter status only (lightweight, for polling during translation)
-app.get('/api/projects/:projectId/chapters/:chapterId/status', requireAuth, async (req, res) => {
+app.get('/api/projects/:projectId/chapters/:chapterId/status', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -1086,7 +1205,7 @@ app.get('/api/projects/:projectId/chapters/:chapterId/status', requireAuth, asyn
 });
 
 // Get chapter (requires auth)
-app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req, res) => {
+app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -1114,7 +1233,7 @@ app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req,
 });
 
 // Delete chapter (requires auth)
-app.delete('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (req, res) => {
+app.delete('/api/projects/:projectId/chapters/:chapterId', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -1147,6 +1266,7 @@ app.delete('/api/projects/:projectId/chapters/:chapterId', requireAuth, async (r
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/translate/cancel',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       if (!req.user) {
@@ -1204,6 +1324,7 @@ app.post(
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/translate/sync',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       if (!req.user) {
@@ -1293,6 +1414,7 @@ app.post(
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/upload-translation',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       if (!req.user) {
@@ -1392,6 +1514,7 @@ app.post(
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/mark-as-translated',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       if (!req.user) {
@@ -1517,6 +1640,7 @@ app.post(
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/translate',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       if (!req.user) {
@@ -3320,7 +3444,7 @@ async function translateWithOpenAI(
 
 // ============ Glossary ============
 
-app.get('/api/projects/:id/glossary', requireAuth, async (req, res) => {
+app.get('/api/projects/:id/glossary', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3337,7 +3461,7 @@ app.get('/api/projects/:id/glossary', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/projects/:id/glossary', requireAuth, async (req, res) => {
+app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3397,7 +3521,7 @@ app.post('/api/projects/:id/glossary', requireAuth, async (req, res) => {
 });
 
 // Update glossary entry (requires auth)
-app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, res) => {
+app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3457,7 +3581,7 @@ app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, r
   }
 });
 
-app.delete('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req, res) => {
+app.delete('/api/projects/:projectId/glossary/:entryId', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3488,7 +3612,7 @@ app.delete('/api/projects/:projectId/glossary/:entryId', requireAuth, async (req
 });
 
 // Suggest glossary merges (LLM analyzes and returns groups of entries to merge)
-app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, async (req, res) => {
+app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3519,7 +3643,7 @@ app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, async 
 });
 
 // Merge glossary entries into one (keep one, merge fields, delete others)
-app.post('/api/projects/:projectId/glossary/merge', requireAuth, async (req, res) => {
+app.post('/api/projects/:projectId/glossary/merge', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3626,6 +3750,7 @@ app.post('/api/projects/:projectId/glossary/merge', requireAuth, async (req, res
 app.post(
   '/api/projects/:projectId/glossary/:entryId/image',
   requireAuth,
+  requireRole('author'),
   uploadImage.single('image'),
   async (req, res) => {
     try {
@@ -3707,6 +3832,7 @@ app.post(
 app.delete(
   '/api/projects/:projectId/glossary/:entryId/image/:imageIndex',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       if (!req.user) {
@@ -3773,7 +3899,7 @@ app.delete(
 );
 
 // Legacy endpoint: delete all images (for backward compatibility) (requires auth)
-app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, async (req, res) => {
+app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3831,6 +3957,7 @@ app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, asyn
 app.post(
   '/api/projects/:projectId/cover',
   requireAuth,
+  requireRole('author'),
   uploadImage.single('image'),
   async (req, res) => {
     try {
@@ -3912,7 +4039,7 @@ app.post(
 );
 
 // Delete project cover image (requires auth)
-app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
+app.delete('/api/projects/:projectId/cover', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3957,7 +4084,7 @@ app.delete('/api/projects/:projectId/cover', requireAuth, async (req, res) => {
 });
 
 // Update project metadata (e.g. description) (requires auth)
-app.put('/api/projects/:projectId/metadata', requireAuth, async (req, res) => {
+app.put('/api/projects/:projectId/metadata', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -3997,7 +4124,7 @@ app.put('/api/projects/:projectId/metadata', requireAuth, async (req, res) => {
 // ============ Paragraphs ============
 
 // Get chapter with paragraph stats (requires auth)
-app.get('/api/projects/:projectId/chapters/:chapterId/stats', requireAuth, async (req, res) => {
+app.get('/api/projects/:projectId/chapters/:chapterId/stats', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4023,7 +4150,7 @@ app.get('/api/projects/:projectId/chapters/:chapterId/stats', requireAuth, async
 
 // Update single paragraph
 // Update chapter title (requires auth)
-app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, async (req, res) => {
+app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4067,7 +4194,7 @@ app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, async
 });
 
 // Update chapter number (requires auth)
-app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, async (req, res) => {
+app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4112,7 +4239,7 @@ app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, asyn
 });
 
 // Reorder chapters (accepts full ordered ids array)
-app.put('/api/projects/:projectId/chapters/order', requireAuth, async (req, res) => {
+app.put('/api/projects/:projectId/chapters/order', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -4137,6 +4264,7 @@ app.put('/api/projects/:projectId/chapters/order', requireAuth, async (req, res)
 app.put(
   '/api/projects/:projectId/chapters/:chapterId/paragraphs/:paragraphId',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     try {
       const { translatedText, status } = req.body;
@@ -4180,6 +4308,7 @@ app.put(
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/paragraphs/bulk-status',
   requireAuth,
+  requireRole('author'),
   async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4220,7 +4349,7 @@ app.post(
 // ============ Export ============
 
 // Export project to EPUB or FB2 (requires auth)
-app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
+app.post('/api/projects/:id/export', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4413,7 +4542,7 @@ app.post('/api/projects/:id/export', requireAuth, async (req, res) => {
 });
 
 // Download export file via proxy (Content-Disposition: attachment so browser downloads, not opens)
-app.get('/api/projects/:id/export/download', requireAuth, async (req, res) => {
+app.get('/api/projects/:id/export/download', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4455,7 +4584,7 @@ app.get('/api/projects/:id/export/download', requireAuth, async (req, res) => {
 
 // ============ Publication Export (auth required for any registered user) ============
 
-app.post('/api/publications/:id/export', requireAuth, async (req, res) => {
+app.post('/api/publications/:id/export', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4609,7 +4738,7 @@ app.post('/api/publications/:id/export', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/publications/:id/export/download', requireAuth, async (req, res) => {
+app.get('/api/publications/:id/export/download', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -4812,8 +4941,12 @@ app.get('/api/publications/:id/read-progress', optionalAuth, async (req, res) =>
     const publicationId = pub.id;
     const userId = req.user?.id ?? null;
     const token = req.token ?? null;
-    const chapterIds = await getReadProgress(publicationId, userId, token);
-    res.json({ chapterIds });
+    const progress = await getReadProgress(publicationId, userId, token);
+    res.json({
+      chapterIds: progress.chapterIds,
+      lastReadChapterId: progress.lastReadChapterId ?? undefined,
+      lastReadParagraphIndex: progress.lastReadParagraphIndex,
+    });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get read progress';
     res.status(500).json({ error: msg });
@@ -4854,8 +4987,49 @@ app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, async (r
   }
 });
 
+// Update reading position (auth required)
+app.patch('/api/publications/:id/reading-position', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const body = req.body as { chapterId?: string; paragraphIndex?: number };
+    const chapterId = body.chapterId;
+    const paragraphIndex = body.paragraphIndex ?? 0;
+
+    if (!chapterId || typeof chapterId !== 'string') {
+      res.status(400).json({ error: 'chapterId is required' });
+      return;
+    }
+
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+
+    const { createServiceRoleClient } = await import('./services/supabaseClient.js');
+    const serviceClient = createServiceRoleClient();
+    const { data: chapter } = await serviceClient
+      .from('chapters')
+      .select('id')
+      .eq('id', chapterId)
+      .eq('project_id', pub.projectId)
+      .single();
+
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+
+    await updateReadingPosition(userId, pub.id, chapterId, paragraphIndex, token);
+    res.json({ success: true });
+  } catch (error) {
+    const msg =
+      error instanceof Error ? error.message : 'Failed to update reading position';
+    res.status(500).json({ error: msg });
+  }
+});
+
 // Publish project (auth required)
-app.post('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
+app.post('/api/projects/:projectId/publish', requireAuth, requireRole('author'), async (req, res) => {
   try {
     const userId = req.user!.id;
     const token = req.token!;
@@ -4889,7 +5063,7 @@ app.post('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
 });
 
 // Unpublish project (auth required)
-app.delete('/api/projects/:projectId/publish', requireAuth, async (req, res) => {
+app.delete('/api/projects/:projectId/publish', requireAuth, requireRole('author'), async (req, res) => {
   try {
     const userId = req.user!.id;
     const token = req.token!;
@@ -4906,7 +5080,7 @@ app.delete('/api/projects/:projectId/publish', requireAuth, async (req, res) => 
 });
 
 // Get current user's publications (auth required)
-app.get('/api/user/publications', requireAuth, async (req, res) => {
+app.get('/api/user/publications', requireAuth, requireRole('author'), async (req, res) => {
   try {
     const userId = req.user!.id;
     const token = req.token!;
@@ -4920,7 +5094,7 @@ app.get('/api/user/publications', requireAuth, async (req, res) => {
 
 // Get publication for a project (owner only, auth required).
 // Returns 200 with publication or null when project has no publication yet (normal case).
-app.get('/api/projects/:projectId/publication', requireAuth, async (req, res) => {
+app.get('/api/projects/:projectId/publication', requireAuth, requireRole('author'), async (req, res) => {
   try {
     const userId = req.user!.id;
     const token = req.token!;

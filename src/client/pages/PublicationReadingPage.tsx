@@ -31,6 +31,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
   const [initialChapterContent, setInitialChapterContent] = useState<Record<string, string>>({});
   const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
+  const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
+  const [lastReadParagraphIndex, setLastReadParagraphIndex] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
@@ -113,8 +115,12 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       if (user && publicationId) {
         api
           .getReadProgress(publicationId)
-          .then(({ chapterIds }) => {
-            if (!cancelled) setReadChapterIds(new Set(chapterIds));
+          .then((result) => {
+            if (!cancelled) {
+              setReadChapterIds(new Set(result.chapterIds));
+              setLastReadChapterId(result.lastReadChapterId ?? null);
+              setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
+            }
           })
           .catch(() => {});
       }
@@ -131,6 +137,14 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       api.markChapterAsRead(publicationId, chapterId).catch(() => {});
     },
     [publicationId]
+  );
+
+  const handleSavePosition = useCallback(
+    (chId: string, paragraphIndex: number) => {
+      if (!publicationId || !isAuthenticated) return;
+      api.updateReadingPosition(publicationId, chId, paragraphIndex).catch(() => {});
+    },
+    [publicationId, isAuthenticated]
   );
 
   const pubPath = data?.publication ? (data.publication.slug || data.publication.id) : publicationId;
@@ -184,11 +198,6 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     .filter((ch) => ch.hasTranslation)
     .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
 
-  const bookTitle = data.publication.title || t('publication.untitled');
-  const currentChapter = chapterId
-    ? data.chapters.find((ch) => ch.id === chapterId)
-    : publicationChapters[0];
-
   if (publicationChapters.length === 0) {
     return (
       <div class="publication-reading-placeholder">
@@ -204,6 +213,9 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     );
   }
 
+  const initialParagraphIndex =
+    chapterId && chapterId === lastReadChapterId ? lastReadParagraphIndex : undefined;
+
   return (
     <ReadingMode
       publicationId={publicationId}
@@ -215,8 +227,10 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       initialChapterContent={
         Object.keys(initialChapterContent).length > 0 ? initialChapterContent : undefined
       }
+      initialParagraphIndex={initialParagraphIndex}
       onExit={() => route(`/p/${pubPath}`)}
       onChapterRead={isAuthenticated ? handleChapterRead : undefined}
+      onSavePosition={isAuthenticated ? handleSavePosition : undefined}
       readChapterIds={isAuthenticated ? readChapterIds : undefined}
     />
   );

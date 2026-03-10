@@ -9,10 +9,11 @@ import { authService } from '../services/authService';
 
 const ROLE_ORDER: Record<UserRole, number> = {
   guest: 0,
-  author: 1,
-  author_plus: 2,
-  super_author: 3,
-  admin: 4,
+  user: 1,
+  author: 2,
+  author_plus: 3,
+  super_author: 4,
+  admin: 5,
 };
 
 function isAtLeastRole(current: UserRole, required: UserRole): boolean {
@@ -24,9 +25,14 @@ export function useUserRole() {
 
   useEffect(() => {
     authService.getCurrentUser().then(setUser);
+    const onUserUpdated = (e: CustomEvent<AuthUser>) => {
+      setUser(e.detail);
+    };
+    window.addEventListener('arcane:user-updated', onUserUpdated as EventListener);
+    return () => window.removeEventListener('arcane:user-updated', onUserUpdated as EventListener);
   }, []);
 
-  const role: UserRole = user ? (user.role ?? 'author') : 'guest';
+  const role: UserRole = user ? (user.role ?? 'user') : 'guest';
   const isGuest = !user;
 
   return {

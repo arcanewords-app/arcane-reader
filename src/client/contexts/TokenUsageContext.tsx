@@ -1,6 +1,6 @@
 /**
  * Single source of truth for token usage.
- * Polling (60s) only on cabinet/project pages; pauses when tab is hidden or on irrelevant routes.
+ * Polling (60s) only on projects/project pages; pauses when tab is hidden or on irrelevant routes.
  */
 
 import { createContext } from 'preact';

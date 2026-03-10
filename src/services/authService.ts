@@ -3,18 +3,31 @@ import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { parseRole } from '../types/roles.js';
 
-const DEFAULT_ROLE = 'author' as const;
+const DEFAULT_ROLE = 'user' as const;
 
-async function getProfileRole(client: SupabaseClient, userId: string): Promise<AuthUser['role']> {
-  const { data } = await client.from('profiles').select('role').eq('id', userId).single();
+interface ProfileData {
+  role: AuthUser['role'];
+  avatar_url: string | null;
+}
+
+async function getProfile(client: SupabaseClient, userId: string): Promise<ProfileData> {
+  const { data } = await client
+    .from('profiles')
+    .select('role, avatar_url')
+    .eq('id', userId)
+    .single();
   const role = parseRole(data?.role);
-  return role === 'guest' ? DEFAULT_ROLE : role;
+  return {
+    role: role === 'guest' ? DEFAULT_ROLE : role,
+    avatar_url: data?.avatar_url ?? null,
+  };
 }
 
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'author' | 'author_plus' | 'super_author' | 'admin';
+  role: 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
+  avatarUrl?: string | null;
 }
 
 export const authService = {
@@ -35,11 +48,12 @@ export const authService = {
       throw new Error('Registration failed: No user data returned');
     }
 
-    // Profile will be created automatically by trigger handle_new_user() with role = 'author'
+    // Profile will be created automatically by trigger handle_new_user() with role = 'user'
     return {
       id: data.user.id,
       email: data.user.email!,
-      role: 'author',
+      role: 'user',
+      avatarUrl: null,
     };
   },
 
@@ -60,11 +74,12 @@ export const authService = {
       throw new Error('Login failed: No user data returned');
     }
 
-    const role = await getProfileRole(supabase, data.user.id);
+    const profile = await getProfile(supabase, data.user.id);
     return {
       id: data.user.id,
       email: data.user.email!,
-      role,
+      role: profile.role,
+      avatarUrl: profile.avatar_url,
     };
   },
 
@@ -91,11 +106,12 @@ export const authService = {
       return null;
     }
 
-    const role = await getProfileRole(supabase, user.id);
+    const profile = await getProfile(supabase, user.id);
     return {
       id: user.id,
       email: user.email!,
-      role,
+      role: profile.role,
+      avatarUrl: profile.avatar_url,
     };
   },
 
@@ -125,7 +141,7 @@ export const authService = {
 
     const { data: profile } = await supabaseWithToken
       .from('profiles')
-      .select('role')
+      .select('role, avatar_url')
       .eq('id', user.id)
       .single();
 
@@ -134,7 +150,8 @@ export const authService = {
     return {
       id: user.id,
       email: user.email!,
-      role: role === 'guest' ? 'author' : role,
+      role: role === 'guest' ? 'user' : role,
+      avatarUrl: profile?.avatar_url ?? null,
     };
   },
 

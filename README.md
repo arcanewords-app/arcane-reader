@@ -51,6 +51,10 @@ If you bring a translation that already contains special formatting, use **marke
 - **AI:** OpenAI, Anthropic (via config)
 - **Sanitization:** DOMPurify (for text block rendering)
 
+## Documentation
+
+- [docs/ROUTES.md](docs/ROUTES.md) — All frontend and API routes, access levels, navigation map
+
 ## Development
 
 ```bash

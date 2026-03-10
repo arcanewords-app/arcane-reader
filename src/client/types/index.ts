@@ -175,6 +175,19 @@ export interface ReaderSettings {
   customText?: string;
 }
 
+/** Default reader settings (shared with server) */
+export const DEFAULT_READER_SETTINGS: ReaderSettings = {
+  fontFamily: 'default',
+  fontSize: 16,
+  lineHeight: 1.6,
+  colorScheme: 'dark',
+  textIndent: false,
+  textAlign: 'justify',
+  hideChapterHeader: false,
+  paragraphSpacing: 0.5,
+  containerWidth: 69,
+};
+
 /** Legacy font keys for migration from old settings */
 export const LEGACY_FONT_MAP: Record<string, FontFamily> = {
   literary: 'default',
@@ -319,13 +332,15 @@ export interface BulkUpdateResponse {
 // === Auth ===
 
 /** User role from profiles; guest when not authenticated. */
-export type UserRole = 'guest' | 'author' | 'author_plus' | 'super_author' | 'admin';
+export type UserRole = 'guest' | 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
 
 export interface AuthUser {
   id: string;
   email: string;
-  /** Role from profile; defaults to 'author' when missing (backward compat). */
+  /** Role from profile; defaults to 'user' when missing (backward compat). */
   role?: UserRole;
+  /** Avatar URL from profile; optional. */
+  avatarUrl?: string | null;
 }
 
 // === Token Usage ===

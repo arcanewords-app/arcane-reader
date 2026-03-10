@@ -40,6 +40,10 @@ interface ReadingModeProps {
   onExit: () => void;
   /** Called when user has read chapter (scrolled to 85%+ and pressed Next, or last chapter scrolled to 85%+). Auth only. */
   onChapterRead?: (chapterId: string) => void;
+  /** Called to save reading position (chapter + paragraph index). Auth only. */
+  onSavePosition?: (chapterId: string, paragraphIndex: number) => void;
+  /** Paragraph index to scroll to on load (resume). Publication mode only. */
+  initialParagraphIndex?: number;
   /** Set of chapter IDs marked as read (for TOC indicator). */
   readChapterIds?: Set<string>;
 }
@@ -67,6 +71,8 @@ export function ReadingMode({
   initialChapterContent,
   onExit,
   onChapterRead,
+  onSavePosition,
+  initialParagraphIndex,
   readChapterIds,
 }: ReadingModeProps) {
   const { t } = useTranslation();
@@ -142,6 +148,10 @@ export function ReadingMode({
   const markedThisSessionRef = useRef<Set<string>>(new Set());
   const lastParagraphRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const currentParagraphIndexRef = useRef(0);
+  const hasAppliedInitialScrollRef = useRef(false);
+
+  const currentChapter = chapters[currentChapterIndex];
 
   // Determine reading mode (project mode only)
   const isOriginalReadingMode =
@@ -210,10 +220,12 @@ export function ReadingMode({
   }, [isPublicationMode, project, initialChapterId, isOriginalReadingMode]);
 
   // Publication mode: load current chapter content
+  // Skip fetch for initial chapter — parent (PublicationReadingPage) provides it via initialChapterContent
   useEffect(() => {
     if (!isPublicationMode || !publicationId || chapters.length === 0) return;
     const ch = chapters[currentChapterIndex];
     if (!ch || chapterContentMap[ch.id]) return;
+    if (initialChapterId && ch.id === initialChapterId) return;
 
     setChapterContentLoading(true);
     api
@@ -223,7 +235,7 @@ export function ReadingMode({
       })
       .catch(() => {})
       .finally(() => setChapterContentLoading(false));
-  }, [isPublicationMode, publicationId, chapters, currentChapterIndex, chapterContentMap]);
+  }, [isPublicationMode, publicationId, chapters, currentChapterIndex, chapterContentMap, initialChapterId]);
 
   // Project mode: load current chapter content (lazy)
   useEffect(() => {
@@ -265,6 +277,11 @@ export function ReadingMode({
   ]);
 
   // Preload adjacent chapters (prev, next) in background — does not block UI
+  // Note: chapterContentMap intentionally excluded from deps — when current chapter loads,
+  // we must NOT abort preload of adjacent chapters (would cause ERR_ABORTED)
+  const chapterContentMapRef = useRef(chapterContentMap);
+  chapterContentMapRef.current = chapterContentMap;
+
   useEffect(() => {
     if (chapters.length <= 1) return;
 
@@ -274,7 +291,7 @@ export function ReadingMode({
     if (currentChapterIndex < chapters.length - 1)
       toPreload.push(chapters[currentChapterIndex + 1]);
 
-    const needPreload = toPreload.filter((ch) => !chapterContentMap[ch.id]);
+    const needPreload = toPreload.filter((ch) => !chapterContentMapRef.current[ch.id]);
     if (needPreload.length === 0) return;
 
     const runPreload = () => {
@@ -329,7 +346,6 @@ export function ReadingMode({
   }, [
     chapters,
     currentChapterIndex,
-    chapterContentMap,
     isPublicationMode,
     publicationId,
     project,
@@ -340,6 +356,98 @@ export function ReadingMode({
   useEffect(() => {
     scrolledToEndRef.current = false;
   }, [currentChapterIndex]);
+
+  // Save position when navigating to a new chapter (publication mode) - skip initial mount
+  // Note: use currentChapter?.id instead of currentChapter to avoid re-runs on every render
+  // (currentChapter is derived from chapters.map which creates new refs each render)
+  const isInitialChapterMountRef = useRef(true);
+  useEffect(() => {
+    if (!onSavePosition || !isPublicationMode || !currentChapter) return;
+    if (isInitialChapterMountRef.current) {
+      isInitialChapterMountRef.current = false;
+      return;
+    }
+    onSavePosition(currentChapter.id, 0);
+  }, [currentChapterIndex, isPublicationMode, currentChapter?.id, onSavePosition]);
+
+  // IntersectionObserver: track current paragraph for save-on-leave
+  useEffect(() => {
+    if (!onSavePosition || !isPublicationMode || !contentRef.current) return;
+    const container = contentRef.current;
+    const paragraphs = container.querySelectorAll('[data-paragraph-index]');
+    if (paragraphs.length === 0) return;
+
+    const visibleIndices = new Set<number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const idx = parseInt((entry.target as HTMLElement).dataset.paragraphIndex ?? '-1', 10);
+          if (idx >= 0) {
+            if (entry.intersectionRatio > 0.5) {
+              visibleIndices.add(idx);
+            } else {
+              visibleIndices.delete(idx);
+            }
+          }
+        }
+        const max = visibleIndices.size > 0 ? Math.max(...visibleIndices) : 0;
+        currentParagraphIndexRef.current = max;
+      },
+      { threshold: 0.5, root: container }
+    );
+
+    paragraphs.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [
+    onSavePosition,
+    isPublicationMode,
+    currentChapterIndex,
+    chapterContentMap,
+    chapterContentLoading,
+  ]);
+
+  // visibilitychange: save position when user switches tab (debounce 400ms)
+  useEffect(() => {
+    if (!onSavePosition || !isPublicationMode || !currentChapter) return;
+    const chapterId = currentChapter.id;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const handler = () => {
+      if (document.visibilityState === 'hidden') {
+        timeoutId = setTimeout(() => {
+          onSavePosition(chapterId, currentParagraphIndexRef.current);
+        }, 400);
+      } else {
+        clearTimeout(timeoutId);
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => {
+      document.removeEventListener('visibilitychange', handler);
+      clearTimeout(timeoutId);
+    };
+  }, [onSavePosition, isPublicationMode, currentChapter?.id]);
+
+  // beforeunload: save position when closing tab (fetch with keepalive)
+  useEffect(() => {
+    if (!onSavePosition || !isPublicationMode || !publicationId || !currentChapter) return;
+    const chapterId = currentChapter.id;
+    const handler = () => {
+      const token = authService.getToken();
+      if (!token) return;
+      const idx = currentParagraphIndexRef.current;
+      fetch(`/api/publications/${publicationId}/reading-position`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ chapterId, paragraphIndex: idx }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [onSavePosition, isPublicationMode, publicationId, currentChapter?.id]);
 
   // IntersectionObserver: detect when user has scrolled to 85%+ (last paragraph visible)
   useEffect(() => {
@@ -399,18 +507,55 @@ export function ReadingMode({
     }
   }, [readerSettings]);
 
-  // Scroll content area to top when chapter changes
+  // Scroll content area to top when chapter changes (skip if we'll scroll to initial paragraph)
+  const shouldSkipScrollToTop =
+    initialParagraphIndex !== undefined &&
+    initialParagraphIndex > 0 &&
+    chapters[currentChapterIndex] &&
+    initialChapterId === chapters[currentChapterIndex].id &&
+    !hasAppliedInitialScrollRef.current;
+
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = 0;
-      lastScrollTopRef.current = 0;
-      scrollAccumRef.current = 0;
-      scrollUpAccumRef.current = 0;
-      setMenuVisible(true);
-      setIsNearTop(true);
-      setIsNearBottom(false);
+    if (!contentRef.current) return;
+    if (shouldSkipScrollToTop) return;
+    contentRef.current.scrollTop = 0;
+    lastScrollTopRef.current = 0;
+    scrollAccumRef.current = 0;
+    scrollUpAccumRef.current = 0;
+    setMenuVisible(true);
+    setIsNearTop(true);
+    setIsNearBottom(false);
+  }, [currentChapterIndex, shouldSkipScrollToTop]);
+
+  // Scroll to initial paragraph when resuming (publication mode)
+  useEffect(() => {
+    if (
+      !isPublicationMode ||
+      !onSavePosition ||
+      initialParagraphIndex === undefined ||
+      initialParagraphIndex <= 0 ||
+      !currentChapter ||
+      currentChapter.id !== initialChapterId ||
+      hasAppliedInitialScrollRef.current
+    )
+      return;
+    const el = contentRef.current;
+    if (!el) return;
+    const target = el.querySelector(`[data-paragraph-index="${initialParagraphIndex}"]`);
+    if (target) {
+      hasAppliedInitialScrollRef.current = true;
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'start', behavior: 'auto' });
+      });
     }
-  }, [currentChapterIndex]);
+  }, [
+    isPublicationMode,
+    initialParagraphIndex,
+    initialChapterId,
+    currentChapter,
+    chapterContentMap,
+    onSavePosition,
+  ]);
 
   // Hide menu on scroll down, show on scroll up (mobile, tablet, desktop)
   // Depends on chapters.length so effect re-runs when chapters load (first chapter); otherwise
@@ -461,8 +606,12 @@ export function ReadingMode({
   }, [currentChapterIndex, chapters.length]);
 
   const handlePrevChapter = useCallback(() => {
+    const ch = chapters[currentChapterIndex];
+    if (ch && onSavePosition && isPublicationMode) {
+      onSavePosition(ch.id, currentParagraphIndexRef.current);
+    }
     setCurrentChapterIndex((prev) => (prev > 0 ? prev - 1 : prev));
-  }, []);
+  }, [chapters, currentChapterIndex, onSavePosition, isPublicationMode]);
 
   const handleNextChapter = useCallback(() => {
     const ch = chapters[currentChapterIndex];
@@ -475,9 +624,11 @@ export function ReadingMode({
       markedThisSessionRef.current.add(ch.id);
       onChapterRead(ch.id);
     }
-
+    if (ch && onSavePosition && isPublicationMode) {
+      onSavePosition(ch.id, currentParagraphIndexRef.current);
+    }
     setCurrentChapterIndex((prev) => (prev < chapters.length - 1 ? prev + 1 : prev));
-  }, [chapters, currentChapterIndex, onChapterRead]);
+  }, [chapters, currentChapterIndex, onChapterRead, onSavePosition, isPublicationMode]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -548,13 +699,18 @@ export function ReadingMode({
     }
   }, [shareLink]);
 
-  const handleSelectChapter = useCallback((index: number) => {
-    setCurrentChapterIndex(index);
-    setShowTOC(false);
-    window.scrollTo(0, 0);
-  }, []);
-
-  const currentChapter = chapters[currentChapterIndex];
+  const handleSelectChapter = useCallback(
+    (index: number) => {
+      const ch = chapters[currentChapterIndex];
+      if (ch && onSavePosition && isPublicationMode) {
+        onSavePosition(ch.id, currentParagraphIndexRef.current);
+      }
+      setCurrentChapterIndex(index);
+      setShowTOC(false);
+      window.scrollTo(0, 0);
+    },
+    [chapters, currentChapterIndex, onSavePosition, isPublicationMode]
+  );
 
   if (chapters.length === 0) {
     return (
@@ -711,6 +867,7 @@ export function ReadingMode({
                   key={idx}
                   ref={idx === segments.length - 1 ? lastParagraphRef : undefined}
                   class="reading-mode-paragraph"
+                  data-paragraph-index={idx}
                   dangerouslySetInnerHTML={{
                     __html: renderTextWithBlocks(segment, textBlockTypes),
                   }}

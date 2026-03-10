@@ -3,8 +3,10 @@ declare namespace Express {
     user?: {
       id: string;
       email: string;
-      /** User role from profiles (author | author_plus | super_author | admin). */
-      role: 'guest' | 'author' | 'author_plus' | 'super_author' | 'admin';
+      /** User role from profiles (user | author | author_plus | super_author | admin). */
+      role: 'guest' | 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
+      /** Avatar URL from profiles. */
+      avatarUrl?: string | null;
     } | null;
     token?: string;
     /** Request ID (correlation). Set by requestContext middleware. */

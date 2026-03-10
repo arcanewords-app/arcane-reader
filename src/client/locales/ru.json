@@ -372,7 +372,11 @@
     "inviteCodeRequired": "Введите инвайт-код",
     "inviteCodeInvalid": "Неверный инвайт-код",
     "consentLabel": "Я согласен с <0>Политикой конфиденциальности</0> и <1>Условиями использования</1>",
-    "consentRequired": "Необходимо принять условия"
+    "consentRequired": "Необходимо принять условия",
+    "upgradeTitle": "Требуется подписка автора",
+    "upgradeMessage": "Доступ к кабинету и проектам перевода требует подписки автора. Эта возможность скоро появится.",
+    "upgradeGoToCatalog": "Перейти в каталог",
+    "upgradeGoToProfile": "В профиль"
   },
   "projectInfo": {
     "delete": "Удалить",
@@ -603,22 +607,57 @@
     "noSearchResults": "Публикации не найдены",
     "noSearchResultsHint": "Попробуйте другой запрос.",
     "noPublications": "Пока нет публикаций",
-    "publishHint": "Опубликуйте свой проект в кабинете, чтобы он появился здесь.",
+    "publishHint": "Опубликуйте свой проект на странице проектов, чтобы он появился здесь.",
     "emptyHintGuest": "Войдите или зарегистрируйтесь, чтобы публиковать свои переводы.",
     "read": "Читать",
     "catalogTab": "Все переводы",
     "myWorksTab": "Мои работы",
     "noMyPublications": "У вас пока нет опубликованных работ",
-    "emptyMyWorksHint": "Опубликуйте проект в кабинете — он появится здесь.",
+    "emptyMyWorksHint": "Опубликуйте проект на странице проектов — он появится здесь.",
     "orderNewest": "Сначала новые",
     "orderOldest": "Сначала старые",
     "targetLanguageLabel": "Язык",
     "languageAll": "Все языки"
   },
+  "nav": {
+    "catalog": "Каталог",
+    "projects": "Проекты",
+    "projectsTitle": "Мои проекты",
+    "openProfile": "Открыть профиль"
+  },
   "cabinet": {
     "title": "Мои проекты",
     "link": "Кабинет",
-    "catalog": "Каталог"
+    "catalog": "Каталог",
+    "reading": "Читаю",
+    "projects": "Проекты",
+    "settings": "Настройки",
+    "readingTitle": "История чтения",
+    "settingsTitle": "Настройки чтения",
+    "loadingReadingHistory": "Загрузка истории чтения...",
+    "noReadingHistory": "История чтения пуста",
+    "noReadingHistoryHint": "Начните читать публикации из каталога — они появятся здесь.",
+    "lastRead": "Последнее чтение",
+    "continue": "Продолжить",
+    "open": "Открыть"
+  },
+  "profile": {
+    "reading": "Читаю",
+    "settings": "Настройки",
+    "profile": "Профиль",
+    "readingTitle": "История чтения",
+    "settingsTitle": "Настройки чтения",
+    "profileTitle": "Профиль",
+    "avatar": "Аватар",
+    "uploadAvatar": "Загрузить аватар",
+    "email": "Email",
+    "openProfile": "Открыть профиль",
+    "loadingReadingHistory": "Загрузка истории чтения...",
+    "noReadingHistory": "История чтения пуста",
+    "noReadingHistoryHint": "Начните читать публикации из каталога — они появятся здесь.",
+    "lastRead": "Последнее чтение",
+    "continue": "Продолжить",
+    "open": "Открыть"
   },
   "publication": {
     "untitled": "Без названия",

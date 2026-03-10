@@ -77,7 +77,7 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Quick link to projects dashboard (cabinet) */}
+        {/* Quick link to projects dashboard */}
         <Button
           variant="secondary"
           onClick={() => {
@@ -86,7 +86,7 @@ export function Sidebar({
               (window as Window & { __arcaneSidebarOpen?: boolean }).__arcaneSidebarOpen = false;
               window.dispatchEvent(new CustomEvent('arcane:sidebar-close'));
             }
-            route('/cabinet');
+            route('/projects');
           }}
           className="sidebar-dashboard-link"
         >

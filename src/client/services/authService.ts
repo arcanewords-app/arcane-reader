@@ -238,4 +238,16 @@ export const authService = {
   clearStorage(): void {
     clearAuthStorage();
   },
+
+  /**
+   * Update cached user (e.g. after avatar upload). Merges updates and saves to localStorage.
+   * Dispatches 'arcane:user-updated' so UI can refresh.
+   */
+  updateUserCache(updates: Partial<AuthUser>): void {
+    const current = this.getCachedUser();
+    if (!current) return;
+    const updated = { ...current, ...updates };
+    localStorage.setItem(USER_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('arcane:user-updated', { detail: updated }));
+  },
 };

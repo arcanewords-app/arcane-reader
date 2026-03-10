@@ -87,6 +87,30 @@ function handleAuthError(response: Response): void {
 /** Shared refresh promise so concurrent 401s wait for the same refresh */
 let refreshPromise: Promise<boolean> | null = null;
 
+/** Publication data cache (60s TTL) — avoids duplicate fetches when navigating PublicationPage → PublicationReadingPage */
+const PUBLICATION_CACHE_TTL_MS = 60_000;
+
+interface PublicationCacheEntry<T> {
+  data: T;
+  ts: number;
+}
+
+const publicationCache = {
+  withChapters: new Map<string, PublicationCacheEntry<PublicationWithChapters>>(),
+  readProgress: new Map<string, PublicationCacheEntry<{ chapterIds: string[]; lastReadChapterId?: string; lastReadParagraphIndex?: number }>>(),
+  glossary: new Map<string, PublicationCacheEntry<GlossaryEntry[]>>(),
+};
+
+function getCached<T>(map: Map<string, PublicationCacheEntry<T>>, key: string): T | null {
+  const entry = map.get(key);
+  if (!entry || Date.now() - entry.ts > PUBLICATION_CACHE_TTL_MS) return null;
+  return entry.data;
+}
+
+function setCached<T>(map: Map<string, PublicationCacheEntry<T>>, key: string, data: T): void {
+  map.set(key, { data, ts: Date.now() });
+}
+
 async function tryRefresh(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = authService.refresh();
@@ -307,6 +331,20 @@ export const api = {
     return fetchJson(`/api/user/reader-settings`, {
       method: 'PUT',
       body: JSON.stringify(settings),
+    });
+  },
+
+  /** Get current user profile (id, email, role, avatarUrl). */
+  async getProfile(): Promise<{ id: string; email: string; role: string; avatarUrl: string | null }> {
+    return fetchJson(`/api/user/profile`);
+  },
+
+  /** Upload avatar image. Returns new avatarUrl. */
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string | null }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return fetchFormData<{ avatarUrl: string | null }>(`/api/user/profile/avatar`, formData, {
+      method: 'POST',
     });
   },
 
@@ -592,28 +630,65 @@ export const api = {
     return fetchJson(`/api/publications/${id}`);
   },
 
-  /** Get publication with chapters list (public, for reading page) */
+  /** Get publication with chapters list (public, for reading page). Cached 60s to avoid duplicates on navigation. */
   async getPublicationWithChapters(id: string): Promise<PublicationWithChapters> {
+    const cached = getCached(publicationCache.withChapters, id);
+    if (cached) return cached;
     const result = await fetchJson<{
       publication: Publication;
       chapters: PublicationWithChapters['chapters'];
       glossaryCount: number;
     }>(`/api/publications/${id}/chapters`);
-    return {
+    const data: PublicationWithChapters = {
       ...result.publication,
       chapters: result.chapters,
       glossaryCount: result.glossaryCount,
     };
+    setCached(publicationCache.withChapters, id, data);
+    return data;
   },
 
-  /** Get publication glossary (public, read-only). Returns empty array if not published. */
+  /** Get publication glossary (public, read-only). Cached 60s. Returns empty array if not published. */
   async getPublicationGlossary(publicationId: string): Promise<GlossaryEntry[]> {
-    return fetchJson(`/api/publications/${publicationId}/glossary`);
+    const cached = getCached(publicationCache.glossary, publicationId);
+    if (cached) return cached;
+    const data = await fetchJson<GlossaryEntry[]>(`/api/publications/${publicationId}/glossary`);
+    setCached(publicationCache.glossary, publicationId, data);
+    return data;
   },
 
-  /** Get read progress for publication (chapter IDs user has read). Returns [] for guests. */
-  async getReadProgress(publicationId: string): Promise<{ chapterIds: string[] }> {
-    return fetchJson(`/api/publications/${publicationId}/read-progress`);
+  /** Get read progress for publication (chapter IDs read + last position). Cached 60s. Returns empty for guests. */
+  async getReadProgress(publicationId: string): Promise<{
+    chapterIds: string[];
+    lastReadChapterId?: string;
+    lastReadParagraphIndex?: number;
+  }> {
+    const cached = getCached(publicationCache.readProgress, publicationId);
+    if (cached) return cached;
+    const data = await fetchJson<{
+      chapterIds: string[];
+      lastReadChapterId?: string;
+      lastReadParagraphIndex?: number;
+    }>(`/api/publications/${publicationId}/read-progress`);
+    setCached(publicationCache.readProgress, publicationId, data);
+    return data;
+  },
+
+  /** Update reading position (auth required). Invalidates read progress cache. */
+  async updateReadingPosition(
+    publicationId: string,
+    chapterId: string,
+    paragraphIndex: number
+  ): Promise<{ success: boolean }> {
+    const result = await fetchJson<{ success: boolean }>(
+      `/api/publications/${publicationId}/reading-position`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ chapterId, paragraphIndex }),
+      }
+    );
+    publicationCache.readProgress.delete(publicationId);
+    return result;
   },
 
   /** Export publication to EPUB or FB2 (auth required). */
@@ -635,11 +710,14 @@ export const api = {
     });
   },
 
-  /** Mark chapter as read (auth required). */
+  /** Mark chapter as read (auth required). Invalidates read progress cache. */
   async markChapterAsRead(publicationId: string, chapterId: string): Promise<{ success: boolean }> {
-    return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}/read`, {
-      method: 'POST',
-    });
+    const result = await fetchJson<{ success: boolean }>(
+      `/api/publications/${publicationId}/chapters/${chapterId}/read`,
+      { method: 'POST' }
+    );
+    publicationCache.readProgress.delete(publicationId);
+    return result;
   },
 
   /** Get single chapter content for public reading (translated text only) */
@@ -698,6 +776,22 @@ export const api = {
 
   async getTokenUsageHistory(days: number = 7): Promise<TokenUsageHistory> {
     return fetchJson(`/api/user/token-usage/history?days=${days}`);
+  },
+
+  /** Get user's reading history (publications with progress). Auth required. */
+  async getReadingHistory(): Promise<{
+    items: Array<{
+      publicationId: string;
+      title: string | null;
+      coverImageUrl: string | null;
+      slug: string | null;
+      totalChapters: number;
+      readCount: number;
+      lastReadChapterId: string | null;
+      lastReadAt: string | null;
+    }>;
+  }> {
+    return fetchJson('/api/user/reading-history');
   },
 };
 

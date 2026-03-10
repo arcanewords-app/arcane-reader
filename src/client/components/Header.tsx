@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { SystemStatus, AuthUser } from '../types';
+import { useUserRole } from '../hooks/useUserRole';
 import { Button } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
@@ -30,6 +31,8 @@ export function Header({
   onOpenRegister,
 }: HeaderProps) {
   const { t, i18n } = useTranslation();
+  const { isAtLeast } = useUserRole();
+  const isAuthor = user ? isAtLeast('author') : false;
   const [isMobile, setIsMobile] = useState(false);
   const [hasSidebar, setHasSidebar] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -60,6 +63,13 @@ export function Header({
       clearInterval(interval);
     };
   }, []);
+
+  const getInitials = (email: string) => {
+    const part = email.split('@')[0];
+    if (!part) return '?';
+    const chars = part.replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g, '');
+    return chars.slice(0, 2).toUpperCase() || '?';
+  };
 
   const getStatusText = () => {
     if (status === 'loading') return t('header.statusChecking');
@@ -106,19 +116,21 @@ export function Header({
               class={`nav-link ${currentPath === '/' ? 'active' : ''}`}
               aria-current={currentPath === '/' ? 'page' : undefined}
             >
-              {t('cabinet.catalog')}
+              {t('nav.catalog')}
             </a>
-            <a
-              href="/cabinet"
-              onClick={(e) => {
-                e.preventDefault();
-                route('/cabinet');
-              }}
-              class={`nav-link ${currentPath === '/cabinet' ? 'active' : ''}`}
-              aria-current={currentPath === '/cabinet' ? 'page' : undefined}
-            >
-              {t('cabinet.link')}
-            </a>
+            {isAuthor && (
+              <a
+                href="/projects"
+                onClick={(e) => {
+                  e.preventDefault();
+                  route('/projects');
+                }}
+                class={`nav-link ${currentPath === '/projects' ? 'active' : ''}`}
+                aria-current={currentPath === '/projects' ? 'page' : undefined}
+              >
+                {t('nav.projects')}
+              </a>
+            )}
           </nav>
         )}
 
@@ -127,7 +139,10 @@ export function Header({
 
         {/* Right section - Системная информация и управление */}
         <div class="header-actions">
-          {/* More menu (About, Contact, Privacy, Terms) - рядом с языком */}
+          {/* Token Usage - слева от info, чтобы не прыгал UI при переходе между страницами */}
+          {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
+
+          {/* More menu (About, Contact, Privacy, Terms) */}
           <div class="header-info-wrap">
             <button
               type="button"
@@ -201,9 +216,6 @@ export function Header({
                 <span class="status-text">{getStatusText()}</span>
               </div>
 
-              {/* Token Usage - only on cabinet/project pages */}
-              {isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
-
               {/* Language Selector */}
               <div class="header-locale">
                 {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
@@ -225,11 +237,27 @@ export function Header({
                 ))}
               </div>
 
-              {/* User Menu */}
+              {/* User Menu - Avatar (click → profile) + Logout */}
               <div class="header-user-menu">
-                <span class="user-email" title={user.email}>
-                  {user.email}
-                </span>
+                <button
+                  type="button"
+                  class="header-avatar-btn"
+                  onClick={() => route('/profile')}
+                  title={t('profile.openProfile')}
+                  aria-label={t('profile.openProfile')}
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt=""
+                      class="header-avatar-img"
+                    />
+                  ) : (
+                    <span class="header-avatar-placeholder">
+                      {getInitials(user.email)}
+                    </span>
+                  )}
+                </button>
                 <Button variant="secondary" onClick={onLogout} size="sm">
                   {t('header.logout')}
                 </Button>

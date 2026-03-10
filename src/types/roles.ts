@@ -3,20 +3,21 @@
  * Used on both server (middleware, req.user) and client (AuthUser, UI).
  */
 
-export type UserRole = 'guest' | 'author' | 'author_plus' | 'super_author' | 'admin';
+export type UserRole = 'guest' | 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
 
-export const ROLES: UserRole[] = ['guest', 'author', 'author_plus', 'super_author', 'admin'];
+export const ROLES: UserRole[] = ['guest', 'user', 'author', 'author_plus', 'super_author', 'admin'];
 
 /** Default role for authenticated users when profile has no role set. */
-export const DEFAULT_AUTHENTICATED_ROLE: UserRole = 'author';
+export const DEFAULT_AUTHENTICATED_ROLE: UserRole = 'user';
 
 /** Role hierarchy order (lower index = lower privilege). */
 const ROLE_ORDER: Record<UserRole, number> = {
   guest: 0,
-  author: 1,
-  author_plus: 2,
-  super_author: 3,
-  admin: 4,
+  user: 1,
+  author: 2,
+  author_plus: 3,
+  super_author: 4,
+  admin: 5,
 };
 
 /**

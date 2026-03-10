@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
+import { useUserRole } from '../hooks/useUserRole';
 import type { PublicationListItem, Publication } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
 import { LoadingSpinner, Input, Select } from '../components/ui';
@@ -18,7 +19,8 @@ function getFilterFromUrl(): CatalogFilter {
 
 export function HomePage() {
   const { t } = useTranslation();
-  const isAuthor = !!authService.getToken();
+  const { isAtLeast } = useUserRole();
+  const isAuthor = !!authService.getToken() && isAtLeast('author');
   const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
   const [searchQuery, setSearchQuery] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('');
@@ -162,14 +164,14 @@ export function HomePage() {
       {isAuthor && (
         <div class="home-nav">
           <a
-            href="/cabinet"
+            href="/projects"
             onClick={(e) => {
               e.preventDefault();
-              route('/cabinet');
+              route('/projects');
             }}
-            class="home-back-cabinet"
+            class="home-back-projects"
           >
-            ← {t('cabinet.title')}
+            ← {t('nav.projects')}
           </a>
         </div>
       )}

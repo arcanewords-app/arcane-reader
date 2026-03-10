@@ -5,7 +5,7 @@
 
 import { createServiceRoleClient } from './supabaseClient.js';
 
-export type StorageBucket = 'images' | 'exports';
+export type StorageBucket = 'images' | 'exports' | 'avatars';
 
 export interface UploadOptions {
   contentType?: string;

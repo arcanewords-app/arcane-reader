@@ -12,7 +12,7 @@
   margin-bottom: 1rem;
 }
 
-.home-back-cabinet {
+.home-back-projects {
   font-size: 0.9375rem;
   font-weight: 550;
   color: var(--text-secondary);
@@ -20,11 +20,11 @@
   transition: color var(--duration-normal) var(--ease-standard);
 }
 
-.home-back-cabinet:hover {
+.home-back-projects:hover {
   color: var(--accent);
 }
 
-.home-back-cabinet:focus-visible {
+.home-back-projects:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 2px;
@@ -248,7 +248,7 @@
   .home-nav {
     margin-bottom: 0.75rem;
   }
-  .home-back-cabinet {
+  .home-back-projects {
     font-size: 0.85rem;
     min-height: 44px;
     display: inline-flex;
@@ -275,6 +275,11 @@
   .home-filters {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
+  }
+  .home-search {
+    flex: none;
+    min-width: 0;
   }
   .home-filters-actions {
     flex-direction: column;

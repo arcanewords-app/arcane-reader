@@ -10,9 +10,10 @@ export const TOKEN_LIMITS = {
   /** Default daily limit for role 'author' (kept for backward compat / docs) */
   DAILY_LIMIT: 50000,
 
-  /** Daily token limit per role. guest=0 (cannot translate); admin=-1 (unlimited). */
+  /** Daily token limit per role. guest/user=0 (cannot translate); admin=-1 (unlimited). */
   ROLE_DAILY_LIMITS: {
     guest: 0,
+    user: 0,
     author: 50000,
     author_plus: 100000,
     super_author: 200000,

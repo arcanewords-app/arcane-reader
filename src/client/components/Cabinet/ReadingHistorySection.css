@@ -1,0 +1,163 @@
+.reading-history-loading,
+.reading-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 2rem;
+}
+
+.reading-history-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.reading-history-empty-text {
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.reading-history-empty-hint {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Сетка как у публикаций в каталоге (home-grid) */
+.reading-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.reading-history-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reading-history-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: var(--accent);
+}
+
+.reading-history-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reading-history-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reading-history-card-placeholder {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reading-history-card-placeholder.hidden {
+  display: none;
+}
+
+/* Контент как у publication-card-content */
+.reading-history-card-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.reading-history-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reading-history-card-progress {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.reading-history-card-date {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.reading-history-card-actions {
+  margin-top: auto;
+}
+
+.reading-history-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.reading-history-btn-continue {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.reading-history-btn-continue:hover {
+  filter: brightness(1.1);
+}
+
+@media (max-width: 768px) {
+  .reading-history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .reading-history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+  .reading-history-card-body {
+    padding: 0.75rem;
+  }
+  .reading-history-card-title {
+    font-size: 0.95rem;
+  }
+  .reading-history-card-progress,
+  .reading-history-card-date {
+    font-size: 0.8rem;
+  }
+  .reading-history-btn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+}

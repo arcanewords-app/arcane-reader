@@ -6,19 +6,25 @@ import type { UserRole } from '../types/roles.js';
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 
-const DEFAULT_ROLE = 'author' as const;
+const DEFAULT_ROLE = 'user' as const;
 
-async function getProfileRoleFromToken(token: string, userId: string): Promise<UserRole> {
+async function getProfileFromToken(
+  token: string,
+  userId: string
+): Promise<{ role: UserRole; avatarUrl: string | null }> {
   const supabaseWithToken = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const { data } = await supabaseWithToken
     .from('profiles')
-    .select('role')
+    .select('role, avatar_url')
     .eq('id', userId)
     .single();
   const role = parseRole(data?.role);
-  return role === 'guest' ? DEFAULT_ROLE : role;
+  return {
+    role: role === 'guest' ? DEFAULT_ROLE : role,
+    avatarUrl: data?.avatar_url ?? null,
+  };
 }
 
 /**
@@ -46,12 +52,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
-    const role = await getProfileRoleFromToken(token, user.id);
+    const profile = await getProfileFromToken(token, user.id);
 
     req.user = {
       id: user.id,
       email: user.email!,
-      role,
+      role: profile.role,
+      avatarUrl: profile.avatarUrl,
     };
     req.token = token;
 
@@ -85,11 +92,12 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
     } = await supabaseWithToken.auth.getUser(token);
 
     if (user && !error) {
-      const role = await getProfileRoleFromToken(token, user.id);
+      const profile = await getProfileFromToken(token, user.id);
       req.user = {
         id: user.id,
         email: user.email!,
-        role,
+        role: profile.role,
+        avatarUrl: profile.avatarUrl,
       };
       req.token = token;
     } else {

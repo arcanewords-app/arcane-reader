@@ -348,15 +348,43 @@
   border-radius: var(--radius-full);
 }
 
-.user-email {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: 550;
-  white-space: nowrap;
+.header-avatar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  cursor: pointer;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-  min-width: 0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.header-avatar-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.header-avatar-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.header-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-avatar-placeholder {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 /* Auth Buttons */
@@ -396,9 +424,6 @@
     font-size: 0.875rem;
   }
 
-  .user-email {
-    max-width: 140px;
-  }
 
   /* Token indicator: allow shrink so header fits */
   .header-actions .token-usage-indicator {
@@ -447,9 +472,6 @@
     font-size: 0.8125rem;
   }
 
-  .user-email {
-    max-width: 120px;
-  }
 
   .header-locale {
     padding: 0.125rem;
@@ -493,9 +515,6 @@
     gap: 1.5rem;
   }
 
-  .user-email {
-    max-width: 200px;
-  }
 }
 
 /* Mobile: ≤767px */
@@ -597,9 +616,6 @@
     flex-shrink: 0;
   }
 
-  .user-email {
-    display: none; /* Скрываем email на мобильных */
-  }
 
   /* Navigation - на вторую строку, full width */
   .header-navigation {

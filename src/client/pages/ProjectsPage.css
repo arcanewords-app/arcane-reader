@@ -1,0 +1,23 @@
+.projects-page {
+  width: 100%;
+  max-width: 100%;
+  padding: var(--main-padding-mobile);
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .projects-page {
+    padding: var(--main-padding-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  .projects-page {
+    padding: var(--main-padding-desktop);
+  }
+}
+
+@media (max-width: 480px) {
+  .projects-page {
+    padding: 0.75rem;
+  }
+}

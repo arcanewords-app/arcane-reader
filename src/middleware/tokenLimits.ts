@@ -45,13 +45,13 @@ function getCurrentDateUTC(): string {
 
 /**
  * Get user's token usage for today.
- * @param role - User role; limit is taken from ROLE_DAILY_LIMITS. Defaults to 'author'.
+ * @param role - User role; limit is taken from ROLE_DAILY_LIMITS. Defaults to 'user'.
  */
 export async function getUserTokenUsage(
   userId: string,
   token: string,
   date?: string,
-  role: UserRole = 'author'
+  role: UserRole = 'user'
 ): Promise<TokenUsage> {
   validateToken(token);
   const client = createClientWithToken(token);
@@ -195,13 +195,13 @@ export async function incrementTokenUsage(
 
 /**
  * Get token usage history for user.
- * @param role - User role; tokensLimit in each record uses ROLE_DAILY_LIMITS. Defaults to 'author'.
+ * @param role - User role; tokensLimit in each record uses ROLE_DAILY_LIMITS. Defaults to 'user'.
  */
 export async function getTokenUsageHistory(
   userId: string,
   token: string,
   days: number = 7,
-  role: UserRole = 'author'
+  role: UserRole = 'user'
 ): Promise<Array<{ date: string; tokensUsed: number; tokensLimit: number }>> {
   validateToken(token);
   const client = createClientWithToken(token);

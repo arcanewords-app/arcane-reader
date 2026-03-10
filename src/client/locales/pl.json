@@ -373,7 +373,11 @@
     "inviteCodeRequired": "Wprowadź kod zaproszenia",
     "inviteCodeInvalid": "Nieprawidłowy kod zaproszenia",
     "consentLabel": "Akceptuję <0>Politykę prywatności</0> i <1>Regulamin</1>",
-    "consentRequired": "Musisz zaakceptować regulamin"
+    "consentRequired": "Musisz zaakceptować regulamin",
+    "upgradeTitle": "Wymagana subskrypcja autora",
+    "upgradeMessage": "Dostęp do panelu i projektów tłumaczeń wymaga subskrypcji autora. Ta funkcja będzie wkrótce dostępna.",
+    "upgradeGoToCatalog": "Przejdź do katalogu",
+    "upgradeGoToProfile": "Przejdź do profilu"
   },
   "projectInfo": {
     "delete": "Usuń",
@@ -606,20 +610,55 @@
     "noSearchResults": "Nie znaleziono publikacji",
     "noSearchResultsHint": "Spróbuj innego zapytania lub języka.",
     "noPublications": "Brak publikacji",
-    "publishHint": "Opublikuj projekt w panelu, aby pojawił się tutaj.",
+    "publishHint": "Opublikuj projekt na stronie projektów, aby pojawił się tutaj.",
     "emptyHintGuest": "Zaloguj się lub zarejestruj, aby publikować tłumaczenia.",
     "read": "Czytaj",
     "catalogTab": "Wszystkie tłumaczenia",
     "myWorksTab": "Moje prace",
     "noMyPublications": "Nie masz jeszcze opublikowanych prac",
-    "emptyMyWorksHint": "Opublikuj projekt w panelu — pojawi się tutaj.",
+    "emptyMyWorksHint": "Opublikuj projekt na stronie projektów — pojawi się tutaj.",
     "orderNewest": "Najnowsze najpierw",
     "orderOldest": "Najstarsze najpierw"
+  },
+  "nav": {
+    "catalog": "Katalog",
+    "projects": "Projekty",
+    "projectsTitle": "Moje projekty",
+    "openProfile": "Otwórz profil"
   },
   "cabinet": {
     "title": "Moje projekty",
     "link": "Panel",
-    "catalog": "Katalog"
+    "catalog": "Katalog",
+    "reading": "Czytanie",
+    "projects": "Projekty",
+    "settings": "Ustawienia",
+    "readingTitle": "Historia czytania",
+    "settingsTitle": "Ustawienia czytania",
+    "loadingReadingHistory": "Ładowanie historii czytania...",
+    "noReadingHistory": "Brak historii czytania",
+    "noReadingHistoryHint": "Zacznij czytać publikacje z katalogu — pojawią się tutaj.",
+    "lastRead": "Ostatnie czytanie",
+    "continue": "Kontynuuj",
+    "open": "Otwórz"
+  },
+  "profile": {
+    "reading": "Czytanie",
+    "settings": "Ustawienia",
+    "profile": "Profil",
+    "readingTitle": "Historia czytania",
+    "settingsTitle": "Ustawienia czytania",
+    "profileTitle": "Profil",
+    "avatar": "Awatar",
+    "uploadAvatar": "Prześlij awatar",
+    "email": "Email",
+    "openProfile": "Otwórz profil",
+    "loadingReadingHistory": "Ładowanie historii czytania...",
+    "noReadingHistory": "Brak historii czytania",
+    "noReadingHistoryHint": "Zacznij czytać publikacje z katalogu — pojawią się tutaj.",
+    "lastRead": "Ostatnie czytanie",
+    "continue": "Kontynuuj",
+    "open": "Otwórz"
   },
   "publication": {
     "untitled": "Bez tytułu",

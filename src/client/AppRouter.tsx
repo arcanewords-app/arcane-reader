@@ -1,5 +1,14 @@
 import { Router, route } from 'preact-router';
 import { useEffect, useState } from 'preact/hooks';
+
+/** Legacy redirect: /cabinet → /projects */
+function CabinetRedirect() {
+  useEffect(() => {
+    route('/projects');
+    window.history.replaceState({}, '', '/projects');
+  }, []);
+  return null;
+}
 import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
 import { authService } from './services/authService';
@@ -9,7 +18,8 @@ import { Header } from './components/Header';
 import { ServiceStatusBanner } from './components/ServiceStatusBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { api } from './api/client';
-import { Dashboard, CatalogPage } from './pages';
+import { ProfilePage, ProjectsPage, CatalogPage } from './pages';
+import { AuthorGate } from './components/Auth/AuthorGate';
 import { AboutPage } from './pages/AboutPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -97,7 +107,7 @@ export function AppRouter() {
     checkAuth();
   }, []);
 
-  // Open AuthModal when URL has ?login=required (e.g. after redirect from /cabinet)
+  // Open AuthModal when URL has ?login=required (e.g. after redirect from /profile or /projects)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('login') === 'required') {
@@ -106,11 +116,13 @@ export function AppRouter() {
     }
   }, []);
 
-  // Protected routes: redirect guest from /cabinet and /projects/* to /?login=required
+  // Legacy: redirect /cabinet → /projects for backward compatibility (handled by route below)
+
+  // Protected routes: redirect guest from /profile, /projects and /projects/* to /?login=required
   useEffect(() => {
     if (isAuthenticated !== false) return;
     const path = window.location.pathname;
-    if (path === '/cabinet' || path.startsWith('/projects/')) {
+    if (path === '/profile' || path === '/projects' || path.startsWith('/projects/')) {
       route('/');
       const url = new URL(window.location.href);
       url.pathname = '/';
@@ -173,7 +185,7 @@ export function AppRouter() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('login') === 'required') {
       window.history.replaceState({}, '', window.location.pathname || '/');
-      route('/cabinet');
+      route(window.location.pathname || '/');
     }
   };
 
@@ -295,6 +307,11 @@ export function AppRouter() {
           <main>
             <Router
               onChange={(e: { url: string }) => {
+                if (e.url === '/cabinet' || e.url.startsWith('/cabinet/')) {
+                  route('/projects');
+                  window.history.replaceState({}, '', '/projects');
+                  return;
+                }
                 window.dispatchEvent(
                   new CustomEvent('arcane:route-change', { detail: { url: e.url } })
                 );
@@ -306,13 +323,15 @@ export function AppRouter() {
               <ContactPage path="/contact" />
               <PrivacyPage path="/privacy" />
               <TermsPage path="/terms" />
-              <Dashboard path="/cabinet" />
+              <ProfilePage path="/profile" />
+              <CabinetRedirect path="/cabinet" />
+              <AuthorGate path="/projects" component={ProjectsPage} />
               <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
               <PublicationPage path="/p/:publicationId" />
-              <ProjectPage path="/projects/:projectId" />
-              <ChapterPage path="/projects/:projectId/chapters/:chapterId" />
-              <ReadingModePage path="/projects/:projectId/chapters/:chapterId/reading" />
-              <ReadingModePage path="/projects/:projectId/reading" />
+              <AuthorGate path="/projects/:projectId" component={ProjectPage} />
+              <AuthorGate path="/projects/:projectId/chapters/:chapterId" component={ChapterPage} />
+              <AuthorGate path="/projects/:projectId/chapters/:chapterId/reading" component={ReadingModePage} />
+              <AuthorGate path="/projects/:projectId/reading" component={ReadingModePage} />
             </Router>
           </main>
         </div>
