@@ -6,6 +6,7 @@ import { getProject, invalidateProject } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
+import { PageLoading } from '../components/ui';
 import { api } from '../api/client';
 
 interface ChapterPageProps {
@@ -111,7 +112,11 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   };
 
   if (loading || !project) {
-    return <div>{t('common.loading')}</div>;
+    return (
+      <div class="page-loading">
+        <LoadingSpinner size="lg" text={t('common.loading')} />
+      </div>
+    );
   }
 
   const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
@@ -125,7 +130,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
 
   // Full chapter loaded via api.getChapter (lazy load)
   if (!chapter) {
-    return <div>{t('common.loading')}</div>;
+    return <PageLoading text={t('common.loading')} />;
   }
 
   const handlePrevChapter = () => {

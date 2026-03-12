@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'preact/hooks';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
@@ -75,8 +75,10 @@ export function HomePage() {
     return () => window.removeEventListener('popstate', handler);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadIdRef = useRef(0);
+
+  const loadData = useCallback(() => {
+    const loadId = ++loadIdRef.current;
     setLoading(true);
     setError(null);
 
@@ -84,35 +86,39 @@ export function HomePage() {
       api
         .getUserPublications()
         .then((list) => {
-          if (!cancelled) {
-            const publishedOnly = list.filter((p) => p.status === 'published');
-            setPublications(publishedOnly);
-          }
+          if (loadIdRef.current !== loadId) return;
+          const publishedOnly = list.filter((p) => p.status === 'published');
+          setPublications(publishedOnly);
         })
         .catch((e) => {
-          if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
+          if (loadIdRef.current !== loadId) return;
+          setError(e instanceof Error ? e.message : 'Failed to load');
         })
         .finally(() => {
-          if (!cancelled) setLoading(false);
+          if (loadIdRef.current !== loadId) return;
+          setLoading(false);
         });
     } else {
       api
         .getPublications({ limit: 50, orderBy: 'published_at', orderAsc: false })
         .then((list) => {
-          if (!cancelled) setPublications(list);
+          if (loadIdRef.current !== loadId) return;
+          setPublications(list);
         })
         .catch((e) => {
-          if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
+          if (loadIdRef.current !== loadId) return;
+          setError(e instanceof Error ? e.message : 'Failed to load');
         })
         .finally(() => {
-          if (!cancelled) setLoading(false);
+          if (loadIdRef.current !== loadId) return;
+          setLoading(false);
         });
     }
-
-    return () => {
-      cancelled = true;
-    };
   }, [filter, isAuthor]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const switchToAll = useCallback(() => {
     setFilter('all');
@@ -147,6 +153,9 @@ export function HomePage() {
         <div class="home-error">
           <p>{t('home.error')}</p>
           <p class="home-error-detail">{error}</p>
+          <button type="button" class="page-back-btn" onClick={loadData} style={{ marginTop: '1rem' }}>
+            {t('common.retry')}
+          </button>
         </div>
       </div>
     );

@@ -7,7 +7,7 @@ import type {
   Chapter,
   Publication,
 } from '../types';
-import { Card, Button, Modal, Input } from './ui';
+import { Card, Button, Modal, Input, LoadingSpinner } from './ui';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { invalidateProject } from '../store/projects';
@@ -939,8 +939,8 @@ export function ProjectInfo({
             <h3 class="metadata-title">{t('projectInfo.publicationTitle')}</h3>
           </div>
           {publicationLoading ? (
-            <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>
-              {t('common.loading')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <LoadingSpinner size="sm" text={t('common.loading')} />
             </div>
           ) : publication?.status === 'published' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

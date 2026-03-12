@@ -5,7 +5,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
 import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
-import { Button, Input, Modal } from '../components/ui';
+import { Button, Input, Modal, LoadingSpinner } from '../components/ui';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
 import { api } from '../api/client';
 import type { ReaderSettings } from '../types';
@@ -193,7 +193,9 @@ export function CabinetPage() {
                 />
               </div>
             ) : (
-              <div class="cabinet-settings-loading">{t('common.loading')}</div>
+              <div class="cabinet-settings-loading">
+                <LoadingSpinner size="sm" text={t('common.loading')} />
+              </div>
             )}
           </div>
         )}

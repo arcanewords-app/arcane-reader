@@ -14,7 +14,7 @@ import { authService } from '../../services/authService';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
-import { Modal } from '../ui';
+import { Modal, LoadingSpinner } from '../ui';
 import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import './ReadingMode.css';
@@ -764,6 +764,9 @@ export function ReadingMode({
   };
 
   const displayText = currentChapter ? getText(currentChapter) : '';
+  // Show loading when content is not yet loaded (avoids flash of "no translation" before fetch starts)
+  const contentLoaded = currentChapter ? currentChapter.id in chapterContentMap : true;
+  const isLoadingContent = chapterContentLoading || (currentChapter && !contentLoaded);
   const headerVisible = menuVisible || isNearTop;
   const footerVisible = menuVisible || isNearBottom;
 
@@ -851,10 +854,10 @@ export function ReadingMode({
       >
         <div class="reading-mode-spacer-top" style={{ minHeight: `${headerHeight}px` }} />
         <div class="reading-mode-text">
-          {chapterContentLoading ? (
-            <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
-              {t('common.loading')}
-            </p>
+          {isLoadingContent ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+              <LoadingSpinner size="md" text={t('common.loading')} />
+            </div>
           ) : displayText ? (
             (() => {
               const textBlockTypes =

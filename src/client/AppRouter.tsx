@@ -20,6 +20,7 @@ import { ServiceHealthProvider } from './contexts/ServiceHealthContext';
 import { Header } from './components/Header';
 import { ServiceStatusBanner } from './components/ServiceStatusBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
+import { LoadingSpinner } from './components/ui';
 import { api } from './api/client';
 import { ProfilePage, ProjectsPage, CatalogPage } from './pages';
 import { AuthorGate } from './components/Auth/AuthorGate';
@@ -268,7 +269,7 @@ export function AppRouter() {
           minHeight: '100vh',
         }}
       >
-        <div>{t('common.loading')}</div>
+        <LoadingSpinner size="lg" text={t('common.loading')} />
       </div>
     );
   }

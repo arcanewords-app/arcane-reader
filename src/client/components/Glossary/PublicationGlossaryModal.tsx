@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { GlossaryEntry, GlossaryEntryType } from '../../types';
-import { Modal, Button } from '../ui';
+import { Modal, Button, LoadingSpinner } from '../ui';
 import { api } from '../../api/client';
 import './GlossaryModal.css';
 import './PublicationGlossaryModal.css';
@@ -170,7 +170,7 @@ export function PublicationGlossaryModal({
       >
         {loading ? (
           <div class="glossary-empty">
-            <p>{t('common.loading')}</p>
+            <LoadingSpinner size="md" text={t('common.loading')} />
           </div>
         ) : loadError ? (
           <div class="glossary-empty">

@@ -8,6 +8,7 @@ import { trackEvent } from '../utils/analytics';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
+import { PageLoading } from '../components/ui';
 import { api } from '../api/client';
 
 interface ProjectPageProps {
@@ -102,11 +103,18 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   };
 
   if (loading) {
-    return <div>{t('common.loading')}</div>;
+    return <PageLoading text={t('common.loading')} />;
   }
 
   if (!project) {
-    return <div>{t('project.notFound')}</div>;
+    return (
+      <div class="page-loading">
+        <p>{t('project.notFound')}</p>
+        <button type="button" class="page-back-btn" onClick={() => route('/projects')}>
+          {t('common.back')}
+        </button>
+      </div>
+    );
   }
 
   const handleSidebarClose = () => {

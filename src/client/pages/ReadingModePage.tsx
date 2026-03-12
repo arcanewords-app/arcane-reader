@@ -4,6 +4,7 @@ import { route } from 'preact-router';
 import type { ProjectWithChapterList } from '../types';
 import { getProject } from '../store/projects';
 import { ReadingMode } from '../components/ReadingMode';
+import { PageLoading } from '../components/ui';
 
 interface ReadingModePageProps {
   projectId: string;
@@ -46,7 +47,7 @@ export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) 
   };
 
   if (loading || !project) {
-    return <div>{t('common.loading')}</div>;
+    return <PageLoading text={t('common.loading')} />;
   }
 
   return <ReadingMode project={project} initialChapterId={chapterId} onExit={handleExit} />;

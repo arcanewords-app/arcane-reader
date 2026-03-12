@@ -1,5 +1,25 @@
 /* Page Layouts - Responsive */
 
+/* Shared back button for error/not-found states */
+.page-back-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.page-back-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
 /* Project and Chapter pages container */
 .project-page-container,
 .chapter-page-container {

@@ -12,3 +12,4 @@ export { Input, Select, Slider } from './Input';
 export { StatusBadge, CountBadge } from './Badge';
 
 export { LoadingSpinner } from './LoadingSpinner';
+export { PageLoading } from './PageLoading';
