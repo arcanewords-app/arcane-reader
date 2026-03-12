@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui';
+import { trackEvent } from '../../utils/analytics';
 import type {
   Chapter,
   Project,
@@ -55,6 +56,7 @@ function getTextLengthForScope(chapter: Chapter, scope: Scope, selectedIds: stri
 
 export function TranslationPanel({
   chapter,
+  projectId,
   startTranslation,
   translating,
   estimate,
@@ -101,6 +103,10 @@ export function TranslationPanel({
   };
 
   const handleStart = () => {
+    trackEvent('chapter_translate', {
+      project_id: projectId,
+      chapter_id: chapter.id,
+    });
     startTranslation(buildOptions());
   };
 

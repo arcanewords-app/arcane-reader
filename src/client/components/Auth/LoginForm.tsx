@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Button, Input } from '../ui';
 import { authService } from '../../services/authService';
+import { trackEvent } from '../../utils/analytics';
 import type { AuthUser } from '../../types';
 
 interface LoginFormProps {
@@ -45,6 +46,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onEmailNotConfirmed }
 
     try {
       const { user } = await authService.login(email, password);
+      trackEvent('login');
       onSuccess(user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('auth.errorLogin');

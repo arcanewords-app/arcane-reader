@@ -4,6 +4,7 @@ import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
 import type { ProjectWithChapterList, ProjectSettings } from '../types';
 import { getProject, invalidateProject } from '../store/projects';
+import { trackEvent } from '../utils/analytics';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
@@ -52,6 +53,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
       // Cache will still be used internally if it's very fresh (< 5 seconds)
       const loadedProject = await getProject(projectId, true);
       if (loadedProject) {
+        trackEvent('view_item', { item_id: loadedProject.id });
         setProject(loadedProject);
       } else {
         route('/');

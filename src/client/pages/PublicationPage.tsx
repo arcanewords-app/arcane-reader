@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
+import { trackEvent } from '../utils/analytics';
 import type { PublicationWithChapters, GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
@@ -50,6 +51,12 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       cancelled = true;
     };
   }, [publicationId]);
+
+  useEffect(() => {
+    if (data?.id) {
+      trackEvent('view_item', { item_id: data.id });
+    }
+  }, [data?.id]);
 
   // Preload glossary in background when publication has glossary entries
   useEffect(() => {
@@ -200,6 +207,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         link.click();
         document.body.removeChild(link);
       }
+      trackEvent('export', { format });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return;
       console.error('Export failed:', err);

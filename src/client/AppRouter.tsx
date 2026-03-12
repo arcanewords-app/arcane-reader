@@ -1,5 +1,8 @@
 import { Router, route } from 'preact-router';
 import { useEffect, useState } from 'preact/hooks';
+import { useCookieConsent } from './contexts/CookieConsentContext';
+import { CookieBanner } from './components/CookieBanner/CookieBanner';
+import { initGA, setupRouteChangeListener, trackEvent, trackPageView } from './utils/analytics';
 
 /** Legacy redirect: /cabinet → /projects */
 function CabinetRedirect() {
@@ -190,6 +193,7 @@ export function AppRouter() {
   };
 
   const handleLogout = async () => {
+    trackEvent('logout');
     await authService.logout();
     setAuthUser(null);
     setIsAuthenticated(false);
@@ -239,6 +243,20 @@ export function AppRouter() {
     };
   }, []);
 
+  const { consent } = useCookieConsent();
+  const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
+
+  // Initialize GA when user accepts analytics cookies
+  useEffect(() => {
+    if (consent !== 'accepted' || !measurementId) return;
+
+    initGA(measurementId);
+    trackPageView(window.location.pathname);
+
+    const cleanup = setupRouteChangeListener();
+    return cleanup;
+  }, [consent, measurementId]);
+
   if (isAuthenticated === null) {
     return (
       <div
@@ -286,6 +304,8 @@ export function AppRouter() {
           />
 
           <ServiceStatusBanner />
+
+          <CookieBanner />
 
           {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
           {hasSidebar && (

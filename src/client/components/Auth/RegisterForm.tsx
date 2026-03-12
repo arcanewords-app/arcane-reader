@@ -3,6 +3,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { route } from 'preact-router';
 import { Button, Input } from '../ui';
 import { authService } from '../../services/authService';
+import { trackEvent } from '../../utils/analytics';
 import type { AuthUser } from '../../types';
 
 interface RegisterFormProps {
@@ -49,6 +50,7 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
       await authService.register(email, password, invitationCode);
 
       // Show success message - email confirmation required
+      trackEvent('sign_up');
       setRegistrationSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.errorRegister'));

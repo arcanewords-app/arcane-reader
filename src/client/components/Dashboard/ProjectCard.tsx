@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ProjectListItem } from '../../types';
 import { getProjectTypeColor } from '../../utils/project-type';
+import { trackEvent } from '../../utils/analytics';
 import { BookPlaceholder } from './BookPlaceholder';
 import './ProjectCard.css';
 
@@ -52,6 +53,10 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
+          trackEvent('select_content', {
+            content_type: 'project',
+            item_id: project.id,
+          });
           onClick(project.id);
         }
       }}

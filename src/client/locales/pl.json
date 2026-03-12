@@ -775,5 +775,12 @@
     "changesDesc": "Regulamin może być aktualizowany. Kontynuacja korzystania po zmianach oznacza akceptację.",
     "contact": "Kontakt",
     "contactDesc": "Pytania: ilya.murashka.w@gmail.com"
+  },
+  "cookieBanner": {
+    "title": "Używamy plików cookies",
+    "description": "Aby ulepszyć serwis zbieramy anonimowe statystyki. Możesz zaakceptować lub odrzucić cookies analityczne.",
+    "privacyLink": "Polityka prywatności",
+    "accept": "Akceptuję",
+    "reject": "Odrzuć"
   }
 }

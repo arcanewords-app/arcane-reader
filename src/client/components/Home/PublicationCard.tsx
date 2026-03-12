@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Publication, PublicationListItem } from '../../types';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
+import { trackEvent } from '../../utils/analytics';
 import './PublicationCard.css';
 
 /** Card accepts both list item and full publication (e.g. from "My works" API). */
@@ -83,7 +84,17 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
         )}
         <p class="publication-card-lang">{langLabel}</p>
         {publishedAt && <p class="publication-card-date">{publishedAt}</p>}
-        <button type="button" class="publication-card-read-btn" onClick={onRead}>
+        <button
+          type="button"
+          class="publication-card-read-btn"
+          onClick={() => {
+            trackEvent('select_content', {
+              content_type: 'publication',
+              item_id: publication.id,
+            });
+            onRead();
+          }}
+        >
           {t('home.read')}
         </button>
       </div>
