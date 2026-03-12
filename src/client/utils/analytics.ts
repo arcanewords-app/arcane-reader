@@ -12,8 +12,9 @@ export function initGA(measurementId: string): void {
   gaInitialized = true;
 
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer?.push(args);
+  // Must use arguments (not array) — gtag.js expects this format
+  window.gtag = function () {
+    window.dataLayer?.push(arguments);
   };
   window.gtag('js', new Date());
 
@@ -24,7 +25,6 @@ export function initGA(measurementId: string): void {
 
   window.gtag('config', measurementId, {
     anonymize_ip: true,
-    cookie_flags: 'SameSite=None;Secure',
   });
 }
 
