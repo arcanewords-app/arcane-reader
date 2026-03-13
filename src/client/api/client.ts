@@ -97,7 +97,14 @@ interface PublicationCacheEntry<T> {
 
 const publicationCache = {
   withChapters: new Map<string, PublicationCacheEntry<PublicationWithChapters>>(),
-  readProgress: new Map<string, PublicationCacheEntry<{ chapterIds: string[]; lastReadChapterId?: string; lastReadParagraphIndex?: number }>>(),
+  readProgress: new Map<
+    string,
+    PublicationCacheEntry<{
+      chapterIds: string[];
+      lastReadChapterId?: string;
+      lastReadParagraphIndex?: number;
+    }>
+  >(),
   glossary: new Map<string, PublicationCacheEntry<GlossaryEntry[]>>(),
 };
 
@@ -121,11 +128,7 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
-async function fetchJson<T>(
-  url: string,
-  options?: RequestInit,
-  isRetry = false
-): Promise<T> {
+async function fetchJson<T>(url: string, options?: RequestInit, isRetry = false): Promise<T> {
   // Get token from authService
   const token = authService.getToken();
 
@@ -335,7 +338,12 @@ export const api = {
   },
 
   /** Get current user profile (id, email, role, avatarUrl). */
-  async getProfile(): Promise<{ id: string; email: string; role: string; avatarUrl: string | null }> {
+  async getProfile(): Promise<{
+    id: string;
+    email: string;
+    role: string;
+    avatarUrl: string | null;
+  }> {
     return fetchJson(`/api/user/profile`);
   },
 

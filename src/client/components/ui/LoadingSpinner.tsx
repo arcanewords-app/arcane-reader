@@ -25,12 +25,7 @@ export function LoadingSpinner({ size = 'md', text, fullScreen = false }: Loadin
   }
 
   return (
-    <div
-      class="loading-spinner-inline"
-      role="status"
-      aria-live="polite"
-      aria-label={ariaLabel}
-    >
+    <div class="loading-spinner-inline" role="status" aria-live="polite" aria-label={ariaLabel}>
       <div class={`spinner ${sizeClass}`} aria-hidden="true"></div>
       {text && <span class="loading-spinner-text">{text}</span>}
     </div>

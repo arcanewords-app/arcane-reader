@@ -153,7 +153,12 @@ export function HomePage() {
         <div class="home-error">
           <p>{t('home.error')}</p>
           <p class="home-error-detail">{error}</p>
-          <button type="button" class="page-back-btn" onClick={loadData} style={{ marginTop: '1rem' }}>
+          <button
+            type="button"
+            class="page-back-btn"
+            onClick={loadData}
+            style={{ marginTop: '1rem' }}
+          >
             {t('common.retry')}
           </button>
         </div>
@@ -263,7 +268,11 @@ export function HomePage() {
           ) : (
             <div class="home-grid">
               {filteredPublications.map((pub) => (
-                <PublicationCard key={pub.id} publication={pub} onRead={() => handleRead(pub.slug || pub.id)} />
+                <PublicationCard
+                  key={pub.id}
+                  publication={pub}
+                  onRead={() => handleRead(pub.slug || pub.id)}
+                />
               ))}
             </div>
           )}

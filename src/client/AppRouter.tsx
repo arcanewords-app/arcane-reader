@@ -351,7 +351,10 @@ export function AppRouter() {
               <PublicationPage path="/p/:publicationId" />
               <AuthorGate path="/projects/:projectId" component={ProjectPage} />
               <AuthorGate path="/projects/:projectId/chapters/:chapterId" component={ChapterPage} />
-              <AuthorGate path="/projects/:projectId/chapters/:chapterId/reading" component={ReadingModePage} />
+              <AuthorGate
+                path="/projects/:projectId/chapters/:chapterId/reading"
+                component={ReadingModePage}
+              />
               <AuthorGate path="/projects/:projectId/reading" component={ReadingModePage} />
             </Router>
           </main>

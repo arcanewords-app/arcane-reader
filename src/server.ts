@@ -187,7 +187,8 @@ function injectPublicationContent(
   const metaParts: string[] = [];
   if (author) metaParts.push(`Автор: ${author}`);
   if (translator) metaParts.push(`Переводчик: ${translator}`);
-  const metaLine = metaParts.length > 0 ? `<p class="publication-page-seo-meta">${metaParts.join(' · ')}</p>` : '';
+  const metaLine =
+    metaParts.length > 0 ? `<p class="publication-page-seo-meta">${metaParts.join(' · ')}</p>` : '';
 
   const readLink = `<a href="${escapeHtml(opts.publicationUrl)}">Читать онлайн</a>`;
   const downloadLink = opts.hasExport
@@ -243,7 +244,10 @@ function injectPublicationJsonLd(
     (book as Record<string, unknown>).author = { '@type': 'Person', name: opts.authorDisplay };
   }
   if (opts.translatorDisplay) {
-    (book as Record<string, unknown>).translator = { '@type': 'Person', name: opts.translatorDisplay };
+    (book as Record<string, unknown>).translator = {
+      '@type': 'Person',
+      name: opts.translatorDisplay,
+    };
   }
 
   const jsonLd = `<script type="application/ld+json">${JSON.stringify(book)}</script>`;
@@ -593,8 +597,7 @@ app.get('/api/user/reading-history', requireAuth, async (req, res) => {
     const items = await getUserReadingHistory(req.user.id, requireToken(req));
     res.json({ items });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to get reading history';
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get reading history';
     req.log?.error({ err: error }, 'Error getting reading history');
     res.status(500).json({ error: errorMessage });
   }
@@ -613,8 +616,7 @@ app.get('/api/user/profile', requireAuth, async (req, res) => {
       avatarUrl: req.user.avatarUrl ?? null,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to get profile';
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get profile';
     req.log?.error({ err: error }, 'Error getting profile');
     res.status(500).json({ error: errorMessage });
   }
@@ -644,8 +646,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
     }
     res.json({ avatarUrl: data?.avatar_url ?? null });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to update profile';
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
     req.log?.error({ err: error }, 'Error updating profile');
     res.status(500).json({ error: errorMessage });
   }
@@ -665,40 +666,51 @@ const uploadAvatar = multer({
   },
 });
 
-app.post('/api/user/profile/avatar', requireAuth, uploadAvatar.single('avatar'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.post(
+  '/api/user/profile/avatar',
+  requireAuth,
+  uploadAvatar.single('avatar'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      const ext =
+        req.file.mimetype === 'image/png'
+          ? 'png'
+          : req.file.mimetype === 'image/gif'
+            ? 'gif'
+            : req.file.mimetype === 'image/webp'
+              ? 'webp'
+              : 'jpg';
+      const storagePath = `${req.user.id}/avatar.${ext}`;
+      const { publicUrl } = await uploadFile('avatars', storagePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true,
+      });
+      const { createClientWithToken } = await import('./services/supabaseClient.js');
+      const client = createClientWithToken(requireToken(req));
+      const { data, error } = await client
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', req.user.id)
+        .select('avatar_url')
+        .single();
+      if (error) {
+        req.log?.error({ err: error }, 'Failed to update profile');
+        return res.status(500).json({ error: 'Failed to update profile' });
+      }
+      res.json({ avatarUrl: data?.avatar_url ?? null });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload avatar';
+      req.log?.error({ err: error }, 'Error uploading avatar');
+      res.status(500).json({ error: errorMessage });
     }
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    const ext = req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/gif' ? 'gif' : req.file.mimetype === 'image/webp' ? 'webp' : 'jpg';
-    const storagePath = `${req.user.id}/avatar.${ext}`;
-    const { publicUrl } = await uploadFile('avatars', storagePath, req.file.buffer, {
-      contentType: req.file.mimetype,
-      upsert: true,
-    });
-    const { createClientWithToken } = await import('./services/supabaseClient.js');
-    const client = createClientWithToken(requireToken(req));
-    const { data, error } = await client
-      .from('profiles')
-      .update({ avatar_url: publicUrl })
-      .eq('id', req.user.id)
-      .select('avatar_url')
-      .single();
-    if (error) {
-      req.log?.error({ err: error }, 'Failed to update profile');
-      return res.status(500).json({ error: 'Failed to update profile' });
-    }
-    res.json({ avatarUrl: data?.avatar_url ?? null });
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to upload avatar';
-    req.log?.error({ err: error }, 'Error uploading avatar');
-    res.status(500).json({ error: errorMessage });
   }
-});
+);
 
 // ============ Projects ============
 
@@ -790,20 +802,25 @@ app.get('/api/projects/:id', requireAuth, requireRole('author'), async (req, res
 });
 
 // Get chapters summary (for ProcessChapters - lightweight)
-app.get('/api/projects/:id/chapters/summary', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+app.get(
+  '/api/projects/:id/chapters/summary',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const token = requireToken(req);
-    const summary = await getChaptersSummary(req.params.id, req.user.id, token);
-    res.json(summary);
-  } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    res.status(500).json({ error: 'Failed to get chapters summary' });
+      const token = requireToken(req);
+      const summary = await getChaptersSummary(req.params.id, req.user.id, token);
+      res.json(summary);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      res.status(500).json({ error: 'Failed to get chapters summary' });
+    }
   }
-});
+);
 
 // Delete project (requires auth)
 app.delete('/api/projects/:id', requireAuth, requireRole('author'), async (req, res) => {
@@ -928,54 +945,64 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
 });
 
 // Get reader settings (requires auth)
-app.get('/api/projects/:id/settings/reader', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+app.get(
+  '/api/projects/:id/settings/reader',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const token = requireToken(req);
-    const project = await getProject(req.params.id, req.user.id, token);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+      const token = requireToken(req);
+      const project = await getProject(req.params.id, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
-    const reader = getReaderSettings(project);
-    res.json(reader);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get reader settings' });
+      const reader = getReaderSettings(project);
+      res.json(reader);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get reader settings' });
+    }
   }
-});
+);
 
 // Update reader settings (requires auth)
-app.put('/api/projects/:id/settings/reader', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.put(
+  '/api/projects/:id/settings/reader',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const reader = await updateReaderSettings(req.params.id, req.body, req.user.id, token);
+      if (!reader) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      req.log?.info(
+        {
+          event: 'reader.settings.updated',
+          projectId: req.params.id,
+          fontFamily: reader.fontFamily,
+          fontSize: reader.fontSize,
+          colorScheme: reader.colorScheme,
+        },
+        'Reader settings updated'
+      );
+
+      res.json(reader);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update reader settings' });
     }
-
-    const token = requireToken(req);
-    const reader = await updateReaderSettings(req.params.id, req.body, req.user.id, token);
-    if (!reader) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    req.log?.info(
-      {
-        event: 'reader.settings.updated',
-        projectId: req.params.id,
-        fontFamily: reader.fontFamily,
-        fontSize: reader.fontSize,
-        colorScheme: reader.colorScheme,
-      },
-      'Reader settings updated'
-    );
-
-    res.json(reader);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update reader settings' });
   }
-});
+);
 
 // Get current user's reader settings (requires auth)
 app.get('/api/user/reader-settings', requireAuth, async (req, res) => {
@@ -1013,252 +1040,277 @@ app.put('/api/user/reader-settings', requireAuth, async (req, res) => {
 // ============ Chapters ============
 
 // Upload chapter to project (requires auth)
-app.post('/api/projects/:id/chapters', requireAuth, requireRole('author'), upload.single('file'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const token = requireToken(req);
-    const project = await getProject(req.params.id, req.user.id, token);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    // Use client-sent filename (correct UTF-8) when present; else decode multipart originalname for any locale
-    const filename =
-      typeof req.body?.filename === 'string' && req.body.filename.trim()
-        ? req.body.filename.trim()
-        : decodeMultipartFilename(req.file.originalname);
-
-    // Check if format is supported
-    if (!isSupportedFormat(filename)) {
-      return res.status(400).json({
-        error: 'Неподдерживаемый формат файла',
-        details: 'Поддерживаемые форматы: .txt, .epub, .fb2, .csv',
-      });
-    }
-
-    // Parse file based on format
-    let parseResult: ParseResult;
+app.post(
+  '/api/projects/:id/chapters',
+  requireAuth,
+  requireRole('author'),
+  upload.single('file'),
+  async (req, res) => {
     try {
-      parseResult = await parseFile(req.file.buffer, filename);
-    } catch (parseError) {
-      const errorMessage = parseError instanceof Error ? parseError.message : 'File parse error';
-      req.log?.error({ err: parseError }, 'Parse error');
-      return res.status(400).json({
-        error: 'Ошибка при парсинге файла',
-        details: errorMessage,
-        parseErrors: [errorMessage],
-      });
-    }
-
-    // Handle parsing errors and warnings
-    if (parseResult.errors && parseResult.errors.length > 0) {
-      req.log?.error({ parseErrors: parseResult.errors }, 'Parse errors');
-      return res.status(400).json({
-        error: 'Ошибки при парсинге файла',
-        details: parseResult.errors.join('; '),
-        parseErrors: parseResult.errors,
-        warnings: parseResult.warnings,
-      });
-    }
-
-    // Determine project type from file format
-    const detectedType = getProjectTypeFromFormat(parseResult.format);
-
-    // Update project type if not set or if it's the first chapter (auto-detect)
-    const isFirstChapter = project.chapters.length === 0;
-    const needsTypeUpdate = !project.type || (project.type === 'text' && detectedType !== 'text');
-
-    if (isFirstChapter && needsTypeUpdate) {
-      await updateProject(req.params.id, { type: detectedType }, req.user.id, token);
-      req.log?.info(
-        { event: 'project.type.detected', projectId: req.params.id, type: detectedType },
-        `Project type set to ${detectedType}`
-      );
-    }
-
-    // Update project metadata if available (for EPUB/FB2) and it's the first chapter
-    // For subsequent chapters, don't update metadata (as per requirement #4)
-    if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
-      const updatedMetadata = {
-        ...project.metadata,
-        ...parseResult.metadata,
-      };
-
-      // Save cover image if present
-      if (parseResult.metadata.coverImage) {
-        try {
-          const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
-          const storagePath = generateUniqueFilename('cover', ext, req.params.id);
-
-          const uploadResult = await uploadFile(
-            'images',
-            storagePath,
-            parseResult.metadata.coverImage.data,
-            {
-              contentType: parseResult.metadata.coverImage.mimeType,
-            }
-          );
-
-          updatedMetadata.coverImageUrl = uploadResult.publicUrl;
-          req.log?.info({ event: 'cover.saved', storagePath }, 'Cover saved to Supabase Storage');
-        } catch (coverError) {
-          req.log?.error({ err: coverError }, 'Failed to save cover image');
-        }
-        // Remove coverImage buffer from metadata (we only store URL)
-        delete (updatedMetadata as Record<string, unknown>).coverImage;
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Only update if there's new metadata
-      if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-        await updateProject(req.params.id, { metadata: updatedMetadata }, req.user.id, token);
+      const token = requireToken(req);
+      const project = await getProject(req.params.id, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Use client-sent filename (correct UTF-8) when present; else decode multipart originalname for any locale
+      const filename =
+        typeof req.body?.filename === 'string' && req.body.filename.trim()
+          ? req.body.filename.trim()
+          : decodeMultipartFilename(req.file.originalname);
+
+      // Check if format is supported
+      if (!isSupportedFormat(filename)) {
+        return res.status(400).json({
+          error: 'Неподдерживаемый формат файла',
+          details: 'Поддерживаемые форматы: .txt, .epub, .fb2, .csv',
+        });
+      }
+
+      // Parse file based on format
+      let parseResult: ParseResult;
+      try {
+        parseResult = await parseFile(req.file.buffer, filename);
+      } catch (parseError) {
+        const errorMessage = parseError instanceof Error ? parseError.message : 'File parse error';
+        req.log?.error({ err: parseError }, 'Parse error');
+        return res.status(400).json({
+          error: 'Ошибка при парсинге файла',
+          details: errorMessage,
+          parseErrors: [errorMessage],
+        });
+      }
+
+      // Handle parsing errors and warnings
+      if (parseResult.errors && parseResult.errors.length > 0) {
+        req.log?.error({ parseErrors: parseResult.errors }, 'Parse errors');
+        return res.status(400).json({
+          error: 'Ошибки при парсинге файла',
+          details: parseResult.errors.join('; '),
+          parseErrors: parseResult.errors,
+          warnings: parseResult.warnings,
+        });
+      }
+
+      // Determine project type from file format
+      const detectedType = getProjectTypeFromFormat(parseResult.format);
+
+      // Update project type if not set or if it's the first chapter (auto-detect)
+      const isFirstChapter = project.chapters.length === 0;
+      const needsTypeUpdate = !project.type || (project.type === 'text' && detectedType !== 'text');
+
+      if (isFirstChapter && needsTypeUpdate) {
+        await updateProject(req.params.id, { type: detectedType }, req.user.id, token);
         req.log?.info(
-          {
-            event: 'project.metadata.updated',
-            projectId: req.params.id,
-            title: parseResult.metadata.title,
-          },
-          'Project metadata updated'
+          { event: 'project.type.detected', projectId: req.params.id, type: detectedType },
+          `Project type set to ${detectedType}`
         );
       }
-    } else if (
-      !isFirstChapter &&
-      parseResult.metadata &&
-      Object.keys(parseResult.metadata).length > 0
-    ) {
-      req.log?.debug(
-        { projectId: req.params.id },
-        'Skipped metadata update: project already has chapters'
-      );
-    }
 
-    // Handle multiple chapters (EPUB/FB2) or single chapter (TXT)
-    if (parseResult.chapters.length === 0) {
-      return res.status(400).json({
-        error: 'Файл не содержит глав',
-        details: 'Не удалось извлечь ни одной главы из файла',
+      // Update project metadata if available (for EPUB/FB2) and it's the first chapter
+      // For subsequent chapters, don't update metadata (as per requirement #4)
+      if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
+        const updatedMetadata = {
+          ...project.metadata,
+          ...parseResult.metadata,
+        };
+
+        // Save cover image if present
+        if (parseResult.metadata.coverImage) {
+          try {
+            const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
+            const storagePath = generateUniqueFilename('cover', ext, req.params.id);
+
+            const uploadResult = await uploadFile(
+              'images',
+              storagePath,
+              parseResult.metadata.coverImage.data,
+              {
+                contentType: parseResult.metadata.coverImage.mimeType,
+              }
+            );
+
+            updatedMetadata.coverImageUrl = uploadResult.publicUrl;
+            req.log?.info({ event: 'cover.saved', storagePath }, 'Cover saved to Supabase Storage');
+          } catch (coverError) {
+            req.log?.error({ err: coverError }, 'Failed to save cover image');
+          }
+          // Remove coverImage buffer from metadata (we only store URL)
+          delete (updatedMetadata as Record<string, unknown>).coverImage;
+        }
+
+        // Only update if there's new metadata
+        if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
+          await updateProject(req.params.id, { metadata: updatedMetadata }, req.user.id, token);
+          req.log?.info(
+            {
+              event: 'project.metadata.updated',
+              projectId: req.params.id,
+              title: parseResult.metadata.title,
+            },
+            'Project metadata updated'
+          );
+        }
+      } else if (
+        !isFirstChapter &&
+        parseResult.metadata &&
+        Object.keys(parseResult.metadata).length > 0
+      ) {
+        req.log?.debug(
+          { projectId: req.params.id },
+          'Skipped metadata update: project already has chapters'
+        );
+      }
+
+      // Handle multiple chapters (EPUB/FB2) or single chapter (TXT)
+      if (parseResult.chapters.length === 0) {
+        return res.status(400).json({
+          error: 'Файл не содержит глав',
+          details: 'Не удалось извлечь ни одной главы из файла',
+        });
+      }
+
+      // Add all chapters from parsed result
+      const addedChapters = [];
+      for (const parsedChapter of parseResult.chapters) {
+        const chapter = await addChapter(
+          req.params.id,
+          {
+            title: parsedChapter.title,
+            originalText: parsedChapter.content,
+          },
+          token
+        );
+        addedChapters.push(chapter);
+      }
+
+      // Return single chapter for backward compatibility, or array if multiple
+      if (addedChapters.length === 1) {
+        res.json(addedChapters[0]);
+      } else {
+        res.json({
+          chapters: addedChapters,
+          count: addedChapters.length,
+          warnings: parseResult.warnings,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add chapter';
+      // Check if error is related to token validation
+      if (message.includes('Token is required') || message.includes('Invalid token')) {
+        return res.status(401).json({ error: message });
+      }
+      req.log?.error({ err: error, projectId: req.params.id }, 'Failed to add chapter');
+      res.status(500).json({
+        error: 'Failed to add chapter',
+        details: message,
       });
     }
-
-    // Add all chapters from parsed result
-    const addedChapters = [];
-    for (const parsedChapter of parseResult.chapters) {
-      const chapter = await addChapter(
-        req.params.id,
-        {
-          title: parsedChapter.title,
-          originalText: parsedChapter.content,
-        },
-        token
-      );
-      addedChapters.push(chapter);
-    }
-
-    // Return single chapter for backward compatibility, or array if multiple
-    if (addedChapters.length === 1) {
-      res.json(addedChapters[0]);
-    } else {
-      res.json({
-        chapters: addedChapters,
-        count: addedChapters.length,
-        warnings: parseResult.warnings,
-      });
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to add chapter';
-    // Check if error is related to token validation
-    if (message.includes('Token is required') || message.includes('Invalid token')) {
-      return res.status(401).json({ error: message });
-    }
-    req.log?.error({ err: error, projectId: req.params.id }, 'Failed to add chapter');
-    res.status(500).json({
-      error: 'Failed to add chapter',
-      details: message,
-    });
   }
-});
+);
 
 // Get chapter status only (lightweight, for polling during translation)
-app.get('/api/projects/:projectId/chapters/:chapterId/status', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.get(
+  '/api/projects/:projectId/chapters/:chapterId/status',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      const chapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        requireToken(req)
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+      res.json({ status: chapter.status });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get chapter status' });
     }
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId, requireToken(req));
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
-    res.json({ status: chapter.status });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get chapter status' });
   }
-});
+);
 
 // Get chapter (requires auth)
-app.get('/api/projects/:projectId/chapters/:chapterId', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+app.get(
+  '/api/projects/:projectId/chapters/:chapterId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const token = requireToken(req);
-    const hasAccess = await verifyChapterAccess(
-      req.params.projectId,
-      req.params.chapterId,
-      req.user.id,
-      token
-    );
-    if (!hasAccess) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
+      const token = requireToken(req);
+      const hasAccess = await verifyChapterAccess(
+        req.params.projectId,
+        req.params.chapterId,
+        req.user.id,
+        token
+      );
+      if (!hasAccess) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
 
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
+      const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+      res.json(chapter);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get chapter' });
     }
-    res.json(chapter);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get chapter' });
   }
-});
+);
 
 // Delete chapter (requires auth)
-app.delete('/api/projects/:projectId/chapters/:chapterId', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+app.delete(
+  '/api/projects/:projectId/chapters/:chapterId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const token = requireToken(req);
-    const hasAccess = await verifyChapterAccess(
-      req.params.projectId,
-      req.params.chapterId,
-      req.user.id,
-      token
-    );
-    if (!hasAccess) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
+      const token = requireToken(req);
+      const hasAccess = await verifyChapterAccess(
+        req.params.projectId,
+        req.params.chapterId,
+        req.user.id,
+        token
+      );
+      if (!hasAccess) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
 
-    const success = await deleteChapter(req.params.projectId, req.params.chapterId, token);
-    if (!success) {
-      return res.status(404).json({ error: 'Chapter not found' });
+      const success = await deleteChapter(req.params.projectId, req.params.chapterId, token);
+      if (!success) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete chapter' });
     }
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete chapter' });
   }
-});
+);
 
 // ============ Translation ============
 
@@ -3521,230 +3573,250 @@ app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async
 });
 
 // Update glossary entry (requires auth)
-app.put('/api/projects/:projectId/glossary/:entryId', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.put(
+  '/api/projects/:projectId/glossary/:entryId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const { original, translated, type, gender, description, notes } = req.body;
+
+      let declensions = req.body.declensions;
+
+      // Re-generate declensions if character name changed
+      if (type === 'character' && translated && !declensions) {
+        const result = getNameDeclensions(original, gender || 'unknown');
+        declensions = result.declensions;
+      }
+
+      const entry = await updateGlossaryEntry(
+        req.params.projectId,
+        req.params.entryId,
+        {
+          original,
+          translated,
+          type,
+          gender,
+          description, // Character/location/term description
+          notes, // User notes (separate from description)
+          declensions,
+        },
+        requireToken(req)
+      );
+
+      if (!entry) {
+        return res.status(404).json({ error: 'Entry not found' });
+      }
+
+      // Clear agent cache to reload glossary
+      clearAgentCache(req.params.projectId);
+
+      req.log?.info(
+        {
+          event: 'glossary.updated',
+          entryId: entry.id,
+          original: entry.original,
+          translated: entry.translated,
+        },
+        `Glossary updated: ${entry.original} → ${entry.translated}`
+      );
+
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update glossary entry' });
     }
-
-    // Verify project belongs to user
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const { original, translated, type, gender, description, notes } = req.body;
-
-    let declensions = req.body.declensions;
-
-    // Re-generate declensions if character name changed
-    if (type === 'character' && translated && !declensions) {
-      const result = getNameDeclensions(original, gender || 'unknown');
-      declensions = result.declensions;
-    }
-
-    const entry = await updateGlossaryEntry(
-      req.params.projectId,
-      req.params.entryId,
-      {
-        original,
-        translated,
-        type,
-        gender,
-        description, // Character/location/term description
-        notes, // User notes (separate from description)
-        declensions,
-      },
-      requireToken(req)
-    );
-
-    if (!entry) {
-      return res.status(404).json({ error: 'Entry not found' });
-    }
-
-    // Clear agent cache to reload glossary
-    clearAgentCache(req.params.projectId);
-
-    req.log?.info(
-      {
-        event: 'glossary.updated',
-        entryId: entry.id,
-        original: entry.original,
-        translated: entry.translated,
-      },
-      `Glossary updated: ${entry.original} → ${entry.translated}`
-    );
-
-    res.json(entry);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update glossary entry' });
   }
-});
+);
 
-app.delete('/api/projects/:projectId/glossary/:entryId', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.delete(
+  '/api/projects/:projectId/glossary/:entryId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const success = await deleteGlossaryEntry(
+        req.params.projectId,
+        req.params.entryId,
+        requireToken(req)
+      );
+      if (!success) {
+        return res.status(404).json({ error: 'Entry not found' });
+      }
+
+      // Clear agent cache
+      clearAgentCache(req.params.projectId);
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete glossary entry' });
     }
-
-    // Verify project belongs to user
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const success = await deleteGlossaryEntry(
-      req.params.projectId,
-      req.params.entryId,
-      requireToken(req)
-    );
-    if (!success) {
-      return res.status(404).json({ error: 'Entry not found' });
-    }
-
-    // Clear agent cache
-    clearAgentCache(req.params.projectId);
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete glossary entry' });
   }
-});
+);
 
 // Suggest glossary merges (LLM analyzes and returns groups of entries to merge)
-app.post('/api/projects/:projectId/glossary/suggest-merges', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const token = requireToken(req);
-    const project = await getProject(req.params.projectId, req.user.id, token);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-    if (!config.openai?.apiKey) {
-      return res.status(503).json({
-        error: 'AI not configured',
-        message: 'Configure OpenAI API key to use merge suggestions.',
+app.post(
+  '/api/projects/:projectId/glossary/suggest-merges',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      if (!config.openai?.apiKey) {
+        return res.status(503).json({
+          error: 'AI not configured',
+          message: 'Configure OpenAI API key to use merge suggestions.',
+        });
+      }
+      const model =
+        project.settings?.stageModels?.analysis ?? project.settings?.model ?? config.openai.model;
+      const suggestions: MergeSuggestion[] = await suggestGlossaryMerges(project.glossary, {
+        apiKey: config.openai.apiKey,
+        model,
+        timeout: config.openai.timeout,
       });
+      res.json({ suggestions });
+    } catch (error) {
+      req.log?.error({ err: error }, 'suggest-merges failed');
+      res.status(500).json({ error: 'Failed to get merge suggestions' });
     }
-    const model =
-      project.settings?.stageModels?.analysis ?? project.settings?.model ?? config.openai.model;
-    const suggestions: MergeSuggestion[] = await suggestGlossaryMerges(project.glossary, {
-      apiKey: config.openai.apiKey,
-      model,
-      timeout: config.openai.timeout,
-    });
-    res.json({ suggestions });
-  } catch (error) {
-    req.log?.error({ err: error }, 'suggest-merges failed');
-    res.status(500).json({ error: 'Failed to get merge suggestions' });
   }
-});
+);
 
 // Merge glossary entries into one (keep one, merge fields, delete others)
-app.post('/api/projects/:projectId/glossary/merge', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const token = requireToken(req);
-    const project = await getProject(req.params.projectId, req.user.id, token);
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+app.post(
+  '/api/projects/:projectId/glossary/merge',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
-    const { entryIds, keepEntryId } = req.body as { entryIds?: string[]; keepEntryId?: string };
-    if (!Array.isArray(entryIds) || entryIds.length < 2) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: 'entryIds must be an array of at least 2 entry IDs.',
+      const { entryIds, keepEntryId } = req.body as { entryIds?: string[]; keepEntryId?: string };
+      if (!Array.isArray(entryIds) || entryIds.length < 2) {
+        return res.status(400).json({
+          error: 'Bad request',
+          message: 'entryIds must be an array of at least 2 entry IDs.',
+        });
+      }
+
+      const idSet = new Set(entryIds);
+      const entries = project.glossary.filter((e) => idSet.has(e.id));
+      if (entries.length !== entryIds.length) {
+        return res.status(400).json({
+          error: 'Bad request',
+          message: 'One or more entry IDs not found in this project glossary.',
+        });
+      }
+
+      const types = entries.map((e) => e.type);
+      if (new Set(types).size > 1) {
+        return res.status(400).json({
+          error: 'Bad request',
+          message: 'All entries must be of the same type (character, location, or term).',
+        });
+      }
+
+      if (keepEntryId !== undefined && !idSet.has(keepEntryId)) {
+        return res.status(400).json({
+          error: 'Bad request',
+          message: 'keepEntryId must be one of the entryIds.',
+        });
+      }
+
+      // Pick primary: keepEntryId, or entry with most mentionedInChapters, or first
+      let primary: GlossaryEntry;
+      if (keepEntryId) {
+        primary = entries.find((e) => e.id === keepEntryId)!;
+      } else {
+        const withChapters = entries.map((e) => ({
+          entry: e,
+          count: (e.mentionedInChapters ?? []).length,
+        }));
+        withChapters.sort((a, b) => b.count - a.count);
+        primary = withChapters[0].entry;
+      }
+
+      const others = entries.filter((e) => e.id !== primary.id);
+
+      // Merge: mentionedInChapters union (sorted), description/notes concatenation
+      const allChapters = new Set<number>();
+      for (const e of entries) {
+        (e.mentionedInChapters ?? []).forEach((n) => allChapters.add(n));
+      }
+      const mergedChapters = [...allChapters].sort((a, b) => a - b);
+
+      const descriptions = entries.map((e) => e.description?.trim()).filter(Boolean) as string[];
+      const mergedDescription =
+        descriptions.length > 0
+          ? [...new Set(descriptions)].filter(Boolean).join(' ; ')
+          : primary.description;
+
+      const notesList = entries.map((e) => e.notes?.trim()).filter(Boolean) as string[];
+      const mergedNotes =
+        notesList.length > 0 ? [...new Set(notesList)].filter(Boolean).join(' ; ') : primary.notes;
+
+      await updateGlossaryEntry(
+        req.params.projectId,
+        primary.id,
+        {
+          mentionedInChapters: mergedChapters,
+          ...(mergedDescription !== undefined && { description: mergedDescription }),
+          ...(mergedNotes !== undefined && { notes: mergedNotes }),
+        },
+        token
+      );
+
+      for (const e of others) {
+        await deleteGlossaryEntry(req.params.projectId, e.id, token);
+      }
+
+      clearAgentCache(req.params.projectId);
+
+      const kept = await getGlossaryEntry(req.params.projectId, primary.id, token);
+      res.json({
+        kept: kept ?? primary,
+        deletedCount: others.length,
       });
+    } catch (error) {
+      req.log?.error({ err: error }, 'glossary merge failed');
+      res.status(500).json({ error: 'Failed to merge glossary entries' });
     }
-
-    const idSet = new Set(entryIds);
-    const entries = project.glossary.filter((e) => idSet.has(e.id));
-    if (entries.length !== entryIds.length) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: 'One or more entry IDs not found in this project glossary.',
-      });
-    }
-
-    const types = entries.map((e) => e.type);
-    if (new Set(types).size > 1) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: 'All entries must be of the same type (character, location, or term).',
-      });
-    }
-
-    if (keepEntryId !== undefined && !idSet.has(keepEntryId)) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: 'keepEntryId must be one of the entryIds.',
-      });
-    }
-
-    // Pick primary: keepEntryId, or entry with most mentionedInChapters, or first
-    let primary: GlossaryEntry;
-    if (keepEntryId) {
-      primary = entries.find((e) => e.id === keepEntryId)!;
-    } else {
-      const withChapters = entries.map((e) => ({
-        entry: e,
-        count: (e.mentionedInChapters ?? []).length,
-      }));
-      withChapters.sort((a, b) => b.count - a.count);
-      primary = withChapters[0].entry;
-    }
-
-    const others = entries.filter((e) => e.id !== primary.id);
-
-    // Merge: mentionedInChapters union (sorted), description/notes concatenation
-    const allChapters = new Set<number>();
-    for (const e of entries) {
-      (e.mentionedInChapters ?? []).forEach((n) => allChapters.add(n));
-    }
-    const mergedChapters = [...allChapters].sort((a, b) => a - b);
-
-    const descriptions = entries.map((e) => e.description?.trim()).filter(Boolean) as string[];
-    const mergedDescription =
-      descriptions.length > 0
-        ? [...new Set(descriptions)].filter(Boolean).join(' ; ')
-        : primary.description;
-
-    const notesList = entries.map((e) => e.notes?.trim()).filter(Boolean) as string[];
-    const mergedNotes =
-      notesList.length > 0 ? [...new Set(notesList)].filter(Boolean).join(' ; ') : primary.notes;
-
-    await updateGlossaryEntry(
-      req.params.projectId,
-      primary.id,
-      {
-        mentionedInChapters: mergedChapters,
-        ...(mergedDescription !== undefined && { description: mergedDescription }),
-        ...(mergedNotes !== undefined && { notes: mergedNotes }),
-      },
-      token
-    );
-
-    for (const e of others) {
-      await deleteGlossaryEntry(req.params.projectId, e.id, token);
-    }
-
-    clearAgentCache(req.params.projectId);
-
-    const kept = await getGlossaryEntry(req.params.projectId, primary.id, token);
-    res.json({
-      kept: kept ?? primary,
-      deletedCount: others.length,
-    });
-  } catch (error) {
-    req.log?.error({ err: error }, 'glossary merge failed');
-    res.status(500).json({ error: 'Failed to merge glossary entries' });
   }
-});
+);
 
 // Upload image to glossary entry gallery (requires auth)
 app.post(
@@ -3899,59 +3971,64 @@ app.delete(
 );
 
 // Legacy endpoint: delete all images (for backward compatibility) (requires auth)
-app.delete('/api/projects/:projectId/glossary/:entryId/image', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.delete(
+  '/api/projects/:projectId/glossary/:entryId/image',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const entry = project.glossary.find((e) => e.id === req.params.entryId);
+      if (!entry) {
+        return res.status(404).json({ error: 'Entry not found' });
+      }
+
+      // Get all image URLs (migrate from legacy if needed)
+      let imageUrls = entry.imageUrls || [];
+      if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
+        imageUrls = [entry.imageUrl, ...imageUrls];
+      }
+
+      // Delete all image files from Supabase Storage
+      const storagePaths = imageUrls
+        .map((url) => extractPathFromUrl(url, 'images'))
+        .filter((p): p is string => p !== null);
+
+      if (storagePaths.length > 0) {
+        await deleteFiles('images', storagePaths).catch((err) => {
+          req.log?.error({ err }, 'Failed to delete images from storage');
+          // Continue even if deletion fails
+        });
+      }
+
+      // Update entry to remove all images
+      await updateGlossaryEntry(
+        req.params.projectId,
+        req.params.entryId,
+        {
+          imageUrls: undefined,
+          imageUrl: undefined,
+        },
+        requireToken(req)
+      );
+
+      clearAgentCache(req.params.projectId);
+
+      res.json({ success: true });
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to delete images');
+      res.status(500).json({ error: 'Failed to delete images' });
     }
-
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const entry = project.glossary.find((e) => e.id === req.params.entryId);
-    if (!entry) {
-      return res.status(404).json({ error: 'Entry not found' });
-    }
-
-    // Get all image URLs (migrate from legacy if needed)
-    let imageUrls = entry.imageUrls || [];
-    if (entry.imageUrl && !imageUrls.includes(entry.imageUrl)) {
-      imageUrls = [entry.imageUrl, ...imageUrls];
-    }
-
-    // Delete all image files from Supabase Storage
-    const storagePaths = imageUrls
-      .map((url) => extractPathFromUrl(url, 'images'))
-      .filter((p): p is string => p !== null);
-
-    if (storagePaths.length > 0) {
-      await deleteFiles('images', storagePaths).catch((err) => {
-        req.log?.error({ err }, 'Failed to delete images from storage');
-        // Continue even if deletion fails
-      });
-    }
-
-    // Update entry to remove all images
-    await updateGlossaryEntry(
-      req.params.projectId,
-      req.params.entryId,
-      {
-        imageUrls: undefined,
-        imageUrl: undefined,
-      },
-      requireToken(req)
-    );
-
-    clearAgentCache(req.params.projectId);
-
-    res.json({ success: true });
-  } catch (error) {
-    req.log?.error({ err: error }, 'Failed to delete images');
-    res.status(500).json({ error: 'Failed to delete images' });
   }
-});
+);
 
 // Upload project cover image (requires auth)
 app.post(
@@ -4039,226 +4116,263 @@ app.post(
 );
 
 // Delete project cover image (requires auth)
-app.delete('/api/projects/:projectId/cover', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    // Delete cover image file from Supabase Storage if exists
-    if (project.metadata?.coverImageUrl) {
-      const storagePath = extractPathFromUrl(project.metadata.coverImageUrl, 'images');
-      if (storagePath) {
-        await deleteFile('images', storagePath).catch((err) => {
-          req.log?.error({ err }, 'Failed to delete cover image');
-          // Continue even if deletion fails
-        });
+app.delete(
+  '/api/projects/:projectId/cover',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
+
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // Delete cover image file from Supabase Storage if exists
+      if (project.metadata?.coverImageUrl) {
+        const storagePath = extractPathFromUrl(project.metadata.coverImageUrl, 'images');
+        if (storagePath) {
+          await deleteFile('images', storagePath).catch((err) => {
+            req.log?.error({ err }, 'Failed to delete cover image');
+            // Continue even if deletion fails
+          });
+        }
+      }
+
+      // Update project metadata to remove cover
+      const updatedMetadata = { ...(project.metadata || {}) };
+      delete updatedMetadata.coverImageUrl;
+
+      const updatedProject = await updateProject(
+        req.params.projectId,
+        { metadata: updatedMetadata },
+        req.user.id,
+        requireToken(req)
+      );
+
+      if (!updatedProject) {
+        return res.status(404).json({ error: 'Failed to update project' });
+      }
+
+      res.json({ success: true, project: updatedProject });
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to delete cover image');
+      res.status(500).json({ error: 'Failed to delete cover image' });
     }
-
-    // Update project metadata to remove cover
-    const updatedMetadata = { ...(project.metadata || {}) };
-    delete updatedMetadata.coverImageUrl;
-
-    const updatedProject = await updateProject(
-      req.params.projectId,
-      { metadata: updatedMetadata },
-      req.user.id,
-      requireToken(req)
-    );
-
-    if (!updatedProject) {
-      return res.status(404).json({ error: 'Failed to update project' });
-    }
-
-    res.json({ success: true, project: updatedProject });
-  } catch (error) {
-    req.log?.error({ err: error }, 'Failed to delete cover image');
-    res.status(500).json({ error: 'Failed to delete cover image' });
   }
-});
+);
 
 // Update project metadata (e.g. description) (requires auth)
-app.put('/api/projects/:projectId/metadata', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.put(
+  '/api/projects/:projectId/metadata',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const { metadata: metadataUpdates } = req.body;
+      if (!metadataUpdates || typeof metadataUpdates !== 'object') {
+        return res.status(400).json({ error: 'metadata object is required' });
+      }
+
+      const updatedMetadata = { ...(project.metadata || {}), ...metadataUpdates };
+      const updatedProject = await updateProject(
+        req.params.projectId,
+        { metadata: updatedMetadata },
+        req.user.id,
+        requireToken(req)
+      );
+
+      if (!updatedProject) {
+        return res.status(404).json({ error: 'Failed to update project' });
+      }
+
+      res.json(updatedProject);
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to update project metadata');
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update project metadata';
+      res.status(500).json({ error: errorMessage });
     }
-
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const { metadata: metadataUpdates } = req.body;
-    if (!metadataUpdates || typeof metadataUpdates !== 'object') {
-      return res.status(400).json({ error: 'metadata object is required' });
-    }
-
-    const updatedMetadata = { ...(project.metadata || {}), ...metadataUpdates };
-    const updatedProject = await updateProject(
-      req.params.projectId,
-      { metadata: updatedMetadata },
-      req.user.id,
-      requireToken(req)
-    );
-
-    if (!updatedProject) {
-      return res.status(404).json({ error: 'Failed to update project' });
-    }
-
-    res.json(updatedProject);
-  } catch (error) {
-    req.log?.error({ err: error }, 'Failed to update project metadata');
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to update project metadata';
-    res.status(500).json({ error: errorMessage });
   }
-});
+);
 
 // ============ Paragraphs ============
 
 // Get chapter with paragraph stats (requires auth)
-app.get('/api/projects/:projectId/chapters/:chapterId/stats', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+app.get(
+  '/api/projects/:projectId/chapters/:chapterId/stats',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    // Verify project belongs to user
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
-    const chapter = await getChapter(req.params.projectId, req.params.chapterId, requireToken(req));
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
+      const chapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        requireToken(req)
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
 
-    const stats = getChapterStats(chapter);
-    res.json(stats);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get chapter stats' });
+      const stats = getChapterStats(chapter);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get chapter stats' });
+    }
   }
-});
+);
 
 // Update single paragraph
 // Update chapter title (requires auth)
-app.put('/api/projects/:projectId/chapters/:chapterId/title', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.put(
+  '/api/projects/:projectId/chapters/:chapterId/title',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const { title } = req.body;
+
+      if (!title || typeof title !== 'string' || !title.trim()) {
+        return res.status(400).json({ error: 'Title is required' });
+      }
+
+      const chapter = await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        {
+          title: title.trim(),
+        },
+        requireToken(req)
+      );
+
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      req.log?.info(
+        { event: 'chapter.title.updated', chapterId: req.params.chapterId, title: chapter.title },
+        `Chapter title updated: "${chapter.title}"`
+      );
+
+      res.json(chapter);
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to update chapter title');
+      res.status(500).json({ error: 'Failed to update chapter title' });
     }
-
-    // Verify project belongs to user
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const { title } = req.body;
-
-    if (!title || typeof title !== 'string' || !title.trim()) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
-
-    const chapter = await updateChapter(
-      req.params.projectId,
-      req.params.chapterId,
-      {
-        title: title.trim(),
-      },
-      requireToken(req)
-    );
-
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
-
-    req.log?.info(
-      { event: 'chapter.title.updated', chapterId: req.params.chapterId, title: chapter.title },
-      `Chapter title updated: "${chapter.title}"`
-    );
-
-    res.json(chapter);
-  } catch (error) {
-    req.log?.error({ err: error }, 'Failed to update chapter title');
-    res.status(500).json({ error: 'Failed to update chapter title' });
   }
-});
+);
 
 // Update chapter number (requires auth)
-app.put('/api/projects/:projectId/chapters/:chapterId/number', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+app.put(
+  '/api/projects/:projectId/chapters/:chapterId/number',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const { number } = req.body;
+      const { number } = req.body;
 
-    if (typeof number !== 'number' || number < 1 || !Number.isInteger(number)) {
-      return res.status(400).json({ error: 'Valid chapter number is required (positive integer)' });
-    }
+      if (typeof number !== 'number' || number < 1 || !Number.isInteger(number)) {
+        return res
+          .status(400)
+          .json({ error: 'Valid chapter number is required (positive integer)' });
+      }
 
-    const chapter = await updateChapterNumber(
-      req.params.projectId,
-      req.params.chapterId,
-      number,
-      requireToken(req)
-    );
-
-    if (!chapter) {
-      return res.status(404).json({ error: 'Chapter not found' });
-    }
-
-    req.log?.info(
-      {
-        event: 'chapter.number.updated',
-        chapterId: req.params.chapterId,
-        chapterTitle: chapter.title,
+      const chapter = await updateChapterNumber(
+        req.params.projectId,
+        req.params.chapterId,
         number,
-      },
-      `Chapter number updated: "${chapter.title}" → ${number}`
-    );
+        requireToken(req)
+      );
 
-    // Return updated project with reordered chapters
-    // No delay needed - Supabase updates are synchronous within the same connection
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    res.json(project);
-  } catch (error) {
-    req.log?.error({ err: error }, 'Failed to update chapter number');
-    const errorMessage = error instanceof Error ? error.message : 'Failed to update chapter number';
-    res.status(500).json({ error: errorMessage });
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      req.log?.info(
+        {
+          event: 'chapter.number.updated',
+          chapterId: req.params.chapterId,
+          chapterTitle: chapter.title,
+          number,
+        },
+        `Chapter number updated: "${chapter.title}" → ${number}`
+      );
+
+      // Return updated project with reordered chapters
+      // No delay needed - Supabase updates are synchronous within the same connection
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      res.json(project);
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to update chapter number');
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update chapter number';
+      res.status(500).json({ error: errorMessage });
+    }
   }
-});
+);
 
 // Reorder chapters (accepts full ordered ids array)
-app.put('/api/projects/:projectId/chapters/order', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+app.put(
+  '/api/projects/:projectId/chapters/order',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { ids } = req.body || {};
-    if (!Array.isArray(ids) || ids.some((i) => typeof i !== 'string')) {
-      return res.status(400).json({ error: 'Invalid ids array' });
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.some((i) => typeof i !== 'string')) {
+        return res.status(400).json({ error: 'Invalid ids array' });
+      }
+
+      await updateChaptersOrder(req.params.projectId, ids, requireToken(req));
+
+      // Return updated project
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      res.json(project);
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to reorder chapters');
+      const message = error instanceof Error ? error.message : 'Failed to reorder chapters';
+      res.status(500).json({ error: message });
     }
-
-    await updateChaptersOrder(req.params.projectId, ids, requireToken(req));
-
-    // Return updated project
-    const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
-    res.json(project);
-  } catch (error) {
-    req.log?.error({ err: error }, 'Failed to reorder chapters');
-    const message = error instanceof Error ? error.message : 'Failed to reorder chapters';
-    res.status(500).json({ error: message });
   }
-});
+);
 
 // Update paragraph (requires auth)
 app.put(
@@ -4542,45 +4656,50 @@ app.post('/api/projects/:id/export', requireAuth, requireRole('author'), async (
 });
 
 // Download export file via proxy (Content-Disposition: attachment so browser downloads, not opens)
-app.get('/api/projects/:id/export/download', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.get(
+  '/api/projects/:id/export/download',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const projectId = req.params.id;
+      const pathParam = req.query.path as string;
+
+      if (!pathParam || typeof pathParam !== 'string') {
+        return res.status(400).json({ error: 'Missing path query parameter' });
+      }
+
+      const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
+
+      if (!storagePath.startsWith(projectId + '/') || storagePath.includes('..')) {
+        return res.status(403).json({ error: 'Forbidden: invalid path' });
+      }
+
+      const project = await getProject(projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const buffer = await downloadFile('exports', storagePath);
+      const filename = storagePath.split('/').pop() || 'export';
+
+      const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Download failed';
+      req.log?.error({ err: error }, 'Export download error');
+      res.status(500).json({ error: msg });
     }
-
-    const projectId = req.params.id;
-    const pathParam = req.query.path as string;
-
-    if (!pathParam || typeof pathParam !== 'string') {
-      return res.status(400).json({ error: 'Missing path query parameter' });
-    }
-
-    const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
-
-    if (!storagePath.startsWith(projectId + '/') || storagePath.includes('..')) {
-      return res.status(403).json({ error: 'Forbidden: invalid path' });
-    }
-
-    const project = await getProject(projectId, req.user.id, requireToken(req));
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    const buffer = await downloadFile('exports', storagePath);
-    const filename = storagePath.split('/').pop() || 'export';
-
-    const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length.toString());
-    res.send(buffer);
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Download failed';
-    req.log?.error({ err: error }, 'Export download error');
-    res.status(500).json({ error: msg });
   }
-});
+);
 
 // ============ Publication Export (auth required for any registered user) ============
 
@@ -4738,45 +4857,50 @@ app.post('/api/publications/:id/export', requireAuth, requireRole('author'), asy
   }
 });
 
-app.get('/api/publications/:id/export/download', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+app.get(
+  '/api/publications/:id/export/download',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const pub = await getPublicationBySlugOrId(req.params.id);
+      if (!pub) {
+        return res.status(404).json({ error: 'Publication not found' });
+      }
+
+      const publicationId = pub.id;
+      const pathParam = req.query.path as string;
+
+      if (!pathParam || typeof pathParam !== 'string') {
+        return res.status(400).json({ error: 'Missing path query parameter' });
+      }
+
+      const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
+      const expectedPrefix = `publication-${publicationId}/`;
+
+      if (!storagePath.startsWith(expectedPrefix) || storagePath.includes('..')) {
+        return res.status(403).json({ error: 'Forbidden: invalid path' });
+      }
+
+      const buffer = await downloadFile('exports', storagePath);
+      const filename = storagePath.split('/').pop() || 'export';
+
+      const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+      res.send(buffer);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Download failed';
+      req.log?.error({ err: error }, 'Publication export download error');
+      res.status(500).json({ error: msg });
     }
-    const pub = await getPublicationBySlugOrId(req.params.id);
-    if (!pub) {
-      return res.status(404).json({ error: 'Publication not found' });
-    }
-
-    const publicationId = pub.id;
-    const pathParam = req.query.path as string;
-
-    if (!pathParam || typeof pathParam !== 'string') {
-      return res.status(400).json({ error: 'Missing path query parameter' });
-    }
-
-    const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
-    const expectedPrefix = `publication-${publicationId}/`;
-
-    if (!storagePath.startsWith(expectedPrefix) || storagePath.includes('..')) {
-      return res.status(403).json({ error: 'Forbidden: invalid path' });
-    }
-
-    const buffer = await downloadFile('exports', storagePath);
-    const filename = storagePath.split('/').pop() || 'export';
-
-    const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length.toString());
-    res.send(buffer);
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Download failed';
-    req.log?.error({ err: error }, 'Publication export download error');
-    res.status(500).json({ error: msg });
   }
-});
+);
 
 // Cyrillic (Russian/Ukrainian) to Latin transliteration for readable export filenames.
 const CYRILLIC_TO_LATIN: Record<string, string> = {
@@ -5022,62 +5146,71 @@ app.patch('/api/publications/:id/reading-position', requireAuth, async (req, res
     await updateReadingPosition(userId, pub.id, chapterId, paragraphIndex, token);
     res.json({ success: true });
   } catch (error) {
-    const msg =
-      error instanceof Error ? error.message : 'Failed to update reading position';
+    const msg = error instanceof Error ? error.message : 'Failed to update reading position';
     res.status(500).json({ error: msg });
   }
 });
 
 // Publish project (auth required)
-app.post('/api/projects/:projectId/publish', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const token = req.token!;
-    const projectId = req.params.projectId;
-    const body = req.body as {
-      status?: 'draft' | 'published';
-      title?: string | null;
-      description?: string | null;
-      coverImageUrl?: string | null;
-      authorDisplay?: string | null;
-      translatorDisplay?: string | null;
-      sourceLanguage?: string;
-      targetLanguage?: string;
-    };
-    const status = body.status ?? 'published';
-    const publication = await createOrUpdatePublication(projectId, userId, token, {
-      status,
-      title: body.title,
-      description: body.description,
-      coverImageUrl: body.coverImageUrl,
-      authorDisplay: body.authorDisplay,
-      translatorDisplay: body.translatorDisplay ?? req.user!.email,
-      sourceLanguage: body.sourceLanguage,
-      targetLanguage: body.targetLanguage,
-    });
-    res.json(publication);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to publish';
-    res.status(400).json({ error: msg });
+app.post(
+  '/api/projects/:projectId/publish',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const token = req.token!;
+      const projectId = req.params.projectId;
+      const body = req.body as {
+        status?: 'draft' | 'published';
+        title?: string | null;
+        description?: string | null;
+        coverImageUrl?: string | null;
+        authorDisplay?: string | null;
+        translatorDisplay?: string | null;
+        sourceLanguage?: string;
+        targetLanguage?: string;
+      };
+      const status = body.status ?? 'published';
+      const publication = await createOrUpdatePublication(projectId, userId, token, {
+        status,
+        title: body.title,
+        description: body.description,
+        coverImageUrl: body.coverImageUrl,
+        authorDisplay: body.authorDisplay,
+        translatorDisplay: body.translatorDisplay ?? req.user!.email,
+        sourceLanguage: body.sourceLanguage,
+        targetLanguage: body.targetLanguage,
+      });
+      res.json(publication);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to publish';
+      res.status(400).json({ error: msg });
+    }
   }
-});
+);
 
 // Unpublish project (auth required)
-app.delete('/api/projects/:projectId/publish', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const token = req.token!;
-    const projectId = req.params.projectId;
-    const ok = await unpublishProject(projectId, userId, token);
-    if (!ok) {
-      return res.status(404).json({ error: 'Publication not found' });
+app.delete(
+  '/api/projects/:projectId/publish',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const token = req.token!;
+      const projectId = req.params.projectId;
+      const ok = await unpublishProject(projectId, userId, token);
+      if (!ok) {
+        return res.status(404).json({ error: 'Publication not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to unpublish';
+      res.status(400).json({ error: msg });
     }
-    res.json({ success: true });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to unpublish';
-    res.status(400).json({ error: msg });
   }
-});
+);
 
 // Get current user's publications (auth required)
 app.get('/api/user/publications', requireAuth, requireRole('author'), async (req, res) => {
@@ -5094,18 +5227,23 @@ app.get('/api/user/publications', requireAuth, requireRole('author'), async (req
 
 // Get publication for a project (owner only, auth required).
 // Returns 200 with publication or null when project has no publication yet (normal case).
-app.get('/api/projects/:projectId/publication', requireAuth, requireRole('author'), async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    const token = req.token!;
-    const projectId = req.params.projectId;
-    const pub = await getPublicationByProjectId(projectId, userId, token);
-    res.json(pub);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to get publication';
-    res.status(500).json({ error: msg });
+app.get(
+  '/api/projects/:projectId/publication',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const token = req.token!;
+      const projectId = req.params.projectId;
+      const pub = await getPublicationByProjectId(projectId, userId, token);
+      res.json(pub);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to get publication';
+      res.status(500).json({ error: msg });
+    }
   }
-});
+);
 
 // ============ Debug log viewer (dev only) ============
 

@@ -2380,9 +2380,9 @@ export async function listPublicationsPublic(options?: {
  * Get publication by slug or ID (public for published).
  * Tries slug first (if looks like slug: no hyphens in UUID pattern), then ID.
  */
-export async function getPublicationBySlugOrId(slugOrId: string): Promise<ReturnType<
-  typeof transformPublicationFromDB
-> | null> {
+export async function getPublicationBySlugOrId(
+  slugOrId: string
+): Promise<ReturnType<typeof transformPublicationFromDB> | null> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
   if (isUuid) {
     return getPublicationById(slugOrId);
@@ -2405,9 +2405,9 @@ export async function getPublicationBySlugOrId(slugOrId: string): Promise<Return
  * Get a single publication by ID (public for published).
  * Uses anon client - RLS allows SELECT for published or own.
  */
-export async function getPublicationById(publicationId: string): Promise<ReturnType<
-  typeof transformPublicationFromDB
-> | null> {
+export async function getPublicationById(
+  publicationId: string
+): Promise<ReturnType<typeof transformPublicationFromDB> | null> {
   const { data, error } = await supabase
     .from('publications')
     .select('*')
@@ -2552,7 +2552,9 @@ export async function createOrUpdatePublication(
     .eq('project_id', projectId)
     .single();
 
-  const slug = title ? await ensureUniqueSlug(client, titleToSlug(title), existing?.id ?? null) : null;
+  const slug = title
+    ? await ensureUniqueSlug(client, titleToSlug(title), existing?.id ?? null)
+    : null;
 
   const row = {
     project_id: projectId,
@@ -2940,8 +2942,9 @@ export async function getUserReadingHistory(
 
     if (chapterCounts) {
       for (const pid of projectIds) {
-        chapterCountByProject[pid] =
-          chapterCounts.filter((c: { project_id: string }) => c.project_id === pid).length;
+        chapterCountByProject[pid] = chapterCounts.filter(
+          (c: { project_id: string }) => c.project_id === pid
+        ).length;
       }
     }
   } catch {

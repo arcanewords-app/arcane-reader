@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useEffect, useState, useCallback, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
@@ -34,6 +34,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
   const [lastReadParagraphIndex, setLastReadParagraphIndex] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [progressLoaded, setProgressLoaded] = useState(false);
 
   useEffect(() => {
     if (!publicationId) {
@@ -109,10 +110,15 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   // Check auth and load read progress for authenticated users
   useEffect(() => {
     let cancelled = false;
+    setProgressLoaded(false);
     authService.getCurrentUser().then((user) => {
       if (cancelled) return;
       setIsAuthenticated(!!user);
-      if (user && publicationId) {
+      if (!user || !chapterId) {
+        setProgressLoaded(true);
+        return;
+      }
+      if (publicationId) {
         api
           .getReadProgress(publicationId)
           .then((result) => {
@@ -122,13 +128,18 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
               setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
             }
           })
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => {
+            if (!cancelled) setProgressLoaded(true);
+          });
+      } else {
+        setProgressLoaded(true);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [publicationId]);
+  }, [publicationId, chapterId]);
 
   const handleChapterRead = useCallback(
     (chapterId: string) => {
@@ -147,7 +158,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     [publicationId, isAuthenticated]
   );
 
-  const pubPath = data?.publication ? (data.publication.slug || data.publication.id) : publicationId;
+  const pubPath = data?.publication ? data.publication.slug || data.publication.id : publicationId;
   const publicationChaptersForMeta = data?.chapters?.filter((ch) => ch.hasTranslation) ?? [];
   const currentChapterForMeta = chapterId
     ? data?.chapters?.find((ch) => ch.id === chapterId)
@@ -160,7 +171,9 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const readingMeta =
     data?.publication && publicationId
       ? {
-          title: currentChapterForMeta ? `${chapterTitleForMeta} — ${bookTitleForMeta}` : bookTitleForMeta,
+          title: currentChapterForMeta
+            ? `${chapterTitleForMeta} — ${bookTitleForMeta}`
+            : bookTitleForMeta,
           description: currentChapterForMeta
             ? `${chapterTitleForMeta} — ${bookTitleForMeta}`
             : data.publication.description || bookTitleForMeta,
@@ -175,7 +188,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
 
   if (!publicationId) return null;
 
-  if (loading) {
+  const waitingForProgress = chapterId && !progressLoaded;
+  if (loading || waitingForProgress) {
     return (
       <div class="publication-reading-placeholder">
         <LoadingSpinner size="lg" text={t('common.loading')} />
@@ -194,9 +208,14 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     );
   }
 
-  const publicationChapters = data.chapters
-    .filter((ch) => ch.hasTranslation)
-    .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
+  const publicationChapters = useMemo(
+    () =>
+      data.chapters
+        .filter((ch) => ch.hasTranslation)
+        .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- data.chapters identity stable after load
+    [data.chapters]
+  );
 
   if (publicationChapters.length === 0) {
     return (

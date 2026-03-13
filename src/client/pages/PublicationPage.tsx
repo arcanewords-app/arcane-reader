@@ -103,7 +103,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           title: pub.title || t('publication.untitled'),
           description: (() => {
             const baseDesc =
-              pub.description || (pub.authorDisplay ? `${pub.title || ''} by ${pub.authorDisplay}` : pub.title || '');
+              pub.description ||
+              (pub.authorDisplay ? `${pub.title || ''} by ${pub.authorDisplay}` : pub.title || '');
             const hasExport = (pub.chapters || []).some((ch) => ch.hasTranslation);
             return hasExport
               ? `${baseDesc} Читать онлайн или скачать EPUB, FB2.`

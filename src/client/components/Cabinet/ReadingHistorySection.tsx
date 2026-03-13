@@ -107,13 +107,8 @@ export function ReadingHistorySection() {
                 }}
               />
             ) : null}
-            <div
-              class={`reading-history-card-placeholder ${item.coverImageUrl ? 'hidden' : ''}`}
-            >
-              <BookPlaceholder
-                projectName={item.title || item.publicationId}
-                projectType="book"
-              />
+            <div class={`reading-history-card-placeholder ${item.coverImageUrl ? 'hidden' : ''}`}>
+              <BookPlaceholder projectName={item.title || item.publicationId} projectType="book" />
             </div>
           </div>
           <div class="reading-history-card-body">

@@ -247,15 +247,9 @@ export function Header({
                   aria-label={t('profile.openProfile')}
                 >
                   {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt=""
-                      class="header-avatar-img"
-                    />
+                    <img src={user.avatarUrl} alt="" class="header-avatar-img" />
                   ) : (
-                    <span class="header-avatar-placeholder">
-                      {getInitials(user.email)}
-                    </span>
+                    <span class="header-avatar-placeholder">{getInitials(user.email)}</span>
                   )}
                 </button>
                 <Button variant="secondary" onClick={onLogout} size="sm">

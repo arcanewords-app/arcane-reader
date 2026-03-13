@@ -4,8 +4,7 @@ import path from 'path';
 
 function publicUrlPlugin() {
   const url =
-    process.env.PUBLIC_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+    process.env.PUBLIC_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
   return {
     name: 'public-url',
     transformIndexHtml(html: string) {

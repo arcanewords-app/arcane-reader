@@ -338,8 +338,8 @@
   background: rgba(239, 68, 68, 0.2);
 }
 
-/* Glossary Button */
-.btn-glossary {
+/* Glossary Button (sidebar) */
+.sidebar-glossary-item {
   width: 100%;
   color: var(--text-primary);
   font-size: 0.95rem;

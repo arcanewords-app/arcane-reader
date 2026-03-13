@@ -60,6 +60,63 @@ const defaultReaderSettings: ReaderSettings = {
   containerWidth: 69,
 };
 
+const SCROLL_RESTORE_DEBUG = false; // set true to debug scroll restoration
+
+/** ResizeObserver-based correction for layout shift (fonts, images) after initial scroll. */
+function startScrollCorrection(
+  el: HTMLElement,
+  target: HTMLElement,
+  headerRef: { current: HTMLElement | null },
+  isCancelled: () => boolean
+): void {
+  const contentWrapper = el.querySelector<HTMLElement>('.reading-mode-text');
+  const observeTarget = contentWrapper ?? el;
+  const ro = new ResizeObserver(() => {
+    if (isCancelled()) {
+      ro.disconnect();
+      return;
+    }
+    const headerH = headerRef.current?.getBoundingClientRect().height ?? 0;
+    const rect = target.getBoundingClientRect();
+    const containerRect = el.getBoundingClientRect();
+    const delta = rect.top - containerRect.top - headerH;
+    const readableTop = containerRect.top + headerH;
+    const paragraphs = el.querySelectorAll<HTMLElement>('[data-paragraph-index]');
+    let actualTopIdx = -1;
+    for (const p of paragraphs) {
+      if (p.getBoundingClientRect().bottom > readableTop) {
+        actualTopIdx = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
+        break;
+      }
+    }
+    if (SCROLL_RESTORE_DEBUG) {
+      console.log('[ReadingMode:scroll] ResizeObserver callback', {
+        delta: Math.round(delta),
+        rect: {
+          top: Math.round(rect.top),
+          bottom: Math.round(rect.bottom),
+          height: Math.round(rect.height),
+        },
+        containerRect: {
+          top: Math.round(containerRect.top),
+          bottom: Math.round(containerRect.bottom),
+          height: Math.round(containerRect.height),
+        },
+        headerH: Math.round(headerH),
+        scrollTop: el.scrollTop,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+        willApply: Math.abs(delta) > 5,
+        actualTopParagraphIndex: actualTopIdx,
+        targetParagraphIndex: parseInt(target.dataset.paragraphIndex ?? '-1', 10),
+      });
+    }
+    if (Math.abs(delta) > 5) el.scrollTop += delta;
+  });
+  ro.observe(observeTarget);
+  setTimeout(() => ro.disconnect(), 2000);
+}
+
 export function ReadingMode({
   project,
   publicationId,
@@ -235,7 +292,14 @@ export function ReadingMode({
       })
       .catch(() => {})
       .finally(() => setChapterContentLoading(false));
-  }, [isPublicationMode, publicationId, chapters, currentChapterIndex, chapterContentMap, initialChapterId]);
+  }, [
+    isPublicationMode,
+    publicationId,
+    chapters,
+    currentChapterIndex,
+    chapterContentMap,
+    initialChapterId,
+  ]);
 
   // Project mode: load current chapter content (lazy)
   useEffect(() => {
@@ -370,40 +434,50 @@ export function ReadingMode({
     onSavePosition(currentChapter.id, 0);
   }, [currentChapterIndex, isPublicationMode, currentChapter?.id, onSavePosition]);
 
-  // IntersectionObserver: track current paragraph for save-on-leave
+  // Scroll-based paragraph position tracking: find topmost paragraph below the header on each scroll.
+  // More accurate than IntersectionObserver (works with any paragraph size, accounts for header).
   useEffect(() => {
     if (!onSavePosition || !isPublicationMode || !contentRef.current) return;
     const container = contentRef.current;
-    const paragraphs = container.querySelectorAll('[data-paragraph-index]');
-    if (paragraphs.length === 0) return;
 
-    const visibleIndices = new Set<number>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const idx = parseInt((entry.target as HTMLElement).dataset.paragraphIndex ?? '-1', 10);
-          if (idx >= 0) {
-            if (entry.intersectionRatio > 0.5) {
-              visibleIndices.add(idx);
-            } else {
-              visibleIndices.delete(idx);
-            }
-          }
+    const updateParagraphIndex = () => {
+      const headerH = headerRef.current
+        ? headerRef.current.getBoundingClientRect().height
+        : headerHeight;
+      const containerRect = container.getBoundingClientRect();
+      const readableTop = containerRect.top + headerH;
+      const paragraphs = container.querySelectorAll<HTMLElement>('[data-paragraph-index]');
+      for (const p of paragraphs) {
+        const pRect = p.getBoundingClientRect();
+        // First paragraph whose bottom edge is below the header = topmost readable paragraph
+        if (pRect.bottom > readableTop) {
+          const idx = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
+          if (idx >= 0) currentParagraphIndexRef.current = idx;
+          break;
         }
-        const max = visibleIndices.size > 0 ? Math.max(...visibleIndices) : 0;
-        currentParagraphIndexRef.current = max;
-      },
-      { threshold: 0.5, root: container }
-    );
+      }
+    };
 
-    paragraphs.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
+    let rafId: number;
+    const handleScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateParagraphIndex);
+    };
+
+    // Run once immediately to capture position if user hasn't scrolled yet
+    updateParagraphIndex();
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(rafId);
+    };
   }, [
     onSavePosition,
     isPublicationMode,
     currentChapterIndex,
     chapterContentMap,
     chapterContentLoading,
+    headerHeight,
   ]);
 
   // visibilitychange: save position when user switches tab (debounce 400ms)
@@ -507,13 +581,12 @@ export function ReadingMode({
     }
   }, [readerSettings]);
 
-  // Scroll content area to top when chapter changes (skip if we'll scroll to initial paragraph)
+  // Scroll content area to top when chapter changes (skip when resuming to saved position)
   const shouldSkipScrollToTop =
-    initialParagraphIndex !== undefined &&
-    initialParagraphIndex > 0 &&
     chapters[currentChapterIndex] &&
     initialChapterId === chapters[currentChapterIndex].id &&
-    !hasAppliedInitialScrollRef.current;
+    initialParagraphIndex !== undefined &&
+    initialParagraphIndex > 0;
 
   useEffect(() => {
     if (!contentRef.current) return;
@@ -528,26 +601,260 @@ export function ReadingMode({
   }, [currentChapterIndex, shouldSkipScrollToTop]);
 
   // Scroll to initial paragraph when resuming (publication mode)
+  // Waits for fonts.ready to avoid FOUT layout shift; ResizeObserver corrects for images
   useEffect(() => {
-    if (
+    const skip =
       !isPublicationMode ||
       !onSavePosition ||
       initialParagraphIndex === undefined ||
       initialParagraphIndex <= 0 ||
       !currentChapter ||
       currentChapter.id !== initialChapterId ||
-      hasAppliedInitialScrollRef.current
-    )
+      hasAppliedInitialScrollRef.current;
+    if (skip) {
+      if (SCROLL_RESTORE_DEBUG && initialParagraphIndex !== undefined) {
+        const reason = !isPublicationMode
+          ? '!isPublicationMode'
+          : !onSavePosition
+            ? '!onSavePosition'
+            : initialParagraphIndex <= 0
+              ? 'initialParagraphIndex<=0'
+              : !currentChapter
+                ? '!currentChapter'
+                : currentChapter.id !== initialChapterId
+                  ? 'chapterId mismatch'
+                  : 'hasAppliedInitialScrollRef';
+        console.log('[ReadingMode:scroll] Effect skipped', {
+          reason,
+          initialParagraphIndex,
+          currentChapterId: currentChapter?.id,
+          initialChapterId,
+        });
+      }
       return;
+    }
     const el = contentRef.current;
     if (!el) return;
-    const target = el.querySelector(`[data-paragraph-index="${initialParagraphIndex}"]`);
-    if (target) {
-      hasAppliedInitialScrollRef.current = true;
-      requestAnimationFrame(() => {
-        target.scrollIntoView({ block: 'start', behavior: 'auto' });
+
+    const totalParagraphs = el.querySelectorAll('[data-paragraph-index]').length;
+    if (SCROLL_RESTORE_DEBUG) {
+      const headerHNow = headerRef.current?.getBoundingClientRect().height ?? 0;
+      const currentCh = chapters[currentChapterIndex];
+      console.log('[ReadingMode:scroll] Effect started', {
+        initialParagraphIndex,
+        initialChapterId,
+        totalParagraphs,
+        isLastParagraph: initialParagraphIndex === totalParagraphs - 1,
+        chaptersCount: chapters.length,
+        currentChapterIndex,
+        currentChapterId: currentCh?.id,
+        chapterIdMatch: currentCh?.id === initialChapterId,
+        elScrollHeight: el.scrollHeight,
+        elClientHeight: el.clientHeight,
+        elScrollTop: el.scrollTop,
+        headerH: Math.round(headerHNow),
+        documentFontsStatus: document.fonts?.status,
       });
     }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let fontsTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+
+    const tryScroll = (attempt: number) => {
+      if (cancelled) return;
+      const target = el.querySelector<HTMLElement>(
+        `[data-paragraph-index="${initialParagraphIndex}"]`
+      );
+      if (target) {
+        if (SCROLL_RESTORE_DEBUG) {
+          const rectNow = target.getBoundingClientRect();
+          const containerRectNow = el.getBoundingClientRect();
+          console.log('[ReadingMode:scroll] Target found (before fonts.ready)', {
+            attempt,
+            initialParagraphIndex,
+            rectTop: Math.round(rectNow.top),
+            containerRectTop: Math.round(containerRectNow.top),
+            elScrollTop: el.scrollTop,
+            elScrollHeight: el.scrollHeight,
+            elClientHeight: el.clientHeight,
+          });
+        }
+        hasAppliedInitialScrollRef.current = true;
+        const fontsReadyStart = performance.now();
+        Promise.race([
+          document.fonts.ready,
+          new Promise<void>((r) => {
+            fontsTimeoutId = setTimeout(r, 800);
+          }),
+        ]).then(() => {
+          if (SCROLL_RESTORE_DEBUG) {
+            console.log('[ReadingMode:scroll] Fonts ready', {
+              elapsedMs: Math.round(performance.now() - fontsReadyStart),
+            });
+          }
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (cancelled) return;
+              const headerH = headerRef.current?.getBoundingClientRect().height ?? 0;
+              const scrollTopBefore = el.scrollTop;
+              const rect = target.getBoundingClientRect();
+              const containerRect = el.getBoundingClientRect();
+
+              // Manual scroll: target offset from content top = scrollTop + (rect.top - containerRect.top)
+              const targetOffsetFromContentTop = scrollTopBefore + (rect.top - containerRect.top);
+              const desiredScrollTop = targetOffsetFromContentTop - headerH;
+              const maxScrollTop = el.scrollHeight - el.clientHeight;
+
+              el.scrollTop = Math.max(0, Math.min(desiredScrollTop, maxScrollTop));
+              const scrollTopAfter = el.scrollTop;
+
+              // Verification: which paragraph is actually at top after scroll (same logic as updateParagraphIndex)
+              const readableTop = el.getBoundingClientRect().top + headerH;
+              const paragraphs = el.querySelectorAll<HTMLElement>('[data-paragraph-index]');
+              let actualTopParagraphIndex = -1;
+              for (const p of paragraphs) {
+                const pRect = p.getBoundingClientRect();
+                if (pRect.bottom > readableTop) {
+                  actualTopParagraphIndex = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
+                  break;
+                }
+              }
+
+              if (SCROLL_RESTORE_DEBUG) {
+                const spacer = el.querySelector<HTMLElement>('.reading-mode-spacer-top');
+                const offsetChain: Array<{ tag: string; offsetTop: number }> = [];
+                let p: HTMLElement | null = target;
+                while (p && p !== el && offsetChain.length < 5) {
+                  offsetChain.push({
+                    tag: p.tagName + (p.className ? '.' + String(p.className).split(' ')[0] : ''),
+                    offsetTop: p.offsetTop,
+                  });
+                  p = p.offsetParent as HTMLElement | null;
+                }
+                console.log('[ReadingMode:scroll] Scroll applied (manual)', {
+                  // Inputs
+                  headerH: Math.round(headerH),
+                  rect: {
+                    top: Math.round(rect.top),
+                    bottom: Math.round(rect.bottom),
+                    left: Math.round(rect.left),
+                    right: Math.round(rect.right),
+                    width: Math.round(rect.width),
+                    height: Math.round(rect.height),
+                  },
+                  containerRect: {
+                    top: Math.round(containerRect.top),
+                    bottom: Math.round(containerRect.bottom),
+                    width: Math.round(containerRect.width),
+                    height: Math.round(containerRect.height),
+                  },
+                  // Computed
+                  rectMinusContainerTop: Math.round(rect.top - containerRect.top),
+                  targetOffsetFromContentTop: Math.round(targetOffsetFromContentTop),
+                  desiredScrollTop: Math.round(desiredScrollTop),
+                  // Scroll state
+                  scrollTopBefore,
+                  scrollTopAfter,
+                  scrollHeight: el.scrollHeight,
+                  clientHeight: el.clientHeight,
+                  maxScrollTop,
+                  // Target DOM
+                  targetOffsetTop: target.offsetTop,
+                  targetOffsetParent: target.offsetParent?.className ?? null,
+                  offsetChain,
+                  spacerHeight: spacer?.offsetHeight ?? null,
+                  // Viewport
+                  windowScrollY: window.scrollY,
+                  windowInnerHeight: window.innerHeight,
+                });
+                console.log('[ReadingMode:scroll] Verification: planned vs actual', {
+                  expectedParagraphIndex: initialParagraphIndex,
+                  actualTopParagraphIndex,
+                  mismatch: actualTopParagraphIndex !== initialParagraphIndex,
+                  readableTop: Math.round(readableTop),
+                  targetRectTopAfterScroll: Math.round(target.getBoundingClientRect().top),
+                  targetShouldBeAt: Math.round(readableTop),
+                  scrollPositionSet: scrollTopAfter,
+                  scrollPositionRequested: Math.round(desiredScrollTop),
+                  scrollPositionClamped: scrollTopAfter !== Math.round(desiredScrollTop),
+                });
+                // Log paragraph positions: first 5, target, and neighbors
+                const targetIdx = initialParagraphIndex;
+                const targetIdxEl = el.querySelector<HTMLElement>(
+                  `[data-paragraph-index="${targetIdx}"]`
+                );
+                const targetRectAfter = targetIdxEl?.getBoundingClientRect();
+                const sampleFirst = Array.from(paragraphs)
+                  .slice(0, 5)
+                  .map((p) => {
+                    const r = p.getBoundingClientRect();
+                    const idx = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
+                    return {
+                      idx,
+                      top: Math.round(r.top),
+                      bottom: Math.round(r.bottom),
+                      height: Math.round(r.height),
+                      offsetTop: p.offsetTop,
+                    };
+                  });
+                const sampleAroundTarget = Array.from(paragraphs)
+                  .filter((p) => {
+                    const idx = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
+                    return idx >= targetIdx - 2 && idx <= targetIdx + 2;
+                  })
+                  .map((p) => {
+                    const r = p.getBoundingClientRect();
+                    const idx = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
+                    return {
+                      idx,
+                      top: Math.round(r.top),
+                      bottom: Math.round(r.bottom),
+                      offsetTop: p.offsetTop,
+                    };
+                  });
+                console.log('[ReadingMode:scroll] Layout sample', {
+                  first5Paragraphs: sampleFirst,
+                  paragraphsAroundTarget: sampleAroundTarget,
+                  targetParagraph: targetIdx,
+                  targetRectAfter: targetRectAfter
+                    ? {
+                        top: Math.round(targetRectAfter.top),
+                        bottom: Math.round(targetRectAfter.bottom),
+                        offsetTop: targetIdxEl?.offsetTop,
+                      }
+                    : null,
+                  totalParagraphs: paragraphs.length,
+                  spacerHeight: el.querySelector<HTMLElement>('.reading-mode-spacer-top')
+                    ?.offsetHeight,
+                  // Expected: target.offsetTop should roughly equal scrollTop + headerH for target to be at top
+                  targetOffsetTop: targetIdxEl?.offsetTop,
+                  expectedScrollForTargetAtTop: targetIdxEl
+                    ? targetIdxEl.offsetTop - headerH
+                    : null,
+                  actualScrollSet: scrollTopAfter,
+                });
+              }
+              startScrollCorrection(el, target, headerRef, () => cancelled);
+            });
+          });
+        });
+        return;
+      }
+      if (SCROLL_RESTORE_DEBUG && attempt < 2) {
+        console.log('[ReadingMode:scroll] Target not found, retry', { attempt });
+      }
+      if (attempt < 2) {
+        timeoutId = setTimeout(() => tryScroll(attempt + 1), 50);
+      }
+    };
+
+    tryScroll(0);
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (fontsTimeoutId !== undefined) clearTimeout(fontsTimeoutId);
+    };
   }, [
     isPublicationMode,
     initialParagraphIndex,
@@ -605,6 +912,14 @@ export function ReadingMode({
     };
   }, [currentChapterIndex, chapters.length]);
 
+  const handleExit = useCallback(() => {
+    const ch = chapters[currentChapterIndex];
+    if (ch && onSavePosition && isPublicationMode) {
+      onSavePosition(ch.id, currentParagraphIndexRef.current);
+    }
+    onExit();
+  }, [chapters, currentChapterIndex, onSavePosition, isPublicationMode, onExit]);
+
   const handlePrevChapter = useCallback(() => {
     const ch = chapters[currentChapterIndex];
     if (ch && onSavePosition && isPublicationMode) {
@@ -648,13 +963,13 @@ export function ReadingMode({
         handleNextChapter();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onExit();
+        handleExit();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showSettings, handlePrevChapter, handleNextChapter, onExit]);
+  }, [showSettings, handlePrevChapter, handleNextChapter, handleExit]);
 
   const handleReaderSettingsChange = async (updates: Partial<ReaderSettings>) => {
     const newSettings = { ...readerSettings, ...updates };
@@ -737,7 +1052,7 @@ export function ReadingMode({
             </p>
             <button
               class="reading-mode-exit-btn"
-              onClick={onExit}
+              onClick={handleExit}
               style={{
                 padding: '0.75rem 1.5rem',
                 background: 'var(--reader-accent)',
@@ -781,7 +1096,11 @@ export function ReadingMode({
       {/* Header: back, chapter title (no work title), actions */}
       <div ref={headerRef} class="reading-mode-header">
         <div class="reading-mode-header-left">
-          <button class="reading-mode-exit-btn" onClick={onExit} title={t('readingMode.exitTitle')}>
+          <button
+            class="reading-mode-exit-btn"
+            onClick={handleExit}
+            title={t('readingMode.exitTitle')}
+          >
             ← {t('common.back')}
           </button>
           {!readerSettings.hideChapterHeader && (

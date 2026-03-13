@@ -5,7 +5,14 @@
 
 export type UserRole = 'guest' | 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
 
-export const ROLES: UserRole[] = ['guest', 'user', 'author', 'author_plus', 'super_author', 'admin'];
+export const ROLES: UserRole[] = [
+  'guest',
+  'user',
+  'author',
+  'author_plus',
+  'super_author',
+  'admin',
+];
 
 /** Default role for authenticated users when profile has no role set. */
 export const DEFAULT_AUTHENTICATED_ROLE: UserRole = 'user';

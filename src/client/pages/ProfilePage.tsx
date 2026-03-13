@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
 import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
 import { api } from '../api/client';
@@ -81,6 +82,11 @@ export function ProfilePage() {
 
   return (
     <div class="profile-page">
+      <div class="profile-page-header">
+        <button type="button" class="profile-page-back" onClick={() => route('/catalog')}>
+          ← {t('common.back')}
+        </button>
+      </div>
       <div class="profile-tabs">
         {tabs.map((tab) => (
           <button
@@ -147,9 +153,7 @@ export function ProfilePage() {
               >
                 {avatarUploading ? t('common.loading') : t('profile.uploadAvatar')}
               </button>
-              {user && (
-                <p class="profile-email">{user.email}</p>
-              )}
+              {user && <p class="profile-email">{user.email}</p>}
             </div>
           </div>
         )}

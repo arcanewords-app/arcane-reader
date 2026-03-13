@@ -84,8 +84,7 @@ export function ProjectsPage() {
               class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
               onClick={() => setFilterType('book')}
             >
-              📚 {t('dashboard.filterBooks')} (
-              {projects.filter((p) => p.type === 'book').length})
+              📚 {t('dashboard.filterBooks')} ({projects.filter((p) => p.type === 'book').length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}

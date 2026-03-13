@@ -33,9 +33,7 @@ export function CookieConsentProvider({ children }: { children: preact.Component
     rejectConsent,
   };
 
-  return (
-    <CookieConsentContext.Provider value={value}>{children}</CookieConsentContext.Provider>
-  );
+  return <CookieConsentContext.Provider value={value}>{children}</CookieConsentContext.Provider>;
 }
 
 export function useCookieConsent(): CookieConsentContextValue {

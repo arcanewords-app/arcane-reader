@@ -100,7 +100,7 @@
   --container-width-mobile: 100%;
   --sidebar-width-mobile: 85vw; /* Шире для мобильных, так как выдвигается */
   --main-padding-mobile: 1rem;
-  --header-padding-mobile: 1rem;
+  --header-padding-mobile: 0.75rem;
   --header-height-mobile: 72px; /* Высота хедера для позиционирования сайдбара */
   --header-height-small: 60px; /* Высота хедера на ≤480px */
   --modal-width-mobile: 100%;
