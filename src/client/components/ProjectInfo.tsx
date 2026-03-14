@@ -6,12 +6,15 @@ import type {
   ProjectSettings,
   Chapter,
   Publication,
+  PublicEntity,
 } from '../types';
 import { Card, Button, Modal, Input, LoadingSpinner, Icon } from './ui';
+import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { invalidateProject } from '../store/projects';
 import '../components/ChapterView/ReaderSettings.css';
+import './ProjectInfo.css';
 
 interface ProjectInfoProps {
   project: Project | ProjectWithChapterList;
@@ -47,8 +50,15 @@ export function ProjectInfo({
   const [updatingPublication, setUpdatingPublication] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
-  const [publishAuthorDisplay, setPublishAuthorDisplay] = useState('');
-  const [publishTranslatorDisplay, setPublishTranslatorDisplay] = useState('');
+
+  // Entity section (author, translator, tags)
+  const [authorEntity, setAuthorEntity] = useState<PublicEntity | null>(null);
+  const [translatorEntity, setTranslatorEntity] = useState<PublicEntity | null>(null);
+  const [tagEntities, setTagEntities] = useState<PublicEntity[]>([]);
+  const [showAuthorPicker, setShowAuthorPicker] = useState(false);
+  const [showTranslatorPicker, setShowTranslatorPicker] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [savingEntities, setSavingEntities] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,21 +108,120 @@ export function ProjectInfo({
     };
   }, [project.id]);
 
+  // Load entity details when project has entity IDs
+  useEffect(() => {
+    let cancelled = false;
+    const loadEntities = async () => {
+      const authorId = project.metadata?.authorEntityId;
+      const translatorId = project.metadata?.translatorEntityId;
+      const tagIds = project.metadata?.tagEntityIds ?? [];
+      if (!authorId && !translatorId && tagIds.length === 0) {
+        setAuthorEntity(null);
+        setTranslatorEntity(null);
+        setTagEntities([]);
+        return;
+      }
+      const [author, translator, ...tags] = await Promise.all([
+        authorId ? api.getPublicEntityById(authorId) : Promise.resolve(null),
+        translatorId ? api.getPublicEntityById(translatorId) : Promise.resolve(null),
+        ...tagIds.map((id) => api.getPublicEntityById(id)),
+      ]);
+      if (!cancelled) {
+        setAuthorEntity(author ?? null);
+        setTranslatorEntity(translator ?? null);
+        setTagEntities(tags.filter((e): e is PublicEntity => e != null));
+      }
+    };
+    loadEntities();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    project.metadata?.authorEntityId,
+    project.metadata?.translatorEntityId,
+    project.metadata?.tagEntityIds,
+  ]);
+
+  const saveEntityMetadata = useCallback(
+    async (updates: {
+      authorEntityId?: string | null;
+      translatorEntityId?: string | null;
+      tagEntityIds?: string[];
+    }) => {
+      setSavingEntities(true);
+      try {
+        await api.updateProjectMetadata(project.id, {
+          ...project.metadata,
+          ...updates,
+        });
+        invalidateProject(project.id);
+        await onRefreshProject();
+      } catch (error) {
+        alert(error instanceof Error ? error.message : t('projectInfo.errorSaveDescription'));
+      } finally {
+        setSavingEntities(false);
+      }
+    },
+    [project.id, project.metadata, onRefreshProject, t]
+  );
+
+  const handleAuthorSelect = useCallback(
+    (entities: PublicEntity[]) => {
+      const entity = entities[0];
+      if (entity) {
+        setAuthorEntity(entity);
+        saveEntityMetadata({ authorEntityId: entity.id });
+      }
+      setShowAuthorPicker(false);
+    },
+    [saveEntityMetadata]
+  );
+
+  const handleTranslatorSelect = useCallback(
+    (entities: PublicEntity[]) => {
+      const entity = entities[0];
+      if (entity) {
+        setTranslatorEntity(entity);
+        saveEntityMetadata({ translatorEntityId: entity.id });
+      }
+      setShowTranslatorPicker(false);
+    },
+    [saveEntityMetadata]
+  );
+
+  const handleTagSelect = useCallback(
+    (entities: PublicEntity[]) => {
+      setTagEntities(entities);
+      saveEntityMetadata({ tagEntityIds: entities.map((e) => e.id) });
+      setShowTagPicker(false);
+    },
+    [saveEntityMetadata]
+  );
+
+  const handleRemoveAuthor = useCallback(() => {
+    setAuthorEntity(null);
+    saveEntityMetadata({ authorEntityId: null });
+  }, [saveEntityMetadata]);
+
+  const handleRemoveTranslator = useCallback(() => {
+    setTranslatorEntity(null);
+    saveEntityMetadata({ translatorEntityId: null });
+  }, [saveEntityMetadata]);
+
+  const handleRemoveTag = useCallback(
+    (entity: PublicEntity) => {
+      const nextTags = tagEntities.filter((e) => e.id !== entity.id);
+      setTagEntities(nextTags);
+      saveEntityMetadata({ tagEntityIds: nextTags.map((e) => e.id) });
+    },
+    [tagEntities, saveEntityMetadata]
+  );
+
   const openPublishModal = useCallback(() => {
     setPublishTitle(project.metadata?.title ?? project.name);
     setPublishDescription(project.metadata?.description ?? '');
-    const user = authService.getCachedUser();
-    setPublishAuthorDisplay(publication?.authorDisplay ?? project.metadata?.authors?.[0] ?? '');
-    setPublishTranslatorDisplay(publication?.translatorDisplay ?? user?.email ?? '');
     setShowPublishModal(true);
-  }, [
-    project.metadata?.title,
-    project.metadata?.description,
-    project.metadata?.authors,
-    project.name,
-    publication?.authorDisplay,
-    publication?.translatorDisplay,
-  ]);
+  }, [project.metadata?.title, project.metadata?.description, project.name]);
 
   const handlePublish = useCallback(async () => {
     setPublishing(true);
@@ -121,8 +230,12 @@ export function ProjectInfo({
         status: 'published',
         title: publishTitle.trim() || undefined,
         description: publishDescription.trim() || undefined,
-        authorDisplay: publishAuthorDisplay.trim() || undefined,
-        translatorDisplay: publishTranslatorDisplay.trim() || undefined,
+        authorDisplay: authorEntity ? undefined : (project.metadata?.authors?.[0] ?? undefined),
+        translatorDisplay: translatorEntity
+          ? undefined
+          : (authService.getCachedUser()?.email ?? undefined),
+        authorEntityId: project.metadata?.authorEntityId ?? undefined,
+        translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
       });
       setPublication(pub);
       setShowPublishModal(false);
@@ -133,10 +246,13 @@ export function ProjectInfo({
     }
   }, [
     project.id,
+    project.metadata?.authorEntityId,
+    project.metadata?.translatorEntityId,
+    project.metadata?.authors,
+    authorEntity,
+    translatorEntity,
     publishTitle,
     publishDescription,
-    publishAuthorDisplay,
-    publishTranslatorDisplay,
     t,
   ]);
 
@@ -156,14 +272,17 @@ export function ProjectInfo({
   const handleUpdatePublication = useCallback(async () => {
     setUpdatingPublication(true);
     try {
-      const user = authService.getCachedUser();
       const pub = await api.publishProject(project.id, {
         status: 'published',
         title: project.metadata?.title ?? project.name,
         description: project.metadata?.description ?? undefined,
-        authorDisplay: publication?.authorDisplay ?? project.metadata?.authors?.[0] ?? undefined,
-        translatorDisplay: publication?.translatorDisplay ?? user?.email ?? undefined,
+        authorDisplay: authorEntity ? undefined : (project.metadata?.authors?.[0] ?? undefined),
+        translatorDisplay: translatorEntity
+          ? undefined
+          : (authService.getCachedUser()?.email ?? undefined),
         coverImageUrl: project.metadata?.coverImageUrl ?? undefined,
+        authorEntityId: project.metadata?.authorEntityId ?? undefined,
+        translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
       });
       setPublication(pub);
     } catch (error) {
@@ -177,9 +296,11 @@ export function ProjectInfo({
     project.metadata?.description,
     project.metadata?.authors,
     project.metadata?.coverImageUrl,
+    project.metadata?.authorEntityId,
+    project.metadata?.translatorEntityId,
     project.name,
-    publication?.authorDisplay,
-    publication?.translatorDisplay,
+    authorEntity,
+    translatorEntity,
     t,
   ]);
 
@@ -945,6 +1066,120 @@ export function ProjectInfo({
           </div>
         )}
 
+        {/* Entity Section: Author, Translator, Tags */}
+        <div class="entity-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+          <div class="metadata-header" style={{ marginBottom: '0.75rem' }}>
+            <span class="metadata-icon">
+              <Icon name="person" size="sm" />
+            </span>
+            <h3 class="metadata-title">{t('projectInfo.entitySectionTitle')}</h3>
+          </div>
+          <div class="entity-section__content">
+            <div class="entity-section__row">
+              <span class="entity-section__label">{t('projectInfo.author')}</span>
+              <div class="entity-section__value">
+                {authorEntity ? (
+                  <div class="entity-section__card-wrap">
+                    <EntityCard entity={authorEntity} compact />
+                    <button
+                      type="button"
+                      class="entity-section__remove"
+                      onClick={handleRemoveAuthor}
+                      disabled={savingEntities}
+                      aria-label={t('projectInfo.removeAuthor')}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowAuthorPicker(true)}
+                    disabled={savingEntities}
+                  >
+                    {t('projectInfo.selectAuthor')}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div class="entity-section__row">
+              <span class="entity-section__label">{t('projectInfo.translator')}</span>
+              <div class="entity-section__value">
+                {translatorEntity ? (
+                  <div class="entity-section__card-wrap">
+                    <EntityCard entity={translatorEntity} compact />
+                    <button
+                      type="button"
+                      class="entity-section__remove"
+                      onClick={handleRemoveTranslator}
+                      disabled={savingEntities}
+                      aria-label={t('projectInfo.removeTranslator')}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowTranslatorPicker(true)}
+                    disabled={savingEntities}
+                  >
+                    {t('projectInfo.selectTranslator')}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div class="entity-section__row">
+              <span class="entity-section__label">{t('projectInfo.tags')}</span>
+              <div class="entity-section__value entity-section__tags">
+                {tagEntities.map((entity) => (
+                  <TagChip
+                    key={entity.id}
+                    entity={entity}
+                    removable
+                    onRemove={() => handleRemoveTag(entity)}
+                  />
+                ))}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowTagPicker(true)}
+                  disabled={savingEntities}
+                >
+                  {t('projectInfo.addTags')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <EntityPickerModal
+          isOpen={showAuthorPicker}
+          onClose={() => setShowAuthorPicker(false)}
+          kind="author"
+          mode="single"
+          selectedIds={authorEntity ? [authorEntity.id] : []}
+          onSelect={handleAuthorSelect}
+        />
+        <EntityPickerModal
+          isOpen={showTranslatorPicker}
+          onClose={() => setShowTranslatorPicker(false)}
+          kind="translator"
+          mode="single"
+          selectedIds={translatorEntity ? [translatorEntity.id] : []}
+          onSelect={handleTranslatorSelect}
+        />
+        <EntityPickerModal
+          isOpen={showTagPicker}
+          onClose={() => setShowTagPicker(false)}
+          kind="tag"
+          mode="multi"
+          selectedIds={tagEntities.map((e) => e.id)}
+          onSelect={handleTagSelect}
+        />
+
         {/* Hidden file input for cover upload */}
         {/* Publication (catalog) */}
         <div class="publication-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
@@ -1268,18 +1503,68 @@ export function ProjectInfo({
               }}
             />
           </div>
-          <Input
-            label={t('projectInfo.publishAuthorLabel')}
-            value={publishAuthorDisplay}
-            onInput={(e) => setPublishAuthorDisplay((e.target as HTMLInputElement).value)}
-            placeholder={project.metadata?.authors?.[0] ?? ''}
-          />
-          <Input
-            label={t('projectInfo.publishTranslatorLabel')}
-            value={publishTranslatorDisplay}
-            onInput={(e) => setPublishTranslatorDisplay((e.target as HTMLInputElement).value)}
-            placeholder={authService.getCachedUser()?.email ?? ''}
-          />
+          <div class="publish-modal-entities">
+            <div class="publish-modal-entity-row">
+              <span class="publish-modal-entity-label">{t('projectInfo.author')}</span>
+              <div class="publish-modal-entity-value">
+                {authorEntity ? (
+                  <>
+                    <EntityCard entity={authorEntity} compact />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowAuthorPicker(true)}
+                      disabled={savingEntities}
+                    >
+                      {t('projectInfo.publishChangeAuthor')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span class="publish-modal-not-selected">{t('projectInfo.publishAuthorNotSelected')}</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowAuthorPicker(true)}
+                      disabled={savingEntities}
+                    >
+                      {t('projectInfo.publishSelectAuthor')}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            <div class="publish-modal-entity-row">
+              <span class="publish-modal-entity-label">{t('projectInfo.translator')}</span>
+              <div class="publish-modal-entity-value">
+                {translatorEntity ? (
+                  <>
+                    <EntityCard entity={translatorEntity} compact />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowTranslatorPicker(true)}
+                      disabled={savingEntities}
+                    >
+                      {t('projectInfo.publishChangeTranslator')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span class="publish-modal-not-selected">{t('projectInfo.publishTranslatorNotSelected')}</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowTranslatorPicker(true)}
+                      disabled={savingEntities}
+                    >
+                      {t('projectInfo.publishSelectTranslator')}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </Modal>
     </>

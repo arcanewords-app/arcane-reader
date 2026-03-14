@@ -65,6 +65,19 @@ alwaysApply: false
 - MAY use emoji only for explicitly decorative, non-interactive content states.
 - MUST track icon mapping and allowed decorative exceptions in `@docs/ICONS_PLAN.md`.
 
+## Icon Color Contract
+
+- Control icons MUST be neutral by default (`--text-secondary` via `currentColor` inheritance).
+- Color MAY be applied only for significant status states; use semantic tokens only:
+  - `success`/`completed` -> `--success`
+  - `warning`/`limit-soon` -> `--warning`
+  - `error`/`failed` -> `--error`
+  - `active`/`focused-context` -> `--accent`
+  - `disabled` -> `--text-dim` + reduced opacity on container.
+- MUST NOT use ad-hoc colors for icons; only tokens from `@src/client/styles/base/variables.css`.
+- Color MUST be applied via container class or semantic modifier (e.g. `.is-success`, `.is-error`), not inline styles.
+- Color MUST NOT be the sole carrier of meaning; pair with text or accessible label.
+
 ## Cards And Lists
 
 - MUST keep card/list behavior consistent: border + subtle elevation + clear hover/active/read states.

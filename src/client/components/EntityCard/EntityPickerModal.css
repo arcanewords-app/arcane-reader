@@ -1,0 +1,69 @@
+/* EntityPickerModal - modal for selecting entities */
+
+.entity-picker-modal {
+  min-height: 200px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.entity-picker-modal__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+  color: var(--text-secondary);
+}
+
+.entity-picker-modal__loading .spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.entity-picker-modal__error {
+  padding: var(--space-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+  color: var(--error);
+}
+
+.entity-picker-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+.entity-picker-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.entity-picker-modal__show-all {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.entity-picker-modal__show-all:hover {
+  background: var(--bg-card);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.entity-picker-modal__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}

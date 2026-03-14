@@ -99,6 +99,7 @@
 /* Chapter filters */
 .chapter-filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
@@ -106,7 +107,11 @@
 }
 
 .chapter-filter-btn {
-  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0.4rem 0.5rem;
   background: var(--bg-secondary);
   border: 1px solid transparent;
@@ -115,6 +120,33 @@
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.chapter-filter-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.chapter-filter-label-short {
+  display: none;
+}
+
+/* Narrow viewport + tablet sidebar (320px): show short labels to fit */
+@media (max-width: 768px) {
+  .chapter-filter-label-long {
+    display: none;
+  }
+
+  .chapter-filter-label-short {
+    display: inline;
+  }
+
+  .chapter-filter-btn {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.8rem;
+  }
 }
 
 .chapter-filter-btn:hover {
@@ -332,6 +364,25 @@
   flex-shrink: 0;
   position: relative;
   z-index: 1;
+}
+
+/* Chapter status icon colors - semantic tokens */
+.chapter-status-icon.is-completed {
+  color: var(--success);
+}
+
+.chapter-status-icon.is-error {
+  color: var(--error);
+}
+
+.chapter-status-icon.is-draft,
+.chapter-status-icon.is-analyzed,
+.chapter-status-icon.is-translating {
+  color: var(--accent);
+}
+
+.chapter-status-icon.is-pending {
+  color: var(--text-dim);
 }
 
 /* Stable hit area, no transform on hover (transform caused jitter) */
@@ -585,6 +636,23 @@
   font-size: 0.72rem;
   padding: 0 0.35rem;
   font-weight: 600;
+}
+
+/* Queue status icon colors - semantic tokens */
+.queue-item.uploading .queue-status {
+  color: var(--accent);
+}
+
+.queue-item.success .queue-status {
+  color: var(--success);
+}
+
+.queue-item.error .queue-status {
+  color: var(--error);
+}
+
+.queue-item.canceled .queue-status {
+  color: var(--text-dim);
 }
 
 .queue-name {

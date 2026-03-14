@@ -37,6 +37,19 @@ export interface GlossaryEntry {
   imageUrl?: string;
 }
 
+export type PublicEntityKind = 'tag' | 'author' | 'translator';
+
+export interface PublicEntity {
+  id: string;
+  kind: PublicEntityKind;
+  name: string;
+  description?: string;
+  photoUrl?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // === Paragraphs ===
 
 export type ParagraphStatus = 'pending' | 'translated' | 'approved' | 'edited';
@@ -241,6 +254,12 @@ export interface ProjectMetadata {
   title?: string;
   authors?: string[];
   language?: string;
+  /** Global public entity ID for author (from admin). */
+  authorEntityId?: string;
+  /** Global public entity ID for translator (from admin). */
+  translatorEntityId?: string;
+  /** Global public entity IDs for tags (from admin). */
+  tagEntityIds?: string[];
   publisher?: string;
   description?: string;
   isbn?: string;

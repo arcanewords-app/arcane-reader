@@ -1050,26 +1050,9 @@ export function ChapterList({
               ? []
               : (['pending', 'completed', 'draft', 'analyzed', 'error'] as FilterType[])),
           ] as FilterType[]
-        ).map((f) => (
-          <button
-            key={f}
-            class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
-            onClick={() => setFilter(f)}
-            title={
-              f === 'all'
-                ? t('chapterList.all')
-                : f === 'pending'
-                  ? t('chapterList.filterPending')
-                  : f === 'completed'
-                    ? t('chapterList.filterCompleted')
-                    : f === 'draft'
-                      ? t('chapterList.filterDraft')
-                      : f === 'analyzed'
-                        ? t('chapterList.filterAnalyzed')
-                        : t('chapterList.filterError')
-            }
-          >
-            {f === 'all'
+        ).map((f) => {
+          const label =
+            f === 'all'
               ? t('chapterList.all')
               : f === 'pending'
                 ? t('chapterList.filterPending')
@@ -1079,9 +1062,44 @@ export function ChapterList({
                     ? t('chapterList.filterDraft')
                     : f === 'analyzed'
                       ? t('chapterList.filterAnalyzed')
-                      : t('chapterList.filterError')}
-          </button>
-        ))}
+                      : t('chapterList.filterError');
+          const labelShort =
+            f === 'all'
+              ? t('chapterList.all')
+              : f === 'pending'
+                ? t('chapterList.filterPendingShort')
+                : f === 'completed'
+                  ? t('chapterList.filterCompletedShort')
+                  : f === 'draft'
+                    ? t('chapterList.filterDraftShort')
+                    : f === 'analyzed'
+                      ? t('chapterList.filterAnalyzedShort')
+                      : t('chapterList.filterErrorShort');
+          const iconName =
+            f === 'all'
+              ? 'grid_view'
+              : f === 'pending'
+                ? 'schedule'
+                : f === 'completed'
+                  ? 'check_circle'
+                  : f === 'draft'
+                    ? 'edit_note'
+                    : f === 'analyzed'
+                      ? 'manage_search'
+                      : 'error';
+          return (
+            <button
+              key={f}
+              class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
+              onClick={() => setFilter(f)}
+              title={label}
+            >
+              <Icon name={iconName} size="sm" />
+              <span class="chapter-filter-label chapter-filter-label-long">{label}</span>
+              <span class="chapter-filter-label chapter-filter-label-short">{labelShort}</span>
+            </button>
+          );
+        })}
       </div>
 
       <DndContext
@@ -1246,7 +1264,9 @@ export function ChapterList({
                                 }
                               >
                                 {!originalReadingMode && (
-                                  <span>{getStatusIcon(chapter.status)}</span>
+                                  <span class={`chapter-status-icon is-${chapter.status}`}>
+                                    {getStatusIcon(chapter.status)}
+                                  </span>
                                 )}
                                 {onDelete && (
                                   <button

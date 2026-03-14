@@ -14,6 +14,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
 import {
@@ -22,7 +23,7 @@ import {
   createProject,
   updateProject,
   deleteProject,
-  addChapter,
+  importChaptersBatch,
   updateChapter,
   getChapter,
   getChaptersSummary,
@@ -56,6 +57,9 @@ import {
   getUserReaderSettings,
   updateUserReaderSettings,
   getUserReadingHistory,
+  createPublicEntity,
+  listPublicEntities,
+  getPublicEntityById,
   type MarkTranslatedBatchResult,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
@@ -67,6 +71,7 @@ import {
   type Project,
   type ProjectWithChapterList,
   type Paragraph,
+  type PublicEntityKind,
 } from './storage/database.js';
 import { requireAuth, optionalAuth, requireRole } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
@@ -386,6 +391,14 @@ const IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT = 200;
 const IMPORT_JOB_TTL_SECONDS = parseInt(process.env.IMPORT_JOB_TTL_SECONDS ?? '1800', 10);
 const IMPORT_JOB_PROGRESS_UPDATE_EVERY = 5;
 const IMPORT_JOB_PROGRESS_UPDATE_MAX_STALENESS_MS = 1500;
+const IMPORT_CHAPTER_BATCH_SIZE = Math.max(
+  1,
+  Math.min(100, parseInt(process.env.IMPORT_CHAPTER_BATCH_SIZE ?? '20', 10) || 20)
+);
+const MARK_TRANSLATED_BATCH_CHUNK_SIZE = Math.max(
+  1,
+  Math.min(200, parseInt(process.env.MARK_TRANSLATED_BATCH_CHUNK_SIZE ?? '200', 10) || 200)
+);
 const importJobStore = createImportJobStoreFromEnv();
 let healthSnapshot: { ts: number; data: ReturnType<typeof serviceHealthManager.getHealthResult> } | null =
   null;
@@ -445,6 +458,10 @@ function publicationGlossaryCacheKey(id: string): string {
   return buildRedisKey(CACHE_PREFIX.publicationGlossary, id);
 }
 
+function publicEntitiesCacheKey(kind?: PublicEntityKind): string {
+  return buildRedisKey(CACHE_PREFIX.publicEntities, kind ?? 'all');
+}
+
 function tokenUsageCacheKey(userId: string, date: string): string {
   return buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date);
 }
@@ -480,6 +497,15 @@ function invalidatePublicationListCaches(): Promise<void> {
     publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'published_at', orderAsc: true }),
     publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'created_at', orderAsc: false }),
     publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'created_at', orderAsc: true }),
+  ]);
+}
+
+function invalidatePublicEntitiesCaches(): Promise<void> {
+  return redisDelMany([
+    publicEntitiesCacheKey(),
+    publicEntitiesCacheKey('tag'),
+    publicEntitiesCacheKey('author'),
+    publicEntitiesCacheKey('translator'),
   ]);
 }
 
@@ -1434,6 +1460,8 @@ app.post(
             let chapterNumber = 0;
             let lastProgressUpdateAtMs = 0;
             let recentChapters: Array<{ number: number; title: string }> = [];
+            let pendingBatch: Array<{ title: string; originalText: string }> = [];
+            let pendingBatchTitles: string[] = [];
             for await (const parsedChapter of lazyResult.chapterIterator) {
               if (await importJobStore.isCancelRequested(jobId)) {
                 await importJobStore.updateJob(jobId, {
@@ -1445,25 +1473,24 @@ app.post(
               }
 
               chapterNumber++;
+              pendingBatch.push({ title: parsedChapter.title, originalText: parsedChapter.content });
+              pendingBatchTitles.push(parsedChapter.title);
+              const shouldFlushBatch = pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE;
 
-              if (await importJobStore.isCancelRequested(jobId)) {
-                await importJobStore.updateJob(jobId, {
-                  status: 'canceled',
-                  finishedAt: new Date().toISOString(),
-                });
-                await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
-                return;
+              if (shouldFlushBatch) {
+                await importChaptersBatch(projectId, pendingBatch, token);
+                const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
+                for (let i = 0; i < pendingBatchTitles.length; i++) {
+                  const chapterTitle = pendingBatchTitles[i];
+                  const chapterNo = firstBatchChapterNumber + i;
+                  recentChapters =
+                    recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                      ? [...recentChapters.slice(1), { number: chapterNo, title: chapterTitle }]
+                      : [...recentChapters, { number: chapterNo, title: chapterTitle }];
+                }
+                pendingBatch = [];
+                pendingBatchTitles = [];
               }
-              await addChapter(
-                projectId,
-                { title: parsedChapter.title, originalText: parsedChapter.content },
-                token
-              );
-
-              recentChapters =
-                recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
-                  ? [...recentChapters.slice(1), { number: chapterNumber, title: parsedChapter.title }]
-                  : [...recentChapters, { number: chapterNumber, title: parsedChapter.title }];
 
               const nowMs = Date.now();
               const shouldFlushProgress =
@@ -1497,6 +1524,20 @@ app.post(
                   'EPUB saving progress'
                 );
               }
+            }
+            if (pendingBatch.length > 0) {
+              await importChaptersBatch(projectId, pendingBatch, token);
+              const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
+              for (let i = 0; i < pendingBatchTitles.length; i++) {
+                const chapterTitle = pendingBatchTitles[i];
+                const chapterNo = firstBatchChapterNumber + i;
+                recentChapters =
+                  recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                    ? [...recentChapters.slice(1), { number: chapterNo, title: chapterTitle }]
+                    : [...recentChapters, { number: chapterNo, title: chapterTitle }];
+              }
+              pendingBatch = [];
+              pendingBatchTitles = [];
             }
 
             if (chapterNumber === 0) {
@@ -1604,6 +1645,8 @@ app.post(
             await importJobStore.updateJob(jobId, { phase: 'saving' });
             let lastProgressUpdateAtMs = 0;
             let recentChapters: Array<{ number: number; title: string }> = [];
+            let pendingBatch: Array<{ title: string; originalText: string }> = [];
+            let pendingBatchTitles: string[] = [];
             for (const [idx, parsedChapter] of parseResult.chapters.entries()) {
               if (await importJobStore.isCancelRequested(jobId)) {
                 await importJobStore.updateJob(jobId, {
@@ -1615,25 +1658,26 @@ app.post(
               }
 
               const chapterNumber = idx + 1;
+              pendingBatch.push({ title: parsedChapter.title, originalText: parsedChapter.content });
+              pendingBatchTitles.push(parsedChapter.title);
+              const shouldFlushBatch =
+                pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE ||
+                chapterNumber === parseResult.chapters.length;
 
-              if (await importJobStore.isCancelRequested(jobId)) {
-                await importJobStore.updateJob(jobId, {
-                  status: 'canceled',
-                  finishedAt: new Date().toISOString(),
-                });
-                await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
-                return;
+              if (shouldFlushBatch) {
+                await importChaptersBatch(projectId, pendingBatch, token);
+                const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
+                for (let i = 0; i < pendingBatchTitles.length; i++) {
+                  const chapterTitle = pendingBatchTitles[i];
+                  const chapterNo = firstBatchChapterNumber + i;
+                  recentChapters =
+                    recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                      ? [...recentChapters.slice(1), { number: chapterNo, title: chapterTitle }]
+                      : [...recentChapters, { number: chapterNo, title: chapterTitle }];
+                }
+                pendingBatch = [];
+                pendingBatchTitles = [];
               }
-              await addChapter(
-                projectId,
-                { title: parsedChapter.title, originalText: parsedChapter.content },
-                token
-              );
-
-              recentChapters =
-                recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
-                  ? [...recentChapters.slice(1), { number: chapterNumber, title: parsedChapter.title }]
-                  : [...recentChapters, { number: chapterNumber, title: parsedChapter.title }];
 
               const nowMs = Date.now();
               const shouldFlushProgress =
@@ -1651,6 +1695,12 @@ app.post(
                 lastProgressUpdateAtMs = nowMs;
               }
             }
+          }
+
+          try {
+            await invalidateProjectAndRelatedCaches(userId, projectId, token);
+          } catch (cacheError) {
+            req.log?.warn({ err: cacheError, jobId, projectId }, 'Import completed but cache invalidation failed');
           }
 
           await importJobStore.updateJob(jobId, {
@@ -1863,23 +1913,57 @@ app.post(
           );
         }
 
-        const addedChapters = [];
+        const importedRows: Array<{
+          sourceIndex: number;
+          chapterId: string;
+          number: number;
+          title: string;
+          paragraphsCount: number;
+        }> = [];
+        let pendingBatch: Array<{ title: string; originalText: string }> = [];
         for await (const parsedChapter of lazyResult.chapterIterator) {
-          const chapter = await addChapter(
-            req.params.id,
-            { title: parsedChapter.title, originalText: parsedChapter.content },
-            token
-          );
-          addedChapters.push(chapter);
+          pendingBatch.push({ title: parsedChapter.title, originalText: parsedChapter.content });
+          if (pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE) {
+            const rows = await importChaptersBatch(req.params.id, pendingBatch, token);
+            importedRows.push(...rows);
+            pendingBatch = [];
+          }
+        }
+        if (pendingBatch.length > 0) {
+          const rows = await importChaptersBatch(req.params.id, pendingBatch, token);
+          importedRows.push(...rows);
         }
         await invalidateUserProjectCaches(req.user.id, req.params.id);
 
-        if (addedChapters.length === 1) {
-          res.json(addedChapters[0]);
+        if (importedRows.length === 0) {
+          return res.status(400).json({
+            error: 'Файл не содержит глав',
+            details: 'Не удалось извлечь ни одной главы из файла',
+          });
+        }
+        if (lazyResult.errors.length > 0) {
+          chapterCountWarnings.push(
+            `Некоторые главы EPUB были пропущены из-за ошибок парсинга: ${lazyResult.errors.length}`
+          );
+        }
+
+        if (importedRows.length === 1) {
+          const fullChapter = await getChapter(req.params.id, importedRows[0].chapterId, token);
+          if (!fullChapter) {
+            return res.status(500).json({ error: 'Failed to load imported chapter' });
+          }
+          res.json(fullChapter);
         } else {
           res.json({
-            chapters: addedChapters,
-            count: addedChapters.length,
+            chapters: importedRows.map((row) => ({
+              id: row.chapterId,
+              number: row.number,
+              title: row.title,
+              originalText: '',
+              status: 'pending' as const,
+              paragraphs: [],
+            })),
+            count: importedRows.length,
             warnings:
               chapterCountWarnings.length > 0 ? chapterCountWarnings : undefined,
           });
@@ -1988,26 +2072,42 @@ app.post(
         );
       }
 
-      const addedChapters = [];
-      for (const parsedChapter of parseResult.chapters) {
-        const chapter = await addChapter(
-          req.params.id,
-          {
+      const importedRows: Array<{
+        sourceIndex: number;
+        chapterId: string;
+        number: number;
+        title: string;
+        paragraphsCount: number;
+      }> = [];
+      for (let i = 0; i < parseResult.chapters.length; i += IMPORT_CHAPTER_BATCH_SIZE) {
+        const chunk = parseResult.chapters
+          .slice(i, i + IMPORT_CHAPTER_BATCH_SIZE)
+          .map((parsedChapter) => ({
             title: parsedChapter.title,
             originalText: parsedChapter.content,
-          },
-          token
-        );
-        addedChapters.push(chapter);
+          }));
+        const rows = await importChaptersBatch(req.params.id, chunk, token);
+        importedRows.push(...rows);
       }
       await invalidateUserProjectCaches(req.user.id, req.params.id);
 
-      if (addedChapters.length === 1) {
-        res.json(addedChapters[0]);
+      if (importedRows.length === 1) {
+        const fullChapter = await getChapter(req.params.id, importedRows[0].chapterId, token);
+        if (!fullChapter) {
+          return res.status(500).json({ error: 'Failed to load imported chapter' });
+        }
+        res.json(fullChapter);
       } else {
         res.json({
-          chapters: addedChapters,
-          count: addedChapters.length,
+          chapters: importedRows.map((row) => ({
+            id: row.chapterId,
+            number: row.number,
+            title: row.title,
+            originalText: '',
+            status: 'pending' as const,
+            paragraphs: [],
+          })),
+          count: importedRows.length,
           warnings: chapterCountWarnings.length > 0 ? chapterCountWarnings : parseResult.warnings,
         });
       }
@@ -2535,37 +2635,51 @@ app.post(
         });
       }
 
-      const MAX_BATCH_SIZE = 200;
-      if (chapterIds.length > MAX_BATCH_SIZE) {
-        return res.status(400).json({
-          error: 'Batch too large',
-          message: `Максимальный размер batch: ${MAX_BATCH_SIZE} глав.`,
-        });
-      }
-
       const continueOnError = body.options?.continueOnError ?? true;
-      const result: MarkTranslatedBatchResult = await markChaptersAsTranslatedBatch(
-        req.params.projectId,
-        chapterIds,
-        token,
-        { continueOnError }
-      );
+      const aggregate: MarkTranslatedBatchResult = {
+        summary: {
+          total: chapterIds.length,
+          processed: 0,
+          success: 0,
+          failed: 0,
+          skipped: 0,
+        },
+        results: [],
+      };
+      for (let i = 0; i < chapterIds.length; i += MARK_TRANSLATED_BATCH_CHUNK_SIZE) {
+        const chunk = chapterIds.slice(i, i + MARK_TRANSLATED_BATCH_CHUNK_SIZE);
+        const chunkResult: MarkTranslatedBatchResult = await markChaptersAsTranslatedBatch(
+          req.params.projectId,
+          chunk,
+          token,
+          { continueOnError }
+        );
+        aggregate.results.push(...chunkResult.results);
+        aggregate.summary.processed += chunkResult.summary.processed;
+        aggregate.summary.success += chunkResult.summary.success;
+        aggregate.summary.failed += chunkResult.summary.failed;
+        aggregate.summary.skipped += chunkResult.summary.skipped;
+        // For strict mode, stop after first chunk with failed items to mimic fail-fast behavior.
+        if (!continueOnError && chunkResult.summary.failed > 0) {
+          break;
+        }
+      }
 
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       req.log?.info(
         {
           event: 'chapters.mark_translated.batch_completed',
           projectId: req.params.projectId,
-          total: result.summary.total,
-          processed: result.summary.processed,
-          success: result.summary.success,
-          failed: result.summary.failed,
-          skipped: result.summary.skipped,
+          total: aggregate.summary.total,
+          processed: aggregate.summary.processed,
+          success: aggregate.summary.success,
+          failed: aggregate.summary.failed,
+          skipped: aggregate.summary.skipped,
         },
         'Batch mark-as-translated completed'
       );
 
-      res.json(result);
+      res.json(aggregate);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       req.log?.error({ err: error }, 'Failed to mark chapters as translated in batch');
@@ -5889,7 +6003,140 @@ function sanitizeFilename(filename: string): string {
   ); // Fallback if empty after sanitization
 }
 
+const publicEntityKinds = ['tag', 'author', 'translator'] as const;
+
+const publicEntityCreateSchema = z.object({
+  kind: z.enum(publicEntityKinds),
+  name: z.string().trim().min(1).max(120),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  photoUrl: z.string().trim().url().max(2048).optional(),
+});
+
+const publicEntityListQuerySchema = z.object({
+  kind: z.enum(publicEntityKinds).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
 // ============ Publications (public catalog) ============
+
+// Create global public entity (admin only)
+app.post(
+  '/api/admin/entities',
+  requireAuth,
+  requireRole('admin'),
+  uploadImage.single('photo'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parseResult = publicEntityCreateSchema.safeParse({
+        kind: req.body?.kind,
+        name: req.body?.name,
+        description: req.body?.description,
+        photoUrl: req.body?.photoUrl,
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          error: 'Invalid request body',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const token = requireToken(req);
+      const { kind, name, description } = parseResult.data;
+      let photoUrl = parseResult.data.photoUrl ?? null;
+      let uploadedStoragePath: string | null = null;
+
+      if (req.file) {
+        const ext = path.extname(req.file.originalname).slice(1) || 'jpg';
+        const storagePath = generateUniqueFilename(`public-entity-${kind}`, ext);
+        uploadedStoragePath = storagePath;
+        const uploaded = await uploadFile('images', storagePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+        });
+        photoUrl = uploaded.publicUrl;
+      }
+
+      try {
+        const entity = await createPublicEntity(
+          {
+            kind,
+            name,
+            description,
+            photoUrl,
+            createdBy: req.user.id,
+          },
+          token
+        );
+        await invalidatePublicEntitiesCaches();
+        res.status(201).json(entity);
+      } catch (error) {
+        if (uploadedStoragePath) {
+          await deleteFile('images', uploadedStoragePath).catch((err) => {
+            req.log?.error({ err, uploadedStoragePath }, 'Failed to rollback uploaded admin entity photo');
+          });
+        }
+        throw error;
+      }
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to create public entity');
+      res.status(500).json({ error: 'Failed to create public entity' });
+    }
+  }
+);
+
+// List global public entities (public)
+app.get('/api/public/entities', async (req, res) => {
+  try {
+    const parseResult = publicEntityListQuerySchema.safeParse({
+      kind: req.query.kind,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Invalid query parameters',
+        details: parseResult.error.flatten(),
+      });
+    }
+
+    const { kind, limit, offset } = parseResult.data;
+    const entities = await withRedisCache(
+      publicEntitiesCacheKey(kind),
+      CACHE_TTL.redisPublicEntitiesSec,
+      () => listPublicEntities({ kind, limit, offset })
+    );
+
+    res.json(entities);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to list public entities';
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Get single public entity by id (public)
+app.get('/api/public/entities/:id', async (req, res) => {
+  try {
+    const entity = await getPublicEntityById(req.params.id);
+    if (!entity) {
+      return res.status(404).json({ error: 'Entity not found' });
+    }
+    res.json(entity);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to get public entity';
+    res.status(500).json({ error: msg });
+  }
+});
 
 // List published publications (public, no auth)
 app.get('/api/publications', async (req, res) => {
@@ -6119,17 +6366,50 @@ app.post(
         coverImageUrl?: string | null;
         authorDisplay?: string | null;
         translatorDisplay?: string | null;
+        authorEntityId?: string | null;
+        translatorEntityId?: string | null;
         sourceLanguage?: string;
         targetLanguage?: string;
       };
       const status = body.status ?? 'published';
+
+      // Resolve author/translator from entity IDs if provided (project metadata or body)
+      const project = await getProject(projectId, userId, token);
+      const authorEntityId = body.authorEntityId ?? project?.metadata?.authorEntityId;
+      const translatorEntityId =
+        body.translatorEntityId ?? project?.metadata?.translatorEntityId;
+
+      let authorDisplay = body.authorDisplay;
+      let translatorDisplay = body.translatorDisplay ?? req.user!.email;
+
+      if (authorEntityId) {
+        try {
+          const authorEntity = await getPublicEntityById(authorEntityId);
+          if (authorEntity) authorDisplay = authorEntity.name;
+        } catch {
+          // Keep existing authorDisplay if entity fetch fails
+        }
+      }
+      if (authorDisplay == null && project?.metadata?.authors?.[0]) {
+        authorDisplay = project.metadata.authors[0];
+      }
+
+      if (translatorEntityId) {
+        try {
+          const translatorEntity = await getPublicEntityById(translatorEntityId);
+          if (translatorEntity) translatorDisplay = translatorEntity.name;
+        } catch {
+          // Keep existing translatorDisplay if entity fetch fails
+        }
+      }
+
       const publication = await createOrUpdatePublication(projectId, userId, token, {
         status,
         title: body.title,
         description: body.description,
         coverImageUrl: body.coverImageUrl,
-        authorDisplay: body.authorDisplay,
-        translatorDisplay: body.translatorDisplay ?? req.user!.email,
+        authorDisplay: authorDisplay ?? undefined,
+        translatorDisplay: translatorDisplay ?? undefined,
         sourceLanguage: body.sourceLanguage,
         targetLanguage: body.targetLanguage,
       });

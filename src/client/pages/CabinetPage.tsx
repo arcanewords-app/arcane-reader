@@ -152,7 +152,7 @@ export function CabinetPage() {
                     class={`dashboard-filter-btn ${filterType === 'all' ? 'active' : ''}`}
                     onClick={() => setFilterType('all')}
                   >
-                    {t('dashboard.filterAll')} ({projects.length})
+                    <Icon name="grid_view" size="sm" /> {t('dashboard.filterAll')} ({projects.length})
                   </button>
                   <button
                     class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}

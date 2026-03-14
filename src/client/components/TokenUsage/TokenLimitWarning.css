@@ -38,11 +38,11 @@
 }
 
 .token-limit-stat-value.warning {
-  color: #ff9800;
+  color: var(--warning);
 }
 
 .token-limit-stat-value.critical {
-  color: #f44336;
+  color: var(--error);
 }
 
 .token-limit-warning-note {

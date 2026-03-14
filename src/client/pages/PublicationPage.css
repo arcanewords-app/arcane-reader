@@ -201,6 +201,11 @@
 }
 
 .publication-page-chapter-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0.35rem 0.65rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -223,7 +228,7 @@
 
 .publication-page-chapter-read {
   font-size: 0.875rem;
-  color: var(--success, #22c55e);
+  color: var(--success);
 }
 
 .publication-page-chapters ul {

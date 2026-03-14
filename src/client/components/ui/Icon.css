@@ -32,3 +32,30 @@
     'GRAD' 0,
     'opsz' 24;
 }
+
+/* Semantic color modifiers - use on container or Icon className */
+.ui-icon.is-success,
+.is-success .ui-icon {
+  color: var(--success);
+}
+
+.ui-icon.is-warning,
+.is-warning .ui-icon {
+  color: var(--warning);
+}
+
+.ui-icon.is-error,
+.is-error .ui-icon {
+  color: var(--error);
+}
+
+.ui-icon.is-active,
+.is-active .ui-icon {
+  color: var(--accent);
+}
+
+.ui-icon.is-disabled,
+.is-disabled .ui-icon {
+  color: var(--text-dim);
+  opacity: 0.7;
+}

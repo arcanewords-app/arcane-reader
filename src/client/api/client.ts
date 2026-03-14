@@ -28,6 +28,8 @@ import type {
   Publication,
   PublicationListItem,
   PublicationWithChapters,
+  PublicEntity,
+  PublicEntityKind,
 } from '../types';
 
 // === API Error ===
@@ -1092,6 +1094,8 @@ export const api = {
       coverImageUrl?: string | null;
       authorDisplay?: string | null;
       translatorDisplay?: string | null;
+      authorEntityId?: string | null;
+      translatorEntityId?: string | null;
     }
   ): Promise<Publication> {
     return fetchJson(`/api/projects/${projectId}/publish`, {
@@ -1116,6 +1120,55 @@ export const api = {
   async getProjectPublication(projectId: string): Promise<Publication | null> {
     const result = await fetchJson<Publication | null>(`/api/projects/${projectId}/publication`);
     return result ?? null;
+  },
+
+  // === Public entities (admin metadata) ===
+
+  async getPublicEntities(params?: {
+    kind?: PublicEntityKind;
+    limit?: number;
+    offset?: number;
+  }): Promise<PublicEntity[]> {
+    const search = new URLSearchParams();
+    if (params?.kind) search.set('kind', params.kind);
+    if (params?.limit != null) search.set('limit', String(params.limit));
+    if (params?.offset != null) search.set('offset', String(params.offset));
+    const q = search.toString();
+    return fetchJsonDeduped<PublicEntity[]>(`/api/public/entities${q ? `?${q}` : ''}`);
+  },
+
+  async getPublicEntityById(id: string): Promise<PublicEntity | null> {
+    try {
+      return await fetchJson<PublicEntity>(`/api/public/entities/${id}`);
+    } catch {
+      return null;
+    }
+  },
+
+  async createPublicEntity(data: {
+    kind: PublicEntityKind;
+    name: string;
+    description?: string;
+    photoUrl?: string;
+  }): Promise<PublicEntity> {
+    return fetchJson<PublicEntity>('/api/admin/entities', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async createPublicEntityWithPhoto(data: {
+    kind: PublicEntityKind;
+    name: string;
+    description?: string;
+    photo?: File;
+  }): Promise<PublicEntity> {
+    const formData = new FormData();
+    formData.append('kind', data.kind);
+    formData.append('name', data.name);
+    if (data.description) formData.append('description', data.description);
+    if (data.photo) formData.append('photo', data.photo);
+    return fetchFormData<PublicEntity>('/api/admin/entities', formData, { method: 'POST' });
   },
 
   // === Token Usage ===

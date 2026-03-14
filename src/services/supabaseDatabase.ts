@@ -42,6 +42,8 @@ import type {
   ReaderSettings,
   ChapterStatus,
   ParagraphStatus,
+  PublicEntity,
+  PublicEntityKind,
 } from '../storage/database.js';
 import {
   parseTextToParagraphs,
@@ -1495,6 +1497,70 @@ export async function addChapter(
   }
 }
 
+export interface ImportChapterBatchInputItem {
+  title: string;
+  originalText: string;
+}
+
+export interface ImportChapterBatchResultItem {
+  sourceIndex: number;
+  chapterId: string;
+  number: number;
+  title: string;
+  paragraphsCount: number;
+}
+
+/**
+ * Import many chapters in one RPC call.
+ * Uses DB-side transaction to keep numbering and paragraph inserts consistent.
+ */
+export async function importChaptersBatch(
+  projectId: string,
+  chapters: ImportChapterBatchInputItem[],
+  token: string
+): Promise<ImportChapterBatchResultItem[]> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  if (!Array.isArray(chapters) || chapters.length === 0) {
+    return [];
+  }
+
+  const payload = chapters.map((chapter, index) => ({
+    source_index: index,
+    title: chapter.title,
+    content: chapter.originalText,
+  }));
+
+  const { data, error } = await client.rpc('import_chapters_batch', {
+    p_project_id: projectId,
+    p_chapters: payload,
+    p_start_number: null,
+  });
+
+  if (error) {
+    throw new Error(`Failed to import chapters batch: ${error.message}`);
+  }
+
+  const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+  return rows
+    .map((row) => ({
+      sourceIndex: Number(row.source_index),
+      chapterId: String(row.chapter_id || ''),
+      number: Number(row.number),
+      title: String(row.title || ''),
+      paragraphsCount: Number(row.paragraphs_count || 0),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.sourceIndex) &&
+        item.chapterId.length > 0 &&
+        Number.isFinite(item.number) &&
+        Number.isFinite(item.paragraphsCount)
+    )
+    .sort((a, b) => a.sourceIndex - b.sourceIndex);
+}
+
 /** Options for updateChapter when using service role (e.g. long-running translate where JWT may expire). */
 export type UpdateChapterOptions = { useServiceRole?: boolean };
 
@@ -2403,6 +2469,17 @@ export interface PublicationRow {
   slug?: string | null;
 }
 
+interface PublicEntityRow {
+  id: string;
+  kind: PublicEntityKind;
+  name: string;
+  description: string | null;
+  photo_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 function transformPublicationFromDB(row: PublicationRow): {
   id: string;
   projectId: string;
@@ -2437,6 +2514,93 @@ function transformPublicationFromDB(row: PublicationRow): {
     updatedAt: row.updated_at,
     slug: (row as { slug?: string | null }).slug ?? null,
   };
+}
+
+function transformPublicEntityFromDB(row: PublicEntityRow): PublicEntity {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    description: row.description ?? undefined,
+    photoUrl: row.photo_url,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function createPublicEntity(
+  data: {
+    kind: PublicEntityKind;
+    name: string;
+    description?: string;
+    photoUrl?: string | null;
+    createdBy?: string;
+  },
+  token: string
+): Promise<PublicEntity> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const payload = {
+    kind: data.kind,
+    name: data.name.trim(),
+    description: data.description?.trim() || null,
+    photo_url: data.photoUrl ?? null,
+    created_by: data.createdBy ?? null,
+  };
+
+  const { data: row, error } = await client
+    .from('public_entities')
+    .insert(payload)
+    .select('*')
+    .single();
+
+  if (error || !row) {
+    throw new Error(`Failed to create public entity: ${error?.message || 'Unknown error'}`);
+  }
+
+  return transformPublicEntityFromDB(row as PublicEntityRow);
+}
+
+export async function listPublicEntities(options?: {
+  kind?: PublicEntityKind;
+  limit?: number;
+  offset?: number;
+}): Promise<PublicEntity[]> {
+  const limit = options?.limit ?? 200;
+  const offset = options?.offset ?? 0;
+
+  let query = supabase
+    .from('public_entities')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (options?.kind) {
+    query = query.eq('kind', options.kind);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Failed to list public entities: ${error.message}`);
+  }
+
+  return (data || []).map((row) => transformPublicEntityFromDB(row as PublicEntityRow));
+}
+
+export async function getPublicEntityById(id: string): Promise<PublicEntity | null> {
+  const { data, error } = await supabase
+    .from('public_entities')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to get public entity: ${error.message}`);
+  }
+  if (!data) return null;
+  return transformPublicEntityFromDB(data as PublicEntityRow);
 }
 
 /**

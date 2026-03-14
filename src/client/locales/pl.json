@@ -113,10 +113,15 @@
     "searchPlaceholder": "Szukaj...",
     "all": "Wszystkie",
     "filterPending": "Oczekujące",
+    "filterPendingShort": "Oczek.",
     "filterCompleted": "Przetłumaczone",
+    "filterCompletedShort": "Przetł.",
     "filterDraft": "Szkice",
+    "filterDraftShort": "Szkice",
     "filterAnalyzed": "Tylko analiza",
+    "filterAnalyzedShort": "Analiza",
     "filterError": "Błędy",
+    "filterErrorShort": "Błędy",
     "noChapters": "Brak rozdziałów",
     "noResults": "Brak wyników",
     "dragFileOrClick": "Przeciągnij plik<br />(.txt, .epub, .fb2, .csv)<br />lub kliknij",
@@ -495,13 +500,28 @@
     "unpublishError": "Nie udało się cofnąć publikacji",
     "publishError": "Nie udało się opublikować",
     "publishRequiresChapters": "Dodaj co najmniej jeden rozdział przed publikacją.",
+    "entitySectionTitle": "Autor, Tłumacz, Tagi",
+    "author": "Autor",
+    "translator": "Tłumacz",
+    "tags": "Tagi",
+    "selectAuthor": "Wybierz autora",
+    "selectTranslator": "Wybierz tłumacza",
+    "addTags": "Dodaj tagi",
+    "removeAuthor": "Usuń autora",
+    "removeTranslator": "Usuń tłumacza",
     "publishModalTitle": "Opublikuj w katalogu",
     "publishModalHint": "Ustaw tytuł i opis dla karty w katalogu. Wartości są pobierane z projektu i można je zmienić.",
     "publishTitleLabel": "Tytuł w katalogu",
     "publishDescriptionLabel": "Krótki opis",
     "publishDescriptionPlaceholder": "Opis dzieła dla karty w katalogu",
     "publishAuthorLabel": "Autor (książki)",
-    "publishTranslatorLabel": "Tłumacz (wyświetlany w katalogu)"
+    "publishTranslatorLabel": "Tłumacz (wyświetlany w katalogu)",
+    "publishAuthorNotSelected": "Nie wybrano",
+    "publishTranslatorNotSelected": "Nie wybrano",
+    "publishSelectAuthor": "Wybierz",
+    "publishSelectTranslator": "Wybierz",
+    "publishChangeAuthor": "Zmień",
+    "publishChangeTranslator": "Zmień"
   },
   "tokenUsage": {
     "loading": "Ładowanie...",
@@ -628,8 +648,52 @@
   "nav": {
     "catalog": "Katalog",
     "projects": "Projekty",
+    "admin": "Admin",
     "projectsTitle": "Moje projekty",
     "openProfile": "Otwórz profil"
+  },
+  "entityPicker": {
+    "titleAuthor": "Wybierz autora",
+    "titleTranslator": "Wybierz tłumacza",
+    "titleTags": "Wybierz tagi",
+    "loading": "Ładowanie...",
+    "showAll": "Pokaż wszystkie",
+    "empty": "Brak encji.",
+    "confirm": "Potwierdź"
+  },
+  "admin": {
+    "title": "Encje administracyjne",
+    "subtitle": "Tworzenie publicznych tagów, autorów i tłumaczy.",
+    "deniedTitle": "Wymagany dostęp administratora",
+    "deniedMessage": "Nie masz uprawnień do tego obszaru.",
+    "kinds": {
+      "tag": "Tag",
+      "author": "Autor",
+      "translator": "Tłumacz"
+    },
+    "form": {
+      "kind": "Typ encji",
+      "name": "Nazwa",
+      "namePlaceholder": "Wpisz nazwę",
+      "description": "Opis",
+      "descriptionPlaceholder": "Opis (opcjonalnie)",
+      "photo": "Zdjęcie",
+      "photoHint": "Kliknij lub przeciągnij obraz",
+      "removePhoto": "Usuń zdjęcie",
+      "submit": "Utwórz encję"
+    },
+    "list": {
+      "title": "Ostatnio utworzone",
+      "empty": "Brak encji."
+    },
+    "messages": {
+      "created": "Encja została utworzona."
+    },
+    "errors": {
+      "nameRequired": "Nazwa jest wymagana.",
+      "forbidden": "Tylko administrator może tworzyć encje.",
+      "createFailed": "Nie udało się utworzyć encji."
+    }
   },
   "cabinet": {
     "title": "Moje projekty",

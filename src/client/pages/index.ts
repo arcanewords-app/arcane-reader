@@ -6,6 +6,7 @@
 export { HomePage as CatalogPage } from './HomePage';
 export { ProfilePage } from './ProfilePage';
 export { ProjectsPage } from './ProjectsPage';
+export { AdminEntitiesPage } from './AdminEntitiesPage';
 export { Dashboard } from '../components/Dashboard';
 export { ProjectPage } from './ProjectPage';
 export { ChapterPage } from './ChapterPage';

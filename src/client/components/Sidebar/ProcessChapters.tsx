@@ -42,8 +42,9 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     api
       .getChaptersSummary(project.id)
       .then(setSummary)
-      .catch(() => setSummary([]));
-  }, [project.id]);
+      // Keep fallback to project.chapters when summary endpoint is temporarily unavailable.
+      .catch(() => setSummary(null));
+  }, [project.id, project.chapters.length, project.updatedAt]);
 
   const estimate = useTokenEstimate();
   const batch = useBatchChapterTranslation(project.id, project, onRefreshProject);
@@ -53,7 +54,8 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   }, [translationProgress]);
 
   const stats = useMemo(() => {
-    const chapters = summary ?? project.chapters;
+    const chapters =
+      summary && (summary.length > 0 || project.chapters.length === 0) ? summary : project.chapters;
     const toSummary = (
       c:
         | ChapterSummary
@@ -78,13 +80,18 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   }, [summary, project.chapters]);
 
   const allChaptersSorted = useMemo(
-    () => [...(summary ?? project.chapters)].sort((a, b) => a.number - b.number),
+    () =>
+      [
+        ...(
+          summary && (summary.length > 0 || project.chapters.length === 0) ? summary : project.chapters
+        ),
+      ].sort((a, b) => a.number - b.number),
     [summary, project.chapters]
   );
 
   const defaultSelectionIds = useMemo(
     () =>
-      (summary ?? project.chapters)
+      (summary && (summary.length > 0 || project.chapters.length === 0) ? summary : project.chapters)
         .filter(
           (c) =>
             (c as ChapterSummary).status === 'error' ||

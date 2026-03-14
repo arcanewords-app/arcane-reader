@@ -113,10 +113,15 @@
     "searchPlaceholder": "Search...",
     "all": "All",
     "filterPending": "Pending",
+    "filterPendingShort": "Pending",
     "filterCompleted": "Translated",
+    "filterCompletedShort": "Trans.",
     "filterDraft": "Drafts",
+    "filterDraftShort": "Drafts",
     "filterAnalyzed": "Analysis only",
+    "filterAnalyzedShort": "Analysis",
     "filterError": "Errors",
+    "filterErrorShort": "Errors",
     "noChapters": "No chapters",
     "noResults": "No results",
     "dragFileOrClick": "Drag file<br />(.txt, .epub, .fb2, .csv)<br />or click",
@@ -494,13 +499,28 @@
     "unpublishError": "Failed to unpublish",
     "publishError": "Failed to publish",
     "publishRequiresChapters": "Add at least one chapter before publishing.",
+    "entitySectionTitle": "Author, Translator, Tags",
+    "author": "Author",
+    "translator": "Translator",
+    "tags": "Tags",
+    "selectAuthor": "Select author",
+    "selectTranslator": "Select translator",
+    "addTags": "Add tags",
+    "removeAuthor": "Remove author",
+    "removeTranslator": "Remove translator",
     "publishModalTitle": "Publish to catalog",
     "publishModalHint": "Set title and description for the catalog card. Values are taken from the project and can be changed.",
     "publishTitleLabel": "Title in catalog",
     "publishDescriptionLabel": "Short description",
     "publishDescriptionPlaceholder": "Description for the catalog card",
     "publishAuthorLabel": "Author (book)",
-    "publishTranslatorLabel": "Translator (shown in catalog)"
+    "publishTranslatorLabel": "Translator (shown in catalog)",
+    "publishAuthorNotSelected": "Not selected",
+    "publishTranslatorNotSelected": "Not selected",
+    "publishSelectAuthor": "Select",
+    "publishSelectTranslator": "Select",
+    "publishChangeAuthor": "Change",
+    "publishChangeTranslator": "Change"
   },
   "tokenUsage": {
     "loading": "Loading...",
@@ -627,8 +647,52 @@
   "nav": {
     "catalog": "Catalog",
     "projects": "Projects",
+    "admin": "Admin",
     "projectsTitle": "My projects",
     "openProfile": "Open profile"
+  },
+  "entityPicker": {
+    "titleAuthor": "Select author",
+    "titleTranslator": "Select translator",
+    "titleTags": "Select tags",
+    "loading": "Loading...",
+    "showAll": "Show all",
+    "empty": "No entities yet.",
+    "confirm": "Confirm"
+  },
+  "admin": {
+    "title": "Admin entities",
+    "subtitle": "Create global public tags, authors, and translators.",
+    "deniedTitle": "Admin access required",
+    "deniedMessage": "You do not have enough permissions to open this section.",
+    "kinds": {
+      "tag": "Tag",
+      "author": "Author",
+      "translator": "Translator"
+    },
+    "form": {
+      "kind": "Entity type",
+      "name": "Name",
+      "namePlaceholder": "Enter name",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "photo": "Photo",
+      "photoHint": "Click or drag image here",
+      "removePhoto": "Remove photo",
+      "submit": "Create entity"
+    },
+    "list": {
+      "title": "Recently created",
+      "empty": "No entities yet."
+    },
+    "messages": {
+      "created": "Entity created successfully."
+    },
+    "errors": {
+      "nameRequired": "Name is required.",
+      "forbidden": "Only admins can create entities.",
+      "createFailed": "Failed to create entity."
+    }
   },
   "cabinet": {
     "title": "My projects",

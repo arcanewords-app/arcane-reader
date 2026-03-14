@@ -33,6 +33,11 @@ export interface ProjectMetadata {
   // Book-specific fields (for type === 'book')
   authors?: string[];
   publisher?: string;
+
+  // Entity references (global public entities from admin)
+  authorEntityId?: string;
+  translatorEntityId?: string;
+  tagEntityIds?: string[];
   isbn?: string;
   series?: string;
   seriesNumber?: number;
@@ -164,6 +169,19 @@ export interface GlossaryEntry {
   imageUrls?: string[]; // Array of image file paths for gallery
   // Legacy support: keep imageUrl for backward compatibility
   imageUrl?: string;
+}
+
+export type PublicEntityKind = 'tag' | 'author' | 'translator';
+
+export interface PublicEntity {
+  id: string;
+  kind: PublicEntityKind;
+  name: string;
+  description?: string;
+  photoUrl?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Font family options for reader */

@@ -342,14 +342,14 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     class={chapterOrder === 'asc' ? 'active' : ''}
                     onClick={() => setChapterOrder('asc')}
                   >
-                    {t('publication.orderFromStart')}
+                    <Icon name="arrow_upward" size="sm" /> {t('publication.orderFromStart')}
                   </button>
                   <button
                     type="button"
                     class={chapterOrder === 'desc' ? 'active' : ''}
                     onClick={() => setChapterOrder('desc')}
                   >
-                    {t('publication.orderFromEnd')}
+                    <Icon name="arrow_downward" size="sm" /> {t('publication.orderFromEnd')}
                   </button>
                 </div>
                 {isAuthenticated && (
@@ -359,21 +359,21 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                       class={chapterFilter === 'all' ? 'active' : ''}
                       onClick={() => setChapterFilter('all')}
                     >
-                      {t('publication.filterAll')}
+                      <Icon name="grid_view" size="sm" /> {t('publication.filterAll')}
                     </button>
                     <button
                       type="button"
                       class={chapterFilter === 'unread' ? 'active' : ''}
                       onClick={() => setChapterFilter('unread')}
                     >
-                      {t('publication.filterUnread')}
+                      <Icon name="mark_email_unread" size="sm" /> {t('publication.filterUnread')}
                     </button>
                     <button
                       type="button"
                       class={chapterFilter === 'read' ? 'active' : ''}
                       onClick={() => setChapterFilter('read')}
                     >
-                      {t('publication.filterRead')}
+                      <Icon name="check_circle" size="sm" /> {t('publication.filterRead')}
                     </button>
                   </div>
                 )}

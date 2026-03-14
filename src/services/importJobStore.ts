@@ -50,6 +50,10 @@ function importJobCancelKey(jobId: string): string {
   return `import_job_cancel:${jobId}`;
 }
 
+function hasJobChanged(current: ImportJobState, next: ImportJobState): boolean {
+  return JSON.stringify(current) !== JSON.stringify(next);
+}
+
 class RedisImportJobStore implements ImportJobStore {
   private readonly updateLocks = new Map<string, Promise<void>>();
 
@@ -89,6 +93,9 @@ class RedisImportJobStore implements ImportJobStore {
       const current = await this.getJob(jobId);
       if (!current) return null;
       const next = { ...current, ...patch };
+      if (!hasJobChanged(current, next)) {
+        return current;
+      }
       await this.redis.set(importJobKey(jobId), next);
       return next;
     });
@@ -165,6 +172,9 @@ class MemoryImportJobStore implements ImportJobStore {
       const current = this.jobs.get(jobId);
       if (!current) return null;
       const next = { ...current, ...patch };
+      if (!hasJobChanged(current, next)) {
+        return current;
+      }
       this.jobs.set(jobId, next);
       return next;
     });

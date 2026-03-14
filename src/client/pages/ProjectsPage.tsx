@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
-import { Button, Input, Modal } from '../components/ui';
+import { Button, Input, Modal, Icon } from '../components/ui';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
 import { api } from '../api/client';
 import '../components/Dashboard/Dashboard.css';
@@ -59,7 +59,7 @@ export function ProjectsPage() {
           onClick={() => setShowCreateModal(true)}
           className="dashboard-create-btn"
         >
-          + {t('dashboard.newProjectButton')}
+          <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
         </Button>
       </div>
 
@@ -78,19 +78,20 @@ export function ProjectsPage() {
               class={`dashboard-filter-btn ${filterType === 'all' ? 'active' : ''}`}
               onClick={() => setFilterType('all')}
             >
-              {t('dashboard.filterAll')} ({projects.length})
+              <Icon name="grid_view" size="sm" /> {t('dashboard.filterAll')} ({projects.length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
               onClick={() => setFilterType('book')}
             >
-              {t('dashboard.filterBooks')} ({projects.filter((p) => p.type === 'book').length})
+              <Icon name="menu_book" size="sm" /> {t('dashboard.filterBooks')} (
+              {projects.filter((p) => p.type === 'book').length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}
               onClick={() => setFilterType('text')}
             >
-              {t('dashboard.filterText')} (
+              <Icon name="description" size="sm" /> {t('dashboard.filterText')} (
               {projects.filter((p) => p.type === 'text' || !p.type).length})
             </button>
           </div>

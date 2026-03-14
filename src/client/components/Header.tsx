@@ -33,6 +33,7 @@ export function Header({
   const { t, i18n } = useTranslation();
   const { isAtLeast } = useUserRole();
   const isAuthor = user ? isAtLeast('author') : false;
+  const isAdmin = user ? isAtLeast('admin') : false;
   const [isMobile, setIsMobile] = useState(false);
   const [hasSidebar, setHasSidebar] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -133,6 +134,19 @@ export function Header({
                 aria-current={currentPath === '/projects' ? 'page' : undefined}
               >
                 {t('nav.projects')}
+              </a>
+            )}
+            {isAdmin && (
+              <a
+                href="/admin/entities"
+                onClick={(e) => {
+                  e.preventDefault();
+                  route('/admin/entities');
+                }}
+                class={`nav-link ${currentPath === '/admin/entities' ? 'active' : ''}`}
+                aria-current={currentPath === '/admin/entities' ? 'page' : undefined}
+              >
+                {t('nav.admin')}
               </a>
             )}
           </nav>

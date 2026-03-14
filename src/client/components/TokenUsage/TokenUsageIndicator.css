@@ -48,19 +48,19 @@
 }
 
 .token-usage-progress.normal .token-usage-progress-bar {
-  background: #4caf50; /* Green */
+  background: var(--success);
 }
 
 .token-usage-progress.caution .token-usage-progress-bar {
-  background: #ffc107; /* Yellow */
+  background: var(--warning);
 }
 
 .token-usage-progress.warning .token-usage-progress-bar {
-  background: #ff9800; /* Orange */
+  background: var(--warning);
 }
 
 .token-usage-progress.critical .token-usage-progress-bar {
-  background: #f44336; /* Red */
+  background: var(--error);
 }
 
 .token-usage-details {
@@ -78,7 +78,7 @@
 
 .token-usage-warning-badge {
   font-size: 0.75rem;
-  color: #ff9800;
+  color: var(--warning);
   font-weight: 500;
   margin-top: 0.25rem;
 }

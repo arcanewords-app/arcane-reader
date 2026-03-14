@@ -1,0 +1,113 @@
+/* EntityCard - compact card with avatar + name, hover popup */
+
+.entity-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-standard);
+  position: relative;
+  min-height: 44px;
+}
+
+.entity-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.entity-card--compact {
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.entity-card--interactive {
+  cursor: pointer;
+}
+
+.entity-card--interactive:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.entity-card__avatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.entity-card--compact .entity-card__avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.entity-card__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.entity-card__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.entity-card__name {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.entity-card__popup {
+  position: absolute;
+  bottom: calc(100% + var(--space-sm));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  max-width: 200px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: entity-card-popup-in var(--duration-fast) var(--ease-standard);
+}
+
+.entity-card__popup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-card);
+}
+
+@keyframes entity-card-popup-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

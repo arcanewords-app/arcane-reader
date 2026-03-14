@@ -23,8 +23,9 @@ import { ServiceStatusBanner } from './components/ServiceStatusBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { LoadingSpinner } from './components/ui';
 import { api } from './api/client';
-import { ProfilePage, ProjectsPage, CatalogPage } from './pages';
+import { ProfilePage, ProjectsPage, CatalogPage, AdminEntitiesPage } from './pages';
 import { AuthorGate } from './components/Auth/AuthorGate';
+import { AdminGate } from './components/Auth/AdminGate';
 import { AboutPage } from './pages/AboutPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -125,11 +126,17 @@ export function AppRouter() {
 
   // Legacy: redirect /cabinet → /projects for backward compatibility (handled by route below)
 
-  // Protected routes: redirect guest from /profile, /projects and /projects/* to /?login=required
+  // Protected routes: redirect guest from /profile, /projects(/...), /admin(/...) to /?login=required
   useEffect(() => {
     if (isAuthenticated !== false) return;
     const path = window.location.pathname;
-    if (path === '/profile' || path === '/projects' || path.startsWith('/projects/')) {
+    if (
+      path === '/profile' ||
+      path === '/projects' ||
+      path.startsWith('/projects/') ||
+      path === '/admin/entities' ||
+      path.startsWith('/admin/')
+    ) {
       route('/');
       const url = new URL(window.location.href);
       url.pathname = '/';
@@ -387,6 +394,7 @@ export function AppRouter() {
               <CabinetRedirect path="/cabinet" />
               <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
               <PublicationPage path="/p/:publicationId" />
+              <AdminGate path="/admin/entities" component={AdminEntitiesPage} />
               {/* More specific /projects/* routes first — preact-router uses first-match */}
               <AuthorGate
                 path="/projects/:projectId/chapters/:chapterId/reading"

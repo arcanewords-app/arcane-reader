@@ -113,10 +113,15 @@
     "searchPlaceholder": "Поиск...",
     "all": "Все",
     "filterPending": "Ожидают",
+    "filterPendingShort": "Ожид.",
     "filterCompleted": "Переведённые",
+    "filterCompletedShort": "Перез.",
     "filterDraft": "Черновики",
+    "filterDraftShort": "Черн.",
     "filterAnalyzed": "Только анализ",
+    "filterAnalyzedShort": "Анализ",
     "filterError": "Ошибки",
+    "filterErrorShort": "Ошибки",
     "noChapters": "Нет глав",
     "noResults": "Нет результатов",
     "dragFileOrClick": "Перетащите файл<br />(.txt, .epub, .fb2, .csv)<br />или нажмите",
@@ -494,13 +499,28 @@
     "unpublishError": "Не удалось снять с публикации",
     "publishError": "Не удалось опубликовать",
     "publishRequiresChapters": "Добавьте хотя бы одну главу перед публикацией.",
+    "entitySectionTitle": "Автор, Переводчик, Теги",
+    "author": "Автор",
+    "translator": "Переводчик",
+    "tags": "Теги",
+    "selectAuthor": "Выбрать автора",
+    "selectTranslator": "Выбрать переводчика",
+    "addTags": "Добавить теги",
+    "removeAuthor": "Удалить автора",
+    "removeTranslator": "Удалить переводчика",
     "publishModalTitle": "Опубликовать в каталоге",
     "publishModalHint": "Укажите название и описание для карточки в каталоге. Данные берутся из проекта, их можно изменить.",
     "publishTitleLabel": "Название в каталоге",
     "publishDescriptionLabel": "Краткое описание",
     "publishDescriptionPlaceholder": "Описание произведения для карточки в каталоге",
     "publishAuthorLabel": "Автор книги",
-    "publishTranslatorLabel": "Переводчик (отображается в каталоге)"
+    "publishTranslatorLabel": "Переводчик (отображается в каталоге)",
+    "publishAuthorNotSelected": "Не выбрано",
+    "publishTranslatorNotSelected": "Не выбрано",
+    "publishSelectAuthor": "Выбрать",
+    "publishSelectTranslator": "Выбрать",
+    "publishChangeAuthor": "Изменить",
+    "publishChangeTranslator": "Изменить"
   },
   "tokenUsage": {
     "loading": "Загрузка...",
@@ -627,8 +647,52 @@
   "nav": {
     "catalog": "Каталог",
     "projects": "Проекты",
+    "admin": "Админка",
     "projectsTitle": "Мои проекты",
     "openProfile": "Открыть профиль"
+  },
+  "entityPicker": {
+    "titleAuthor": "Выбрать автора",
+    "titleTranslator": "Выбрать переводчика",
+    "titleTags": "Выбрать теги",
+    "loading": "Загрузка...",
+    "showAll": "Показать все",
+    "empty": "Пока нет сущностей.",
+    "confirm": "Готово"
+  },
+  "admin": {
+    "title": "Админ-сущности",
+    "subtitle": "Создание общедоступных тегов, авторов и переводчиков.",
+    "deniedTitle": "Требуется доступ администратора",
+    "deniedMessage": "У вас недостаточно прав для открытия этого раздела.",
+    "kinds": {
+      "tag": "Тег",
+      "author": "Автор",
+      "translator": "Переводчик"
+    },
+    "form": {
+      "kind": "Тип сущности",
+      "name": "Название",
+      "namePlaceholder": "Введите название",
+      "description": "Описание",
+      "descriptionPlaceholder": "Описание (необязательно)",
+      "photo": "Фотография",
+      "photoHint": "Нажмите или перетащите изображение",
+      "removePhoto": "Удалить фото",
+      "submit": "Создать сущность"
+    },
+    "list": {
+      "title": "Недавно созданные",
+      "empty": "Сущностей пока нет."
+    },
+    "messages": {
+      "created": "Сущность успешно создана."
+    },
+    "errors": {
+      "nameRequired": "Название обязательно.",
+      "forbidden": "Создавать сущности может только администратор.",
+      "createFailed": "Не удалось создать сущность."
+    }
   },
   "cabinet": {
     "title": "Мои проекты",
