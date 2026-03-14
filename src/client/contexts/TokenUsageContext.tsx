@@ -6,7 +6,11 @@
 import { createContext } from 'preact';
 import { useContext, useState, useCallback, useEffect } from 'preact/hooks';
 import { api } from '../api/client';
-import { authService } from '../services/authService';
+import {
+  AUTH_CHANGED_EVENT,
+  authService,
+  type AuthChangedDetail,
+} from '../services/authService';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import type { TokenUsage } from '../types';
 
@@ -126,6 +130,24 @@ export function TokenUsageProvider({ children }: { children: preact.ComponentChi
     return () => {
       stopInterval();
       document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [refresh, shouldPoll]);
+
+  useEffect(() => {
+    const handleAuthChanged = (e: CustomEvent<AuthChangedDetail>) => {
+      if (!e.detail.authenticated) {
+        setUsage(null);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+      if (shouldPoll && isTokenUsageRelevant(window.location.pathname)) {
+        refresh();
+      }
+    };
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
+    return () => {
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
     };
   }, [refresh, shouldPoll]);
 

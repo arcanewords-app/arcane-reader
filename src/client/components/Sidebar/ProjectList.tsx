@@ -2,8 +2,9 @@ import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../../api/client';
 import type { ProjectListItem } from '../../types';
-import { Button, Card, Modal, Input } from '../ui';
-import { getProjectTypeIcon, getProjectTypeColor } from '../../utils/project-type';
+import { projectsCache, loadProjects as loadProjectsStore } from '../../store/projects';
+import { Button, Card, Modal, Input, Icon } from '../ui';
+import { getProjectTypeColor } from '../../utils/project-type';
 import './ProjectList.css';
 
 interface ProjectListProps {
@@ -20,16 +21,22 @@ export function ProjectList({
   refreshTrigger,
 }: ProjectListProps) {
   const { t } = useTranslation();
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const getProjectTypeMaterialIcon = (projectType: string) => {
+    if (projectType === 'epub') return 'menu_book';
+    if (projectType === 'fb2') return 'auto_stories';
+    if (projectType === 'csv') return 'table_chart';
+    if (projectType === 'txt') return 'description';
+    return 'article';
+  };
+
   const loadProjects = async () => {
     try {
-      const data = await api.getProjects();
-      setProjects(data);
+      await loadProjectsStore();
     } catch (error) {
       // Ignore 401 errors - they are handled globally and will show login page
       if (error instanceof ApiError && error.status === 401) {
@@ -89,10 +96,11 @@ export function ProjectList({
     t('project.chapterFew'),
     t('project.chapterMany'),
   ];
+  const projects = projectsCache.value as ProjectListItem[];
 
   return (
     <>
-      <Card title={`📁 ${t('project.projects')}`}>
+      <Card title={t('project.projects')}>
         <div class="project-list">
           {loading ? (
             <div style={{ textAlign: 'center', padding: '1rem' }}>
@@ -105,7 +113,7 @@ export function ProjectList({
           ) : (
             projects.map((project) => {
               const projectType = project.type || 'text';
-              const typeIcon = getProjectTypeIcon(projectType);
+              const typeIcon = getProjectTypeMaterialIcon(projectType);
               const typeColor = getProjectTypeColor(projectType);
 
               return (
@@ -126,7 +134,7 @@ export function ProjectList({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem' }}>{typeIcon}</span>
+                    <Icon name={typeIcon} size="sm" />
                     <div class="project-name">{project.name}</div>
                   </div>
                   <div class="project-meta">
@@ -144,14 +152,14 @@ export function ProjectList({
           style={{ marginTop: '1rem' }}
           onClick={() => setShowModal(true)}
         >
-          ＋ {t('project.newProject')}
+          <Icon name="add" size="sm" /> {t('project.newProject')}
         </Button>
       </Card>
 
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={`📁 ${t('project.newProjectTitle')}`}
+        title={t('project.newProjectTitle')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowModal(false)}>

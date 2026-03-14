@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { useTranslation, Trans } from 'react-i18next';
 import { route } from 'preact-router';
-import { Button, Input } from '../ui';
+import { Button, Input, Icon } from '../ui';
 import { authService } from '../../services/authService';
 import { trackEvent } from '../../utils/analytics';
 import type { AuthUser } from '../../types';
@@ -70,7 +70,7 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
             fontWeight: 'bold',
           }}
         >
-          ✓ {t('auth.registrationSuccess')}
+          <Icon name="check_circle" size="sm" /> {t('auth.registrationSuccess')}
         </div>
         <p
           style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.6' }}
@@ -162,14 +162,18 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
                   e.preventDefault();
                   route('/privacy');
                 }}
-              />,
+              >
+                {t('info.privacy')}
+              </a>,
               <a
                 href="/terms"
                 onClick={(e) => {
                   e.preventDefault();
                   route('/terms');
                 }}
-              />,
+              >
+                {t('info.terms')}
+              </a>,
             ]}
           />
         </span>

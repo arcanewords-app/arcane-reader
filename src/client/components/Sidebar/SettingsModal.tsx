@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Project, ProjectSettings, TextBlockType, CustomInstructions } from '../../types';
-import { Modal, Button } from '../ui';
+import { Modal, Button, Icon } from '../ui';
 import { api } from '../../api/client';
 import {
   DEFAULT_TEXT_BLOCK_TYPES,
@@ -188,7 +188,7 @@ export function SettingsModal({
   }, [isOpen, project.id, customInstructions.translation, customInstructions.editing]);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`⚙️ ${t('settings.title')}`} size="large">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('settings.title')} size="large">
       <div class="settings-modal">
         {/* Original Reading Mode Toggle */}
         <div
@@ -203,7 +203,7 @@ export function SettingsModal({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                📖 {t('settings.originalReadingMode')}
+                {t('settings.originalReadingMode')}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>
                 {isOriginalReadingMode
@@ -235,7 +235,7 @@ export function SettingsModal({
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
-              📚 {t('settings.glossarySectionTitle')}
+              {t('settings.glossarySectionTitle')}
             </div>
             <label
               style={{
@@ -320,7 +320,7 @@ export function SettingsModal({
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
-              📦 Text Blocks & Custom Instructions
+              Text Blocks & Custom Instructions
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.75rem' }}>
               Special formatting (system messages, notes, letters) and extra rules for
@@ -411,7 +411,8 @@ export function SettingsModal({
                 onClick={() => setShowFormatHelp(!showFormatHelp)}
                 style={{ marginTop: '0.75rem' }}
               >
-                {showFormatHelp ? '▼' : '▶'} Формат для интеграции
+                {showFormatHelp ? t('common.close') : t('chapterList.viewQueue', 'View')}{' '}
+                Формат для интеграции
               </button>
               {showFormatHelp && (
                 <div class="text-blocks-format-content">
@@ -528,13 +529,12 @@ export function SettingsModal({
         <div class="settings-panel">
           <div class="setting-group setting-group-unified">
             <label class="setting-label">
-              🤖 {t('settings.modelsByStage')} · 🎨{' '}
-              {t('settings.creativityByStage', 'Креативность')}
+              {t('settings.modelsByStage')} · {t('settings.creativityByStage', 'Креативность')}
             </label>
             <div class="stage-rows">
               {/* Analysis - always visible */}
               <div class="stage-row">
-                <span class="stage-row-label">🔍 {t('settings.analysisStage')}</span>
+                <span class="stage-row-label">{t('settings.analysisStage')}</span>
                 <select
                   class="setting-select stage-row-select"
                   value={getStageModel('analysis')}
@@ -599,7 +599,7 @@ export function SettingsModal({
               {!isOriginalReadingMode && (
                 <>
                   <div class="stage-row">
-                    <span class="stage-row-label">🔮 {t('settings.translationStage')}</span>
+                    <span class="stage-row-label">{t('settings.translationStage')}</span>
                     <select
                       class="setting-select stage-row-select"
                       value={getStageModel('translation')}
@@ -660,7 +660,7 @@ export function SettingsModal({
                     </div>
                   </div>
                   <div class="stage-row">
-                    <span class="stage-row-label">✨ {t('settings.editingStage')}</span>
+                    <span class="stage-row-label">{t('settings.editingStage')}</span>
                     <select
                       class="setting-select stage-row-select"
                       value={getStageModel('editing')}
@@ -735,26 +735,36 @@ export function SettingsModal({
         {/* Stages summary: which models are used per stage (read-only reminder) */}
         {!isOriginalReadingMode && (
           <div class="stages-panel">
-            <div class="stages-title">⚙️ {t('settings.stageModelsTitle', 'Модели по стадиям')}</div>
+            <div class="stages-title">{t('settings.stageModelsTitle', 'Модели по стадиям')}</div>
             <div class="stages-grid" style={{ pointerEvents: 'none', opacity: 0.9 }}>
               <div class="stage-toggle active">
-                <span class="stage-icon">🔍</span>
+                <span class="stage-icon">
+                  <Icon name="manage_search" size="sm" />
+                </span>
                 <span class="stage-name">{t('settings.stageAnalysis')}</span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                   {getStageModel('analysis')}
                 </span>
               </div>
-              <span class="stage-arrow">→</span>
+              <span class="stage-arrow">
+                <Icon name="chevron_right" size="sm" />
+              </span>
               <div class="stage-toggle active">
-                <span class="stage-icon">🔮</span>
+                <span class="stage-icon">
+                  <Icon name="translate" size="sm" />
+                </span>
                 <span class="stage-name">{t('settings.stageTranslation')}</span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                   {getStageModel('translation')}
                 </span>
               </div>
-              <span class="stage-arrow">→</span>
+              <span class="stage-arrow">
+                <Icon name="chevron_right" size="sm" />
+              </span>
               <div class="stage-toggle active">
-                <span class="stage-icon">✨</span>
+                <span class="stage-icon">
+                  <Icon name="edit" size="sm" />
+                </span>
                 <span class="stage-name">{t('settings.stageEditing')}</span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                   {getStageModel('editing')}
@@ -771,14 +781,14 @@ export function SettingsModal({
         )}
         {isOriginalReadingMode && (
           <div class="stages-panel">
-            <div class="stages-title">⚙️ {t('settings.stagesTitle')}</div>
+            <div class="stages-title">{t('settings.stagesTitle')}</div>
             <span class="setting-hint" style={{ display: 'block', marginTop: '0.5rem' }}>
               {t('settings.stagesOriginalOnly')}
             </span>
           </div>
         )}
 
-        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+        <div class="settings-modal-footer">
           <Button onClick={onClose}>{t('common.close')}</Button>
         </div>
       </div>

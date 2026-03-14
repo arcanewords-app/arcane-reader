@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { GlossaryEntry, GlossaryEntryType } from '../../types';
-import { Modal, Button, Input, Select } from '../ui';
+import { Modal, Button, Input, Select, Icon } from '../ui';
 import { api } from '../../api/client';
 import './GlossaryModal.css';
 
@@ -28,9 +28,9 @@ interface GlossaryModalProps {
 }
 
 const typeIcons: Record<GlossaryEntryType, string> = {
-  character: '👤',
-  location: '📍',
-  term: '📖',
+  character: 'person',
+  location: 'place',
+  term: 'menu_book',
 };
 
 export function GlossaryModal({
@@ -207,10 +207,6 @@ export function GlossaryModal({
     setSelectedIds(new Set(filteredEntries.map((e) => e.id)));
   };
 
-  const clearSelection = () => {
-    setSelectedIds(new Set());
-  };
-
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(t('glossary.deleteSelectedConfirm', { count: selectedIds.size }))) return;
@@ -317,7 +313,7 @@ export function GlossaryModal({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={`📝 ${t('glossary.title')}`}
+        title={t('glossary.title')}
         size="large"
         footer={
           <>
@@ -345,7 +341,7 @@ export function GlossaryModal({
                   disabled={selectedIds.size === 0}
                   loading={bulkDeleting}
                 >
-                  🗑️ {t('glossary.deleteSelected', { count: selectedIds.size })}
+                  {t('glossary.deleteSelected', { count: selectedIds.size })}
                 </Button>
                 <Button
                   variant="secondary"
@@ -353,7 +349,7 @@ export function GlossaryModal({
                   disabled={selectedIds.size === 0}
                   loading={bulkMarking}
                 >
-                  ✓ {t('glossary.markReviewed', { count: selectedIds.size })}
+                  <Icon name="check" size="sm" /> {t('glossary.markReviewed', { count: selectedIds.size })}
                 </Button>
               </>
             ) : (
@@ -366,7 +362,7 @@ export function GlossaryModal({
                   onClick={() => setSelectMode(true)}
                   disabled={entries.length === 0}
                 >
-                  ☑️ {t('glossary.selectMode')}
+                  {t('glossary.selectMode')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -376,9 +372,11 @@ export function GlossaryModal({
                 >
                   {loadingMergeSuggestions
                     ? t('glossary.suggestMergesLoading')
-                    : `🔀 ${t('glossary.suggestMerges')}`}
+                    : t('glossary.suggestMerges')}
                 </Button>
-                <Button onClick={() => setShowAddModal(true)}>＋ {t('glossary.addEntry')}</Button>
+                <Button onClick={() => setShowAddModal(true)}>
+                  <Icon name="add" size="sm" /> {t('glossary.addEntry')}
+                </Button>
               </>
             )}
           </>
@@ -389,7 +387,7 @@ export function GlossaryModal({
             <input
               type="text"
               class="form-input"
-              placeholder={`🔍 ${t('glossary.searchPlaceholder')}`}
+              placeholder={t('glossary.searchPlaceholder')}
               value={search}
               onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
             />
@@ -413,10 +411,10 @@ export function GlossaryModal({
                 {f === 'all'
                   ? t('glossary.all')
                   : f === 'noDescription'
-                    ? `📝 ${t('glossary.filterNoDescription')}`
+                    ? t('glossary.filterNoDescription')
                     : f === 'autoDetected'
-                      ? `🤖 ${t('glossary.filterAutoDetected')}`
-                      : `${typeIcons[f]} ${typeLabels[f]}`}
+                      ? t('glossary.filterAutoDetected')
+                      : typeLabels[f]}
                 <span>{counts[f]}</span>
               </button>
             ))}
@@ -442,7 +440,7 @@ export function GlossaryModal({
                 onClick={() => setViewMode('cards')}
                 title={t('glossary.viewCards')}
               >
-                ⊞
+                <Icon name="grid_view" size="sm" />
               </button>
               <button
                 type="button"
@@ -450,7 +448,7 @@ export function GlossaryModal({
                 onClick={() => setViewMode('list')}
                 title={t('glossary.viewList')}
               >
-                ≡
+                <Icon name="view_list" size="sm" />
               </button>
             </div>
           </div>
@@ -459,7 +457,7 @@ export function GlossaryModal({
         <div class={`glossary-grid ${viewMode === 'list' ? 'glossary-grid-list' : ''}`}>
           {filteredEntries.length === 0 ? (
             <div class="glossary-empty">
-              <div class="glossary-empty-icon">📚</div>
+              <div class="glossary-empty-icon">GL</div>
               <p>{entries.length === 0 ? t('glossary.empty') : t('glossary.noResults')}</p>
             </div>
           ) : (
@@ -497,7 +495,7 @@ export function GlossaryModal({
                   }}
                 >
                   {selectMode && (
-                    <div class="glossary-card-checkbox" onClick={(e) => e.stopPropagation()}>
+                    <div class="glossary-card-checkbox">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -510,7 +508,9 @@ export function GlossaryModal({
                     {firstImage ? (
                       <img src={firstImage} alt={entry.translated} class="glossary-card-image" />
                     ) : (
-                      <div class="glossary-card-placeholder">{typeIcons[entry.type]}</div>
+                      <div class="glossary-card-placeholder">
+                        <Icon name={typeIcons[entry.type]} />
+                      </div>
                     )}
                     <div class="glossary-card-header-content">
                       <div class="glossary-card-names">
@@ -571,7 +571,7 @@ export function GlossaryModal({
                               entry.mentionedInChapters.join(', ')
                             }
                           >
-                            📑 {entry.mentionedInChapters.length}
+                            {entry.mentionedInChapters.length}
                           </span>
                         )}
                       </div>
@@ -674,7 +674,7 @@ export function GlossaryModal({
                     }}
                     title={t('glossary.deleteEntryTitle')}
                   >
-                    🗑️
+                    <Icon name="delete" size="sm" />
                   </button>
                 </div>
               );
@@ -765,7 +765,7 @@ export function GlossaryModal({
                                   class="glossary-merge-entry-card-icon"
                                   title={typeLabels[entry.type]}
                                 >
-                                  {typeIcons[entry.type]}
+                                  <Icon name={typeIcons[entry.type]} size="sm" />
                                 </span>
                                 <div class="glossary-merge-entry-card-names">
                                   <span class="glossary-merge-entry-original">
@@ -787,7 +787,7 @@ export function GlossaryModal({
                               {entry.mentionedInChapters &&
                                 entry.mentionedInChapters.length > 0 && (
                                   <div class="glossary-merge-entry-chapters">
-                                    📖 {entry.mentionedInChapters.length} ch.
+                                    {entry.mentionedInChapters.length} ch.
                                   </div>
                                 )}
                             </div>
@@ -808,7 +808,7 @@ export function GlossaryModal({
                                 class="glossary-merge-entry-card-icon"
                                 title={typeLabels[keepEntry.type]}
                               >
-                                {typeIcons[keepEntry.type]}
+                                <Icon name={typeIcons[keepEntry.type]} size="sm" />
                               </span>
                               <div class="glossary-merge-entry-card-names">
                                 <span class="glossary-merge-entry-original">
@@ -893,7 +893,6 @@ export function GlossaryModal({
         <div
           class="glossary-context-menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
         >
           <button
             type="button"
@@ -903,7 +902,7 @@ export function GlossaryModal({
               setContextMenu(null);
             }}
           >
-            ✏️ {t('glossary.contextEdit')}
+            {t('glossary.contextEdit')}
           </button>
           {contextMenu.entry.autoDetected && (
             <button
@@ -917,7 +916,7 @@ export function GlossaryModal({
                 setContextMenu(null);
               }}
             >
-              ✓ {t('glossary.contextMarkReviewed')}
+              <Icon name="check" size="sm" /> {t('glossary.contextMarkReviewed')}
             </button>
           )}
           <button
@@ -928,7 +927,7 @@ export function GlossaryModal({
               setContextMenu(null);
             }}
           >
-            🗑️ {t('glossary.contextDelete')}
+            {t('glossary.contextDelete')}
           </button>
         </div>
       )}
@@ -937,7 +936,7 @@ export function GlossaryModal({
       <Modal
         isOpen={deleteConfirmEntry !== null}
         onClose={() => setDeleteConfirmEntry(null)}
-        title={`🗑️ ${t('glossary.deleteEntryConfirmTitle')}`}
+        title={t('glossary.deleteEntryConfirmTitle')}
         className="nested"
         footer={
           <>
@@ -961,7 +960,7 @@ export function GlossaryModal({
       <Modal
         isOpen={pendingChapter !== null}
         onClose={() => setPendingChapter(null)}
-        title={`📖 ${t('glossary.goToChapterTitle')}`}
+        title={t('glossary.goToChapterTitle')}
         className="nested glossary-go-to-chapter-confirm-modal"
         footer={
           pendingChapter && (
@@ -1043,7 +1042,7 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`📝 ${t('glossary.newEntryTitle')}`}
+      title={t('glossary.newEntryTitle')}
       className="nested"
       footer={
         <>
@@ -1061,9 +1060,9 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
         value={type}
         onChange={(e) => setType((e.target as HTMLSelectElement).value as GlossaryEntryType)}
         options={[
-          { value: 'character', label: `👤 ${t('glossary.characters')}` },
-          { value: 'location', label: `📍 ${t('glossary.locations')}` },
-          { value: 'term', label: `📖 ${t('glossary.terms')}` },
+          { value: 'character', label: t('glossary.characters') },
+          { value: 'location', label: t('glossary.locations') },
+          { value: 'term', label: t('glossary.terms') },
         ]}
       />
       <Input
@@ -1079,7 +1078,7 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
         onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
       />
       <div class="form-group">
-        <label class="form-label">📝 {t('glossary.descriptionOptionalLabel')}</label>
+        <label class="form-label">{t('glossary.descriptionOptionalLabel')}</label>
         <textarea
           class="form-input"
           style={{
@@ -1242,7 +1241,7 @@ function EditGlossaryModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`✏️ ${t('glossary.editEntryTitle')}`}
+      title={t('glossary.editEntryTitle')}
       className="nested"
       footer={
         <>
@@ -1251,13 +1250,13 @@ function EditGlossaryModal({
             onClick={() => onDelete(entry)}
             style={{ marginRight: 'auto' }}
           >
-            🗑️ {t('common.delete')}
+            {t('common.delete')}
           </Button>
           <Button variant="secondary" onClick={onClose}>
             {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} loading={saving}>
-            💾 {t('common.save')}
+            {t('common.save')}
           </Button>
         </>
       }
@@ -1267,9 +1266,9 @@ function EditGlossaryModal({
         value={type}
         onChange={(e) => setType((e.target as HTMLSelectElement).value as GlossaryEntryType)}
         options={[
-          { value: 'character', label: `👤 ${t('glossary.characters')}` },
-          { value: 'location', label: `📍 ${t('glossary.locations')}` },
-          { value: 'term', label: `📖 ${t('glossary.terms')}` },
+          { value: 'character', label: t('glossary.characters') },
+          { value: 'location', label: t('glossary.locations') },
+          { value: 'term', label: t('glossary.terms') },
         ]}
       />
       {type === 'character' && (
@@ -1296,7 +1295,7 @@ function EditGlossaryModal({
         onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
       />
       <div class="form-group">
-        <label class="form-label">📝 {t('glossary.description')}</label>
+        <label class="form-label">{t('glossary.description')}</label>
         <textarea
           class="form-input"
           style={{
@@ -1331,7 +1330,7 @@ function EditGlossaryModal({
       {/* First Appearance Info */}
       {entry.firstAppearance && (
         <div class="form-group">
-          <label class="form-label">📖 {t('glossary.firstMention')}</label>
+          <label class="form-label">{t('glossary.firstMention')}</label>
           <div
             style={{
               padding: '0.75rem',
@@ -1354,7 +1353,7 @@ function EditGlossaryModal({
       {/* Mentioned in chapters */}
       {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
         <div class="form-group">
-          <label class="form-label">📑 {t('glossary.chaptersMentionedLabel')}</label>
+          <label class="form-label">{t('glossary.chaptersMentionedLabel')}</label>
           <div class="edit-modal-chapters-block">
             {chapters?.length && (onRequestNavigateToChapter || onNavigateToChapter)
               ? entry.mentionedInChapters.map((num) => {
@@ -1383,7 +1382,7 @@ function EditGlossaryModal({
 
       {/* Image Gallery Section */}
       <div class="form-group">
-        <label class="form-label">🖼️ {t('glossary.imageGallery')}</label>
+        <label class="form-label">{t('glossary.imageGallery')}</label>
         <div class="image-gallery-section">
           {currentImageUrls.length > 0 && (
             <div class="image-gallery-grid">
@@ -1418,7 +1417,11 @@ function EditGlossaryModal({
                     disabled={deletingImageIndex === index}
                     title={t('glossary.deleteImageTitle')}
                   >
-                    {deletingImageIndex === index ? '⏳' : '🗑️'}
+                    {deletingImageIndex === index ? (
+                      <Icon name="schedule" size="sm" />
+                    ) : (
+                      <Icon name="delete" size="sm" />
+                    )}
                   </button>
                 </div>
               ))}
@@ -1433,8 +1436,8 @@ function EditGlossaryModal({
             }}
           >
             {uploadingImage
-              ? `⏳ ${t('glossary.uploadImageLoading')}`
-              : `📤 ${t('glossary.addImageButton')}`}
+              ? `... ${t('glossary.uploadImageLoading')}`
+              : t('glossary.addImageButton')}
             <input
               type="file"
               accept="image/*"

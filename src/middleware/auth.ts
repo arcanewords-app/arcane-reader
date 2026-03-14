@@ -2,16 +2,47 @@ import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { parseRole, isAtLeastRole } from '../types/roles.js';
 import type { UserRole } from '../types/roles.js';
+import { CACHE_PREFIX, CACHE_TTL } from '../shared/cacheContract.js';
+import { buildRedisKey, redisGetJson, redisSetJson } from '../services/redisCache.js';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 
 const DEFAULT_ROLE = 'user' as const;
+const profileMemoryCache = new Map<
+  string,
+  { value: { role: UserRole; avatarUrl: string | null }; ts: number }
+>();
+
+function getCachedProfile(userId: string): { role: UserRole; avatarUrl: string | null } | null {
+  const hit = profileMemoryCache.get(userId);
+  if (!hit) return null;
+  const maxAgeMs = CACHE_TTL.redisAuthProfileSec * 1000;
+  if (Date.now() - hit.ts > maxAgeMs) {
+    profileMemoryCache.delete(userId);
+    return null;
+  }
+  return hit.value;
+}
+
+function setCachedProfile(userId: string, value: { role: UserRole; avatarUrl: string | null }): void {
+  profileMemoryCache.set(userId, { value, ts: Date.now() });
+}
 
 async function getProfileFromToken(
   token: string,
   userId: string
 ): Promise<{ role: UserRole; avatarUrl: string | null }> {
+  const memory = getCachedProfile(userId);
+  if (memory) return memory;
+
+  const redisKey = buildRedisKey(CACHE_PREFIX.authProfile, userId);
+  const redisProfile = await redisGetJson<{ role: UserRole; avatarUrl: string | null }>(redisKey);
+  if (redisProfile) {
+    setCachedProfile(userId, redisProfile);
+    return redisProfile;
+  }
+
   const supabaseWithToken = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
@@ -21,10 +52,13 @@ async function getProfileFromToken(
     .eq('id', userId)
     .single();
   const role = parseRole(data?.role);
-  return {
+  const profile = {
     role: role === 'guest' ? DEFAULT_ROLE : role,
     avatarUrl: data?.avatar_url ?? null,
   };
+  setCachedProfile(userId, profile);
+  await redisSetJson(redisKey, profile, CACHE_TTL.redisAuthProfileSec);
+  return profile;
 }
 
 /**

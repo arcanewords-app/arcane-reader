@@ -2,7 +2,7 @@ import { useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { ProjectListItem } from '../../types';
 import { ProjectCard } from './ProjectCard';
-import { LoadingSpinner } from '../ui';
+import { LoadingSpinner, Icon } from '../ui';
 import './ProjectGrid.css';
 
 interface ProjectGridProps {
@@ -60,13 +60,17 @@ export function ProjectGrid({
       <div class="project-grid-empty">
         {searchQuery || filterType !== 'all' ? (
           <>
-            <div class="project-grid-empty-icon">🔍</div>
+            <div class="project-grid-empty-icon">
+              <Icon name="search" />
+            </div>
             <div class="project-grid-empty-text">{t('projectGrid.noProjectsFound')}</div>
             <div class="project-grid-empty-hint">{t('projectGrid.tryChangeSearch')}</div>
           </>
         ) : (
           <>
-            <div class="project-grid-empty-icon">📚</div>
+            <div class="project-grid-empty-icon">
+              <Icon name="menu_book" />
+            </div>
             <div class="project-grid-empty-text">{t('project.noProjects')}</div>
             <div class="project-grid-empty-hint">{t('projectGrid.createFirstProject')}</div>
           </>

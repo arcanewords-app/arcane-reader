@@ -11,6 +11,9 @@ alwaysApply: false
 - Preact (functional). Use `class` not `className`.
 - Import CSS alongside component: `import './Component.css'`.
 - UI primitives: `@src/client/components/ui/` (Button, Modal, Input, Badge, etc.).
+- State/query patterns: prefer existing `@preact/signals` stores and shared API client cache before adding new libs.
+- UI design standards: follow `@.cursor/rules/design-system.mdc` for tokens, states, accessibility, and i18n UI copy.
+- Icon migration reference: `@docs/ICONS_PLAN.md`.
 
 ## Hooks
 
@@ -25,3 +28,14 @@ alwaysApply: false
 ## Routing
 
 - `preact-router`. Routes in `@src/client/AppRouter.tsx`.
+- If client routes/navigation change, sync `@docs/ROUTES.md` in the same change.
+
+## UI Change Checklist (Required for `src/client/**`)
+
+- MUST reuse existing UI primitives before adding new visual patterns.
+- MUST use tokens from `@src/client/styles/base/variables.css` instead of ad-hoc colors/sizing.
+- MUST ensure interactive states exist: hover, focus-visible, disabled, loading (when applicable).
+- MUST keep user-facing UI strings in i18n keys (`en/ru/pl`), not hardcoded literals.
+- MUST verify changed UI for mobile/tablet/desktop viewports.
+- MUST preserve minimum 44px touch target for mobile/tablet interactive controls.
+- SHOULD avoid inline styles for reusable visual patterns.

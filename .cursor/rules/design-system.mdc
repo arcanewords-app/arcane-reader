@@ -1,0 +1,116 @@
+---
+description: Unified UI design system standards for client styles and components
+globs: src/client/**
+alwaysApply: false
+---
+
+# Design System Rules
+
+## Source Of Truth
+
+- MUST use tokens from `@src/client/styles/base/variables.css` for colors, typography, spacing, radius, and timing.
+- MUST prefer UI primitives from `@src/client/components/ui/` before introducing feature-level variants.
+- SHOULD align visual behavior with proven patterns from:
+  - `@src/client/pages/PublicationPage.tsx` and `@src/client/pages/PublicationPage.css`
+  - `@src/client/components/ReadingMode/index.tsx` and `@src/client/components/ReadingMode/ReadingMode.css`
+
+## Design Tokens
+
+- MUST avoid new hardcoded color values (`#...`, `rgb(...)`) in component CSS when an existing token can be used.
+- MUST avoid ad-hoc spacing and radius values when token equivalents exist.
+- MUST use responsive tokens and layout variables from `@src/client/styles/base/variables.css` before adding new breakpoint constants.
+- SHOULD keep shadow intensity and border contrast consistent with `Button.css`, `Modal.css`, and publication card patterns.
+- SHOULD prefer semantic tokens (`--text-secondary`, `--bg-card`, `--border-hover`) over one-off visual tweaks.
+
+## Typography
+
+- MUST use the existing type scale from `variables.css` (`--text-*`) for body, labels, helper text, and headings.
+- MUST preserve clear hierarchy: primary headings (`--text-primary` + stronger weight), supportive metadata (`--text-dim`).
+- SHOULD use readable line-height for text-heavy blocks (especially reader and modal content).
+- SHOULD avoid introducing non-system font families for UI controls.
+
+## Buttons
+
+- MUST use `Button` from `@src/client/components/ui/Button.tsx` for generic actions.
+- MUST preserve accessible targets (minimum `44x44` for touchable controls, except intentionally compact desktop-only controls).
+- MUST support consistent states: default, hover, focus-visible, disabled, loading.
+- SHOULD use:
+  - `primary` for main CTA on a view.
+  - `secondary` for neutral/less prominent actions.
+  - dedicated destructive styles only for irreversible actions.
+- SHOULD avoid inline-styled button visuals in feature components.
+
+## Back Navigation Pattern
+
+- MUST keep back actions visually consistent across pages and reading contexts.
+- SHOULD use a shared back button style/pattern (arrow + short localized label), with visible focus state.
+- SHOULD avoid creating new one-off back button classes unless there is a strong layout constraint.
+
+## Modals
+
+- MUST use `Modal` from `@src/client/components/ui/Modal.tsx` for standard overlays.
+- MUST keep consistent structure: header, content/body, action footer.
+- MUST support close behavior through Escape and backdrop click unless flow explicitly blocks closing.
+- MUST keep keyboard and focus-visible access usable for close/action controls.
+- SHOULD keep modal sizing and spacing aligned with existing modal breakpoints and token spacing.
+
+## Icons
+
+- MUST keep icon usage consistent in size and alignment within the same control family.
+- SHOULD prefer one visual style per area (same perceived weight and interaction affordance).
+- MUST provide accessible names (`aria-label`/title/context) for icon-only controls.
+- SHOULD avoid mixing many icon metaphors in one toolbar.
+- MUST use Google Material Symbols via `@src/client/components/ui/Icon.tsx` for control icons.
+- MUST NOT introduce emoji as control icons when an equivalent Material Symbol exists.
+- MAY use emoji only for explicitly decorative, non-interactive content states.
+- MUST track icon mapping and allowed decorative exceptions in `@docs/ICONS_PLAN.md`.
+
+## Cards And Lists
+
+- MUST keep card/list behavior consistent: border + subtle elevation + clear hover/active/read states.
+- SHOULD reuse existing publication/project card patterns rather than creating new card systems.
+- MUST keep list item actions aligned and preserve readable truncation behavior for long titles.
+
+## Forms
+
+- MUST use shared `Input`/`Select`/`Slider` primitives where possible.
+- MUST include clear states: default, focus, error, disabled.
+- SHOULD keep labels, helper text, and validation messages visually consistent and localized.
+- SHOULD avoid inline styles for form controls.
+
+## Loading, Empty, Error States
+
+- MUST show deterministic loading state for async content (`LoadingSpinner` or equivalent standard pattern).
+- MUST provide clear empty/error copy with an obvious recovery action when possible.
+- SHOULD keep these states visually calm and consistent with page tone.
+
+## Accessibility And Motion
+
+- MUST preserve keyboard navigation for interactive UI and modal flows.
+- MUST keep visible `:focus-visible` styles on controls.
+- SHOULD maintain WCAG-friendly contrast for text and controls.
+- SHOULD avoid excessive motion; keep transitions short and purpose-driven.
+
+## Responsive (Mobile First)
+
+- MUST design and verify UI in order: mobile -> tablet -> desktop.
+- MUST check each changed screen/component on at least 3 viewport classes (mobile, tablet, desktop).
+- MUST keep touch targets >= 44px for interactive controls on mobile/tablet.
+- MUST avoid horizontal scrolling and clipped actions with long localized strings.
+- SHOULD keep modal, back-button, and toolbar behavior visually consistent on narrow screens.
+- SHOULD keep inline styles only for runtime geometry (for example virtualization or measured offsets).
+
+## i18n UI Copy
+
+- MUST avoid hardcoded UI strings in client components; use `useTranslation()` and locale keys.
+- MUST add new keys to all locale files: `src/client/locales/en.json`, `src/client/locales/ru.json`, `src/client/locales/pl.json`.
+- SHOULD keep CTA labels short and action-oriented.
+
+## Implementation Checklist For UI Changes
+
+- Tokens used (no unnecessary hardcoded colors/sizes).
+- Existing UI primitives reused before custom components.
+- States covered (hover/focus-visible/disabled/loading where applicable).
+- Keyboard + focus-visible verified for interactive controls.
+- i18n keys added for all user-facing text.
+- Responsive verified on mobile/tablet/desktop without layout breaks.

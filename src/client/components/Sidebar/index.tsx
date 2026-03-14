@@ -2,9 +2,9 @@ import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { ChapterList } from './ChapterList';
 import { ProcessChapters } from './ProcessChapters';
-import { Button } from '../ui';
+import { Button, Icon } from '../ui';
 import { route } from 'preact-router';
-import type { Project, ProjectWithChapterList, ProjectSettings } from '../../types';
+import type { Chapter, Project, ProjectWithChapterList, ProjectSettings } from '../../types';
 import { SettingsModal } from './SettingsModal';
 import './Sidebar.css';
 
@@ -13,7 +13,12 @@ interface SidebarProps {
   selectedChapterId: string | null;
   onSelectChapter: (id: string) => void;
   onDeleteChapter?: (id: string) => void;
-  onUploadChapter: (file: File, title: string) => Promise<void>;
+  onUploadChapter: (params: {
+    file: File;
+    title: string;
+    signal?: AbortSignal;
+    onProgress?: (loaded: number, total: number) => void;
+  }) => Promise<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>;
   onOpenGlossary: () => void;
   onChaptersUpdate?: () => void | Promise<void>;
   onProjectUpdate?: (project: Project | ProjectWithChapterList) => void;
@@ -90,7 +95,7 @@ export function Sidebar({
           }}
           className="sidebar-dashboard-link"
         >
-          ← {t('sidebar.allProjects')}
+          <Icon name="arrow_back" size="sm" /> {t('sidebar.allProjects')}
         </Button>
 
         {/* Project name/header */}
@@ -114,7 +119,7 @@ export function Sidebar({
           className="sidebar-settings-link"
           style={{ marginBottom: '0.75rem' }}
         >
-          📄 {t('sidebar.aboutProject')}
+          <Icon name="description" size="sm" /> {t('sidebar.aboutProject')}
         </Button>
 
         {/* Settings Button */}
@@ -124,7 +129,7 @@ export function Sidebar({
           className="sidebar-settings-link"
           style={{ marginBottom: '1rem' }}
         >
-          ⚙️ {t('sidebar.projectSettings')}
+          <Icon name="settings" size="sm" /> {t('sidebar.projectSettings')}
         </Button>
 
         {onRefreshProject && (
@@ -144,7 +149,8 @@ export function Sidebar({
         />
 
         <Button variant="glossary" onClick={onOpenGlossary}>
-          📝 {t('sidebar.glossary')} <span class="glossary-count">{project.glossary.length}</span>
+          <Icon name="menu_book" size="sm" /> {t('sidebar.glossary')}{' '}
+          <span class="glossary-count">{project.glossary.length}</span>
         </Button>
       </aside>
 

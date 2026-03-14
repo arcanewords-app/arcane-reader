@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { SystemStatus, AuthUser } from '../types';
 import { useUserRole } from '../hooks/useUserRole';
-import { Button } from './ui';
+import { Button, Icon } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import { setSavedLocale, type AppLocale } from '../i18n';
@@ -44,10 +44,14 @@ export function Header({
       setIsMobile(window.innerWidth <= 768);
     };
 
-    const checkPath = () => {
-      const path = window.location.pathname;
+    const syncPath = (path: string) => {
       setCurrentPath(path);
       setHasSidebar(path.startsWith('/projects/'));
+    };
+    const checkPath = () => syncPath(window.location.pathname);
+    const handleRouteChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ url?: string }>).detail;
+      syncPath(detail?.url || window.location.pathname);
     };
 
     checkMobile();
@@ -55,12 +59,12 @@ export function Header({
 
     window.addEventListener('resize', checkMobile);
     window.addEventListener('popstate', checkPath);
-    const interval = setInterval(checkPath, 100);
+    window.addEventListener('arcane:route-change', handleRouteChange);
 
     return () => {
       window.removeEventListener('resize', checkMobile);
       window.removeEventListener('popstate', checkPath);
-      clearInterval(interval);
+      window.removeEventListener('arcane:route-change', handleRouteChange);
     };
   }, []);
 
@@ -84,7 +88,7 @@ export function Header({
         {/* Mobile menu button - только на мобильных */}
         {onMenuToggle && isMobile && hasSidebar && (
           <button class="mobile-menu-btn" onClick={onMenuToggle} aria-label={t('header.menuAria')}>
-            ☰
+            <Icon name="menu" />
           </button>
         )}
 
@@ -155,7 +159,7 @@ export function Header({
               title={t('info.menu')}
             >
               <span class="header-info-icon" aria-hidden="true">
-                ⋮
+                <Icon name="more_vert" />
               </span>
             </button>
             {infoOpen && (

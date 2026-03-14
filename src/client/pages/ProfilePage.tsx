@@ -84,7 +84,7 @@ export function ProfilePage() {
     <div class="profile-page">
       <div class="profile-page-header">
         <button type="button" class="profile-page-back" onClick={() => route('/catalog')}>
-          ← {t('common.back')}
+          {t('common.back')}
         </button>
       </div>
       <div class="profile-tabs">

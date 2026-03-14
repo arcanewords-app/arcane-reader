@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { authService } from '../../services/authService';
 import { useTokenUsageContext } from '../../contexts/TokenUsageContext';
+import { Icon } from '../ui';
 import './TokenUsageIndicator.css';
 
 interface TokenUsageIndicatorProps {
@@ -58,7 +59,9 @@ export function TokenUsageIndicator({
     >
       <div class="token-usage-content">
         <div class="token-usage-label">
-          <span class="token-usage-icon">📝</span>
+          <span class="token-usage-icon">
+            <Icon name="toll" size="sm" />
+          </span>
           <span class="token-usage-text">
             {unlimited ? (
               <>
@@ -95,7 +98,9 @@ export function TokenUsageIndicator({
         </div>
       )}
       {!unlimited && usage.warning && (
-        <div class="token-usage-warning-badge">⚠️ {t('tokenUsage.approachingLimit')}</div>
+        <div class="token-usage-warning-badge">
+          <Icon name="warning" size="sm" /> {t('tokenUsage.approachingLimit')}
+        </div>
       )}
     </div>
   );

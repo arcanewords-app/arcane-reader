@@ -1,5 +1,5 @@
 import { Router, route } from 'preact-router';
-import { useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 import { useCookieConsent } from './contexts/CookieConsentContext';
 import { CookieBanner } from './components/CookieBanner/CookieBanner';
 import { initGA, setupRouteChangeListener, trackEvent, trackPageView } from './utils/analytics';
@@ -14,9 +14,10 @@ function CabinetRedirect() {
 }
 import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
-import { authService } from './services/authService';
+import { AUTH_CHANGED_EVENT, authService } from './services/authService';
 import { TokenUsageProvider } from './contexts/TokenUsageContext';
 import { ServiceHealthProvider } from './contexts/ServiceHealthContext';
+import { SystemStatusProvider } from './contexts/SystemStatusContext';
 import { Header } from './components/Header';
 import { ServiceStatusBanner } from './components/ServiceStatusBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
@@ -53,6 +54,18 @@ export function AppRouter() {
   const [hasSidebar, setHasSidebar] = useState(
     typeof window !== 'undefined' && window.location.pathname.startsWith('/projects/')
   );
+
+  const syncAuthState = useCallback(async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      setIsAuthenticated(!!user);
+      setAuthUser(user);
+    } catch (error) {
+      console.error('Auth sync failed:', error);
+      setIsAuthenticated(false);
+      setAuthUser(null);
+    }
+  }, []);
 
   // Sync sidebar state to window for pages to access
   useEffect(() => {
@@ -98,18 +111,8 @@ export function AppRouter() {
 
   // Check authentication on mount (do not auto-open modal for guests — they see public catalog)
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await authService.getCurrentUser();
-        setIsAuthenticated(!!user);
-        setAuthUser(user);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        setIsAuthenticated(false);
-      }
-    };
-    checkAuth();
-  }, []);
+    syncAuthState();
+  }, [syncAuthState]);
 
   // Open AuthModal when URL has ?login=required (e.g. after redirect from /profile or /projects)
   useEffect(() => {
@@ -151,6 +154,36 @@ export function AppRouter() {
       window.removeEventListener('arcane:auth-error', handleAuthError);
     };
   }, []);
+
+  // Keep auth state in sync after login/logout/refresh and across browser tabs.
+  useEffect(() => {
+    const handleAuthChanged = (e: CustomEvent<{ authenticated: boolean; user: AuthUser | null }>) => {
+      setIsAuthenticated(e.detail.authenticated);
+      setAuthUser(e.detail.user);
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.key || !e.key.startsWith('arcane_auth_') && e.key !== 'arcane_user') return;
+      syncAuthState();
+    };
+    const handleFocus = () => {
+      syncAuthState();
+    };
+    const handleVisibility = () => {
+      if (!document.hidden) syncAuthState();
+    };
+
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [syncAuthState]);
 
   // Initialize system status
   useEffect(() => {
@@ -228,19 +261,24 @@ export function AppRouter() {
   };
 
   useEffect(() => {
-    const checkPath = () => {
-      const path = window.location.pathname;
+    const syncByPath = (path: string) => {
       const newHasSidebar = path.startsWith('/projects/');
       setHasSidebar(newHasSidebar);
       if (!newHasSidebar) setSidebarOpen(false);
     };
+    const checkPath = () => syncByPath(window.location.pathname);
+    const handleRouteChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ url?: string }>).detail;
+      syncByPath(detail?.url || window.location.pathname);
+    };
 
     window.addEventListener('popstate', checkPath);
-    const interval = setInterval(checkPath, 100);
+    window.addEventListener('arcane:route-change', handleRouteChange);
+    checkPath();
 
     return () => {
       window.removeEventListener('popstate', checkPath);
-      clearInterval(interval);
+      window.removeEventListener('arcane:route-change', handleRouteChange);
     };
   }, []);
 
@@ -278,6 +316,7 @@ export function AppRouter() {
   return (
     <TokenUsageProvider>
       <ServiceHealthProvider>
+        <SystemStatusProvider value={systemStatus}>
         <div class="app">
           <AuthModal
             isOpen={showAuthModal}
@@ -346,19 +385,21 @@ export function AppRouter() {
               <TermsPage path="/terms" />
               <ProfilePage path="/profile" />
               <CabinetRedirect path="/cabinet" />
-              <AuthorGate path="/projects" component={ProjectsPage} />
               <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
               <PublicationPage path="/p/:publicationId" />
-              <AuthorGate path="/projects/:projectId" component={ProjectPage} />
-              <AuthorGate path="/projects/:projectId/chapters/:chapterId" component={ChapterPage} />
+              {/* More specific /projects/* routes first — preact-router uses first-match */}
               <AuthorGate
                 path="/projects/:projectId/chapters/:chapterId/reading"
                 component={ReadingModePage}
               />
+              <AuthorGate path="/projects/:projectId/chapters/:chapterId" component={ChapterPage} />
               <AuthorGate path="/projects/:projectId/reading" component={ReadingModePage} />
+              <AuthorGate path="/projects/:projectId" component={ProjectPage} />
+              <AuthorGate path="/projects" component={ProjectsPage} />
             </Router>
           </main>
         </div>
+        </SystemStatusProvider>
       </ServiceHealthProvider>
     </TokenUsageProvider>
   );

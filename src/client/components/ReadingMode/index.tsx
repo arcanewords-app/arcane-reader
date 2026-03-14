@@ -10,11 +10,11 @@ import type {
 } from '../../types';
 import { LEGACY_FONT_MAP } from '../../types';
 import { api } from '../../api/client';
-import { authService } from '../../services/authService';
+import { AUTH_CHANGED_EVENT, authService, type AuthChangedDetail } from '../../services/authService';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
-import { Modal, LoadingSpinner } from '../ui';
+import { Modal, LoadingSpinner, Icon } from '../ui';
 import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import './ReadingMode.css';
@@ -148,6 +148,7 @@ export function ReadingMode({
     return { ...defaultReaderSettings, ...raw, fontFamily };
   });
   const [readerSettingsLoaded, setReaderSettingsLoaded] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => authService.isAuthenticated());
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [chapters, setChapters] = useState<ReaderChapter[]>([]);
   const [chapterContentMap, setChapterContentMap] = useState<Record<string, string>>(
@@ -210,13 +211,26 @@ export function ReadingMode({
 
   const currentChapter = chapters[currentChapterIndex];
 
+  useEffect(() => {
+    const handleAuthChanged = (e: CustomEvent<AuthChangedDetail>) => {
+      setIsAuthenticated(e.detail.authenticated);
+      if (!e.detail.authenticated) {
+        setReaderSettingsLoaded(false);
+      }
+    };
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
+    return () => {
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
+    };
+  }, []);
+
   // Determine reading mode (project mode only)
   const isOriginalReadingMode =
     !isPublicationMode && (project?.settings?.originalReadingMode ?? false);
 
   // Load user's saved reader settings when authenticated (user preferences override project/defaults)
   useEffect(() => {
-    if (!authService.isAuthenticated() || readerSettingsLoaded) return;
+    if (!isAuthenticated || readerSettingsLoaded) return;
     let cancelled = false;
     api
       .getUserReaderSettings()
@@ -231,7 +245,7 @@ export function ReadingMode({
     return () => {
       cancelled = true;
     };
-  }, [readerSettingsLoaded]);
+  }, [isAuthenticated, readerSettingsLoaded]);
 
   // Track last synced initialChapterId so we don't reset index on parent re-renders (e.g. readChapterIds update)
   const lastInitialChapterIdRef = useRef<string | undefined>(undefined);
@@ -974,8 +988,7 @@ export function ReadingMode({
   const handleReaderSettingsChange = async (updates: Partial<ReaderSettings>) => {
     const newSettings = { ...readerSettings, ...updates };
     setReaderSettings(newSettings);
-    const isAuth = authService.isAuthenticated();
-    if (isAuth) {
+    if (isAuthenticated) {
       api.updateUserReaderSettings(newSettings).catch(() => {});
     }
     if (!isPublicationMode && project) {
@@ -1035,34 +1048,22 @@ export function ReadingMode({
         data-reader-theme={readerSettings.colorScheme}
       >
         <div class="reading-mode-empty">
-          <div style={{ textAlign: 'center', padding: '3rem' }}>
-            <h2 style={{ marginBottom: '1rem' }}>
+          <div class="reading-mode-empty-content">
+            <h2 class="reading-mode-empty-title">
               {isPublicationMode
                 ? t('readingMode.noChaptersForReading')
                 : isOriginalReadingMode
                   ? t('readingMode.noChaptersForReading')
                   : t('readingMode.noTranslatedChapters')}
             </h2>
-            <p style={{ color: 'var(--reader-text-dim)', marginBottom: '2rem' }}>
+            <p class="reading-mode-empty-description">
               {isPublicationMode
                 ? t('readingMode.noTranslatedChapters')
                 : isOriginalReadingMode
                   ? t('readingMode.noOriginalChaptersForReading')
                   : t('readingMode.needTranslateOneChapter')}
             </p>
-            <button
-              class="reading-mode-exit-btn"
-              onClick={handleExit}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: 'var(--reader-accent)',
-                color: 'var(--reader-accent-text)',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '1rem',
-              }}
-            >
+            <button class="reading-mode-exit-btn reading-mode-empty-back-btn" onClick={handleExit}>
               {isPublicationMode
                 ? t('readingMode.backToPublication')
                 : t('readingMode.backToProject')}
@@ -1101,7 +1102,7 @@ export function ReadingMode({
             onClick={handleExit}
             title={t('readingMode.exitTitle')}
           >
-            ← {t('common.back')}
+              <Icon name="arrow_back" size="sm" /> {t('common.back')}
           </button>
           {!readerSettings.hideChapterHeader && (
             <div class="reading-mode-title">
@@ -1125,7 +1126,7 @@ export function ReadingMode({
               onClick={() => setShowGlossary(true)}
               title={t('sidebar.glossary')}
             >
-              📝
+              <Icon name="dictionary" />
             </button>
           )}
           <button
@@ -1133,21 +1134,21 @@ export function ReadingMode({
             onClick={() => setShowTOC(true)}
             title={t('readingMode.toc')}
           >
-            📑
+            <Icon name="toc" />
           </button>
           <button
             class="reading-mode-header-btn"
             onClick={handleShare}
             title={t('readingMode.shareLink')}
           >
-            🔗
+            <Icon name="share" />
           </button>
           <button
             class="reading-mode-settings-btn"
             onClick={() => setShowSettings(!showSettings)}
             title={t('readingMode.settingsTitle')}
           >
-            ⚙️
+            <Icon name="settings" />
           </button>
         </div>
       </div>
@@ -1174,7 +1175,7 @@ export function ReadingMode({
         <div class="reading-mode-spacer-top" style={{ minHeight: `${headerHeight}px` }} />
         <div class="reading-mode-text">
           {isLoadingContent ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+            <div class="reading-mode-content-loading">
               <LoadingSpinner size="md" text={t('common.loading')} />
             </div>
           ) : displayText ? (
@@ -1197,7 +1198,7 @@ export function ReadingMode({
               ));
             })()
           ) : (
-            <p style={{ color: 'var(--reader-text-dim)', textAlign: 'center' }}>
+            <p class="reading-mode-empty-text">
               {isPublicationMode
                 ? t('readingMode.noTranslatedText')
                 : isOriginalReadingMode
@@ -1216,7 +1217,7 @@ export function ReadingMode({
           disabled={currentChapterIndex === 0}
           title={t('chapter.prevChapter')}
         >
-          ‹
+          <Icon name="chevron_left" />
         </button>
         <button
           class="reading-mode-footer-btn"
@@ -1224,7 +1225,7 @@ export function ReadingMode({
           disabled={currentChapterIndex >= chapters.length - 1}
           title={t('chapter.nextChapter')}
         >
-          ›
+          <Icon name="chevron_right" />
         </button>
       </div>
 
@@ -1253,45 +1254,34 @@ export function ReadingMode({
           setShowShareModal(false);
           setShareCopied(false);
         }}
-        title={`🔗 ${t('readingMode.shareLink')}`}
+        title={t('readingMode.shareLink')}
         footer={
           <button
             class="reading-share-copy-btn"
             onClick={handleCopyShareLink}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: shareCopied ? 'var(--success)' : 'var(--reader-accent)',
-              color: 'var(--reader-accent-text)',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: 600,
-              width: '100%',
-            }}
+            data-copied={shareCopied ? 'true' : 'false'}
           >
-            {shareCopied ? `✓ ${t('readingMode.copied')}!` : `📋 ${t('readingMode.copyLink')}`}
+            {shareCopied ? (
+              <>
+                <Icon name="check" size="sm" /> {t('readingMode.copied')}!
+              </>
+            ) : (
+              <>
+                <Icon name="content_copy" size="sm" /> {t('readingMode.copyLink')}
+              </>
+            )}
           </button>
         }
       >
-        <div style={{ marginBottom: '1rem' }}>
-          <p style={{ color: 'var(--reader-text-dim)', marginBottom: '0.5rem' }}>
+        <div class="reading-share-modal-content">
+          <p class="reading-share-modal-label">
             {t('readingMode.linkLabel')}
           </p>
           <input
             type="text"
             value={shareLink}
             readOnly
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              background: 'var(--reader-chrome-bg)',
-              border: '1px solid var(--reader-chrome-border)',
-              borderRadius: '8px',
-              color: 'var(--reader-text)',
-              fontSize: '0.9rem',
-              fontFamily: 'var(--font-mono)',
-            }}
+            class="reading-share-modal-input"
           />
         </div>
       </Modal>

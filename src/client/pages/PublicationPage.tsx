@@ -1,13 +1,13 @@
-import { useEffect, useState, useMemo } from 'preact/hooks';
+import { useCallback, useEffect, useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
-import { authService } from '../services/authService';
+import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
 import { trackEvent } from '../utils/analytics';
 import type { PublicationWithChapters, GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
-import { LoadingSpinner, Modal, Button } from '../components/ui';
+import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
 import { ChapterTocModal } from '../components/ChapterTocModal';
 import './PublicationPage.css';
@@ -32,6 +32,21 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  const syncAuthProgress = useCallback(async () => {
+    const user = await authService.getCurrentUser();
+    setIsAuthenticated(!!user);
+    if (!user || !publicationId) {
+      setReadChapterIds(new Set());
+      return;
+    }
+    try {
+      const { chapterIds } = await api.getReadProgress(publicationId);
+      setReadChapterIds(new Set(chapterIds));
+    } catch {
+      // Ignore read progress errors on public page.
+    }
+  }, [publicationId]);
 
   useEffect(() => {
     if (!publicationId) return;
@@ -79,22 +94,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   // Load read progress for authenticated users
   useEffect(() => {
     let cancelled = false;
-    authService.getCurrentUser().then((user) => {
+    syncAuthProgress().catch(() => {});
+    const handleAuthChanged = () => {
       if (cancelled) return;
-      setIsAuthenticated(!!user);
-      if (user && publicationId) {
-        api
-          .getReadProgress(publicationId)
-          .then(({ chapterIds }) => {
-            if (!cancelled) setReadChapterIds(new Set(chapterIds));
-          })
-          .catch(() => {});
-      }
-    });
+      syncAuthProgress().catch(() => {});
+    };
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     };
-  }, [publicationId]);
+  }, [syncAuthProgress]);
 
   const pub = data;
   const meta =
@@ -226,7 +236,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     <div class="publication-page">
       <div class="publication-page-header">
         <button type="button" class="publication-page-back" onClick={() => route('/catalog')}>
-          ← {t('common.back')}
+          <Icon name="arrow_back" size="sm" /> {t('common.back')}
         </button>
       </div>
       <div class="publication-page-content">
@@ -287,7 +297,14 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   disabled={exporting !== null}
                   title={t('export.epub')}
                 >
-                  {exporting === 'epub' ? '...' : '📚'} {t('export.epub')}
+                  {exporting === 'epub' ? (
+                    '...'
+                  ) : (
+                    <>
+                      <Icon name="menu_book" size="sm" />{' '}
+                    </>
+                  )}
+                  {t('export.epub')}
                 </button>
                 <button
                   type="button"
@@ -296,7 +313,14 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   disabled={exporting !== null}
                   title={t('export.fb2')}
                 >
-                  {exporting === 'fb2' ? '...' : '📖'} {t('export.fb2')}
+                  {exporting === 'fb2' ? (
+                    '...'
+                  ) : (
+                    <>
+                      <Icon name="book_2" size="sm" />{' '}
+                    </>
+                  )}
+                  {t('export.fb2')}
                 </button>
               </>
             )}
@@ -363,7 +387,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                         {ch.title || t('chapterList.defaultChapterTitle', { number: ch.number })}
                         {isAuthenticated && isRead && (
                           <span class="publication-page-chapter-read" title={t('publication.read')}>
-                            ✓
+                            <Icon name="check" size="sm" />
                           </span>
                         )}
                       </span>
@@ -427,7 +451,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           </>
         }
       >
-        <p style={{ color: 'var(--text-secondary)' }}>{t('publication.exportLoginRequired')}</p>
+        <p class="publication-page-modal-text">{t('publication.exportLoginRequired')}</p>
       </Modal>
       <Modal
         isOpen={!!exportError}
@@ -435,7 +459,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         title={t('projectInfo.exportError', { format: 'EPUB/FB2' })}
         footer={<Button onClick={() => setExportError(null)}>{t('common.close')}</Button>}
       >
-        <p style={{ color: 'var(--text-secondary)' }}>{exportError}</p>
+        <p class="publication-page-modal-text">{exportError}</p>
       </Modal>
     </div>
   );

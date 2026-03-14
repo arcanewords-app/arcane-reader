@@ -3,6 +3,7 @@ import type { ProjectListItem } from '../../types';
 import { getProjectTypeColor } from '../../utils/project-type';
 import { trackEvent } from '../../utils/analytics';
 import { BookPlaceholder } from './BookPlaceholder';
+import { Icon } from '../ui';
 import './ProjectCard.css';
 
 interface ProjectCardProps {
@@ -135,7 +136,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
               class="project-card-status project-card-status-error"
               title={t('projectCard.hasUntranslatedChapters')}
             >
-              ⚠️
+              <Icon name="warning" size="sm" />
             </span>
           )}
           {!isOriginalReadingMode && isComplete && (
@@ -143,7 +144,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
               class="project-card-status project-card-status-complete"
               title={t('projectCard.allChaptersTranslated')}
             >
-              ✓
+              <Icon name="check" size="sm" />
             </span>
           )}
         </div>
@@ -151,7 +152,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
           <span class="project-card-date">{dateText}</span>
           {project.glossaryCount > 0 && (
             <span class="project-card-glossary" title={t('projectCard.glossaryEntriesTitle')}>
-              📝 {project.glossaryCount}
+              <Icon name="menu_book" size="sm" /> {project.glossaryCount}
             </span>
           )}
         </div>

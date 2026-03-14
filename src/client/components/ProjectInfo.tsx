@@ -7,7 +7,7 @@ import type {
   Chapter,
   Publication,
 } from '../types';
-import { Card, Button, Modal, Input, LoadingSpinner } from './ui';
+import { Card, Button, Modal, Input, LoadingSpinner, Icon } from './ui';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { invalidateProject } from '../store/projects';
@@ -341,12 +341,12 @@ export function ProjectInfo({
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{project.name}</h2>
             <span style={{ color: 'var(--text-dim)' }}>
               {isOriginalReadingMode
-                ? `📖 ${t('projectInfo.originalReading')}`
+                ? t('projectInfo.originalReading')
                 : t('projectInfo.enToRu')}
             </span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowDeleteModal(true)}>
-            🗑️ {t('projectInfo.delete')}
+            {t('projectInfo.delete')}
           </Button>
         </div>
 
@@ -383,7 +383,9 @@ export function ProjectInfo({
           Object.keys(project.metadata).length > 0 && (
             <div class="book-metadata-section">
               <div class="metadata-header">
-                <span class="metadata-icon">📚</span>
+                <span class="metadata-icon">
+                  <Icon name="menu_book" size="sm" />
+                </span>
                 <h3 class="metadata-title">{t('projectInfo.bookInfo')}</h3>
               </div>
               <div class="metadata-content">
@@ -439,7 +441,7 @@ export function ProjectInfo({
                             fontSize: '0.85rem',
                           }}
                         >
-                          ⏳
+                          ...
                         </div>
                       ) : (
                         <>
@@ -481,7 +483,7 @@ export function ProjectInfo({
                             }}
                             title={t('projectInfo.deleteCoverTitle')}
                           >
-                            🗑️
+                            <Icon name="delete" size="sm" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -509,7 +511,11 @@ export function ProjectInfo({
                             }}
                             title={t('projectInfo.replaceCoverTitle')}
                           >
-                            {uploadingCover ? '⏳' : '📤'}
+                            {uploadingCover ? (
+                              <Icon name="schedule" size="sm" />
+                            ) : (
+                              <Icon name="upload_file" size="sm" />
+                            )}
                           </button>
                         </>
                       )}
@@ -542,7 +548,9 @@ export function ProjectInfo({
                         e.currentTarget.style.background = 'var(--bg-hover)';
                       }}
                     >
-                      <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
+                      <div style={{ fontSize: '3rem', opacity: 0.5 }}>
+                        <Icon name="image" size="lg" />
+                      </div>
                       <div
                         style={{
                           fontSize: '0.9rem',
@@ -552,7 +560,7 @@ export function ProjectInfo({
                         }}
                       >
                         {uploadingCover
-                          ? `⏳ ${t('projectInfo.uploadCoverLoading')}`
+                          ? `... ${t('projectInfo.uploadCoverLoading')}`
                           : t('projectInfo.uploadCoverClick')}
                       </div>
                     </div>
@@ -657,7 +665,7 @@ export function ProjectInfo({
                             onClick={saveDescription}
                             disabled={savingDescription}
                           >
-                            {savingDescription ? '⏳' : `💾 ${t('common.save')}`}
+                            {savingDescription ? '...' : t('common.save')}
                           </button>
                         </div>
                       </div>
@@ -694,7 +702,7 @@ export function ProjectInfo({
                 color: 'var(--text-primary)',
               }}
             >
-              🖼️ {t('projectInfo.coverAndDescription')}
+              {t('projectInfo.coverAndDescription')}
             </h3>
             <div
               class="metadata-content"
@@ -757,7 +765,7 @@ export function ProjectInfo({
                           fontSize: '0.85rem',
                         }}
                       >
-                        ⏳
+                        ...
                       </div>
                     ) : (
                       <>
@@ -800,7 +808,7 @@ export function ProjectInfo({
                           }}
                           title={t('projectInfo.deleteCoverTitle')}
                         >
-                          🗑️
+                          <Icon name="delete" size="sm" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -828,7 +836,11 @@ export function ProjectInfo({
                           }}
                           title={t('projectInfo.replaceCoverTitle')}
                         >
-                          {uploadingCover ? '⏳' : '📤'}
+                          {uploadingCover ? (
+                            <Icon name="schedule" size="sm" />
+                          ) : (
+                            <Icon name="upload_file" size="sm" />
+                          )}
                         </button>
                       </>
                     )}
@@ -860,7 +872,9 @@ export function ProjectInfo({
                       e.currentTarget.style.background = 'var(--bg-hover)';
                     }}
                   >
-                    <div style={{ fontSize: '3rem', opacity: 0.5 }}>🖼️</div>
+                    <div style={{ fontSize: '3rem', opacity: 0.5 }}>
+                      <Icon name="image" size="lg" />
+                    </div>
                     <div
                       style={{
                         fontSize: '0.9rem',
@@ -870,7 +884,7 @@ export function ProjectInfo({
                       }}
                     >
                       {uploadingCover
-                        ? `⏳ ${t('projectInfo.uploadCoverLoading')}`
+                        ? `... ${t('projectInfo.uploadCoverLoading')}`
                         : t('projectInfo.uploadCoverClick')}
                     </div>
                   </div>
@@ -908,7 +922,7 @@ export function ProjectInfo({
                           onClick={saveDescription}
                           disabled={savingDescription}
                         >
-                          {savingDescription ? '⏳' : `💾 ${t('common.save')}`}
+                          {savingDescription ? '...' : t('common.save')}
                         </button>
                       </div>
                     </div>
@@ -935,7 +949,9 @@ export function ProjectInfo({
         {/* Publication (catalog) */}
         <div class="publication-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
           <div class="metadata-header" style={{ marginBottom: '0.75rem' }}>
-            <span class="metadata-icon">📢</span>
+            <span class="metadata-icon">
+              <Icon name="campaign" size="sm" />
+            </span>
             <h3 class="metadata-title">{t('projectInfo.publicationTitle')}</h3>
           </div>
           {publicationLoading ? (
@@ -1052,7 +1068,9 @@ export function ProjectInfo({
               return (
                 <div class="translation-stats-section">
                   <div class="metadata-header">
-                    <span class="metadata-icon">📊</span>
+                    <span class="metadata-icon">
+                      <Icon name="bar_chart" size="sm" />
+                    </span>
                     <h3 class="metadata-title">{t('projectInfo.translationStats')}</h3>
                   </div>
                   <div class="translation-stats-grid">
@@ -1129,7 +1147,7 @@ export function ProjectInfo({
             stats.chapters > 0 && (
               <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
                 <Button variant="secondary" size="full" onClick={onEnterReadingMode}>
-                  📖 {t('projectInfo.readingChapters', { count: stats.chapters })}
+                  {t('projectInfo.readingChapters', { count: stats.chapters })}
                 </Button>
               </div>
             )
@@ -1137,7 +1155,7 @@ export function ProjectInfo({
             stats.translated > 0 && (
               <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
                 <Button variant="secondary" size="full" onClick={onEnterReadingMode}>
-                  📖 {t('projectInfo.readingModeChapters', { count: stats.translated })}
+                  {t('projectInfo.readingModeChapters', { count: stats.translated })}
                 </Button>
               </div>
             )}
@@ -1154,7 +1172,7 @@ export function ProjectInfo({
                 disabled={exporting !== null}
                 title={t('export.epub')}
               >
-                📚 {t('export.epub')}
+                {t('export.epub')}
               </Button>
               <Button
                 variant="secondary"
@@ -1164,7 +1182,7 @@ export function ProjectInfo({
                 disabled={exporting !== null}
                 title={t('export.fb2')}
               >
-                📖 {t('export.fb2')}
+                {t('export.fb2')}
               </Button>
             </div>
           </div>
@@ -1175,7 +1193,7 @@ export function ProjectInfo({
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        title={`🗑️ ${t('projectInfo.deleteProjectConfirm')}`}
+        title={t('projectInfo.deleteProjectConfirm')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
@@ -1200,7 +1218,7 @@ export function ProjectInfo({
       <Modal
         isOpen={showPublishModal}
         onClose={() => setShowPublishModal(false)}
-        title={`📢 ${t('projectInfo.publishModalTitle')}`}
+        title={t('projectInfo.publishModalTitle')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowPublishModal(false)}>

@@ -5,7 +5,12 @@
 
 import { useState, useEffect } from 'preact/hooks';
 import type { AuthUser, UserRole } from '../types';
-import { authService } from '../services/authService';
+import {
+  AUTH_CHANGED_EVENT,
+  USER_UPDATED_EVENT,
+  authService,
+  type AuthChangedDetail,
+} from '../services/authService';
 
 const ROLE_ORDER: Record<UserRole, number> = {
   guest: 0,
@@ -28,8 +33,15 @@ export function useUserRole() {
     const onUserUpdated = (e: CustomEvent<AuthUser>) => {
       setUser(e.detail);
     };
-    window.addEventListener('arcane:user-updated', onUserUpdated as EventListener);
-    return () => window.removeEventListener('arcane:user-updated', onUserUpdated as EventListener);
+    const onAuthChanged = (e: CustomEvent<AuthChangedDetail>) => {
+      setUser(e.detail.user);
+    };
+    window.addEventListener(USER_UPDATED_EVENT, onUserUpdated as EventListener);
+    window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged as EventListener);
+    return () => {
+      window.removeEventListener(USER_UPDATED_EVENT, onUserUpdated as EventListener);
+      window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged as EventListener);
+    };
   }, []);
 
   const role: UserRole = user ? (user.role ?? 'user') : 'guest';

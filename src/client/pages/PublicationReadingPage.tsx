@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
-import { authService } from '../services/authService';
+import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
 import type { GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { ReadingMode } from '../components/ReadingMode';
@@ -35,6 +35,33 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [lastReadParagraphIndex, setLastReadParagraphIndex] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [progressLoaded, setProgressLoaded] = useState(false);
+
+  const syncAuthProgress = useCallback(async () => {
+    setProgressLoaded(false);
+    const user = await authService.getCurrentUser();
+    setIsAuthenticated(!!user);
+    if (!user || !chapterId) {
+      setReadChapterIds(new Set());
+      setLastReadChapterId(null);
+      setLastReadParagraphIndex(0);
+      setProgressLoaded(true);
+      return;
+    }
+    if (!publicationId) {
+      setProgressLoaded(true);
+      return;
+    }
+    try {
+      const result = await api.getReadProgress(publicationId);
+      setReadChapterIds(new Set(result.chapterIds));
+      setLastReadChapterId(result.lastReadChapterId ?? null);
+      setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
+    } catch {
+      // Ignore progress sync errors on public reader page.
+    } finally {
+      setProgressLoaded(true);
+    }
+  }, [chapterId, publicationId]);
 
   useEffect(() => {
     if (!publicationId) {
@@ -110,36 +137,17 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   // Check auth and load read progress for authenticated users
   useEffect(() => {
     let cancelled = false;
-    setProgressLoaded(false);
-    authService.getCurrentUser().then((user) => {
+    syncAuthProgress().catch(() => {});
+    const handleAuthChanged = () => {
       if (cancelled) return;
-      setIsAuthenticated(!!user);
-      if (!user || !chapterId) {
-        setProgressLoaded(true);
-        return;
-      }
-      if (publicationId) {
-        api
-          .getReadProgress(publicationId)
-          .then((result) => {
-            if (!cancelled) {
-              setReadChapterIds(new Set(result.chapterIds));
-              setLastReadChapterId(result.lastReadChapterId ?? null);
-              setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
-            }
-          })
-          .catch(() => {})
-          .finally(() => {
-            if (!cancelled) setProgressLoaded(true);
-          });
-      } else {
-        setProgressLoaded(true);
-      }
-    });
+      syncAuthProgress().catch(() => {});
+    };
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     };
-  }, [publicationId, chapterId]);
+  }, [syncAuthProgress]);
 
   const handleChapterRead = useCallback(
     (chapterId: string) => {

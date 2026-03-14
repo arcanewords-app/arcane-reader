@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Chapter } from '../../types';
-import { Button, StatusBadge } from '../ui';
+import { Button, StatusBadge, Icon } from '../ui';
 import { api } from '../../api/client';
 import './ChapterHeader.css';
 
@@ -113,7 +113,7 @@ export function ChapterHeader({
           onClick={onPrev}
           title={t('chapter.prevChapter')}
         >
-          ◀
+          <Icon name="chevron_left" />
         </button>
         {isEditingTitle ? (
           <div class="chapter-title-edit">
@@ -134,7 +134,7 @@ export function ChapterHeader({
                 disabled={savingTitle}
                 title={t('chapter.saveEnter')}
               >
-                ✓
+                <Icon name="check" size="sm" />
               </button>
               <button
                 class="chapter-title-cancel-btn"
@@ -142,7 +142,7 @@ export function ChapterHeader({
                 disabled={savingTitle}
                 title={t('chapter.cancelEsc')}
               >
-                ✕
+                <Icon name="close" size="sm" />
               </button>
             </div>
           </div>
@@ -154,7 +154,7 @@ export function ChapterHeader({
               onClick={handleStartEdit}
               title={t('chapter.editTitle')}
             >
-              ✏️
+              <Icon name="edit" size="sm" />
             </button>
           </div>
         )}
@@ -164,7 +164,7 @@ export function ChapterHeader({
           onClick={onNext}
           title={t('chapter.nextChapter')}
         >
-          ▶
+          <Icon name="chevron_right" />
         </button>
 
         {/* Settings button - в навигации, а не в actions */}
@@ -173,7 +173,7 @@ export function ChapterHeader({
           onClick={onToggleSettings}
           title={t('reader.displaySettings')}
         >
-          ⚙️
+          <Icon name="settings" />
         </button>
       </div>
 
@@ -189,13 +189,13 @@ export function ChapterHeader({
             onClick={onEnterReadingMode}
             title={t('chapter.readingMode')}
           >
-            📖 {t('chapter.read')}
+            <Icon name="menu_book" size="sm" /> {t('chapter.read')}
           </Button>
         )}
 
         {hasTranslations && !isCompleted && (
           <Button variant="secondary" size="sm" onClick={onApproveAll}>
-            ✅ {t('chapter.approveAll')}
+            <Icon name="done_all" size="sm" /> {t('chapter.approveAll')}
           </Button>
         )}
 
@@ -206,7 +206,7 @@ export function ChapterHeader({
             onClick={onToggleTranslationPanel}
             title={t('translationPanel.toggle', 'Панель перевода')}
           >
-            🔮 {t('chapter.translate', 'Перевод')}
+            <Icon name="translate" size="sm" /> {t('chapter.translate', 'Перевод')}
           </Button>
         )}
 
@@ -224,7 +224,8 @@ export function ChapterHeader({
               disabled={translating || markingAsTranslated}
               title={t('markAsTranslated.title', 'Пометить как переведённую')}
             >
-              {markingAsTranslated ? <span class="spinner" /> : '✅'}{' '}
+              {markingAsTranslated && <span class="spinner" />}
+              {!markingAsTranslated && <Icon name="done" size="sm" />}{' '}
               {t('markAsTranslated.button', 'Пометить как переведённую')}
             </Button>
           )}

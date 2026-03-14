@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { ProjectWithChapterList, Chapter, ProjectSettings } from '../types';
@@ -6,7 +6,7 @@ import { getProject, invalidateProject } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
-import { PageLoading } from '../components/ui';
+import { LoadingSpinner, PageLoading } from '../components/ui';
 import { api } from '../api/client';
 
 interface ChapterPageProps {
@@ -19,17 +19,10 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [project, setProject] = useState<ProjectWithChapterList | null>(null);
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [loading, setLoading] = useState(true);
-  const previousProjectIdRef = useRef<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
 
   useEffect(() => {
-    // If projectId changed, invalidate previous project cache
-    if (previousProjectIdRef.current && previousProjectIdRef.current !== projectId) {
-      invalidateProject(previousProjectIdRef.current);
-    }
-    previousProjectIdRef.current = projectId;
-
     loadProject();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject is stable, avoid refetch loop
   }, [projectId, chapterId]);
@@ -51,7 +44,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     if (chapterId) setChapter(null);
     try {
       const [loadedProject, loadedChapter] = await Promise.all([
-        getProject(projectId, true),
+        getProject(projectId),
         chapterId ? api.getChapter(projectId, chapterId) : Promise.resolve(null),
       ]);
       if (loadedProject) {
@@ -98,9 +91,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
 
   const handleRefreshProject = async () => {
     if (!project) return;
-    // Invalidate cache to force fresh data
     invalidateProject(project.id);
-    // Load fresh project data from store (which will fetch from API)
     const updated = await getProject(project.id, true);
     if (updated) {
       setProject(updated);
@@ -160,12 +151,15 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           handleSidebarClose(); // Close sidebar on mobile when selecting chapter
           route(`/projects/${projectId}/chapters/${id}`);
         }}
-        onUploadChapter={async () => {}}
+        onUploadChapter={async ({ file, title, signal, onProgress }) => {
+          const result = await api.uploadChapter(project.id, file, title, signal, onProgress);
+          await handleRefreshProject();
+          return result;
+        }}
         onDeleteChapter={async (deletedChapterId) => {
           if (!project) return;
           try {
             await api.deleteChapter(project.id, deletedChapterId);
-            invalidateProject(project.id);
             await handleRefreshProject();
             // If deleted chapter is currently viewed, navigate to project page
             if (deletedChapterId === chapterId) {
@@ -180,6 +174,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           handleSidebarClose(); // Close sidebar on mobile
           setShowGlossary(true);
         }}
+        onChaptersUpdate={handleRefreshProject}
         onProjectUpdate={(updatedProject) => {
           // Update project state directly with returned project
           setProject(updatedProject);

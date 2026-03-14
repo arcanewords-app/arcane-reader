@@ -6,7 +6,7 @@ import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
 import type { PublicationListItem, Publication } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
-import { LoadingSpinner, Input, Select } from '../components/ui';
+import { LoadingSpinner, Input, Select, Icon } from '../components/ui';
 import './HomePage.css';
 
 type CatalogFilter = 'all' | 'mine';
@@ -185,7 +185,7 @@ export function HomePage() {
             }}
             class="home-back-projects"
           >
-            ← {t('nav.projects')}
+            <Icon name="arrow_back" size="sm" /> {t('nav.projects')}
           </a>
         </div>
       )}
@@ -218,7 +218,9 @@ export function HomePage() {
 
       {publications.length === 0 ? (
         <div class="home-empty">
-          <div class="home-empty-icon">📚</div>
+          <div class="home-empty-icon">
+            <Icon name="menu_book" />
+          </div>
           <p class="home-empty-text">{emptyTitle}</p>
           <p class="home-empty-hint">{emptyHint}</p>
         </div>

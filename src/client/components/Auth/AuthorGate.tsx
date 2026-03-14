@@ -1,11 +1,12 @@
 /**
  * Route wrapper that requires author+ role.
  * Shows UpgradeScreen when user is authenticated but has role 'user'.
- * Returns null when guest (parent useEffect handles redirect).
+ * Shows loading while user is being fetched; returns null when guest (parent handles redirect).
  */
 
 import { useUserRole } from '../../hooks/useUserRole';
 import { UpgradeScreen } from './UpgradeScreen';
+import { LoadingSpinner } from '../ui';
 
 export interface AuthorGateProps {
   path: string;
@@ -17,7 +18,11 @@ export function AuthorGate({ path, component: Component, ...rest }: AuthorGatePr
   const { user, isAtLeast } = useUserRole();
 
   if (!user) {
-    return null;
+    return (
+      <div class="page-loading" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   if (!isAtLeast('author')) {

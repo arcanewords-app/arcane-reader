@@ -4,13 +4,15 @@ import { api } from '../api/client';
 import { authService } from '../services/authService';
 import { useTokenEstimate } from './useTokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
+import { getProject as getProjectFromStore } from '../store/projects';
 import type { Chapter, ChapterSummary, Project, ProjectWithChapterList } from '../types';
 import type { ChapterTranslationOptions } from './useChapterTranslation';
 
 export interface BatchChapterProgressItem {
   chapterId: string;
   title: string;
-  status: 'pending' | 'translating' | 'completed' | 'error';
+  status: 'pending' | 'translating' | 'completed' | 'error' | 'skipped';
+  reason?: string;
   tokensUsed?: number;
   tokensByStage?: {
     analysis?: number;
@@ -32,6 +34,7 @@ export interface BatchProgress {
   totalGlossaryEntries: number;
   completed: number;
   errors: number;
+  skipped: number;
 }
 
 const INITIAL_POLL_MS = 1500;
@@ -95,10 +98,14 @@ export function useBatchChapterTranslation(
   const [isRunning, setIsRunning] = useState(false);
   const cancelledRef = useRef(false);
   const currentChapterIdRef = useRef<string | null>(null);
+  const markTranslatedAbortRef = useRef<AbortController | null>(null);
   const initialGlossaryCountRef = useRef(0);
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
+    if (markTranslatedAbortRef.current) {
+      markTranslatedAbortRef.current.abort();
+    }
     if (currentChapterIdRef.current) {
       api.cancelTranslation(projectId, currentChapterIdRef.current).catch(() => {});
     }
@@ -107,6 +114,7 @@ export function useBatchChapterTranslation(
   const clearProgress = useCallback(() => {
     setProgress(null);
     cancelledRef.current = false;
+    markTranslatedAbortRef.current = null;
   }, []);
 
   const startMarkAsTranslatedBatch = useCallback(
@@ -131,65 +139,86 @@ export function useBatchChapterTranslation(
         totalGlossaryEntries: 0,
         completed: 0,
         errors: 0,
+        skipped: 0,
       });
 
       (async () => {
         setIsRunning(true);
         try {
-          for (let i = 0; i < chapters.length; i++) {
-            if (cancelledRef.current) break;
+          const controller = new AbortController();
+          markTranslatedAbortRef.current = controller;
+          setProgress((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  currentChapter: t('markAsTranslated.batchInProgress', 'Batch update in progress...'),
+                  currentChapterId: null,
+                  chapters: prev.chapters.map((c) => ({ ...c, status: 'translating' as const })),
+                }
+              : null
+          );
 
-            const chapter = chapters[i];
+          const response = await api.markChaptersAsTranslatedBatch(
+            projectId,
+            chapters.map((chapter) => chapter.id),
+            { continueOnError: true, signal: controller.signal }
+          );
+
+          if (!cancelledRef.current) {
+            setProgress((prev) => {
+              if (!prev) return null;
+              const resultMap = new Map(response.results.map((item) => [item.chapterId, item]));
+              return {
+                ...prev,
+                current: response.summary.processed,
+                currentChapter: null,
+                currentChapterId: null,
+                completed: response.summary.success,
+                errors: response.summary.failed,
+                skipped: response.summary.skipped,
+                chapters: prev.chapters.map((chapter) => {
+                  const item = resultMap.get(chapter.chapterId);
+                  if (!item) {
+                    return { ...chapter, status: 'error' as const, reason: 'not_processed' };
+                  }
+                  if (item.status === 'success') {
+                    return { ...chapter, status: 'completed' as const, reason: undefined };
+                  }
+                  if (item.status === 'skipped') {
+                    return { ...chapter, status: 'skipped' as const, reason: item.reason };
+                  }
+                  return { ...chapter, status: 'error' as const, reason: item.reason };
+                }),
+              };
+            });
+            await onRefreshProject();
+          }
+        } catch (err) {
+          const errObj = err as { name?: string; message?: string };
+          if (errObj.name !== 'AbortError') {
+            console.error('Batch mark-as-translated failed:', err);
             setProgress((prev) =>
               prev
                 ? {
                     ...prev,
-                    current: i + 1,
-                    currentChapter: chapter.title,
-                    currentChapterId: chapter.id,
-                    chapters: prev.chapters.map((c) =>
-                      c.chapterId === chapter.id ? { ...c, status: 'translating' as const } : c
-                    ),
+                    errors: prev.total,
+                    currentChapter: errObj.message || t('projectInfo.errorTranslation'),
+                    chapters: prev.chapters.map((chapter) => ({
+                      ...chapter,
+                      status: 'error' as const,
+                    })),
                   }
                 : null
             );
-
-            try {
-              await api.markChapterAsTranslated(projectId, chapter.id);
-              setProgress((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      completed: prev.completed + 1,
-                      chapters: prev.chapters.map((c) =>
-                        c.chapterId === chapter.id ? { ...c, status: 'completed' as const } : c
-                      ),
-                    }
-                  : null
-              );
-            } catch (err) {
-              console.error(`Mark as translated error for chapter ${chapter.id}:`, err);
-              setProgress((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      errors: prev.errors + 1,
-                      chapters: prev.chapters.map((c) =>
-                        c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
-                      ),
-                    }
-                  : null
-              );
-            }
-            await onRefreshProject();
           }
         } finally {
           setIsRunning(false);
           cancelledRef.current = false;
+          markTranslatedAbortRef.current = null;
         }
       })();
     },
-    [projectId, onRefreshProject]
+    [projectId, onRefreshProject, t]
   );
 
   const startBatch = useCallback(
@@ -244,6 +273,7 @@ export function useBatchChapterTranslation(
           totalGlossaryEntries: 0,
           completed: 0,
           errors: 0,
+          skipped: 0,
         });
 
         (async () => {
@@ -281,10 +311,10 @@ export function useBatchChapterTranslation(
                 );
 
                 await onRefreshProject();
-                const updatedProject = await api.getProject(projectId);
-                const updatedChapter = updatedProject.chapters.find((c) => c.id === chapter.id);
+                const updatedProject = await getProjectFromStore(projectId);
+                const updatedChapter = updatedProject?.chapters.find((c) => c.id === chapter.id);
 
-                if (result.success && updatedChapter) {
+                if (result.success && updatedProject && updatedChapter) {
                   const chapterDuration =
                     updatedChapter.translationMeta?.duration ?? Date.now() - chapterStartTime;
                   const tokensUsed = updatedChapter.translationMeta?.tokensUsed ?? 0;

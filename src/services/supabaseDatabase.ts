@@ -1376,6 +1376,30 @@ export async function getGlossaryForPublication(publicationId: string): Promise<
 /**
  * Add a new chapter to a project
  */
+const addChapterLocks = new Map<string, Array<() => void>>();
+
+async function acquireAddChapterLock(projectId: string): Promise<void> {
+  return new Promise((resolve) => {
+    const queue = addChapterLocks.get(projectId) || [];
+    queue.push(resolve);
+    addChapterLocks.set(projectId, queue);
+    if (queue.length === 1) {
+      resolve();
+    }
+  });
+}
+
+function releaseAddChapterLock(projectId: string): void {
+  const queue = addChapterLocks.get(projectId);
+  if (!queue) return;
+  queue.shift();
+  if (queue.length === 0) {
+    addChapterLocks.delete(projectId);
+    return;
+  }
+  queue[0]();
+}
+
 export async function addChapter(
   projectId: string,
   data: { title: string; originalText: string },
@@ -1383,87 +1407,92 @@ export async function addChapter(
 ): Promise<Chapter | undefined> {
   validateToken(token);
   const client = createClientWithToken(token);
+  await acquireAddChapterLock(projectId);
+  try {
 
-  // Verify project exists (RLS will ensure user has access)
-  const { data: project, error: projectError } = await client
-    .from('projects')
-    .select('id, name')
-    .eq('id', projectId)
-    .single();
+    // Verify project exists (RLS will ensure user has access)
+    const { data: project, error: projectError } = await client
+      .from('projects')
+      .select('id, name')
+      .eq('id', projectId)
+      .single();
 
-  if (projectError || !project) {
-    return undefined;
-  }
-
-  // Get next chapter number
-  const { data: maxChapter } = await client
-    .from('chapters')
-    .select('number')
-    .eq('project_id', projectId)
-    .order('number', { ascending: false })
-    .limit(1)
-    .single();
-
-  const nextNumber = maxChapter ? maxChapter.number + 1 : 1;
-
-  // Parse text into paragraphs
-  const paragraphs = parseTextToParagraphs(data.originalText);
-
-  // Create chapter
-  const chapterData = {
-    project_id: projectId,
-    number: nextNumber,
-    title: data.title,
-    original_text: data.originalText,
-    status: 'pending' as const,
-  };
-
-  const { data: chapter, error } = await client
-    .from('chapters')
-    .insert(chapterData)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create chapter: ${error.message}`);
-  }
-
-  // Create paragraphs for the chapter
-  if (paragraphs.length > 0) {
-    const paragraphData = paragraphs.map((p) => ({
-      chapter_id: chapter.id,
-      index: p.index,
-      original_text: p.originalText,
-      status: p.status,
-    }));
-
-    const { error: paraError } = await client.from('paragraphs').insert(paragraphData);
-
-    if (paraError) {
-      // Cleanup: delete chapter if paragraphs insert failed
-      await client.from('chapters').delete().eq('id', chapter.id);
-      throw new Error(`Failed to create paragraphs: ${paraError.message}`);
+    if (projectError || !project) {
+      return undefined;
     }
+
+    // Serialize local writes to reduce race conditions on chapter numbering.
+    const { data: maxChapter } = await client
+      .from('chapters')
+      .select('number')
+      .eq('project_id', projectId)
+      .order('number', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextNumber = maxChapter ? maxChapter.number + 1 : 1;
+
+    // Parse text into paragraphs
+    const paragraphs = parseTextToParagraphs(data.originalText);
+
+    // Create chapter
+    const chapterData = {
+      project_id: projectId,
+      number: nextNumber,
+      title: data.title,
+      original_text: data.originalText,
+      status: 'pending' as const,
+    };
+
+    const { data: chapter, error } = await client
+      .from('chapters')
+      .insert(chapterData)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create chapter: ${error.message}`);
+    }
+
+    // Create paragraphs for the chapter
+    if (paragraphs.length > 0) {
+      const paragraphData = paragraphs.map((p) => ({
+        chapter_id: chapter.id,
+        index: p.index,
+        original_text: p.originalText,
+        status: p.status,
+      }));
+
+      const { error: paraError } = await client.from('paragraphs').insert(paragraphData);
+
+      if (paraError) {
+        // Cleanup: delete chapter if paragraphs insert failed
+        await client.from('chapters').delete().eq('id', chapter.id);
+        throw new Error(`Failed to create paragraphs: ${paraError.message}`);
+      }
+    }
+
+    // Update project updated_at timestamp
+    await client.from('projects').update({}).eq('id', projectId);
+
+    logger.info(
+      {
+        event: 'chapter.added',
+        projectId,
+        chapterId: chapter.id,
+        chapterTitle: chapter.title,
+        projectName: project.name,
+        paragraphsCount: paragraphs.length,
+      },
+      `Chapter added: ${chapter.title} -> ${project.name} (${paragraphs.length} paragraphs)`
+    );
+
+    // Reload chapter with paragraphs
+    const paragraphsList = await loadParagraphsForChapter(chapter.id, token);
+    return transformChapterFromDB(chapter, paragraphsList);
+  } finally {
+    releaseAddChapterLock(projectId);
   }
-
-  // Update project updated_at timestamp
-  await client.from('projects').update({}).eq('id', projectId);
-
-  logger.info(
-    {
-      event: 'chapter.added',
-      projectId,
-      chapterId: chapter.id,
-      chapterTitle: chapter.title,
-      projectName: project.name,
-      paragraphsCount: paragraphs.length,
-    },
-    `Chapter added: ${chapter.title} -> ${project.name} (${paragraphs.length} paragraphs)`
-  );
-
-  // Reload chapter with paragraphs
-  const paragraphsList = await loadParagraphsForChapter(chapter.id, token);
-  return transformChapterFromDB(chapter, paragraphsList);
 }
 
 /** Options for updateChapter when using service role (e.g. long-running translate where JWT may expire). */
@@ -2016,6 +2045,89 @@ export async function updateChaptersOrder(
   } finally {
     releaseReorderLock(projectId);
   }
+}
+
+export type MarkTranslatedBatchStatus = 'success' | 'failed' | 'skipped';
+
+export interface MarkTranslatedBatchResultItem {
+  chapterId: string;
+  status: MarkTranslatedBatchStatus;
+  reason?: string;
+}
+
+export interface MarkTranslatedBatchSummary {
+  total: number;
+  processed: number;
+  success: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface MarkTranslatedBatchResult {
+  summary: MarkTranslatedBatchSummary;
+  results: MarkTranslatedBatchResultItem[];
+}
+
+/**
+ * Batch "mark as translated" via PostgreSQL RPC.
+ * Uses DB-side per-chapter transaction logic and returns structured per-item results.
+ */
+export async function markChaptersAsTranslatedBatch(
+  projectId: string,
+  chapterIds: string[],
+  token: string,
+  options?: { continueOnError?: boolean }
+): Promise<MarkTranslatedBatchResult> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+  const dedupedIds = Array.from(new Set(chapterIds.filter((id) => !!id)));
+  if (dedupedIds.length === 0) {
+    return {
+      summary: { total: 0, processed: 0, success: 0, failed: 0, skipped: 0 },
+      results: [],
+    };
+  }
+
+  const continueOnError = options?.continueOnError ?? true;
+  const { data, error } = await client.rpc('mark_chapters_as_translated_batch', {
+    p_project_id: projectId,
+    p_chapter_ids: dedupedIds,
+    p_continue_on_error: continueOnError,
+  });
+
+  if (error) {
+    logger.error(
+      { projectId, chaptersCount: dedupedIds.length, err: error },
+      'mark_chapters_as_translated_batch RPC failed'
+    );
+    throw new Error(error.message || 'Failed to mark chapters as translated in batch');
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  const normalizedResults: MarkTranslatedBatchResultItem[] = rows.map((row) => {
+    const statusRaw = String((row as Record<string, unknown>).status || '').toLowerCase();
+    const status: MarkTranslatedBatchStatus =
+      statusRaw === 'success' || statusRaw === 'failed' || statusRaw === 'skipped'
+        ? (statusRaw as MarkTranslatedBatchStatus)
+        : 'failed';
+    const chapterId = String((row as Record<string, unknown>).chapter_id || '');
+    const reasonRaw = (row as Record<string, unknown>).reason;
+    return {
+      chapterId,
+      status,
+      reason: typeof reasonRaw === 'string' && reasonRaw.trim().length > 0 ? reasonRaw : undefined,
+    };
+  });
+
+  const summary: MarkTranslatedBatchSummary = {
+    total: dedupedIds.length,
+    processed: normalizedResults.length,
+    success: normalizedResults.filter((r) => r.status === 'success').length,
+    failed: normalizedResults.filter((r) => r.status === 'failed').length,
+    skipped: normalizedResults.filter((r) => r.status === 'skipped').length,
+  };
+
+  return { summary, results: normalizedResults };
 }
 
 /**

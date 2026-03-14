@@ -297,6 +297,8 @@ export interface SystemStatus {
     errors: string[];
   };
   storage: string;
+  /** Max file size in bytes for chapter uploads (from server config). */
+  maxFileSizeBytes?: number;
 }
 
 export interface ChapterStats {
@@ -310,6 +312,31 @@ export interface ChapterStats {
 export interface TranslateResponse {
   status: 'started';
   chapterId: string;
+}
+
+export type ImportJobStatus = 'queued' | 'processing' | 'completed' | 'error' | 'canceled';
+export type ImportJobPhase = 'parsing' | 'saving' | 'finalizing';
+
+export interface ImportJobChapter {
+  number: number;
+  title: string;
+}
+
+export interface ImportJobState {
+  jobId: string;
+  status: ImportJobStatus;
+  phase: ImportJobPhase | null;
+  format: 'epub' | 'fb2' | 'csv';
+  filename: string;
+  current: number;
+  total: number;
+  progress: number;
+  currentChapterTitle?: string;
+  warnings: string[];
+  errors: string[];
+  chapters: ImportJobChapter[];
+  startedAt: string;
+  finishedAt: string | null;
 }
 
 /** Options for chapter translate API and hooks (scope + stages). */
@@ -327,6 +354,27 @@ export interface ChapterTranslationOptions {
 export interface BulkUpdateResponse {
   updated: number;
   paragraphs: Paragraph[];
+}
+
+export type MarkTranslatedBatchStatus = 'success' | 'failed' | 'skipped';
+
+export interface MarkTranslatedBatchResultItem {
+  chapterId: string;
+  status: MarkTranslatedBatchStatus;
+  reason?: string;
+}
+
+export interface MarkTranslatedBatchSummary {
+  total: number;
+  processed: number;
+  success: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface MarkTranslatedBatchResponse {
+  summary: MarkTranslatedBatchSummary;
+  results: MarkTranslatedBatchResultItem[];
 }
 
 // === Auth ===

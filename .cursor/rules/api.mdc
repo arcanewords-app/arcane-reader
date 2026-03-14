@@ -1,12 +1,18 @@
 ---
-description: Express server, middleware, Supabase
-globs: src/server.ts,src/middleware/**,api/**
-alwaysApply: false
+description: Express API, Supabase, Redis cache, route docs sync
+globs: src/server.ts,src/middleware/**,src/services/**,docs/ROUTES.md
+alwaysApply: true
 ---
 
 # API Rules
 
-## Server
+## Stack
+
+- Runtime/API: `express`, `multer`, `cors`, `zod`.
+- Storage: `@supabase/supabase-js` via `@src/services/supabaseDatabase.ts`.
+- Cache: `@upstash/redis` via `@src/services/redisCache.ts` + contract in `@src/shared/cacheContract.ts`.
+
+## Server Entry
 
 - Express. Entry: `src/server.ts`. Routes: projects, chapters, glossary, publications, import, export.
 - Auth: `requireAuth`, `optionalAuth` from `@src/middleware/auth.ts`.
@@ -21,3 +27,15 @@ alwaysApply: false
 
 - `requestContext` — request ID. `requestLogging` — access logs.
 - `auth` — JWT, optionalAuth for public routes.
+
+## Cache
+
+- Follow `@.cursor/rules/cache.mdc` for Redis/client cache consistency and invalidation.
+
+## Route Documentation (Required)
+
+- If you add/change/remove any frontend or API route, update `@docs/ROUTES.md` in the same task.
+- Treat `docs/ROUTES.md` as the route reference page for:
+  - `src/client/AppRouter.tsx` (frontend routes),
+  - `src/server.ts` (API endpoints),
+  - key navigation flows.

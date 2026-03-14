@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../ui';
+import { Button, Icon } from '../ui';
 import { trackEvent } from '../../utils/analytics';
 import type {
   Chapter,
@@ -186,7 +186,14 @@ export function TranslationPanel({
                 : stage === 'translation'
                   ? t('projectInfo.stageTranslation', 'Перевод')
                   : t('projectInfo.stageEditing', 'Редактура');
-            const icon = stage === 'analysis' ? '🔍' : stage === 'translation' ? '🔮' : '✨';
+            const icon =
+              stage === 'analysis' ? (
+                <Icon name="manage_search" size="sm" />
+              ) : stage === 'translation' ? (
+                <Icon name="translate" size="sm" />
+              ) : (
+                <Icon name="edit" size="sm" />
+              );
             const title =
               stage === 'analysis'
                 ? t('translationPanel.stageAnalysisHint', 'Анализ, обновление глоссария')
@@ -232,7 +239,7 @@ export function TranslationPanel({
       <div class="translation-panel-section translation-panel-buttons">
         {translating ? (
           <Button variant="secondary" size="sm" onClick={onCancelTranslation}>
-            ⏹ {t('chapter.cancelTranslate')}
+            <Icon name="stop_circle" size="sm" /> {t('chapter.cancelTranslate')}
           </Button>
         ) : (
           <>
@@ -247,7 +254,7 @@ export function TranslationPanel({
                 chapter.status === 'translating'
               }
             >
-              🔮 {t('translationPanel.start', 'Запустить')}
+              <Icon name="translate" size="sm" /> {t('translationPanel.start', 'Запустить')}
             </Button>
             {onMarkAsTranslated &&
               chapter.paragraphs &&
@@ -262,7 +269,7 @@ export function TranslationPanel({
                   disabled={translating || markingAsTranslated}
                   title={t('markAsTranslated.title', 'Пометить как переведённую')}
                 >
-                  {markingAsTranslated ? <span class="spinner" /> : '✅'}{' '}
+                  {markingAsTranslated ? <span class="spinner" /> : <Icon name="check_circle" size="sm" />}{' '}
                   {t('markAsTranslated.button', 'Пометить как переведённую')}
                 </Button>
               )}

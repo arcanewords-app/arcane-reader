@@ -3,11 +3,10 @@ import { useTranslation, Trans } from 'react-i18next';
 import type {
   Project,
   ProjectWithChapterList,
-  Chapter,
   ChapterSummary,
   TranslationStageKind,
 } from '../../types';
-import { Button, Modal } from '../ui';
+import { Button, Modal, Icon } from '../ui';
 import { api } from '../../api/client';
 import { useTokenEstimate } from '../../hooks/useTokenEstimate';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
@@ -203,13 +202,13 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
         onClick={() => setShowTranslateAllModal(true)}
         disabled={translationProgress !== null}
       >
-        🔮 {t('projectInfo.processChapters', 'Обработать главы')}
+        <Icon name="auto_awesome" size="sm" /> {t('projectInfo.processChapters', 'Обработать главы')}
       </Button>
 
       <Modal
         isOpen={showTranslateAllModal}
         onClose={() => setShowTranslateAllModal(false)}
-        title={`🔮 ${t('projectInfo.processChaptersModalTitle', 'Обработать главы')}`}
+        title={t('projectInfo.processChaptersModalTitle', 'Обработать главы')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowTranslateAllModal(false)}>
@@ -221,7 +220,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               disabled={selectedChaptersForTranslate.length === 0}
               title={t('markAsTranslated.batchTitle', 'Пометить выбранные главы как переведённые')}
             >
-              ✅{' '}
+              <Icon name="done_all" size="sm" />{' '}
               {t(
                 'markAsTranslated.batchButton',
                 {
@@ -543,7 +542,17 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                                 : t('projectInfo.chapterStatusEmpty')
                       }
                     >
-                      {isError ? '!' : isCompleted ? '✓' : isDraft ? '📝' : isAnalyzed ? '🔍' : '○'}
+                      {isError ? (
+                        <Icon name="error" size="sm" />
+                      ) : isCompleted ? (
+                        <Icon name="check" size="sm" />
+                      ) : isDraft ? (
+                        <Icon name="edit_note" size="sm" />
+                      ) : isAnalyzed ? (
+                        <Icon name="manage_search" size="sm" />
+                      ) : (
+                        <Icon name="radio_button_unchecked" size="sm" />
+                      )}
                     </span>
                   )}
                 </label>
@@ -570,7 +579,14 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   : stage === 'translation'
                     ? t('projectInfo.stageTranslation', 'Перевод')
                     : t('projectInfo.stageEditing', 'Редактура');
-              const icon = stage === 'analysis' ? '🔍' : stage === 'translation' ? '🔮' : '✨';
+              const icon =
+                stage === 'analysis' ? (
+                  <Icon name="manage_search" size="sm" />
+                ) : stage === 'translation' ? (
+                  <Icon name="translate" size="sm" />
+                ) : (
+                  <Icon name="edit" size="sm" />
+                );
               const title =
                 stage === 'analysis'
                   ? t('translationPanel.stageAnalysisHint', 'Анализ, обновление глоссария')
@@ -646,7 +662,9 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
           </div>
           {overwriteWarning && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.35rem' }}>
-              <span style={{ flexShrink: 0 }}>⚠️</span>
+              <span style={{ flexShrink: 0 }}>
+                <Icon name="warning" size="sm" />
+              </span>
               <span>
                 {t('projectInfo.warningOverwriteTranslated', {
                   count: selectedCompletedCount,
@@ -660,7 +678,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
       <Modal
         isOpen={translationProgress !== null}
         onClose={isTranslationComplete ? handleCloseTranslation : handleCancelTranslation}
-        title={`🔮 ${t('projectInfo.translationProgressTitle')}`}
+        title={t('projectInfo.translationProgressTitle')}
         className="translation-progress-modal"
         preventClose={!isTranslationComplete}
         footer={
@@ -675,7 +693,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               onClick={handleCancelTranslation}
               disabled={cancelling}
             >
-              ⏹ {cancelling ? t('chapter.cancellingTranslate') : t('chapter.cancelTranslate')}
+              {cancelling ? t('chapter.cancellingTranslate') : t('chapter.cancelTranslate')}
             </Button>
           )
         }
@@ -732,17 +750,23 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               </div>
               <div class="stages-grid" style={{ gap: '0.5rem' }}>
                 <div class="stage-toggle active" style={{ cursor: 'default' }}>
-                  <span class="stage-icon">🔍</span>
+                  <span class="stage-icon">
+                    <Icon name="manage_search" size="sm" />
+                  </span>
                   <span class="stage-name">{t('projectInfo.stageAnalysis')}</span>
                 </div>
                 <span class="stage-arrow">→</span>
                 <div class="stage-toggle active" style={{ cursor: 'default' }}>
-                  <span class="stage-icon">🔮</span>
+                  <span class="stage-icon">
+                    <Icon name="translate" size="sm" />
+                  </span>
                   <span class="stage-name">{t('projectInfo.stageTranslation')}</span>
                 </div>
                 <span class="stage-arrow">→</span>
                 <div class="stage-toggle active" style={{ cursor: 'default' }}>
-                  <span class="stage-icon">✨</span>
+                  <span class="stage-icon">
+                    <Icon name="edit" size="sm" />
+                  </span>
                   <span class="stage-name">{t('projectInfo.stageEditing')}</span>
                 </div>
               </div>
@@ -777,11 +801,17 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                     const stageTokens: string[] = [];
                     if (tokensByStage) {
                       if (tokensByStage.analysis !== undefined && tokensByStage.analysis > 0) {
-                        stageTokens.push(`🔍 ${tokensByStage.analysis.toLocaleString()}`);
+                        stageTokens.push(
+                          `${t('projectInfo.stageAnalysis')}: ${tokensByStage.analysis.toLocaleString()}`
+                        );
                       }
-                      stageTokens.push(`🔮 ${(tokensByStage.translation ?? 0).toLocaleString()}`);
+                      stageTokens.push(
+                        `${t('projectInfo.stageTranslation')}: ${(tokensByStage.translation ?? 0).toLocaleString()}`
+                      );
                       // Always show editing when we have stage breakdown (0 or value)
-                      stageTokens.push(`✨ ${(tokensByStage.editing ?? 0).toLocaleString()}`);
+                      stageTokens.push(
+                        `${t('projectInfo.stageEditing')}: ${(tokensByStage.editing ?? 0).toLocaleString()}`
+                      );
                     }
                     return (
                       <div
@@ -799,20 +829,21 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                         >
                           {currentChapterProgress.duration && (
                             <span>
-                              ⏱️{(currentChapterProgress.duration / 1000).toFixed(1)}{' '}
+                              <Icon name="schedule" size="sm" />{' '}
+                              {(currentChapterProgress.duration / 1000).toFixed(1)}{' '}
                               {t('projectInfo.timeSeconds')}
                             </span>
                           )}
                           {currentChapterProgress.tokensUsed && (
                             <span>
-                              📝 {t('projectInfo.totalShort')}{' '}
+                              <Icon name="toll" size="sm" /> {t('projectInfo.totalShort')}{' '}
                               {currentChapterProgress.tokensUsed.toLocaleString()}
                             </span>
                           )}
                           {currentChapterProgress.glossaryEntries !== undefined &&
                             currentChapterProgress.glossaryEntries > 0 && (
                               <span>
-                                📚 +{currentChapterProgress.glossaryEntries}{' '}
+                                <Icon name="menu_book" size="sm" /> +{currentChapterProgress.glossaryEntries}{' '}
                                 {t('projectInfo.inGlossaryShort')}
                               </span>
                             )}
@@ -884,17 +915,19 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   >
                     {computedTotalDuration > 0 && (
                       <span>
-                        ⏱️ {(computedTotalDuration / 1000).toFixed(1)}{' '}
+                        <Icon name="schedule" size="sm" /> {(computedTotalDuration / 1000).toFixed(1)}{' '}
                         {t('projectInfo.timeSeconds')}
                       </span>
                     )}
                     <span>
-                      📝 {t('projectInfo.totalShort')} {computedTotalTokens.toLocaleString()}{' '}
+                      <Icon name="toll" size="sm" /> {t('projectInfo.totalShort')}{' '}
+                      {computedTotalTokens.toLocaleString()}{' '}
                       {t('projectInfo.tokensCount')}
                     </span>
                     {computedTotalGlossary > 0 && (
                       <span>
-                        📚 +{computedTotalGlossary} {t('projectInfo.glossaryEntriesCount')}
+                        <Icon name="menu_book" size="sm" /> +{computedTotalGlossary}{' '}
+                        {t('projectInfo.glossaryEntriesCount')}
                       </span>
                     )}
                   </div>
@@ -925,15 +958,15 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                       const stageTokens: string[] = [];
                       if (totalByStage.analysis > 0) {
                         stageTokens.push(
-                          `🔍 ${t('projectInfo.stageAnalysis')}: ${totalByStage.analysis.toLocaleString()}`
+                          `${t('projectInfo.stageAnalysis')}: ${totalByStage.analysis.toLocaleString()}`
                         );
                       }
                       stageTokens.push(
-                        `🔮 ${t('projectInfo.stageTranslation')}: ${totalByStage.translation.toLocaleString()}`
+                        `${t('projectInfo.stageTranslation')}: ${totalByStage.translation.toLocaleString()}`
                       );
                       // Always show editing in batch summary (0 or value)
                       stageTokens.push(
-                        `✨ ${t('projectInfo.stageEditing')}: ${(totalByStage.editing ?? 0).toLocaleString()}`
+                        `${t('projectInfo.stageEditing')}: ${(totalByStage.editing ?? 0).toLocaleString()}`
                       );
                       return (
                         <div
@@ -963,14 +996,67 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               }}
             >
               <div style={{ color: 'var(--success)' }}>
-                ✅ {t('projectInfo.completedCount', { count: translationProgress.completed })}
+                <Icon name="check_circle" size="sm" />{' '}
+                {t('projectInfo.completedCount', { count: translationProgress.completed })}
               </div>
               {translationProgress.errors > 0 && (
                 <div style={{ color: 'var(--error)' }}>
-                  ❌ {t('projectInfo.errorsCount', { count: translationProgress.errors })}
+                  <Icon name="error" size="sm" />{' '}
+                  {t('projectInfo.errorsCount', { count: translationProgress.errors })}
+                </div>
+              )}
+              {translationProgress.skipped > 0 && (
+                <div style={{ color: 'var(--text-dim)' }}>
+                  <Icon name="skip_next" size="sm" />{' '}
+                  {t('projectInfo.skippedCount', { count: translationProgress.skipped })}
                 </div>
               )}
             </div>
+            {(() => {
+              const issues = translationProgress.chapters.filter(
+                (ch) => ch.status === 'error' || ch.status === 'skipped'
+              );
+              if (issues.length === 0) return null;
+              return (
+                <div
+                  style={{
+                    marginBottom: '1rem',
+                    padding: '0.75rem',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600 }}>
+                    {t('projectInfo.batchIssuesTitle', 'Проблемные главы')}
+                  </div>
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', fontSize: '0.85rem' }}>
+                    {issues.map((issue) => (
+                      <div
+                        key={issue.chapterId}
+                        style={{
+                          display: 'flex',
+                          gap: '0.5rem',
+                          marginBottom: '0.4rem',
+                          color: issue.status === 'error' ? 'var(--error)' : 'var(--text-dim)',
+                        }}
+                      >
+                        <span>
+                          {issue.status === 'error' ? (
+                            <Icon name="error" size="sm" />
+                          ) : (
+                            <Icon name="skip_next" size="sm" />
+                          )}
+                        </span>
+                        <span style={{ flex: 1 }}>
+                          {issue.title}
+                          {issue.reason ? ` — ${issue.reason}` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </Modal>

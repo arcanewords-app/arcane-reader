@@ -1,0 +1,22 @@
+---
+description: Keep frontend and API route map in sync
+globs: src/client/AppRouter.tsx,src/server.ts,docs/ROUTES.md
+alwaysApply: false
+---
+
+# Routing Sync Rule
+
+- Source of truth for route map is `@docs/ROUTES.md`.
+- Frontend routes are implemented in `@src/client/AppRouter.tsx`.
+- API routes are implemented in `@src/server.ts`.
+
+## When changing routes
+
+- Update route tables in `docs/ROUTES.md` (path, method/access, description).
+- Update navigation flow section if user journey changed.
+- Remove stale endpoints from docs when code is removed.
+
+## Verification
+
+- Added route exists in code and docs with identical path.
+- Renamed route is updated in all three places: client/server/docs.

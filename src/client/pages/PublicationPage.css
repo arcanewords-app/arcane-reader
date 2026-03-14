@@ -272,6 +272,10 @@
   color: var(--text-dim);
 }
 
+.publication-page-modal-text {
+  color: var(--text-secondary);
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .publication-page {
     padding: var(--main-padding-tablet);

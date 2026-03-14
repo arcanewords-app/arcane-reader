@@ -19,16 +19,16 @@ export function getProjectTypeDisplayName(type: ProjectType): string {
 }
 
 /**
- * Get icon for project type
+ * Get Material Symbol icon name for project type
  */
 export function getProjectTypeIcon(type: ProjectType): string {
   switch (type) {
     case 'book':
-      return '📚';
+      return 'menu_book';
     case 'text':
-      return '📄';
+      return 'description';
     default:
-      return '📁'; // Default icon
+      return 'folder'; // Default icon
   }
 }
 

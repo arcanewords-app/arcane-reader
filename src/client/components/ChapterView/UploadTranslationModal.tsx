@@ -1,6 +1,6 @@
 import { useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { Modal, Button } from '../ui';
+import { Modal, Button, Icon } from '../ui';
 import { ApiError } from '../../api/client';
 import './UploadTranslationModal.css';
 
@@ -74,7 +74,7 @@ export function UploadTranslationModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={`📤 ${t('uploadTranslation.title', 'Загрузить готовый перевод')}`}
+      title={t('uploadTranslation.title', 'Загрузить готовый перевод')}
       size="large"
       footer={
         <div class="upload-translation-modal-footer">
@@ -85,7 +85,7 @@ export function UploadTranslationModal({
             {loading ? <span class="spinner" /> : null}
             {loading
               ? t('uploadTranslation.uploading', 'Загрузка…')
-              : `📤 ${t('uploadTranslation.upload', 'Загрузить')}`}
+              : t('uploadTranslation.upload', 'Загрузить')}
           </Button>
         </div>
       }
@@ -123,7 +123,7 @@ export function UploadTranslationModal({
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
           >
-            📁 {t('uploadTranslation.chooseFile', 'Выбрать файл TXT')}
+            <Icon name="upload_file" size="sm" /> {t('uploadTranslation.chooseFile', 'Выбрать файл TXT')}
           </Button>
         </div>
         {error && <p class="upload-translation-modal-error">{error}</p>}

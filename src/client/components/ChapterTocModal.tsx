@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { Modal, Button } from './ui';
+import { Modal, Button, Icon } from './ui';
 import './ChapterTocModal.css';
 
 export interface ChapterTocItem {
@@ -62,7 +62,7 @@ export function ChapterTocModal({
     );
   }, [chapters, search, order, filter, readChapterIds]);
 
-  const displayTitle = title ?? `📑 ${t('readingMode.toc')}`;
+  const displayTitle = title ?? t('readingMode.toc');
 
   return (
     <Modal
@@ -148,7 +148,7 @@ export function ChapterTocModal({
                 </span>
                 {isRead && (
                   <span class="reading-toc-read" title={t('publication.read')}>
-                    ✓
+                    <Icon name="check" size="sm" />
                   </span>
                 )}
                 {isActive && <span class="reading-toc-current">{t('readingMode.current')}</span>}

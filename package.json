@@ -40,6 +40,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@preact/signals": "^2.5.1",
     "@supabase/supabase-js": "^2.90.1",
+    "@upstash/redis": "^1.37.0",
     "@xmldom/xmldom": "^0.8.11",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",

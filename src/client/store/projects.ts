@@ -6,6 +6,7 @@
 import { signal, computed } from '@preact/signals';
 import type { ProjectListItem, Project, ProjectWithChapterList } from '../types';
 import { api } from '../api/client';
+import { CACHE_TTL } from '../../shared/cacheContract';
 
 // Projects cache
 export const projectsCache = signal<ProjectListItem[]>([]);
@@ -14,7 +15,7 @@ export const projectsError = signal<string | null>(null);
 
 // Individual project cache (project with lightweight chapter list)
 const projectCache = new Map<string, { project: ProjectWithChapterList; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const PROJECT_CACHE_TTL_MS = CACHE_TTL.clientProjectsMs;
 
 // Computed: projects with metadata
 export const projectsWithMetadata = computed(() => {
@@ -52,7 +53,7 @@ export async function getProject(
   const cached = projectCache.get(id);
 
   // Return cached if valid and not forced refresh
-  if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < PROJECT_CACHE_TTL_MS) {
     return cached.project;
   }
 

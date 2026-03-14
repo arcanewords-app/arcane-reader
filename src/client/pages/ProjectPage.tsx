@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
@@ -20,17 +20,10 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const [project, setProject] = useState<ProjectWithChapterList | null>(null);
   const [loading, setLoading] = useState(true);
   const refreshTrigger = useSignal(0);
-  const previousProjectIdRef = useRef<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
 
   useEffect(() => {
-    // If projectId changed, invalidate previous project cache
-    if (previousProjectIdRef.current && previousProjectIdRef.current !== projectId) {
-      invalidateProject(previousProjectIdRef.current);
-    }
-    previousProjectIdRef.current = projectId;
-
     loadProject();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject is stable, avoid refetch loop
   }, [projectId]);
@@ -50,9 +43,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const loadProject = async () => {
     setLoading(true);
     try {
-      // Always refresh when navigating to a project to ensure fresh data
-      // Cache will still be used internally if it's very fresh (< 5 seconds)
-      const loadedProject = await getProject(projectId, true);
+      const loadedProject = await getProject(projectId);
       if (loadedProject) {
         trackEvent('view_item', { item_id: loadedProject.id });
         setProject(loadedProject);
@@ -78,9 +69,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
 
   const handleRefreshProject = async () => {
     if (!project) return;
-    // Invalidate cache to force fresh data
     invalidateProject(project.id);
-    // Load fresh project data from store (which will fetch from API)
     const updated = await getProject(project.id, true);
     if (updated) {
       setProject(updated);
@@ -132,13 +121,13 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           handleSidebarClose(); // Close sidebar on mobile when selecting chapter
           route(`/projects/${projectId}/chapters/${id}`);
         }}
-        onUploadChapter={async (file, title) => {
-          const result = await api.uploadChapter(project.id, file, title);
+        onUploadChapter={async ({ file, title, signal, onProgress }) => {
+          const result = await api.uploadChapter(project.id, file, title, signal, onProgress);
           if ('chapters' in result && Array.isArray(result.chapters) && result.warnings?.length) {
             // Warnings are handled by the upload component
           }
-          invalidateProject(project.id);
           await handleRefreshProject();
+          return result;
         }}
         onOpenGlossary={() => {
           handleSidebarClose(); // Close sidebar on mobile
@@ -148,7 +137,6 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           if (!project) return;
           try {
             await api.deleteChapter(project.id, chapterId);
-            invalidateProject(project.id);
             await handleRefreshProject();
           } catch (error) {
             console.error('Failed to delete chapter:', error);

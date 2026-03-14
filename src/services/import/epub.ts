@@ -6,8 +6,193 @@
 import { EPub } from 'epub2';
 import type { BookMetadata, ParsedChapter, ParseResult } from './types.js';
 
+const EPUB_PARSE_TIMEOUT_MS = 45000;
+const EPUB_COVER_TIMEOUT_MS = 15000;
+const EPUB_CHAPTER_TIMEOUT_MS = 20000;
+
+/** Result of lazy EPUB parsing: metadata + async iterator over chapters (avoids loading all in memory) */
+export interface ParseEpubLazyResult {
+  metadata: BookMetadata;
+  warnings: string[];
+  errors: string[];
+  chapterCount: number;
+  chapterIterator: AsyncGenerator<ParsedChapter, void, unknown>;
+}
+
+function normalizeTocHref(href?: string): string {
+  if (!href) return '';
+  return href.split('#')[0].trim().toLowerCase();
+}
+
+function buildTocTitleMap(toc: Array<{ href?: string; title?: string }> | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!toc) return map;
+  for (const item of toc) {
+    const key = normalizeTocHref(item.href);
+    if (!key) continue;
+    const title = item.title?.trim();
+    if (!title) continue;
+    if (!map.has(key)) {
+      map.set(key, title);
+    }
+  }
+  return map;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`EPUB ${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+}
+
+async function parseEpubArchive(epub: EPub): Promise<void> {
+  await withTimeout(
+    new Promise<void>((resolve, reject) => {
+      const onEnd = () => {
+        epub.removeListener('end', onEnd);
+        epub.removeListener('error', onError);
+        resolve();
+      };
+      const onError = (err: Error) => {
+        epub.removeListener('end', onEnd);
+        epub.removeListener('error', onError);
+        reject(err);
+      };
+      epub.on('end', onEnd);
+      epub.on('error', onError);
+      epub.parse();
+    }),
+    EPUB_PARSE_TIMEOUT_MS,
+    'archive parse'
+  );
+}
+
+async function getEpubCover(epub: EPub, coverId: string): Promise<{ img?: Buffer; mimeType?: string }> {
+  return withTimeout(
+    new Promise<{ img?: Buffer; mimeType?: string }>((resolve, reject) => {
+      epub.getImage(coverId, (err: Error | null, img?: Buffer, mimeType?: string) => {
+        if (err) reject(err);
+        else resolve({ img, mimeType });
+      });
+    }),
+    EPUB_COVER_TIMEOUT_MS,
+    'cover extraction'
+  );
+}
+
+async function getEpubChapter(epub: EPub, chapterId: string): Promise<string> {
+  return withTimeout(
+    new Promise<string>((resolve, reject) => {
+      epub.getChapter(chapterId, (err: Error | null, text?: string) => {
+        if (err) reject(err);
+        else resolve(text || '');
+      });
+    }),
+    EPUB_CHAPTER_TIMEOUT_MS,
+    `chapter "${chapterId}"`
+  );
+}
+
 /**
- * Parse EPUB file
+ * Parse EPUB lazily: yields chapters one-by-one to reduce memory for large books.
+ * Use this for EPUB files with many chapters instead of parseEpub().
+ */
+export async function parseEpubLazy(fileBuffer: Buffer): Promise<ParseEpubLazyResult> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const metadata: BookMetadata = {};
+
+  const epub = new EPub(fileBuffer as unknown as string);
+
+  await parseEpubArchive(epub);
+
+  metadata.title = epub.metadata?.title || undefined;
+  const creator = epub.metadata?.creator;
+  if (creator) {
+    metadata.authors = Array.isArray(creator) ? creator : [creator];
+  }
+  metadata.language = epub.metadata?.language || undefined;
+  metadata.publisher = epub.metadata?.publisher || undefined;
+  metadata.description = epub.metadata?.description || undefined;
+  metadata.isbn = epub.metadata?.identifier || undefined;
+  metadata.publishedDate = epub.metadata?.date || undefined;
+
+  try {
+    const coverId = epub.metadata?.cover;
+    if (coverId) {
+      const { img, mimeType } = await getEpubCover(epub, coverId);
+      if (img) {
+        metadata.coverImage = { data: img, mimeType: mimeType || 'image/jpeg' };
+      }
+    }
+  } catch {
+    warnings.push('Не удалось извлечь обложку');
+  }
+
+  const spine = epub.flow;
+  if (!spine || spine.length === 0) {
+    errors.push('EPUB файл не содержит глав');
+    return {
+      metadata,
+      warnings,
+      errors,
+      chapterCount: 0,
+      chapterIterator: (async function* () {})(),
+    };
+  }
+  const tocTitleMap = buildTocTitleMap(epub.toc as Array<{ href?: string; title?: string }> | undefined);
+
+  async function* iterateChapters(): AsyncGenerator<ParsedChapter, void, unknown> {
+    for (let i = 0; i < spine.length; i++) {
+      const item = spine[i];
+      if (!item.id) {
+        warnings.push(`Глава ${i + 1} не имеет ID`);
+        continue;
+      }
+      try {
+        const chapterText = await getEpubChapter(epub, item.id);
+        if (!chapterText || chapterText.trim().length === 0) {
+          warnings.push(`Глава ${i + 1} пуста или не может быть прочитана`);
+          continue;
+        }
+        const title = tocTitleMap.get(normalizeTocHref(item.href)) || `Глава ${i + 1}`;
+        yield {
+          title,
+          number: i + 1,
+          content: htmlToPlainText(chapterText),
+          htmlContent: chapterText,
+        };
+      } catch (chapterError) {
+        const msg = chapterError instanceof Error ? chapterError.message : 'Unknown error';
+        errors.push(`Ошибка при парсинге главы ${i + 1}: ${msg}`);
+      }
+    }
+  }
+
+  return {
+    metadata,
+    warnings,
+    errors,
+    chapterCount: spine.length,
+    chapterIterator: iterateChapters(),
+  };
+}
+
+/**
+ * Parse EPUB file (loads all chapters into memory)
  */
 export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
   const errors: string[] = [];
@@ -24,10 +209,7 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
     const epub = new EPub(fileBuffer as unknown as string);
 
     // Wait for metadata to be parsed
-    await new Promise<void>((resolve, reject) => {
-      epub.on('end', () => resolve());
-      epub.on('error', (err) => reject(err));
-    });
+    await parseEpubArchive(epub);
 
     // Extract metadata
     metadata.title = epub.metadata?.title || undefined;
@@ -45,21 +227,13 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
     try {
       const coverId = epub.metadata?.cover;
       if (coverId) {
-        await new Promise<void>((resolve, reject) => {
-          epub.getImage(coverId, (err: Error | null, img?: Buffer, mimeType?: string) => {
-            if (err) {
-              reject(err);
-            } else if (img) {
-              metadata.coverImage = {
-                data: img,
-                mimeType: mimeType || 'image/jpeg',
-              };
-              resolve();
-            } else {
-              resolve();
-            }
-          });
-        });
+        const { img, mimeType } = await getEpubCover(epub, coverId);
+        if (img) {
+          metadata.coverImage = {
+            data: img,
+            mimeType: mimeType || 'image/jpeg',
+          };
+        }
       }
     } catch (coverError) {
       warnings.push('Не удалось извлечь обложку');
@@ -77,6 +251,7 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
         warnings,
       };
     }
+    const tocTitleMap = buildTocTitleMap(epub.toc as Array<{ href?: string; title?: string }> | undefined);
 
     // Parse each chapter
     for (let i = 0; i < spine.length; i++) {
@@ -86,15 +261,7 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
         continue;
       }
       try {
-        const chapterText = await new Promise<string>((resolve, reject) => {
-          epub.getChapter(item.id!, (err: Error | null, text?: string) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(text || '');
-            }
-          });
-        });
+        const chapterText = await getEpubChapter(epub, item.id);
 
         if (!chapterText || chapterText.trim().length === 0) {
           warnings.push(`Глава ${i + 1} пуста или не может быть прочитана`);
@@ -102,10 +269,7 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
         }
 
         // Extract title from TOC or use default
-        const tocItem = epub.toc?.find(
-          (t: { href?: string; title?: string }) => t.href === item.href
-        );
-        const title = tocItem?.title || `Глава ${i + 1}`;
+        const title = tocTitleMap.get(normalizeTocHref(item.href)) || `Глава ${i + 1}`;
 
         // Convert HTML to plain text and preserve HTML
         const plainText = htmlToPlainText(chapterText);

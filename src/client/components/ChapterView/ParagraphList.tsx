@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Paragraph, TextBlockType } from '../../types';
+import { Icon } from '../ui';
 import { renderTextWithBlocks } from '../../utils/text-blocks';
 import './ParagraphList.css';
 
@@ -187,7 +188,13 @@ export function ParagraphList({
                           onClick={handleSave}
                           disabled={saving}
                         >
-                          {saving ? <span class="spinner" /> : `💾 ${t('paragraphList.save')}`}
+                          {saving ? (
+                            <span class="spinner" />
+                          ) : (
+                            <>
+                              <Icon name="save" size="sm" /> {t('paragraphList.save')}
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>

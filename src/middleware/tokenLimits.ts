@@ -12,6 +12,8 @@ import {
   isUnlimitedTokenLimit,
 } from '../config/tokenLimits.js';
 import type { UserRole } from '../types/roles.js';
+import { CACHE_PREFIX } from '../shared/cacheContract.js';
+import { buildRedisKey, redisDelMany } from '../services/redisCache.js';
 
 export interface TokenUsage {
   date: string;
@@ -150,6 +152,28 @@ export async function incrementTokenUsage(
   validateToken(token);
   const client = createClientWithToken(token);
   const date = getCurrentDateUTC();
+  const cacheKeysToInvalidate = [
+    buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date),
+    buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, 7),
+    buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, 30),
+  ];
+
+  try {
+    const { error: rpcError } = await client.rpc('increment_token_usage_atomic', {
+      p_user_id: userId,
+      p_date: date,
+      p_tokens_used: tokensUsed,
+      p_tokens_analysis: tokensByStage?.analysis ?? 0,
+      p_tokens_translation: tokensByStage?.translation ?? 0,
+      p_tokens_editing: tokensByStage?.editing ?? 0,
+    });
+    if (!rpcError) {
+      await redisDelMany(cacheKeysToInvalidate);
+      return;
+    }
+  } catch {
+    // RPC may not exist yet; fallback to legacy behavior below.
+  }
 
   // Get current usage
   const { data: existing } = await client
@@ -190,7 +214,9 @@ export async function incrementTokenUsage(
   if (error) {
     const { logger } = await import('../logger.js');
     logger.error({ err: error }, 'Failed to increment token usage');
+    return;
   }
+  await redisDelMany(cacheKeysToInvalidate);
 }
 
 /**

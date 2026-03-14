@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { GlossaryEntry, GlossaryEntryType } from '../../types';
-import { Modal, Button, LoadingSpinner } from '../ui';
+import { Modal, Button, LoadingSpinner, Icon } from '../ui';
 import { api } from '../../api/client';
 import './GlossaryModal.css';
 import './PublicationGlossaryModal.css';
@@ -26,9 +26,9 @@ interface PublicationGlossaryModalProps {
 }
 
 const typeIcons: Record<GlossaryEntryType, string> = {
-  character: '👤',
-  location: '📍',
-  term: '📖',
+  character: 'person',
+  location: 'place',
+  term: 'menu_book',
 };
 
 export function PublicationGlossaryModal({
@@ -159,7 +159,7 @@ export function PublicationGlossaryModal({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={`📝 ${t('glossary.title')}`}
+        title={t('glossary.title')}
         size="large"
         className="glossary-viewer-readonly publication-glossary-modal"
         footer={
@@ -186,7 +186,7 @@ export function PublicationGlossaryModal({
                 <input
                   type="text"
                   class="form-input"
-                  placeholder={`🔍 ${t('glossary.searchPlaceholder')}`}
+                  placeholder={t('glossary.searchPlaceholder')}
                   value={search}
                   onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                 />
@@ -198,7 +198,13 @@ export function PublicationGlossaryModal({
                     class={`filter-btn ${filter === f ? 'active' : ''}`}
                     onClick={() => setFilter(f)}
                   >
-                    {f === 'all' ? t('glossary.all') : `${typeIcons[f]} ${typeLabels[f]}`}
+                    {f === 'all' ? (
+                      t('glossary.all')
+                    ) : (
+                      <>
+                        <Icon name={typeIcons[f]} size="sm" /> {typeLabels[f]}
+                      </>
+                    )}
                     <span>{counts[f]}</span>
                   </button>
                 ))}
@@ -208,7 +214,9 @@ export function PublicationGlossaryModal({
             <div class="glossary-grid">
               {filteredEntries.length === 0 ? (
                 <div class="glossary-empty">
-                  <div class="glossary-empty-icon">📚</div>
+                  <div class="glossary-empty-icon">
+                    <Icon name="menu_book" />
+                  </div>
                   <p>{entries.length === 0 ? t('glossary.empty') : t('glossary.noResults')}</p>
                 </div>
               ) : (
@@ -236,7 +244,9 @@ export function PublicationGlossaryModal({
                             class="glossary-card-image"
                           />
                         ) : (
-                          <div class="glossary-card-placeholder">{typeIcons[entry.type]}</div>
+                          <div class="glossary-card-placeholder">
+                            <Icon name={typeIcons[entry.type]} />
+                          </div>
                         )}
                         <div class="glossary-card-header-content">
                           <div class="glossary-card-names">
@@ -250,14 +260,14 @@ export function PublicationGlossaryModal({
                           </div>
                           <div class="glossary-card-header-badges">
                             <div class="glossary-card-type-badge" title={typeLabels[entry.type]}>
-                              {typeIcons[entry.type]}
+                              <Icon name={typeIcons[entry.type]} size="sm" />
                             </div>
                             {entry.firstAppearance != null && (
                               <span
                                 class="glossary-card-badge glossary-card-chapter"
                                 title={t('glossary.firstMention')}
                               >
-                                📖 {entry.firstAppearance}
+                                <Icon name="menu_book" size="sm" /> {entry.firstAppearance}
                               </span>
                             )}
                           </div>
@@ -288,7 +298,7 @@ export function PublicationGlossaryModal({
         <Modal
           isOpen={true}
           onClose={() => setDetailEntry(null)}
-          title={`📖 ${detailEntry.original} → ${detailEntry.translated}`}
+          title={`${detailEntry.original} → ${detailEntry.translated}`}
           className="nested publication-glossary-detail-modal"
           footer={
             <Button variant="secondary" onClick={() => setDetailEntry(null)}>
@@ -299,7 +309,7 @@ export function PublicationGlossaryModal({
           <div class="publication-glossary-detail">
             <div class="form-group">
               <span class="form-label">
-                {typeIcons[detailEntry.type]} {typeLabels[detailEntry.type]}
+                <Icon name={typeIcons[detailEntry.type]} size="sm" /> {typeLabels[detailEntry.type]}
               </span>
             </div>
             <div class="form-group">
@@ -312,7 +322,7 @@ export function PublicationGlossaryModal({
             </div>
             {detailEntry.description && (
               <div class="form-group">
-                <label class="form-label">📝 {t('glossary.description')}</label>
+                <label class="form-label">{t('glossary.description')}</label>
                 <p style={{ margin: 0, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
                   {detailEntry.description}
                 </p>
@@ -320,7 +330,7 @@ export function PublicationGlossaryModal({
             )}
             {detailEntry.firstAppearance != null && (
               <div class="form-group">
-                <label class="form-label">📖 {t('glossary.firstMention')}</label>
+                <label class="form-label">{t('glossary.firstMention')}</label>
                 <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
                   {t('glossary.firstMentionChapter', { n: detailEntry.firstAppearance })}
                 </p>
@@ -328,7 +338,7 @@ export function PublicationGlossaryModal({
             )}
             {detailEntry.mentionedInChapters && detailEntry.mentionedInChapters.length > 0 && (
               <div class="form-group">
-                <label class="form-label">📑 {t('glossary.chaptersMentionedLabel')}</label>
+                <label class="form-label">{t('glossary.chaptersMentionedLabel')}</label>
                 <div class="edit-modal-chapters-block">
                   {renderChapterPills(detailEntry.mentionedInChapters)}
                 </div>
@@ -344,7 +354,7 @@ export function PublicationGlossaryModal({
             )}
             {(detailEntry.imageUrls?.length || detailEntry.imageUrl) && (
               <div class="form-group">
-                <label class="form-label">🖼️ {t('glossary.imageGallery')}</label>
+                <label class="form-label">{t('glossary.imageGallery')}</label>
                 <div class="image-gallery-section">
                   <div class="image-gallery-grid">
                     {(
@@ -391,7 +401,7 @@ export function PublicationGlossaryModal({
       <Modal
         isOpen={pendingChapter !== null}
         onClose={() => setPendingChapter(null)}
-        title={`📖 ${t('glossary.goToChapterTitle')}`}
+        title={t('glossary.goToChapterTitle')}
         className="nested publication-glossary-detail-modal publication-glossary-confirm-modal"
         footer={
           pendingChapter && (

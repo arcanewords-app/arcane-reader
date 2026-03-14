@@ -37,6 +37,12 @@ export interface AppConfig {
     projectsDir: string;
     cacheDir: string;
   };
+
+  // Upload limits (for chapter files)
+  upload: {
+    /** Max file size in bytes. Default 50MB. */
+    maxFileSizeBytes: number;
+  };
 }
 
 /**
@@ -69,6 +75,13 @@ export function loadConfig(): AppConfig {
     storage: {
       projectsDir: process.env.PROJECTS_DIR ?? './data/projects',
       cacheDir: process.env.CACHE_DIR ?? './data/cache',
+    },
+
+    upload: {
+      maxFileSizeBytes: parseInt(
+        process.env.UPLOAD_MAX_FILE_SIZE_BYTES ?? String(50 * 1024 * 1024),
+        10
+      ),
     },
   };
 }

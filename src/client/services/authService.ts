@@ -9,6 +9,13 @@ const TOKEN_KEY = 'arcane_auth_token';
 const REFRESH_KEY = 'arcane_auth_refresh';
 const USER_KEY = 'arcane_user';
 const EXPIRES_KEY = 'arcane_auth_expires';
+export const AUTH_CHANGED_EVENT = 'arcane:auth-changed';
+export const USER_UPDATED_EVENT = 'arcane:user-updated';
+
+export type AuthChangedDetail = {
+  authenticated: boolean;
+  user: AuthUser | null;
+};
 
 // Helper function to clear storage
 function clearAuthStorage(): void {
@@ -16,6 +23,17 @@ function clearAuthStorage(): void {
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(EXPIRES_KEY);
+}
+
+function dispatchAuthChanged(user: AuthUser | null): void {
+  window.dispatchEvent(
+    new CustomEvent<AuthChangedDetail>(AUTH_CHANGED_EVENT, {
+      detail: {
+        authenticated: !!user,
+        user,
+      },
+    })
+  );
 }
 
 export const authService = {
@@ -97,6 +115,7 @@ export const authService = {
         localStorage.setItem(EXPIRES_KEY, String(data.session.expires_at));
       }
     }
+    dispatchAuthChanged(data.session ? data.user : null);
 
     return data;
   },
@@ -126,6 +145,7 @@ export const authService = {
       if (data.session.expires_at) {
         localStorage.setItem(EXPIRES_KEY, String(data.session.expires_at));
       }
+      dispatchAuthChanged(this.getCachedUser());
       return true;
     } catch {
       return false;
@@ -141,6 +161,7 @@ export const authService = {
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(EXPIRES_KEY);
+    dispatchAuthChanged(null);
 
     // Call API logout endpoint
     try {
@@ -204,7 +225,7 @@ export const authService = {
 
       if (!response.ok) {
         // Token invalid, clear storage
-        clearAuthStorage();
+        this.clearStorage();
         return null;
       }
 
@@ -237,6 +258,7 @@ export const authService = {
    */
   clearStorage(): void {
     clearAuthStorage();
+    dispatchAuthChanged(null);
   },
 
   /**
@@ -248,6 +270,7 @@ export const authService = {
     if (!current) return;
     const updated = { ...current, ...updates };
     localStorage.setItem(USER_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('arcane:user-updated', { detail: updated }));
+    window.dispatchEvent(new CustomEvent(USER_UPDATED_EVENT, { detail: updated }));
+    dispatchAuthChanged(updated);
   },
 };

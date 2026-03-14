@@ -17,7 +17,6 @@ import { fileURLToPath } from 'url';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
 import {
-  getAllProjects,
   getAllProjectsLightweight,
   getProject,
   createProject,
@@ -32,6 +31,7 @@ import {
   deleteChapter,
   updateChapterNumber,
   updateChaptersOrder,
+  markChaptersAsTranslatedBatch,
   addGlossaryEntry,
   updateGlossaryEntry,
   getGlossaryEntry,
@@ -56,6 +56,7 @@ import {
   getUserReaderSettings,
   updateUserReaderSettings,
   getUserReadingHistory,
+  type MarkTranslatedBatchResult,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
 import {
@@ -278,8 +279,17 @@ import {
 } from './services/glossaryMergeSuggestions.js';
 import { exportProject } from './services/export/index.js';
 import { authService } from './services/authService.js';
-import { parseFile, isSupportedFormat, getProjectTypeFromFormat } from './services/import/index.js';
+import {
+  parseFile,
+  parseEpubLazy,
+  isSupportedFormat,
+  getProjectTypeFromFormat,
+} from './services/import/index.js';
 import type { ParseResult } from './services/import/index.js';
+import {
+  createImportJobStoreFromEnv,
+  type ImportJobState,
+} from './services/importJobStore.js';
 import {
   uploadFile,
   deleteFile,
@@ -290,6 +300,13 @@ import {
   createSignedUrl,
   listFiles,
 } from './services/storage.js';
+import { CACHE_PREFIX, CACHE_TTL } from './shared/cacheContract.js';
+import {
+  buildRedisKey,
+  redisDelMany,
+  redisGetJson,
+  redisSetJson,
+} from './services/redisCache.js';
 
 // Load configuration
 const config = loadConfig();
@@ -319,7 +336,7 @@ const PORT = config.port;
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (increased for EPUB/FB2)
+  limits: { fileSize: config.upload.maxFileSizeBytes },
   fileFilter: (_req, file, cb) => {
     const filename = decodeMultipartFilename(file.originalname).toLowerCase();
     const allowedExtensions = ['.txt', '.epub', '.fb2', '.csv'];
@@ -362,6 +379,159 @@ const uploadImage = multer({
 const translationCancelRegistry = new Map<string, boolean>();
 function translationCancelKey(projectId: string, chapterId: string): string {
   return `${projectId}:${chapterId}`;
+}
+
+const IMPORT_JOB_FORMATS = new Set(['epub', 'fb2', 'csv']);
+const IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT = 200;
+const IMPORT_JOB_TTL_SECONDS = parseInt(process.env.IMPORT_JOB_TTL_SECONDS ?? '1800', 10);
+const IMPORT_JOB_PROGRESS_UPDATE_EVERY = 5;
+const IMPORT_JOB_PROGRESS_UPDATE_MAX_STALENESS_MS = 1500;
+const importJobStore = createImportJobStoreFromEnv();
+let healthSnapshot: { ts: number; data: ReturnType<typeof serviceHealthManager.getHealthResult> } | null =
+  null;
+
+async function withRedisCache<T>(
+  key: string,
+  ttlSeconds: number,
+  loader: () => Promise<T>
+): Promise<T> {
+  const cached = await redisGetJson<T>(key);
+  if (cached != null) return cached;
+  const value = await loader();
+  await redisSetJson(key, value, ttlSeconds);
+  return value;
+}
+
+function userProjectsCacheKey(userId: string): string {
+  return buildRedisKey(CACHE_PREFIX.userProjects, userId);
+}
+
+function userProjectCacheKey(userId: string, projectId: string): string {
+  return buildRedisKey(CACHE_PREFIX.userProject, userId, projectId);
+}
+
+function userProjectSummaryCacheKey(userId: string, projectId: string): string {
+  return buildRedisKey(CACHE_PREFIX.userProjectSummary, userId, projectId);
+}
+
+function publicationsListCacheKey(options: {
+  limit: number;
+  offset: number;
+  orderBy: string;
+  orderAsc: boolean;
+}): string {
+  return buildRedisKey(
+    CACHE_PREFIX.publicationsList,
+    options.limit,
+    options.offset,
+    options.orderBy,
+    options.orderAsc
+  );
+}
+
+function publicationCacheKey(id: string): string {
+  return buildRedisKey(CACHE_PREFIX.publication, id);
+}
+
+function publicationChaptersCacheKey(id: string): string {
+  return buildRedisKey(CACHE_PREFIX.publicationChapters, id);
+}
+
+function publicationChapterCacheKey(publicationId: string, chapterId: string): string {
+  return buildRedisKey(CACHE_PREFIX.publicationChapter, publicationId, chapterId);
+}
+
+function publicationGlossaryCacheKey(id: string): string {
+  return buildRedisKey(CACHE_PREFIX.publicationGlossary, id);
+}
+
+function tokenUsageCacheKey(userId: string, date: string): string {
+  return buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date);
+}
+
+function tokenUsageHistoryCacheKey(userId: string, days: number): string {
+  return buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, days);
+}
+
+function readingHistoryCacheKey(userId: string): string {
+  return buildRedisKey(CACHE_PREFIX.userReadingHistory, userId);
+}
+
+function invalidateUserProjectCaches(userId: string, projectId?: string): Promise<void> {
+  const keys = [userProjectsCacheKey(userId)];
+  if (projectId) {
+    keys.push(userProjectCacheKey(userId, projectId), userProjectSummaryCacheKey(userId, projectId));
+  }
+  return redisDelMany(keys);
+}
+
+function invalidatePublicationCaches(identifier: string): Promise<void> {
+  const keys = [
+    publicationCacheKey(identifier),
+    publicationChaptersCacheKey(identifier),
+    publicationGlossaryCacheKey(identifier),
+  ];
+  return redisDelMany(keys);
+}
+
+function invalidatePublicationListCaches(): Promise<void> {
+  return redisDelMany([
+    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'published_at', orderAsc: false }),
+    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'published_at', orderAsc: true }),
+    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'created_at', orderAsc: false }),
+    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'created_at', orderAsc: true }),
+  ]);
+}
+
+async function invalidateProjectAndRelatedCaches(
+  userId: string,
+  projectId: string,
+  token: string,
+  options?: { invalidatePublicationList?: boolean }
+): Promise<void> {
+  await invalidateUserProjectCaches(userId, projectId);
+  try {
+    const publication = await getPublicationByProjectId(projectId, userId, token);
+    if (!publication) return;
+    await invalidatePublicationCaches(publication.id);
+    if (publication.slug) {
+      await invalidatePublicationCaches(publication.slug);
+    }
+    if (options?.invalidatePublicationList) {
+      await invalidatePublicationListCaches();
+    }
+  } catch (error) {
+    logger.warn({ err: error, userId, projectId }, 'Failed to invalidate publication-related cache');
+  }
+}
+
+function generateImportJobId(): string {
+  return `imp_${Date.now().toString(36)}_${Math.round(Math.random() * 1e9).toString(36)}`;
+}
+
+function toPublicImportJob(
+  job: ImportJobState,
+  options?: { compact?: boolean }
+): Omit<ImportJobState, 'projectId' | 'userId' | 'cancelRequested'> & {
+  progress: number;
+} {
+  const compact = options?.compact === true;
+  return {
+    jobId: job.jobId,
+    status: job.status,
+    phase: job.phase,
+    format: job.format,
+    filename: job.filename,
+    current: job.current,
+    total: job.total,
+    progress: job.total > 0 ? Number(((job.current / job.total) * 100).toFixed(1)) : 0,
+    currentChapterTitle: job.currentChapterTitle,
+    warnings: job.warnings,
+    errors: job.errors,
+    chapters: compact ? [] : job.chapters,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+  };
 }
 
 // Middleware
@@ -526,6 +696,7 @@ app.get('/api/status', (_req, res) => {
       errors: configValidation.errors,
     },
     storage: 'supabase',
+    maxFileSizeBytes: config.upload.maxFileSizeBytes,
   });
 });
 
@@ -534,8 +705,15 @@ app.get('/api/status', (_req, res) => {
 // do many more queries (chapters, glossary, etc.) and may fail independently.
 app.get('/api/health', async (_req, res) => {
   try {
-    await serviceHealthManager.checkAll();
-    const result = serviceHealthManager.getHealthResult();
+    const now = Date.now();
+    if (!healthSnapshot || now - healthSnapshot.ts > CACHE_TTL.healthSnapshotMs) {
+      await serviceHealthManager.checkAll();
+      healthSnapshot = {
+        ts: now,
+        data: serviceHealthManager.getHealthResult(),
+      };
+    }
+    const result = healthSnapshot.data;
     const statusCode = result.status === 'down' ? 503 : 200;
     res.status(statusCode).json(result);
   } catch (error) {
@@ -558,9 +736,14 @@ app.get('/api/user/token-usage', requireAuth, async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const user = req.user;
 
-    const date = req.query.date as string | undefined;
-    const usage = await getUserTokenUsage(req.user.id, requireToken(req), date, req.user.role);
+    const date = (req.query.date as string | undefined) ?? new Date().toISOString().split('T')[0];
+    const usage = await withRedisCache(
+      tokenUsageCacheKey(user.id, date),
+      CACHE_TTL.redisTokenUsageSec,
+      () => getUserTokenUsage(user.id, requireToken(req), date, user.role)
+    );
     res.json(usage);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage';
@@ -575,9 +758,14 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const user = req.user;
 
     const days = parseInt((req.query.days as string) || '7', 10);
-    const history = await getTokenUsageHistory(req.user.id, requireToken(req), days, req.user.role);
+    const history = await withRedisCache(
+      tokenUsageHistoryCacheKey(user.id, days),
+      CACHE_TTL.redisTokenHistorySec,
+      () => getTokenUsageHistory(user.id, requireToken(req), days, user.role)
+    );
     res.json({ history });
   } catch (error) {
     const errorMessage =
@@ -593,8 +781,13 @@ app.get('/api/user/reading-history', requireAuth, async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const user = req.user;
 
-    const items = await getUserReadingHistory(req.user.id, requireToken(req));
+    const items = await withRedisCache(
+      readingHistoryCacheKey(user.id),
+      CACHE_TTL.redisTokenHistorySec,
+      () => getUserReadingHistory(user.id, requireToken(req))
+    );
     res.json({ items });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get reading history';
@@ -644,6 +837,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
       req.log?.error({ err: error }, 'Failed to update profile');
       return res.status(500).json({ error: 'Failed to update profile' });
     }
+    await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, req.user.id)]);
     res.json({ avatarUrl: data?.avatar_url ?? null });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
@@ -703,6 +897,7 @@ app.post(
         req.log?.error({ err: error }, 'Failed to update profile');
         return res.status(500).json({ error: 'Failed to update profile' });
       }
+      await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, req.user.id)]);
       res.json({ avatarUrl: data?.avatar_url ?? null });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload avatar';
@@ -720,6 +915,7 @@ app.get('/api/projects', requireAuth, requireRole('author'), async (req, res) =>
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const user = req.user;
 
     const token = requireToken(req);
 
@@ -740,7 +936,11 @@ app.get('/api/projects', requireAuth, requireRole('author'), async (req, res) =>
 
     let projectList;
     try {
-      projectList = await getAllProjectsLightweight(req.user.id, token);
+      projectList = await withRedisCache(
+        userProjectsCacheKey(user.id),
+        CACHE_TTL.redisProjectListSec,
+        () => getAllProjectsLightweight(user.id, token)
+      );
     } catch (getAllErr) {
       req.log?.error(
         { err: getAllErr, phase: 'getAllProjectsLightweight' },
@@ -771,6 +971,7 @@ app.post('/api/projects', requireAuth, requireRole('author'), async (req, res) =
       req.user.id,
       token
     );
+    await invalidateUserProjectCaches(req.user.id);
     res.json(project);
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
@@ -784,9 +985,14 @@ app.get('/api/projects/:id', requireAuth, requireRole('author'), async (req, res
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const user = req.user;
 
     const token = requireToken(req);
-    const project = await getProject(req.params.id, req.user.id, token);
+    const project = await withRedisCache(
+      userProjectCacheKey(user.id, req.params.id),
+      CACHE_TTL.redisProjectSec,
+      () => getProject(req.params.id, user.id, token)
+    );
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -811,9 +1017,14 @@ app.get(
       if (!req.user) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
+      const user = req.user;
 
       const token = requireToken(req);
-      const summary = await getChaptersSummary(req.params.id, req.user.id, token);
+      const summary = await withRedisCache(
+        userProjectSummaryCacheKey(user.id, req.params.id),
+        CACHE_TTL.redisProjectSummarySec,
+        () => getChaptersSummary(req.params.id, user.id, token)
+      );
       res.json(summary);
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
@@ -833,6 +1044,7 @@ app.delete('/api/projects/:id', requireAuth, requireRole('author'), async (req, 
     if (!success) {
       return res.status(404).json({ error: 'Project not found' });
     }
+    await invalidateUserProjectCaches(req.user.id, req.params.id);
     res.json({ success: true });
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
@@ -920,6 +1132,7 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
     }
 
     await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);
+    await invalidateUserProjectCaches(req.user.id, req.params.id);
 
     // Get updated project to return fresh settings
     const updatedProject = await getProject(req.params.id, req.user.id, token);
@@ -997,6 +1210,7 @@ app.put(
         'Reader settings updated'
       );
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.id, token);
       res.json(reader);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update reader settings' });
@@ -1039,6 +1253,489 @@ app.put('/api/user/reader-settings', requireAuth, async (req, res) => {
 
 // ============ Chapters ============
 
+// Start async import job for large multi-chapter formats (EPUB/FB2/CSV)
+app.post(
+  '/api/projects/:id/chapters/import',
+  requireAuth,
+  requireRole('author'),
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.id, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const filename =
+        typeof req.body?.filename === 'string' && req.body.filename.trim()
+          ? req.body.filename.trim()
+          : decodeMultipartFilename(req.file.originalname);
+      const extension = (filename.toLowerCase().split('.').pop() || '') as 'epub' | 'fb2' | 'csv' | 'txt';
+
+      if (!isSupportedFormat(filename)) {
+        return res.status(400).json({
+          error: 'Неподдерживаемый формат файла',
+          details: 'Поддерживаемые форматы: .txt, .epub, .fb2, .csv',
+        });
+      }
+
+      if (!IMPORT_JOB_FORMATS.has(extension)) {
+        return res.status(400).json({
+          error: 'Формат должен загружаться через обычный endpoint',
+          details: 'Job-based импорт поддерживается только для .epub, .fb2, .csv',
+        });
+      }
+
+      const jobId = generateImportJobId();
+      const job: ImportJobState = {
+        jobId,
+        projectId: req.params.id,
+        userId: req.user.id,
+        status: 'queued',
+        phase: null,
+        format: extension as 'epub' | 'fb2' | 'csv',
+        filename,
+        current: 0,
+        total: 0,
+        warnings: [],
+        errors: [],
+        chapters: [],
+        startedAt: new Date().toISOString(),
+        finishedAt: null,
+        cancelRequested: false,
+      };
+      await importJobStore.createJob(job);
+      await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+
+      // Reply immediately; processing continues in background.
+      res.status(202).json({ jobId, status: 'queued' as const });
+
+      const projectId = req.params.id;
+      const userId = req.user.id;
+      const buffer = req.file.buffer;
+
+      setImmediate(async () => {
+        const jobStartedAtMs = Date.now();
+        const currentJob = await importJobStore.getJob(jobId);
+        if (!currentJob) return;
+        req.log?.info(
+          {
+            event: 'import.job.started',
+            jobId,
+            projectId,
+            userId,
+            format: extension,
+            filename,
+            fileSizeBytes: buffer.length,
+          },
+          'Import job started'
+        );
+        await importJobStore.updateJob(jobId, {
+          status: 'processing',
+          phase: 'parsing',
+        });
+
+        try {
+          const isFirstChapter = project.chapters.length === 0;
+
+          if (extension === 'epub') {
+            const epubParseStartedAtMs = Date.now();
+            req.log?.info({ event: 'import.job.epub.parsing.started', jobId }, 'EPUB parsing started');
+            const lazyResult = await parseEpubLazy(buffer);
+            req.log?.info(
+              {
+                event: 'import.job.epub.parsing.finished',
+                jobId,
+                durationMs: Date.now() - epubParseStartedAtMs,
+                chapterCount: lazyResult.chapterCount,
+                warningsCount: lazyResult.warnings.length,
+                initialErrorsCount: lazyResult.errors.length,
+              },
+              'EPUB parsing finished'
+            );
+            if (lazyResult.errors.length > 0) {
+              await importJobStore.updateJob(jobId, {
+                status: 'error',
+                errors: [...lazyResult.errors],
+                finishedAt: new Date().toISOString(),
+              });
+              await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+              return;
+            }
+            if (lazyResult.chapterCount === 0) {
+              await importJobStore.updateJob(jobId, {
+                status: 'error',
+                errors: ['Файл не содержит глав'],
+                finishedAt: new Date().toISOString(),
+              });
+              await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+              return;
+            }
+
+            const epubWarnings = [...lazyResult.warnings];
+            if (lazyResult.chapterCount > 500) {
+              epubWarnings.push(
+                `Файл содержит ${lazyResult.chapterCount} глав. Рекомендуется разбить на части для лучшей производительности.`
+              );
+            }
+
+            await importJobStore.updateJob(jobId, {
+              total: lazyResult.chapterCount,
+              warnings: epubWarnings,
+            });
+
+            const detectedType = getProjectTypeFromFormat('epub');
+            const needsTypeUpdate =
+              !project.type || (project.type === 'text' && detectedType !== 'text');
+            if (isFirstChapter && needsTypeUpdate) {
+              await updateProject(projectId, { type: detectedType }, userId, token);
+            }
+
+            if (isFirstChapter && Object.keys(lazyResult.metadata || {}).length > 0) {
+              const updatedMetadata = {
+                ...project.metadata,
+                ...lazyResult.metadata,
+              };
+              if (lazyResult.metadata.coverImage) {
+                try {
+                  const ext = lazyResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
+                  const storagePath = generateUniqueFilename('cover', ext, projectId);
+                  const uploadResult = await uploadFile(
+                    'images',
+                    storagePath,
+                    lazyResult.metadata.coverImage.data,
+                    { contentType: lazyResult.metadata.coverImage.mimeType }
+                  );
+                  updatedMetadata.coverImageUrl = uploadResult.publicUrl;
+                } catch (coverError) {
+                  req.log?.error({ err: coverError, jobId }, 'Failed to save cover image');
+                }
+                delete (updatedMetadata as Record<string, unknown>).coverImage;
+              }
+              if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
+                await updateProject(projectId, { metadata: updatedMetadata }, userId, token);
+              }
+            }
+
+            await importJobStore.updateJob(jobId, { phase: 'saving' });
+            req.log?.info(
+              { event: 'import.job.epub.saving.started', jobId, totalChapters: lazyResult.chapterCount },
+              'EPUB saving started'
+            );
+            let chapterNumber = 0;
+            let lastProgressUpdateAtMs = 0;
+            let recentChapters: Array<{ number: number; title: string }> = [];
+            for await (const parsedChapter of lazyResult.chapterIterator) {
+              if (await importJobStore.isCancelRequested(jobId)) {
+                await importJobStore.updateJob(jobId, {
+                  status: 'canceled',
+                  finishedAt: new Date().toISOString(),
+                });
+                await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+                return;
+              }
+
+              chapterNumber++;
+
+              if (await importJobStore.isCancelRequested(jobId)) {
+                await importJobStore.updateJob(jobId, {
+                  status: 'canceled',
+                  finishedAt: new Date().toISOString(),
+                });
+                await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+                return;
+              }
+              await addChapter(
+                projectId,
+                { title: parsedChapter.title, originalText: parsedChapter.content },
+                token
+              );
+
+              recentChapters =
+                recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                  ? [...recentChapters.slice(1), { number: chapterNumber, title: parsedChapter.title }]
+                  : [...recentChapters, { number: chapterNumber, title: parsedChapter.title }];
+
+              const nowMs = Date.now();
+              const shouldFlushProgress =
+                chapterNumber === 1 ||
+                chapterNumber === lazyResult.chapterCount ||
+                chapterNumber % IMPORT_JOB_PROGRESS_UPDATE_EVERY === 0 ||
+                nowMs - lastProgressUpdateAtMs >= IMPORT_JOB_PROGRESS_UPDATE_MAX_STALENESS_MS;
+
+              if (shouldFlushProgress) {
+                await importJobStore.updateJob(jobId, {
+                  currentChapterTitle: parsedChapter.title,
+                  current: chapterNumber,
+                  chapters: recentChapters,
+                });
+                lastProgressUpdateAtMs = nowMs;
+              }
+
+              if (
+                chapterNumber === 1 ||
+                chapterNumber % 25 === 0 ||
+                chapterNumber === lazyResult.chapterCount
+              ) {
+                req.log?.info(
+                  {
+                    event: 'import.job.epub.saving.progress',
+                    jobId,
+                    current: chapterNumber,
+                    total: lazyResult.chapterCount,
+                    currentChapterTitle: parsedChapter.title,
+                  },
+                  'EPUB saving progress'
+                );
+              }
+            }
+
+            if (chapterNumber === 0) {
+              await importJobStore.updateJob(jobId, {
+                status: 'error',
+                errors:
+                  lazyResult.errors.length > 0
+                    ? [...lazyResult.errors]
+                    : ['Не удалось извлечь ни одной главы из EPUB файла'],
+                finishedAt: new Date().toISOString(),
+              });
+              await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+              req.log?.warn(
+                { event: 'import.job.epub.saving.empty', jobId, parserErrors: lazyResult.errors.length },
+                'EPUB finished with zero saved chapters'
+              );
+              return;
+            }
+
+            if (lazyResult.errors.length > 0) {
+              const mergedWarnings = [
+                ...epubWarnings,
+                `Некоторые главы EPUB были пропущены из-за ошибок парсинга: ${lazyResult.errors.length}`,
+              ];
+              await importJobStore.updateJob(jobId, {
+                warnings: mergedWarnings,
+                errors: [...lazyResult.errors],
+              });
+              req.log?.warn(
+                {
+                  event: 'import.job.epub.saving.partial-errors',
+                  jobId,
+                  parserErrors: lazyResult.errors.length,
+                  savedChapters: chapterNumber,
+                },
+                'EPUB imported with chapter parse errors'
+              );
+            }
+          } else {
+            const parseResult = await parseFile(buffer, filename);
+            if (parseResult.errors && parseResult.errors.length > 0) {
+              await importJobStore.updateJob(jobId, {
+                status: 'error',
+                errors: [...parseResult.errors],
+                finishedAt: new Date().toISOString(),
+              });
+              await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+              return;
+            }
+            if (parseResult.chapters.length === 0) {
+              await importJobStore.updateJob(jobId, {
+                status: 'error',
+                errors: ['Файл не содержит глав'],
+                finishedAt: new Date().toISOString(),
+              });
+              await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+              return;
+            }
+
+            const parseWarnings = [...(parseResult.warnings || [])];
+            if (parseResult.chapters.length > 500) {
+              parseWarnings.push(
+                `Файл содержит ${parseResult.chapters.length} глав. Рекомендуется разбить на части для лучшей производительности.`
+              );
+            }
+
+            await importJobStore.updateJob(jobId, {
+              total: parseResult.chapters.length,
+              warnings: parseWarnings,
+            });
+
+            const detectedType = getProjectTypeFromFormat(parseResult.format);
+            const needsTypeUpdate =
+              !project.type || (project.type === 'text' && detectedType !== 'text');
+            if (isFirstChapter && needsTypeUpdate) {
+              await updateProject(projectId, { type: detectedType }, userId, token);
+            }
+
+            if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
+              const updatedMetadata = {
+                ...project.metadata,
+                ...parseResult.metadata,
+              };
+              if (parseResult.metadata.coverImage) {
+                try {
+                  const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
+                  const storagePath = generateUniqueFilename('cover', ext, projectId);
+                  const uploadResult = await uploadFile(
+                    'images',
+                    storagePath,
+                    parseResult.metadata.coverImage.data,
+                    { contentType: parseResult.metadata.coverImage.mimeType }
+                  );
+                  updatedMetadata.coverImageUrl = uploadResult.publicUrl;
+                } catch (coverError) {
+                  req.log?.error({ err: coverError, jobId }, 'Failed to save cover image');
+                }
+                delete (updatedMetadata as Record<string, unknown>).coverImage;
+              }
+              if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
+                await updateProject(projectId, { metadata: updatedMetadata }, userId, token);
+              }
+            }
+
+            await importJobStore.updateJob(jobId, { phase: 'saving' });
+            let lastProgressUpdateAtMs = 0;
+            let recentChapters: Array<{ number: number; title: string }> = [];
+            for (const [idx, parsedChapter] of parseResult.chapters.entries()) {
+              if (await importJobStore.isCancelRequested(jobId)) {
+                await importJobStore.updateJob(jobId, {
+                  status: 'canceled',
+                  finishedAt: new Date().toISOString(),
+                });
+                await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+                return;
+              }
+
+              const chapterNumber = idx + 1;
+
+              if (await importJobStore.isCancelRequested(jobId)) {
+                await importJobStore.updateJob(jobId, {
+                  status: 'canceled',
+                  finishedAt: new Date().toISOString(),
+                });
+                await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+                return;
+              }
+              await addChapter(
+                projectId,
+                { title: parsedChapter.title, originalText: parsedChapter.content },
+                token
+              );
+
+              recentChapters =
+                recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                  ? [...recentChapters.slice(1), { number: chapterNumber, title: parsedChapter.title }]
+                  : [...recentChapters, { number: chapterNumber, title: parsedChapter.title }];
+
+              const nowMs = Date.now();
+              const shouldFlushProgress =
+                chapterNumber === 1 ||
+                chapterNumber === parseResult.chapters.length ||
+                chapterNumber % IMPORT_JOB_PROGRESS_UPDATE_EVERY === 0 ||
+                nowMs - lastProgressUpdateAtMs >= IMPORT_JOB_PROGRESS_UPDATE_MAX_STALENESS_MS;
+
+              if (shouldFlushProgress) {
+                await importJobStore.updateJob(jobId, {
+                  currentChapterTitle: parsedChapter.title,
+                  current: chapterNumber,
+                  chapters: recentChapters,
+                });
+                lastProgressUpdateAtMs = nowMs;
+              }
+            }
+          }
+
+          await importJobStore.updateJob(jobId, {
+            phase: 'finalizing',
+            status: 'completed',
+            finishedAt: new Date().toISOString(),
+          });
+          await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+          req.log?.info(
+            {
+              event: 'import.job.completed',
+              jobId,
+              format: extension,
+              durationMs: Date.now() - jobStartedAtMs,
+            },
+            'Import job completed'
+          );
+        } catch (err) {
+          await importJobStore.updateJob(jobId, {
+            status: 'error',
+            errors: [err instanceof Error ? err.message : 'Import failed'],
+            finishedAt: new Date().toISOString(),
+          });
+          await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
+          req.log?.error(
+            {
+              err,
+              jobId,
+              format: extension,
+              durationMs: Date.now() - jobStartedAtMs,
+            },
+            'Import job failed'
+          );
+        }
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start import job';
+      if (message.includes('Token is required') || message.includes('Invalid token')) {
+        return res.status(401).json({ error: message });
+      }
+      req.log?.error({ err: error, projectId: req.params.id }, 'Failed to start import job');
+      res.status(500).json({
+        error: 'Failed to start import job',
+        details: message,
+      });
+    }
+  }
+);
+
+// Import job status (polling endpoint)
+app.get('/api/projects/:id/import-jobs/:jobId', requireAuth, requireRole('author'), async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  const job = await importJobStore.getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Import job not found' });
+  if (job.userId !== req.user.id || job.projectId !== req.params.id) {
+    return res.status(404).json({ error: 'Import job not found' });
+  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  const compact = req.query.compact === '1' || req.query.compact === 'true';
+  res.json(toPublicImportJob(job, { compact }));
+});
+
+// Cancel import job
+app.post(
+  '/api/projects/:id/import-jobs/:jobId/cancel',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const job = await importJobStore.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Import job not found' });
+    if (job.userId !== req.user.id || job.projectId !== req.params.id) {
+      return res.status(404).json({ error: 'Import job not found' });
+    }
+    if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+      return res.json({ success: true });
+    }
+    await importJobStore.requestCancel(req.params.jobId);
+    res.json({ success: true });
+  }
+);
+
 // Upload chapter to project (requires auth)
 app.post(
   '/api/projects/:id/chapters',
@@ -1075,7 +1772,122 @@ app.post(
         });
       }
 
-      // Parse file based on format
+      const isEpub = filename.toLowerCase().endsWith('.epub');
+
+      // EPUB: use lazy parsing to avoid loading all chapters into memory
+      if (isEpub) {
+        let lazyResult;
+        try {
+          lazyResult = await parseEpubLazy(req.file.buffer);
+        } catch (parseError) {
+          const errorMessage =
+            parseError instanceof Error ? parseError.message : 'File parse error';
+          req.log?.error({ err: parseError }, 'Parse error');
+          return res.status(400).json({
+            error: 'Ошибка при парсинге файла',
+            details: errorMessage,
+            parseErrors: [errorMessage],
+          });
+        }
+
+        if (lazyResult.errors.length > 0) {
+          req.log?.error({ parseErrors: lazyResult.errors }, 'Parse errors');
+          return res.status(400).json({
+            error: 'Ошибки при парсинге файла',
+            details: lazyResult.errors.join('; '),
+            parseErrors: lazyResult.errors,
+            warnings: lazyResult.warnings,
+          });
+        }
+
+        if (lazyResult.chapterCount === 0) {
+          return res.status(400).json({
+            error: 'Файл не содержит глав',
+            details: 'Не удалось извлечь ни одной главы из файла',
+          });
+        }
+
+        const detectedType = getProjectTypeFromFormat('epub');
+        const isFirstChapter = project.chapters.length === 0;
+        const needsTypeUpdate =
+          !project.type || (project.type === 'text' && detectedType !== 'text');
+
+        if (isFirstChapter && needsTypeUpdate) {
+          await updateProject(req.params.id, { type: detectedType }, req.user.id, token);
+        }
+
+        if (
+          isFirstChapter &&
+          lazyResult.metadata &&
+          Object.keys(lazyResult.metadata).length > 0
+        ) {
+          const updatedMetadata = {
+            ...project.metadata,
+            ...lazyResult.metadata,
+          };
+          if (lazyResult.metadata.coverImage) {
+            try {
+              const ext =
+                lazyResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
+              const storagePath = generateUniqueFilename('cover', ext, req.params.id);
+              const uploadResult = await uploadFile(
+                'images',
+                storagePath,
+                lazyResult.metadata.coverImage!.data,
+                { contentType: lazyResult.metadata.coverImage!.mimeType }
+              );
+              updatedMetadata.coverImageUrl = uploadResult.publicUrl;
+            } catch (coverError) {
+              req.log?.error({ err: coverError }, 'Failed to save cover image');
+            }
+            delete (updatedMetadata as Record<string, unknown>).coverImage;
+          }
+          if (
+            JSON.stringify(updatedMetadata) !==
+            JSON.stringify(project.metadata || {})
+          ) {
+            await updateProject(
+              req.params.id,
+              { metadata: updatedMetadata },
+              req.user.id,
+              token
+            );
+          }
+        }
+
+        const CHAPTER_COUNT_WARN_THRESHOLD = 500;
+        const chapterCountWarnings = [...lazyResult.warnings];
+        if (lazyResult.chapterCount > CHAPTER_COUNT_WARN_THRESHOLD) {
+          chapterCountWarnings.push(
+            `Файл содержит ${lazyResult.chapterCount} глав. Рекомендуется разбить на части для лучшей производительности.`
+          );
+        }
+
+        const addedChapters = [];
+        for await (const parsedChapter of lazyResult.chapterIterator) {
+          const chapter = await addChapter(
+            req.params.id,
+            { title: parsedChapter.title, originalText: parsedChapter.content },
+            token
+          );
+          addedChapters.push(chapter);
+        }
+        await invalidateUserProjectCaches(req.user.id, req.params.id);
+
+        if (addedChapters.length === 1) {
+          res.json(addedChapters[0]);
+        } else {
+          res.json({
+            chapters: addedChapters,
+            count: addedChapters.length,
+            warnings:
+              chapterCountWarnings.length > 0 ? chapterCountWarnings : undefined,
+          });
+        }
+        return;
+      }
+
+      // Non-EPUB: use standard parseFile (loads all into memory)
       let parseResult: ParseResult;
       try {
         parseResult = await parseFile(req.file.buffer, filename);
@@ -1089,7 +1901,6 @@ app.post(
         });
       }
 
-      // Handle parsing errors and warnings
       if (parseResult.errors && parseResult.errors.length > 0) {
         req.log?.error({ parseErrors: parseResult.errors }, 'Parse errors');
         return res.status(400).json({
@@ -1100,10 +1911,7 @@ app.post(
         });
       }
 
-      // Determine project type from file format
       const detectedType = getProjectTypeFromFormat(parseResult.format);
-
-      // Update project type if not set or if it's the first chapter (auto-detect)
       const isFirstChapter = project.chapters.length === 0;
       const needsTypeUpdate = !project.type || (project.type === 'text' && detectedType !== 'text');
 
@@ -1115,15 +1923,12 @@ app.post(
         );
       }
 
-      // Update project metadata if available (for EPUB/FB2) and it's the first chapter
-      // For subsequent chapters, don't update metadata (as per requirement #4)
       if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
         const updatedMetadata = {
           ...project.metadata,
           ...parseResult.metadata,
         };
 
-        // Save cover image if present
         if (parseResult.metadata.coverImage) {
           try {
             const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
@@ -1143,11 +1948,9 @@ app.post(
           } catch (coverError) {
             req.log?.error({ err: coverError }, 'Failed to save cover image');
           }
-          // Remove coverImage buffer from metadata (we only store URL)
           delete (updatedMetadata as Record<string, unknown>).coverImage;
         }
 
-        // Only update if there's new metadata
         if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
           await updateProject(req.params.id, { metadata: updatedMetadata }, req.user.id, token);
           req.log?.info(
@@ -1170,7 +1973,6 @@ app.post(
         );
       }
 
-      // Handle multiple chapters (EPUB/FB2) or single chapter (TXT)
       if (parseResult.chapters.length === 0) {
         return res.status(400).json({
           error: 'Файл не содержит глав',
@@ -1178,7 +1980,14 @@ app.post(
         });
       }
 
-      // Add all chapters from parsed result
+      const CHAPTER_COUNT_WARN_THRESHOLD = 500;
+      const chapterCountWarnings = [...(parseResult.warnings || [])];
+      if (parseResult.chapters.length > CHAPTER_COUNT_WARN_THRESHOLD) {
+        chapterCountWarnings.push(
+          `Файл содержит ${parseResult.chapters.length} глав. Рекомендуется разбить на части для лучшей производительности.`
+        );
+      }
+
       const addedChapters = [];
       for (const parsedChapter of parseResult.chapters) {
         const chapter = await addChapter(
@@ -1191,15 +2000,15 @@ app.post(
         );
         addedChapters.push(chapter);
       }
+      await invalidateUserProjectCaches(req.user.id, req.params.id);
 
-      // Return single chapter for backward compatibility, or array if multiple
       if (addedChapters.length === 1) {
         res.json(addedChapters[0]);
       } else {
         res.json({
           chapters: addedChapters,
           count: addedChapters.length,
-          warnings: parseResult.warnings,
+          warnings: chapterCountWarnings.length > 0 ? chapterCountWarnings : parseResult.warnings,
         });
       }
     } catch (error) {
@@ -1305,6 +2114,7 @@ app.delete(
       if (!success) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
+      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete chapter' });
@@ -1360,6 +2170,7 @@ app.post(
           },
           'Translation cancelled (flag set, status updated to pending)'
         );
+        await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, requireToken(req));
         res.json({ success: true, message: 'Translation cancelled' });
       } else {
         res.json({ success: false, message: 'Chapter is not being translated' });
@@ -1445,6 +2256,7 @@ app.post(
         requireToken(req)
       );
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, requireToken(req));
       res.json({
         success: true,
         message: 'Translation synchronized',
@@ -1547,6 +2359,7 @@ app.post(
           },
           'Ready-made translation uploaded'
         );
+        await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
         res.json(updatedChapter);
       } else {
         res.status(500).json({ error: 'Failed to update chapter' });
@@ -1673,6 +2486,7 @@ app.post(
           },
           'Chapter marked as translated'
         );
+        await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
         res.json(updatedChapter);
       } else {
         res.status(500).json({ error: 'Failed to update chapter' });
@@ -1682,6 +2496,81 @@ app.post(
       req.log?.error({ err: error }, 'Failed to mark chapter as translated');
       res.status(500).json({
         error: 'Failed to mark chapter as translated',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+// Batch mark chapters as translated (single request, structured continue-and-report result)
+app.post(
+  '/api/projects/:projectId/chapters/mark-as-translated-batch',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const body = (req.body || {}) as {
+        chapterIds?: unknown;
+        options?: { continueOnError?: boolean };
+      };
+      const chapterIdsRaw = Array.isArray(body.chapterIds) ? body.chapterIds : [];
+      const chapterIds = Array.from(
+        new Set(chapterIdsRaw.filter((id): id is string => typeof id === 'string' && id.length > 0))
+      );
+
+      if (chapterIds.length === 0) {
+        return res.status(400).json({
+          error: 'No chapters selected',
+          message: 'Передайте непустой массив chapterIds.',
+        });
+      }
+
+      const MAX_BATCH_SIZE = 200;
+      if (chapterIds.length > MAX_BATCH_SIZE) {
+        return res.status(400).json({
+          error: 'Batch too large',
+          message: `Максимальный размер batch: ${MAX_BATCH_SIZE} глав.`,
+        });
+      }
+
+      const continueOnError = body.options?.continueOnError ?? true;
+      const result: MarkTranslatedBatchResult = await markChaptersAsTranslatedBatch(
+        req.params.projectId,
+        chapterIds,
+        token,
+        { continueOnError }
+      );
+
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
+      req.log?.info(
+        {
+          event: 'chapters.mark_translated.batch_completed',
+          projectId: req.params.projectId,
+          total: result.summary.total,
+          processed: result.summary.processed,
+          success: result.summary.success,
+          failed: result.summary.failed,
+          skipped: result.summary.skipped,
+        },
+        'Batch mark-as-translated completed'
+      );
+
+      res.json(result);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      req.log?.error({ err: error }, 'Failed to mark chapters as translated in batch');
+      res.status(500).json({
+        error: 'Failed to mark chapters as translated in batch',
         details: errorMessage,
       });
     }
@@ -1821,6 +2710,7 @@ app.post(
           { status: 'pending' },
           token
         );
+        await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
 
         // Calculate reset time (next midnight UTC)
         const now = new Date();
@@ -1845,6 +2735,7 @@ app.post(
         { status: 'translating' },
         token
       );
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
 
       req.log?.info(
         {
@@ -2886,6 +3777,11 @@ async function performTranslation(
       'Chapter marked as error; existing translation preserved'
     );
   } finally {
+    try {
+      await invalidateProjectAndRelatedCaches(userId, projectId, token);
+    } catch (error) {
+      logger.warn({ err: error, userId, projectId }, 'Cache invalidation after translation failed');
+    }
     translationCancelRegistry.delete(cancelKey);
   }
 }
@@ -3566,6 +4462,7 @@ app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async
       return res.status(404).json({ error: 'Project not found' });
     }
 
+    await invalidateProjectAndRelatedCaches(req.user.id, req.params.id, token);
     res.json(entry);
   } catch (error) {
     res.status(500).json({ error: 'Failed to add glossary entry' });
@@ -3584,7 +4481,8 @@ app.put(
       }
 
       // Verify project belongs to user
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -3611,7 +4509,7 @@ app.put(
           notes, // User notes (separate from description)
           declensions,
         },
-        requireToken(req)
+        token
       );
 
       if (!entry) {
@@ -3631,6 +4529,7 @@ app.put(
         `Glossary updated: ${entry.original} → ${entry.translated}`
       );
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json(entry);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update glossary entry' });
@@ -3649,7 +4548,8 @@ app.delete(
       }
 
       // Verify project belongs to user
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -3657,7 +4557,7 @@ app.delete(
       const success = await deleteGlossaryEntry(
         req.params.projectId,
         req.params.entryId,
-        requireToken(req)
+        token
       );
       if (!success) {
         return res.status(404).json({ error: 'Entry not found' });
@@ -3666,6 +4566,7 @@ app.delete(
       // Clear agent cache
       clearAgentCache(req.params.projectId);
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete glossary entry' });
@@ -3806,6 +4707,7 @@ app.post(
 
       clearAgentCache(req.params.projectId);
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       const kept = await getGlossaryEntry(req.params.projectId, primary.id, token);
       res.json({
         kept: kept ?? primary,
@@ -3834,7 +4736,8 @@ app.post(
         return res.status(400).json({ error: 'No image file provided' });
       }
 
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -3874,7 +4777,7 @@ app.post(
           // Keep legacy imageUrl for backward compatibility (use first image)
           imageUrl: imageUrls[0],
         },
-        requireToken(req)
+        token
       );
 
       if (!updatedEntry) {
@@ -3888,6 +4791,7 @@ app.post(
       // Clear agent cache so next translation uses updated entry (e.g. imageUrls)
       clearAgentCache(req.params.projectId);
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({
         imageUrl: uploadResult.publicUrl,
         imageUrls: updatedEntry.imageUrls,
@@ -3911,7 +4815,8 @@ app.delete(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -3957,11 +4862,12 @@ app.delete(
           imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
           imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined, // Legacy support
         },
-        requireToken(req)
+        token
       );
 
       clearAgentCache(req.params.projectId);
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to delete image');
@@ -3981,7 +4887,8 @@ app.delete(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -4017,11 +4924,12 @@ app.delete(
           imageUrls: undefined,
           imageUrl: undefined,
         },
-        requireToken(req)
+        token
       );
 
       clearAgentCache(req.params.projectId);
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true });
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to delete images');
@@ -4046,7 +4954,8 @@ app.post(
         return res.status(400).json({ error: 'No image file provided' });
       }
 
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: 'Project not found' });
@@ -4091,7 +5000,7 @@ app.post(
           metadata: updatedMetadata,
         },
         req.user.id,
-        requireToken(req)
+        token
       );
 
       if (!updatedProject) {
@@ -4107,6 +5016,7 @@ app.post(
         'Cover saved to project'
       );
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ coverImageUrl, project: updatedProject });
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to upload cover image');
@@ -4126,7 +5036,8 @@ app.delete(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -4150,13 +5061,14 @@ app.delete(
         req.params.projectId,
         { metadata: updatedMetadata },
         req.user.id,
-        requireToken(req)
+        token
       );
 
       if (!updatedProject) {
         return res.status(404).json({ error: 'Failed to update project' });
       }
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true, project: updatedProject });
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to delete cover image');
@@ -4198,6 +5110,7 @@ app.put(
         return res.status(404).json({ error: 'Failed to update project' });
       }
 
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, requireToken(req));
       res.json(updatedProject);
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to update project metadata');
@@ -4285,7 +5198,7 @@ app.put(
         { event: 'chapter.title.updated', chapterId: req.params.chapterId, title: chapter.title },
         `Chapter title updated: "${chapter.title}"`
       );
-
+      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
       res.json(chapter);
     } catch (error) {
       req.log?.error({ err: error }, 'Failed to update chapter title');
@@ -4333,6 +5246,7 @@ app.put(
         },
         `Chapter number updated: "${chapter.title}" → ${number}`
       );
+      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
 
       // Return updated project with reordered chapters
       // No delay needed - Supabase updates are synchronous within the same connection
@@ -4362,6 +5276,7 @@ app.put(
       }
 
       await updateChaptersOrder(req.params.projectId, ids, requireToken(req));
+      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
 
       // Return updated project
       const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
@@ -4410,7 +5325,7 @@ app.put(
         { paragraphId: paragraph.id.slice(0, 8), status: paragraph.status },
         'Paragraph updated'
       );
-
+      await invalidateUserProjectCaches(req.user!.id, req.params.projectId);
       res.json(paragraph);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update paragraph' });
@@ -4452,7 +5367,7 @@ app.post(
         { event: 'paragraphs.bulk_updated', count: results.length, status },
         `Bulk update: ${results.length} paragraphs -> ${status}`
       );
-
+      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
       res.json({ updated: results.length, paragraphs: results });
     } catch (error) {
       res.status(500).json({ error: 'Failed to bulk update paragraphs' });
@@ -4983,7 +5898,11 @@ app.get('/api/publications', async (req, res) => {
     const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
     const orderBy = (req.query.orderBy as string) === 'created_at' ? 'created_at' : 'published_at';
     const orderAsc = req.query.orderAsc === 'true';
-    const list = await listPublicationsPublic({ limit, offset, orderBy, orderAsc });
+    const list = await withRedisCache(
+      publicationsListCacheKey({ limit, offset, orderBy, orderAsc }),
+      CACHE_TTL.redisPublicationsListSec,
+      () => listPublicationsPublic({ limit, offset, orderBy, orderAsc })
+    );
     res.json(list);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to list publications';
@@ -4994,7 +5913,11 @@ app.get('/api/publications', async (req, res) => {
 // Get single publication (public)
 app.get('/api/publications/:id', async (req, res) => {
   try {
-    const pub = await getPublicationBySlugOrId(req.params.id);
+    const pub = await withRedisCache(
+      publicationCacheKey(req.params.id),
+      CACHE_TTL.redisPublicationSec,
+      () => getPublicationBySlugOrId(req.params.id)
+    );
     if (!pub) {
       return res.status(404).json({ error: 'Publication not found' });
     }
@@ -5008,7 +5931,11 @@ app.get('/api/publications/:id', async (req, res) => {
 // Get publication with chapters list (public, for reading page)
 app.get('/api/publications/:id/chapters', async (req, res) => {
   try {
-    const result = await getPublicationWithChapters(req.params.id);
+    const result = await withRedisCache(
+      publicationChaptersCacheKey(req.params.id),
+      CACHE_TTL.redisPublicationChaptersSec,
+      () => getPublicationWithChapters(req.params.id)
+    );
     if (!result) {
       return res.status(404).json({ error: 'Publication not found' });
     }
@@ -5022,12 +5949,20 @@ app.get('/api/publications/:id/chapters', async (req, res) => {
 // Get single chapter content for public reading (translated text only)
 app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
   try {
-    const pub = await getPublicationBySlugOrId(req.params.id);
+    const pub = await withRedisCache(
+      publicationCacheKey(req.params.id),
+      CACHE_TTL.redisPublicationSec,
+      () => getPublicationBySlugOrId(req.params.id)
+    );
     if (!pub) {
       res.status(404).json({ error: 'Publication not found' });
       return;
     }
-    const chapter = await getPublicationChapterContent(pub.id, req.params.chapterId);
+    const chapter = await withRedisCache(
+      publicationChapterCacheKey(pub.id, req.params.chapterId),
+      CACHE_TTL.redisPublicationChapterSec,
+      () => getPublicationChapterContent(pub.id, req.params.chapterId)
+    );
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
@@ -5041,12 +5976,20 @@ app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
 // Get publication glossary (public, read-only; returns empty array if not published)
 app.get('/api/publications/:id/glossary', async (req, res) => {
   try {
-    const pub = await getPublicationBySlugOrId(req.params.id);
+    const pub = await withRedisCache(
+      publicationCacheKey(req.params.id),
+      CACHE_TTL.redisPublicationSec,
+      () => getPublicationBySlugOrId(req.params.id)
+    );
     if (!pub) {
       res.status(404).json({ error: 'Publication not found' });
       return;
     }
-    const entries = await getGlossaryForPublication(pub.id);
+    const entries = await withRedisCache(
+      publicationGlossaryCacheKey(pub.id),
+      CACHE_TTL.redisPublicationGlossarySec,
+      () => getGlossaryForPublication(pub.id)
+    );
     res.json(entries);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get glossary';
@@ -5104,6 +6047,10 @@ app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, async (r
     }
 
     await markChapterAsRead(userId, pub.id, chapterId, token);
+    await redisDelMany([
+      readingHistoryCacheKey(userId),
+      buildRedisKey(CACHE_PREFIX.userReadingProgress, userId, pub.id),
+    ]);
     res.json({ success: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to mark chapter as read';
@@ -5144,6 +6091,10 @@ app.patch('/api/publications/:id/reading-position', requireAuth, async (req, res
     }
 
     await updateReadingPosition(userId, pub.id, chapterId, paragraphIndex, token);
+    await redisDelMany([
+      readingHistoryCacheKey(userId),
+      buildRedisKey(CACHE_PREFIX.userReadingProgress, userId, pub.id),
+    ]);
     res.json({ success: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to update reading position';
@@ -5182,6 +6133,12 @@ app.post(
         sourceLanguage: body.sourceLanguage,
         targetLanguage: body.targetLanguage,
       });
+      await invalidateUserProjectCaches(userId, projectId);
+      await invalidatePublicationCaches(publication.id);
+      if (publication.slug) {
+        await invalidatePublicationCaches(publication.slug);
+      }
+      await invalidatePublicationListCaches();
       res.json(publication);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to publish';
@@ -5204,6 +6161,8 @@ app.delete(
       if (!ok) {
         return res.status(404).json({ error: 'Publication not found' });
       }
+      await invalidateUserProjectCaches(userId, projectId);
+      await invalidatePublicationListCaches();
       res.json({ success: true });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to unpublish';

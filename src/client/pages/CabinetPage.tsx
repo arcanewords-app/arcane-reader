@@ -5,7 +5,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
 import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
-import { Button, Input, Modal, LoadingSpinner } from '../components/ui';
+import { Button, Input, Modal, LoadingSpinner, Icon } from '../components/ui';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
 import { api } from '../api/client';
 import type { ReaderSettings } from '../types';
@@ -133,7 +133,7 @@ export function CabinetPage() {
                 onClick={() => setShowCreateModal(true)}
                 className="dashboard-create-btn"
               >
-                + {t('dashboard.newProjectButton')}
+                <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
               </Button>
             </div>
 
@@ -158,14 +158,14 @@ export function CabinetPage() {
                     class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
                     onClick={() => setFilterType('book')}
                   >
-                    📚 {t('dashboard.filterBooks')} (
+                    <Icon name="menu_book" size="sm" /> {t('dashboard.filterBooks')} (
                     {projects.filter((p) => p.type === 'book').length})
                   </button>
                   <button
                     class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}
                     onClick={() => setFilterType('text')}
                   >
-                    📝 {t('dashboard.filterText')} (
+                    <Icon name="description" size="sm" /> {t('dashboard.filterText')} (
                     {projects.filter((p) => p.type === 'text' || !p.type).length})
                   </button>
                 </div>
@@ -205,7 +205,7 @@ export function CabinetPage() {
         <Modal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
-          title={`📁 ${t('dashboard.newProjectModalTitle')}`}
+          title={t('dashboard.newProjectModalTitle')}
           footer={
             <>
               <Button variant="secondary" onClick={() => setShowCreateModal(false)}>

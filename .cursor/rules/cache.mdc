@@ -1,0 +1,31 @@
+---
+description: Cache consistency and invalidation policy
+alwaysApply: true
+---
+
+# Cache Consistency Policy
+
+## Single Source Of Truth
+
+- Keep cache keys, TTL, and prefixes in `@src/shared/cacheContract.ts`.
+- Use shared Redis helpers from `@src/services/redisCache.ts` instead of ad-hoc clients.
+- Prefer `withRedisCache(...)` pattern in `@src/server.ts` for read-heavy GET endpoints.
+
+## Mandatory Invalidation After Mutations
+
+- Any route that changes project/chapter/glossary/metadata MUST invalidate related caches before response.
+- For project-scoped writes, call `invalidateProjectAndRelatedCaches(userId, projectId, token)`.
+- For auth profile updates (avatar/role), invalidate `auth:profile` cache keys.
+- For reading progress/token usage writes, invalidate related user aggregate caches.
+
+## Client Cache Rules
+
+- Keep volatile data in memory cache; do not persist dynamic status to `localStorage`.
+- `localStorage` is allowed only for stable, low-risk data with TTL + schema version.
+- Cross-tab invalidation must use `BroadcastChannel` with `storage` fallback.
+
+## Code Review Checklist
+
+- For each new `POST/PUT/PATCH/DELETE`, verify cache invalidation paths.
+- Ensure cache key scope is correct (`public` vs `user`).
+- Ensure stale reads cannot happen on immediate refetch after successful write.

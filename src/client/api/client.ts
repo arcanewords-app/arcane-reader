@@ -3,7 +3,8 @@
  * Typed fetch wrapper for REST API communication
  */
 
-import { authService } from '../services/authService';
+import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
+import { CACHE_PREFIX, CACHE_TTL, CACHE_SCHEMA_VERSION, cacheVersionedKey } from '../../shared/cacheContract';
 import type {
   SystemStatus,
   Project,
@@ -20,6 +21,8 @@ import type {
   TranslateResponse,
   BulkUpdateResponse,
   ChapterTranslationOptions,
+  ImportJobState,
+  MarkTranslatedBatchResponse,
   TokenUsage,
   TokenUsageHistory,
   Publication,
@@ -88,7 +91,12 @@ function handleAuthError(response: Response): void {
 let refreshPromise: Promise<boolean> | null = null;
 
 /** Publication data cache (60s TTL) — avoids duplicate fetches when navigating PublicationPage → PublicationReadingPage */
-const PUBLICATION_CACHE_TTL_MS = 60_000;
+const PUBLICATION_CACHE_TTL_MS = CACHE_TTL.clientPublicationMs;
+const USER_CACHE_TTL_MS = CACHE_TTL.clientReaderSettingsMs;
+const READING_HISTORY_CACHE_TTL_MS = CACHE_TTL.clientReadingHistoryMs;
+
+type InFlightCacheValue = Promise<unknown>;
+const inFlightGetRequests = new Map<string, InFlightCacheValue>();
 
 interface PublicationCacheEntry<T> {
   data: T;
@@ -108,14 +116,140 @@ const publicationCache = {
   glossary: new Map<string, PublicationCacheEntry<GlossaryEntry[]>>(),
 };
 
-function getCached<T>(map: Map<string, PublicationCacheEntry<T>>, key: string): T | null {
+const userScopedCache = {
+  readerSettings: new Map<string, PublicationCacheEntry<ReaderSettings | null>>(),
+  readingHistory: new Map<
+    string,
+    PublicationCacheEntry<{
+      items: Array<{
+        publicationId: string;
+        title: string | null;
+        coverImageUrl: string | null;
+        slug: string | null;
+        totalChapters: number;
+        readCount: number;
+        lastReadChapterId: string | null;
+        lastReadAt: string | null;
+      }>;
+    }>
+  >(),
+};
+
+const CACHE_INVALIDATION_EVENT = 'arcane:cache-invalidate';
+const CACHE_INVALIDATION_KEY = 'arcane.cache.invalidate';
+const cacheChannel =
+  typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel(CACHE_INVALIDATION_EVENT)
+    : null;
+
+type CacheScope = 'user';
+
+function makeInFlightKey(url: string, options?: RequestInit): string | null {
+  const method = (options?.method || 'GET').toUpperCase();
+  if (method !== 'GET') return null;
+  if (options?.signal) return null;
+  return `${method}:${url}`;
+}
+
+async function fetchJsonDeduped<T>(url: string, options?: RequestInit): Promise<T> {
+  const dedupeKey = makeInFlightKey(url, options);
+  if (!dedupeKey) return fetchJson<T>(url, options);
+  const existing = inFlightGetRequests.get(dedupeKey);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+  const promise = fetchJson<T>(url, options).finally(() => {
+    inFlightGetRequests.delete(dedupeKey);
+  });
+  inFlightGetRequests.set(dedupeKey, promise);
+  return promise;
+}
+
+function clearUserScopedCaches(): void {
+  publicationCache.readProgress.clear();
+  userScopedCache.readerSettings.clear();
+  userScopedCache.readingHistory.clear();
+}
+
+function emitCacheInvalidation(scope: CacheScope): void {
+  if (typeof window === 'undefined') return;
+  const payload = JSON.stringify({ scope, ts: Date.now(), version: CACHE_SCHEMA_VERSION });
+  cacheChannel?.postMessage(payload);
+  localStorage.setItem(CACHE_INVALIDATION_KEY, payload);
+}
+
+function getLocalStorageCached<T>(key: string, ttlMs: number): T | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { ts: number; version: string; data: T };
+    if (!parsed || parsed.version !== CACHE_SCHEMA_VERSION) return null;
+    if (Date.now() - parsed.ts > ttlMs) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function setLocalStorageCached<T>(key: string, data: T): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      version: CACHE_SCHEMA_VERSION,
+      ts: Date.now(),
+      data,
+    })
+  );
+}
+
+function getReadProgressCacheKey(publicationId: string): string {
+  const userId = authService.getCachedUser()?.id ?? 'guest';
+  return `${userId}:${publicationId}`;
+}
+
+function getCached<T>(
+  map: Map<string, PublicationCacheEntry<T>>,
+  key: string,
+  ttlMs = PUBLICATION_CACHE_TTL_MS
+): T | null {
   const entry = map.get(key);
-  if (!entry || Date.now() - entry.ts > PUBLICATION_CACHE_TTL_MS) return null;
+  if (!entry || Date.now() - entry.ts > ttlMs) return null;
   return entry.data;
 }
 
 function setCached<T>(map: Map<string, PublicationCacheEntry<T>>, key: string, data: T): void {
   map.set(key, { data, ts: Date.now() });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(AUTH_CHANGED_EVENT, () => {
+    clearUserScopedCaches();
+  });
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== CACHE_INVALIDATION_KEY || !event.newValue) return;
+    try {
+      const payload = JSON.parse(event.newValue) as { scope?: CacheScope };
+      if (payload.scope === 'user') {
+        clearUserScopedCaches();
+      }
+    } catch {
+      // ignore invalid payload
+    }
+  });
+
+  cacheChannel?.addEventListener('message', (event: MessageEvent<string>) => {
+    try {
+      const payload = JSON.parse(event.data) as { scope?: CacheScope };
+      if (payload.scope === 'user') {
+        clearUserScopedCaches();
+      }
+    } catch {
+      // ignore invalid payload
+    }
+  });
 }
 
 async function tryRefresh(): Promise<boolean> {
@@ -182,6 +316,110 @@ async function fetchJson<T>(url: string, options?: RequestInit, isRetry = false)
   }
 
   return response.json();
+}
+
+/** Progress callback for upload: loaded and total bytes */
+export type UploadProgressCallback = (loaded: number, total: number) => void;
+
+/**
+ * Upload FormData with progress tracking (uses XMLHttpRequest for upload.onprogress).
+ * fetch() does not support upload progress events.
+ */
+function fetchFormDataWithProgress<T>(
+  url: string,
+  formData: FormData,
+  options?: { signal?: AbortSignal; onProgress?: UploadProgressCallback }
+): Promise<T> {
+  const token = authService.getToken();
+  const method = 'POST';
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    if (options?.signal) {
+      options.signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+    }
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && options?.onProgress) {
+        options.onProgress(e.loaded, e.total);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 401) {
+        tryRefresh().then((refreshed) => {
+          if (refreshed) {
+            reject(new ApiError('Unauthorized', 401, undefined, undefined));
+          } else {
+            handleAuthError({ status: 401 } as Response);
+            try {
+              const data = JSON.parse(xhr.responseText || '{}');
+              reject(new ApiError(data.error || 'Unauthorized', 401, data, data.code));
+            } catch {
+              reject(new ApiError('Unauthorized', 401));
+            }
+          }
+        });
+        return;
+      }
+      if (xhr.status === 503) {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          window.dispatchEvent(
+            new CustomEvent(SERVICE_DEGRADED_EVENT, {
+              detail: {
+                message: data.error || 'Service temporarily unavailable',
+                service: data.service || 'supabase',
+              },
+            })
+          );
+        } catch {
+          // ignore parse error
+        }
+        reject(new ApiError(`HTTP ${xhr.status}`, 503));
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          resolve(data as T);
+        } catch {
+          reject(new ApiError('Invalid JSON response', xhr.status));
+        }
+      } else {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          reject(
+            new ApiError(
+              data.error || `HTTP ${xhr.status}`,
+              xhr.status,
+              data
+            )
+          );
+        } catch {
+          reject(new ApiError(`HTTP ${xhr.status}`, xhr.status));
+        }
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new ApiError('Network error', 0));
+    });
+
+    xhr.addEventListener('abort', () => {
+      reject(new ApiError('Request aborted', 0));
+    });
+
+    xhr.open(method, url);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    xhr.send(formData);
+  });
 }
 
 /**
@@ -260,21 +498,21 @@ export const api = {
   // === System ===
 
   async getStatus(): Promise<SystemStatus> {
-    return fetchJson('/api/status');
+    return fetchJsonDeduped('/api/status');
   },
 
   // === Projects ===
 
   async getProjects(): Promise<ProjectListItem[]> {
-    return fetchJson('/api/projects');
+    return fetchJsonDeduped('/api/projects');
   },
 
   async getProject(id: string): Promise<ProjectWithChapterList> {
-    return fetchJson(`/api/projects/${id}`);
+    return fetchJsonDeduped(`/api/projects/${id}`);
   },
 
   async getChaptersSummary(projectId: string): Promise<ChapterSummary[]> {
-    return fetchJson(`/api/projects/${projectId}/chapters/summary`);
+    return fetchJsonDeduped(`/api/projects/${projectId}/chapters/summary`);
   },
 
   async createProject(name: string): Promise<Project> {
@@ -326,15 +564,26 @@ export const api = {
 
   /** Get current user's reader settings (auth required). Returns null if none saved. */
   async getUserReaderSettings(): Promise<ReaderSettings | null> {
-    return fetchJson(`/api/user/reader-settings`);
+    const userId = authService.getCachedUser()?.id ?? 'guest';
+    const directEntry = userScopedCache.readerSettings.get(userId);
+    if (directEntry && Date.now() - directEntry.ts <= USER_CACHE_TTL_MS) {
+      return directEntry.data;
+    }
+    const data = await fetchJsonDeduped<ReaderSettings | null>(`/api/user/reader-settings`);
+    setCached(userScopedCache.readerSettings, userId, data);
+    return data;
   },
 
   /** Update current user's reader settings (auth required). */
   async updateUserReaderSettings(settings: Partial<ReaderSettings>): Promise<ReaderSettings> {
-    return fetchJson(`/api/user/reader-settings`, {
+    const result = await fetchJson<ReaderSettings>(`/api/user/reader-settings`, {
       method: 'PUT',
       body: JSON.stringify(settings),
     });
+    const userId = authService.getCachedUser()?.id ?? 'guest';
+    setCached(userScopedCache.readerSettings, userId, result);
+    emitCacheInvalidation('user');
+    return result;
   },
 
   /** Get current user profile (id, email, role, avatarUrl). */
@@ -362,13 +611,23 @@ export const api = {
     projectId: string,
     file: File,
     title: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onProgress?: UploadProgressCallback
   ): Promise<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     // Send actual filename so server gets correct UTF-8 name (avoids multipart encoding issues with Cyrillic, etc.)
     formData.append('filename', file.name);
+
+    if (onProgress) {
+      return fetchFormDataWithProgress<
+        Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }
+      >(`/api/projects/${projectId}/chapters`, formData, {
+        signal,
+        onProgress,
+      });
+    }
 
     return fetchFormData<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>(
       `/api/projects/${projectId}/chapters`,
@@ -377,8 +636,54 @@ export const api = {
     );
   },
 
+  async startImportJob(
+    projectId: string,
+    file: File,
+    title: string,
+    signal?: AbortSignal,
+    onProgress?: UploadProgressCallback
+  ): Promise<{ jobId: string; status: 'queued' }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('filename', file.name);
+
+    if (onProgress) {
+      return fetchFormDataWithProgress<{ jobId: string; status: 'queued' }>(
+        `/api/projects/${projectId}/chapters/import`,
+        formData,
+        { signal, onProgress }
+      );
+    }
+
+    return fetchFormData<{ jobId: string; status: 'queued' }>(
+      `/api/projects/${projectId}/chapters/import`,
+      formData,
+      { method: 'POST', signal }
+    );
+  },
+
+  async getImportJob(
+    projectId: string,
+    jobId: string,
+    signal?: AbortSignal
+  ): Promise<ImportJobState> {
+    return fetchJson(`/api/projects/${projectId}/import-jobs/${jobId}?compact=1`, {
+      signal,
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
+  },
+
+  async cancelImportJob(projectId: string, jobId: string): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/import-jobs/${jobId}/cancel`, { method: 'POST' });
+  },
+
   async getChapter(projectId: string, chapterId: string, signal?: AbortSignal): Promise<Chapter> {
-    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
+    return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
   },
 
   /** Lightweight: only chapter status (for polling during translation) */
@@ -386,7 +691,7 @@ export const api = {
     projectId: string,
     chapterId: string
   ): Promise<{ status: Chapter['status'] }> {
-    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/status`);
+    return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}/status`);
   },
 
   async deleteChapter(projectId: string, chapterId: string): Promise<{ success: boolean }> {
@@ -440,6 +745,23 @@ export const api = {
   async markChapterAsTranslated(projectId: string, chapterId: string): Promise<Chapter> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/mark-as-translated`, {
       method: 'POST',
+    });
+  },
+
+  async markChaptersAsTranslatedBatch(
+    projectId: string,
+    chapterIds: string[],
+    options?: { continueOnError?: boolean; signal?: AbortSignal }
+  ): Promise<MarkTranslatedBatchResponse> {
+    return fetchJson(`/api/projects/${projectId}/chapters/mark-as-translated-batch`, {
+      method: 'POST',
+      body: JSON.stringify({
+        chapterIds,
+        options: {
+          continueOnError: options?.continueOnError ?? true,
+        },
+      }),
+      signal: options?.signal,
     });
   },
 
@@ -630,19 +952,37 @@ export const api = {
     if (params?.orderBy) search.set('orderBy', params.orderBy);
     if (params?.orderAsc) search.set('orderAsc', String(params.orderAsc));
     const q = search.toString();
-    return fetchJson(`/api/publications${q ? `?${q}` : ''}`);
+    const requestUrl = `/api/publications${q ? `?${q}` : ''}`;
+    const isDefaultCatalogRequest =
+      (params?.limit ?? 50) === 50 &&
+      (params?.offset ?? 0) === 0 &&
+      (params?.orderBy ?? 'published_at') === 'published_at' &&
+      (params?.orderAsc ?? false) === false;
+    const localKey = cacheVersionedKey([CACHE_PREFIX.publicationsList, 'catalog-default']);
+    if (isDefaultCatalogRequest) {
+      const local = getLocalStorageCached<PublicationListItem[]>(
+        localKey,
+        CACHE_TTL.clientCatalogLocalStorageMs
+      );
+      if (local) return local;
+    }
+    const data = await fetchJsonDeduped<PublicationListItem[]>(requestUrl);
+    if (isDefaultCatalogRequest) {
+      setLocalStorageCached(localKey, data);
+    }
+    return data;
   },
 
   /** Get single publication (public) */
   async getPublication(id: string): Promise<Publication> {
-    return fetchJson(`/api/publications/${id}`);
+    return fetchJsonDeduped(`/api/publications/${id}`);
   },
 
   /** Get publication with chapters list (public, for reading page). Cached 60s to avoid duplicates on navigation. */
   async getPublicationWithChapters(id: string): Promise<PublicationWithChapters> {
     const cached = getCached(publicationCache.withChapters, id);
     if (cached) return cached;
-    const result = await fetchJson<{
+    const result = await fetchJsonDeduped<{
       publication: Publication;
       chapters: PublicationWithChapters['chapters'];
       glossaryCount: number;
@@ -660,7 +1000,7 @@ export const api = {
   async getPublicationGlossary(publicationId: string): Promise<GlossaryEntry[]> {
     const cached = getCached(publicationCache.glossary, publicationId);
     if (cached) return cached;
-    const data = await fetchJson<GlossaryEntry[]>(`/api/publications/${publicationId}/glossary`);
+    const data = await fetchJsonDeduped<GlossaryEntry[]>(`/api/publications/${publicationId}/glossary`);
     setCached(publicationCache.glossary, publicationId, data);
     return data;
   },
@@ -671,14 +1011,15 @@ export const api = {
     lastReadChapterId?: string;
     lastReadParagraphIndex?: number;
   }> {
-    const cached = getCached(publicationCache.readProgress, publicationId);
+    const cacheKey = getReadProgressCacheKey(publicationId);
+    const cached = getCached(publicationCache.readProgress, cacheKey);
     if (cached) return cached;
-    const data = await fetchJson<{
+    const data = await fetchJsonDeduped<{
       chapterIds: string[];
       lastReadChapterId?: string;
       lastReadParagraphIndex?: number;
     }>(`/api/publications/${publicationId}/read-progress`);
-    setCached(publicationCache.readProgress, publicationId, data);
+    setCached(publicationCache.readProgress, cacheKey, data);
     return data;
   },
 
@@ -688,6 +1029,7 @@ export const api = {
     chapterId: string,
     paragraphIndex: number
   ): Promise<{ success: boolean }> {
+    const cacheKey = getReadProgressCacheKey(publicationId);
     const result = await fetchJson<{ success: boolean }>(
       `/api/publications/${publicationId}/reading-position`,
       {
@@ -695,7 +1037,8 @@ export const api = {
         body: JSON.stringify({ chapterId, paragraphIndex }),
       }
     );
-    publicationCache.readProgress.delete(publicationId);
+    publicationCache.readProgress.delete(cacheKey);
+    emitCacheInvalidation('user');
     return result;
   },
 
@@ -720,11 +1063,13 @@ export const api = {
 
   /** Mark chapter as read (auth required). Invalidates read progress cache. */
   async markChapterAsRead(publicationId: string, chapterId: string): Promise<{ success: boolean }> {
+    const cacheKey = getReadProgressCacheKey(publicationId);
     const result = await fetchJson<{ success: boolean }>(
       `/api/publications/${publicationId}/chapters/${chapterId}/read`,
       { method: 'POST' }
     );
-    publicationCache.readProgress.delete(publicationId);
+    publicationCache.readProgress.delete(cacheKey);
+    emitCacheInvalidation('user');
     return result;
   },
 
@@ -734,7 +1079,7 @@ export const api = {
     chapterId: string,
     signal?: AbortSignal
   ): Promise<{ id: string; number: number; title: string; translatedText: string }> {
-    return fetchJson(`/api/publications/${publicationId}/chapters/${chapterId}`, { signal });
+    return fetchJsonDeduped(`/api/publications/${publicationId}/chapters/${chapterId}`, { signal });
   },
 
   /** Publish project (auth required) */
@@ -779,11 +1124,11 @@ export const api = {
     const url = date
       ? `/api/user/token-usage?date=${encodeURIComponent(date)}`
       : '/api/user/token-usage';
-    return fetchJson(url);
+    return fetchJsonDeduped(url);
   },
 
   async getTokenUsageHistory(days: number = 7): Promise<TokenUsageHistory> {
-    return fetchJson(`/api/user/token-usage/history?days=${days}`);
+    return fetchJsonDeduped(`/api/user/token-usage/history?days=${days}`);
   },
 
   /** Get user's reading history (publications with progress). Auth required. */
@@ -799,7 +1144,23 @@ export const api = {
       lastReadAt: string | null;
     }>;
   }> {
-    return fetchJson('/api/user/reading-history');
+    const userId = authService.getCachedUser()?.id ?? 'guest';
+    const cached = getCached(userScopedCache.readingHistory, userId, READING_HISTORY_CACHE_TTL_MS);
+    if (cached) return cached;
+    const data = await fetchJsonDeduped<{
+      items: Array<{
+        publicationId: string;
+        title: string | null;
+        coverImageUrl: string | null;
+        slug: string | null;
+        totalChapters: number;
+        readCount: number;
+        lastReadChapterId: string | null;
+        lastReadAt: string | null;
+      }>;
+    }>('/api/user/reading-history');
+    setCached(userScopedCache.readingHistory, userId, data);
+    return data;
   },
 };
 

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { ChapterStatus, ParagraphStatus } from '../../types';
+import { Icon } from './Icon';
 
 type StatusType = ChapterStatus | ParagraphStatus;
 
@@ -8,16 +9,16 @@ interface BadgeProps {
   showText?: boolean;
 }
 
-const statusIcons: Record<StatusType, { icon: string; className: string }> = {
-  pending: { icon: '⏳', className: 'status-pending' },
-  translating: { icon: '🔮', className: 'status-translating' },
-  analyzed: { icon: '🔍', className: 'status-analyzed' },
-  draft: { icon: '📝', className: 'status-draft' },
-  completed: { icon: '✅', className: 'status-completed' },
-  error: { icon: '❌', className: 'status-error' },
-  translated: { icon: '📝', className: 'status-translated' },
-  approved: { icon: '✅', className: 'status-approved' },
-  edited: { icon: '✏️', className: 'status-edited' },
+const statusIcons: Record<StatusType, { iconName: string; className: string }> = {
+  pending: { iconName: 'schedule', className: 'status-pending' },
+  translating: { iconName: 'translate', className: 'status-translating' },
+  analyzed: { iconName: 'manage_search', className: 'status-analyzed' },
+  draft: { iconName: 'edit_note', className: 'status-draft' },
+  completed: { iconName: 'check_circle', className: 'status-completed' },
+  error: { iconName: 'error', className: 'status-error' },
+  translated: { iconName: 'menu_book', className: 'status-translated' },
+  approved: { iconName: 'verified', className: 'status-approved' },
+  edited: { iconName: 'edit', className: 'status-edited' },
 };
 
 export function StatusBadge({ status, showText = true }: BadgeProps) {
@@ -27,7 +28,7 @@ export function StatusBadge({ status, showText = true }: BadgeProps) {
 
   return (
     <span class={`chapter-status ${config.className}`} title={!showText ? text : undefined}>
-      {config.icon}
+      <Icon name={config.iconName} size="sm" />
       {showText && ` ${text}`}
     </span>
   );

@@ -84,13 +84,13 @@ export function ProjectsPage() {
               class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
               onClick={() => setFilterType('book')}
             >
-              📚 {t('dashboard.filterBooks')} ({projects.filter((p) => p.type === 'book').length})
+              {t('dashboard.filterBooks')} ({projects.filter((p) => p.type === 'book').length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}
               onClick={() => setFilterType('text')}
             >
-              📝 {t('dashboard.filterText')} (
+              {t('dashboard.filterText')} (
               {projects.filter((p) => p.type === 'text' || !p.type).length})
             </button>
           </div>
@@ -108,7 +108,7 @@ export function ProjectsPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title={`📁 ${t('dashboard.newProjectModalTitle')}`}
+        title={t('dashboard.newProjectModalTitle')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowCreateModal(false)}>

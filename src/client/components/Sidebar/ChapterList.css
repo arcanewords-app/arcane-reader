@@ -46,6 +46,26 @@
   overflow: hidden;
 }
 
+.chapter-list-title-meta {
+  margin-left: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chapter-list-title-spinner {
+  margin-right: 0.4rem;
+  width: 12px;
+  height: 12px;
+}
+
+.chapter-list-title-note {
+  color: var(--text-dim);
+}
+
+.chapter-list-title-note-spaced {
+  margin-right: 0.5rem;
+}
+
 .chapter-list {
   display: flex;
   flex-direction: column;
@@ -218,6 +238,12 @@
   color: white;
   border-color: rgba(255, 255, 255, 0.3);
   box-shadow: 0 2px 12px rgba(255, 255, 255, 0.2);
+}
+
+.chapter-list-empty {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-dim);
 }
 
 .chapter-number-edit {
@@ -471,6 +497,15 @@
 
 .upload-queue-modal .upload-queue-header {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.upload-queue-meta {
+  font-size: 0.8rem;
+  color: var(--text-dim);
 }
 
 .upload-queue-modal .upload-queue-list {
@@ -540,13 +575,16 @@
 }
 
 .queue-status {
-  width: 1.6rem;
+  min-width: 2.5rem;
+  width: auto;
   height: 1.6rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
+  padding: 0 0.35rem;
+  font-weight: 600;
 }
 
 .queue-name {
@@ -556,9 +594,92 @@
   white-space: nowrap;
 }
 
+.queue-item-progress {
+  position: relative;
+  height: 1.25rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.queue-item-progress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 6px;
+  transition: width 0.15s ease-out;
+}
+
+.queue-item-progress-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-shadow: 0 0 2px var(--bg-primary);
+}
+
+.queue-item-import-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.queue-item-import-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.queue-warnings {
+  margin-top: 0.25rem;
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.queue-warning-item {
+  margin-top: 0.125rem;
+}
+
+.chapter-delete-confirm-btn {
+  background: var(--error);
+  color: white;
+}
+
+.chapter-delete-confirm-btn:disabled {
+  opacity: 0.6;
+}
+
+.chapter-delete-warning {
+  color: var(--error);
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.chapter-delete-warning-subtle {
+  color: var(--text-dim);
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+
 .queue-item-actions {
   display: flex;
   gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .queue-error {

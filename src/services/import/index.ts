@@ -39,6 +39,8 @@ export async function parseFile(fileBuffer: Buffer, filename: string): Promise<P
   }
 }
 
+export { parseEpubLazy } from './epub.js';
+
 /**
  * Check if file format is supported
  */

@@ -50,9 +50,7 @@ export function TokenLimitWarning({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={
-        willExceed ? `⚠️ ${t('tokenLimit.titleExceeded')}` : `⚠️ ${t('tokenLimit.titleWarning')}`
-      }
+      title={willExceed ? t('tokenLimit.titleExceeded') : t('tokenLimit.titleWarning')}
       size="default"
     >
       <div class="token-limit-warning-content">
