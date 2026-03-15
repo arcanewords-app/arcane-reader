@@ -84,8 +84,10 @@
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  line-height: 1.4;
-  max-width: 200px;
+  line-height: 1.5;
+  min-width: 180px;
+  max-width: 320px;
+  width: max-content;
   z-index: 100;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   animation: entity-card-popup-in var(--duration-fast) var(--ease-standard);

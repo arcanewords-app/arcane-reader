@@ -236,6 +236,7 @@ export function ProjectInfo({
           : (authService.getCachedUser()?.email ?? undefined),
         authorEntityId: project.metadata?.authorEntityId ?? undefined,
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
+        tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
       });
       setPublication(pub);
       setShowPublishModal(false);
@@ -283,6 +284,7 @@ export function ProjectInfo({
         coverImageUrl: project.metadata?.coverImageUrl ?? undefined,
         authorEntityId: project.metadata?.authorEntityId ?? undefined,
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
+        tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
       });
       setPublication(pub);
     } catch (error) {
@@ -461,9 +463,7 @@ export function ProjectInfo({
           <div>
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{project.name}</h2>
             <span style={{ color: 'var(--text-dim)' }}>
-              {isOriginalReadingMode
-                ? t('projectInfo.originalReading')
-                : t('projectInfo.enToRu')}
+              {isOriginalReadingMode ? t('projectInfo.originalReading') : t('projectInfo.enToRu')}
             </span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowDeleteModal(true)}>
@@ -1521,7 +1521,9 @@ export function ProjectInfo({
                   </>
                 ) : (
                   <>
-                    <span class="publish-modal-not-selected">{t('projectInfo.publishAuthorNotSelected')}</span>
+                    <span class="publish-modal-not-selected">
+                      {t('projectInfo.publishAuthorNotSelected')}
+                    </span>
                     <Button
                       variant="secondary"
                       size="sm"
@@ -1551,7 +1553,9 @@ export function ProjectInfo({
                   </>
                 ) : (
                   <>
-                    <span class="publish-modal-not-selected">{t('projectInfo.publishTranslatorNotSelected')}</span>
+                    <span class="publish-modal-not-selected">
+                      {t('projectInfo.publishTranslatorNotSelected')}
+                    </span>
                     <Button
                       variant="secondary"
                       size="sm"

@@ -61,7 +61,10 @@
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
-  transition: color var(--duration-fast), border-color var(--duration-fast), background var(--duration-fast);
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast),
+    background var(--duration-fast);
 }
 
 .entity-section__remove:hover {

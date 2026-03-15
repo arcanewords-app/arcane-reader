@@ -123,7 +123,8 @@ export function UploadTranslationModal({
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
           >
-            <Icon name="upload_file" size="sm" /> {t('uploadTranslation.chooseFile', 'Выбрать файл TXT')}
+            <Icon name="upload_file" size="sm" />{' '}
+            {t('uploadTranslation.chooseFile', 'Выбрать файл TXT')}
           </Button>
         </div>
         {error && <p class="upload-translation-modal-error">{error}</p>}

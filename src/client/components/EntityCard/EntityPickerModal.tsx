@@ -89,7 +89,8 @@ export function EntityPickerModal({
         ? 'entityPicker.titleTranslator'
         : 'entityPicker.titleTags';
 
-  const displayEntities = kind === 'tag' && !tagShowAll ? entities.slice(0, INITIAL_TAG_LIMIT) : entities;
+  const displayEntities =
+    kind === 'tag' && !tagShowAll ? entities.slice(0, INITIAL_TAG_LIMIT) : entities;
   const hasMoreTags = kind === 'tag' && entities.length > INITIAL_TAG_LIMIT && !tagShowAll;
 
   const footer =

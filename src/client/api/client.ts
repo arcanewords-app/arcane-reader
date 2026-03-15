@@ -4,7 +4,12 @@
  */
 
 import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
-import { CACHE_PREFIX, CACHE_TTL, CACHE_SCHEMA_VERSION, cacheVersionedKey } from '../../shared/cacheContract';
+import {
+  CACHE_PREFIX,
+  CACHE_TTL,
+  CACHE_SCHEMA_VERSION,
+  cacheVersionedKey,
+} from '../../shared/cacheContract';
 import type {
   SystemStatus,
   Project,
@@ -116,6 +121,11 @@ const publicationCache = {
     }>
   >(),
   glossary: new Map<string, PublicationCacheEntry<GlossaryEntry[]>>(),
+  chapterContent: new Map<
+    string,
+    PublicationCacheEntry<{ id: string; number: number; title: string; translatedText: string }>
+  >(),
+  publicEntity: new Map<string, PublicationCacheEntry<PublicEntity>>(),
 };
 
 const userScopedCache = {
@@ -394,13 +404,7 @@ function fetchFormDataWithProgress<T>(
       } else {
         try {
           const data = JSON.parse(xhr.responseText || '{}');
-          reject(
-            new ApiError(
-              data.error || `HTTP ${xhr.status}`,
-              xhr.status,
-              data
-            )
-          );
+          reject(new ApiError(data.error || `HTTP ${xhr.status}`, xhr.status, data));
         } catch {
           reject(new ApiError(`HTTP ${xhr.status}`, xhr.status));
         }
@@ -1002,7 +1006,9 @@ export const api = {
   async getPublicationGlossary(publicationId: string): Promise<GlossaryEntry[]> {
     const cached = getCached(publicationCache.glossary, publicationId);
     if (cached) return cached;
-    const data = await fetchJsonDeduped<GlossaryEntry[]>(`/api/publications/${publicationId}/glossary`);
+    const data = await fetchJsonDeduped<GlossaryEntry[]>(
+      `/api/publications/${publicationId}/glossary`
+    );
     setCached(publicationCache.glossary, publicationId, data);
     return data;
   },
@@ -1075,13 +1081,25 @@ export const api = {
     return result;
   },
 
-  /** Get single chapter content for public reading (translated text only) */
+  /** Get single chapter content for public reading (translated text only). Cached 2 min. */
   async getPublicationChapter(
     publicationId: string,
     chapterId: string,
     signal?: AbortSignal
   ): Promise<{ id: string; number: number; title: string; translatedText: string }> {
-    return fetchJsonDeduped(`/api/publications/${publicationId}/chapters/${chapterId}`, { signal });
+    const cacheKey = `${publicationId}:${chapterId}`;
+    if (!signal) {
+      const cached = getCached(publicationCache.chapterContent, cacheKey);
+      if (cached) return cached;
+    }
+    const data = await fetchJsonDeduped<{
+      id: string;
+      number: number;
+      title: string;
+      translatedText: string;
+    }>(`/api/publications/${publicationId}/chapters/${chapterId}`, { signal });
+    if (!signal) setCached(publicationCache.chapterContent, cacheKey, data);
+    return data;
   },
 
   /** Publish project (auth required) */
@@ -1137,9 +1155,14 @@ export const api = {
     return fetchJsonDeduped<PublicEntity[]>(`/api/public/entities${q ? `?${q}` : ''}`);
   },
 
+  /** Get single public entity by id. Cached 2 min. */
   async getPublicEntityById(id: string): Promise<PublicEntity | null> {
+    const cached = getCached(publicationCache.publicEntity, id);
+    if (cached) return cached;
     try {
-      return await fetchJson<PublicEntity>(`/api/public/entities/${id}`);
+      const data = await fetchJsonDeduped<PublicEntity>(`/api/public/entities/${id}`);
+      setCached(publicationCache.publicEntity, id, data);
+      return data;
     } catch {
       return null;
     }

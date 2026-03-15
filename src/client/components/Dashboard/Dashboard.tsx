@@ -94,7 +94,8 @@ export function Dashboard() {
               class={`dashboard-filter-btn ${filterType === 'book' ? 'active' : ''}`}
               onClick={() => setFilterType('book')}
             >
-              <Icon name="menu_book" size="sm" /> {t('dashboard.filterBooks')} ({projects.filter((p) => p.type === 'book').length})
+              <Icon name="menu_book" size="sm" /> {t('dashboard.filterBooks')} (
+              {projects.filter((p) => p.type === 'book').length})
             </button>
             <button
               class={`dashboard-filter-btn ${filterType === 'text' ? 'active' : ''}`}

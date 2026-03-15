@@ -1,13 +1,13 @@
-/* TagChip - rounded pill for tags */
+/* TagChip - rectangular chip matching EntityCard design */
 
 .tag-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
-  background: var(--bg-hover);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   transition: all var(--duration-fast) var(--ease-standard);
@@ -52,12 +52,14 @@
   margin-left: 2px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   color: var(--text-dim);
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  transition: color var(--duration-fast), background var(--duration-fast);
+  transition:
+    color var(--duration-fast),
+    background var(--duration-fast);
 }
 
 .tag-chip__remove:hover {

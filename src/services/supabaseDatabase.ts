@@ -1411,7 +1411,6 @@ export async function addChapter(
   const client = createClientWithToken(token);
   await acquireAddChapterLock(projectId);
   try {
-
     // Verify project exists (RLS will ensure user has access)
     const { data: project, error: projectError } = await client
       .from('projects')
@@ -2461,6 +2460,9 @@ export interface PublicationRow {
   cover_image_url: string | null;
   author_display: string | null;
   translator_display: string | null;
+  author_entity_id?: string | null;
+  translator_entity_id?: string | null;
+  tag_entity_ids?: string[] | null;
   source_language: string;
   target_language: string;
   published_at: string | null;
@@ -2490,6 +2492,9 @@ function transformPublicationFromDB(row: PublicationRow): {
   coverImageUrl: string | null;
   authorDisplay: string | null;
   translatorDisplay: string | null;
+  authorEntityId: string | null;
+  translatorEntityId: string | null;
+  tagEntityIds: string[];
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;
@@ -2507,6 +2512,10 @@ function transformPublicationFromDB(row: PublicationRow): {
     coverImageUrl: row.cover_image_url,
     authorDisplay: row.author_display,
     translatorDisplay: (row as { translator_display?: string | null }).translator_display ?? null,
+    authorEntityId: (row as { author_entity_id?: string | null }).author_entity_id ?? null,
+    translatorEntityId:
+      (row as { translator_entity_id?: string | null }).translator_entity_id ?? null,
+    tagEntityIds: (row as { tag_entity_ids?: string[] | null }).tag_entity_ids ?? [],
     sourceLanguage: row.source_language,
     targetLanguage: row.target_language,
     publishedAt: row.published_at,
@@ -2805,6 +2814,9 @@ export async function createOrUpdatePublication(
     coverImageUrl?: string | null;
     authorDisplay?: string | null;
     translatorDisplay?: string | null;
+    authorEntityId?: string | null;
+    translatorEntityId?: string | null;
+    tagEntityIds?: string[] | null;
     sourceLanguage?: string;
     targetLanguage?: string;
   }
@@ -2841,6 +2853,9 @@ export async function createOrUpdatePublication(
     cover_image_url: data.coverImageUrl ?? project.metadata?.coverImageUrl ?? null,
     author_display: data.authorDisplay ?? undefined,
     translator_display: data.translatorDisplay ?? undefined,
+    author_entity_id: data.authorEntityId ?? undefined,
+    translator_entity_id: data.translatorEntityId ?? undefined,
+    tag_entity_ids: data.tagEntityIds ?? undefined,
     source_language: data.sourceLanguage ?? project.sourceLanguage,
     target_language: data.targetLanguage ?? project.targetLanguage,
     published_at: isPublish ? now : null,
@@ -2862,6 +2877,10 @@ export async function createOrUpdatePublication(
     if (data.authorDisplay !== undefined) updatePayload.author_display = data.authorDisplay;
     if (data.translatorDisplay !== undefined)
       updatePayload.translator_display = data.translatorDisplay;
+    if (data.authorEntityId !== undefined) updatePayload.author_entity_id = data.authorEntityId;
+    if (data.translatorEntityId !== undefined)
+      updatePayload.translator_entity_id = data.translatorEntityId;
+    if (data.tagEntityIds !== undefined) updatePayload.tag_entity_ids = data.tagEntityIds;
     // Only set published_at when first publishing (keep "first published" date on subsequent updates)
     if (isPublish && !(existing as { published_at?: string | null }).published_at) {
       updatePayload.published_at = row.published_at;
@@ -2886,6 +2905,9 @@ export async function createOrUpdatePublication(
     ...row,
     author_display: row.author_display ?? null,
     translator_display: row.translator_display ?? null,
+    author_entity_id: data.authorEntityId ?? null,
+    translator_entity_id: data.translatorEntityId ?? null,
+    tag_entity_ids: data.tagEntityIds ?? [],
   };
 
   const { data: inserted, error } = await client

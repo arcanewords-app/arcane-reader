@@ -463,6 +463,12 @@ export interface Publication {
   coverImageUrl: string | null;
   authorDisplay: string | null;
   translatorDisplay: string | null;
+  /** Entity ID for rich display (photo, description) on publication page. */
+  authorEntityId?: string | null;
+  /** Entity ID for rich display (photo, description) on publication page. */
+  translatorEntityId?: string | null;
+  /** Tag entity IDs for display on publication page. */
+  tagEntityIds?: string[];
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;

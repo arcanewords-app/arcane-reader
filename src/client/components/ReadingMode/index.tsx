@@ -10,7 +10,11 @@ import type {
 } from '../../types';
 import { LEGACY_FONT_MAP } from '../../types';
 import { api } from '../../api/client';
-import { AUTH_CHANGED_EVENT, authService, type AuthChangedDetail } from '../../services/authService';
+import {
+  AUTH_CHANGED_EVENT,
+  authService,
+  type AuthChangedDetail,
+} from '../../services/authService';
 import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
@@ -1102,7 +1106,7 @@ export function ReadingMode({
             onClick={handleExit}
             title={t('readingMode.exitTitle')}
           >
-              <Icon name="arrow_back" size="sm" /> {t('common.back')}
+            <Icon name="arrow_back" size="sm" /> {t('common.back')}
           </button>
           {!readerSettings.hideChapterHeader && (
             <div class="reading-mode-title">
@@ -1274,15 +1278,8 @@ export function ReadingMode({
         }
       >
         <div class="reading-share-modal-content">
-          <p class="reading-share-modal-label">
-            {t('readingMode.linkLabel')}
-          </p>
-          <input
-            type="text"
-            value={shareLink}
-            readOnly
-            class="reading-share-modal-input"
-          />
+          <p class="reading-share-modal-label">{t('readingMode.linkLabel')}</p>
+          <input type="text" value={shareLink} readOnly class="reading-share-modal-input" />
         </div>
       </Modal>
 

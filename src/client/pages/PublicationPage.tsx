@@ -4,9 +4,10 @@ import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
 import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
 import { trackEvent } from '../utils/analytics';
-import type { PublicationWithChapters, GlossaryEntry } from '../types';
+import type { PublicationWithChapters, GlossaryEntry, PublicEntity } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
+import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
 import { ChapterTocModal } from '../components/ChapterTocModal';
@@ -32,6 +33,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [authorEntity, setAuthorEntity] = useState<PublicEntity | null>(null);
+  const [translatorEntity, setTranslatorEntity] = useState<PublicEntity | null>(null);
+  const [tagEntities, setTagEntities] = useState<PublicEntity[]>([]);
 
   const syncAuthProgress = useCallback(async () => {
     const user = await authService.getCurrentUser();
@@ -55,6 +59,27 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       .getPublicationWithChapters(publicationId)
       .then((result) => {
         if (!cancelled) setData(result);
+        // Load entities in parallel with same tick — no waterfall
+        const authorId = result.authorEntityId;
+        const translatorId = result.translatorEntityId;
+        const tagIds = result.tagEntityIds ?? [];
+        if (authorId || translatorId || tagIds.length > 0) {
+          Promise.all([
+            authorId ? api.getPublicEntityById(authorId) : Promise.resolve(null),
+            translatorId ? api.getPublicEntityById(translatorId) : Promise.resolve(null),
+            ...tagIds.map((id) => api.getPublicEntityById(id)),
+          ]).then((results) => {
+            if (cancelled) return;
+            const [author, translator, ...tags] = results;
+            setAuthorEntity(author ?? null);
+            setTranslatorEntity(translator ?? null);
+            setTagEntities(tags.filter((e): e is PublicEntity => e != null));
+          });
+        } else if (!cancelled) {
+          setAuthorEntity(null);
+          setTranslatorEntity(null);
+          setTagEntities([]);
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load');
@@ -250,21 +275,44 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         <div class="publication-page-meta">
           <h1 class="publication-page-title">{title}</h1>
           {pub.description && <p class="publication-page-description">{pub.description}</p>}
-          {authorDisplay || translatorDisplay ? (
+          {authorEntity || translatorEntity || authorDisplay || translatorDisplay ? (
             <div class="publication-page-authors">
-              {authorDisplay && (
-                <p class="publication-page-author">
-                  {t('publication.authorLabel')}: {authorDisplay}
-                </p>
+              {authorEntity ? (
+                <div class="publication-page-entity">
+                  <span class="publication-page-entity-label">{t('publication.authorLabel')}</span>
+                  <EntityCard entity={authorEntity} compact />
+                </div>
+              ) : (
+                authorDisplay && (
+                  <p class="publication-page-author">
+                    {t('publication.authorLabel')}: {authorDisplay}
+                  </p>
+                )
               )}
-              {translatorDisplay && (
-                <p class="publication-page-translator">
-                  {t('publication.translatorLabel')}: {translatorDisplay}
-                </p>
+              {translatorEntity ? (
+                <div class="publication-page-entity">
+                  <span class="publication-page-entity-label">
+                    {t('publication.translatorLabel')}
+                  </span>
+                  <EntityCard entity={translatorEntity} compact />
+                </div>
+              ) : (
+                translatorDisplay && (
+                  <p class="publication-page-translator">
+                    {t('publication.translatorLabel')}: {translatorDisplay}
+                  </p>
+                )
               )}
             </div>
           ) : (
             <p class="publication-page-author">{t('publication.unknownAuthor')}</p>
+          )}
+          {tagEntities.length > 0 && (
+            <div class="publication-page-tags">
+              {tagEntities.map((entity) => (
+                <TagChip key={entity.id} entity={entity} />
+              ))}
+            </div>
           )}
           <p class="publication-page-lang">{langLabel}</p>
           <div class="publication-page-actions">

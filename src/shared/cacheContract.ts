@@ -7,23 +7,26 @@ export const CACHE_SCHEMA_VERSION = 'v1';
 
 export const CACHE_TTL = {
   // Client-side
-  clientPublicationMs: 60_000,
+  clientPublicationMs: 120_000, // 2 min — public content rarely changes
   clientProjectsMs: 5 * 60_000,
   clientReaderSettingsMs: 2 * 60_000,
   clientReadingHistoryMs: 60_000,
-  clientCatalogLocalStorageMs: 10 * 60_000,
+  clientCatalogLocalStorageMs: 5 * 60_000, // 5 min
 
-  // Server-side
-  redisPublicationsListSec: 90,
-  redisPublicationSec: 300,
-  redisPublicationChaptersSec: 180,
-  redisPublicationChapterSec: 300,
-  redisPublicationGlossarySec: 300,
-  redisPublicEntitiesSec: 300,
+  // Server-side — public content (publications, chapters, glossary, entities)
+  redisPublicationsListSec: 180, // 3 min — catalog updates more often
+  redisPublicationSec: 600, // 10 min
+  redisPublicationChaptersSec: 600,
+  redisPublicationChapterSec: 600,
+  redisPublicationGlossarySec: 600,
+  redisPublicEntitiesSec: 600,
+  redisPublicEntitySec: 600, // single entity by id
+
+  // Server-side — user-scoped (fresher for editing)
   redisProjectListSec: 60,
-  redisProjectSec: 60,
-  redisProjectSummarySec: 30,
-  redisAuthProfileSec: 120,
+  redisProjectSec: 120,
+  redisProjectSummarySec: 60,
+  redisAuthProfileSec: 180,
   redisTokenUsageSec: 60,
   redisTokenHistorySec: 60,
   healthSnapshotMs: 10_000,
@@ -37,6 +40,7 @@ export const CACHE_PREFIX = {
   publicationChapter: 'pub:chapter',
   publicationGlossary: 'pub:glossary',
   publicEntities: 'public:entities',
+  publicEntity: 'public:entity',
   userProjects: 'user:projects:light',
   userProject: 'user:project:light',
   userProjectSummary: 'user:project:summary',

@@ -269,7 +269,11 @@ export function TranslationPanel({
                   disabled={translating || markingAsTranslated}
                   title={t('markAsTranslated.title', 'Пометить как переведённую')}
                 >
-                  {markingAsTranslated ? <span class="spinner" /> : <Icon name="check_circle" size="sm" />}{' '}
+                  {markingAsTranslated ? (
+                    <span class="spinner" />
+                  ) : (
+                    <Icon name="check_circle" size="sm" />
+                  )}{' '}
                   {t('markAsTranslated.button', 'Пометить как переведённую')}
                 </Button>
               )}

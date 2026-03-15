@@ -19,7 +19,15 @@ export function AuthorGate({ path, component: Component, ...rest }: AuthorGatePr
 
   if (!user) {
     return (
-      <div class="page-loading" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
+      <div
+        class="page-loading"
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '40vh',
+        }}
+      >
         <LoadingSpinner size="lg" />
       </div>
     );

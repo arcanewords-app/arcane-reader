@@ -6,11 +6,7 @@
 import { createContext } from 'preact';
 import { useContext, useState, useCallback, useEffect } from 'preact/hooks';
 import { api } from '../api/client';
-import {
-  AUTH_CHANGED_EVENT,
-  authService,
-  type AuthChangedDetail,
-} from '../services/authService';
+import { AUTH_CHANGED_EVENT, authService, type AuthChangedDetail } from '../services/authService';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import type { TokenUsage } from '../types';
 

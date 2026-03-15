@@ -17,7 +17,12 @@ export function AdminGate({ path, component: Component, ...rest }: AdminGateProp
     return (
       <div
         class="page-loading"
-        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '40vh',
+        }}
       >
         <LoadingSpinner size="lg" />
       </div>

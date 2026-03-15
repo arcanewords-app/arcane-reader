@@ -141,7 +141,10 @@
   color: var(--text-dim);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+  transition:
+    border-color var(--duration-fast),
+    background var(--duration-fast),
+    color var(--duration-fast);
 }
 
 .admin-photo-drop:hover {

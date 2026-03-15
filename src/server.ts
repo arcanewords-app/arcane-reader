@@ -291,10 +291,7 @@ import {
   getProjectTypeFromFormat,
 } from './services/import/index.js';
 import type { ParseResult } from './services/import/index.js';
-import {
-  createImportJobStoreFromEnv,
-  type ImportJobState,
-} from './services/importJobStore.js';
+import { createImportJobStoreFromEnv, type ImportJobState } from './services/importJobStore.js';
 import {
   uploadFile,
   deleteFile,
@@ -305,10 +302,11 @@ import {
   createSignedUrl,
   listFiles,
 } from './services/storage.js';
-import { CACHE_PREFIX, CACHE_TTL } from './shared/cacheContract.js';
+import { CACHE_PREFIX, CACHE_TTL, cacheVersionedKey } from './shared/cacheContract.js';
 import {
   buildRedisKey,
   redisDelMany,
+  redisDelByPattern,
   redisGetJson,
   redisSetJson,
 } from './services/redisCache.js';
@@ -400,8 +398,10 @@ const MARK_TRANSLATED_BATCH_CHUNK_SIZE = Math.max(
   Math.min(200, parseInt(process.env.MARK_TRANSLATED_BATCH_CHUNK_SIZE ?? '200', 10) || 200)
 );
 const importJobStore = createImportJobStoreFromEnv();
-let healthSnapshot: { ts: number; data: ReturnType<typeof serviceHealthManager.getHealthResult> } | null =
-  null;
+let healthSnapshot: {
+  ts: number;
+  data: ReturnType<typeof serviceHealthManager.getHealthResult>;
+} | null = null;
 
 async function withRedisCache<T>(
   key: string,
@@ -462,6 +462,10 @@ function publicEntitiesCacheKey(kind?: PublicEntityKind): string {
   return buildRedisKey(CACHE_PREFIX.publicEntities, kind ?? 'all');
 }
 
+function publicEntityCacheKey(id: string): string {
+  return buildRedisKey(CACHE_PREFIX.publicEntity, id);
+}
+
 function tokenUsageCacheKey(userId: string, date: string): string {
   return buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date);
 }
@@ -477,18 +481,28 @@ function readingHistoryCacheKey(userId: string): string {
 function invalidateUserProjectCaches(userId: string, projectId?: string): Promise<void> {
   const keys = [userProjectsCacheKey(userId)];
   if (projectId) {
-    keys.push(userProjectCacheKey(userId, projectId), userProjectSummaryCacheKey(userId, projectId));
+    keys.push(
+      userProjectCacheKey(userId, projectId),
+      userProjectSummaryCacheKey(userId, projectId)
+    );
   }
   return redisDelMany(keys);
 }
 
-function invalidatePublicationCaches(identifier: string): Promise<void> {
+async function invalidatePublicationCaches(
+  identifier: string,
+  pubIdForChapters?: string
+): Promise<void> {
   const keys = [
     publicationCacheKey(identifier),
     publicationChaptersCacheKey(identifier),
     publicationGlossaryCacheKey(identifier),
   ];
-  return redisDelMany(keys);
+  await redisDelMany(keys);
+  if (pubIdForChapters) {
+    const pattern = cacheVersionedKey([CACHE_PREFIX.publicationChapter, pubIdForChapters, '*']);
+    await redisDelByPattern(pattern);
+  }
 }
 
 function invalidatePublicationListCaches(): Promise<void> {
@@ -519,7 +533,7 @@ async function invalidateProjectAndRelatedCaches(
   try {
     const publication = await getPublicationByProjectId(projectId, userId, token);
     if (!publication) return;
-    await invalidatePublicationCaches(publication.id);
+    await invalidatePublicationCaches(publication.id, publication.id);
     if (publication.slug) {
       await invalidatePublicationCaches(publication.slug);
     }
@@ -527,7 +541,10 @@ async function invalidateProjectAndRelatedCaches(
       await invalidatePublicationListCaches();
     }
   } catch (error) {
-    logger.warn({ err: error, userId, projectId }, 'Failed to invalidate publication-related cache');
+    logger.warn(
+      { err: error, userId, projectId },
+      'Failed to invalidate publication-related cache'
+    );
   }
 }
 
@@ -1305,7 +1322,11 @@ app.post(
         typeof req.body?.filename === 'string' && req.body.filename.trim()
           ? req.body.filename.trim()
           : decodeMultipartFilename(req.file.originalname);
-      const extension = (filename.toLowerCase().split('.').pop() || '') as 'epub' | 'fb2' | 'csv' | 'txt';
+      const extension = (filename.toLowerCase().split('.').pop() || '') as
+        | 'epub'
+        | 'fb2'
+        | 'csv'
+        | 'txt';
 
       if (!isSupportedFormat(filename)) {
         return res.status(400).json({
@@ -1375,7 +1396,10 @@ app.post(
 
           if (extension === 'epub') {
             const epubParseStartedAtMs = Date.now();
-            req.log?.info({ event: 'import.job.epub.parsing.started', jobId }, 'EPUB parsing started');
+            req.log?.info(
+              { event: 'import.job.epub.parsing.started', jobId },
+              'EPUB parsing started'
+            );
             const lazyResult = await parseEpubLazy(buffer);
             req.log?.info(
               {
@@ -1454,7 +1478,11 @@ app.post(
 
             await importJobStore.updateJob(jobId, { phase: 'saving' });
             req.log?.info(
-              { event: 'import.job.epub.saving.started', jobId, totalChapters: lazyResult.chapterCount },
+              {
+                event: 'import.job.epub.saving.started',
+                jobId,
+                totalChapters: lazyResult.chapterCount,
+              },
               'EPUB saving started'
             );
             let chapterNumber = 0;
@@ -1473,7 +1501,10 @@ app.post(
               }
 
               chapterNumber++;
-              pendingBatch.push({ title: parsedChapter.title, originalText: parsedChapter.content });
+              pendingBatch.push({
+                title: parsedChapter.title,
+                originalText: parsedChapter.content,
+              });
               pendingBatchTitles.push(parsedChapter.title);
               const shouldFlushBatch = pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE;
 
@@ -1551,7 +1582,11 @@ app.post(
               });
               await importJobStore.setTtl(jobId, IMPORT_JOB_TTL_SECONDS);
               req.log?.warn(
-                { event: 'import.job.epub.saving.empty', jobId, parserErrors: lazyResult.errors.length },
+                {
+                  event: 'import.job.epub.saving.empty',
+                  jobId,
+                  parserErrors: lazyResult.errors.length,
+                },
                 'EPUB finished with zero saved chapters'
               );
               return;
@@ -1616,7 +1651,11 @@ app.post(
               await updateProject(projectId, { type: detectedType }, userId, token);
             }
 
-            if (isFirstChapter && parseResult.metadata && Object.keys(parseResult.metadata).length > 0) {
+            if (
+              isFirstChapter &&
+              parseResult.metadata &&
+              Object.keys(parseResult.metadata).length > 0
+            ) {
               const updatedMetadata = {
                 ...project.metadata,
                 ...parseResult.metadata,
@@ -1658,7 +1697,10 @@ app.post(
               }
 
               const chapterNumber = idx + 1;
-              pendingBatch.push({ title: parsedChapter.title, originalText: parsedChapter.content });
+              pendingBatch.push({
+                title: parsedChapter.title,
+                originalText: parsedChapter.content,
+              });
               pendingBatchTitles.push(parsedChapter.title);
               const shouldFlushBatch =
                 pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE ||
@@ -1700,7 +1742,10 @@ app.post(
           try {
             await invalidateProjectAndRelatedCaches(userId, projectId, token);
           } catch (cacheError) {
-            req.log?.warn({ err: cacheError, jobId, projectId }, 'Import completed but cache invalidation failed');
+            req.log?.warn(
+              { err: cacheError, jobId, projectId },
+              'Import completed but cache invalidation failed'
+            );
           }
 
           await importJobStore.updateJob(jobId, {
@@ -1751,20 +1796,25 @@ app.post(
 );
 
 // Import job status (polling endpoint)
-app.get('/api/projects/:id/import-jobs/:jobId', requireAuth, requireRole('author'), async (req, res) => {
-  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-  const job = await importJobStore.getJob(req.params.jobId);
-  if (!job) return res.status(404).json({ error: 'Import job not found' });
-  if (job.userId !== req.user.id || job.projectId !== req.params.id) {
-    return res.status(404).json({ error: 'Import job not found' });
+app.get(
+  '/api/projects/:id/import-jobs/:jobId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const job = await importJobStore.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Import job not found' });
+    if (job.userId !== req.user.id || job.projectId !== req.params.id) {
+      return res.status(404).json({ error: 'Import job not found' });
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    const compact = req.query.compact === '1' || req.query.compact === 'true';
+    res.json(toPublicImportJob(job, { compact }));
   }
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Surrogate-Control', 'no-store');
-  const compact = req.query.compact === '1' || req.query.compact === 'true';
-  res.json(toPublicImportJob(job, { compact }));
-});
+);
 
 // Cancel import job
 app.post(
@@ -1866,19 +1916,14 @@ app.post(
           await updateProject(req.params.id, { type: detectedType }, req.user.id, token);
         }
 
-        if (
-          isFirstChapter &&
-          lazyResult.metadata &&
-          Object.keys(lazyResult.metadata).length > 0
-        ) {
+        if (isFirstChapter && lazyResult.metadata && Object.keys(lazyResult.metadata).length > 0) {
           const updatedMetadata = {
             ...project.metadata,
             ...lazyResult.metadata,
           };
           if (lazyResult.metadata.coverImage) {
             try {
-              const ext =
-                lazyResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
+              const ext = lazyResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
               const storagePath = generateUniqueFilename('cover', ext, req.params.id);
               const uploadResult = await uploadFile(
                 'images',
@@ -1892,16 +1937,8 @@ app.post(
             }
             delete (updatedMetadata as Record<string, unknown>).coverImage;
           }
-          if (
-            JSON.stringify(updatedMetadata) !==
-            JSON.stringify(project.metadata || {})
-          ) {
-            await updateProject(
-              req.params.id,
-              { metadata: updatedMetadata },
-              req.user.id,
-              token
-            );
+          if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
+            await updateProject(req.params.id, { metadata: updatedMetadata }, req.user.id, token);
           }
         }
 
@@ -1964,8 +2001,7 @@ app.post(
               paragraphs: [],
             })),
             count: importedRows.length,
-            warnings:
-              chapterCountWarnings.length > 0 ? chapterCountWarnings : undefined,
+            warnings: chapterCountWarnings.length > 0 ? chapterCountWarnings : undefined,
           });
         }
         return;
@@ -2270,7 +2306,11 @@ app.post(
           },
           'Translation cancelled (flag set, status updated to pending)'
         );
-        await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, requireToken(req));
+        await invalidateProjectAndRelatedCaches(
+          req.user.id,
+          req.params.projectId,
+          requireToken(req)
+        );
         res.json({ success: true, message: 'Translation cancelled' });
       } else {
         res.json({ success: false, message: 'Chapter is not being translated' });
@@ -4668,11 +4708,7 @@ app.delete(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const success = await deleteGlossaryEntry(
-        req.params.projectId,
-        req.params.entryId,
-        token
-      );
+      const success = await deleteGlossaryEntry(req.params.projectId, req.params.entryId, token);
       if (!success) {
         return res.status(404).json({ error: 'Entry not found' });
       }
@@ -6082,7 +6118,10 @@ app.post(
       } catch (error) {
         if (uploadedStoragePath) {
           await deleteFile('images', uploadedStoragePath).catch((err) => {
-            req.log?.error({ err, uploadedStoragePath }, 'Failed to rollback uploaded admin entity photo');
+            req.log?.error(
+              { err, uploadedStoragePath },
+              'Failed to rollback uploaded admin entity photo'
+            );
           });
         }
         throw error;
@@ -6127,10 +6166,16 @@ app.get('/api/public/entities', async (req, res) => {
 // Get single public entity by id (public)
 app.get('/api/public/entities/:id', async (req, res) => {
   try {
+    const key = publicEntityCacheKey(req.params.id);
+    const cached = await redisGetJson<Awaited<ReturnType<typeof getPublicEntityById>>>(key);
+    if (cached) {
+      return res.json(cached);
+    }
     const entity = await getPublicEntityById(req.params.id);
     if (!entity) {
       return res.status(404).json({ error: 'Entity not found' });
     }
+    await redisSetJson(key, entity, CACHE_TTL.redisPublicEntitySec);
     res.json(entity);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get public entity';
@@ -6376,8 +6421,7 @@ app.post(
       // Resolve author/translator from entity IDs if provided (project metadata or body)
       const project = await getProject(projectId, userId, token);
       const authorEntityId = body.authorEntityId ?? project?.metadata?.authorEntityId;
-      const translatorEntityId =
-        body.translatorEntityId ?? project?.metadata?.translatorEntityId;
+      const translatorEntityId = body.translatorEntityId ?? project?.metadata?.translatorEntityId;
 
       let authorDisplay = body.authorDisplay;
       let translatorDisplay = body.translatorDisplay ?? req.user!.email;
@@ -6410,11 +6454,14 @@ app.post(
         coverImageUrl: body.coverImageUrl,
         authorDisplay: authorDisplay ?? undefined,
         translatorDisplay: translatorDisplay ?? undefined,
+        authorEntityId: authorEntityId ?? undefined,
+        translatorEntityId: translatorEntityId ?? undefined,
+        tagEntityIds: project?.metadata?.tagEntityIds ?? undefined,
         sourceLanguage: body.sourceLanguage,
         targetLanguage: body.targetLanguage,
       });
       await invalidateUserProjectCaches(userId, projectId);
-      await invalidatePublicationCaches(publication.id);
+      await invalidatePublicationCaches(publication.id, publication.id);
       if (publication.slug) {
         await invalidatePublicationCaches(publication.slug);
       }

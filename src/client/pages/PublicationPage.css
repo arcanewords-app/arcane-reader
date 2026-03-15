@@ -99,16 +99,54 @@
 }
 
 .publication-page-description {
-  font-size: 1rem;
+  font-size: var(--text-base);
   color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 65ch;
   margin: 0;
-  line-height: 1.5;
+  white-space: pre-line;
 }
 
 .publication-page-authors {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
+}
+
+.publication-page-entity {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.publication-page-entity-label {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  min-width: 4.5rem;
+}
+
+/* Compact EntityCard override for publication page */
+.publication-page-entity .entity-card {
+  min-height: auto;
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.publication-page-entity .entity-card__avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.publication-page-entity .entity-card__name {
+  font-size: var(--text-sm);
+  max-width: 120px;
+}
+
+.publication-page-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
 }
 
 .publication-page-author,

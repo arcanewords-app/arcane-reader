@@ -349,7 +349,8 @@ export function GlossaryModal({
                   disabled={selectedIds.size === 0}
                   loading={bulkMarking}
                 >
-                  <Icon name="check" size="sm" /> {t('glossary.markReviewed', { count: selectedIds.size })}
+                  <Icon name="check" size="sm" />{' '}
+                  {t('glossary.markReviewed', { count: selectedIds.size })}
                 </Button>
               </>
             ) : (
@@ -890,10 +891,7 @@ export function GlossaryModal({
 
       {/* Context Menu */}
       {contextMenu && (
-        <div
-          class="glossary-context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
+        <div class="glossary-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button
             type="button"
             class="glossary-context-menu-item"

@@ -24,7 +24,9 @@ function normalizeTocHref(href?: string): string {
   return href.split('#')[0].trim().toLowerCase();
 }
 
-function buildTocTitleMap(toc: Array<{ href?: string; title?: string }> | undefined): Map<string, string> {
+function buildTocTitleMap(
+  toc: Array<{ href?: string; title?: string }> | undefined
+): Map<string, string> {
   const map = new Map<string, string>();
   if (!toc) return map;
   for (const item of toc) {
@@ -80,7 +82,10 @@ async function parseEpubArchive(epub: EPub): Promise<void> {
   );
 }
 
-async function getEpubCover(epub: EPub, coverId: string): Promise<{ img?: Buffer; mimeType?: string }> {
+async function getEpubCover(
+  epub: EPub,
+  coverId: string
+): Promise<{ img?: Buffer; mimeType?: string }> {
   return withTimeout(
     new Promise<{ img?: Buffer; mimeType?: string }>((resolve, reject) => {
       epub.getImage(coverId, (err: Error | null, img?: Buffer, mimeType?: string) => {
@@ -153,7 +158,9 @@ export async function parseEpubLazy(fileBuffer: Buffer): Promise<ParseEpubLazyRe
       chapterIterator: (async function* () {})(),
     };
   }
-  const tocTitleMap = buildTocTitleMap(epub.toc as Array<{ href?: string; title?: string }> | undefined);
+  const tocTitleMap = buildTocTitleMap(
+    epub.toc as Array<{ href?: string; title?: string }> | undefined
+  );
 
   async function* iterateChapters(): AsyncGenerator<ParsedChapter, void, unknown> {
     for (let i = 0; i < spine.length; i++) {
@@ -251,7 +258,9 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
         warnings,
       };
     }
-    const tocTitleMap = buildTocTitleMap(epub.toc as Array<{ href?: string; title?: string }> | undefined);
+    const tocTitleMap = buildTocTitleMap(
+      epub.toc as Array<{ href?: string; title?: string }> | undefined
+    );
 
     // Parse each chapter
     for (let i = 0; i < spine.length; i++) {

@@ -25,7 +25,10 @@ function getCachedProfile(userId: string): { role: UserRole; avatarUrl: string |
   return hit.value;
 }
 
-function setCachedProfile(userId: string, value: { role: UserRole; avatarUrl: string | null }): void {
+function setCachedProfile(
+  userId: string,
+  value: { role: UserRole; avatarUrl: string | null }
+): void {
   profileMemoryCache.set(userId, { value, ts: Date.now() });
 }
 

@@ -79,8 +79,7 @@ export function ChapterList({
   const DRAG_BUFFER = 20; // number of items buffer to render around pointer during drag
   const { t } = useTranslation();
   const systemStatus = useSystemStatus();
-  const MAX_FILE_SIZE =
-    systemStatus?.maxFileSizeBytes ?? 50 * 1024 * 1024; // fallback 50MB
+  const MAX_FILE_SIZE = systemStatus?.maxFileSizeBytes ?? 50 * 1024 * 1024; // fallback 50MB
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<{
@@ -254,7 +253,9 @@ export function ChapterList({
     const normalizeTitle = (file: File, index: number): string => {
       const noExt = file.name.replace(/\.[^.]+$/, '');
       const cleaned = noExt.replace(/^\d+[._\-\s]*/, '').trim();
-      return cleaned || t('chapterList.defaultChapterTitle', { number: chapters.length + index + 1 });
+      return (
+        cleaned || t('chapterList.defaultChapterTitle', { number: chapters.length + index + 1 })
+      );
     };
     const newItems: QueueItem[] = Array.from(fileList).map((file, index) => {
       const filename = file.name.toLowerCase();
@@ -1467,24 +1468,24 @@ export function ChapterList({
                     {item.status === 'uploading' &&
                       item.uploadProgress &&
                       item.uploadProgress.total > 0 && (
-                      <div class="queue-item-progress">
-                        <div
-                          class="queue-item-progress-bar"
-                          style={{
-                            width: `${Math.round(
-                              (item.uploadProgress.loaded / item.uploadProgress.total) * 100
-                            )}%`,
-                          }}
-                        />
-                        <span class="queue-item-progress-text">
-                          {item.uploadPhase === 'processing'
-                            ? t('chapterList.uploadProcessing')
-                            : `${t('chapterList.uploadSending')} ${Math.round(
+                        <div class="queue-item-progress">
+                          <div
+                            class="queue-item-progress-bar"
+                            style={{
+                              width: `${Math.round(
                                 (item.uploadProgress.loaded / item.uploadProgress.total) * 100
-                              )}%`}
-                        </span>
-                      </div>
-                    )}
+                              )}%`,
+                            }}
+                          />
+                          <span class="queue-item-progress-text">
+                            {item.uploadPhase === 'processing'
+                              ? t('chapterList.uploadProcessing')
+                              : `${t('chapterList.uploadSending')} ${Math.round(
+                                  (item.uploadProgress.loaded / item.uploadProgress.total) * 100
+                                )}%`}
+                          </span>
+                        </div>
+                      )}
                     {item.status === 'uploading' &&
                       item.importJobId &&
                       item.importTotal !== undefined &&
@@ -1494,7 +1495,9 @@ export function ChapterList({
                             {item.importCurrent || 0}/{item.importTotal}
                           </span>
                           {item.importCurrentChapterTitle && (
-                            <span class="queue-item-import-title">{item.importCurrentChapterTitle}</span>
+                            <span class="queue-item-import-title">
+                              {item.importCurrentChapterTitle}
+                            </span>
                           )}
                         </div>
                       )}
@@ -1516,9 +1519,7 @@ export function ChapterList({
                       )}
                     </div>
                     {item.error && <pre class="queue-error">{item.error}</pre>}
-                    {item.status === 'success' &&
-                      item.warnings &&
-                      item.warnings.length > 0 && (
+                    {item.status === 'success' && item.warnings && item.warnings.length > 0 && (
                       <div class="queue-warnings">
                         {item.warnings.map((w, i) => (
                           <div key={i} class="queue-warning-item">

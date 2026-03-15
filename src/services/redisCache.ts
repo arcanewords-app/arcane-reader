@@ -5,12 +5,10 @@ type CachePrimitive = string | number | boolean;
 
 let redisSingleton: Redis | null = null;
 
-function getRedisEnv():
-  | {
-      url: string;
-      token: string;
-    }
-  | null {
+function getRedisEnv(): {
+  url: string;
+  token: string;
+} | null {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
@@ -53,4 +51,24 @@ export async function redisDelMany(keys: string[]): Promise<void> {
   const redis = getRedis();
   if (!redis || keys.length === 0) return;
   await redis.del(...keys);
+}
+
+/**
+ * Delete all keys matching a glob pattern (e.g. "v1:pub:chapter:pubId:*").
+ * Uses SCAN to avoid blocking. Safe for production.
+ */
+export async function redisDelByPattern(pattern: string): Promise<number> {
+  const redis = getRedis();
+  if (!redis) return 0;
+  let cursor = 0;
+  let deleted = 0;
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, { match: pattern, count: 100 });
+    cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : (nextCursor as number);
+    if (keys.length > 0) {
+      await redis.del(...(keys as string[]));
+      deleted += keys.length;
+    }
+  } while (cursor !== 0);
+  return deleted;
 }

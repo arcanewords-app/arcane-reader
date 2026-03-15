@@ -82,16 +82,19 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   const allChaptersSorted = useMemo(
     () =>
       [
-        ...(
-          summary && (summary.length > 0 || project.chapters.length === 0) ? summary : project.chapters
-        ),
+        ...(summary && (summary.length > 0 || project.chapters.length === 0)
+          ? summary
+          : project.chapters),
       ].sort((a, b) => a.number - b.number),
     [summary, project.chapters]
   );
 
   const defaultSelectionIds = useMemo(
     () =>
-      (summary && (summary.length > 0 || project.chapters.length === 0) ? summary : project.chapters)
+      (summary && (summary.length > 0 || project.chapters.length === 0)
+        ? summary
+        : project.chapters
+      )
         .filter(
           (c) =>
             (c as ChapterSummary).status === 'error' ||
@@ -209,7 +212,8 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
         onClick={() => setShowTranslateAllModal(true)}
         disabled={translationProgress !== null}
       >
-        <Icon name="auto_awesome" size="sm" /> {t('projectInfo.processChapters', 'Обработать главы')}
+        <Icon name="auto_awesome" size="sm" />{' '}
+        {t('projectInfo.processChapters', 'Обработать главы')}
       </Button>
 
       <Modal
@@ -850,7 +854,8 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                           {currentChapterProgress.glossaryEntries !== undefined &&
                             currentChapterProgress.glossaryEntries > 0 && (
                               <span>
-                                <Icon name="menu_book" size="sm" /> +{currentChapterProgress.glossaryEntries}{' '}
+                                <Icon name="menu_book" size="sm" /> +
+                                {currentChapterProgress.glossaryEntries}{' '}
                                 {t('projectInfo.inGlossaryShort')}
                               </span>
                             )}
@@ -922,14 +927,13 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
                   >
                     {computedTotalDuration > 0 && (
                       <span>
-                        <Icon name="schedule" size="sm" /> {(computedTotalDuration / 1000).toFixed(1)}{' '}
-                        {t('projectInfo.timeSeconds')}
+                        <Icon name="schedule" size="sm" />{' '}
+                        {(computedTotalDuration / 1000).toFixed(1)} {t('projectInfo.timeSeconds')}
                       </span>
                     )}
                     <span>
                       <Icon name="toll" size="sm" /> {t('projectInfo.totalShort')}{' '}
-                      {computedTotalTokens.toLocaleString()}{' '}
-                      {t('projectInfo.tokensCount')}
+                      {computedTotalTokens.toLocaleString()} {t('projectInfo.tokensCount')}
                     </span>
                     {computedTotalGlossary > 0 && (
                       <span>

@@ -151,7 +151,10 @@ export function useBatchChapterTranslation(
             prev
               ? {
                   ...prev,
-                  currentChapter: t('markAsTranslated.batchInProgress', 'Batch update in progress...'),
+                  currentChapter: t(
+                    'markAsTranslated.batchInProgress',
+                    'Batch update in progress...'
+                  ),
                   currentChapterId: null,
                   chapters: prev.chapters.map((c) => ({ ...c, status: 'translating' as const })),
                 }

@@ -228,7 +228,11 @@ export function AdminEntitiesPage() {
               ) : (
                 <article class="admin-entities-card" key={entity.id}>
                   {entity.photoUrl && (
-                    <img src={entity.photoUrl} alt={entity.name} class="admin-entities-card-photo" />
+                    <img
+                      src={entity.photoUrl}
+                      alt={entity.name}
+                      class="admin-entities-card-photo"
+                    />
                   )}
                   <div class="admin-entities-card-content">
                     <span class="admin-entities-kind">{t(`admin.kinds.${entity.kind}`)}</span>

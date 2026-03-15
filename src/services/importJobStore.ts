@@ -33,9 +33,7 @@ export interface ImportJobStore {
   setTtl(jobId: string, seconds: number): Promise<void>;
 }
 
-function getRedisEnv():
-  | { url: string; token: string }
-  | null {
+function getRedisEnv(): { url: string; token: string } | null {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
@@ -115,7 +113,11 @@ class RedisImportJobStore implements ImportJobStore {
   async cancelJob(jobId: string): Promise<ImportJobState | null> {
     const current = await this.getJob(jobId);
     if (!current) return null;
-    if (current.status === 'completed' || current.status === 'error' || current.status === 'canceled') {
+    if (
+      current.status === 'completed' ||
+      current.status === 'error' ||
+      current.status === 'canceled'
+    ) {
       return current;
     }
     await this.requestCancel(jobId);
@@ -192,7 +194,11 @@ class MemoryImportJobStore implements ImportJobStore {
   async cancelJob(jobId: string): Promise<ImportJobState | null> {
     const current = this.jobs.get(jobId);
     if (!current) return null;
-    if (current.status === 'completed' || current.status === 'error' || current.status === 'canceled') {
+    if (
+      current.status === 'completed' ||
+      current.status === 'error' ||
+      current.status === 'canceled'
+    ) {
       return current;
     }
     await this.requestCancel(jobId);
@@ -238,4 +244,3 @@ export function createImportJobStoreFromEnv(): ImportJobStore {
   );
   return singletonStore;
 }
-

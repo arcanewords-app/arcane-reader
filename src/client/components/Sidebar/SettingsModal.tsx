@@ -411,8 +411,8 @@ export function SettingsModal({
                 onClick={() => setShowFormatHelp(!showFormatHelp)}
                 style={{ marginTop: '0.75rem' }}
               >
-                {showFormatHelp ? t('common.close') : t('chapterList.viewQueue', 'View')}{' '}
-                Формат для интеграции
+                {showFormatHelp ? t('common.close') : t('chapterList.viewQueue', 'View')} Формат для
+                интеграции
               </button>
               {showFormatHelp && (
                 <div class="text-blocks-format-content">
