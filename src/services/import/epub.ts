@@ -3,8 +3,21 @@
  * Extracts metadata, chapters, and content from EPUB files
  */
 
+import AdmZip from 'adm-zip';
 import { EPub } from 'epub2';
+import { XMLParser } from 'fast-xml-parser';
+import { dirname } from 'path';
 import type { BookMetadata, ParsedChapter, ParseResult } from './types.js';
+
+function joinPath(base: string, rel: string): string {
+  const parts = base.split('/').concat(rel.split('/')).filter(Boolean);
+  const result: string[] = [];
+  for (const p of parts) {
+    if (p === '..') result.pop();
+    else if (p !== '.') result.push(p);
+  }
+  return result.join('/');
+}
 
 const EPUB_PARSE_TIMEOUT_MS = 45000;
 const EPUB_COVER_TIMEOUT_MS = 15000;
@@ -111,6 +124,98 @@ async function getEpubChapter(epub: EPub, chapterId: string): Promise<string> {
   );
 }
 
+/** Fallback when epub2 returns empty flow (OPF with opf: namespace) */
+interface OpfFallbackResult {
+  flow: Array<{ id: string; href: string }>;
+  zip: AdmZip;
+}
+
+function parseOpfFallback(fileBuffer: Buffer): OpfFallbackResult | null {
+  const xmlParser = new XMLParser({
+    ignoreAttributes: false,
+    removeNSPrefix: true,
+  });
+  let zip: AdmZip;
+  try {
+    zip = new AdmZip(fileBuffer);
+  } catch {
+    return null;
+  }
+  const entries = zip.getEntries();
+  const names = entries.map((e) => e.entryName);
+  const containerPath = names.find((n: string) => n.toLowerCase() === 'meta-inf/container.xml');
+  if (!containerPath) return null;
+  const containerData = zip.readAsText(containerPath);
+  const parsed = xmlParser.parse(containerData);
+  const root = parsed?.container || parsed;
+  const rootfiles = root?.rootfiles;
+  const rootfile = Array.isArray(rootfiles?.rootfile)
+    ? rootfiles.rootfile[0]
+    : rootfiles?.rootfile;
+  const attrs = rootfile?.['@'] || rootfile;
+  const opfPath =
+    attrs?.['full-path'] ??
+    attrs?.['fullPath'] ??
+    attrs?.['@_full-path'] ??
+    attrs?.['@_fullPath'];
+  if (!opfPath) return null;
+  const opfEntryName = names.find((n: string) => n.toLowerCase() === opfPath.toLowerCase());
+  if (!opfEntryName) return null;
+  const opfData = zip.readAsText(opfEntryName);
+  const opf = xmlParser.parse(opfData);
+  const pkg = opf?.package || opf?.['opf:package'] || opf;
+  if (!pkg) return null;
+  const manifest = pkg.manifest || pkg['opf:manifest'];
+  const spine = pkg.spine || pkg['opf:spine'];
+  if (!manifest || !spine) return null;
+  const items = manifest.item || manifest['opf:item'];
+  const itemrefs = spine.itemref || spine['opf:itemref'];
+  if (!items || !itemrefs) return null;
+  const itemList = Array.isArray(items) ? items : [items];
+  const refList = Array.isArray(itemrefs) ? itemrefs : [itemrefs];
+  const manifestMap = new Map<string, { href: string; mediaType?: string }>();
+  for (const it of itemList) {
+    const a = it['@'] || it;
+    const id = a.id ?? a['@_id'];
+    const href = a.href ?? a['@_href'];
+    const mediaType = a['media-type'] ?? a.mediaType ?? a['@_media-type'];
+    if (id && href && /xhtml|html|xml/i.test(mediaType || '')) {
+      manifestMap.set(id, { href, mediaType });
+    }
+  }
+  const opfDir = dirname(opfPath).replace(/\\/g, '/');
+  const flow: Array<{ id: string; href: string }> = [];
+  for (const ref of refList) {
+    const a = ref['@'] || ref;
+    const idref = a.idref ?? a['@_idref'];
+    const item = manifestMap.get(idref);
+    if (item) {
+      const fullHref =
+        item.href.startsWith('/') || /^[a-z]+:/i.test(item.href)
+          ? item.href.replace(/^\//, '')
+          : joinPath(opfDir, item.href);
+      flow.push({ id: idref, href: fullHref });
+    }
+  }
+  if (flow.length === 0) return null;
+  return { flow, zip };
+}
+
+function getChapterFromZip(zip: AdmZip, href: string): string {
+  const entries = zip.getEntries();
+  const entry = entries.find(
+    (e: { entryName: string; isDirectory: boolean }) =>
+      !e.isDirectory &&
+      (e.entryName === href ||
+        e.entryName.toLowerCase() === href.toLowerCase() ||
+        e.entryName === decodeURIComponent(href))
+  );
+  if (!entry) return '';
+  const data = zip.readAsText(entry);
+  const bodyMatch = data.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return bodyMatch ? bodyMatch[1].trim() : data;
+}
+
 /**
  * Parse EPUB lazily: yields chapters one-by-one to reduce memory for large books.
  * Use this for EPUB files with many chapters instead of parseEpub().
@@ -147,8 +252,24 @@ export async function parseEpubLazy(fileBuffer: Buffer): Promise<ParseEpubLazyRe
     warnings.push('Не удалось извлечь обложку');
   }
 
-  const spine = epub.flow;
-  if (!spine || spine.length === 0) {
+  type SpineItem = { id: string; href?: string };
+  let spine: SpineItem[] = (epub.flow || [])
+    .map((item) => ({ id: item.id ?? '', href: item.href }))
+    .filter((item) => item.id) as SpineItem[];
+  let useFallback = false;
+  let fallbackZip: AdmZip | null = null;
+
+  if (spine.length === 0) {
+    const fallback = parseOpfFallback(fileBuffer);
+    if (fallback) {
+      spine = fallback.flow;
+      fallbackZip = fallback.zip;
+      useFallback = true;
+      warnings.push('EPUB использует OPF с namespace — применён fallback-парсер');
+    }
+  }
+
+  if (spine.length === 0) {
     errors.push('EPUB файл не содержит глав');
     return {
       metadata,
@@ -165,17 +286,24 @@ export async function parseEpubLazy(fileBuffer: Buffer): Promise<ParseEpubLazyRe
   async function* iterateChapters(): AsyncGenerator<ParsedChapter, void, unknown> {
     for (let i = 0; i < spine.length; i++) {
       const item = spine[i];
-      if (!item.id) {
+      const itemId = item.id;
+      if (!itemId) {
         warnings.push(`Глава ${i + 1} не имеет ID`);
         continue;
       }
       try {
-        const chapterText = await getEpubChapter(epub, item.id);
+        let chapterText: string;
+        if (useFallback && fallbackZip && item.href) {
+          chapterText = getChapterFromZip(fallbackZip, item.href);
+        } else {
+          chapterText = await getEpubChapter(epub, itemId);
+        }
         if (!chapterText || chapterText.trim().length === 0) {
           warnings.push(`Глава ${i + 1} пуста или не может быть прочитана`);
           continue;
         }
-        const title = tocTitleMap.get(normalizeTocHref(item.href)) || `Глава ${i + 1}`;
+        const href = item.href || '';
+        const title = tocTitleMap.get(normalizeTocHref(href)) || `Глава ${i + 1}`;
         yield {
           title,
           number: i + 1,
@@ -208,17 +336,9 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
   const chapters: ParsedChapter[] = [];
 
   try {
-    // Create EPub instance from buffer
-    // epub2 library expects a file path or buffer, but we need to handle it differently
-    // Since we have a buffer, we'll need to use a temporary approach
-    // Note: epub2 may require file path, so we'll handle buffer conversion
-    // EPub typings declare (path: string) but runtime accepts Buffer
     const epub = new EPub(fileBuffer as unknown as string);
-
-    // Wait for metadata to be parsed
     await parseEpubArchive(epub);
 
-    // Extract metadata
     metadata.title = epub.metadata?.title || undefined;
     const creator = epub.metadata?.creator;
     if (creator) {
@@ -230,7 +350,6 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
     metadata.isbn = epub.metadata?.identifier || undefined;
     metadata.publishedDate = epub.metadata?.date || undefined;
 
-    // Extract cover image if available
     try {
       const coverId = epub.metadata?.cover;
       if (coverId) {
@@ -242,13 +361,28 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
           };
         }
       }
-    } catch (coverError) {
+    } catch {
       warnings.push('Не удалось извлечь обложку');
     }
 
-    // Get table of contents (spine)
-    const spine = epub.flow;
-    if (!spine || spine.length === 0) {
+    type SpineItem = { id: string; href?: string };
+    let spine: SpineItem[] = (epub.flow || [])
+      .map((item) => ({ id: item.id ?? '', href: item.href }))
+      .filter((item) => item.id) as SpineItem[];
+    let useFallback = false;
+    let fallbackZip: AdmZip | null = null;
+
+    if (spine.length === 0) {
+      const fallback = parseOpfFallback(fileBuffer);
+      if (fallback) {
+        spine = fallback.flow;
+        fallbackZip = fallback.zip;
+        useFallback = true;
+        warnings.push('EPUB использует OPF с namespace — применён fallback-парсер');
+      }
+    }
+
+    if (spine.length === 0) {
       errors.push('EPUB файл не содержит глав');
       return {
         format: 'epub',
@@ -262,7 +396,6 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
       epub.toc as Array<{ href?: string; title?: string }> | undefined
     );
 
-    // Parse each chapter
     for (let i = 0; i < spine.length; i++) {
       const item = spine[i];
       if (!item.id) {
@@ -270,25 +403,22 @@ export async function parseEpub(fileBuffer: Buffer): Promise<ParseResult> {
         continue;
       }
       try {
-        const chapterText = await getEpubChapter(epub, item.id);
-
+        let chapterText: string;
+        if (useFallback && fallbackZip && item.href) {
+          chapterText = getChapterFromZip(fallbackZip, item.href);
+        } else {
+          chapterText = await getEpubChapter(epub, item.id);
+        }
         if (!chapterText || chapterText.trim().length === 0) {
           warnings.push(`Глава ${i + 1} пуста или не может быть прочитана`);
           continue;
         }
-
-        // Extract title from TOC or use default
-        const title = tocTitleMap.get(normalizeTocHref(item.href)) || `Глава ${i + 1}`;
-
-        // Convert HTML to plain text and preserve HTML
-        const plainText = htmlToPlainText(chapterText);
-        const htmlContent = chapterText;
-
+        const title = tocTitleMap.get(normalizeTocHref(item.href || '')) || `Глава ${i + 1}`;
         chapters.push({
           title,
           number: i + 1,
-          content: plainText,
-          htmlContent,
+          content: htmlToPlainText(chapterText),
+          htmlContent: chapterText,
         });
       } catch (chapterError) {
         const errorMsg = chapterError instanceof Error ? chapterError.message : 'Unknown error';
