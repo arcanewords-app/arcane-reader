@@ -269,6 +269,30 @@
   color: var(--success);
 }
 
+/* Scroll container for virtualized chapter list */
+.publication-page-chapters-list {
+  max-height: 50vh;
+  min-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) transparent;
+}
+
+.publication-page-chapters-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.publication-page-chapters-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.publication-page-chapters-list::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 3px;
+}
+
 .publication-page-chapters ul {
   list-style: none;
   margin: 0;

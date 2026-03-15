@@ -1,7 +1,7 @@
 import type { JSX } from 'preact';
 import './Button.css';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'glossary';
+export type ButtonVariant = 'primary' | 'secondary' | 'glossary' | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'full';
 
 interface ButtonProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, 'size'> {

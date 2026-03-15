@@ -6,6 +6,11 @@
  */
 
 import { supabase, createClientWithToken } from './supabaseClient.js';
+import {
+  MAX_CHAPTERS_PER_PROJECT,
+  MAX_PARAGRAPHS_FOR_SUMMARY,
+} from '../shared/cacheContract.js';
+import { isChunkError } from '../shared/chunkErrors.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -293,6 +298,12 @@ function transformGlossaryEntryFromDB(row: Record<string, unknown>): GlossaryEnt
       ? [...(mentionedInChapters as number[])].sort((a, b) => a - b)
       : undefined;
 
+  const relatedEntryIds = r.related_entry_ids;
+  const relatedEntryIdsArr =
+    Array.isArray(relatedEntryIds) && relatedEntryIds.length > 0
+      ? (relatedEntryIds as string[]).filter((id) => typeof id === 'string')
+      : undefined;
+
   return {
     id: r.id,
     type: r.type as 'character' | 'location' | 'term',
@@ -309,6 +320,8 @@ function transformGlossaryEntryFromDB(row: Record<string, unknown>): GlossaryEnt
       return Number.isNaN(num) ? undefined : num;
     })(),
     mentionedInChapters: mentionedInChaptersArr,
+    relatedEntryIds: relatedEntryIdsArr,
+    primaryLocationId: (r.primary_location_id as string) || undefined,
     imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
     imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
     autoDetected: (r.auto_detected as boolean) || false,
@@ -412,7 +425,8 @@ async function getChapterCountsByProject(
   const { data, error } = await client
     .from('chapters')
     .select('project_id')
-    .in('project_id', projectIds);
+    .in('project_id', projectIds)
+    .limit(MAX_CHAPTERS_PER_PROJECT * Math.max(1, projectIds.length));
   if (error) throw new Error(`Failed to get chapter counts: ${error.message}`);
   const counts: Record<string, number> = {};
   for (const row of data || []) {
@@ -431,7 +445,8 @@ async function getTranslatedChapterCountsByProject(
     .from('chapters')
     .select('project_id')
     .eq('status', 'completed')
-    .in('project_id', projectIds);
+    .in('project_id', projectIds)
+    .limit(MAX_CHAPTERS_PER_PROJECT * Math.max(1, projectIds.length));
   if (error) throw new Error(`Failed to get translated chapter counts: ${error.message}`);
   const counts: Record<string, number> = {};
   for (const row of data || []) {
@@ -618,7 +633,8 @@ export async function getChaptersSummary(
     .from('chapters')
     .select('id, number, title, status, translation_meta')
     .eq('project_id', projectId)
-    .order('number', { ascending: true });
+    .order('number', { ascending: true })
+    .limit(MAX_CHAPTERS_PER_PROJECT);
 
   if (error) throw new Error(`Failed to get chapters: ${error.message}`);
   if (!chapters || chapters.length === 0) return [];
@@ -626,12 +642,17 @@ export async function getChaptersSummary(
   const chapterIds = chapters.map((c) => c.id);
 
   const [paragraphRows, translatedParagraphRows] = await Promise.all([
-    client.from('paragraphs').select('chapter_id').in('chapter_id', chapterIds),
     client
       .from('paragraphs')
       .select('chapter_id')
       .in('chapter_id', chapterIds)
-      .not('translated_text', 'is', null),
+      .limit(MAX_PARAGRAPHS_FOR_SUMMARY),
+    client
+      .from('paragraphs')
+      .select('chapter_id')
+      .in('chapter_id', chapterIds)
+      .not('translated_text', 'is', null)
+      .limit(MAX_PARAGRAPHS_FOR_SUMMARY),
   ]);
 
   const paragraphCounts: Record<string, number> = {};
@@ -1025,7 +1046,8 @@ async function loadChaptersForProjectLightweight(
     .from('chapters')
     .select('id, number, title, status, translation_meta, created_at, updated_at')
     .eq('project_id', projectId)
-    .order('number', { ascending: true });
+    .order('number', { ascending: true })
+    .limit(MAX_CHAPTERS_PER_PROJECT);
 
   if (error) {
     throw new Error(`Failed to load chapters: ${error.message}`);
@@ -1060,7 +1082,8 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
     .from('chapters')
     .select('*, paragraphs(*)')
     .eq('project_id', projectId)
-    .order('number', { ascending: true });
+    .order('number', { ascending: true })
+    .limit(MAX_CHAPTERS_PER_PROJECT);
 
   if (error) {
     throw new Error(`Failed to load chapters: ${error.message}`);
@@ -1189,7 +1212,8 @@ async function loadChaptersForProjectWithServiceRole(projectId: string): Promise
     .from('chapters')
     .select('*, paragraphs(*)')
     .eq('project_id', projectId)
-    .order('number', { ascending: true });
+    .order('number', { ascending: true })
+    .limit(MAX_CHAPTERS_PER_PROJECT);
 
   if (error) {
     throw new Error(`Failed to load chapters: ${error.message}`);
@@ -1707,7 +1731,7 @@ function autoSyncChunksToParagraphs(
   const hasValidTranslation = (p: Paragraph): boolean => {
     const text = p.translatedText?.trim() || '';
     if (text.length === 0) return false;
-    if (text.startsWith('❌') || text.startsWith('[ERROR')) return false;
+    if (text.startsWith('❌') || isChunkError(text)) return false;
     return true;
   };
 
@@ -2238,7 +2262,7 @@ export async function addGlossaryEntry(
     return undefined;
   }
 
-  const entryData = {
+  const entryData: Record<string, unknown> = {
     project_id: projectId,
     type: normalizeGlossaryTypeForDB(entry.type),
     original: entry.original,
@@ -2252,6 +2276,8 @@ export async function addGlossaryEntry(
     image_urls: entry.imageUrls || [],
     auto_detected: entry.autoDetected || false,
   };
+  if (entry.relatedEntryIds?.length) entryData.related_entry_ids = entry.relatedEntryIds;
+  if (entry.primaryLocationId) entryData.primary_location_id = entry.primaryLocationId;
 
   const { data: newEntry, error } = await client
     .from('glossary_entries')
@@ -2313,6 +2339,10 @@ export async function updateGlossaryEntry(
     entryData.mentioned_in_chapters = updates.mentionedInChapters?.length
       ? updates.mentionedInChapters
       : null;
+  if (updates.relatedEntryIds !== undefined)
+    entryData.related_entry_ids = updates.relatedEntryIds?.length ? updates.relatedEntryIds : null;
+  if (updates.primaryLocationId !== undefined)
+    entryData.primary_location_id = updates.primaryLocationId || null;
   if (imageUrls.length > 0 || updates.imageUrls !== undefined) entryData.image_urls = imageUrls;
   if (updates.autoDetected !== undefined) entryData.auto_detected = updates.autoDetected;
 
@@ -2725,29 +2755,39 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
   const pub = await getPublicationBySlugOrId(slugOrId);
   if (!pub) return null;
 
-  // Load chapters for this project (we need token for RLS on chapters - but chapters are under project owned by publication owner)
-  // Chapters are under project (private by RLS). Use service role to read chapters for published project.
-  let chapters: { id: string; number: number; title: string; translated_text: string | null }[] =
-    [];
+  // Load chapters for this project (chapters are under project owned by publication owner).
+  // Use service role to read chapters for published project.
+  // Lightweight: do NOT select translated_text — use two queries to avoid transferring full text for 1000+ chapters.
+  // For reading, use separate endpoint GET /api/publications/:id/chapters/:chapterId (getPublicationChapterContent).
+  let list: Array<{ id: string; number: number; title: string; hasTranslation: boolean }> = [];
   try {
     const { createServiceRoleClient } = await import('./supabaseClient.js');
     const serviceClient = createServiceRoleClient();
-    const { data } = await serviceClient
-      .from('chapters')
-      .select('id, number, title, translated_text')
-      .eq('project_id', pub.projectId)
-      .order('number', { ascending: true });
-    chapters = data || [];
+    const [chaptersResult, translatedResult] = await Promise.all([
+      serviceClient
+        .from('chapters')
+        .select('id, number, title')
+        .eq('project_id', pub.projectId)
+        .order('number', { ascending: true }),
+      serviceClient
+        .from('chapters')
+        .select('id')
+        .eq('project_id', pub.projectId)
+        .not('translated_text', 'is', null),
+    ]);
+    const chapters = chaptersResult.data || [];
+    const translatedIds = new Set(
+      (translatedResult.data || []).map((c) => c.id)
+    );
+    list = chapters.map((c) => ({
+      id: c.id,
+      number: c.number,
+      title: c.title,
+      hasTranslation: translatedIds.has(c.id),
+    }));
   } catch {
     // Service role not configured: return publication without chapters (client can still show metadata)
   }
-
-  const list = chapters.map((c) => ({
-    id: c.id,
-    number: c.number,
-    title: c.title,
-    hasTranslation: !!c.translated_text,
-  }));
 
   let glossaryCount = 0;
   try {
@@ -3236,7 +3276,8 @@ export async function getUserReadingHistory(
     const { data: chapterCounts } = await serviceClient
       .from('chapters')
       .select('project_id')
-      .in('project_id', projectIds);
+      .in('project_id', projectIds)
+      .limit(MAX_CHAPTERS_PER_PROJECT * Math.max(1, projectIds.length));
 
     if (chapterCounts) {
       for (const pid of projectIds) {

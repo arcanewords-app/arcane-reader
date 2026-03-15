@@ -27,6 +27,8 @@ import type {
   BulkUpdateResponse,
   ChapterTranslationOptions,
   ImportJobState,
+  AnalysisJobState,
+  TranslateJobState,
   MarkTranslatedBatchResponse,
   TokenUsage,
   TokenUsageHistory,
@@ -692,11 +694,11 @@ export const api = {
     return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
   },
 
-  /** Lightweight: only chapter status (for polling during translation) */
+  /** Lightweight: only chapter status (for polling during translation). When translating, may include chunksDone/totalChunks. */
   async getChapterStatus(
     projectId: string,
     chapterId: string
-  ): Promise<{ status: Chapter['status'] }> {
+  ): Promise<{ status: Chapter['status']; chunksDone?: number; totalChunks?: number }> {
     return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}/status`);
   },
 
@@ -773,6 +775,111 @@ export const api = {
 
   async getChapterStats(projectId: string, chapterId: string): Promise<ChapterStats> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/stats`);
+  },
+
+  async analyzeChaptersBatch(
+    projectId: string,
+    chapterIds: string[]
+  ): Promise<{
+    success: boolean;
+    totalChapters: number;
+    successful: number;
+    failed: number;
+    totalTokensUsed: number;
+    totalDuration: number;
+    glossaryEntriesAdded: number;
+  }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/analyze-batch`, {
+      method: 'POST',
+      body: JSON.stringify({ chapterIds }),
+    });
+  },
+
+  /** Start async batch analysis (returns jobId for polling). */
+  async startAnalyzeBatch(
+    projectId: string,
+    chapterIds: string[],
+    signal?: AbortSignal
+  ): Promise<{ jobId: string; status: 'queued' }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/analyze-batch?async=1`, {
+      method: 'POST',
+      body: JSON.stringify({ chapterIds }),
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Prefer: 'respond-async',
+      },
+    });
+  },
+
+  async getAnalysisJob(
+    projectId: string,
+    jobId: string,
+    signal?: AbortSignal
+  ): Promise<AnalysisJobState> {
+    return fetchJson(`/api/projects/${projectId}/analysis-jobs/${jobId}?compact=1`, {
+      signal,
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
+  },
+
+  async cancelAnalysisJob(
+    projectId: string,
+    jobId: string
+  ): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/analysis-jobs/${jobId}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  /** Start async batch translate (returns jobId for polling). */
+  async startTranslateBatch(
+    projectId: string,
+    chapterIds: string[],
+    body?: { translateOnlyEmpty?: boolean; stages?: string[] | 'all' },
+    signal?: AbortSignal
+  ): Promise<{ jobId: string; status: 'queued' }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/translate-batch?async=1`, {
+      method: 'POST',
+      body: JSON.stringify({
+        chapterIds,
+        translateOnlyEmpty: body?.translateOnlyEmpty,
+        stages: body?.stages,
+      }),
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Prefer: 'respond-async',
+      },
+    });
+  },
+
+  async getTranslateJob(
+    projectId: string,
+    jobId: string,
+    signal?: AbortSignal
+  ): Promise<TranslateJobState> {
+    return fetchJson(`/api/projects/${projectId}/translate-jobs/${jobId}`, {
+      signal,
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
+  },
+
+  async cancelTranslateJob(
+    projectId: string,
+    jobId: string
+  ): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/translate-jobs/${jobId}/cancel`, {
+      method: 'POST',
+    });
   },
 
   async translateChapter(

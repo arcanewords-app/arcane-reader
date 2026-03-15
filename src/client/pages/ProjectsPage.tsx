@@ -5,11 +5,23 @@ import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
 import { Button, Input, Modal, Icon } from '../components/ui';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
 import { api } from '../api/client';
+import { useUserRole } from '../hooks/useUserRole';
+import type { UserRole } from '../../types/roles';
 import '../components/Dashboard/Dashboard.css';
 import './ProjectsPage.css';
 
+const ROLE_LABEL_KEYS: Record<UserRole, string> = {
+  guest: 'profile.roleUser',
+  user: 'profile.roleUser',
+  author: 'profile.roleAuthor',
+  author_plus: 'profile.roleAuthorPlus',
+  super_author: 'profile.roleSuperAuthor',
+  admin: 'profile.roleAdmin',
+};
+
 export function ProjectsPage() {
   const { t } = useTranslation();
+  const { role } = useUserRole();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'book' | 'text'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -53,6 +65,7 @@ export function ProjectsPage() {
               ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
               : t('dashboard.subtitleEmpty')}
           </p>
+          <span class="projects-role-badge">{t(ROLE_LABEL_KEYS[role])}</span>
         </div>
         <Button
           variant="primary"

@@ -6,11 +6,23 @@ import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
+import { Button } from '../components/ui';
+import { CONTACT_EMAIL } from '../../shared/contact';
 import type { ReaderSettings } from '../types';
+import type { UserRole } from '../../types/roles';
 import { DEFAULT_READER_SETTINGS, LEGACY_FONT_MAP } from '../types';
 import './ProfilePage.css';
 
 type ProfileTab = 'reading' | 'settings' | 'profile';
+
+const ROLE_LABEL_KEYS: Record<UserRole, string> = {
+  guest: 'profile.roleUser',
+  user: 'profile.roleUser',
+  author: 'profile.roleAuthor',
+  author_plus: 'profile.roleAuthorPlus',
+  super_author: 'profile.roleSuperAuthor',
+  admin: 'profile.roleAdmin',
+};
 
 function getInitials(email: string): string {
   const part = email.split('@')[0];
@@ -21,7 +33,7 @@ function getInitials(email: string): string {
 
 export function ProfilePage() {
   const { t } = useTranslation();
-  const { user } = useUserRole();
+  const { user, role, isAtLeast } = useUserRole();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('reading');
@@ -154,6 +166,27 @@ export function ProfilePage() {
                 {avatarUploading ? t('common.loading') : t('profile.uploadAvatar')}
               </button>
               {user && <p class="profile-email">{user.email}</p>}
+              {user && (
+                <div class="profile-role-block">
+                  <span class="profile-role-label">{t('profile.roleLabel')}</span>
+                  <span class="profile-role-badge">{t(ROLE_LABEL_KEYS[role])}</span>
+                </div>
+              )}
+              {user && !isAtLeast('admin') && (
+                <div class="profile-upgrade-block">
+                  <p class="profile-upgrade-hint">{t('profile.upgradeHint')}</p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const subject = encodeURIComponent(t('profile.upgradeMailSubject'));
+                      window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}`;
+                    }}
+                  >
+                    {t('profile.upgradeButton')}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

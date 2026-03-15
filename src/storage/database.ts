@@ -166,6 +166,10 @@ export interface GlossaryEntry {
   firstAppearance?: number; // Chapter number where this entry was first mentioned
   /** Chapter numbers where this entry was mentioned (from analysis). Sorted, unique. */
   mentionedInChapters?: number[];
+  /** IDs of related glossary entries (character–location, character–character, etc.). Editable manually. */
+  relatedEntryIds?: string[];
+  /** For characters: primary location ID (optional). */
+  primaryLocationId?: string;
   imageUrls?: string[]; // Array of image file paths for gallery
   // Legacy support: keep imageUrl for backward compatibility
   imageUrl?: string;
@@ -299,8 +303,12 @@ export interface ProjectSettings {
   textBlockTypes?: TextBlockType[];
   /** Custom instructions for translator and editor stages */
   customInstructions?: CustomInstructions;
-  /** Editing style preset: default, literary, minimal */
-  editingStylePreset?: 'default' | 'literary' | 'minimal';
+  /** Editing style preset: default, literary, minimal, ai_revivification */
+  editingStylePreset?: 'default' | 'literary' | 'minimal' | 'ai_revivification';
+  /** Editing focus: fix_problems, style_only, both */
+  editingFocus?: 'fix_problems' | 'style_only' | 'both';
+  /** When true, allow reasoning models (o1, gpt-5, etc.) for analysis. Warning: 1–5 min per request. Default false. */
+  allowReasoningModelsForAnalysis?: boolean;
 }
 
 export interface DatabaseSchema {

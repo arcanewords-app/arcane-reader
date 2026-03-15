@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
+import { CONTACT_EMAIL } from '../../shared/contact';
 import './InfoPages.css';
 
 export function PrivacyPage() {
@@ -22,7 +23,7 @@ export function PrivacyPage() {
 
         <section class="info-section">
           <h2>{t('privacy.controller')}</h2>
-          <p>{t('privacy.controllerDesc')}</p>
+          <p>{t('privacy.controllerDesc', { contactEmail: CONTACT_EMAIL })}</p>
         </section>
 
         <section class="info-section">
@@ -50,12 +51,12 @@ export function PrivacyPage() {
 
         <section class="info-section">
           <h2>{t('privacy.yourRights')}</h2>
-          <p>{t('privacy.yourRightsDesc')}</p>
+          <p>{t('privacy.yourRightsDesc', { contactEmail: CONTACT_EMAIL })}</p>
         </section>
 
         <section class="info-section">
           <h2>{t('privacy.contact')}</h2>
-          <p>{t('privacy.contactDesc')}</p>
+          <p>{t('privacy.contactDesc', { contactEmail: CONTACT_EMAIL })}</p>
         </section>
       </div>
     </div>

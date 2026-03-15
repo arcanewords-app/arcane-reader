@@ -151,6 +151,45 @@
   margin: 0;
 }
 
+.profile-role-block {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.profile-role-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.profile-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.profile-upgrade-block {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-upgrade-hint {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .profile-page {
     padding: var(--main-padding-tablet);

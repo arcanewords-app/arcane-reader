@@ -54,7 +54,7 @@ export { NovelAgent } from './agents/novel-agent.js';
 
 // Glossary
 export { GlossaryManager } from './glossary/glossary-manager.js';
-export { filterGlossaryForChunk } from './glossary/glossary-filter.js';
+export { filterGlossaryForChunk, filterGlossaryByChapter } from './glossary/glossary-filter.js';
 export {
   declineName,
   translateName,
@@ -82,7 +82,20 @@ export { TranslateStage } from './stages/stage-2-translate.js';
 export { EditStage } from './stages/stage-3-edit.js';
 
 // Utils
-export { chunkText, mergeChunks, estimateTokens, splitIntoSections } from './utils/chunker.js';
+export {
+  chunkText,
+  mergeChunks,
+  estimateTokens,
+  splitIntoSections,
+  type MergeChunkInput,
+} from './utils/chunker.js';
+
+// Error constants
+export {
+  CHUNK_ERROR_PREFIX,
+  formatChunkError,
+  isChunkError,
+} from './constants/errors.js';
 
 // Prompts
 export { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from './prompts/system/analyzer.js';
@@ -99,5 +112,6 @@ export {
   createEditorPrompt,
   getEditorSystemPrompt,
   QUALITY_CHECK_PROMPT,
+  type EditingFocus,
   type EditingStylePreset,
 } from './prompts/system/editor.js';

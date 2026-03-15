@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
+import { CONTACT_EMAIL } from '../../shared/contact';
 import './InfoPages.css';
-
-const CONTACT_EMAIL = 'ilya.murashka.w@gmail.com';
 
 export function ContactPage() {
   const { t } = useTranslation();

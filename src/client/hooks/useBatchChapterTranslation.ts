@@ -81,7 +81,8 @@ async function pollChapterUntilDone(
 export function useBatchChapterTranslation(
   projectId: string,
   project: Project | ProjectWithChapterList,
-  onRefreshProject: () => Promise<void>
+  onRefreshProject: () => Promise<void>,
+  onError?: (title: string, message: string) => void
 ) {
   const { t } = useTranslation();
   const estimate = useTokenEstimate();
@@ -98,6 +99,7 @@ export function useBatchChapterTranslation(
   const [isRunning, setIsRunning] = useState(false);
   const cancelledRef = useRef(false);
   const currentChapterIdRef = useRef<string | null>(null);
+  const translateJobIdRef = useRef<string | null>(null);
   const markTranslatedAbortRef = useRef<AbortController | null>(null);
   const initialGlossaryCountRef = useRef(0);
 
@@ -109,12 +111,16 @@ export function useBatchChapterTranslation(
     if (currentChapterIdRef.current) {
       api.cancelTranslation(projectId, currentChapterIdRef.current).catch(() => {});
     }
+    if (translateJobIdRef.current) {
+      api.cancelTranslateJob(projectId, translateJobIdRef.current).catch(() => {});
+    }
   }, [projectId]);
 
   const clearProgress = useCallback(() => {
     setProgress(null);
     cancelledRef.current = false;
     markTranslatedAbortRef.current = null;
+    translateJobIdRef.current = null;
   }, []);
 
   const startMarkAsTranslatedBatch = useCallback(
@@ -282,30 +288,325 @@ export function useBatchChapterTranslation(
         (async () => {
           const batchStartGlossary = initialGlossaryCountRef.current;
           setIsRunning(true);
+          const onlyAnalysis =
+            Array.isArray(optionsPerChapter?.stages) &&
+            optionsPerChapter!.stages!.length === 1 &&
+            optionsPerChapter!.stages![0] === 'analysis';
+
           try {
-            for (let i = 0; i < chapters.length; i++) {
-              if (cancelledRef.current) break;
-
-              const chapter = chapters[i];
-              const chapterStartTime = Date.now();
-
-              currentChapterIdRef.current = chapter.id;
+            if (onlyAnalysis && chapters.length > 1) {
+              currentChapterIdRef.current = null;
               setProgress((prev) =>
                 prev
                   ? {
                       ...prev,
-                      current: i + 1,
-                      currentChapter: chapter.title,
-                      currentChapterId: chapter.id,
-                      chapters: prev.chapters.map((c) =>
-                        c.chapterId === chapter.id ? { ...c, status: 'translating' as const } : c
-                      ),
+                      currentChapter: t('projectInfo.batchAnalyzing', 'Batch analysis...'),
+                      currentChapterId: null,
+                      chapters: prev.chapters.map((c) => ({
+                        ...c,
+                        status: 'translating' as const,
+                      })),
                     }
                   : null
               );
+              const { jobId } = await api.startAnalyzeBatch(
+                projectId,
+                chapters.map((c) => c.id),
+                undefined
+              );
+              const ANALYSIS_POLL_MIN_MS = 1500;
+              const ANALYSIS_POLL_MAX_MS = 8000;
+              const ANALYSIS_POLL_BACKOFF = 1.5;
+              let pollDelayMs = ANALYSIS_POLL_MIN_MS;
+              let previousSnapshot = '';
+              // eslint-disable-next-line no-constant-condition -- exits by terminal statuses
+              while (true) {
+                if (cancelledRef.current) {
+                  await api.cancelAnalysisJob(projectId, jobId).catch(() => {});
+                  break;
+                }
+                const state = await api.getAnalysisJob(projectId, jobId, undefined);
+                const currentSnapshot = `${state.status}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
+                const hasStateChanged = currentSnapshot !== previousSnapshot;
+                previousSnapshot = currentSnapshot;
 
-              try {
-                await api.translateChapter(projectId, chapter.id, body);
+                const chapterIdToJobChapter = new Map(
+                  state.chapters.map((jc) => [jc.chapterId, jc])
+                );
+                const completedCount = state.chapters.filter((c) => c.status === 'completed').length;
+                const errorCount = state.chapters.filter((c) => c.status === 'error').length;
+
+                setProgress((prev) => {
+                  if (!prev) return null;
+                  const chapters = prev.chapters.map((c) => {
+                    const jc = chapterIdToJobChapter.get(c.chapterId);
+                    if (!jc) return c;
+                    const statusMap = {
+                      pending: 'translating' as const,
+                      processing: 'translating' as const,
+                      completed: 'completed' as const,
+                      error: 'error' as const,
+                    };
+                    return {
+                      ...c,
+                      status: statusMap[jc.status],
+                      tokensUsed: jc.tokensUsed,
+                      tokensByStage:
+                        jc.status === 'completed' && jc.tokensUsed != null
+                          ? { analysis: jc.tokensUsed, translation: 0, editing: 0 }
+                          : undefined,
+                    };
+                  });
+                  return {
+                    ...prev,
+                    current: state.current,
+                    currentChapter: state.currentChapterTitle ?? prev.currentChapter,
+                    completed: completedCount,
+                    errors: errorCount,
+                    totalTokens: state.totalTokensUsed,
+                    totalGlossaryEntries: 0,
+                    chapters,
+                  };
+                });
+
+                if (state.status === 'completed') {
+                  await onRefreshProject();
+                  const updatedProject = await getProjectFromStore(projectId);
+                  const currentGlossaryCount = updatedProject?.glossary.length ?? 0;
+                  const glossaryAdded = currentGlossaryCount - batchStartGlossary;
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          totalGlossaryEntries: glossaryAdded,
+                          chapters: prev.chapters.map((c) => {
+                            const jc = chapterIdToJobChapter.get(c.chapterId);
+                            const isCompleted = jc?.status === 'completed';
+                            return {
+                              ...c,
+                              status: isCompleted ? ('completed' as const) : ('error' as const),
+                              tokensUsed: jc?.tokensUsed,
+                              tokensByStage: isCompleted && jc?.tokensUsed != null
+                                ? { analysis: jc.tokensUsed, translation: 0, editing: 0 }
+                                : undefined,
+                              glossaryEntries: isCompleted ? glossaryAdded : undefined,
+                            };
+                          }),
+                        }
+                      : null
+                  );
+                  initialGlossaryCountRef.current = currentGlossaryCount;
+                  break;
+                }
+
+                if (state.status === 'error') {
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          errors: prev.errors + (state.errors?.length ?? 0),
+                          chapters: prev.chapters.map((c) => ({
+                            ...c,
+                            status: 'error' as const,
+                            reason: state.errors?.[0],
+                          })),
+                        }
+                      : null
+                  );
+                  onError?.(
+                    t('projectInfo.batchAnalyzing', 'Batch analysis'),
+                    state.errors?.join('\n') ?? 'Analysis job failed'
+                  );
+                  break;
+                }
+
+                if (state.status === 'canceled') {
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                        }
+                      : null
+                  );
+                  break;
+                }
+
+                if (hasStateChanged) {
+                  pollDelayMs = ANALYSIS_POLL_MIN_MS;
+                } else {
+                  pollDelayMs = Math.min(
+                    ANALYSIS_POLL_MAX_MS,
+                    Math.round(pollDelayMs * ANALYSIS_POLL_BACKOFF)
+                  );
+                }
+                await new Promise((r) => setTimeout(r, pollDelayMs));
+              }
+            } else if (chapters.length > 1) {
+              currentChapterIdRef.current = null;
+              translateJobIdRef.current = null;
+              const { jobId } = await api.startTranslateBatch(
+                projectId,
+                chapters.map((c) => c.id),
+                {
+                  translateOnlyEmpty: body.translateOnlyEmpty,
+                  stages: body.stages,
+                },
+                undefined
+              );
+              translateJobIdRef.current = jobId;
+
+              const TRANSLATE_POLL_MIN_MS = 1500;
+              const TRANSLATE_POLL_MAX_MS = 8000;
+              const TRANSLATE_POLL_BACKOFF = 1.5;
+              let pollDelayMs = TRANSLATE_POLL_MIN_MS;
+              let previousSnapshot = '';
+
+              // eslint-disable-next-line no-constant-condition -- exits by terminal statuses
+              while (true) {
+                if (cancelledRef.current) {
+                  await api.cancelTranslateJob(projectId, jobId).catch(() => {});
+                  translateJobIdRef.current = null;
+                  break;
+                }
+                const state = await api.getTranslateJob(projectId, jobId, undefined);
+                const currentSnapshot = `${state.status}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
+                const hasStateChanged = currentSnapshot !== previousSnapshot;
+                previousSnapshot = currentSnapshot;
+
+                const chapterIdToJobChapter = new Map(
+                  state.chapters.map((jc) => [jc.chapterId, jc])
+                );
+                const completedCount = state.chapters.filter((c) => c.status === 'completed').length;
+                const errorCount = state.chapters.filter((c) => c.status === 'error').length;
+
+                setProgress((prev) => {
+                  if (!prev) return null;
+                  const chaptersMapped = prev.chapters.map((c) => {
+                    const jc = chapterIdToJobChapter.get(c.chapterId);
+                    if (!jc) return c;
+                    const statusMap = {
+                      pending: 'translating' as const,
+                      processing: 'translating' as const,
+                      completed: 'completed' as const,
+                      error: 'error' as const,
+                    };
+                    return {
+                      ...c,
+                      status: statusMap[jc.status],
+                      tokensUsed: jc.tokensUsed,
+                      tokensByStage: jc.tokensByStage,
+                      duration: jc.duration,
+                    };
+                  });
+                  return {
+                    ...prev,
+                    current: state.current,
+                    currentChapter: state.currentChapterTitle ?? prev.currentChapter,
+                    currentChapterId: null,
+                    completed: completedCount,
+                    errors: errorCount,
+                    totalTokens: state.totalTokensUsed,
+                    chapters: chaptersMapped,
+                  };
+                });
+
+                if (state.status === 'completed') {
+                  translateJobIdRef.current = null;
+                  await onRefreshProject();
+                  const updatedProject = await getProjectFromStore(projectId);
+                  const currentGlossaryCount = updatedProject?.glossary.length ?? 0;
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          totalGlossaryEntries: currentGlossaryCount - batchStartGlossary,
+                        }
+                      : null
+                  );
+                  initialGlossaryCountRef.current = currentGlossaryCount;
+                  break;
+                }
+
+                if (state.status === 'error') {
+                  translateJobIdRef.current = null;
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          errors: prev.errors + (state.errors?.length ?? 0),
+                          chapters: prev.chapters.map((c) => ({
+                            ...c,
+                            status: 'error' as const,
+                            reason: state.errors?.[0],
+                          })),
+                        }
+                      : null
+                  );
+                  onError?.(
+                    t('projectInfo.batchTranslating', 'Batch translation'),
+                    state.errors?.join('\n') ?? 'Translate job failed'
+                  );
+                  break;
+                }
+
+                if (state.status === 'canceled') {
+                  translateJobIdRef.current = null;
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                        }
+                      : null
+                  );
+                  break;
+                }
+
+                if (hasStateChanged) {
+                  pollDelayMs = TRANSLATE_POLL_MIN_MS;
+                } else {
+                  pollDelayMs = Math.min(
+                    TRANSLATE_POLL_MAX_MS,
+                    Math.round(pollDelayMs * TRANSLATE_POLL_BACKOFF)
+                  );
+                }
+                await new Promise((r) => setTimeout(r, pollDelayMs));
+              }
+            } else {
+              for (let i = 0; i < chapters.length; i++) {
+                if (cancelledRef.current) break;
+
+                const chapter = chapters[i];
+                const chapterStartTime = Date.now();
+
+                currentChapterIdRef.current = chapter.id;
+                setProgress((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        current: i + 1,
+                        currentChapter: chapter.title,
+                        currentChapterId: chapter.id,
+                        chapters: prev.chapters.map((c) =>
+                          c.chapterId === chapter.id ? { ...c, status: 'translating' as const } : c
+                        ),
+                      }
+                    : null
+                );
+
+                try {
+                  await api.translateChapter(projectId, chapter.id, body);
                 const result = await pollChapterUntilDone(
                   projectId,
                   chapter.id,
@@ -380,12 +681,15 @@ export function useBatchChapterTranslation(
                 console.error(`Translation error for chapter ${chapter.id}:`, err);
 
                 if (status === 429) {
-                  alert(
-                    t('projectInfo.tokenLimitExceededChapter', {
-                      title: chapter.title,
-                      message: errorData?.message ?? t('tokenLimit.dailyExhaustedShort'),
-                    })
-                  );
+                  const msg = t('projectInfo.tokenLimitExceededChapter', {
+                    title: chapter.title,
+                    message: errorData?.message ?? t('tokenLimit.dailyExhaustedShort'),
+                  });
+                  if (onError) {
+                    onError(t('tokenLimit.titleExceeded'), msg);
+                  } else {
+                    alert(msg);
+                  }
                   if (authService.isAuthenticated()) loadTokenUsage();
                   break;
                 }
@@ -419,11 +723,13 @@ export function useBatchChapterTranslation(
                 );
               }
             }
+            }
             await onRefreshProject();
           } finally {
             setIsRunning(false);
             cancelledRef.current = false;
             currentChapterIdRef.current = null;
+            translateJobIdRef.current = null;
           }
         })();
       });
@@ -435,6 +741,7 @@ export function useBatchChapterTranslation(
       checkBeforeTranslate,
       onRefreshProject,
       loadTokenUsage,
+      onError,
       t,
     ]
   );

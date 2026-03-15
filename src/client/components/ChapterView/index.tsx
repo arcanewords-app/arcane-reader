@@ -1,25 +1,38 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Chapter, Project, ProjectWithChapterList, ReaderSettings } from '../../types';
+import type {
+  Chapter,
+  ChapterListItem,
+  Project,
+  ProjectWithChapterList,
+  ProjectSettings,
+  ReaderSettings,
+} from '../../types';
 import { LEGACY_FONT_MAP } from '../../types';
 import { api } from '../../api/client';
+import { isChunkError } from '../../../shared/chunkErrors';
 import { useChapterTranslation } from '../../hooks/useChapterTranslation';
-import { Card } from '../ui';
+import { Card, AlertModal } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
 import { ReaderSettingsPanel } from './ReaderSettings';
 import { ParagraphList } from './ParagraphList';
+import { ParagraphListSkeleton } from './ParagraphListSkeleton';
 import { TranslationPanel } from './TranslationPanel';
 import { TokenLimitWarning } from '../TokenUsage';
 
 interface ChapterViewProps {
   project: Project | ProjectWithChapterList;
-  chapter: Chapter;
+  chapter: Chapter | null;
+  /** Used when chapter is null (loading) for header title and nav */
+  chapterListItem?: ChapterListItem;
   chapterIndex: number;
   totalChapters: number;
   onPrev: () => void;
   onNext: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
   onEnterReadingMode?: () => void;
+  /** Called when project settings are updated (e.g. from TranslationPanel editing block) */
+  onSettingsChange?: (settings: ProjectSettings) => void;
 }
 
 const defaultReaderSettings: ReaderSettings = {
@@ -37,12 +50,14 @@ const defaultReaderSettings: ReaderSettings = {
 export function ChapterView({
   project,
   chapter,
+  chapterListItem,
   chapterIndex,
   totalChapters,
   onPrev,
   onNext,
   onChapterUpdate,
   onEnterReadingMode,
+  onSettingsChange,
 }: ChapterViewProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
@@ -57,7 +72,22 @@ export function ChapterView({
     return { ...defaultReaderSettings, ...raw, fontFamily };
   });
   const [pollingInterval, setPollingInterval] = useState<number | null>(null);
+  const [chunkProgress, setChunkProgress] = useState<{
+    chunksDone: number;
+    totalChunks: number;
+  } | null>(null);
   const [selectedParagraphIds, setSelectedParagraphIds] = useState<string[]>([]);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+
+  const isLoading = !chapter;
+  const effectiveChapter: Chapter = chapter ?? {
+    id: chapterListItem?.id ?? '',
+    number: chapterListItem?.number ?? 0,
+    title: chapterListItem?.title ?? '',
+    status: chapterListItem?.status ?? 'pending',
+    originalText: '',
+    paragraphs: [],
+  };
 
   const {
     startTranslation,
@@ -67,32 +97,38 @@ export function ChapterView({
     warningState,
     closeWarning,
     confirmAndProceed,
-  } = useChapterTranslation(project.id, chapter.id, chapter, project, onChapterUpdate);
+  } = useChapterTranslation(
+    project.id,
+    effectiveChapter.id,
+    effectiveChapter,
+    project,
+    onChapterUpdate,
+    (title, msg) => setErrorModal({ title, message: msg })
+  );
 
   const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
 
   // Show only translation column when translation was uploaded (author marked as ready-made)
-  const isTranslationOnlyDisplay = chapter.translationMeta?.source === 'uploaded';
+  const isTranslationOnlyDisplay = chapter?.translationMeta?.source === 'uploaded';
 
   // Empty paragraphs (no valid translation) - for "translate empty" / "translate selected"
   const emptyParagraphIds = useMemo(() => {
     const list =
-      chapter.paragraphs?.filter((p) => {
+      chapter?.paragraphs?.filter((p) => {
         const hasText = p.translatedText && p.translatedText.trim().length > 0;
         const isError =
-          p.translatedText?.trim().startsWith('❌') ||
-          p.translatedText?.trim().startsWith('[ERROR');
+          p.translatedText?.trim().startsWith('❌') || isChunkError(p.translatedText ?? '');
         return !hasText || isError;
       }) || [];
     return list.map((p) => p.id);
-  }, [chapter.paragraphs]);
+  }, [chapter?.paragraphs]);
 
   const emptyParagraphIdsKey = useMemo(() => emptyParagraphIds.join(','), [emptyParagraphIds]);
 
   // When chapter or empty list changes, pre-select all empty paragraphs for translation
   useEffect(() => {
     setSelectedParagraphIds(emptyParagraphIds.length > 0 ? [...emptyParagraphIds] : []);
-  }, [chapter.id, emptyParagraphIdsKey, emptyParagraphIds]);
+  }, [effectiveChapter.id, emptyParagraphIdsKey, emptyParagraphIds]);
 
   // Apply reader settings as CSS variables
   useEffect(() => {
@@ -122,7 +158,8 @@ export function ChapterView({
 
   // Poll for chapter updates during translation (lightweight status + exponential backoff, skip when tab hidden)
   useEffect(() => {
-    if (chapter.status !== 'translating') {
+    if (!chapter || chapter.status !== 'translating') {
+      setChunkProgress(null);
       if (pollingInterval) {
         clearTimeout(pollingInterval);
         setPollingInterval(null);
@@ -145,8 +182,13 @@ export function ChapterView({
         return;
       }
       try {
-        const { status } = await api.getChapterStatus(project.id, chapter.id);
+        const data = await api.getChapterStatus(project.id, chapter.id);
+        const { status, chunksDone, totalChunks } = data;
+        if (chunksDone !== undefined && totalChunks !== undefined) {
+          setChunkProgress({ chunksDone, totalChunks });
+        }
         if (status !== 'translating') {
+          setChunkProgress(null);
           const fullChapter = await api.getChapter(project.id, chapter.id);
           onChapterUpdate(fullChapter);
           setPollingInterval(null);
@@ -179,6 +221,7 @@ export function ChapterView({
   };
 
   const handleCancelTranslation = async () => {
+    if (!chapter) return;
     try {
       await api.cancelTranslation(project.id, chapter.id);
       // Optimistic update so UI stops showing "translating" immediately (avoids cache/304)
@@ -191,6 +234,7 @@ export function ChapterView({
   };
 
   const handleApproveAll = async () => {
+    if (!chapter) return;
     const paragraphIds = chapter.paragraphs
       ?.filter((p) => p.translatedText && p.status !== 'approved')
       .map((p) => p.id);
@@ -203,6 +247,7 @@ export function ChapterView({
   };
 
   const handleMarkAsTranslated = async () => {
+    if (!chapter) return;
     setMarkingAsTranslated(true);
     try {
       const updated = await api.markChapterAsTranslated(project.id, chapter.id);
@@ -215,6 +260,7 @@ export function ChapterView({
   };
 
   const handleSaveParagraph = async (paragraphId: string, text: string) => {
+    if (!chapter) return;
     await api.updateParagraph(project.id, chapter.id, paragraphId, {
       translatedText: text,
       status: 'edited',
@@ -230,13 +276,14 @@ export function ChapterView({
     await api.updateReaderSettings(project.id, newSettings);
   };
 
-  const paragraphs = chapter.paragraphs || [];
+  const paragraphs = chapter?.paragraphs || [];
 
   return (
     <div id="chapterView">
       <Card>
         <ChapterHeader
           chapter={chapter}
+          chapterListItem={chapterListItem}
           projectId={project.id}
           canPrev={chapterIndex > 0}
           canNext={chapterIndex < totalChapters - 1}
@@ -248,19 +295,18 @@ export function ChapterView({
           onToggleSettings={() => setShowSettings(!showSettings)}
           onEnterReadingMode={onEnterReadingMode}
           onChapterUpdate={onChapterUpdate}
-          translating={translating}
           isOriginalReadingMode={isOriginalReadingMode}
-          onMarkAsTranslated={handleMarkAsTranslated}
-          markingAsTranslated={markingAsTranslated}
+          isLoading={isLoading}
         />
 
-        {!isOriginalReadingMode && showTranslationPanel && (
+        {!isOriginalReadingMode && !isLoading && showTranslationPanel && (
           <TranslationPanel
             chapter={chapter}
             project={project}
             projectId={project.id}
             startTranslation={startTranslation}
             translating={translating}
+            chunkProgress={chunkProgress}
             estimate={estimate}
             emptyCount={emptyParagraphIds.length}
             selectedParagraphIds={selectedParagraphIds}
@@ -270,6 +316,7 @@ export function ChapterView({
             onChapterUpdate={onChapterUpdate}
             onMarkAsTranslated={handleMarkAsTranslated}
             markingAsTranslated={markingAsTranslated}
+            onSettingsChange={onSettingsChange}
           />
         )}
 
@@ -288,7 +335,7 @@ export function ChapterView({
         )}
 
         {/* Progress bar - hidden in original reading mode */}
-        {!isOriginalReadingMode && paragraphs.length > 0 && (
+        {!isOriginalReadingMode && !isLoading && paragraphs.length > 0 && (
           <div class="chapter-progress">
             <div class="progress-bar">
               <div
@@ -307,7 +354,9 @@ export function ChapterView({
         )}
       </Card>
 
-      {paragraphs.length > 0 ? (
+      {isLoading ? (
+        <ParagraphListSkeleton />
+      ) : paragraphs.length > 0 ? (
         <ParagraphList
           paragraphs={paragraphs}
           onSave={handleSaveParagraph}
@@ -326,6 +375,13 @@ export function ChapterView({
           </div>
         </Card>
       )}
+
+      <AlertModal
+        isOpen={!!errorModal}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title ?? ''}
+        message={errorModal?.message ?? ''}
+      />
     </div>
   );
 }

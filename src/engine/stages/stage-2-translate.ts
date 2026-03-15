@@ -16,6 +16,7 @@ import { TRANSLATOR_SYSTEM_PROMPT, createTranslatorPrompt } from '../prompts/sys
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
+import { formatChunkError } from '../constants/errors.js';
 import { log } from '../logger.js';
 
 interface TranslateStageOptions {
@@ -36,6 +37,10 @@ interface TranslateStageOptions {
   textBlockTypes?: TextBlockType[];
   /** Custom instructions for translator */
   customInstructions?: string;
+  /** Max chunks to process in parallel (default 1 = sequential). Use 2-3 for faster translation; respect API rate limits. */
+  parallelChunks?: number;
+  /** Called when chunk progress updates (chunksDone, totalChunks). Used for UI progress display. */
+  onProgress?: (chunksDone: number, totalChunks: number) => void;
 }
 
 const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
@@ -114,129 +119,75 @@ export class TranslateStage {
       const retryAttempts = options.chunkRetryAttempts ?? DEFAULT_CHUNK_RETRY_ATTEMPTS;
       const retryDelayMs = options.chunkRetryDelayMs ?? DEFAULT_CHUNK_RETRY_DELAY_MS;
 
+      const parallelChunks = Math.max(1, options.parallelChunks ?? 1);
+      const onProgress = options.onProgress;
+
+      if (onProgress) {
+        onProgress(0, chunks.length);
+      }
+
       log.info('TranslateStage: starting chunked translation', {
         chunksCount: chunks.length,
         retryAttempts,
         retryDelayMs,
+        parallelChunks,
         chunkSize: options.chunkSize,
         includeGlossary,
       });
 
-      // Translate each chunk
-      const chunkResults: ChunkTranslation[] = [];
+      // Translate chunks (sequentially or in parallel batches)
+      const chunkResults: ChunkTranslation[] = new Array(chunks.length);
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const chunkStartTime = Date.now();
-        log.info('TranslateStage: chunk start', {
-          chunkIndex: i + 1,
-          chunkTotal: chunks.length,
-          chunkId: chunk.id,
-          tokenCount: chunk.tokenCount,
-        });
-
-        const temperature = options.temperature ?? 0.7;
-        let lastError: Error | undefined;
-        let succeeded = false;
-
-        for (let attempt = 0; attempt <= retryAttempts && !succeeded; attempt++) {
-          if (attempt > 0) {
-            if (options.isCancelled?.()) {
-              throw new Error('Cancelled');
-            }
-            const errMsg = lastError?.message ?? 'unknown';
-            const errName = lastError?.name ?? 'Error';
-            log.warn('TranslateStage: chunk retry after failure', {
-              chunkIndex: i + 1,
-              chunkTotal: chunks.length,
-              retryNumber: attempt,
-              retryMax: retryAttempts,
-              delayMs: retryDelayMs,
-              errMessage: errMsg,
-              errName,
-              ...(lastError &&
-                'type' in lastError &&
-                typeof (lastError as { type: string }).type === 'string' && {
-                  errType: (lastError as { type: string }).type,
-                }),
-            });
-            if (lastError) log.warn('TranslateStage: previous error details', lastError);
-            await new Promise((r) => setTimeout(r, retryDelayMs));
-            if (options.isCancelled?.()) {
-              throw new Error('Cancelled');
-            }
+      const translateOne = async (
+        chunk: TextChunk,
+        i: number
+      ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> => {
+        return this.translateChunkWithRetry(
+          chunk,
+          i,
+          chunks.length,
+          {
+            fullGlossary,
+            contextText,
+            styleGuide,
+            temperature: options.temperature ?? 0.7,
+            includeGlossary,
+            textBlockTypes: options.textBlockTypes,
+            customInstructions: options.customInstructions,
+            retryAttempts,
+            retryDelayMs,
+            isCancelled: options.isCancelled,
           }
+        );
+      };
 
-          try {
-            const result = await this.translateChunk(
-              chunk,
-              fullGlossary,
-              contextText,
-              styleGuide,
-              temperature,
-              includeGlossary,
-              options.textBlockTypes,
-              options.customInstructions
-            );
-
-            const chunkDurationMs = Date.now() - chunkStartTime;
-            if (
-              !result.translation.translated ||
-              result.translation.translated.trim().length === 0
-            ) {
-              log.warn(`TranslateStage: chunk ${i + 1} returned empty translation`, {
-                chunkId: chunk.id,
-              });
+      if (parallelChunks <= 1) {
+        for (let i = 0; i < chunks.length; i++) {
+          const { translation, tokensUsed: tok } = await translateOne(chunks[i], i);
+          chunkResults[i] = translation;
+          totalTokens += tok;
+          onProgress?.(i + 1, chunks.length);
+        }
+      } else {
+        for (let batchStart = 0; batchStart < chunks.length; batchStart += parallelChunks) {
+          if (options.isCancelled?.()) {
+            throw new Error('Cancelled');
+          }
+          const batchEnd = Math.min(batchStart + parallelChunks, chunks.length);
+          const batchPromises = chunks
+            .slice(batchStart, batchEnd)
+            .map((chunk, batchIdx) => translateOne(chunk, batchStart + batchIdx));
+          const settled = await Promise.allSettled(batchPromises);
+          for (let j = 0; j < settled.length; j++) {
+            const s = settled[j]!;
+            if (s.status === 'fulfilled') {
+              chunkResults[batchStart + j] = s.value.translation;
+              totalTokens += s.value.tokensUsed;
             } else {
-              log.debug(`TranslateStage: chunk ${i + 1} translated`, {
-                length: result.translation.translated.length,
-              });
-            }
-            log.info('TranslateStage: chunk done', {
-              chunkIndex: i + 1,
-              chunkTotal: chunks.length,
-              tokens: result.tokensUsed,
-              durationMs: chunkDurationMs,
-              success: true,
-            });
-
-            chunkResults.push(result.translation);
-            totalTokens += result.tokensUsed;
-            succeeded = true;
-          } catch (error) {
-            lastError = error instanceof Error ? error : new Error(String(error));
-            const errorMessage = lastError.message;
-            if (attempt < retryAttempts) {
-              log.info('TranslateStage: chunk attempt failed, will retry', {
-                chunkIndex: i + 1,
-                chunkTotal: chunks.length,
-                attempt: attempt + 1,
-                maxAttempts: retryAttempts + 1,
-                errMessage: errorMessage,
-                errName: lastError.name,
-              });
-            }
-            if (attempt === retryAttempts) {
-              const chunkDurationMs = Date.now() - chunkStartTime;
-              log.error(
-                `TranslateStage: chunk ${i + 1} translation failed after ${retryAttempts + 1} attempts: ${errorMessage}`,
-                lastError
-              );
-              log.info('TranslateStage: chunk done', {
-                chunkIndex: i + 1,
-                chunkTotal: chunks.length,
-                durationMs: chunkDurationMs,
-                success: false,
-                errMessage: errorMessage,
-                errName: lastError.name,
-              });
-              chunkResults.push({
-                chunkId: chunk.id,
-                original: chunk.content,
-                translated: `[ERROR: ${errorMessage}]`,
-              });
+              throw s.reason;
             }
           }
+          onProgress?.(batchEnd, chunks.length);
         }
       }
 
@@ -247,7 +198,8 @@ export class TranslateStage {
 
       // Merge translated chunks
       // Extract index from chunkId (format: "chunk_0", "chunk_1", etc.)
-      const chunksToMerge = chunkResults.map((c) => {
+      // Preserve separatorAfter from original chunks for accurate paragraph structure
+      const chunksToMerge = chunkResults.map((c, i) => {
         const indexMatch = c.chunkId.match(/chunk_(\d+)/);
         const index = indexMatch ? parseInt(indexMatch[1], 10) : -1;
 
@@ -257,7 +209,8 @@ export class TranslateStage {
 
         return {
           content: c.translated,
-          index: index,
+          index,
+          separatorAfter: chunks[i]?.separatorAfter,
         };
       });
 
@@ -334,6 +287,104 @@ export class TranslateStage {
     }
   }
 
+  private async translateChunkWithRetry(
+    chunk: TextChunk,
+    chunkIndex: number,
+    chunkTotal: number,
+    opts: {
+      fullGlossary: Glossary;
+      contextText: string;
+      styleGuide: string;
+      temperature: number;
+      includeGlossary: boolean;
+      textBlockTypes?: TextBlockType[];
+      customInstructions?: string;
+      retryAttempts: number;
+      retryDelayMs: number;
+      isCancelled?: () => boolean;
+    }
+  ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
+    const chunkStartTime = Date.now();
+    log.info('TranslateStage: chunk start', {
+      chunkIndex: chunkIndex + 1,
+      chunkTotal,
+      chunkId: chunk.id,
+      tokenCount: chunk.tokenCount,
+    });
+
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= opts.retryAttempts; attempt++) {
+      if (attempt > 0) {
+        if (opts.isCancelled?.()) throw new Error('Cancelled');
+        log.warn('TranslateStage: chunk retry after failure', {
+          chunkIndex: chunkIndex + 1,
+          chunkTotal,
+          retryNumber: attempt,
+          retryMax: opts.retryAttempts,
+          delayMs: opts.retryDelayMs,
+          errMessage: lastError?.message ?? 'unknown',
+        });
+        await new Promise((r) => setTimeout(r, opts.retryDelayMs));
+        if (opts.isCancelled?.()) throw new Error('Cancelled');
+      }
+
+      try {
+        const result = await this.translateChunk(
+          chunk,
+          opts.fullGlossary,
+          opts.contextText,
+          opts.styleGuide,
+          opts.temperature,
+          opts.includeGlossary,
+          opts.textBlockTypes,
+          opts.customInstructions
+        );
+
+        const chunkDurationMs = Date.now() - chunkStartTime;
+        if (!result.translation.translated || result.translation.translated.trim().length === 0) {
+          log.warn(`TranslateStage: chunk ${chunkIndex + 1} returned empty translation`, {
+            chunkId: chunk.id,
+          });
+        }
+        log.info('TranslateStage: chunk done', {
+          chunkIndex: chunkIndex + 1,
+          chunkTotal,
+          tokens: result.tokensUsed,
+          durationMs: chunkDurationMs,
+          success: true,
+        });
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (attempt < opts.retryAttempts) {
+          log.info('TranslateStage: chunk attempt failed, will retry', {
+            chunkIndex: chunkIndex + 1,
+            chunkTotal,
+            attempt: attempt + 1,
+            maxAttempts: opts.retryAttempts + 1,
+            errMessage: lastError.message,
+          });
+        }
+        if (attempt === opts.retryAttempts) {
+          log.error(
+            `TranslateStage: chunk ${chunkIndex + 1} translation failed after ${opts.retryAttempts + 1} attempts: ${lastError.message}`,
+            lastError
+          );
+          return {
+            translation: {
+              chunkId: chunk.id,
+              original: chunk.content,
+              translated: formatChunkError(lastError.message),
+              error: lastError.message,
+            },
+            tokensUsed: 0,
+          };
+        }
+      }
+    }
+    throw lastError ?? new Error('Translation failed');
+  }
+
   private async translateChunk(
     chunk: TextChunk,
     fullGlossary: Glossary,
@@ -397,13 +448,20 @@ export class TranslateStage {
 
         // Extract translations from JSON structure
         if (response.data && response.data.paragraphs && Array.isArray(response.data.paragraphs)) {
-          // If JSON contains multiple paragraphs, merge them
-          // If only one paragraph, extract it
-          if (response.data.paragraphs.length === 1) {
-            translatedText = response.data.paragraphs[0].translated || '';
+          const paras = response.data.paragraphs;
+          const hasMarkers = paras.some(
+            (p) => p.id && typeof p.id === 'string' && /^--para:[^\-]+--$/.test(p.id.trim())
+          );
+          if (hasMarkers) {
+            // Preserve paragraph markers for server-side sync by id
+            translatedText = paras
+              .filter((p) => p.translated && p.translated.trim().length > 0)
+              .map((p) => (p.id ? `${p.id}${(p.translated || '').trim()}` : (p.translated || '').trim()))
+              .join('\n\n');
+          } else if (paras.length === 1) {
+            translatedText = paras[0].translated || '';
           } else {
-            // Multiple paragraphs - merge with double newlines
-            translatedText = response.data.paragraphs
+            translatedText = paras
               .map((p) => p.translated)
               .filter((t) => t && t.trim().length > 0)
               .join('\n\n');

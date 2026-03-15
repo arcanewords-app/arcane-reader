@@ -95,7 +95,7 @@
     "title": "Mark as translated",
     "button": "Mark as translated",
     "batchTitle": "Mark selected chapters as translated (no AI)",
-    "batchButton": "Mark ({{count}})"
+    "batchButton": "Mark as translated ({{count}})"
   },
   "uploadTranslation": {
     "title": "Upload ready-made translation",
@@ -204,6 +204,11 @@
     "editingStylePreset.default": "Standard",
     "editingStylePreset.literary": "Literary",
     "editingStylePreset.minimal": "Minimal",
+    "editingStylePreset.ai_revivification": "AI translation fix",
+    "editingFocus": "Editing focus",
+    "editingFocus.fix_problems": "Fix problems only",
+    "editingFocus.style_only": "Style only",
+    "editingFocus.both": "Full edit",
     "modelDesc": {
       "gpt-5-mini": "Best translation quality, versatile",
       "gpt-5-nano": "Fast and cheap, light tasks",
@@ -266,6 +271,20 @@
     "firstMentionChapter": "Chapter {{n}}",
     "mentionedInChapters": "Mentioned in chapters: {{chapters}}",
     "chaptersMentionedLabel": "Mentioned in chapters",
+    "relationshipsLabel": "Related entities",
+    "relationshipsHint": "Select entities related to this one (e.g. character–location, character–character). Used for translation context.",
+    "relationshipsEmpty": "No other entries to link.",
+    "relationshipsSelectButton": "Select relationships",
+    "relationshipsSelectedCount": "Selected: {{count}}",
+    "relationshipsModalTitle": "Related entities",
+    "relationshipsSearchPlaceholder": "Search...",
+    "relationshipsSearchEmpty": "No entries match the search.",
+    "relationshipsApply": "Apply",
+    "relationshipsGroupChapter": "Chapter {{num}}",
+    "relationshipsGroupChapterWithTitle": "Chapter {{num}}: {{title}}",
+    "relationshipsGroupOther": "Other",
+    "primaryLocationLabel": "Primary location",
+    "primaryLocationNone": "— None —",
     "goToChapterConfirm": "Go to chapter {{num}}: {{title}}?",
     "goToChapterTitle": "Go to chapter",
     "goToChapterButton": "Go",
@@ -290,6 +309,16 @@
     "keepAsPrimaryHint": "This entry stays; the other(s) are merged into it and removed.",
     "mergeReason": "Reason: {{reason}}",
     "mergeError": "Failed to merge entries.",
+    "manualMerge": "Merge manually",
+    "manualMergeTitle": "Manual merge",
+    "manualMergeLeft": "Left entry",
+    "manualMergeRight": "Right entry",
+    "manualMergeKeep": "Keep",
+    "manualMergeKeepLeft": "Keep left",
+    "manualMergeKeepRight": "Keep right",
+    "manualMergeSameEntry": "Select different entries",
+    "manualMergeSelectPlaceholder": "Select entry...",
+    "manualMergeApply": "Merge",
     "suggestMergesLoading": "Analyzing...",
     "loadError": "Failed to load glossary",
     "chapterNotTranslated": "not translated yet",
@@ -306,6 +335,7 @@
     "markReviewed": "Mark as reviewed ({{count}})",
     "deleteSelectedConfirm": "Delete {{count}} entries?",
     "contextEdit": "Edit",
+    "clickToEdit": "Click to edit",
     "contextDelete": "Delete",
     "contextMarkReviewed": "Mark as reviewed",
     "viewCards": "Cards",
@@ -383,7 +413,9 @@
     "upgradeTitle": "Author subscription required",
     "upgradeMessage": "Access to the cabinet and translation projects requires an author subscription. This feature will be available soon.",
     "upgradeGoToCatalog": "Go to catalog",
-    "upgradeGoToProfile": "Go to profile"
+    "upgradeGoToProfile": "Go to profile",
+    "requestUpgrade": "Request upgrade",
+    "upgradeMailSubject": "Request for author subscription"
   },
   "projectInfo": {
     "delete": "Delete",
@@ -449,12 +481,14 @@
     "skippedCount": "Skipped: {{count}}",
     "batchIssuesTitle": "Chapters with issues",
     "batchInProgress": "Batch update in progress...",
+    "batchAnalyzing": "Batch analysis...",
     "translateAllErrors": "Translate all chapters with errors ({{count}} chapters)",
     "translateAllEmpty": "Translate all empty chapters ({{count}} chapters)",
     "translateErrorsModalTitle": "Translate chapters with errors",
     "translateEmptyModalTitle": "Translate empty chapters",
     "processChapters": "Process chapters",
     "processChaptersModalTitle": "Process chapters",
+    "editingSettingsLabel": "Editing settings",
     "presetEmpty": "Empty ({{count}})",
     "presetErrors": "With errors ({{count}})",
     "presetTranslated": "Translated ({{count}})",
@@ -521,6 +555,17 @@
     "publishSelectTranslator": "Select",
     "publishChangeAuthor": "Change",
     "publishChangeTranslator": "Change"
+  },
+  "processChapters": {
+    "perPage": "Per page",
+    "pageOf": "Page {{current}} of {{total}}",
+    "filterAll": "All",
+    "filterAllWithCount": "All ({{count}})",
+    "filterLabel": "Filter",
+    "selectDisplayed": "Select displayed ({{count}})",
+    "markEntireProject": "Mark entire project as translated",
+    "searchPlaceholder": "Search by number or title",
+    "uploadedTranslationHint": "Uploaded ready-made translation?"
   },
   "tokenUsage": {
     "loading": "Loading...",
@@ -726,7 +771,16 @@
     "noReadingHistoryHint": "Start reading publications from the catalog — they will appear here.",
     "lastRead": "Last read",
     "continue": "Continue",
-    "open": "Open"
+    "open": "Open",
+    "roleLabel": "Role",
+    "roleAdmin": "Administrator",
+    "roleSuperAuthor": "Super author",
+    "roleAuthorPlus": "Author+",
+    "roleAuthor": "Author",
+    "roleUser": "User",
+    "upgradeButton": "Upgrade level",
+    "upgradeHint": "Contact us to request an account level upgrade.",
+    "upgradeMailSubject": "Request for account level upgrade"
   },
   "publication": {
     "untitled": "Untitled",
@@ -809,9 +863,9 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "updated": "Updated: February 2026",
+    "updated": "Updated: March 2026",
     "controller": "Data controller",
-    "controllerDesc": "Arcane is a pet project. Controller: Ilya Murashka. Contact: ilya.murashka.w@gmail.com",
+    "controllerDesc": "Arcane is a pet project. Controller: Ilya Murashka. Contact: {{contactEmail}}",
     "dataWeCollect": "Data we collect",
     "guests": "Guests (readers)",
     "guestsDesc": "Only interface language in browser localStorage. Server does not store guest data.",
@@ -820,13 +874,13 @@
     "purpose": "Purpose of processing",
     "purposeDesc": "Service operation, authentication, translation, token limit tracking. Data retained until account deletion.",
     "localStorage": "Local storage (not cookies)",
-    "localStorageDesc": "We use localStorage: auth tokens, user cache, interface language. We do not use cookies.",
+    "localStorageDesc": "We use localStorage for auth tokens, user cache, and interface language. We use cookies only for analytics (Google Analytics) when you accept analytics cookies; otherwise we do not set analytics cookies.",
     "thirdParty": "Third parties",
-    "thirdPartyDesc": "Supabase (hosting, DB, auth), OpenAI (text translation — no email or user ID sent). Data may be processed in the US; providers use SCC.",
+    "thirdPartyDesc": "Supabase (hosting, DB, auth), OpenAI (text translation — no email or user ID sent), Google Analytics (anonymous analytics: page views, events; loaded only after consent; IP anonymized; https://policies.google.com/privacy), Upstash Redis (server-side caching for performance; cached data from our DB: projects, profiles, token usage; temporary storage). Data may be processed in the US; providers use SCC.",
     "yourRights": "Your rights (GDPR)",
-    "yourRightsDesc": "Access, rectification, erasure, restriction, portability, objection. Right to lodge a complaint with a supervisory authority (EU). Contact: ilya.murashka.w@gmail.com",
+    "yourRightsDesc": "Access, rectification, erasure, restriction, portability, objection. Right to lodge a complaint with a supervisory authority (EU). Contact: {{contactEmail}}",
     "contact": "Contact",
-    "contactDesc": "Personal data requests: ilya.murashka.w@gmail.com"
+    "contactDesc": "Personal data requests: {{contactEmail}}"
   },
   "terms": {
     "title": "Terms of Service",
@@ -842,7 +896,7 @@
     "changes": "Changes",
     "changesDesc": "Terms may be updated. Continued use after changes means acceptance.",
     "contact": "Contact",
-    "contactDesc": "Questions: ilya.murashka.w@gmail.com"
+    "contactDesc": "Questions: {{contactEmail}}"
   },
   "cookieBanner": {
     "title": "We use cookies",

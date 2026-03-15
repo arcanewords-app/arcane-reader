@@ -95,7 +95,7 @@
     "title": "Oznacz jako przetłumaczone",
     "button": "Oznacz jako przetłumaczone",
     "batchTitle": "Oznacz wybrane rozdziały jako przetłumaczone (bez AI)",
-    "batchButton": "Oznacz ({{count}})"
+    "batchButton": "Oznacz jako przetłumaczone ({{count}})"
   },
   "uploadTranslation": {
     "title": "Prześlij gotowe tłumaczenie",
@@ -204,6 +204,11 @@
     "editingStylePreset.default": "Standardowy",
     "editingStylePreset.literary": "Literacki",
     "editingStylePreset.minimal": "Minimalny",
+    "editingStylePreset.ai_revivification": "Poprawka tłum. AI",
+    "editingFocus": "Fokus redakcji",
+    "editingFocus.fix_problems": "Tylko poprawki",
+    "editingFocus.style_only": "Tylko styl",
+    "editingFocus.both": "Pełna redakcja",
     "modelDesc": {
       "gpt-5-mini": "Najlepsza jakość tłumaczenia, uniwersalna",
       "gpt-5-nano": "Szybka i tania, lekkie zadania",
@@ -266,6 +271,20 @@
     "firstMentionChapter": "Rozdział {{n}}",
     "mentionedInChapters": "Występuje w rozdziałach: {{chapters}}",
     "chaptersMentionedLabel": "Występuje w rozdziałach",
+    "relationshipsLabel": "Powiązane wpisy",
+    "relationshipsHint": "Wybierz wpisy powiązane z tym (np. postać–lokalizacja, postać–postać). Używane do kontekstu tłumaczenia.",
+    "relationshipsSelectButton": "Wybierz powiązania",
+    "relationshipsSelectedCount": "Wybrano: {{count}}",
+    "relationshipsModalTitle": "Powiązane wpisy",
+    "relationshipsSearchPlaceholder": "Szukaj...",
+    "relationshipsSearchEmpty": "Brak wpisów pasujących do wyszukiwania.",
+    "relationshipsApply": "Zastosuj",
+    "relationshipsGroupChapter": "Rozdział {{num}}",
+    "relationshipsGroupChapterWithTitle": "Rozdział {{num}}: {{title}}",
+    "relationshipsGroupOther": "Inne",
+    "relationshipsEmpty": "Brak innych wpisów do powiązania.",
+    "primaryLocationLabel": "Główna lokalizacja",
+    "primaryLocationNone": "— Brak —",
     "goToChapterConfirm": "Przejść do rozdziału {{num}}: {{title}}?",
     "goToChapterTitle": "Przejść do rozdziału",
     "goToChapterButton": "Przejdź",
@@ -290,6 +309,16 @@
     "keepAsPrimaryHint": "Ten wpis zostaje; pozostałe są włączane do niego i usuwane.",
     "mergeReason": "Powód: {{reason}}",
     "mergeError": "Nie udało się scalić wpisów.",
+    "manualMerge": "Połącz ręcznie",
+    "manualMergeTitle": "Ręczne łączenie",
+    "manualMergeLeft": "Lewy wpis",
+    "manualMergeRight": "Prawy wpis",
+    "manualMergeKeep": "Zachowaj",
+    "manualMergeKeepLeft": "Zachowaj lewy",
+    "manualMergeKeepRight": "Zachowaj prawy",
+    "manualMergeSameEntry": "Wybierz różne wpisy",
+    "manualMergeSelectPlaceholder": "Wybierz wpis...",
+    "manualMergeApply": "Połącz",
     "suggestMergesLoading": "Analizowanie...",
     "loadError": "Nie udało się załadować słownika",
     "chapterNotTranslated": "jeszcze nie przetłumaczono",
@@ -306,6 +335,7 @@
     "markReviewed": "Oznacz jako sprawdzone ({{count}})",
     "deleteSelectedConfirm": "Usunąć {{count}} wpisów?",
     "contextEdit": "Edytuj",
+    "clickToEdit": "Kliknij, aby edytować",
     "contextDelete": "Usuń",
     "contextMarkReviewed": "Oznacz jako sprawdzone",
     "viewCards": "Karty",
@@ -384,7 +414,9 @@
     "upgradeTitle": "Wymagana subskrypcja autora",
     "upgradeMessage": "Dostęp do panelu i projektów tłumaczeń wymaga subskrypcji autora. Ta funkcja będzie wkrótce dostępna.",
     "upgradeGoToCatalog": "Przejdź do katalogu",
-    "upgradeGoToProfile": "Przejdź do profilu"
+    "upgradeGoToProfile": "Przejdź do profilu",
+    "requestUpgrade": "Poproś o podwyższenie",
+    "upgradeMailSubject": "Prośba o subskrypcję autora"
   },
   "projectInfo": {
     "delete": "Usuń",
@@ -450,12 +482,14 @@
     "skippedCount": "Pominięto: {{count}}",
     "batchIssuesTitle": "Rozdziały z problemami",
     "batchInProgress": "Przetwarzanie wsadowe...",
+    "batchAnalyzing": "Analiza wsadowa...",
     "translateAllErrors": "Przetłumacz wszystkie rozdziały z błędami ({{count}} rozdziałów)",
     "translateAllEmpty": "Przetłumacz wszystkie puste rozdziały ({{count}} rozdziałów)",
     "translateErrorsModalTitle": "Przetłumacz rozdziały z błędami",
     "translateEmptyModalTitle": "Przetłumacz puste rozdziały",
     "processChapters": "Przetwórz rozdziały",
     "processChaptersModalTitle": "Przetwórz rozdziały",
+    "editingSettingsLabel": "Ustawienia redakcji",
     "presetEmpty": "Puste ({{count}})",
     "presetErrors": "Z błędami ({{count}})",
     "presetTranslated": "Przetłumaczone ({{count}})",
@@ -523,6 +557,17 @@
     "publishChangeAuthor": "Zmień",
     "publishChangeTranslator": "Zmień"
   },
+  "processChapters": {
+    "perPage": "Na stronie",
+    "pageOf": "Strona {{current}} z {{total}}",
+    "filterAll": "Wszystkie",
+    "filterAllWithCount": "Wszystkie ({{count}})",
+    "filterLabel": "Filtr",
+    "selectDisplayed": "Zaznacz wyświetlane ({{count}})",
+    "markEntireProject": "Oznacz cały projekt jako przetłumaczony",
+    "searchPlaceholder": "Szukaj po numerze lub tytule",
+    "uploadedTranslationHint": "Wgrałeś gotowe tłumaczenie?"
+  },
   "tokenUsage": {
     "loading": "Ładowanie...",
     "usedTokensTitle": "Użyto tokenów: {{used}} / {{limit}}",
@@ -586,6 +631,7 @@
     "newProjectButton": "Nowy projekt",
     "searchPlaceholder": "Szukaj projektów...",
     "filterAll": "Wszystkie",
+    "filterAllWithCount": "Wszystkie ({{count}})",
     "filterBooks": "Książki",
     "filterText": "Tekst"
   },
@@ -727,7 +773,16 @@
     "noReadingHistoryHint": "Zacznij czytać publikacje z katalogu — pojawią się tutaj.",
     "lastRead": "Ostatnie czytanie",
     "continue": "Kontynuuj",
-    "open": "Otwórz"
+    "open": "Otwórz",
+    "roleLabel": "Rola",
+    "roleAdmin": "Administrator",
+    "roleSuperAuthor": "Super autor",
+    "roleAuthorPlus": "Autor+",
+    "roleAuthor": "Autor",
+    "roleUser": "Użytkownik",
+    "upgradeButton": "Podnieś poziom",
+    "upgradeHint": "Skontaktuj się z nami, aby poprosić o podwyższenie poziomu konta.",
+    "upgradeMailSubject": "Prośba o podwyższenie poziomu konta"
   },
   "publication": {
     "untitled": "Bez tytułu",
@@ -739,6 +794,7 @@
     "notTranslated": "Brak tłumaczenia",
     "read": "Przeczytane",
     "filterAll": "Wszystkie",
+    "filterAllWithCount": "Wszystkie ({{count}})",
     "filterUnread": "Nieprzeczytane",
     "filterRead": "Przeczytane",
     "orderFromStart": "Od pierwszej do ostatniej",
@@ -810,9 +866,9 @@
   },
   "privacy": {
     "title": "Polityka prywatności",
-    "updated": "Zaktualizowano: luty 2026",
+    "updated": "Zaktualizowano: marzec 2026",
     "controller": "Administrator danych",
-    "controllerDesc": "Arcane to projekt hobbystyczny. Administrator: Ilya Murashka. Kontakt: ilya.murashka.w@gmail.com",
+    "controllerDesc": "Arcane to projekt hobbystyczny. Administrator: Ilya Murashka. Kontakt: {{contactEmail}}",
     "dataWeCollect": "Jakie dane zbieramy",
     "guests": "Goście (czytelnicy)",
     "guestsDesc": "Tylko język interfejsu w localStorage przeglądarki. Serwer nie przechowuje danych gości.",
@@ -821,13 +877,13 @@
     "purpose": "Cel przetwarzania",
     "purposeDesc": "Działanie serwisu, uwierzytelnianie, tłumaczenie, śledzenie limitów tokenów. Dane przechowywane do usunięcia konta.",
     "localStorage": "Pamięć lokalna (nie cookies)",
-    "localStorageDesc": "Używamy localStorage: tokeny auth, cache użytkownika, język interfejsu. Nie używamy cookies.",
+    "localStorageDesc": "Używamy localStorage do tokenów auth, cache użytkownika i języka interfejsu. Cookies używamy tylko do analityki (Google Analytics) po Twojej akceptacji; w przeciwnym razie nie ustawiamy cookies analitycznych.",
     "thirdParty": "Strony trzecie",
-    "thirdPartyDesc": "Supabase (hosting, baza, auth), OpenAI (tłumaczenie tekstu — bez email i user ID). Dane mogą być przetwarzane w USA; dostawcy stosują SCC.",
+    "thirdPartyDesc": "Supabase (hosting, baza, auth), OpenAI (tłumaczenie tekstu — bez email i user ID), Google Analytics (anonimowa analityka: odsłony stron, zdarzenia; ładowane tylko po zgodzie; IP anonimizowane; https://policies.google.com/privacy), Upstash Redis (cache serwerowy dla wydajności; cache danych z bazy: projekty, profile, użycie tokenów; przechowywanie tymczasowe). Dane mogą być przetwarzane w USA; dostawcy stosują SCC.",
     "yourRights": "Twoje prawa (RODO)",
-    "yourRightsDesc": "Dostęp, sprostowanie, usunięcie, ograniczenie, przenoszenie, sprzeciw. Skarga do organu nadzorczego (UE). Kontakt: ilya.murashka.w@gmail.com",
+    "yourRightsDesc": "Dostęp, sprostowanie, usunięcie, ograniczenie, przenoszenie, sprzeciw. Skarga do organu nadzorczego (UE). Kontakt: {{contactEmail}}",
     "contact": "Kontakt",
-    "contactDesc": "Zapytania o dane osobowe: ilya.murashka.w@gmail.com"
+    "contactDesc": "Zapytania o dane osobowe: {{contactEmail}}"
   },
   "terms": {
     "title": "Regulamin",
@@ -843,7 +899,7 @@
     "changes": "Zmiany",
     "changesDesc": "Regulamin może być aktualizowany. Kontynuacja korzystania po zmianach oznacza akceptację.",
     "contact": "Kontakt",
-    "contactDesc": "Pytania: ilya.murashka.w@gmail.com"
+    "contactDesc": "Pytania: {{contactEmail}}"
   },
   "cookieBanner": {
     "title": "Używamy plików cookies",

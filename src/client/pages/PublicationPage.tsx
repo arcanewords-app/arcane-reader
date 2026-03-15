@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from 'preact/hooks';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
@@ -36,6 +36,15 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [authorEntity, setAuthorEntity] = useState<PublicEntity | null>(null);
   const [translatorEntity, setTranslatorEntity] = useState<PublicEntity | null>(null);
   const [tagEntities, setTagEntities] = useState<PublicEntity[]>([]);
+
+  // Virtualization for chapter list (same pattern as ChapterList)
+  const chapterListRef = useRef<HTMLDivElement | null>(null);
+  const [chapterListScrollTop, setChapterListScrollTop] = useState(0);
+  const [chapterListHeight, setChapterListHeight] = useState(400);
+  const chapterListRafRef = useRef<number | null>(null);
+  const PUB_ITEM_HEIGHT = 50;
+  const PUB_VIRTUAL_BUFFER = 6;
+  const PUB_VIRTUAL_THRESHOLD = 50;
 
   const syncAuthProgress = useCallback(async () => {
     const user = await authService.getCurrentUser();
@@ -171,6 +180,27 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       chapterOrder === 'desc' ? b.number - a.number : a.number - b.number
     );
   }, [chapters, chapterSearch, chapterFilter, chapterOrder, isAuthenticated, readChapterIds]);
+
+  const handleChapterListScroll = useCallback(() => {
+    const el = chapterListRef.current;
+    if (!el) return;
+    if (chapterListRafRef.current !== null) return;
+    chapterListRafRef.current = requestAnimationFrame(() => {
+      chapterListRafRef.current = null;
+      setChapterListScrollTop(el.scrollTop);
+    });
+  }, []);
+
+  // ResizeObserver for chapter list — runs when data loads (ref is set)
+  useEffect(() => {
+    const el = chapterListRef.current;
+    if (!el || !data) return;
+    const onResize = () => setChapterListHeight(el.clientHeight || 400);
+    onResize();
+    const obs = new ResizeObserver(onResize);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [data]);
 
   if (!publicationId) {
     route('/catalog');
@@ -426,36 +456,134 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   </div>
                 )}
               </div>
-              <ul>
-                {filteredChapters.map((ch) => {
-                  const isRead = readChapterIds.has(ch.id);
-                  return (
-                    <li key={ch.id}>
-                      <span class="publication-page-chapter-title">
-                        {ch.title || t('chapterList.defaultChapterTitle', { number: ch.number })}
-                        {isAuthenticated && isRead && (
-                          <span class="publication-page-chapter-read" title={t('publication.read')}>
-                            <Icon name="check" size="sm" />
-                          </span>
-                        )}
-                      </span>
-                      {ch.hasTranslation ? (
-                        <button
-                          type="button"
-                          class="publication-page-read-chapter"
-                          onClick={() => route(`/p/${pubPath}/chapters/${ch.id}/reading`)}
+              <div
+                class="publication-page-chapters-list"
+                ref={chapterListRef}
+                onScroll={handleChapterListScroll}
+              >
+                {(() => {
+                  const total = filteredChapters.length;
+                  const useVirtualization = total > PUB_VIRTUAL_THRESHOLD;
+                  const totalHeight = useVirtualization ? total * PUB_ITEM_HEIGHT : 0;
+                  const start = useVirtualization
+                    ? Math.max(
+                        0,
+                        Math.floor(chapterListScrollTop / PUB_ITEM_HEIGHT) - PUB_VIRTUAL_BUFFER
+                      )
+                    : 0;
+                  const end = useVirtualization
+                    ? Math.min(
+                        total,
+                        Math.ceil(
+                          (chapterListScrollTop + chapterListHeight) / PUB_ITEM_HEIGHT
+                        ) + PUB_VIRTUAL_BUFFER
+                      )
+                    : total;
+                  const visibleChapters = useVirtualization
+                    ? filteredChapters.slice(start, end)
+                    : filteredChapters;
+                  const paddingTop = useVirtualization ? start * PUB_ITEM_HEIGHT : 0;
+                  const paddingBottom = useVirtualization
+                    ? Math.max(0, totalHeight - end * PUB_ITEM_HEIGHT)
+                    : 0;
+
+                  if (useVirtualization) {
+                    return (
+                      <div style={{ height: totalHeight + 'px', position: 'relative' }}>
+                        <div
+                          style={{
+                            paddingTop: paddingTop + 'px',
+                            paddingBottom: paddingBottom + 'px',
+                          }}
                         >
-                          {t('home.read')}
-                        </button>
-                      ) : (
-                        <span class="publication-page-chapter-untranslated">
-                          {t('publication.notTranslated')}
-                        </span>
-                      )}
-                    </li>
+                          <ul>
+                            {visibleChapters.map((ch) => {
+                              const isRead = readChapterIds.has(ch.id);
+                              return (
+                                <li
+                                  key={ch.id}
+                                  style={{
+                                    minHeight: PUB_ITEM_HEIGHT + 'px',
+                                    boxSizing: 'border-box',
+                                  }}
+                                >
+                                  <span class="publication-page-chapter-title">
+                                    {ch.title ||
+                                      t('chapterList.defaultChapterTitle', {
+                                        number: ch.number,
+                                      })}
+                                    {isAuthenticated && isRead && (
+                                      <span
+                                        class="publication-page-chapter-read"
+                                        title={t('publication.read')}
+                                      >
+                                        <Icon name="check" size="sm" />
+                                      </span>
+                                    )}
+                                  </span>
+                                  {ch.hasTranslation ? (
+                                    <button
+                                      type="button"
+                                      class="publication-page-read-chapter"
+                                      onClick={() =>
+                                        route(`/p/${pubPath}/chapters/${ch.id}/reading`)
+                                      }
+                                    >
+                                      {t('home.read')}
+                                    </button>
+                                  ) : (
+                                    <span class="publication-page-chapter-untranslated">
+                                      {t('publication.notTranslated')}
+                                    </span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <ul>
+                      {visibleChapters.map((ch) => {
+                        const isRead = readChapterIds.has(ch.id);
+                        return (
+                          <li key={ch.id}>
+                            <span class="publication-page-chapter-title">
+                              {ch.title ||
+                                t('chapterList.defaultChapterTitle', { number: ch.number })}
+                              {isAuthenticated && isRead && (
+                                <span
+                                  class="publication-page-chapter-read"
+                                  title={t('publication.read')}
+                                >
+                                  <Icon name="check" size="sm" />
+                                </span>
+                              )}
+                            </span>
+                            {ch.hasTranslation ? (
+                              <button
+                                type="button"
+                                class="publication-page-read-chapter"
+                                onClick={() =>
+                                  route(`/p/${pubPath}/chapters/${ch.id}/reading`)
+                                }
+                              >
+                                {t('home.read')}
+                              </button>
+                            ) : (
+                              <span class="publication-page-chapter-untranslated">
+                                {t('publication.notTranslated')}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   );
-                })}
-              </ul>
+                })()}
+              </div>
             </div>
           )}
         </div>

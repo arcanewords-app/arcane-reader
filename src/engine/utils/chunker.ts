@@ -2,7 +2,10 @@
  * Text Chunker - Splits text into manageable chunks for API processing
  */
 
+import { createRequire } from 'node:module';
 import type { TextChunk } from '../types/common.js';
+
+const require = createRequire(import.meta.url);
 import { log } from '../logger.js';
 
 export interface ChunkerOptions {
@@ -26,12 +29,56 @@ const DEFAULT_OPTIONS: ChunkerOptions = {
   neverSplitParagraphs: true,
 };
 
+/** Lazy-loaded tiktoken encoder (cl100k_base for GPT-4). Sync init on first use. */
+let tiktokenEncoder: { encode: (text: string) => number[] } | null = null;
+let tiktokenInitDone = false;
+
+function getTiktokenEncoder(): { encode: (text: string) => number[] } | null {
+  if (tiktokenInitDone) return tiktokenEncoder;
+  tiktokenInitDone = true;
+  try {
+    const mod = require('js-tiktoken');
+    tiktokenEncoder = mod.getEncoding('cl100k_base');
+  } catch {
+    tiktokenEncoder = null;
+  }
+  return tiktokenEncoder;
+}
+
 /**
- * Estimate token count for text (rough approximation for English)
+ * Improved heuristic: ~4 chars/token for Latin, ~1 char/token for CJK.
+ * Used when tiktoken is unavailable.
+ */
+function estimateTokensHeuristic(text: string): number {
+  let tokens = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (
+      (code >= 0x4e00 && code <= 0x9fff) ||
+      (code >= 0x3040 && code <= 0x30ff) ||
+      (code >= 0xac00 && code <= 0xd7af)
+    ) {
+      tokens += 1;
+    } else {
+      tokens += 0.25;
+    }
+  }
+  return Math.ceil(tokens);
+}
+
+/**
+ * Estimate token count for text.
+ * Uses tiktoken (cl100k_base) when available; falls back to CJK-aware heuristic.
  */
 export function estimateTokens(text: string): number {
-  // Rough: ~4 characters per token for English
-  return Math.ceil(text.length / 4);
+  if (!text || text.length === 0) return 0;
+  try {
+    const enc = getTiktokenEncoder();
+    if (enc) return enc.encode(text).length;
+  } catch {
+    /* fall through to heuristic */
+  }
+  return estimateTokensHeuristic(text);
 }
 
 /**
@@ -44,10 +91,27 @@ function splitIntoSentences(text: string): string[] {
 }
 
 /**
- * Split text into paragraphs
+ * Split text into paragraphs (content only, separators discarded)
  */
 function splitIntoParagraphs(text: string): string[] {
   return text.split(/\n\n+/).filter((p) => p.trim().length > 0);
+}
+
+/**
+ * Split text into [content, separator][] pairs. Preserves the exact separator between paragraphs.
+ * E.g. "a\n\nb\n\n\nc" -> [["a","\n\n"], ["b","\n\n\n"], ["c",""]]
+ */
+function splitIntoParagraphsWithSeparators(text: string): Array<{ content: string; separatorAfter: string }> {
+  const parts = text.split(/(\n{2,})/);
+  const result: Array<{ content: string; separatorAfter: string }> = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    const content = parts[i]?.trim() ?? '';
+    const separatorAfter = (i + 1 < parts.length ? parts[i + 1] : '') ?? '';
+    if (content.length > 0) {
+      result.push({ content, separatorAfter });
+    }
+  }
+  return result;
 }
 
 /**
@@ -64,16 +128,20 @@ export function chunkText(text: string, options: Partial<ChunkerOptions> = {}): 
 }
 
 /**
- * Chunk by paragraphs, keeping paragraphs together when possible
+ * Chunk by paragraphs, keeping paragraphs together when possible.
+ * Preserves original separators between chunks for accurate merge.
  */
 function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
-  const paragraphs = splitIntoParagraphs(text);
-  const chunks: TextChunk[] = [];
+  const parts = splitIntoParagraphsWithSeparators(text);
+  if (parts.length === 0) return [];
 
+  const chunks: TextChunk[] = [];
   let currentChunk = '';
+  let lastSeparator = '\n\n'; // default between chunks
   let chunkIndex = 0;
 
-  for (const paragraph of paragraphs) {
+  for (let i = 0; i < parts.length; i++) {
+    const { content: paragraph, separatorAfter } = parts[i];
     const paragraphTokens = estimateTokens(paragraph);
     const currentTokens = estimateTokens(currentChunk);
 
@@ -81,7 +149,7 @@ function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
     if (paragraphTokens > opts.maxTokens) {
       // Save current chunk if not empty
       if (currentChunk.trim()) {
-        chunks.push(createChunk(currentChunk, chunkIndex++));
+        chunks.push(createChunk(currentChunk, chunkIndex++, lastSeparator));
         currentChunk = '';
       }
 
@@ -91,29 +159,33 @@ function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
           'Chunker: paragraph exceeds maxTokens; keeping as single chunk (neverSplitParagraphs)',
           { paragraphTokens, maxTokens: opts.maxTokens }
         );
-        chunks.push(createChunk(paragraph, chunkIndex++));
+        chunks.push(createChunk(paragraph, chunkIndex++, separatorAfter));
       } else {
-        // Legacy: split large paragraph into sentence-based chunks
+        // Legacy: split large paragraph into sentence-based chunks (no separator preservation)
         const sentenceChunks = chunkBySentences(paragraph, opts);
-        for (const sc of sentenceChunks) {
-          chunks.push(createChunk(sc.content, chunkIndex++));
+        for (let j = 0; j < sentenceChunks.length; j++) {
+          const sep = j < sentenceChunks.length - 1 ? '\n\n' : separatorAfter;
+          chunks.push(createChunk(sentenceChunks[j].content, chunkIndex++, sep));
         }
       }
+      lastSeparator = separatorAfter || '\n\n';
       continue;
     }
 
     // If adding paragraph exceeds limit, start new chunk
     if (currentTokens + paragraphTokens > opts.maxTokens && currentChunk.trim()) {
-      chunks.push(createChunk(currentChunk, chunkIndex++));
+      chunks.push(createChunk(currentChunk, chunkIndex++, lastSeparator));
       currentChunk = paragraph;
+      lastSeparator = separatorAfter || '\n\n';
     } else {
       currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+      lastSeparator = separatorAfter || '\n\n';
     }
   }
 
   // Don't forget the last chunk
   if (currentChunk.trim()) {
-    chunks.push(createChunk(currentChunk, chunkIndex));
+    chunks.push(createChunk(currentChunk, chunkIndex, lastSeparator));
   }
 
   return chunks;
@@ -156,23 +228,34 @@ function chunkBySentences(text: string, opts: ChunkerOptions): TextChunk[] {
   return chunks;
 }
 
-function createChunk(content: string, index: number): TextChunk {
+function createChunk(content: string, index: number, separatorAfter?: string): TextChunk {
   return {
     id: `chunk_${index}`,
     content: content.trim(),
     index,
     tokenCount: estimateTokens(content),
+    ...(separatorAfter !== undefined && separatorAfter !== '' && { separatorAfter }),
   };
 }
 
+export interface MergeChunkInput {
+  content: string;
+  index: number;
+  /** Separator to use after this chunk when merging. Preserves original structure (e.g. '\n\n' vs '\n\n\n'). */
+  separatorAfter?: string;
+}
+
 /**
- * Merge translated chunks back together
+ * Merge translated chunks back together.
+ * Uses separatorAfter from each chunk when available to preserve original paragraph structure.
  */
-export function mergeChunks(chunks: { content: string; index: number }[]): string {
+export function mergeChunks(chunks: MergeChunkInput[]): string {
   if (!chunks || chunks.length === 0) {
     log.warn('mergeChunks: empty chunk array');
     return '';
   }
+
+  const defaultSeparator = '\n\n';
 
   // Sort by index to ensure correct order
   const sorted = chunks
@@ -190,7 +273,12 @@ export function mergeChunks(chunks: { content: string; index: number }[]): strin
     });
   }
 
-  const merged = sorted.map((c) => c.content).join('\n\n');
+  const merged = sorted
+    .map((c, i) => {
+      const sep = c.separatorAfter ?? defaultSeparator;
+      return c.content + (i < sorted.length - 1 ? sep : '');
+    })
+    .join('');
 
   log.debug('mergeChunks: merged', { chunksCount: sorted.length, mergedLength: merged.length });
 

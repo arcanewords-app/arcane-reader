@@ -6,7 +6,7 @@ import { getProject, invalidateProject } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
-import { LoadingSpinner, PageLoading } from '../components/ui';
+import { LoadingSpinner } from '../components/ui';
 import { api } from '../api/client';
 
 interface ChapterPageProps {
@@ -43,15 +43,17 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     setLoading(true);
     if (chapterId) setChapter(null);
     try {
-      const [loadedProject, loadedChapter] = await Promise.all([
-        getProject(projectId),
-        chapterId ? api.getChapter(projectId, chapterId) : Promise.resolve(null),
-      ]);
-      if (loadedProject) {
-        setProject(loadedProject);
-        setChapter(loadedChapter ?? null);
-      } else {
+      const loadedProject = await getProject(projectId);
+      if (!loadedProject) {
         route('/');
+        return;
+      }
+      setProject(loadedProject);
+      setLoading(false);
+
+      if (chapterId) {
+        const loadedChapter = await api.getChapter(projectId, chapterId);
+        setChapter(loadedChapter);
       }
     } catch (error) {
       console.error('Failed to load project:', error);
@@ -119,11 +121,6 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     return null;
   }
 
-  // Full chapter loaded via api.getChapter (lazy load)
-  if (!chapter) {
-    return <PageLoading text={t('common.loading')} />;
-  }
-
   const handlePrevChapter = () => {
     if (chapterIndex > 0) {
       route(`/projects/${projectId}/chapters/${sortedChapters[chapterIndex - 1].id}`);
@@ -187,12 +184,14 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
         <ChapterView
           project={project}
           chapter={chapter}
+          chapterListItem={chapterListItem}
           chapterIndex={chapterIndex}
           totalChapters={sortedChapters.length}
           onPrev={handlePrevChapter}
           onNext={handleNextChapter}
           onChapterUpdate={handleChapterUpdate}
           onEnterReadingMode={handleEnterReadingMode}
+          onSettingsChange={handleSettingsChange}
         />
       </section>
 

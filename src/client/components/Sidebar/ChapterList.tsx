@@ -119,9 +119,9 @@ export function ChapterList({
   const activeAbortRef = useRef<Map<string, AbortController>>(new Map());
   const removalTimeoutsRef = useRef<Record<string, number>>({});
   const PARALLEL_LIMIT = 3;
-  const IMPORT_POLL_INTERVAL_MIN_MS = 600;
-  const IMPORT_POLL_INTERVAL_MAX_MS = 3000;
-  const IMPORT_POLL_BACKOFF_FACTOR = 1.35;
+  const IMPORT_POLL_INTERVAL_MIN_MS = 1500;
+  const IMPORT_POLL_INTERVAL_MAX_MS = 8000;
+  const IMPORT_POLL_BACKOFF_FACTOR = 1.5;
 
   // schedule removal of a queue item after delay (ms)
   const scheduleRemove = (id: string, delay = 3000) => {
@@ -722,7 +722,10 @@ export function ChapterList({
         clearTimeout(undoTimeoutRef.current as number);
         undoTimeoutRef.current = null;
       }
-      alert(error instanceof Error ? error.message : t('chapterList.errorUpdateNumber'));
+      setError({
+        title: t('chapterList.errorUpdateNumber'),
+        message: error instanceof Error ? error.message : t('chapterList.errorUpdateNumber'),
+      });
       setEditedNumber(chapter.number);
     } finally {
       setSavingNumber(false);
@@ -887,7 +890,10 @@ export function ChapterList({
       }
       if (onChaptersUpdate) await onChaptersUpdate();
       console.error('Failed to reorder chapter:', err);
-      alert(err instanceof Error ? err.message : t('chapter.errorReorder'));
+      setError({
+        title: t('chapter.errorReorder'),
+        message: err instanceof Error ? err.message : t('chapter.errorReorder'),
+      });
     }
   };
 
@@ -929,7 +935,10 @@ export function ChapterList({
       setUndoAvailable(false);
     } catch (err) {
       console.error('Failed to undo reorder:', err);
-      alert(err instanceof Error ? err.message : t('chapter.errorReorder'));
+      setError({
+        title: t('chapter.errorReorder'),
+        message: err instanceof Error ? err.message : t('chapter.errorReorder'),
+      });
       // refresh from server to ensure UI consistent
       if (onChaptersUpdate) await onChaptersUpdate();
     } finally {

@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'preact/hooks';
+import { useState, useMemo, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { GlossaryEntry, GlossaryEntryType } from '../../types';
-import { Modal, Button, Input, Select, Icon } from '../ui';
+import { Modal, Button, Input, Select, Icon, AlertModal, ConfirmModal } from '../ui';
 import { api } from '../../api/client';
 import './GlossaryModal.css';
 
@@ -69,7 +69,6 @@ export function GlossaryModal({
   const [filter, setFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortBy>('original');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
-  const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -99,6 +98,11 @@ export function GlossaryModal({
   const [selectedMergeIndexes, setSelectedMergeIndexes] = useState<Set<number>>(new Set());
   const [keepEntryIdByIndex, setKeepEntryIdByIndex] = useState<Record<number, string>>({});
   const [applyingMerges, setApplyingMerges] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [mergeErrorModal, setMergeErrorModal] = useState<{ title: string; message: string } | null>(
+    null
+  );
+  const [showManualMergeModal, setShowManualMergeModal] = useState(false);
 
   const filteredEntries = useMemo(() => {
     let list = entries.filter((entry) => {
@@ -209,7 +213,6 @@ export function GlossaryModal({
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(t('glossary.deleteSelectedConfirm', { count: selectedIds.size }))) return;
     setBulkDeleting(true);
     try {
       for (const id of selectedIds) {
@@ -302,7 +305,10 @@ export function GlossaryModal({
       setSelectedMergeIndexes(new Set());
     } catch (err) {
       console.error('Apply merges failed:', err);
-      alert(t('glossary.mergeError'));
+      setMergeErrorModal({
+        title: t('glossary.mergeError'),
+        message: t('glossary.mergeError'),
+      });
     } finally {
       setApplyingMerges(false);
     }
@@ -337,7 +343,7 @@ export function GlossaryModal({
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={handleBulkDelete}
+                  onClick={() => setShowBulkDeleteConfirm(true)}
                   disabled={selectedIds.size === 0}
                   loading={bulkDeleting}
                 >
@@ -374,6 +380,14 @@ export function GlossaryModal({
                   {loadingMergeSuggestions
                     ? t('glossary.suggestMergesLoading')
                     : t('glossary.suggestMerges')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowManualMergeModal(true)}
+                  disabled={entries.length < 2}
+                  title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
+                >
+                  {t('glossary.manualMerge')}
                 </Button>
                 <Button onClick={() => setShowAddModal(true)}>
                   <Icon name="add" size="sm" /> {t('glossary.addEntry')}
@@ -474,6 +488,7 @@ export function GlossaryModal({
                   class={`glossary-card ${selectMode ? 'glossary-card-select-mode' : ''} ${isSelected ? 'glossary-card-selected' : ''}`}
                   role="button"
                   tabIndex={0}
+                  title={!selectMode ? t('glossary.clickToEdit') : undefined}
                   aria-label={`${typeLabels[entry.type]}: ${entry.original}, ${t('glossary.translated')}: ${entry.translated}`}
                   onClick={() => {
                     if (selectMode) {
@@ -580,22 +595,7 @@ export function GlossaryModal({
                   </div>
 
                   {entry.description?.trim() && (
-                    <div
-                      class={`glossary-card-description ${expandedDescriptionId === entry.id ? 'glossary-card-description-expanded' : ''}`}
-                      title={entry.description}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedDescriptionId((id) => (id === entry.id ? null : entry.id));
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setExpandedDescriptionId((id) => (id === entry.id ? null : entry.id));
-                        }
-                      }}
-                    >
+                    <div class="glossary-card-description" title={entry.description}>
                       {entry.description}
                     </div>
                   )}
@@ -866,6 +866,22 @@ export function GlossaryModal({
         onAdd={onUpdate}
       />
 
+      {/* Manual Merge Modal */}
+      {showManualMergeModal && (
+        <ManualMergeModal
+          isOpen={showManualMergeModal}
+          onClose={() => setShowManualMergeModal(false)}
+          projectId={projectId}
+          entries={entries}
+          typeIcons={typeIcons}
+          onSuccess={() => {
+            setShowManualMergeModal(false);
+            onUpdate();
+          }}
+          onError={(title, message) => setMergeErrorModal({ title, message })}
+        />
+      )}
+
       {/* Edit Entry Modal */}
       {editingEntry && (
         <EditGlossaryModal
@@ -873,7 +889,10 @@ export function GlossaryModal({
           onClose={() => setEditingEntry(null)}
           projectId={projectId}
           entry={editingEntry}
+          entries={entries}
           chapters={chapters}
+          typeIcons={typeIcons}
+          typeLabels={typeLabels}
           onRequestNavigateToChapter={(chapterId, num, title) =>
             setPendingChapter({ chapterId, number: num, title })
           }
@@ -980,7 +999,258 @@ export function GlossaryModal({
           </p>
         )}
       </Modal>
+
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title={t('glossary.deleteSelectedConfirm', { count: selectedIds.size })}
+        message={t('glossary.deleteSelectedConfirm', { count: selectedIds.size })}
+        confirmLabel={t('common.delete')}
+        variant="danger"
+        loading={bulkDeleting}
+      />
+
+      <AlertModal
+        isOpen={!!mergeErrorModal}
+        onClose={() => setMergeErrorModal(null)}
+        title={mergeErrorModal?.title ?? ''}
+        message={mergeErrorModal?.message ?? ''}
+      />
     </>
+  );
+}
+
+// === GlossaryEntrySelect (dropdown with search) ===
+
+interface GlossaryEntrySelectProps {
+  entries: GlossaryEntry[];
+  value: GlossaryEntry | null;
+  onChange: (entry: GlossaryEntry | null) => void;
+  excludeIds?: string[];
+  filterByType?: GlossaryEntryType;
+  placeholder?: string;
+  typeIcons: Record<GlossaryEntryType, string>;
+}
+
+function GlossaryEntrySelect({
+  entries,
+  value,
+  onChange,
+  excludeIds = [],
+  filterByType,
+  placeholder,
+  typeIcons,
+}: GlossaryEntrySelectProps) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const filteredEntries = useMemo(() => {
+    let list = entries.filter((e) => !excludeIds.includes(e.id));
+    if (filterByType) list = list.filter((e) => e.type === filterByType);
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.trim().toLowerCase();
+    return list.filter(
+      (e) =>
+        e.original.toLowerCase().includes(q) || e.translated.toLowerCase().includes(q)
+    );
+  }, [entries, excludeIds, filterByType, searchQuery]);
+
+  const handleSelect = (entry: GlossaryEntry) => {
+    onChange(entry);
+    setOpen(false);
+    setSearchQuery('');
+  };
+
+  return (
+    <div class="glossary-entry-select" ref={wrapperRef}>
+      <button
+        type="button"
+        class="glossary-entry-select-trigger form-input"
+        onClick={() => setOpen(!open)}
+      >
+        {value ? (
+          <span class="glossary-entry-select-value">
+            <Icon name={typeIcons[value.type]} size="sm" />
+            {value.original} → {value.translated}
+          </span>
+        ) : (
+          <span class="glossary-entry-select-placeholder">{placeholder}</span>
+        )}
+      </button>
+      {open && (
+        <div class="glossary-entry-select-dropdown">
+          <Input
+            placeholder={t('glossary.relationshipsSearchPlaceholder')}
+            value={searchQuery}
+            onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+            style={{ margin: '0.5rem' }}
+          />
+          <div class="glossary-entry-select-list">
+            {filteredEntries.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                class="glossary-entry-select-item"
+                onClick={() => handleSelect(e)}
+              >
+                <Icon name={typeIcons[e.type]} size="sm" />
+                {e.original} → {e.translated}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === Manual Merge Modal ===
+
+interface ManualMergeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  projectId: string;
+  entries: GlossaryEntry[];
+  typeIcons: Record<GlossaryEntryType, string>;
+  onSuccess: () => void;
+  onError: (title: string, message: string) => void;
+}
+
+function ManualMergeModal({
+  isOpen,
+  onClose,
+  projectId,
+  entries,
+  typeIcons,
+  onSuccess,
+  onError,
+}: ManualMergeModalProps) {
+  const { t } = useTranslation();
+  const [leftEntry, setLeftEntry] = useState<GlossaryEntry | null>(null);
+  const [rightEntry, setRightEntry] = useState<GlossaryEntry | null>(null);
+  const [keepLeft, setKeepLeft] = useState(true);
+  const [merging, setMerging] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setLeftEntry(null);
+      setRightEntry(null);
+      setKeepLeft(true);
+    }
+  }, [isOpen]);
+
+  const canMerge =
+    leftEntry &&
+    rightEntry &&
+    leftEntry.id !== rightEntry.id &&
+    leftEntry.type === rightEntry.type;
+
+  const handleMerge = async () => {
+    if (!canMerge) return;
+    setMerging(true);
+    try {
+      await api.mergeGlossaryEntries(projectId, {
+        entryIds: [leftEntry!.id, rightEntry!.id],
+        keepEntryId: keepLeft ? leftEntry!.id : rightEntry!.id,
+      });
+      onSuccess();
+    } catch (err) {
+      onError(
+        t('glossary.mergeError'),
+        err instanceof Error ? err.message : t('glossary.mergeError')
+      );
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('glossary.manualMergeTitle')}
+      className="nested"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={handleMerge} disabled={!canMerge} loading={merging}>
+            {t('glossary.manualMergeApply')}
+          </Button>
+        </>
+      }
+    >
+      <div class="glossary-manual-merge-form">
+        <div class="form-group">
+          <label class="form-label">{t('glossary.manualMergeLeft')}</label>
+          <GlossaryEntrySelect
+            entries={entries}
+            value={leftEntry}
+            onChange={setLeftEntry}
+            excludeIds={rightEntry ? [rightEntry.id] : []}
+            placeholder={t('glossary.manualMergeSelectPlaceholder')}
+            typeIcons={typeIcons}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{t('glossary.manualMergeRight')}</label>
+          <GlossaryEntrySelect
+            entries={entries}
+            value={rightEntry}
+            onChange={setRightEntry}
+            excludeIds={leftEntry ? [leftEntry.id] : []}
+            filterByType={leftEntry?.type}
+            placeholder={t('glossary.manualMergeSelectPlaceholder')}
+            typeIcons={typeIcons}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{t('glossary.manualMergeKeep')}</label>
+          <div class="glossary-manual-merge-radio">
+            <label>
+              <input
+                type="radio"
+                name="keep"
+                checked={keepLeft}
+                onChange={() => setKeepLeft(true)}
+              />
+              {t('glossary.manualMergeKeepLeft')}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="keep"
+                checked={!keepLeft}
+                onChange={() => setKeepLeft(false)}
+              />
+              {t('glossary.manualMergeKeepRight')}
+            </label>
+          </div>
+        </div>
+        {leftEntry && rightEntry && leftEntry.id === rightEntry.id && (
+          <p class="form-hint glossary-manual-merge-hint">
+            {t('glossary.manualMergeSameEntry')}
+          </p>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -1099,6 +1369,176 @@ function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModa
   );
 }
 
+// === Relationships Modal (nested, with checkboxes) ===
+
+interface RelationshipsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  entries: GlossaryEntry[];
+  selectedIds: string[];
+  onApply: (ids: string[]) => void;
+  typeIcons: Record<GlossaryEntryType, string>;
+  typeLabels: Record<GlossaryEntryType, string>;
+  currentEntry: GlossaryEntry;
+  chapters?: ChapterRef[];
+}
+
+type GroupKey = number | 'other';
+
+function RelationshipsModal({
+  isOpen,
+  onClose,
+  entries,
+  selectedIds,
+  onApply,
+  typeIcons,
+  typeLabels,
+  currentEntry,
+  chapters,
+}: RelationshipsModalProps) {
+  const { t } = useTranslation();
+  const [draftIds, setDraftIds] = useState<string[]>(selectedIds);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setDraftIds(selectedIds);
+      setSearchQuery('');
+    }
+  }, [isOpen, selectedIds]);
+
+  const filteredEntries = useMemo(() => {
+    if (!searchQuery.trim()) return entries;
+    const q = searchQuery.trim().toLowerCase();
+    return entries.filter(
+      (e) =>
+        e.original.toLowerCase().includes(q) || e.translated.toLowerCase().includes(q)
+    );
+  }, [entries, searchQuery]);
+
+  const groupedEntries = useMemo(() => {
+    const currentChapters = currentEntry.mentionedInChapters;
+    const sortedChapterNums =
+      currentChapters?.length && currentChapters.length > 0
+        ? [...currentChapters].sort((a, b) => a - b)
+        : [];
+
+    const assignedIds = new Set<string>();
+    const groups: { key: GroupKey; entries: GlossaryEntry[] }[] = [];
+
+    for (const chNum of sortedChapterNums) {
+      const inChapter = filteredEntries.filter(
+        (e) =>
+          !assignedIds.has(e.id) &&
+          e.mentionedInChapters?.includes(chNum)
+      );
+      inChapter.forEach((e) => assignedIds.add(e.id));
+      if (inChapter.length > 0) {
+        groups.push({ key: chNum, entries: inChapter });
+      }
+    }
+
+    const other = filteredEntries.filter((e) => !assignedIds.has(e.id));
+    if (other.length > 0) {
+      groups.push({ key: 'other', entries: other });
+    }
+
+    return groups;
+  }, [filteredEntries, currentEntry.mentionedInChapters]);
+
+  const toggleEntry = (id: string) => {
+    setDraftIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleApply = () => {
+    onApply(draftIds);
+    onClose();
+  };
+
+  const renderGroupTitle = (key: GroupKey) => {
+    if (key === 'other') {
+      return t('glossary.relationshipsGroupOther');
+    }
+    const ch = chapters?.find((c) => c.number === key);
+    if (ch?.title) {
+      return t('glossary.relationshipsGroupChapterWithTitle', {
+        num: key,
+        title: ch.title,
+      });
+    }
+    return t('glossary.relationshipsGroupChapter', { num: key });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('glossary.relationshipsModalTitle')}
+      className="nested"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={handleApply}>
+            {t('glossary.relationshipsApply')}
+          </Button>
+        </>
+      }
+    >
+      <p class="form-hint" style={{ marginBottom: '0.75rem' }}>
+        {t('glossary.relationshipsHint')}
+      </p>
+      {entries.length > 20 && (
+        <div class="form-group" style={{ marginBottom: '0.75rem' }}>
+          <Input
+            placeholder={t('glossary.relationshipsSearchPlaceholder')}
+            value={searchQuery}
+            onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+          />
+        </div>
+      )}
+      <div class="glossary-relationships-modal-list">
+        {groupedEntries.map(({ key, entries: groupEntries }) => (
+          <div key={key} class="glossary-relationships-group">
+            <div class="glossary-relationships-group-title">
+              {renderGroupTitle(key)}
+            </div>
+            {groupEntries.map((e) => (
+              <label
+                key={e.id}
+                class="glossary-relationships-checkbox-row"
+                title={`${e.original} → ${e.translated}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={draftIds.includes(e.id)}
+                  onChange={() => toggleEntry(e.id)}
+                />
+                <span class="glossary-relationships-checkbox-icon" title={typeLabels[e.type]}>
+                  <Icon name={typeIcons[e.type]} size="sm" />
+                </span>
+                <span class="glossary-relationships-checkbox-text">
+                  {e.original} → {e.translated}
+                </span>
+              </label>
+            ))}
+          </div>
+        ))}
+      </div>
+      {filteredEntries.length === 0 && searchQuery.trim() && (
+        <p class="form-hint" style={{ marginTop: '0.5rem' }}>
+          {t('glossary.relationshipsSearchEmpty')}
+        </p>
+      )}
+    </Modal>
+  );
+}
+
 // === Edit Modal ===
 
 interface EditGlossaryModalProps {
@@ -1106,7 +1546,10 @@ interface EditGlossaryModalProps {
   onClose: () => void;
   projectId: string;
   entry: GlossaryEntry;
+  entries: GlossaryEntry[];
   chapters?: ChapterRef[];
+  typeIcons: Record<GlossaryEntryType, string>;
+  typeLabels: Record<GlossaryEntryType, string>;
   /** Opens confirmation modal; parent handles actual navigation on confirm */
   onRequestNavigateToChapter?: (chapterId: string, num: number, title: string) => void;
   onNavigateToChapter?: (chapterId: string) => void;
@@ -1119,13 +1562,22 @@ function EditGlossaryModal({
   onClose,
   projectId,
   entry,
+  entries,
   chapters,
+  typeIcons,
+  typeLabels,
   onRequestNavigateToChapter,
   onNavigateToChapter,
   onUpdate,
   onDelete,
 }: EditGlossaryModalProps) {
   const { t } = useTranslation();
+
+  const [goToChapterConfirm, setGoToChapterConfirm] = useState<{
+    chapterId: string;
+    num: number;
+    title: string;
+  } | null>(null);
 
   const handleChapterClick = (num: number) => {
     if (!chapters?.length) return;
@@ -1135,10 +1587,16 @@ function EditGlossaryModal({
     if (onRequestNavigateToChapter) {
       onRequestNavigateToChapter(ch.id, num, title);
     } else if (onNavigateToChapter) {
-      if (!confirm(t('glossary.goToChapterConfirm', { num, title }))) return;
-      onNavigateToChapter(ch.id);
+      setGoToChapterConfirm({ chapterId: ch.id, num, title });
     }
   };
+
+  const handleConfirmGoToChapter = () => {
+    if (!goToChapterConfirm || !onNavigateToChapter) return;
+    onNavigateToChapter(goToChapterConfirm.chapterId);
+    setGoToChapterConfirm(null);
+  };
+
   const [type, setType] = useState(entry.type);
   const [original, setOriginal] = useState(entry.original);
   const [translated, setTranslated] = useState(entry.translated);
@@ -1158,6 +1616,9 @@ function EditGlossaryModal({
     }
     return [];
   });
+  const [relatedEntryIds, setRelatedEntryIds] = useState<string[]>(entry.relatedEntryIds ?? []);
+  const [primaryLocationId, setPrimaryLocationId] = useState<string>(entry.primaryLocationId ?? '');
+  const [showRelationshipsModal, setShowRelationshipsModal] = useState(false);
 
   // Update all fields when entry changes
   useEffect(() => {
@@ -1167,6 +1628,8 @@ function EditGlossaryModal({
     setDescription(entry.description || '');
     setNotes(entry.notes || '');
     setGender(entry.gender || 'unknown');
+    setRelatedEntryIds(entry.relatedEntryIds ?? []);
+    setPrimaryLocationId(entry.primaryLocationId ?? '');
     // Update image gallery (migrate from legacy if needed)
     if (entry.imageUrls && entry.imageUrls.length > 0) {
       setCurrentImageUrls(entry.imageUrls);
@@ -1220,6 +1683,8 @@ function EditGlossaryModal({
         description: description.trim() || undefined,
         notes: notes.trim() || undefined,
         gender: type === 'character' ? gender : undefined,
+        relatedEntryIds,
+        primaryLocationId: type === 'character' ? primaryLocationId || undefined : undefined,
       });
       onClose();
       onUpdate();
@@ -1227,6 +1692,9 @@ function EditGlossaryModal({
       setSaving(false);
     }
   };
+
+  const otherEntries = entries.filter((e) => e.id !== entry.id);
+  const locationEntries = otherEntries.filter((e) => e.type === 'location');
 
   const descriptionPlaceholderEdit =
     type === 'character'
@@ -1236,6 +1704,7 @@ function EditGlossaryModal({
         : t('glossary.descriptionPlaceholderTerm');
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -1378,6 +1847,65 @@ function EditGlossaryModal({
         </div>
       )}
 
+      {/* Relationships */}
+      <div class="form-group">
+        <label class="form-label">{t('glossary.relationshipsLabel')}</label>
+        <p class="form-hint" style={{ marginBottom: '0.5rem' }}>
+          {t('glossary.relationshipsHint')}
+        </p>
+        {otherEntries.length > 0 ? (
+          <div class="glossary-relationships-summary">
+            <span class="glossary-relationships-summary-text">
+              {relatedEntryIds.length > 0
+                ? t('glossary.relationshipsSelectedCount', { count: relatedEntryIds.length })
+                : t('glossary.relationshipsEmpty')}
+            </span>
+            <Button
+              variant="secondary"
+              onClick={() => setShowRelationshipsModal(true)}
+              aria-label={t('glossary.relationshipsSelectButton')}
+            >
+              {t('glossary.relationshipsSelectButton')}
+            </Button>
+          </div>
+        ) : (
+          <span class="form-hint">{t('glossary.relationshipsEmpty')}</span>
+        )}
+      </div>
+
+      {/* Relationships modal (nested) */}
+      {showRelationshipsModal && (
+        <RelationshipsModal
+          isOpen={showRelationshipsModal}
+          onClose={() => setShowRelationshipsModal(false)}
+          entries={otherEntries}
+          selectedIds={relatedEntryIds}
+          onApply={(ids) => {
+            setRelatedEntryIds(ids);
+            setShowRelationshipsModal(false);
+          }}
+          typeIcons={typeIcons}
+          typeLabels={typeLabels}
+          currentEntry={entry}
+          chapters={chapters}
+        />
+      )}
+
+      {/* Primary location (characters only) */}
+      {type === 'character' && locationEntries.length > 0 && (
+        <div class="form-group">
+          <label class="form-label">{t('glossary.primaryLocationLabel')}</label>
+          <Select
+            value={primaryLocationId}
+            onChange={(e) => setPrimaryLocationId((e.target as HTMLSelectElement).value)}
+            options={[
+              { value: '', label: t('glossary.primaryLocationNone') },
+              ...locationEntries.map((e) => ({ value: e.id, label: `${e.original} → ${e.translated}` })),
+            ]}
+          />
+        </div>
+      )}
+
       {/* Image Gallery Section */}
       <div class="form-group">
         <label class="form-label">{t('glossary.imageGallery')}</label>
@@ -1447,5 +1975,15 @@ function EditGlossaryModal({
         </div>
       </div>
     </Modal>
+
+    <ConfirmModal
+      isOpen={!!goToChapterConfirm}
+      onClose={() => setGoToChapterConfirm(null)}
+      onConfirm={handleConfirmGoToChapter}
+      title={goToChapterConfirm ? t('glossary.goToChapterConfirm', { num: goToChapterConfirm.num, title: goToChapterConfirm.title }) : ''}
+      message={goToChapterConfirm ? t('glossary.goToChapterConfirm', { num: goToChapterConfirm.num, title: goToChapterConfirm.title }) : ''}
+      confirmLabel={t('glossary.goToChapterButton')}
+    />
+    </>
   );
 }

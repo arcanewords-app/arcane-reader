@@ -95,7 +95,7 @@
     "title": "Пометить как переведённую",
     "button": "Пометить как переведённую",
     "batchTitle": "Пометить выбранные главы как переведённые (без AI)",
-    "batchButton": "Пометить ({{count}})"
+    "batchButton": "Пометить как переведённые ({{count}})"
   },
   "uploadTranslation": {
     "title": "Загрузить готовый перевод",
@@ -204,6 +204,11 @@
     "editingStylePreset.default": "Стандартный",
     "editingStylePreset.literary": "Художественный",
     "editingStylePreset.minimal": "Минимальный",
+    "editingStylePreset.ai_revivification": "Исправление AI-перевода",
+    "editingFocus": "Фокус редактуры",
+    "editingFocus.fix_problems": "Только исправления",
+    "editingFocus.style_only": "Только стиль",
+    "editingFocus.both": "Полная редактура",
     "modelDesc": {
       "gpt-5-mini": "Лучшее качество перевода, универсальная",
       "gpt-5-nano": "Быстрая и дешёвая, лёгкие задачи",
@@ -266,6 +271,20 @@
     "firstMentionChapter": "Глава {{n}}",
     "mentionedInChapters": "Упоминается в главах: {{chapters}}",
     "chaptersMentionedLabel": "Упоминается в главах",
+    "relationshipsLabel": "Связанные сущности",
+    "relationshipsHint": "Выберите сущности, связанные с этой (персонаж–локация, персонаж–персонаж и т.п.). Используется для контекста перевода.",
+    "relationshipsEmpty": "Нет других записей для связи.",
+    "relationshipsSelectButton": "Выбрать связи",
+    "relationshipsSelectedCount": "Выбрано: {{count}}",
+    "relationshipsModalTitle": "Связанные сущности",
+    "relationshipsSearchPlaceholder": "Поиск...",
+    "relationshipsSearchEmpty": "Нет записей по запросу.",
+    "relationshipsApply": "Применить",
+    "relationshipsGroupChapter": "Глава {{num}}",
+    "relationshipsGroupChapterWithTitle": "Глава {{num}}: {{title}}",
+    "relationshipsGroupOther": "Другие",
+    "primaryLocationLabel": "Основная локация",
+    "primaryLocationNone": "— Нет —",
     "goToChapterConfirm": "Перейти к главе {{num}}: {{title}}?",
     "goToChapterTitle": "Перейти к главе",
     "goToChapterButton": "Перейти",
@@ -290,6 +309,16 @@
     "keepAsPrimaryHint": "Эта запись остаётся; остальные вливаются в неё и удаляются.",
     "mergeReason": "Причина: {{reason}}",
     "mergeError": "Не удалось объединить записи.",
+    "manualMerge": "Объединить вручную",
+    "manualMergeTitle": "Ручное объединение",
+    "manualMergeLeft": "Левая запись",
+    "manualMergeRight": "Правая запись",
+    "manualMergeKeep": "Оставить",
+    "manualMergeKeepLeft": "Оставить левую",
+    "manualMergeKeepRight": "Оставить правую",
+    "manualMergeSameEntry": "Выберите разные записи",
+    "manualMergeSelectPlaceholder": "Выберите запись…",
+    "manualMergeApply": "Объединить",
     "suggestMergesLoading": "Анализ...",
     "loadError": "Не удалось загрузить глоссарий",
     "chapterNotTranslated": "ещё не переведено",
@@ -306,6 +335,7 @@
     "markReviewed": "Пометить проверенными ({{count}})",
     "deleteSelectedConfirm": "Удалить {{count}} записей?",
     "contextEdit": "Редактировать",
+    "clickToEdit": "Нажмите для редактирования",
     "contextDelete": "Удалить",
     "contextMarkReviewed": "Пометить проверенной",
     "viewCards": "Карточки",
@@ -383,7 +413,9 @@
     "upgradeTitle": "Требуется подписка автора",
     "upgradeMessage": "Доступ к кабинету и проектам перевода требует подписки автора. Эта возможность скоро появится.",
     "upgradeGoToCatalog": "Перейти в каталог",
-    "upgradeGoToProfile": "В профиль"
+    "upgradeGoToProfile": "В профиль",
+    "requestUpgrade": "Запросить повышение",
+    "upgradeMailSubject": "Запрос на подписку автора"
   },
   "projectInfo": {
     "delete": "Удалить",
@@ -449,12 +481,14 @@
     "skippedCount": "Пропущено: {{count}}",
     "batchIssuesTitle": "Главы с проблемами",
     "batchInProgress": "Пакетная обработка...",
+    "batchAnalyzing": "Пакетный анализ...",
     "translateAllErrors": "Перевести все главы с ошибками ({{count}} глав)",
     "translateAllEmpty": "Перевести все пустые главы ({{count}} глав)",
     "translateErrorsModalTitle": "Перевести главы с ошибками",
     "translateEmptyModalTitle": "Перевести пустые главы",
     "processChapters": "Обработать главы",
     "processChaptersModalTitle": "Обработать главы",
+    "editingSettingsLabel": "Настройки редактуры",
     "presetEmpty": "Пустые ({{count}})",
     "presetErrors": "С ошибками ({{count}})",
     "presetTranslated": "Переведённые ({{count}})",
@@ -522,6 +556,17 @@
     "publishChangeAuthor": "Изменить",
     "publishChangeTranslator": "Изменить"
   },
+  "processChapters": {
+    "perPage": "На странице",
+    "pageOf": "Страница {{current}} из {{total}}",
+    "filterAll": "Все",
+    "filterAllWithCount": "Все ({{count}})",
+    "filterLabel": "Фильтр",
+    "selectDisplayed": "Выбрать отображаемые ({{count}})",
+    "markEntireProject": "Пометить всё произведение как переведённое",
+    "searchPlaceholder": "Поиск по номеру или названию",
+    "uploadedTranslationHint": "Загрузили готовый перевод?"
+  },
   "tokenUsage": {
     "loading": "Загрузка...",
     "usedTokensTitle": "Использовано токенов: {{used}} / {{limit}}",
@@ -585,6 +630,7 @@
     "newProjectButton": "Новый проект",
     "searchPlaceholder": "Поиск проектов...",
     "filterAll": "Все",
+    "filterAllWithCount": "Все ({{count}})",
     "filterBooks": "Книги",
     "filterText": "Текст"
   },
@@ -726,7 +772,16 @@
     "noReadingHistoryHint": "Начните читать публикации из каталога — они появятся здесь.",
     "lastRead": "Последнее чтение",
     "continue": "Продолжить",
-    "open": "Открыть"
+    "open": "Открыть",
+    "roleLabel": "Роль",
+    "roleAdmin": "Администратор",
+    "roleSuperAuthor": "Супер-автор",
+    "roleAuthorPlus": "Автор+",
+    "roleAuthor": "Автор",
+    "roleUser": "Пользователь",
+    "upgradeButton": "Повысить уровень",
+    "upgradeHint": "Напишите нам, чтобы запросить повышение уровня аккаунта.",
+    "upgradeMailSubject": "Запрос на повышение уровня аккаунта"
   },
   "publication": {
     "untitled": "Без названия",
@@ -738,6 +793,7 @@
     "notTranslated": "Нет перевода",
     "read": "Прочитано",
     "filterAll": "Все",
+    "filterAllWithCount": "Все ({{count}})",
     "filterUnread": "Непрочитанные",
     "filterRead": "Прочитанные",
     "orderFromStart": "С начала",
@@ -809,9 +865,9 @@
   },
   "privacy": {
     "title": "Политика конфиденциальности",
-    "updated": "Обновлено: февраль 2026",
+    "updated": "Обновлено: март 2026",
     "controller": "Контроллер данных",
-    "controllerDesc": "Arcane — pet project. Контроллер: Ilya Murashka. Контакт: ilya.murashka.w@gmail.com",
+    "controllerDesc": "Arcane — pet project. Контроллер: Ilya Murashka. Контакт: {{contactEmail}}",
     "dataWeCollect": "Какие данные собираем",
     "guests": "Гости (читатели)",
     "guestsDesc": "Только язык интерфейса в localStorage браузера. Сервер не сохраняет данные гостей.",
@@ -820,13 +876,13 @@
     "purpose": "Цели обработки",
     "purposeDesc": "Работа сервиса, аутентификация, перевод, учёт лимитов токенов. Данные хранятся до удаления аккаунта.",
     "localStorage": "Локальное хранилище (не cookies)",
-    "localStorageDesc": "Используем localStorage: токены авторизации, кэш пользователя, язык интерфейса. Cookies не используем.",
+    "localStorageDesc": "Используем localStorage для токенов авторизации, кэша пользователя и языка интерфейса. Cookies используем только для аналитики (Google Analytics) при вашем согласии; иначе аналитические cookies не устанавливаются.",
     "thirdParty": "Третьи стороны",
-    "thirdPartyDesc": "Supabase (хостинг, БД, auth), OpenAI (перевод текста — без email и user ID). Данные могут обрабатываться в США; провайдеры применяют SCC.",
+    "thirdPartyDesc": "Supabase (хостинг, БД, auth), OpenAI (перевод текста — без email и user ID), Google Analytics (анонимная аналитика: просмотры страниц, события; загружается только после согласия; IP анонимизирован; https://policies.google.com/privacy), Upstash Redis (серверный кэш для ускорения работы; кэшируются данные из БД: проекты, профили, использование токенов; временное хранение). Данные могут обрабатываться в США; провайдеры применяют SCC.",
     "yourRights": "Ваши права (GDPR)",
     "yourRightsDesc": "Доступ, исправление, удаление, ограничение обработки, переносимость, возражение. Жалоба в надзорный орган (ЕС). Контакт: ilya.murashka.w@gmail.com",
     "contact": "Контакт",
-    "contactDesc": "Запросы по персональным данным: ilya.murashka.w@gmail.com"
+    "contactDesc": "Запросы по персональным данным: {{contactEmail}}"
   },
   "terms": {
     "title": "Условия использования",
@@ -842,7 +898,7 @@
     "changes": "Изменения",
     "changesDesc": "Условия могут обновляться. Продолжение использования после изменений означает их принятие.",
     "contact": "Контакт",
-    "contactDesc": "Вопросы: ilya.murashka.w@gmail.com"
+    "contactDesc": "Вопросы: {{contactEmail}}"
   },
   "cookieBanner": {
     "title": "Мы используем cookies",

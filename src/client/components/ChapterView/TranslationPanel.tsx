@@ -1,13 +1,16 @@
-import { useState, useMemo } from 'preact/hooks';
+import { useState, useMemo, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Button, Icon } from '../ui';
+import { api } from '../../api/client';
 import { trackEvent } from '../../utils/analytics';
 import type {
   Chapter,
   Project,
+  ProjectSettings,
   ChapterTranslationOptions,
   TranslationStageKind,
 } from '../../types';
+import { isChunkError } from '../../../shared/chunkErrors';
 import './TranslationPanel.css';
 
 type Scope = 'full' | 'empty' | 'selected';
@@ -21,6 +24,8 @@ interface TranslationPanelProps {
   /** Start translation with given options */
   startTranslation: (options: ChapterTranslationOptions) => void;
   translating: boolean;
+  /** Chunk progress during translation (from status polling) */
+  chunkProgress?: { chunksDone: number; totalChunks: number } | null;
   /** Estimate tokens for text length and stages (array or 'all') */
   estimate: (textLength: number, stages?: import('../../types').TranslationStages) => number;
   emptyCount: number;
@@ -32,6 +37,8 @@ interface TranslationPanelProps {
   /** Mark current content as ready-made translation (one click) */
   onMarkAsTranslated?: () => void;
   markingAsTranslated?: boolean;
+  /** Called when project settings are updated (e.g. from inline editing block) */
+  onSettingsChange?: (settings: ProjectSettings) => void;
 }
 
 /** Get text length for scope (for token estimate). */
@@ -46,7 +53,7 @@ function getTextLengthForScope(chapter: Chapter, scope: Scope, selectedIds: stri
     const empty = chapter.paragraphs.filter((p) => {
       const t = p.translatedText?.trim() || '';
       if (!t.length) return true;
-      if (t.startsWith('❌') || t.startsWith('[ERROR')) return true;
+      if (t.startsWith('❌') || isChunkError(t)) return true;
       return false;
     });
     return empty.reduce((sum, p) => sum + p.originalText.length, 0);
@@ -56,9 +63,11 @@ function getTextLengthForScope(chapter: Chapter, scope: Scope, selectedIds: stri
 
 export function TranslationPanel({
   chapter,
+  project,
   projectId,
   startTranslation,
   translating,
+  chunkProgress,
   estimate,
   emptyCount,
   selectedParagraphIds,
@@ -67,6 +76,7 @@ export function TranslationPanel({
   onCancelTranslation,
   onMarkAsTranslated,
   markingAsTranslated = false,
+  onSettingsChange,
 }: TranslationPanelProps) {
   const { t } = useTranslation();
 
@@ -93,6 +103,46 @@ export function TranslationPanel({
         : [...prev, stage].sort((a, b) => STAGE_ORDER.indexOf(a) - STAGE_ORDER.indexOf(b))
     );
   };
+
+  const includeGlossaryInEditing = project.settings?.includeGlossaryInEditing ?? true;
+  const editingStylePreset = project.settings?.editingStylePreset ?? 'default';
+  const editingFocus = project.settings?.editingFocus ?? 'both';
+
+  const handleToggleIncludeGlossaryInEditing = useCallback(async () => {
+    const updated = await api.updateSettings(project.id, {
+      includeGlossaryInEditing: !includeGlossaryInEditing,
+    });
+    onSettingsChange?.(updated);
+  }, [project.id, includeGlossaryInEditing, onSettingsChange]);
+
+  const handleEditingStylePresetChange = useCallback(
+    async (e: Event) => {
+      const value = (e.target as HTMLSelectElement).value as
+        | 'default'
+        | 'literary'
+        | 'minimal'
+        | 'ai_revivification';
+      const updated = await api.updateSettings(project.id, {
+        editingStylePreset: value,
+      });
+      onSettingsChange?.(updated);
+    },
+    [project.id, onSettingsChange]
+  );
+
+  const handleEditingFocusChange = useCallback(
+    async (e: Event) => {
+      const value = (e.target as HTMLSelectElement).value as
+        | 'fix_problems'
+        | 'style_only'
+        | 'both';
+      const updated = await api.updateSettings(project.id, {
+        editingFocus: value,
+      });
+      onSettingsChange?.(updated);
+    },
+    [project.id, onSettingsChange]
+  );
 
   const buildOptions = (): ChapterTranslationOptions => {
     const opts: ChapterTranslationOptions = { stages: selectedStages };
@@ -224,6 +274,109 @@ export function TranslationPanel({
         </span>
       </div>
 
+      {selectedStages.includes('editing') && (
+        <div class="translation-panel-section translation-panel-editing-settings">
+          <div class="translation-panel-label">
+            {t('projectInfo.editingSettingsLabel', 'Настройки редактуры')}
+          </div>
+          <label
+            class="translation-panel-editing-toggle"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.5rem',
+              cursor: 'pointer',
+              marginBottom: '0.5rem',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeGlossaryInEditing}
+              onChange={handleToggleIncludeGlossaryInEditing}
+              disabled={translating}
+              style={{
+                width: '18px',
+                height: '18px',
+                marginTop: '2px',
+                cursor: translating ? 'not-allowed' : 'pointer',
+                accentColor: 'var(--accent)',
+              }}
+              aria-label={t('settings.includeGlossaryInEditing')}
+            />
+            <div>
+              <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                {t('settings.includeGlossaryInEditing')}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                {t('settings.includeGlossaryInEditingHint')}
+              </div>
+            </div>
+          </label>
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                marginBottom: '0.35rem',
+              }}
+            >
+              {t('settings.editingFocus')}
+            </label>
+            <select
+              value={editingFocus}
+              onChange={handleEditingFocusChange}
+              disabled={translating}
+              style={{
+                width: '100%',
+                padding: '0.4rem 0.5rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <option value="fix_problems">{t('settings.editingFocus.fix_problems')}</option>
+              <option value="style_only">{t('settings.editingFocus.style_only')}</option>
+              <option value="both">{t('settings.editingFocus.both')}</option>
+            </select>
+          </div>
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                marginBottom: '0.35rem',
+              }}
+            >
+              {t('settings.editingStylePreset')}
+            </label>
+            <select
+              value={editingStylePreset}
+              onChange={handleEditingStylePresetChange}
+              disabled={translating}
+              style={{
+                width: '100%',
+                padding: '0.4rem 0.5rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+              }}
+            >
+              <option value="default">{t('settings.editingStylePreset.default')}</option>
+              <option value="literary">{t('settings.editingStylePreset.literary')}</option>
+              <option value="minimal">{t('settings.editingStylePreset.minimal')}</option>
+              <option value="ai_revivification">{t('settings.editingStylePreset.ai_revivification')}</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       <div class="translation-panel-section translation-panel-estimate">
         {estimatedTokens > 0 && (
           <span class="translation-panel-tokens">
@@ -240,6 +393,12 @@ export function TranslationPanel({
         {translating ? (
           <Button variant="secondary" size="sm" onClick={onCancelTranslation}>
             <Icon name="stop_circle" size="sm" /> {t('chapter.cancelTranslate')}
+            {chunkProgress && chunkProgress.totalChunks > 0 && (
+              <span class="translation-chunk-progress">
+                {' '}
+                ({chunkProgress.chunksDone}/{chunkProgress.totalChunks})
+              </span>
+            )}
           </Button>
         ) : (
           <>

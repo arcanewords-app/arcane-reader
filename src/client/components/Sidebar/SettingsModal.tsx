@@ -466,6 +466,39 @@ export function SettingsModal({
             </div>
             <div style={{ marginTop: '0.75rem' }}>
               <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
+                {t('settings.editingFocus')}
+              </label>
+              <select
+                class="setting-select"
+                value={settings.editingFocus ?? 'both'}
+                onChange={async (e) => {
+                  const value = (e.target as HTMLSelectElement).value as
+                    | 'fix_problems'
+                    | 'style_only'
+                    | 'both';
+                  const updated = await api.updateSettings(project.id, {
+                    editingFocus: value,
+                  });
+                  onSettingsChange(updated);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <option value="fix_problems">{t('settings.editingFocus.fix_problems')}</option>
+                <option value="style_only">{t('settings.editingFocus.style_only')}</option>
+                <option value="both">{t('settings.editingFocus.both')}</option>
+              </select>
+            </div>
+            <div style={{ marginTop: '0.75rem' }}>
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
                 {t('settings.editingStylePreset')}
               </label>
               <select
@@ -475,7 +508,8 @@ export function SettingsModal({
                   const value = (e.target as HTMLSelectElement).value as
                     | 'default'
                     | 'literary'
-                    | 'minimal';
+                    | 'minimal'
+                    | 'ai_revivification';
                   const updated = await api.updateSettings(project.id, {
                     editingStylePreset: value,
                   });
@@ -494,6 +528,7 @@ export function SettingsModal({
                 <option value="default">{t('settings.editingStylePreset.default')}</option>
                 <option value="literary">{t('settings.editingStylePreset.literary')}</option>
                 <option value="minimal">{t('settings.editingStylePreset.minimal')}</option>
+                <option value="ai_revivification">{t('settings.editingStylePreset.ai_revivification')}</option>
               </select>
             </div>
             <div style={{ marginTop: '0.75rem' }}>

@@ -31,6 +31,10 @@ export interface GlossaryEntry {
   firstAppearance?: number; // Chapter number where this entry was first mentioned
   /** Chapter numbers where this entry was mentioned (from analysis). Sorted, unique. */
   mentionedInChapters?: number[];
+  /** IDs of related glossary entries (character–location, character–character, etc.). Editable manually. */
+  relatedEntryIds?: string[];
+  /** For characters: primary location ID (optional). */
+  primaryLocationId?: string;
   imageUrls?: string[]; // Array of image URLs for gallery
   autoDetected?: boolean;
   // Legacy support: keep imageUrl for backward compatibility
@@ -244,8 +248,10 @@ export interface ProjectSettings {
   textBlockTypes?: TextBlockType[];
   /** Custom instructions for translator and editor stages */
   customInstructions?: CustomInstructions;
-  /** Editing style preset: default, literary, minimal */
-  editingStylePreset?: 'default' | 'literary' | 'minimal';
+  /** Editing style preset: default, literary, minimal, ai_revivification */
+  editingStylePreset?: 'default' | 'literary' | 'minimal' | 'ai_revivification';
+  /** Editing focus: fix_problems, style_only, both */
+  editingFocus?: 'fix_problems' | 'style_only' | 'both';
 }
 
 // === Project Metadata ===
@@ -354,6 +360,60 @@ export interface ImportJobState {
   warnings: string[];
   errors: string[];
   chapters: ImportJobChapter[];
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export type AnalysisJobStatus = 'queued' | 'processing' | 'completed' | 'error' | 'canceled';
+export type AnalysisChapterStatus = 'pending' | 'processing' | 'completed' | 'error';
+
+export interface AnalysisJobChapter {
+  chapterId: string;
+  title: string;
+  status: AnalysisChapterStatus;
+  tokensUsed?: number;
+}
+
+export interface AnalysisJobState {
+  jobId: string;
+  status: AnalysisJobStatus;
+  current: number;
+  total: number;
+  progress: number;
+  currentChapterTitle?: string;
+  chapters: AnalysisJobChapter[];
+  totalTokensUsed: number;
+  errors: string[];
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export type TranslateJobStatus = 'queued' | 'processing' | 'completed' | 'error' | 'canceled';
+export type TranslateChapterStatus = 'pending' | 'processing' | 'completed' | 'error';
+
+export interface TranslateJobChapter {
+  chapterId: string;
+  title: string;
+  status: TranslateChapterStatus;
+  tokensUsed?: number;
+  tokensByStage?: {
+    analysis?: number;
+    translation?: number;
+    editing?: number;
+  };
+  duration?: number;
+}
+
+export interface TranslateJobState {
+  jobId: string;
+  status: TranslateJobStatus;
+  current: number;
+  total: number;
+  progress: number;
+  currentChapterTitle?: string;
+  chapters: TranslateJobChapter[];
+  totalTokensUsed: number;
+  errors: string[];
   startedAt: string;
   finishedAt: string | null;
 }

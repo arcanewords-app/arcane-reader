@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Chapter } from '../../types';
-import { Button, StatusBadge, Icon } from '../ui';
+import type { Chapter, ChapterListItem } from '../../types';
+import { Button, StatusBadge, Icon, Skeleton } from '../ui';
 import { api } from '../../api/client';
 import './ChapterHeader.css';
 
 interface ChapterHeaderProps {
-  chapter: Chapter;
+  chapter: Chapter | null;
+  /** Used when chapter is null (loading) for title and nav */
+  chapterListItem?: ChapterListItem;
   projectId: string;
   canPrev: boolean;
   canNext: boolean;
@@ -18,15 +20,14 @@ interface ChapterHeaderProps {
   onToggleSettings: () => void;
   onEnterReadingMode?: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
-  translating: boolean;
   isOriginalReadingMode?: boolean;
-  /** Mark chapter as translated (shown in originalReadingMode when panel is hidden) */
-  onMarkAsTranslated?: () => void;
-  markingAsTranslated?: boolean;
+  /** When true, show skeleton for actions (chapter loading) */
+  isLoading?: boolean;
 }
 
 export function ChapterHeader({
   chapter,
+  chapterListItem,
   projectId,
   canPrev,
   canNext,
@@ -38,16 +39,20 @@ export function ChapterHeader({
   onToggleSettings,
   onEnterReadingMode,
   onChapterUpdate,
-  translating,
   isOriginalReadingMode = false,
-  onMarkAsTranslated,
-  markingAsTranslated = false,
+  isLoading = false,
 }: ChapterHeaderProps) {
   const { t } = useTranslation();
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const displayChapter = chapter ?? chapterListItem;
+  const title = displayChapter?.title ?? '';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(chapter.title);
+  const [editedTitle, setEditedTitle] = useState(title);
   const [savingTitle, setSavingTitle] = useState(false);
+
+  useEffect(() => {
+    setEditedTitle(displayChapter?.title ?? '');
+  }, [displayChapter?.title]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -55,12 +60,12 @@ export function ChapterHeader({
     }
   }, [isEditingTitle]);
 
-  const hasTranslations = chapter.paragraphs?.some((p) => p.translatedText);
-  const hasTranslatedText = !!chapter.translatedText;
-  const isCompleted = chapter.status === 'completed';
+  const hasTranslations = chapter?.paragraphs?.some((p) => p.translatedText);
+  const hasTranslatedText = !!chapter?.translatedText;
+  const isCompleted = chapter?.status === 'completed';
 
-  const hasOriginalText = !!(chapter.originalText && chapter.originalText.trim().length > 0);
-  const hasOriginalParagraphs = chapter.paragraphs?.some(
+  const hasOriginalText = !!(chapter?.originalText && chapter.originalText.trim().length > 0);
+  const hasOriginalParagraphs = chapter?.paragraphs?.some(
     (p) => p.originalText && p.originalText.trim().length > 0
   );
   const canRead = isOriginalReadingMode
@@ -68,12 +73,13 @@ export function ChapterHeader({
     : hasTranslations || hasTranslatedText;
 
   const handleStartEdit = () => {
+    if (!chapter) return;
     setIsEditingTitle(true);
     setEditedTitle(chapter.title);
   };
 
   const handleSaveTitle = async () => {
-    if (!editedTitle.trim() || editedTitle.trim() === chapter.title) {
+    if (!chapter || !editedTitle.trim() || editedTitle.trim() === chapter.title) {
       setIsEditingTitle(false);
       return;
     }
@@ -93,7 +99,7 @@ export function ChapterHeader({
 
   const handleCancelEdit = () => {
     setIsEditingTitle(false);
-    setEditedTitle(chapter.title);
+    setEditedTitle(chapter?.title ?? title);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -103,6 +109,8 @@ export function ChapterHeader({
       handleCancelEdit();
     }
   };
+
+  const showSkeletonActions = isLoading || !chapter;
 
   return (
     <div class={`chapter-header ${isEditingTitle ? 'is-editing-title' : ''}`}>
@@ -115,7 +123,7 @@ export function ChapterHeader({
         >
           <Icon name="chevron_left" />
         </button>
-        {isEditingTitle ? (
+        {chapter && isEditingTitle ? (
           <div class="chapter-title-edit">
             <input
               ref={titleInputRef}
@@ -148,14 +156,16 @@ export function ChapterHeader({
           </div>
         ) : (
           <div class="chapter-title-wrapper">
-            <h2 class="chapter-title">{chapter.title}</h2>
-            <button
-              class="chapter-title-edit-btn"
-              onClick={handleStartEdit}
-              title={t('chapter.editTitle')}
-            >
-              <Icon name="edit" size="sm" />
-            </button>
+            <h2 class="chapter-title">{title}</h2>
+            {chapter && (
+              <button
+                class="chapter-title-edit-btn"
+                onClick={handleStartEdit}
+                title={t('chapter.editTitle')}
+              >
+                <Icon name="edit" size="sm" />
+              </button>
+            )}
           </div>
         )}
         <button
@@ -178,57 +188,47 @@ export function ChapterHeader({
       </div>
 
       <div class="chapter-actions">
-        {!isOriginalReadingMode && (
-          <StatusBadge status={chapter.status} showText={chapter.status !== 'completed'} />
-        )}
+        {showSkeletonActions ? (
+          <>
+            <Skeleton variant="block" width={72} height={32} />
+            <Skeleton variant="block" width={100} height={32} />
+            <Skeleton variant="block" width={90} height={32} />
+          </>
+        ) : (
+          <>
+            {!isOriginalReadingMode && chapter && (
+              <StatusBadge status={chapter.status} showText={chapter.status !== 'completed'} />
+            )}
 
-        {canRead && onEnterReadingMode && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onEnterReadingMode}
-            title={t('chapter.readingMode')}
-          >
-            <Icon name="menu_book" size="sm" /> {t('chapter.read')}
-          </Button>
-        )}
+            {canRead && onEnterReadingMode && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onEnterReadingMode}
+                title={t('chapter.readingMode')}
+              >
+                <Icon name="menu_book" size="sm" /> {t('chapter.read')}
+              </Button>
+            )}
 
-        {hasTranslations && !isCompleted && (
-          <Button variant="secondary" size="sm" onClick={onApproveAll}>
-            <Icon name="done_all" size="sm" /> {t('chapter.approveAll')}
-          </Button>
-        )}
+            {hasTranslations && !isCompleted && (
+              <Button variant="secondary" size="sm" onClick={onApproveAll}>
+                <Icon name="done_all" size="sm" /> {t('chapter.approveAll')}
+              </Button>
+            )}
 
-        {!isOriginalReadingMode && (
-          <Button
-            variant={isTranslationPanelOpen ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={onToggleTranslationPanel}
-            title={t('translationPanel.toggle', 'Панель перевода')}
-          >
-            <Icon name="translate" size="sm" /> {t('chapter.translate', 'Перевод')}
-          </Button>
+            {!isOriginalReadingMode && (
+              <Button
+                variant={isTranslationPanelOpen ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={onToggleTranslationPanel}
+                title={t('translationPanel.toggle', 'Панель перевода')}
+              >
+                <Icon name="translate" size="sm" /> {t('chapter.translate', 'Перевод')}
+              </Button>
+            )}
+          </>
         )}
-
-        {isOriginalReadingMode &&
-          onMarkAsTranslated &&
-          chapter.paragraphs &&
-          chapter.paragraphs.length > 0 &&
-          (chapter.status === 'pending' ||
-            chapter.status === 'analyzed' ||
-            chapter.status === 'error') && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onMarkAsTranslated}
-              disabled={translating || markingAsTranslated}
-              title={t('markAsTranslated.title', 'Пометить как переведённую')}
-            >
-              {markingAsTranslated && <span class="spinner" />}
-              {!markingAsTranslated && <Icon name="done" size="sm" />}{' '}
-              {t('markAsTranslated.button', 'Пометить как переведённую')}
-            </Button>
-          )}
       </div>
     </div>
   );

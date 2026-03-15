@@ -6,6 +6,7 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { Button } from '../ui';
+import { CONTACT_EMAIL } from '../../../shared/contact';
 import './UpgradeScreen.css';
 
 export function UpgradeScreen() {
@@ -19,6 +20,11 @@ export function UpgradeScreen() {
     route('/profile');
   };
 
+  const handleRequestUpgrade = () => {
+    const subject = encodeURIComponent(t('auth.upgradeMailSubject'));
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}`;
+  };
+
   return (
     <div class="upgrade-screen">
       <div class="upgrade-screen__content">
@@ -30,6 +36,9 @@ export function UpgradeScreen() {
           </Button>
           <Button variant="secondary" onClick={handleGoToProfile}>
             {t('auth.upgradeGoToProfile')}
+          </Button>
+          <Button variant="secondary" onClick={handleRequestUpgrade}>
+            {t('auth.requestUpgrade')}
           </Button>
         </div>
       </div>

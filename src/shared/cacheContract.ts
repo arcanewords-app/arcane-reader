@@ -5,6 +5,12 @@
 
 export const CACHE_SCHEMA_VERSION = 'v1';
 
+/** Max chapters to load per project (Supabase default is 1000). */
+export const MAX_CHAPTERS_PER_PROJECT = 50_000;
+
+/** Max paragraphs to fetch for chapter summary (Supabase default is 1000). */
+export const MAX_PARAGRAPHS_FOR_SUMMARY = 500_000;
+
 export const CACHE_TTL = {
   // Client-side
   clientPublicationMs: 120_000, // 2 min — public content rarely changes
@@ -29,6 +35,8 @@ export const CACHE_TTL = {
   redisAuthProfileSec: 180,
   redisTokenUsageSec: 60,
   redisTokenHistorySec: 60,
+  /** Analysis results per chapter. Invalidate on chapter content change. */
+  redisAnalysisResultSec: 86400, // 24 h
   healthSnapshotMs: 10_000,
 } as const;
 
@@ -49,6 +57,8 @@ export const CACHE_PREFIX = {
   userReadingProgress: 'user:read-progress',
   userReaderSettings: 'user:reader-settings',
   userReadingHistory: 'user:reading-history',
+  analysisResult: 'analysis:result',
+  analysisBatchProgress: 'analysis:batch:progress',
 } as const;
 
 export function cacheVersionedKey(parts: Array<string | number | boolean>): string {

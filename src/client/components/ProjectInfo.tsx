@@ -8,10 +8,11 @@ import type {
   Publication,
   PublicEntity,
 } from '../types';
-import { Card, Button, Modal, Input, LoadingSpinner, Icon } from './ui';
+import { Card, Button, Modal, Input, LoadingSpinner, Icon, AlertModal, ConfirmModal } from './ui';
 import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
+import { isChunkError } from '../../shared/chunkErrors';
 import { invalidateProject } from '../store/projects';
 import '../components/ChapterView/ReaderSettings.css';
 import './ProjectInfo.css';
@@ -33,6 +34,9 @@ export function ProjectInfo({
   const { t } = useTranslation();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
+  const [showDeleteCoverConfirm, setShowDeleteCoverConfirm] = useState(false);
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [deletingCover, setDeletingCover] = useState(false);
@@ -157,7 +161,10 @@ export function ProjectInfo({
         invalidateProject(project.id);
         await onRefreshProject();
       } catch (error) {
-        alert(error instanceof Error ? error.message : t('projectInfo.errorSaveDescription'));
+        setErrorModal({
+          title: t('projectInfo.errorSaveDescription'),
+          message: error instanceof Error ? error.message : t('projectInfo.errorSaveDescription'),
+        });
       } finally {
         setSavingEntities(false);
       }
@@ -241,7 +248,10 @@ export function ProjectInfo({
       setPublication(pub);
       setShowPublishModal(false);
     } catch (error) {
-      alert(error instanceof Error ? error.message : t('projectInfo.publishError'));
+      setErrorModal({
+        title: t('projectInfo.publishError'),
+        message: error instanceof Error ? error.message : t('projectInfo.publishError'),
+      });
     } finally {
       setPublishing(false);
     }
@@ -258,13 +268,15 @@ export function ProjectInfo({
   ]);
 
   const handleUnpublish = useCallback(async () => {
-    if (!confirm(t('projectInfo.unpublishConfirm'))) return;
     setUnpublishing(true);
     try {
       await api.unpublishProject(project.id);
       setPublication(null);
     } catch (error) {
-      alert(error instanceof Error ? error.message : t('projectInfo.unpublishError'));
+      setErrorModal({
+        title: t('projectInfo.unpublishError'),
+        message: error instanceof Error ? error.message : t('projectInfo.unpublishError'),
+      });
     } finally {
       setUnpublishing(false);
     }
@@ -288,7 +300,10 @@ export function ProjectInfo({
       });
       setPublication(pub);
     } catch (error) {
-      alert(error instanceof Error ? error.message : t('projectInfo.publishError'));
+      setErrorModal({
+        title: t('projectInfo.publishError'),
+        message: error instanceof Error ? error.message : t('projectInfo.publishError'),
+      });
     } finally {
       setUpdatingPublication(false);
     }
@@ -329,7 +344,10 @@ export function ProjectInfo({
       setEditingDescription(false);
       setDescriptionDraft('');
     } catch (error) {
-      alert(error instanceof Error ? error.message : t('projectInfo.errorSaveDescription'));
+      setErrorModal({
+        title: t('projectInfo.errorSaveDescription'),
+        message: error instanceof Error ? error.message : t('projectInfo.errorSaveDescription'),
+      });
     } finally {
       setSavingDescription(false);
     }
@@ -363,10 +381,10 @@ export function ProjectInfo({
     const ch = chapter as Chapter;
     const translatedText = ch.translatedText?.trim() || '';
     if (translatedText.length === 0) return false;
-    if (translatedText.startsWith('❌') || translatedText.startsWith('[ERROR')) return false;
+    if (translatedText.startsWith('❌') || isChunkError(translatedText)) return false;
     const hasValidParagraphs = ch.paragraphs?.some((p) => {
       const pText = p.translatedText?.trim() || '';
-      return pText.length > 0 && !pText.startsWith('❌') && !pText.startsWith('[ERROR');
+      return pText.length > 0 && !pText.startsWith('❌') && !isChunkError(pText);
     });
     return hasValidParagraphs === true || translatedText.length > 50;
   };
@@ -403,9 +421,29 @@ export function ProjectInfo({
     }
   };
 
+  const handleDeleteCover = useCallback(async () => {
+    setDeletingCover(true);
+    try {
+      await api.deleteProjectCover(project.id);
+      invalidateProject(project.id);
+      await onRefreshProject();
+    } catch (error) {
+      console.error('Failed to delete cover:', error);
+      setErrorModal({
+        title: t('projectInfo.errorDeleteCover'),
+        message: error instanceof Error ? error.message : t('projectInfo.errorDeleteCover'),
+      });
+    } finally {
+      setDeletingCover(false);
+    }
+  }, [project.id, onRefreshProject, t]);
+
   const handleExport = async (format: 'epub' | 'fb2') => {
     if (stats.translated === 0) {
-      alert(t('projectInfo.noChaptersForExport'));
+      setErrorModal({
+        title: t('projectInfo.noChaptersForExport'),
+        message: t('projectInfo.noChaptersForExport'),
+      });
       return;
     }
 
@@ -446,11 +484,13 @@ export function ProjectInfo({
         return;
       }
       console.error(`Failed to export ${format}:`, error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : t('projectInfo.exportError', { format: format.toUpperCase() })
-      );
+      setErrorModal({
+        title: t('projectInfo.exportError', { format: format.toUpperCase() }),
+        message:
+          error instanceof Error
+            ? error.message
+            : t('projectInfo.exportError', { format: format.toUpperCase() }),
+      });
     } finally {
       setExporting(null);
     }
@@ -567,23 +607,9 @@ export function ProjectInfo({
                       ) : (
                         <>
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              if (!confirm(t('projectInfo.deleteCoverConfirm'))) return;
-                              setDeletingCover(true);
-                              try {
-                                await api.deleteProjectCover(project.id);
-                                await onRefreshProject();
-                              } catch (error) {
-                                console.error('Failed to delete cover:', error);
-                                alert(
-                                  error instanceof Error
-                                    ? error.message
-                                    : t('projectInfo.errorDeleteCover')
-                                );
-                              } finally {
-                                setDeletingCover(false);
-                              }
+                              setShowDeleteCoverConfirm(true);
                             }}
                             disabled={deletingCover}
                             style={{
@@ -891,24 +917,9 @@ export function ProjectInfo({
                     ) : (
                       <>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (!confirm(t('projectInfo.deleteCoverConfirm'))) return;
-                            setDeletingCover(true);
-                            try {
-                              await api.deleteProjectCover(project.id);
-                              invalidateProject(project.id);
-                              await onRefreshProject();
-                            } catch (error) {
-                              console.error('Failed to delete cover:', error);
-                              alert(
-                                error instanceof Error
-                                  ? error.message
-                                  : t('projectInfo.errorDeleteCover')
-                              );
-                            } finally {
-                              setDeletingCover(false);
-                            }
+                            setShowDeleteCoverConfirm(true);
                           }}
                           disabled={deletingCover}
                           style={{
@@ -1220,7 +1231,7 @@ export function ProjectInfo({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={handleUnpublish}
+                  onClick={() => setShowUnpublishConfirm(true)}
                   disabled={unpublishing}
                 >
                   {unpublishing ? t('common.loading') : t('projectInfo.unpublish')}
@@ -1267,7 +1278,11 @@ export function ProjectInfo({
               }
             } catch (error) {
               console.error('Failed to upload cover:', error);
-              alert(error instanceof Error ? error.message : t('projectInfo.errorUploadCover'));
+              setErrorModal({
+                title: t('projectInfo.errorUploadCover'),
+                message:
+                  error instanceof Error ? error.message : t('projectInfo.errorUploadCover'),
+              });
             } finally {
               setUploadingCover(false);
               (e.target as HTMLInputElement).value = '';
@@ -1571,6 +1586,35 @@ export function ProjectInfo({
           </div>
         </div>
       </Modal>
+
+      <AlertModal
+        isOpen={!!errorModal}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title ?? ''}
+        message={errorModal?.message ?? ''}
+      />
+
+      <ConfirmModal
+        isOpen={showUnpublishConfirm}
+        onClose={() => setShowUnpublishConfirm(false)}
+        onConfirm={handleUnpublish}
+        title={t('projectInfo.unpublishConfirm')}
+        message={t('projectInfo.unpublishConfirm')}
+        confirmLabel={t('projectInfo.unpublish')}
+        variant="danger"
+        loading={unpublishing}
+      />
+
+      <ConfirmModal
+        isOpen={showDeleteCoverConfirm}
+        onClose={() => setShowDeleteCoverConfirm(false)}
+        onConfirm={handleDeleteCover}
+        title={t('projectInfo.deleteCoverConfirm')}
+        message={t('projectInfo.deleteCoverConfirm')}
+        confirmLabel={t('common.delete')}
+        variant="danger"
+        loading={deletingCover}
+      />
     </>
   );
 }

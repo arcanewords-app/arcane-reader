@@ -1,9 +1,16 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Paragraph, TextBlockType } from '../../types';
 import { Icon } from '../ui';
 import { renderTextWithBlocks } from '../../utils/text-blocks';
 import './ParagraphList.css';
+
+/** Virtualization: enable when paragraph count exceeds this. */
+const VIRTUAL_THRESHOLD = 80;
+/** Estimated row height for virtualized list (px). */
+const EST_ROW_HEIGHT = 80;
+/** Buffer items above/below viewport. */
+const VIRTUAL_BUFFER = 5;
 
 interface ParagraphListProps {
   paragraphs: Paragraph[];
@@ -35,7 +42,41 @@ export function ParagraphList({
   const [editText, setEditText] = useState('');
   const [saving, setSaving] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(400);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const useVirtualization = paragraphs.length > VIRTUAL_THRESHOLD;
+  const totalHeight = useVirtualization ? paragraphs.length * EST_ROW_HEIGHT : 0;
+  const startIndex = useVirtualization
+    ? Math.max(0, Math.floor(scrollTop / EST_ROW_HEIGHT) - VIRTUAL_BUFFER)
+    : 0;
+  const endIndex = useVirtualization
+    ? Math.min(
+        paragraphs.length,
+        Math.ceil((scrollTop + containerHeight) / EST_ROW_HEIGHT) + VIRTUAL_BUFFER
+      )
+    : paragraphs.length;
+  const visibleParagraphs = useVirtualization ? paragraphs.slice(startIndex, endIndex) : paragraphs;
+
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      setScrollTop(el.scrollTop);
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || !useVirtualization) return;
+    const ro = new ResizeObserver(() => {
+      setContainerHeight(el.clientHeight);
+    });
+    ro.observe(el);
+    setContainerHeight(el.clientHeight);
+    return () => ro.disconnect();
+  }, [useVirtualization]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -112,23 +153,39 @@ export function ParagraphList({
         )}
       </div>
 
-      <div class="paragraphs-unified">
-        {paragraphs.map((paragraph, index) => {
-          const isEmpty = emptyParagraphIds.includes(paragraph.id);
-          const showCheckbox =
-            !isOriginalReadingMode &&
-            !isTranslationOnlyDisplay &&
-            isEmpty &&
-            onToggleParagraphSelection;
-          const isSelected = selectedParagraphIds.includes(paragraph.id);
-          return (
+      <div
+        class="paragraphs-unified"
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+      >
+        {useVirtualization && (
+          <div style={{ height: totalHeight + 'px', position: 'relative' }}>
             <div
-              key={paragraph.id}
-              class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
-              style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
-              onMouseEnter={() => setHighlightedId(paragraph.id)}
-              onMouseLeave={() => setHighlightedId(null)}
+              style={{
+                paddingTop: startIndex * EST_ROW_HEIGHT + 'px',
+                paddingBottom: Math.max(0, (paragraphs.length - endIndex) * EST_ROW_HEIGHT) + 'px',
+              }}
             >
+              {visibleParagraphs.map((paragraph, idx) => {
+                const index = startIndex + idx;
+                const isEmpty = emptyParagraphIds.includes(paragraph.id);
+                const showCheckbox =
+                  !isOriginalReadingMode &&
+                  !isTranslationOnlyDisplay &&
+                  isEmpty &&
+                  onToggleParagraphSelection;
+                const isSelected = selectedParagraphIds.includes(paragraph.id);
+                return (
+                  <div
+                    key={paragraph.id}
+                    class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+                    style={{
+                      ...(singleColumn ? { gridTemplateColumns: '1fr' } : {}),
+                      minHeight: EST_ROW_HEIGHT + 'px',
+                    }}
+                    onMouseEnter={() => setHighlightedId(paragraph.id)}
+                    onMouseLeave={() => setHighlightedId(null)}
+                  >
               {/* Original - hidden in original reading mode and translation-only display */}
               {!isTranslationOnlyDisplay && (
                 <div
@@ -219,9 +276,119 @@ export function ParagraphList({
                   )}
                 </div>
               )}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        )}
+        {!useVirtualization &&
+          paragraphs.map((paragraph, index) => {
+            const isEmpty = emptyParagraphIds.includes(paragraph.id);
+            const showCheckbox =
+              !isOriginalReadingMode &&
+              !isTranslationOnlyDisplay &&
+              isEmpty &&
+              onToggleParagraphSelection;
+            const isSelected = selectedParagraphIds.includes(paragraph.id);
+            return (
+              <div
+                key={paragraph.id}
+                class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+                style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
+                onMouseEnter={() => setHighlightedId(paragraph.id)}
+                onMouseLeave={() => setHighlightedId(null)}
+              >
+                {!isTranslationOnlyDisplay && (
+                  <div
+                    class="paragraph-cell paragraph-cell-original"
+                    style={singleColumn ? { width: '100%' } : {}}
+                  >
+                    {showCheckbox && (
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- label wraps checkbox; onClick only stops propagation
+                      <label
+                        htmlFor={`para-select-${paragraph.id}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          marginRight: '0.35rem',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          id={`para-select-${paragraph.id}`}
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggleParagraphSelection?.(paragraph.id)}
+                          style={{ accentColor: 'var(--accent)' }}
+                          aria-label={t('paragraphList.selectParagraph', { index: index + 1 })}
+                        />
+                      </label>
+                    )}
+                    <span class="paragraph-index">{index + 1}</span>
+                    <div class="paragraph-text">{paragraph.originalText}</div>
+                  </div>
+                )}
+                {(!isOriginalReadingMode || isTranslationOnlyDisplay) && (
+                  <div
+                    class="paragraph-cell paragraph-cell-translation"
+                    style={isTranslationOnlyDisplay ? { width: '100%' } : {}}
+                  >
+                    {isTranslationOnlyDisplay && <span class="paragraph-index">{index + 1}</span>}
+                    {editingId === paragraph.id ? (
+                      <div>
+                        <textarea
+                          ref={textareaRef}
+                          class="paragraph-editor"
+                          value={editText}
+                          onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
+                          onKeyDown={handleKeyDown}
+                        />
+                        <div class="paragraph-actions">
+                          <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
+                            {t('common.cancel')}
+                          </button>
+                          <button
+                            class="btn btn-primary btn-sm"
+                            onClick={handleSave}
+                            disabled={saving}
+                          >
+                            {saving ? (
+                              <span class="spinner" />
+                            ) : (
+                              <>
+                                <Icon name="save" size="sm" /> {t('paragraphList.save')}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
+                        onClick={() => startEditing(paragraph)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            startEditing(paragraph);
+                          }
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: paragraph.translatedText
+                            ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
+                            : `<em>${t('paragraphList.clickToEdit')}</em>`,
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </div>
     </div>
   );

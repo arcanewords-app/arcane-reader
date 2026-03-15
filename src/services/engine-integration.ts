@@ -15,6 +15,11 @@ import {
   type PipelineOptions,
   type Glossary,
 } from '../engine/index.js';
+import { isChunkError } from '../shared/chunkErrors.js';
+import {
+  getCachedAnalysisResult,
+  setCachedAnalysisResult,
+} from './analysisCache.js';
 
 import type { AppConfig } from '../config.js';
 import type {
@@ -61,6 +66,7 @@ export function getAgentForProject(project: Project | ProjectWithChapterList): N
           aliases: [],
           firstAppearance: entry.firstAppearance || 1,
           isMainCharacter: false,
+          mentionedInChapters: entry.mentionedInChapters,
         });
       } else if (entry.type === 'location') {
         glossaryManager.locations.push({
@@ -69,6 +75,7 @@ export function getAgentForProject(project: Project | ProjectWithChapterList): N
           translatedName: entry.translated,
           description: entry.description || '',
           type: 'other',
+          mentionedInChapters: entry.mentionedInChapters,
         });
       } else if (entry.type === 'term') {
         glossaryManager.terms.push({
@@ -77,6 +84,7 @@ export function getAgentForProject(project: Project | ProjectWithChapterList): N
           translatedTerm: entry.translated,
           description: entry.description || '',
           category: 'other',
+          mentionedInChapters: entry.mentionedInChapters,
         });
       }
     }
@@ -129,13 +137,20 @@ export function createPipeline(
   const rawAnalysisModel = modelForChatCompletions(
     getStageModel(project, 'analysis', 'gpt-4.1-mini')
   );
-  // Analysis: forbid reasoning models (gpt-5*, o1*, o3*, o4*) — they take 1–5 min per request and are not suitable
   const isReasoningModel = (m: string) => /^gpt-5|^o1-|^o3-|^o4-/i.test(m);
-  const analysisModel = isReasoningModel(rawAnalysisModel) ? 'gpt-4.1-mini' : rawAnalysisModel;
-  if (rawAnalysisModel !== analysisModel) {
+  const allowReasoning = project.settings?.allowReasoningModelsForAnalysis === true;
+  const analysisModel =
+    isReasoningModel(rawAnalysisModel) && !allowReasoning ? 'gpt-4.1-mini' : rawAnalysisModel;
+  if (rawAnalysisModel !== analysisModel && isReasoningModel(rawAnalysisModel)) {
     logger.debug(
       { rawAnalysisModel, analysisModel },
-      'Analysis: reasoning model not allowed for analysis, using fallback'
+      'Analysis: reasoning model not allowed (allowReasoningModelsForAnalysis=false), using fallback'
+    );
+  }
+  if (allowReasoning && isReasoningModel(rawAnalysisModel)) {
+    logger.info(
+      { model: rawAnalysisModel },
+      'Analysis: reasoning model allowed; first response may take 1–5 minutes'
     );
   }
 
@@ -276,6 +291,8 @@ export type TranslatePipelineOptions = PipelineOptions & {
   includeGlossaryInAnalysis?: boolean;
   includeGlossaryInTranslation?: boolean;
   includeGlossaryInEditing?: boolean;
+  /** Called when chunk progress updates (for UI). */
+  onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
 };
 
 /**
@@ -327,6 +344,8 @@ export async function translateChapterWithPipeline(
       neverSplitParagraphs: config.translation.neverSplitParagraphs,
       retryAttempts: config.translation.chunkRetryAttempts,
       chunkRetryDelayMs: config.translation.chunkRetryDelayMs,
+      parallelChunks: config.translation.parallelChunks,
+      analysisMaxSectionTokens: config.translation.analysisMaxSectionTokens,
       includeGlossaryInAnalysis:
         options.includeGlossaryInAnalysis ?? project.settings?.includeGlossaryInAnalysis ?? true,
       includeGlossaryInTranslation:
@@ -343,6 +362,8 @@ export async function translateChapterWithPipeline(
         customInstructions: project.settings.customInstructions,
       }),
       editingStylePreset: project.settings.editingStylePreset ?? 'default',
+      editingFocus: project.settings.editingFocus ?? 'both',
+      ...(options.onProgress && { onProgress: options.onProgress }),
     };
     if (Array.isArray(stages)) {
       pipelineOpts.runStages = stages;
@@ -529,10 +550,7 @@ export async function translateChapterWithPipeline(
     }
 
     const analysisOnly = Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis';
-    if (
-      !analysisOnly &&
-      (!result.finalTranslation || result.finalTranslation.startsWith('[ERROR]'))
-    ) {
+    if (!analysisOnly && (!result.finalTranslation || isChunkError(result.finalTranslation))) {
       throw new Error(result.finalTranslation || 'Translation returned empty result');
     }
     if (analysisOnly && !result.stage1.success) {
@@ -722,7 +740,7 @@ export async function translateChapterWithPipeline(
     const chunksCount = chunkResults?.length;
     const failedChunkIndex =
       chunkResults !== undefined
-        ? chunkResults.findIndex((c) => (c.translated || '').startsWith('[ERROR'))
+        ? chunkResults.findIndex((c) => isChunkError(c.translated || ''))
         : undefined;
     const failedChunkIndexNorm = failedChunkIndex === -1 ? undefined : failedChunkIndex;
 
@@ -746,6 +764,383 @@ export async function translateChapterWithPipeline(
     // Re-throw with more context
     throw new Error(`Translation failed: ${errorMessage}`);
   }
+}
+
+/**
+ * Batch analysis of multiple chapters (parallel, with optional cache).
+ * Returns glossary updates and per-chapter appearance IDs for server to save.
+ */
+export async function analyzeChaptersBatch(
+  config: AppConfig,
+  project: Project | ProjectWithChapterList,
+  chapters: Array<Chapter & { originalText: string }>,
+  options: {
+    useCache?: boolean;
+    analysisConcurrency?: number;
+    isCancelled?: () => boolean;
+    onProgress?: (
+      chapterId: string,
+      result: { success: boolean; tokensUsed: number; error?: string }
+    ) => void | Promise<void>;
+  } = {}
+): Promise<{
+  totalTokensUsed: number;
+  totalDuration: number;
+  glossaryUpdates: GlossaryEntry[];
+  glossaryUpdatesExisting: Array<{
+    id: string;
+    updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>>;
+  }>;
+  chapterResults: Array<{
+    chapterId: string;
+    chapterNumber: number;
+    success: boolean;
+    tokensUsed: number;
+    glossaryAppearanceEntryIds: string[];
+  }>;
+}> {
+  const useCache = options.useCache ?? true;
+  const startTime = Date.now();
+  const pipeline = createPipeline(config, project);
+  const agent = getAgentForProject(project);
+
+  const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
+    project.glossary.find(
+      (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
+    );
+
+  const cached: Array<{ chapter: (typeof chapters)[0]; data: import('./analysisCache.js').CachedAnalysisResult }> = [];
+  const toAnalyze: typeof chapters = [];
+
+  if (useCache) {
+    for (const ch of chapters) {
+      const text = (ch.originalText ?? '').trim();
+      if (!text) continue;
+      const hit = await getCachedAnalysisResult(project.id, ch.id);
+      if (hit) {
+        cached.push({ chapter: ch, data: hit });
+      } else {
+        toAnalyze.push(ch);
+      }
+    }
+  } else {
+    toAnalyze.push(...chapters.filter((ch) => (ch.originalText ?? '').trim()));
+  }
+
+  const onProgress = options.onProgress;
+  for (const { chapter, data } of cached) {
+    await onProgress?.(chapter.id, {
+      success: true,
+      tokensUsed: data.tokensUsed,
+    });
+  }
+
+  let batchResult: Awaited<ReturnType<TranslationPipeline['analyzeChaptersParallel']>> | null = null;
+  if (toAnalyze.length > 0) {
+    batchResult = await pipeline.analyzeChaptersParallel(
+      toAnalyze.map((ch) => ({
+        text: (ch.originalText ?? '').trim(),
+        number: ch.number,
+        id: ch.id,
+      })),
+      {
+        includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
+        temperatureByStage: {
+          analysis: project.settings?.temperatureByStage?.analysis ?? project.settings?.temperature ?? 0.5,
+        },
+        analysisMaxSectionTokens: config.translation?.analysisMaxSectionTokens,
+        analysisConcurrency: options.analysisConcurrency ?? 4,
+        isCancelled: options.isCancelled,
+        onChapterComplete: onProgress
+          ? (chapterId, _chapterNumber, result) => {
+              if (chapterId) onProgress(chapterId, result);
+            }
+          : undefined,
+      }
+    );
+    for (const r of batchResult.results) {
+      if (r.success && r.data) {
+        const ch = toAnalyze.find((c) => c.number === r.chapterNumber);
+        if (ch) {
+          await setCachedAnalysisResult(project.id, ch.id, {
+            chapterNumber: r.chapterNumber,
+            data: r.data,
+            tokensUsed: r.tokensUsed,
+          });
+        }
+      }
+    }
+  }
+
+  const allResults: Array<{
+    chapterId: string;
+    chapterNumber: number;
+    data: import('../engine/types/agent.js').AnalysisResult;
+    tokensUsed: number;
+  }> = [];
+
+  for (const { chapter, data } of cached) {
+    allResults.push({
+      chapterId: chapter.id,
+      chapterNumber: chapter.number,
+      data: data.data,
+      tokensUsed: data.tokensUsed,
+    });
+  }
+  const failedChapters: Array<{ chapterId: string; chapterNumber: number }> = [];
+  if (batchResult) {
+    for (const r of batchResult.results) {
+      if (r.success && r.data) {
+        const ch = toAnalyze.find((c) => c.number === r.chapterNumber);
+        if (ch)
+          allResults.push({
+            chapterId: ch.id,
+            chapterNumber: r.chapterNumber,
+            data: r.data,
+            tokensUsed: r.tokensUsed,
+          });
+      } else {
+        const ch = toAnalyze.find((c) => c.number === r.chapterNumber);
+        if (ch) failedChapters.push({ chapterId: ch.id, chapterNumber: ch.number });
+      }
+    }
+  }
+
+  allResults.sort((a, b) => a.chapterNumber - b.chapterNumber);
+
+  if (allResults.length > 0) {
+    agent.applyBatchAnalysisResults(allResults.map((r) => r.data));
+  }
+  agentCache.set(project.id, pipeline.getAgent());
+
+  const entityChapters = new Map<string, number[]>();
+  const addChapterForEntity = (key: string, chNum: number) => {
+    const arr = entityChapters.get(key) ?? [];
+    if (!arr.includes(chNum)) arr.push(chNum);
+    entityChapters.set(key, arr);
+  };
+
+  const glossaryUpdates: GlossaryEntry[] = [];
+  const glossaryUpdatesExisting: Array<{
+    id: string;
+    updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>>;
+  }> = [];
+  const seenUpdates = new Set<string>();
+
+  for (const { chapterNumber, data } of allResults) {
+    const analysis = data;
+    const glossaryUpdate = analysis.glossaryUpdate;
+
+    for (const c of analysis.foundCharacters ?? []) {
+      addChapterForEntity(`char:${c.name.toLowerCase()}`, chapterNumber);
+    }
+    for (const l of analysis.foundLocations ?? []) {
+      addChapterForEntity(`loc:${l.name.toLowerCase()}`, chapterNumber);
+    }
+    for (const t of analysis.foundTerms ?? []) {
+      addChapterForEntity(`term:${t.term.toLowerCase()}`, chapterNumber);
+    }
+
+    for (const c of glossaryUpdate.updatedCharacters ?? []) {
+      const key = `char:${(c.originalName ?? '').toLowerCase()}`;
+      addChapterForEntity(key, chapterNumber);
+    }
+    for (const l of glossaryUpdate.updatedLocations ?? []) {
+      const key = `loc:${(l.originalName ?? '').toLowerCase()}`;
+      addChapterForEntity(key, chapterNumber);
+    }
+    for (const t of glossaryUpdate.updatedTerms ?? []) {
+      const key = `term:${(t.originalTerm ?? '').toLowerCase()}`;
+      addChapterForEntity(key, chapterNumber);
+    }
+  }
+
+  const newCharsByOrig = new Map<string, (typeof allResults[0]['data']['glossaryUpdate']['newCharacters'][0])>();
+  const newLocsByOrig = new Map<string, (typeof allResults[0]['data']['glossaryUpdate']['newLocations'][0])>();
+  const newTermsByOrig = new Map<string, (typeof allResults[0]['data']['glossaryUpdate']['newTerms'][0])>();
+
+  for (const { data } of allResults) {
+    const gu = data.glossaryUpdate;
+    for (const c of gu.newCharacters ?? []) {
+      const key = c.originalName.toLowerCase();
+      if (!newCharsByOrig.has(key) && !project.glossary.some((e) => e.type === 'character' && e.original.toLowerCase() === key)) {
+        newCharsByOrig.set(key, c);
+      }
+    }
+    for (const l of gu.newLocations ?? []) {
+      const key = l.originalName.toLowerCase();
+      if (!newLocsByOrig.has(key) && !project.glossary.some((e) => e.type === 'location' && e.original.toLowerCase() === key)) {
+        newLocsByOrig.set(key, l);
+      }
+    }
+    for (const t of gu.newTerms ?? []) {
+      const key = t.originalTerm.toLowerCase();
+      if (!newTermsByOrig.has(key) && !project.glossary.some((e) => e.type === 'term' && e.original.toLowerCase() === key)) {
+        newTermsByOrig.set(key, t);
+      }
+    }
+  }
+
+  const minChapter = allResults.length > 0 ? Math.min(...allResults.map((r) => r.chapterNumber)) : 1;
+  let idx = 0;
+  for (const c of newCharsByOrig.values()) {
+    const chaps = entityChapters.get(`char:${c.originalName.toLowerCase()}`) ?? [minChapter];
+    chaps.sort((a, b) => a - b);
+    glossaryUpdates.push({
+      id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+      type: 'character',
+      original: c.originalName,
+      translated: c.translatedName,
+      description: c.description || undefined,
+      gender: c.gender,
+      declensions: c.declensions,
+      firstAppearance: Math.min(...chaps),
+      mentionedInChapters: [...new Set(chaps)].sort((a, b) => a - b),
+      autoDetected: true,
+    });
+    idx++;
+  }
+  for (const l of newLocsByOrig.values()) {
+    const chaps = entityChapters.get(`loc:${l.originalName.toLowerCase()}`) ?? [minChapter];
+    chaps.sort((a, b) => a - b);
+    glossaryUpdates.push({
+      id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+      type: 'location',
+      original: l.originalName,
+      translated: l.translatedName,
+      description: l.description || undefined,
+      firstAppearance: Math.min(...chaps),
+      mentionedInChapters: [...new Set(chaps)].sort((a, b) => a - b),
+      autoDetected: true,
+    });
+    idx++;
+  }
+  for (const t of newTermsByOrig.values()) {
+    const chaps = entityChapters.get(`term:${t.originalTerm.toLowerCase()}`) ?? [minChapter];
+    chaps.sort((a, b) => a - b);
+    glossaryUpdates.push({
+      id: `auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+      type: 'term',
+      original: t.originalTerm,
+      translated: t.translatedTerm,
+      description: t.description || undefined,
+      notes: t.category,
+      firstAppearance: Math.min(...chaps),
+      mentionedInChapters: [...new Set(chaps)].sort((a, b) => a - b),
+      autoDetected: true,
+    });
+    idx++;
+  }
+
+  for (const { data } of allResults) {
+    const gu = data.glossaryUpdate;
+    for (const c of gu.updatedCharacters ?? []) {
+      const found = byOriginal(c.originalName ?? '', 'character');
+      if (found && !seenUpdates.has(`char:${found.id}`)) {
+        seenUpdates.add(`char:${found.id}`);
+        const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+        if (c.description !== undefined) updates.description = c.description;
+        if (c.translatedName !== undefined) updates.translated = c.translatedName;
+        if (Object.keys(updates).length > 0)
+          glossaryUpdatesExisting.push({ id: found.id, updates });
+      }
+    }
+    for (const l of gu.updatedLocations ?? []) {
+      const found = byOriginal(l.originalName ?? '', 'location');
+      if (found && !seenUpdates.has(`loc:${found.id}`)) {
+        seenUpdates.add(`loc:${found.id}`);
+        const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+        if (l.description !== undefined) updates.description = l.description;
+        if (l.translatedName !== undefined) updates.translated = l.translatedName;
+        if (Object.keys(updates).length > 0)
+          glossaryUpdatesExisting.push({ id: found.id, updates });
+      }
+    }
+    for (const t of gu.updatedTerms ?? []) {
+      const found = byOriginal(t.originalTerm ?? '', 'term');
+      if (found && !seenUpdates.has(`term:${found.id}`)) {
+        seenUpdates.add(`term:${found.id}`);
+        const updates: Partial<Pick<GlossaryEntry, 'description' | 'translated' | 'notes'>> = {};
+        if (t.description !== undefined) updates.description = t.description;
+        if (t.translatedTerm !== undefined) updates.translated = t.translatedTerm;
+        if (t.category !== undefined) updates.notes = t.category;
+        if (Object.keys(updates).length > 0)
+          glossaryUpdatesExisting.push({ id: found.id, updates });
+      }
+    }
+  }
+
+  const combinedGlossary = [...project.glossary, ...glossaryUpdates];
+  const byOriginalOrNew = (orig: string, type: 'character' | 'location' | 'term') =>
+    combinedGlossary.find(
+      (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
+    );
+  const byShortFormOrNew = (name: string, type: 'character' | 'location' | 'term') => {
+    const n = name.trim().toLowerCase();
+    if (n.length < 2) return undefined;
+    return combinedGlossary.find(
+      (e) =>
+        e.type === type &&
+        e.original.trim().toLowerCase().startsWith(n + ' ')
+    );
+  };
+
+  const chapterResults = allResults.map(({ chapterId, chapterNumber, data, tokensUsed }) => {
+    const analysis = data;
+    const ids = new Set<string>();
+    for (const c of analysis.foundCharacters ?? []) {
+      const entry = c.isNew ? byShortFormOrNew(c.name, 'character') : byOriginalOrNew(c.name, 'character');
+      if (entry?.id) ids.add(entry.id);
+    }
+    for (const l of analysis.foundLocations ?? []) {
+      const entry = l.isNew ? byShortFormOrNew(l.name, 'location') : byOriginalOrNew(l.name, 'location');
+      if (entry?.id) ids.add(entry.id);
+    }
+    for (const t of analysis.foundTerms ?? []) {
+      const entry = t.isNew ? byShortFormOrNew(t.term, 'term') : byOriginalOrNew(t.term, 'term');
+      if (entry?.id) ids.add(entry.id);
+    }
+    for (const c of analysis.glossaryUpdate.updatedCharacters ?? []) {
+      const found = byOriginalOrNew(c.originalName ?? '', 'character');
+      if (found?.id) ids.add(found.id);
+    }
+    for (const l of analysis.glossaryUpdate.updatedLocations ?? []) {
+      const found = byOriginalOrNew(l.originalName ?? '', 'location');
+      if (found?.id) ids.add(found.id);
+    }
+    for (const t of analysis.glossaryUpdate.updatedTerms ?? []) {
+      const found = byOriginalOrNew(t.originalTerm ?? '', 'term');
+      if (found?.id) ids.add(found.id);
+    }
+    return {
+      chapterId,
+      chapterNumber,
+      success: true,
+      tokensUsed,
+      glossaryAppearanceEntryIds: [...ids],
+    };
+  });
+
+  for (const { chapterId, chapterNumber } of failedChapters) {
+    chapterResults.push({
+      chapterId,
+      chapterNumber,
+      success: false,
+      tokensUsed: 0,
+      glossaryAppearanceEntryIds: [],
+    });
+  }
+  chapterResults.sort((a, b) => a.chapterNumber - b.chapterNumber);
+
+  const totalTokensUsed = allResults.reduce((s, r) => s + r.tokensUsed, 0);
+
+  return {
+    totalTokensUsed,
+    totalDuration: Date.now() - startTime,
+    glossaryUpdates,
+    glossaryUpdatesExisting,
+    chapterResults,
+  };
 }
 
 /**

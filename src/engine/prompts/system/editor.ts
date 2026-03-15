@@ -8,7 +8,9 @@
  * - Polish literary quality
  */
 
-export type EditingStylePreset = 'default' | 'literary' | 'minimal';
+export type EditingStylePreset = 'default' | 'literary' | 'minimal' | 'ai_revivification';
+
+export type EditingFocus = 'fix_problems' | 'style_only' | 'both';
 
 /** Common output rules and marker preservation (appended to all presets) */
 const EDITOR_COMMON_RULES = `
@@ -134,17 +136,66 @@ Your task is to apply **minimal, essential edits only**. Fix critical issues wit
 - Author's stylistic choices
 ${EDITOR_COMMON_RULES}`;
 
+const EDITOR_AI_REVIVIFICATION = `You are an expert literary editor specializing in post-editing of AI-translated fiction into Russian.
+
+The text was translated by AI. Typical issues: confusion between ВЫ/ТЫ (formal/informal "you"), loss of context, wooden style, канцеляризмы (bureaucratic phrasing).
+
+Your task:
+1. **ВЫ/ТЫ**: Check by context (character relationships, formality). ВЫ — strangers, superiors, respect. ТЫ — close ones, friends, informal tone. Ensure consistency within each dialogue.
+2. **Context**: Restore word meaning where context was lost; clarify ambiguities based on the plot.
+3. **Revivification**: Replace канцеляризмы and calques with natural Russian; vary sentence structures; avoid lexical repetition (Лексические повторы).
+4. **Preserve**: Plot, character names, glossary terms; paragraph and block markers exactly as given.
+
+### What to Fix
+- ВЫ/ТЫ mismatches (wrong formality for the situation)
+- Words that lost meaning due to sentence-level translation
+- Wooden or bureaucratic phrasing
+- Lexical repetition within paragraphs
+- Wrong declension endings for glossary terms
+
+### What to Preserve
+- Plot and character actions
+- Glossary terms (base forms; correct case endings)
+- Paragraph markers (\`--para:...--\`) and block markers (\`{{block:...}}\`)
+
+### Do NOT
+- Add new content or change the plot
+- Replace glossary terms with different words
+- Over-localize cultural elements
+${EDITOR_COMMON_RULES}`;
+
+/** Focus overlays: short instructions prepended to system prompt when editing focus is set */
+const FOCUS_OVERLAYS: Record<EditingFocus, string> = {
+  fix_problems: `
+## Priority: Fix Problems Only
+
+Focus only on fixing errors (grammar, ВЫ/ТЫ, context, declension). Preserve style and structure. Do not rephrase for stylistic effect.
+`,
+  style_only: `
+## Priority: Style Improvement
+
+Focus on improving style and tone. Make minimal error corrections. Prioritize expressiveness and natural flow.
+`,
+  both: '',
+};
+
 export const EDITOR_SYSTEM_PROMPTS: Record<EditingStylePreset, string> = {
   default: EDITOR_DEFAULT,
   literary: EDITOR_LITERARY,
   minimal: EDITOR_MINIMAL,
+  ai_revivification: EDITOR_AI_REVIVIFICATION,
 };
 
 /** @deprecated Use getEditorSystemPrompt(preset) instead. Kept for backward compatibility. */
 export const EDITOR_SYSTEM_PROMPT = EDITOR_DEFAULT;
 
-export function getEditorSystemPrompt(preset: EditingStylePreset = 'default'): string {
-  return EDITOR_SYSTEM_PROMPTS[preset];
+export function getEditorSystemPrompt(
+  preset: EditingStylePreset = 'default',
+  focus: EditingFocus = 'both'
+): string {
+  const stylePrompt = EDITOR_SYSTEM_PROMPTS[preset];
+  const focusOverlay = FOCUS_OVERLAYS[focus];
+  return focusOverlay ? focusOverlay.trim() + '\n\n' + stylePrompt : stylePrompt;
 }
 
 export const createEditorPrompt = (

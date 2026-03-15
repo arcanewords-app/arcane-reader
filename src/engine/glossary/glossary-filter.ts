@@ -3,9 +3,29 @@
  *
  * Filters glossary entries to only those that appear in the given text chunk,
  * reducing token usage when translating/editing large glossaries.
+ *
+ * Also provides filterGlossaryByChapter for chapter-scoped glossary filtering
+ * (mentionedInChapters as primary criterion for translation/editing).
  */
 
 import type { Glossary, Character, Location, Term } from '../types/glossary.js';
+
+/**
+ * Filter glossary to entries that were extracted in the given chapter (or have no chapter data).
+ * Used as primary filter before filterGlossaryForChunk when translating/editing chapter N.
+ * Entries with empty/undefined mentionedInChapters are included (backward compatibility).
+ */
+export function filterGlossaryByChapter(glossary: Glossary, chapterNumber: number): Glossary {
+  const includeByChapters = (chapters: number[] | undefined): boolean =>
+    !chapters || chapters.length === 0 || chapters.includes(chapterNumber);
+
+  return {
+    ...glossary,
+    characters: glossary.characters.filter((c) => includeByChapters(c.mentionedInChapters)),
+    locations: glossary.locations.filter((l) => includeByChapters(l.mentionedInChapters)),
+    terms: glossary.terms.filter((t) => includeByChapters(t.mentionedInChapters)),
+  };
+}
 
 /** Escape special regex characters in a string */
 function escapeRegex(s: string): string {

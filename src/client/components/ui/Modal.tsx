@@ -9,6 +9,8 @@ interface ModalProps {
   title: string;
   children: preact.ComponentChildren;
   footer?: preact.ComponentChildren;
+  /** Optional actions in header (e.g. Settings icon) — shown between title and close for default/large */
+  headerActions?: preact.ComponentChildren;
   size?: 'default' | 'large';
   className?: string;
   /** Optional class for the overlay (e.g. error-modal-overlay for confirm/error modals) */
@@ -26,6 +28,7 @@ export function Modal({
   title,
   children,
   footer,
+  headerActions,
   size = 'default',
   className = '',
   overlayClassName = '',
@@ -127,22 +130,28 @@ export function Modal({
   ) : isLarge ? (
     <div class="glossary-modal-header">
       <h3 class="modal-title">{title}</h3>
-      <button type="button" class="modal-close-btn" onClick={onClose}>
-        ×
-      </button>
+      <div class="modal-header-actions">
+        {headerActions}
+        <button type="button" class="modal-close-btn" onClick={onClose}>
+          ×
+        </button>
+      </div>
     </div>
   ) : (
     <div class="modal-header-row">
       <h3 class="modal-title">{title}</h3>
-      <button
-        type="button"
-        class="modal-close-btn"
-        onClick={onClose}
-        aria-label="Close"
-        disabled={closeButtonDisabled}
-      >
-        ×
-      </button>
+      <div class="modal-header-actions">
+        {headerActions}
+        <button
+          type="button"
+          class="modal-close-btn"
+          onClick={onClose}
+          aria-label="Close"
+          disabled={closeButtonDisabled}
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 

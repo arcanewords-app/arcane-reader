@@ -72,6 +72,12 @@
   margin: 0 0.5rem;
 }
 
+.translation-chunk-progress {
+  color: var(--text-dim);
+  font-size: 0.9em;
+  margin-left: 0.25rem;
+}
+
 .translation-panel-stages {
   display: flex;
   flex-wrap: wrap;

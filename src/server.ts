@@ -78,6 +78,7 @@ import { requestContext, requestLogging } from './middleware/requestContext.js';
 import { handleServiceError, serviceUnavailableErrorHandler } from './middleware/serviceHealth.js';
 import { logger } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
+import { isChunkError } from './shared/chunkErrors.js';
 import { getDebugLogEntries, clearDebugLogEntries, type DebugLogEntry } from './debugBuffer.js';
 
 function escapeHtml(s: string): string {
@@ -275,6 +276,7 @@ import {
 import { estimateTokensForStages, type TranslationStages } from './config/tokenLimits.js';
 import {
   translateChapterWithPipeline,
+  analyzeChaptersBatch,
   getNameDeclensions,
   clearAgentCache,
 } from './services/engine-integration.js';
@@ -292,6 +294,16 @@ import {
 } from './services/import/index.js';
 import type { ParseResult } from './services/import/index.js';
 import { createImportJobStoreFromEnv, type ImportJobState } from './services/importJobStore.js';
+import {
+  createAnalysisJobStoreFromEnv,
+  type AnalysisJobState,
+  type AnalysisJobChapter,
+} from './services/analysisJobStore.js';
+import {
+  createTranslateJobStoreFromEnv,
+  type TranslateJobState,
+  type TranslateJobChapter,
+} from './services/translateJobStore.js';
 import {
   uploadFile,
   deleteFile,
@@ -384,6 +396,31 @@ function translationCancelKey(projectId: string, chapterId: string): string {
   return `${projectId}:${chapterId}`;
 }
 
+// In-memory store for translation chunk progress (chunksDone/totalChunks) during translation
+const translationProgressStore = new Map<
+  string,
+  { chunksDone: number; totalChunks: number; stage?: string }
+>();
+function translationProgressKey(projectId: string, chapterId: string): string {
+  return `${projectId}:${chapterId}`;
+}
+function setTranslationProgress(
+  projectId: string,
+  chapterId: string,
+  progress: { chunksDone: number; totalChunks: number; stage?: string }
+): void {
+  translationProgressStore.set(translationProgressKey(projectId, chapterId), progress);
+}
+function getTranslationProgress(
+  projectId: string,
+  chapterId: string
+): { chunksDone: number; totalChunks: number; stage?: string } | undefined {
+  return translationProgressStore.get(translationProgressKey(projectId, chapterId));
+}
+function clearTranslationProgress(projectId: string, chapterId: string): void {
+  translationProgressStore.delete(translationProgressKey(projectId, chapterId));
+}
+
 const IMPORT_JOB_FORMATS = new Set(['epub', 'fb2', 'csv']);
 const IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT = 200;
 const IMPORT_JOB_TTL_SECONDS = parseInt(process.env.IMPORT_JOB_TTL_SECONDS ?? '1800', 10);
@@ -398,6 +435,10 @@ const MARK_TRANSLATED_BATCH_CHUNK_SIZE = Math.max(
   Math.min(200, parseInt(process.env.MARK_TRANSLATED_BATCH_CHUNK_SIZE ?? '200', 10) || 200)
 );
 const importJobStore = createImportJobStoreFromEnv();
+const analysisJobStore = createAnalysisJobStoreFromEnv();
+const translateJobStore = createTranslateJobStoreFromEnv();
+const ANALYSIS_JOB_TTL_SECONDS = parseInt(process.env.ANALYSIS_JOB_TTL_SECONDS ?? '3600', 10);
+const TRANSLATE_JOB_TTL_SECONDS = parseInt(process.env.TRANSLATE_JOB_TTL_SECONDS ?? '7200', 10);
 let healthSnapshot: {
   ts: number;
   data: ReturnType<typeof serviceHealthManager.getHealthResult>;
@@ -572,6 +613,58 @@ function toPublicImportJob(
     warnings: job.warnings,
     errors: job.errors,
     chapters: compact ? [] : job.chapters,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+  };
+}
+
+function generateAnalysisJobId(): string {
+  return `ana_${Date.now().toString(36)}_${Math.round(Math.random() * 1e9).toString(36)}`;
+}
+
+function generateTranslateJobId(): string {
+  return `trl_${Date.now().toString(36)}_${Math.round(Math.random() * 1e9).toString(36)}`;
+}
+
+function toPublicTranslateJob(
+  job: TranslateJobState,
+  options?: { compact?: boolean }
+): Omit<TranslateJobState, 'projectId' | 'userId' | 'cancelRequested'> & {
+  progress: number;
+} {
+  const compact = options?.compact === true;
+  return {
+    jobId: job.jobId,
+    status: job.status,
+    current: job.current,
+    total: job.total,
+    progress: job.total > 0 ? Number(((job.current / job.total) * 100).toFixed(1)) : 0,
+    currentChapterTitle: job.currentChapterTitle,
+    chapters: compact ? [] : job.chapters,
+    totalTokensUsed: job.totalTokensUsed,
+    errors: job.errors,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+  };
+}
+
+function toPublicAnalysisJob(
+  job: AnalysisJobState,
+  options?: { compact?: boolean }
+): Omit<AnalysisJobState, 'projectId' | 'userId' | 'cancelRequested'> & {
+  progress: number;
+} {
+  const compact = options?.compact === true;
+  return {
+    jobId: job.jobId,
+    status: job.status,
+    current: job.current,
+    total: job.total,
+    progress: job.total > 0 ? Number(((job.current / job.total) * 100).toFixed(1)) : 0,
+    currentChapterTitle: job.currentChapterTitle,
+    chapters: compact ? [] : job.chapters,
+    totalTokensUsed: job.totalTokensUsed,
+    errors: job.errors,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
   };
@@ -1123,6 +1216,8 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
       textBlockTypes,
       customInstructions,
       editingStylePreset,
+      editingFocus,
+      allowReasoningModelsForAnalysis,
     } = req.body;
 
     // Preserve existing reader settings
@@ -1172,6 +1267,12 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
     }
     if (editingStylePreset !== undefined) {
       updatedSettings.editingStylePreset = editingStylePreset;
+    }
+    if (editingFocus !== undefined) {
+      updatedSettings.editingFocus = editingFocus;
+    }
+    if (allowReasoningModelsForAnalysis !== undefined) {
+      updatedSettings.allowReasoningModelsForAnalysis = allowReasoningModelsForAnalysis;
     }
 
     await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);
@@ -2184,7 +2285,17 @@ app.get(
       if (!chapter) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
-      res.json({ status: chapter.status });
+      const payload: { status: string; chunksDone?: number; totalChunks?: number } = {
+        status: chapter.status,
+      };
+      if (chapter.status === 'translating') {
+        const progress = getTranslationProgress(req.params.projectId, req.params.chapterId);
+        if (progress) {
+          payload.chunksDone = progress.chunksDone;
+          payload.totalChunks = progress.totalChunks;
+        }
+      }
+      res.json(payload);
     } catch (error) {
       res.status(500).json({ error: 'Failed to get chapter status' });
     }
@@ -2731,6 +2842,666 @@ app.post(
   }
 );
 
+// Batch analysis endpoint (requires auth)
+app.post(
+  '/api/projects/:projectId/chapters/analyze-batch',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const projectId = req.params.projectId;
+      const project = await getProject(projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const body = req.body || {};
+      const chapterIds = Array.isArray(body.chapterIds) ? body.chapterIds : [];
+      if (chapterIds.length === 0) {
+        return res.status(400).json({
+          error: 'chapterIds required',
+          message: 'Provide chapterIds array in request body.',
+        });
+      }
+
+      const chaptersWithText: Array<Chapter & { originalText: string }> = [];
+
+      for (const chapterId of chapterIds) {
+        const chapter = await getChapter(projectId, chapterId, token);
+        if (!chapter) continue;
+        const effectiveOriginalText =
+          chapter.originalText && chapter.originalText.trim().length > 0
+            ? chapter.originalText.trim()
+            : chapter.paragraphs && chapter.paragraphs.length > 0
+              ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
+              : '';
+        if (!effectiveOriginalText) continue;
+        chaptersWithText.push({ ...chapter, originalText: effectiveOriginalText });
+      }
+
+      if (chaptersWithText.length === 0) {
+        return res.status(400).json({
+          error: 'No chapters with text',
+          message: 'None of the specified chapters have original text to analyze.',
+        });
+      }
+
+      const preferAsync =
+        req.get('Prefer')?.toLowerCase().includes('respond-async') ||
+        req.query?.async === '1' ||
+        req.query?.async === 'true';
+
+      if (preferAsync) {
+        const userId = req.user!.id;
+        const jobId = generateAnalysisJobId();
+        const jobChapters: AnalysisJobChapter[] = chaptersWithText.map((ch) => ({
+          chapterId: ch.id,
+          title: ch.title,
+          status: 'pending' as const,
+        }));
+        const job: AnalysisJobState = {
+          jobId,
+          projectId,
+          userId,
+          status: 'queued',
+          current: 0,
+          total: chaptersWithText.length,
+          chapters: jobChapters,
+          totalTokensUsed: 0,
+          errors: [],
+          startedAt: new Date().toISOString(),
+          finishedAt: null,
+          cancelRequested: false,
+        };
+        await analysisJobStore.createJob(job);
+        await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+
+        res.status(202).json({ jobId, status: 'queued' as const });
+
+        setImmediate(async () => {
+          const currentJob = await analysisJobStore.getJob(jobId);
+          if (!currentJob) return;
+          await analysisJobStore.updateJob(jobId, { status: 'processing' });
+
+          const chapterMap = new Map(chaptersWithText.map((c) => [c.id, c]));
+          let totalTokensAccum = 0;
+          let cancelledFlag = false;
+          const cancelCheckInterval = setInterval(async () => {
+            if (await analysisJobStore.isCancelRequested(jobId)) cancelledFlag = true;
+          }, 500);
+
+          try {
+            const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
+              useCache: true,
+              analysisConcurrency: 4,
+              isCancelled: () => cancelledFlag,
+              onProgress: async (chapterId, progResult) => {
+                if (await analysisJobStore.isCancelRequested(jobId)) return;
+                const ch = chapterMap.get(chapterId);
+                if (!ch) return;
+                totalTokensAccum += progResult.tokensUsed;
+                const status: AnalysisJobChapter['status'] = progResult.success ? 'completed' : 'error';
+                const jobNow = await analysisJobStore.getJob(jobId);
+                if (!jobNow) return;
+                const updatedChapters = jobNow.chapters.map((c) =>
+                  c.chapterId === chapterId
+                    ? { ...c, status, tokensUsed: progResult.tokensUsed }
+                    : c
+                );
+                const completedCount = updatedChapters.filter((c) => c.status === 'completed').length;
+                const errorCount = updatedChapters.filter((c) => c.status === 'error').length;
+
+                if (progResult.success) {
+                  const nowIso = new Date().toISOString();
+                  const analysisModel =
+                    project.settings?.stageModels?.analysis ??
+                    project.settings?.model ??
+                    config.openai.model;
+                  await updateChapter(
+                    projectId,
+                    chapterId,
+                    {
+                      status: 'analyzed',
+                      translationMeta: {
+                        tokensUsed: progResult.tokensUsed,
+                        tokensByStage: {
+                          analysis: progResult.tokensUsed,
+                          translation: 0,
+                          editing: 0,
+                        },
+                        duration: 0,
+                        model: analysisModel,
+                        translatedAt: nowIso,
+                        lastAnalysisAt: nowIso,
+                      },
+                    },
+                    token,
+                    { useServiceRole: true }
+                  );
+                }
+
+                await analysisJobStore.updateJob(jobId, {
+                  current: completedCount + errorCount,
+                  chapters: updatedChapters,
+                  totalTokensUsed: totalTokensAccum,
+                  currentChapterTitle: ch.title,
+                });
+              },
+            });
+
+            clearInterval(cancelCheckInterval);
+            if (await analysisJobStore.isCancelRequested(jobId)) {
+              await analysisJobStore.updateJob(jobId, {
+                status: 'canceled',
+                finishedAt: new Date().toISOString(),
+              });
+              await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+              return;
+            }
+
+            if (result.glossaryUpdates.length > 0) {
+              for (const entry of result.glossaryUpdates) {
+                await addGlossaryEntry(projectId, entry, token);
+              }
+            }
+            if (result.glossaryUpdatesExisting.length > 0) {
+              for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
+                await updateGlossaryEntry(projectId, entryId, updates, token);
+              }
+            }
+
+            for (const chResult of result.chapterResults) {
+              if (!chResult.success) continue;
+              const chapterNum =
+                chaptersWithText.find((c) => c.id === chResult.chapterId)?.number ??
+                chResult.chapterNumber;
+              if (chResult.glossaryAppearanceEntryIds.length > 0) {
+                for (const entryId of chResult.glossaryAppearanceEntryIds) {
+                  const entry = await getGlossaryEntry(projectId, entryId, token);
+                  if (entry) {
+                    const merged = [
+                      ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
+                    ].sort((a, b) => a - b);
+                    await updateGlossaryEntry(
+                      projectId,
+                      entryId,
+                      { mentionedInChapters: merged },
+                      token
+                    );
+                  }
+                }
+              }
+            }
+
+            try {
+              await incrementTokenUsage(userId, token, result.totalTokensUsed, {
+                analysis: result.totalTokensUsed,
+                translation: 0,
+                editing: 0,
+              });
+            } catch (tokenError) {
+              req.log?.warn({ err: tokenError }, 'Failed to update token usage (non-critical)');
+            }
+
+            await invalidateProjectAndRelatedCaches(userId, projectId, token);
+
+            const successful = result.chapterResults.filter((c) => c.success).length;
+            const failed = result.chapterResults.filter((c) => !c.success).length;
+            await analysisJobStore.updateJob(jobId, {
+              status: 'completed',
+              current: successful + failed,
+              totalTokensUsed: result.totalTokensUsed,
+              finishedAt: new Date().toISOString(),
+            });
+            await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+          } catch (bgErr) {
+            clearInterval(cancelCheckInterval);
+            const errMsg = bgErr instanceof Error ? bgErr.message : String(bgErr);
+            req.log?.error({ err: bgErr }, `Analyze batch job ${jobId} failed: ${errMsg}`);
+            await analysisJobStore.updateJob(jobId, {
+              status: 'error',
+              errors: [errMsg],
+              finishedAt: new Date().toISOString(),
+            });
+            await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+          }
+        });
+        return;
+      }
+
+      const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
+        useCache: true,
+        analysisConcurrency: 4,
+      });
+
+      if (result.glossaryUpdates.length > 0) {
+        for (const entry of result.glossaryUpdates) {
+          await addGlossaryEntry(projectId, entry, token);
+        }
+      }
+      if (result.glossaryUpdatesExisting.length > 0) {
+        for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
+          await updateGlossaryEntry(projectId, entryId, updates, token);
+        }
+      }
+
+      for (const chResult of result.chapterResults) {
+        if (!chResult.success) continue;
+        const chapterNum =
+          chaptersWithText.find((c) => c.id === chResult.chapterId)?.number ??
+          chResult.chapterNumber;
+        if (chResult.glossaryAppearanceEntryIds.length > 0) {
+          for (const entryId of chResult.glossaryAppearanceEntryIds) {
+            const entry = await getGlossaryEntry(projectId, entryId, token);
+            if (entry) {
+              const merged = [
+                ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
+              ].sort((a, b) => a - b);
+              await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+            }
+          }
+        }
+        const nowIso = new Date().toISOString();
+        const analysisModel =
+          project.settings?.stageModels?.analysis ??
+          project.settings?.model ??
+          config.openai.model;
+        await updateChapter(
+          projectId,
+          chResult.chapterId,
+          {
+            status: 'analyzed',
+            translationMeta: {
+              tokensUsed: chResult.tokensUsed,
+              tokensByStage: { analysis: chResult.tokensUsed, translation: 0, editing: 0 },
+              duration: result.totalDuration,
+              model: analysisModel,
+              translatedAt: nowIso,
+              lastAnalysisAt: nowIso,
+            },
+          },
+          token,
+          { useServiceRole: true }
+        );
+      }
+
+      try {
+        await incrementTokenUsage(req.user.id, token, result.totalTokensUsed, {
+          analysis: result.totalTokensUsed,
+          translation: 0,
+          editing: 0,
+        });
+      } catch (tokenError) {
+        req.log?.warn({ err: tokenError }, 'Failed to update token usage (non-critical)');
+      }
+
+      await invalidateProjectAndRelatedCaches(req.user.id, projectId, token);
+
+      res.json({
+        success: true,
+        totalChapters: result.chapterResults.length,
+        successful: result.chapterResults.filter((c) => c.success).length,
+        failed: result.chapterResults.filter((c) => !c.success).length,
+        totalTokensUsed: result.totalTokensUsed,
+        totalDuration: result.totalDuration,
+        glossaryEntriesAdded: result.glossaryUpdates.length,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      req.log?.error({ err }, `Analyze batch failed: ${errorMessage}`);
+      res.status(500).json({
+        error: 'Analysis batch failed',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+// Analysis job status (polling endpoint)
+app.get(
+  '/api/projects/:projectId/analysis-jobs/:jobId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const job = await analysisJobStore.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Analysis job not found' });
+    if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
+      return res.status(404).json({ error: 'Analysis job not found' });
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    const compact = req.query.compact === '1' || req.query.compact === 'true';
+    res.json(toPublicAnalysisJob(job, { compact }));
+  }
+);
+
+// Cancel analysis job
+app.post(
+  '/api/projects/:projectId/analysis-jobs/:jobId/cancel',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const job = await analysisJobStore.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Analysis job not found' });
+    if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
+      return res.status(404).json({ error: 'Analysis job not found' });
+    }
+    if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+      return res.json({ success: true });
+    }
+    await analysisJobStore.requestCancel(req.params.jobId);
+    res.json({ success: true });
+  }
+);
+
+// Batch translate endpoint (async job, like analyze-batch)
+app.post(
+  '/api/projects/:projectId/chapters/translate-batch',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const projectId = req.params.projectId;
+      const project = await getProject(projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const body = req.body || {};
+      const chapterIds = Array.isArray(body.chapterIds) ? body.chapterIds : [];
+      const translateOnlyEmpty = body.translateOnlyEmpty === true;
+      const stagesRaw = body.stages;
+      const validStage = (s: unknown): s is 'analysis' | 'translation' | 'editing' =>
+        s === 'analysis' || s === 'translation' || s === 'editing';
+      let stages: TranslationStages = 'all';
+      if (Array.isArray(stagesRaw) && stagesRaw.length > 0) {
+        const arr = stagesRaw.filter(validStage);
+        if (arr.length > 0) stages = [...new Set(arr)];
+      } else if (stagesRaw === 'all') {
+        stages = 'all';
+      }
+
+      if (chapterIds.length === 0) {
+        return res.status(400).json({
+          error: 'chapterIds required',
+          message: 'Provide chapterIds array in request body.',
+        });
+      }
+
+      const chaptersToTranslate: Chapter[] = [];
+      for (const chapterId of chapterIds) {
+        const chapter = await getChapter(projectId, chapterId, token);
+        if (!chapter) continue;
+        const effectiveOriginalText =
+          chapter.originalText && chapter.originalText.trim().length > 0
+            ? chapter.originalText.trim()
+            : chapter.paragraphs && chapter.paragraphs.length > 0
+              ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
+              : '';
+        if (!effectiveOriginalText) continue;
+        if (chapter.status === 'translating') continue;
+        chaptersToTranslate.push({ ...chapter, originalText: effectiveOriginalText });
+      }
+
+      if (chaptersToTranslate.length === 0) {
+        return res.status(400).json({
+          error: 'No chapters to translate',
+          message: 'None of the specified chapters have text or are already translating.',
+        });
+      }
+
+      const totalTextLength = chaptersToTranslate.reduce(
+        (sum, ch) => sum + (ch.originalText?.length ?? 0),
+        0
+      );
+      const estimatedTokens = estimateTokensForStages(totalTextLength, stages);
+      const limitCheck = await checkTokenLimit(
+        req.user.id,
+        token,
+        estimatedTokens,
+        req.user.role
+      );
+      if (!limitCheck.allowed) {
+        const now = new Date();
+        const resetTime = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
+        );
+        return res.status(429).json({
+          error: 'Token limit exceeded',
+          message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          estimatedTokens,
+          resetAt: resetTime.toISOString(),
+        });
+      }
+
+      const preferAsync =
+        req.get('Prefer')?.toLowerCase().includes('respond-async') ||
+        req.query?.async === '1' ||
+        req.query?.async === 'true';
+
+      if (preferAsync) {
+        const userId = req.user.id;
+        const jobId = generateTranslateJobId();
+        const jobChapters: TranslateJobChapter[] = chaptersToTranslate.map((ch) => ({
+          chapterId: ch.id,
+          title: ch.title,
+          status: 'pending' as const,
+        }));
+        const job: TranslateJobState = {
+          jobId,
+          projectId,
+          userId,
+          status: 'queued',
+          current: 0,
+          total: chaptersToTranslate.length,
+          chapters: jobChapters,
+          totalTokensUsed: 0,
+          errors: [],
+          startedAt: new Date().toISOString(),
+          finishedAt: null,
+          cancelRequested: false,
+        };
+        await translateJobStore.createJob(job);
+        await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+
+        res.status(202).json({ jobId, status: 'queued' as const });
+
+        setImmediate(async () => {
+          const currentJob = await translateJobStore.getJob(jobId);
+          if (!currentJob) return;
+          await translateJobStore.updateJob(jobId, { status: 'processing' });
+
+          let cancelledFlag = false;
+          const cancelCheckInterval = setInterval(async () => {
+            if (await translateJobStore.isCancelRequested(jobId)) cancelledFlag = true;
+          }, 500);
+
+          const sortedChapters = [...chaptersToTranslate].sort(
+            (a, b) => (a.number ?? 0) - (b.number ?? 0)
+          );
+          let totalTokensAccum = 0;
+
+          try {
+            for (let i = 0; i < sortedChapters.length; i++) {
+              if (await translateJobStore.isCancelRequested(jobId)) break;
+
+              const chapter = sortedChapters[i];
+              const chapterStartTime = Date.now();
+
+              const jobBeforeChapter = await translateJobStore.getJob(jobId);
+              if (jobBeforeChapter) {
+                await translateJobStore.updateJob(jobId, {
+                  current: i,
+                  currentChapterTitle: chapter.title,
+                  chapters: jobBeforeChapter.chapters.map((c) =>
+                    c.chapterId === chapter.id ? { ...c, status: 'processing' as const } : c
+                  ),
+                });
+              }
+
+              await updateChapter(projectId, chapter.id, { status: 'translating' }, token);
+              await invalidateProjectAndRelatedCaches(userId, projectId, token);
+
+              try {
+                await performTranslation(
+                  projectId,
+                  chapter.id,
+                  chapter,
+                  project,
+                  chapterStartTime,
+                  translateOnlyEmpty,
+                  token,
+                  userId,
+                  undefined,
+                  stages,
+                  { externalIsCancelled: () => cancelledFlag }
+                );
+              } catch (chErr) {
+                const errMsg = chErr instanceof Error ? chErr.message : String(chErr);
+                req.log?.error({ err: chErr }, `Translate batch chapter ${chapter.id} failed`);
+                const jobNow = await translateJobStore.getJob(jobId);
+                if (!jobNow) continue;
+                const updatedChapters = jobNow.chapters.map((c) =>
+                  c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
+                );
+                await translateJobStore.updateJob(jobId, {
+                  chapters: updatedChapters,
+                  errors: [...jobNow.errors, `${chapter.title}: ${errMsg}`],
+                });
+                continue;
+              }
+
+              const updatedChapter = await getChapter(projectId, chapter.id, token);
+              const meta = updatedChapter?.translationMeta;
+              const tokensUsed = meta?.tokensUsed ?? 0;
+              const tokensByStage = meta?.tokensByStage;
+              const duration = meta?.duration ?? Date.now() - chapterStartTime;
+              totalTokensAccum += tokensUsed;
+
+              const jobNow = await translateJobStore.getJob(jobId);
+              if (!jobNow) continue;
+              const updatedChapters = jobNow.chapters.map((c) =>
+                c.chapterId === chapter.id
+                  ? {
+                      ...c,
+                      status: 'completed' as const,
+                      tokensUsed,
+                      tokensByStage,
+                      duration,
+                    }
+                  : c
+              );
+              await translateJobStore.updateJob(jobId, {
+                current: i + 1,
+                chapters: updatedChapters,
+                totalTokensUsed: totalTokensAccum,
+                currentChapterTitle: undefined,
+              });
+            }
+
+            clearInterval(cancelCheckInterval);
+            if (await translateJobStore.isCancelRequested(jobId)) {
+              await translateJobStore.updateJob(jobId, {
+                status: 'canceled',
+                finishedAt: new Date().toISOString(),
+              });
+              await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+              return;
+            }
+
+            await invalidateProjectAndRelatedCaches(userId, projectId, token);
+            await translateJobStore.updateJob(jobId, {
+              status: 'completed',
+              finishedAt: new Date().toISOString(),
+            });
+            await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+          } catch (bgErr) {
+            clearInterval(cancelCheckInterval);
+            const errMsg = bgErr instanceof Error ? bgErr.message : String(bgErr);
+            req.log?.error({ err: bgErr }, `Translate batch job ${jobId} failed: ${errMsg}`);
+            await translateJobStore.updateJob(jobId, {
+              status: 'error',
+              errors: [errMsg],
+              finishedAt: new Date().toISOString(),
+            });
+            await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+          }
+        });
+        return;
+      }
+
+      res.status(400).json({
+        error: 'Async required',
+        message: 'Use ?async=1 or Prefer: respond-async for batch translate.',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      req.log?.error({ err }, `Translate batch failed: ${errorMessage}`);
+      res.status(500).json({
+        error: 'Translate batch failed',
+        details: errorMessage,
+      });
+    }
+  }
+);
+
+// Translate job status (polling endpoint)
+app.get(
+  '/api/projects/:projectId/translate-jobs/:jobId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const job = await translateJobStore.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Translate job not found' });
+    if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
+      return res.status(404).json({ error: 'Translate job not found' });
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    const compact = req.query.compact === '1' || req.query.compact === 'true';
+    res.json(toPublicTranslateJob(job, { compact }));
+  }
+);
+
+// Cancel translate job
+app.post(
+  '/api/projects/:projectId/translate-jobs/:jobId/cancel',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const job = await translateJobStore.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Translate job not found' });
+    if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
+      return res.status(404).json({ error: 'Translate job not found' });
+    }
+    if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+      return res.json({ success: true });
+    }
+    await translateJobStore.requestCancel(req.params.jobId);
+    res.json({ success: true });
+  }
+);
+
 // Translation endpoint with logging (requires auth)
 app.post(
   '/api/projects/:projectId/chapters/:chapterId/translate',
@@ -2796,7 +3567,7 @@ app.post(
       const hasValidTranslation = (p: { translatedText?: string | null }) => {
         const t = p.translatedText?.trim() || '';
         if (!t.length) return false;
-        if (t.startsWith('❌') || t.startsWith('[ERROR')) return false;
+        if (t.startsWith('❌') || isChunkError(t)) return false;
         return true;
       };
 
@@ -2916,7 +3687,7 @@ app.post(
         startTime,
         translateOnlyEmpty,
         token,
-        req.user.id,
+        req.user!.id,
         paragraphIds,
         stages
       );
@@ -2944,10 +3715,12 @@ async function performTranslation(
   token: string,
   userId: string,
   paragraphIds?: string[],
-  stages: TranslationStages = 'all'
+  stages: TranslationStages = 'all',
+  options?: { externalIsCancelled?: () => boolean }
 ): Promise<void> {
   const cancelKey = translationCancelKey(projectId, chapterId);
-  const isCancelled = () => translationCancelRegistry.get(cancelKey) === true;
+  const isCancelled = () =>
+    translationCancelRegistry.get(cancelKey) === true || options?.externalIsCancelled?.() === true;
   let savedDraftThisRun = false;
 
   logger.info(
@@ -3067,7 +3840,7 @@ async function performTranslation(
       const text = p.translatedText?.trim() || '';
       if (text.length === 0) return false;
       // Ignore error messages
-      if (text.startsWith('❌') || text.startsWith('[ERROR')) return false;
+      if (text.startsWith('❌') || isChunkError(text)) return false;
       return true;
     };
 
@@ -3246,6 +4019,8 @@ async function performTranslation(
         includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
         includeGlossaryInTranslation: phase1IncludeGlossaryInTranslation,
         includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
+        onProgress: (chunksDone: number, totalChunks: number, stage?: string) =>
+          setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage }),
       });
     } catch (pipelineError) {
       const errorMessage =
@@ -3380,7 +4155,7 @@ async function performTranslation(
     const isValidTranslationResult =
       result.translatedText &&
       result.translatedText.trim().length > 0 &&
-      !result.translatedText.startsWith('[ERROR]');
+      !isChunkError(result.translatedText);
 
     const hasValidTokens = result.tokensUsed > 0 || result.duration > 0;
 
@@ -3530,12 +4305,29 @@ async function performTranslation(
         partialSync
       );
     } else {
-      logger.debug({ projectId, chapterId }, 'Auto-sync: translation to paragraphs (text format)');
-      syncedParagraphs = syncTranslationChunksToParagraphs(
-        originalParagraphsForSync,
-        translatedChunks,
-        partialSync
-      );
+      const parsedByMarkers = parseEditedTextByMarkers(result.translatedText);
+      if (parsedByMarkers.length > 0) {
+        logger.debug(
+          { projectId, chapterId, parsedCount: parsedByMarkers.length },
+          'Auto-sync: translation to paragraphs (marker format)'
+        );
+        syncedParagraphs = syncEditedMarkersToParagraphs(
+          originalParagraphsForSync,
+          parsedByMarkers
+        );
+        if (!parsedJSON) {
+          translatedChunks = syncedParagraphs
+            .map((p) => (p.translatedText ?? '').trim())
+            .filter(Boolean);
+        }
+      } else {
+        logger.debug({ projectId, chapterId }, 'Auto-sync: translation to paragraphs (text format)');
+        syncedParagraphs = syncTranslationChunksToParagraphs(
+          originalParagraphsForSync,
+          translatedChunks,
+          partialSync
+        );
+      }
     }
 
     // When we translated only a subset (paragraphIds), merge synced subset back into full paragraphs
@@ -3621,6 +4413,8 @@ async function performTranslation(
           stages: ['editing'],
           existingTranslatedText: buildMarkedTextFromParagraphs(syncedParagraphs),
           isCancelled,
+          onProgress: (chunksDone: number, totalChunks: number, stage?: string) =>
+            setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage }),
         });
       } catch (phase2Error) {
         logger.error(
@@ -3633,7 +4427,7 @@ async function performTranslation(
       const isValidPhase2 =
         result2.translatedText &&
         result2.translatedText.trim().length > 0 &&
-        !result2.translatedText.startsWith('[ERROR]');
+        !isChunkError(result2.translatedText);
       if (!isValidPhase2) {
         logger.warn(
           { projectId, chapterId, preview: result2.translatedText?.slice(0, 80) },
@@ -3937,6 +4731,7 @@ async function performTranslation(
       logger.warn({ err: error, userId, projectId }, 'Cache invalidation after translation failed');
     }
     translationCancelRegistry.delete(cancelKey);
+    clearTranslationProgress(projectId, chapterId);
   }
 }
 
@@ -3988,7 +4783,7 @@ function syncTranslationToParagraphs(
     const text = p.translatedText?.trim() || '';
     if (text.length === 0) return false;
     // Ignore error messages
-    if (text.startsWith('❌') || text.startsWith('[ERROR')) return false;
+    if (text.startsWith('❌') || isChunkError(text)) return false;
     return true;
   };
 
@@ -4213,7 +5008,7 @@ function syncTranslationChunksToParagraphs(
     const text = p.translatedText?.trim() || '';
     if (text.length === 0) return false;
     // Ignore error messages
-    if (text.startsWith('❌') || text.startsWith('[ERROR')) return false;
+    if (text.startsWith('❌') || isChunkError(text)) return false;
     return true;
   };
 
@@ -4388,7 +5183,7 @@ function syncTranslationJSONToParagraphs(
   const hasValidTranslation = (p: Paragraph): boolean => {
     const text = p.translatedText?.trim() || '';
     if (text.length === 0) return false;
-    if (text.startsWith('❌') || text.startsWith('[ERROR')) return false;
+    if (text.startsWith('❌') || isChunkError(text)) return false;
     return true;
   };
 
@@ -4641,7 +5436,7 @@ app.put(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const { original, translated, type, gender, description, notes } = req.body;
+      const { original, translated, type, gender, description, notes, relatedEntryIds, primaryLocationId } = req.body;
 
       let declensions = req.body.declensions;
 
@@ -4651,18 +5446,22 @@ app.put(
         declensions = result.declensions;
       }
 
+      const updates: Parameters<typeof updateGlossaryEntry>[2] = {
+        original,
+        translated,
+        type,
+        gender,
+        description, // Character/location/term description
+        notes, // User notes (separate from description)
+        declensions,
+      };
+      if (relatedEntryIds !== undefined) updates.relatedEntryIds = Array.isArray(relatedEntryIds) ? relatedEntryIds : [];
+      if (primaryLocationId !== undefined) updates.primaryLocationId = primaryLocationId || undefined;
+
       const entry = await updateGlossaryEntry(
         req.params.projectId,
         req.params.entryId,
-        {
-          original,
-          translated,
-          type,
-          gender,
-          description, // Character/location/term description
-          notes, // User notes (separate from description)
-          declensions,
-        },
+        updates,
         token
       );
 

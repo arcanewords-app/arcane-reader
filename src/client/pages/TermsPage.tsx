@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
+import { CONTACT_EMAIL } from '../../shared/contact';
 import './InfoPages.css';
 
 export function TermsPage() {
@@ -47,7 +48,7 @@ export function TermsPage() {
 
         <section class="info-section">
           <h2>{t('terms.contact')}</h2>
-          <p>{t('terms.contactDesc')}</p>
+          <p>{t('terms.contactDesc', { contactEmail: CONTACT_EMAIL })}</p>
         </section>
       </div>
     </div>

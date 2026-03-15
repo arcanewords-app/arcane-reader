@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'preact/hooks';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Modal, Button, Icon } from './ui';
 import './ChapterTocModal.css';
@@ -34,6 +34,15 @@ export function ChapterTocModal({
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
+  // Virtualization for large chapter lists (same pattern as ChapterList)
+  const tocListRef = useRef<HTMLDivElement | null>(null);
+  const [tocScrollTop, setTocScrollTop] = useState(0);
+  const [tocHeight, setTocHeight] = useState(400);
+  const tocRafRef = useRef<number | null>(null);
+  const TOC_ITEM_HEIGHT = 52;
+  const TOC_BUFFER = 6;
+  const TOC_VIRTUAL_THRESHOLD = 50;
+
   // Reset search and filter when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -61,6 +70,28 @@ export function ChapterTocModal({
       order === 'desc' ? b.number - a.number : a.number - b.number
     );
   }, [chapters, search, order, filter, readChapterIds]);
+
+  const handleTocScroll = useCallback(() => {
+    const el = tocListRef.current;
+    if (!el) return;
+    if (tocRafRef.current !== null) return;
+    tocRafRef.current = requestAnimationFrame(() => {
+      tocRafRef.current = null;
+      setTocScrollTop(el.scrollTop);
+    });
+  }, []);
+
+  // ResizeObserver for TOC list — runs when modal opens (ref is set)
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = tocListRef.current;
+    if (!el) return;
+    const onResize = () => setTocHeight(el.clientHeight || 400);
+    onResize();
+    const obs = new ResizeObserver(onResize);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [isOpen]);
 
   const displayTitle = title ?? t('readingMode.toc');
 
@@ -127,11 +158,31 @@ export function ChapterTocModal({
           </div>
         )}
       </div>
-      <div class="reading-toc-list">
+      <div class="reading-toc-list" ref={tocListRef} onScroll={handleTocScroll}>
         {filteredChapters.length === 0 ? (
           <div class="toc-empty">{t('toc.noResults')}</div>
-        ) : (
-          filteredChapters.map((chapter) => {
+        ) : (() => {
+          const total = filteredChapters.length;
+          const useVirtualization = total > TOC_VIRTUAL_THRESHOLD;
+          const totalHeight = useVirtualization ? total * TOC_ITEM_HEIGHT : 0;
+          const start = useVirtualization
+            ? Math.max(0, Math.floor(tocScrollTop / TOC_ITEM_HEIGHT) - TOC_BUFFER)
+            : 0;
+          const end = useVirtualization
+            ? Math.min(
+                total,
+                Math.ceil((tocScrollTop + tocHeight) / TOC_ITEM_HEIGHT) + TOC_BUFFER
+              )
+            : total;
+          const visibleChapters = useVirtualization
+            ? filteredChapters.slice(start, end)
+            : filteredChapters;
+          const paddingTop = useVirtualization ? start * TOC_ITEM_HEIGHT : 0;
+          const paddingBottom = useVirtualization
+            ? Math.max(0, totalHeight - end * TOC_ITEM_HEIGHT)
+            : 0;
+
+          const renderItem = (chapter: ChapterTocItem) => {
             const isActive = chapter.id === currentChapterId;
             const isRead = readChapterIds?.has(chapter.id);
             return (
@@ -140,6 +191,7 @@ export function ChapterTocModal({
                 type="button"
                 class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''}`}
                 onClick={() => onSelectChapter(chapter.id)}
+                style={useVirtualization ? { minHeight: TOC_ITEM_HEIGHT + 'px' } : undefined}
               >
                 <span class="reading-toc-number">{chapter.number}</span>
                 <span class="reading-toc-title">
@@ -154,8 +206,24 @@ export function ChapterTocModal({
                 {isActive && <span class="reading-toc-current">{t('readingMode.current')}</span>}
               </button>
             );
-          })
-        )}
+          };
+
+          if (useVirtualization) {
+            return (
+              <div style={{ height: totalHeight + 'px', position: 'relative' }}>
+                <div
+                  style={{
+                    paddingTop: paddingTop + 'px',
+                    paddingBottom: paddingBottom + 'px',
+                  }}
+                >
+                  {visibleChapters.map(renderItem)}
+                </div>
+              </div>
+            );
+          }
+          return <>{visibleChapters.map(renderItem)}</>;
+        })()}
       </div>
     </Modal>
   );

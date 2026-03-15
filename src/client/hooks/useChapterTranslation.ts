@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
+import { isChunkError } from '../../shared/chunkErrors';
 import { useTokenEstimate } from './useTokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
 import type { Chapter, Paragraph, Project, ChapterTranslationOptions } from '../types';
@@ -22,7 +23,7 @@ function getTextLengthForOptions(chapter: Chapter, options: ChapterTranslationOp
     const hasValidTranslation = (p: Paragraph) => {
       const t = p.translatedText?.trim() || '';
       if (!t.length) return false;
-      if (t.startsWith('❌') || t.startsWith('[ERROR')) return false;
+      if (t.startsWith('❌') || isChunkError(t)) return false;
       return true;
     };
     const empty = chapter.paragraphs.filter((p) => !hasValidTranslation(p));
@@ -41,7 +42,8 @@ export function useChapterTranslation(
   chapterId: string,
   chapter: Chapter,
   project: Project,
-  onChapterUpdate: (chapter: Chapter) => void
+  onChapterUpdate: (chapter: Chapter) => void,
+  onError?: (title: string, message: string) => void
 ) {
   const { t } = useTranslation();
   const [translating, setTranslating] = useState(false);
@@ -95,17 +97,25 @@ export function useChapterTranslation(
             setTranslating(false);
             if (error?.status === 429) {
               const errorData = error.data || {};
-              alert(
-                t('tokenLimit.exceededMessage', {
-                  message: errorData.message || t('tokenLimit.dailyExhaustedShort'),
-                })
-              );
+              const msg = t('tokenLimit.exceededMessage', {
+                message: errorData.message || t('tokenLimit.dailyExhaustedShort'),
+              });
+              if (onError) {
+                onError(t('tokenLimit.titleExceeded'), msg);
+              } else {
+                alert(msg);
+              }
               if (authService.isAuthenticated()) loadTokenUsage();
               return;
             }
             onChapterUpdate({ ...chapter, status: 'error' });
             const errorMessage = error instanceof Error ? error.message : t('errors.unknown');
-            alert(`${t('errors.startTranslation')}: ${errorMessage}`);
+            const fullMsg = `${t('errors.startTranslation')}: ${errorMessage}`;
+            if (onError) {
+              onError(t('errors.startTranslation'), fullMsg);
+            } else {
+              alert(fullMsg);
+            }
           });
       });
     },
@@ -118,6 +128,7 @@ export function useChapterTranslation(
       checkBeforeTranslate,
       onChapterUpdate,
       loadTokenUsage,
+      onError,
       t,
     ]
   );

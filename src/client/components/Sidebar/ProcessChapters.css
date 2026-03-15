@@ -1,0 +1,201 @@
+/* Process Chapters modal - selection and pagination layout */
+
+.process-chapters-selection-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.process-chapters-selection-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.process-chapters-link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.25rem 0;
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+.process-chapters-link-btn:hover {
+  color: var(--accent-bright);
+}
+
+.process-chapters-link-btn-dim {
+  color: var(--text-dim);
+}
+
+.process-chapters-link-btn-dim:hover {
+  color: var(--text-secondary);
+}
+
+.process-chapters-separator {
+  color: var(--border);
+  margin: 0 0.25rem;
+}
+
+.process-chapters-filter-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.process-chapters-search-wrap {
+  margin-left: auto;
+}
+
+.process-chapters-search-wrap .form-group {
+  margin-bottom: 0;
+}
+
+.process-chapters-search-wrap .form-input,
+.process-chapters-search {
+  max-width: 180px;
+  font-size: 0.85rem;
+}
+
+.process-chapters-pagination-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.process-chapters-per-page {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.process-chapters-per-page-select {
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.process-chapters-select-displayed-btn {
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.process-chapters-select-displayed-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.process-chapters-select-displayed-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.process-chapters-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.process-chapters-nav-btn {
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.process-chapters-nav-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.process-chapters-nav-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.process-chapters-page-of {
+  font-size: 0.85rem;
+}
+
+/* Process Chapters modal footer */
+
+.process-chapters-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.process-chapters-footer-left {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.process-chapters-footer-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.process-chapters-preset-active {
+  background: var(--accent-subtle, rgba(var(--accent-rgb), 0.1)) !important;
+  border: 1px solid var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.process-chapters-quick-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+/* Override form-actions when used as footer wrapper for ProcessChapters */
+.form-actions .process-chapters-footer {
+  flex: none;
+  min-width: auto;
+}
+
+@media (max-width: 480px) {
+  .process-chapters-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .process-chapters-footer-left,
+  .process-chapters-footer-right {
+    justify-content: center;
+  }
+}

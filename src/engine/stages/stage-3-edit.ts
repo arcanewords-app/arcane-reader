@@ -8,11 +8,12 @@
  * - Polish literary quality
  */
 
+import DiffMatchPatch from 'diff-match-patch';
 import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AgentContext } from '../types/agent.js';
 import type { StageResult, EditedTranslation, EditChange } from '../types/pipeline.js';
 import type { TextChunk } from '../types/common.js';
-import type { EditingStylePreset } from '../prompts/system/editor.js';
+import type { EditingFocus, EditingStylePreset } from '../prompts/system/editor.js';
 import {
   createEditorPrompt,
   getEditorSystemPrompt,
@@ -20,8 +21,11 @@ import {
 } from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
-import { chunkText, mergeChunks } from '../utils/chunker.js';
+import { chunkText, mergeChunks, type MergeChunkInput } from '../utils/chunker.js';
 import { log } from '../logger.js';
+
+const DMP_DIFF_DELETE = -1;
+const DMP_DIFF_INSERT = 1;
 
 interface EditStageOptions {
   context: AgentContext;
@@ -32,8 +36,24 @@ interface EditStageOptions {
   temperature?: number;
   /** Custom instructions for editor */
   customInstructions?: string;
-  /** Editing style preset: default, literary, minimal */
+  /** Editing style preset: default, literary, minimal, ai_revivification */
   editingStylePreset?: EditingStylePreset;
+  /** Editing focus: fix_problems, style_only, both */
+  editingFocus?: EditingFocus;
+  /** Number of retries for a failed chunk (default 2 = up to 3 attempts total). */
+  chunkRetryAttempts?: number;
+  /** Delay in ms before each retry (default 1500). */
+  chunkRetryDelayMs?: number;
+  /** Check before each retry; when true, throw to cancel. */
+  isCancelled?: () => boolean;
+  /** When true, run quality check after chunked editing (separate request, may timeout). Default false. */
+  checkQualityForChunked?: boolean;
+  /** Timeout in ms for quality check when chunked. Default 30000. */
+  qualityCheckTimeoutMs?: number;
+  /** Called when chunk progress updates (chunksDone, totalChunks). Used for UI progress display. */
+  onProgress?: (chunksDone: number, totalChunks: number) => void;
+  /** Max chunks to process in parallel (default 1). Use 2-3 for faster editing; respect API rate limits. */
+  parallelChunks?: number;
 }
 
 interface QualityCheckResponse {
@@ -120,6 +140,10 @@ export class EditStage {
 
         const editTemp = options.temperature ?? 0.5;
         const preset = options.editingStylePreset ?? 'default';
+        const focus = options.editingFocus ?? 'both';
+        const retryAttempts = options.chunkRetryAttempts ?? 2;
+        const retryDelayMs = options.chunkRetryDelayMs ?? 1500;
+        const parallelChunks = Math.max(1, options.parallelChunks ?? 1);
         const chunkedResult = await this.editChunked(
           translatedText,
           fullGlossary,
@@ -128,7 +152,13 @@ export class EditStage {
           editTemp,
           includeGlossary,
           options.customInstructions,
-          preset
+          preset,
+          focus,
+          retryAttempts,
+          retryDelayMs,
+          parallelChunks,
+          options.isCancelled,
+          options.onProgress
         );
 
         editedText = chunkedResult.text;
@@ -143,7 +173,10 @@ export class EditStage {
               ).toPromptText()
             : '';
 
-        const systemPrompt = getEditorSystemPrompt(options.editingStylePreset ?? 'default');
+        const systemPrompt = getEditorSystemPrompt(
+          options.editingStylePreset ?? 'default',
+          options.editingFocus ?? 'both'
+        );
         const messages: Message[] = [
           { role: 'system', content: systemPrompt },
           {
@@ -190,7 +223,33 @@ export class EditStage {
           );
         }
       } else if (options.checkQuality && usedChunkedOrPairs) {
-        log.debug('EditStage: quality check skipped for chunked/pairs editing to avoid timeouts');
+        if (options.checkQualityForChunked) {
+          try {
+            const timeoutMs = options.qualityCheckTimeoutMs ?? 30000;
+            const glossaryForQuality =
+              includeGlossary && fullGlossary
+                ? new GlossaryManager(filterGlossaryForChunk(editedText, fullGlossary)).toPromptText()
+                : '';
+            const qualityPromise = this.checkQuality(
+              editedText,
+              originalText,
+              glossaryForQuality
+            );
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Quality check timeout')), timeoutMs)
+            );
+            const qualityResult = await Promise.race([qualityPromise, timeoutPromise]);
+            totalTokens += qualityResult.tokensUsed;
+            qualityScore = qualityResult.score;
+          } catch (qualityError) {
+            log.warn(
+              'EditStage: quality check failed for chunked editing',
+              qualityError instanceof Error ? qualityError : undefined
+            );
+          }
+        } else {
+          log.debug('EditStage: quality check skipped for chunked editing (checkQualityForChunked not set)');
+        }
       }
 
       return {
@@ -235,22 +294,47 @@ export class EditStage {
   }
 
   private detectChanges(before: string, after: string): EditChange[] {
-    // Simple change detection - compare paragraphs
+    if (!before.trim() && !after.trim()) return [];
+    if (!before.trim()) return [{ before: '', after: after.slice(0, 100) + (after.length > 100 ? '...' : ''), reason: 'Editorial improvement' }];
+    if (!after.trim()) return [{ before: before.slice(0, 100) + (before.length > 100 ? '...' : ''), after: '', reason: 'Editorial improvement' }];
+
+    const dmp = new DiffMatchPatch();
+    const diffs = dmp.diff_main(before, after);
+    dmp.diff_cleanupSemantic(diffs);
+
     const changes: EditChange[] = [];
+    let pendingDelete = '';
+    let pendingInsert = '';
 
-    const beforeParagraphs = before.split(/\n\n+/);
-    const afterParagraphs = after.split(/\n\n+/);
+    for (const [op, text] of diffs) {
+      if (op === DMP_DIFF_DELETE) {
+        pendingDelete += text;
+      } else if (op === DMP_DIFF_INSERT) {
+        pendingInsert += text;
+      } else {
+        if (pendingDelete || pendingInsert) {
+          const beforeSnippet = pendingDelete.slice(0, 100) + (pendingDelete.length > 100 ? '...' : '');
+          const afterSnippet = pendingInsert.slice(0, 100) + (pendingInsert.length > 100 ? '...' : '');
+          if (beforeSnippet || afterSnippet) {
+            changes.push({
+              before: beforeSnippet,
+              after: afterSnippet,
+              reason: 'Editorial improvement',
+            });
+          }
+          pendingDelete = '';
+          pendingInsert = '';
+        }
+      }
+    }
 
-    // For now, just note if there were changes
-    // A more sophisticated diff could be implemented
-    for (let i = 0; i < Math.max(beforeParagraphs.length, afterParagraphs.length); i++) {
-      const beforeP = beforeParagraphs[i]?.trim() ?? '';
-      const afterP = afterParagraphs[i]?.trim() ?? '';
-
-      if (beforeP !== afterP && beforeP && afterP) {
+    if (pendingDelete || pendingInsert) {
+      const beforeSnippet = pendingDelete.slice(0, 100) + (pendingDelete.length > 100 ? '...' : '');
+      const afterSnippet = pendingInsert.slice(0, 100) + (pendingInsert.length > 100 ? '...' : '');
+      if (beforeSnippet || afterSnippet) {
         changes.push({
-          before: beforeP.slice(0, 100) + (beforeP.length > 100 ? '...' : ''),
-          after: afterP.slice(0, 100) + (afterP.length > 100 ? '...' : ''),
+          before: beforeSnippet,
+          after: afterSnippet,
           reason: 'Editorial improvement',
         });
       }
@@ -271,7 +355,13 @@ export class EditStage {
     temperature: number = 0.5,
     includeGlossary: boolean = true,
     customInstructions?: string,
-    editingStylePreset: EditingStylePreset = 'default'
+    editingStylePreset: EditingStylePreset = 'default',
+    editingFocus: EditingFocus = 'both',
+    retryAttempts: number = 2,
+    retryDelayMs: number = 1500,
+    parallelChunks: number = 1,
+    isCancelled?: () => boolean,
+    onProgress?: (chunksDone: number, totalChunks: number) => void
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -280,62 +370,66 @@ export class EditStage {
 
     log.info(`EditStage: split into ${translatedChunks.length} chunks for editing`, {
       chunksCount: translatedChunks.length,
+      retryAttempts,
+      retryDelayMs,
+      parallelChunks,
     });
 
-    const editedChunks: { content: string; index: number }[] = [];
+    onProgress?.(0, translatedChunks.length);
+
+    const editedChunks: MergeChunkInput[] = new Array(translatedChunks.length);
     let totalTokensUsed = 0;
 
-    for (let i = 0; i < translatedChunks.length; i++) {
-      const translatedChunk = translatedChunks[i];
-
-      log.debug(`EditStage: editing chunk ${i + 1}/${translatedChunks.length}`, {
-        chunkId: translatedChunk.id,
-        tokenCount: translatedChunk.tokenCount,
-      });
-
-      try {
-        const editResult = await this.editChunk(
-          translatedChunk,
+    const editOne = async (
+      chunk: TextChunk,
+      i: number
+    ): Promise<{ result: MergeChunkInput; tokensUsed: number }> => {
+      return this.editChunkWithRetry(
+        chunk,
+        i,
+        translatedChunks.length,
+        {
           fullGlossary,
           styleNotes,
           temperature,
           includeGlossary,
           customInstructions,
-          editingStylePreset
-        );
-
-        totalTokensUsed += editResult.tokensUsed;
-
-        if (!editResult.text || editResult.text.trim().length === 0) {
-          log.warn(`EditStage: chunk ${i + 1} returned empty edit`);
-          editedChunks.push({
-            content: translatedChunk.content,
-            index: translatedChunk.index,
-          });
-        } else {
-          log.debug(`EditStage: chunk ${i + 1} edited`, {
-            length: editResult.text.length,
-            tokensUsed: editResult.tokensUsed,
-          });
-          editedChunks.push({
-            content: editResult.text,
-            index: translatedChunk.index,
-          });
+          editingStylePreset,
+          editingFocus,
+          retryAttempts,
+          retryDelayMs,
+          isCancelled,
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        log.error(
-          `EditStage: chunk ${i + 1} edit failed: ${errorMessage}`,
-          error instanceof Error ? error : undefined
-        );
+      );
+    };
 
-        // Use original translated chunk if editing failed
-        editedChunks.push({
-          content: translatedChunk.content,
-          index: translatedChunk.index,
-        });
-
-        // Continue with next chunk instead of failing completely
+    if (parallelChunks <= 1) {
+      for (let i = 0; i < translatedChunks.length; i++) {
+        const { result, tokensUsed: tok } = await editOne(translatedChunks[i]!, i);
+        editedChunks[i] = result;
+        totalTokensUsed += tok;
+        onProgress?.(i + 1, translatedChunks.length);
+      }
+    } else {
+      for (let batchStart = 0; batchStart < translatedChunks.length; batchStart += parallelChunks) {
+        if (isCancelled?.()) {
+          throw new Error('Cancelled');
+        }
+        const batchEnd = Math.min(batchStart + parallelChunks, translatedChunks.length);
+        const batchPromises = translatedChunks
+          .slice(batchStart, batchEnd)
+          .map((chunk, batchIdx) => editOne(chunk, batchStart + batchIdx));
+        const settled = await Promise.allSettled(batchPromises);
+        for (let j = 0; j < settled.length; j++) {
+          const s = settled[j]!;
+          if (s.status === 'fulfilled') {
+            editedChunks[batchStart + j] = s.value.result;
+            totalTokensUsed += s.value.tokensUsed;
+          } else {
+            throw s.reason;
+          }
+        }
+        onProgress?.(batchEnd, translatedChunks.length);
       }
     }
 
@@ -357,6 +451,108 @@ export class EditStage {
   }
 
   /**
+   * Edit a single chunk with retry logic. Returns MergeChunkInput (original content on failure).
+   */
+  private async editChunkWithRetry(
+    chunk: TextChunk,
+    chunkIndex: number,
+    chunkTotal: number,
+    opts: {
+      fullGlossary: import('../types/agent.js').AgentContext['glossary'];
+      styleNotes: string;
+      temperature: number;
+      includeGlossary: boolean;
+      customInstructions?: string;
+      editingStylePreset: EditingStylePreset;
+      editingFocus: EditingFocus;
+      retryAttempts: number;
+      retryDelayMs: number;
+      isCancelled?: () => boolean;
+    }
+  ): Promise<{ result: MergeChunkInput; tokensUsed: number }> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= opts.retryAttempts; attempt++) {
+      if (attempt > 0) {
+        if (opts.isCancelled?.()) throw new Error('Cancelled');
+        log.warn('EditStage: chunk retry after failure', {
+          chunkIndex: chunkIndex + 1,
+          chunkTotal,
+          retryNumber: attempt,
+          retryMax: opts.retryAttempts,
+          delayMs: opts.retryDelayMs,
+          errMessage: lastError?.message ?? 'unknown',
+        });
+        await new Promise((r) => setTimeout(r, opts.retryDelayMs));
+        if (opts.isCancelled?.()) throw new Error('Cancelled');
+      }
+
+      try {
+        const editResult = await this.editChunk(
+          chunk,
+          opts.fullGlossary,
+          opts.styleNotes,
+          opts.temperature,
+          opts.includeGlossary,
+          opts.customInstructions,
+          opts.editingStylePreset,
+          opts.editingFocus
+        );
+
+        if (!editResult.text || editResult.text.trim().length === 0) {
+          log.warn(`EditStage: chunk ${chunkIndex + 1} returned empty edit`);
+          return {
+            result: {
+              content: chunk.content,
+              index: chunk.index,
+              separatorAfter: chunk.separatorAfter,
+            },
+            tokensUsed: editResult.tokensUsed,
+          };
+        }
+
+        log.debug(`EditStage: chunk ${chunkIndex + 1} edited`, {
+          length: editResult.text.length,
+          tokensUsed: editResult.tokensUsed,
+        });
+        return {
+          result: {
+            content: editResult.text,
+            index: chunk.index,
+            separatorAfter: chunk.separatorAfter,
+          },
+          tokensUsed: editResult.tokensUsed,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (attempt < opts.retryAttempts) {
+          log.info('EditStage: chunk attempt failed, will retry', {
+            chunkIndex: chunkIndex + 1,
+            chunkTotal,
+            attempt: attempt + 1,
+            maxAttempts: opts.retryAttempts + 1,
+            errMessage: lastError.message,
+          });
+        }
+        if (attempt === opts.retryAttempts) {
+          log.error(
+            `EditStage: chunk ${chunkIndex + 1} edit failed after ${opts.retryAttempts + 1} attempts: ${lastError.message}`,
+            lastError
+          );
+          return {
+            result: {
+              content: chunk.content,
+              index: chunk.index,
+              separatorAfter: chunk.separatorAfter,
+            },
+            tokensUsed: 0,
+          };
+        }
+      }
+    }
+    throw lastError ?? new Error('Edit failed');
+  }
+
+  /**
    * Edit a single chunk of translated text (glossary + style only; no original in prompt).
    * Glossary is filtered to entries that appear in this chunk.
    */
@@ -367,7 +563,8 @@ export class EditStage {
     temperature: number = 0.5,
     includeGlossary: boolean = true,
     customInstructions?: string,
-    editingStylePreset: EditingStylePreset = 'default'
+    editingStylePreset: EditingStylePreset = 'default',
+    editingFocus: EditingFocus = 'both'
   ): Promise<{ text: string; tokensUsed: number }> {
     const glossaryText =
       includeGlossary && fullGlossary
@@ -376,7 +573,7 @@ export class EditStage {
           ).toPromptText()
         : '';
 
-    const systemPrompt = getEditorSystemPrompt(editingStylePreset);
+    const systemPrompt = getEditorSystemPrompt(editingStylePreset, editingFocus);
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
       {

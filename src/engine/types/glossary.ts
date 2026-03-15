@@ -14,6 +14,8 @@ export interface Character {
   aliases: string[];
   firstAppearance: number; // Chapter number
   isMainCharacter: boolean;
+  /** Chapter numbers where this entity was extracted (for glossary filtering). */
+  mentionedInChapters?: number[];
 }
 
 export interface Location {
@@ -22,6 +24,8 @@ export interface Location {
   translatedName: string;
   description: string;
   type: 'city' | 'country' | 'building' | 'region' | 'world' | 'other';
+  /** Chapter numbers where this entity was extracted (for glossary filtering). */
+  mentionedInChapters?: number[];
 }
 
 export interface Term {
@@ -31,6 +35,8 @@ export interface Term {
   category: 'skill' | 'magic' | 'item' | 'title' | 'organization' | 'race' | 'other';
   description: string;
   context?: string;
+  /** Chapter numbers where this entity was extracted (for glossary filtering). */
+  mentionedInChapters?: number[];
 }
 
 export interface Glossary {

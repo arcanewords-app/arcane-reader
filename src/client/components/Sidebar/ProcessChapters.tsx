@@ -5,27 +5,67 @@ import type {
   ProjectWithChapterList,
   ChapterSummary,
   TranslationStageKind,
+  ProjectSettings,
 } from '../../types';
-import { Button, Modal, Icon } from '../ui';
+import { Button, Modal, Icon, Input, AlertModal } from '../ui';
 import { api } from '../../api/client';
 import { useTokenEstimate } from '../../hooks/useTokenEstimate';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
 import { TokenLimitWarning } from '../TokenUsage';
 import '../ChapterView/ReaderSettings.css';
 import '../ChapterView/ChapterHeader.css';
+import './ProcessChapters.css';
 
 const BATCH_STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translation', 'editing'];
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+type StatusFilter =
+  | 'all'
+  | 'empty'
+  | 'error'
+  | 'completed'
+  | 'draft'
+  | 'analyzed'
+  | 'not_analyzed';
 
 interface ProcessChaptersProps {
   project: Project | ProjectWithChapterList;
   onRefreshProject: () => Promise<void>;
+  /** Called when settings are updated (e.g. from inline editing block) */
+  onSettingsChange?: (settings: ProjectSettings) => void;
+  /** Opens full project settings modal */
+  onOpenSettings?: () => void;
 }
 
 function isChapterEmptyFromSummary(chapter: ChapterSummary): boolean {
   return !chapter.hasTranslation;
 }
 
-export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersProps) {
+function presetButtonStyle(filter: StatusFilter): Record<string, string> {
+  const base = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '0.25rem 0.5rem',
+    textDecoration: 'underline',
+    borderRadius: '6px',
+  };
+  const color =
+    filter === 'error'
+      ? 'var(--error)'
+      : filter === 'draft' || filter === 'analyzed' || filter === 'not_analyzed'
+        ? 'var(--accent)'
+        : 'var(--text-dim)';
+  return { ...base, color };
+}
+
+export function ProcessChapters({
+  project,
+  onRefreshProject,
+  onSettingsChange,
+  onOpenSettings,
+}: ProcessChaptersProps) {
   const { t } = useTranslation();
   const [showTranslateAllModal, setShowTranslateAllModal] = useState(false);
   const [translateSelectionIds, setTranslateSelectionIds] = useState<string[]>([]);
@@ -36,6 +76,11 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   ]);
   const [cancelling, setCancelling] = useState(false);
   const [summary, setSummary] = useState<ChapterSummary[] | null>(null);
+  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const translateModalWasOpenRef = useRef(false);
 
   useEffect(() => {
@@ -47,7 +92,9 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
   }, [project.id, project.chapters.length, project.updatedAt]);
 
   const estimate = useTokenEstimate();
-  const batch = useBatchChapterTranslation(project.id, project, onRefreshProject);
+  const batch = useBatchChapterTranslation(project.id, project, onRefreshProject, (title, msg) =>
+    setErrorModal({ title, message: msg })
+  );
   const translationProgress = batch.progress;
   useEffect(() => {
     if (translationProgress === null) setCancelling(false);
@@ -69,6 +116,10 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
               (c as { status: string }).status === 'completed' ||
               (c as { status: string }).status === 'draft',
           };
+    const notAnalyzedCount = chapters.filter(
+      (c) => !(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } }).lastAnalysisAt &&
+        !(c as { translationMeta?: { lastAnalysisAt?: string } }).translationMeta?.lastAnalysisAt
+    ).length;
     return {
       chapters: chapters.length,
       translated: chapters.filter((c) => (c as ChapterSummary).status === 'completed').length,
@@ -76,6 +127,7 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
       analyzed: chapters.filter((c) => (c as ChapterSummary).status === 'analyzed').length,
       error: chapters.filter((c) => (c as ChapterSummary).status === 'error').length,
       empty: chapters.filter((c) => !toSummary(c).hasTranslation).length,
+      notAnalyzed: notAnalyzedCount,
     };
   }, [summary, project.chapters]);
 
@@ -103,6 +155,62 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
         .map((c) => c.id),
     [summary, project.chapters]
   );
+
+  const hasLastAnalysis = useCallback(
+    (c: { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } }) =>
+      !!(c.lastAnalysisAt ?? (c as { translationMeta?: { lastAnalysisAt?: string } }).translationMeta?.lastAnalysisAt),
+    []
+  );
+
+  const filteredChapters = useMemo(() => {
+    let list = allChaptersSorted;
+    if (statusFilter !== 'all') {
+      list = list.filter((c) => {
+        const s = c as ChapterSummary;
+        const hasTranslation = 'hasTranslation' in s ? s.hasTranslation : (s.status === 'completed' || s.status === 'draft');
+        switch (statusFilter) {
+          case 'empty':
+            return !hasTranslation;
+          case 'error':
+            return s.status === 'error';
+          case 'completed':
+            return s.status === 'completed';
+          case 'draft':
+            return s.status === 'draft';
+          case 'analyzed':
+            return s.status === 'analyzed';
+          case 'not_analyzed':
+            return !hasLastAnalysis(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } });
+          default:
+            return true;
+        }
+      });
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (c) =>
+          String(c.number).includes(q) ||
+          (c.title || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allChaptersSorted, statusFilter, searchQuery, hasLastAnalysis]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredChapters.length / pageSize));
+  const clampedPage = Math.min(currentPage, totalPages);
+  const paginatedChapters = useMemo(
+    () =>
+      filteredChapters.slice(
+        (clampedPage - 1) * pageSize,
+        clampedPage * pageSize
+      ),
+    [filteredChapters, clampedPage, pageSize]
+  );
+
+  useEffect(() => {
+    setCurrentPage((p) => (p > totalPages ? totalPages : p));
+  }, [totalPages]);
 
   const selectedChaptersForTranslate = useMemo(() => {
     const idSet = new Set(translateSelectionIds);
@@ -135,18 +243,26 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     return estimate(totalLength, batchSelectedStages);
   }, [selectedChaptersForTranslate, batchSelectedStages, estimate, getChapterTextLength]);
 
+  const defaultStatusFilter = useMemo((): StatusFilter => {
+    if (stats.error > 0) return 'error';
+    if (stats.empty > 0) return 'empty';
+    return 'all';
+  }, [stats.error, stats.empty]);
+
   useEffect(() => {
     if (showTranslateAllModal) {
       if (!translateModalWasOpenRef.current) {
         setTranslateSelectionIds(
           defaultSelectionIds.length > 0 ? defaultSelectionIds : allChaptersSorted.map((c) => c.id)
         );
+        setStatusFilter(defaultStatusFilter);
+        setCurrentPage(1);
         translateModalWasOpenRef.current = true;
       }
     } else {
       translateModalWasOpenRef.current = false;
     }
-  }, [showTranslateAllModal, defaultSelectionIds, allChaptersSorted]);
+  }, [showTranslateAllModal, defaultSelectionIds, allChaptersSorted, defaultStatusFilter]);
 
   const toggleBatchStage = useCallback((stage: TranslationStageKind) => {
     setBatchSelectedStages((prev) =>
@@ -158,9 +274,55 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
     );
   }, []);
 
+  const includeGlossaryInEditing = project.settings?.includeGlossaryInEditing ?? true;
+  const editingStylePreset = project.settings?.editingStylePreset ?? 'default';
+  const editingFocus = project.settings?.editingFocus ?? 'both';
+
+  const handleToggleIncludeGlossaryInEditing = useCallback(async () => {
+    const updated = await api.updateSettings(project.id, {
+      includeGlossaryInEditing: !includeGlossaryInEditing,
+    });
+    onSettingsChange?.(updated);
+    if (!onSettingsChange) await onRefreshProject();
+  }, [project.id, includeGlossaryInEditing, onSettingsChange, onRefreshProject]);
+
+  const handleEditingStylePresetChange = useCallback(
+    async (e: Event) => {
+      const value = (e.target as HTMLSelectElement).value as
+        | 'default'
+        | 'literary'
+        | 'minimal'
+        | 'ai_revivification';
+      const updated = await api.updateSettings(project.id, {
+        editingStylePreset: value,
+      });
+      onSettingsChange?.(updated);
+      if (!onSettingsChange) await onRefreshProject();
+    },
+    [project.id, onSettingsChange, onRefreshProject]
+  );
+
+  const handleEditingFocusChange = useCallback(
+    async (e: Event) => {
+      const value = (e.target as HTMLSelectElement).value as
+        | 'fix_problems'
+        | 'style_only'
+        | 'both';
+      const updated = await api.updateSettings(project.id, {
+        editingFocus: value,
+      });
+      onSettingsChange?.(updated);
+      if (!onSettingsChange) await onRefreshProject();
+    },
+    [project.id, onSettingsChange, onRefreshProject]
+  );
+
   const handleTranslateAll = useCallback(() => {
     if (selectedChaptersForTranslate.length === 0) {
-      alert(t('projectInfo.selectOneChapter'));
+      setErrorModal({
+        title: t('projectInfo.selectOneChapter'),
+        message: t('projectInfo.selectOneChapter'),
+      });
       return;
     }
     if (batchSelectedStages.length === 0) return;
@@ -170,12 +332,21 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
 
   const handleMarkAsTranslatedBatch = useCallback(() => {
     if (selectedChaptersForTranslate.length === 0) {
-      alert(t('projectInfo.selectOneChapter'));
+      setErrorModal({
+        title: t('projectInfo.selectOneChapter'),
+        message: t('projectInfo.selectOneChapter'),
+      });
       return;
     }
     setShowTranslateAllModal(false);
     batch.startMarkAsTranslatedBatch(selectedChaptersForTranslate);
   }, [selectedChaptersForTranslate, batch, t]);
+
+  const handleMarkEntireProjectAsTranslated = useCallback(() => {
+    if (allChaptersSorted.length === 0) return;
+    setShowTranslateAllModal(false);
+    batch.startMarkAsTranslatedBatch(allChaptersSorted);
+  }, [allChaptersSorted, batch]);
 
   const handleCancelTranslation = useCallback(() => {
     setCancelling(true);
@@ -220,125 +391,141 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
         isOpen={showTranslateAllModal}
         onClose={() => setShowTranslateAllModal(false)}
         title={t('projectInfo.processChaptersModalTitle', 'Обработать главы')}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowTranslateAllModal(false)}>
-              {t('common.cancel')}
-            </Button>
+        headerActions={
+          onOpenSettings ? (
             <Button
               variant="secondary"
-              onClick={handleMarkAsTranslatedBatch}
-              disabled={selectedChaptersForTranslate.length === 0}
-              title={t('markAsTranslated.batchTitle', 'Пометить выбранные главы как переведённые')}
+              size="sm"
+              onClick={onOpenSettings}
+              title={t('sidebar.projectSettings')}
+              aria-label={t('sidebar.projectSettings')}
             >
-              <Icon name="done_all" size="sm" />{' '}
-              {t(
-                'markAsTranslated.batchButton',
-                {
+              <Icon name="settings" size="sm" />
+            </Button>
+          ) : undefined
+        }
+        footer={
+          <div class="process-chapters-footer">
+            <div class="process-chapters-footer-left">
+              <Button variant="secondary" onClick={() => setShowTranslateAllModal(false)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+            <div class="process-chapters-footer-right">
+              <Button
+                variant="secondary"
+                onClick={handleMarkAsTranslatedBatch}
+                disabled={selectedChaptersForTranslate.length === 0}
+                title={t('markAsTranslated.batchTitle', 'Пометить выбранные главы как переведённые')}
+              >
+                <Icon name="done_all" size="sm" />{' '}
+                {t(
+                  'markAsTranslated.batchButton',
+                  {
+                    count: selectedChaptersForTranslate.length,
+                  },
+                  `Пометить как переведённые (${selectedChaptersForTranslate.length})`
+                )}
+              </Button>
+              <Button
+                onClick={handleTranslateAll}
+                disabled={
+                  selectedChaptersForTranslate.length === 0 || batchSelectedStages.length === 0
+                }
+                title={
+                  selectedChaptersForTranslate.length === 0
+                    ? t('projectInfo.selectOneChapter')
+                    : batchSelectedStages.length === 0
+                      ? t('translationPanel.stagesMultiHint')
+                      : undefined
+                }
+              >
+                {t('projectInfo.translateSelectedCount', {
                   count: selectedChaptersForTranslate.length,
-                },
-                `Пометить (${selectedChaptersForTranslate.length})`
-              )}
-            </Button>
-            <Button
-              onClick={handleTranslateAll}
-              disabled={
-                selectedChaptersForTranslate.length === 0 || batchSelectedStages.length === 0
-              }
-              title={
-                selectedChaptersForTranslate.length === 0
-                  ? t('projectInfo.selectOneChapter')
-                  : batchSelectedStages.length === 0
-                    ? t('translationPanel.stagesMultiHint')
-                    : undefined
-              }
-            >
-              {t('projectInfo.translateSelectedCount', {
-                count: selectedChaptersForTranslate.length,
-              })}
-            </Button>
-          </>
+                })}
+              </Button>
+            </div>
+          </div>
         }
       >
+        {allChaptersSorted.length > 0 && (
+          <div class="process-chapters-quick-block">
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>
+              {t('processChapters.uploadedTranslationHint', 'Загрузили готовый перевод?')}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleMarkEntireProjectAsTranslated}
+              disabled={allChaptersSorted.length === 0}
+              title={t('processChapters.markEntireProject', 'Mark entire project as translated')}
+            >
+              <Icon name="done_all" size="sm" />{' '}
+              {t('processChapters.markEntireProject', 'Mark entire project')}
+            </Button>
+          </div>
+        )}
         <p style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
           {t('projectInfo.chooseChaptersHint')}
         </p>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.5rem',
-            marginBottom: '0.75rem',
-            fontSize: '0.85rem',
-          }}
-        >
+        <div class="process-chapters-selection-row">
+          <div class="process-chapters-selection-actions">
+            <button
+              type="button"
+              class="process-chapters-link-btn"
+              onClick={() => setTranslateSelectionIds(filteredChapters.map((c) => c.id))}
+            >
+              {t('chapter.selectAll')}
+            </button>
+            <button
+              type="button"
+              class="process-chapters-link-btn process-chapters-link-btn-dim"
+              onClick={() => setTranslateSelectionIds([])}
+            >
+              {t('chapter.deselectAll')}
+            </button>
+          </div>
+          <span class="process-chapters-separator">|</span>
+          <div class="process-chapters-filter-presets">
           <button
             type="button"
-            onClick={() => setTranslateSelectionIds(allChaptersSorted.map((c) => c.id))}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--accent)',
-              cursor: 'pointer',
-              padding: '0.25rem 0',
-              textDecoration: 'underline',
+            class={statusFilter === 'all' ? 'process-chapters-preset-active' : ''}
+            onClick={() => {
+              setStatusFilter('all');
+              setCurrentPage(1);
             }}
+            style={presetButtonStyle('all')}
           >
-            {t('chapter.selectAll')}
+            {t('processChapters.filterAllWithCount', { count: stats.chapters }, `All (${stats.chapters})`)}
           </button>
           <button
             type="button"
-            onClick={() => setTranslateSelectionIds([])}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-dim)',
-              cursor: 'pointer',
-              padding: '0.25rem 0',
-              textDecoration: 'underline',
+            class={statusFilter === 'empty' ? 'process-chapters-preset-active' : ''}
+            onClick={() => {
+              const chapters = (summary ?? project.chapters).filter(
+                (c) => !(c as ChapterSummary).hasTranslation
+              );
+              setStatusFilter('empty');
+              setTranslateSelectionIds(chapters.map((c) => c.id));
+              setCurrentPage(1);
             }}
-          >
-            {t('chapter.deselectAll')}
-          </button>
-          <span style={{ color: 'var(--border)', margin: '0 0.25rem' }}>|</span>
-          <button
-            type="button"
-            onClick={() =>
-              setTranslateSelectionIds(
-                (summary ?? project.chapters)
-                  .filter((c) => !(c as ChapterSummary).hasTranslation)
-                  .map((c) => c.id)
-              )
-            }
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-dim)',
-              cursor: 'pointer',
-              padding: '0.25rem 0',
-              textDecoration: 'underline',
-            }}
+            style={presetButtonStyle('empty')}
           >
             {t('projectInfo.presetEmpty', { count: stats.empty }, 'Пустые ({{count}})')}
           </button>
           {stats.error > 0 && (
             <button
               type="button"
-              onClick={() =>
-                setTranslateSelectionIds(
-                  (summary ?? project.chapters)
-                    .filter((c) => (c as ChapterSummary).status === 'error')
-                    .map((c) => c.id)
-                )
-              }
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--error)',
-                cursor: 'pointer',
-                padding: '0.25rem 0',
-                textDecoration: 'underline',
+              class={statusFilter === 'error' ? 'process-chapters-preset-active' : ''}
+              onClick={() => {
+                const chapters = (summary ?? project.chapters).filter(
+                  (c) => (c as ChapterSummary).status === 'error'
+                );
+                setStatusFilter('error');
+                setTranslateSelectionIds(chapters.map((c) => c.id));
+                setCurrentPage(1);
               }}
+              style={presetButtonStyle('error')}
             >
               {t('projectInfo.presetErrors', { count: stats.error }, 'С ошибками ({{count}})')}
             </button>
@@ -346,47 +533,33 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
           {stats.translated > 0 && (
             <button
               type="button"
-              onClick={() =>
-                setTranslateSelectionIds(
-                  (summary ?? project.chapters)
-                    .filter((c) => (c as ChapterSummary).status === 'completed')
-                    .map((c) => c.id)
-                )
-              }
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-dim)',
-                cursor: 'pointer',
-                padding: '0.25rem 0',
-                textDecoration: 'underline',
+              class={statusFilter === 'completed' ? 'process-chapters-preset-active' : ''}
+              onClick={() => {
+                const chapters = (summary ?? project.chapters).filter(
+                  (c) => (c as ChapterSummary).status === 'completed'
+                );
+                setStatusFilter('completed');
+                setTranslateSelectionIds(chapters.map((c) => c.id));
+                setCurrentPage(1);
               }}
+              style={presetButtonStyle('completed')}
             >
-              {t(
-                'projectInfo.presetTranslated',
-                {
-                  count: stats.translated,
-                },
-                'Переведённые ({{count}})'
-              )}
+              {t('projectInfo.presetTranslated', { count: stats.translated }, 'Переведённые ({{count}})')}
             </button>
           )}
           {stats.draft > 0 && (
             <button
               type="button"
-              onClick={() =>
-                setTranslateSelectionIds(
-                  project.chapters.filter((c) => c.status === 'draft').map((c) => c.id)
-                )
-              }
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--accent)',
-                cursor: 'pointer',
-                padding: '0.25rem 0',
-                textDecoration: 'underline',
+              class={statusFilter === 'draft' ? 'process-chapters-preset-active' : ''}
+              onClick={() => {
+                const chapters = (summary ?? project.chapters).filter(
+                  (c) => (c as ChapterSummary).status === 'draft'
+                );
+                setStatusFilter('draft');
+                setTranslateSelectionIds(chapters.map((c) => c.id));
+                setCurrentPage(1);
               }}
+              style={presetButtonStyle('draft')}
             >
               {t('projectInfo.presetDraft', { count: stats.draft }, 'Черновики ({{count}})')}
             </button>
@@ -394,60 +567,106 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
           {stats.analyzed > 0 && (
             <button
               type="button"
-              onClick={() =>
-                setTranslateSelectionIds(
-                  project.chapters.filter((c) => c.status === 'analyzed').map((c) => c.id)
-                )
-              }
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--accent)',
-                cursor: 'pointer',
-                padding: '0.25rem 0',
-                textDecoration: 'underline',
+              class={statusFilter === 'analyzed' ? 'process-chapters-preset-active' : ''}
+              onClick={() => {
+                const chapters = (summary ?? project.chapters).filter(
+                  (c) => (c as ChapterSummary).status === 'analyzed'
+                );
+                setStatusFilter('analyzed');
+                setTranslateSelectionIds(chapters.map((c) => c.id));
+                setCurrentPage(1);
               }}
+              style={presetButtonStyle('analyzed')}
             >
-              {t(
-                'projectInfo.presetAnalyzed',
-                { count: stats.analyzed },
-                'Только анализ ({{count}})'
-              )}
+              {t('projectInfo.presetAnalyzed', { count: stats.analyzed }, 'Только анализ ({{count}})')}
             </button>
           )}
-          {(() => {
-            const notAnalyzedCount = project.chapters.filter(
-              (c) => !c.translationMeta?.lastAnalysisAt
-            ).length;
-            return notAnalyzedCount > 0 ? (
+          {stats.notAnalyzed > 0 && (
+            <button
+              type="button"
+              class={statusFilter === 'not_analyzed' ? 'process-chapters-preset-active' : ''}
+              onClick={() => {
+                const chapters = (summary ?? project.chapters).filter(
+                  (c) => !hasLastAnalysis(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } })
+                );
+                setStatusFilter('not_analyzed');
+                setTranslateSelectionIds(chapters.map((c) => c.id));
+                setCurrentPage(1);
+              }}
+              style={presetButtonStyle('not_analyzed')}
+            >
+              {t('projectInfo.presetNotAnalyzed', { count: stats.notAnalyzed }, 'Не проанализированные ({{count}})')}
+            </button>
+          )}
+          </div>
+          {allChaptersSorted.length >= 100 && (
+            <div class="process-chapters-search-wrap">
+              <Input
+                type="search"
+                className="process-chapters-search"
+                placeholder={t('processChapters.searchPlaceholder', 'Search by number or title')}
+                value={searchQuery}
+                onInput={(e) => {
+                  setSearchQuery((e.target as HTMLInputElement).value);
+                  setCurrentPage(1);
+                }}
+                aria-label={t('processChapters.searchPlaceholder', 'Search by number or title')}
+              />
+            </div>
+          )}
+        </div>
+        <div class="process-chapters-pagination-row">
+          <label class="process-chapters-per-page">
+            {t('processChapters.perPage', 'Per page')}
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number((e.target as HTMLSelectElement).value));
+                setCurrentPage(1);
+              }}
+              class="process-chapters-per-page-select"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            class="process-chapters-select-displayed-btn"
+            onClick={() => {
+              const idsToAdd = paginatedChapters.map((c) => c.id);
+              setTranslateSelectionIds((prev) => [...new Set([...prev, ...idsToAdd])]);
+            }}
+            disabled={paginatedChapters.length === 0}
+          >
+            {t('processChapters.selectDisplayed', { count: paginatedChapters.length }, `Select displayed (${paginatedChapters.length})`)}
+          </button>
+          {totalPages > 1 && (
+            <span class="process-chapters-page-nav">
               <button
                 type="button"
-                onClick={() =>
-                  setTranslateSelectionIds(
-                    project.chapters
-                      .filter((c) => !c.translationMeta?.lastAnalysisAt)
-                      .map((c) => c.id)
-                  )
-                }
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--accent)',
-                  cursor: 'pointer',
-                  padding: '0.25rem 0',
-                  textDecoration: 'underline',
-                }}
+                class="process-chapters-nav-btn"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={clampedPage <= 1}
               >
-                {t(
-                  'projectInfo.presetNotAnalyzed',
-                  {
-                    count: notAnalyzedCount,
-                  },
-                  'Не проанализированные ({{count}})'
-                )}
+                {t('chapter.prev', 'Previous')}
               </button>
-            ) : null;
-          })()}
+              <span class="process-chapters-page-of">
+                {t('processChapters.pageOf', { current: clampedPage, total: totalPages }, 'Page {{current}} of {{total}}')}
+              </span>
+              <button
+                type="button"
+                class="process-chapters-nav-btn"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={clampedPage >= totalPages}
+              >
+                {t('chapter.next', 'Next')}
+              </button>
+            </span>
+          )}
         </div>
         <div
           style={{
@@ -463,10 +682,14 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
             <div style={{ padding: '1rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
               {t('projectInfo.noChaptersInProject')}
             </div>
+          ) : filteredChapters.length === 0 ? (
+            <div style={{ padding: '1rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+              {t('chapterList.noResults', 'No results')}
+            </div>
           ) : (
-            allChaptersSorted.map((chapter, index) => {
+            paginatedChapters.map((chapter, index) => {
               const checked = translateSelectionIds.includes(chapter.id);
-              const isLast = index === allChaptersSorted.length - 1;
+              const isLast = index === paginatedChapters.length - 1;
               const isEmpty = !(chapter as ChapterSummary).hasTranslation;
               const isError = chapter.status === 'error';
               const isCompleted = chapter.status === 'completed';
@@ -638,6 +861,119 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
             {t('translationPanel.stagesMultiHint')}
           </span>
         </div>
+        {batchSelectedStages.includes('editing') && (
+          <div
+            style={{
+              marginBottom: '0.75rem',
+              padding: '0.6rem 0.75rem',
+              borderRadius: '8px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                marginBottom: '0.5rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {t('projectInfo.editingSettingsLabel', 'Настройки редактуры')}
+            </div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={includeGlossaryInEditing}
+                onChange={handleToggleIncludeGlossaryInEditing}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  marginTop: '2px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--accent)',
+                }}
+                aria-label={t('settings.includeGlossaryInEditing')}
+              />
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                  {t('settings.includeGlossaryInEditing')}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {t('settings.includeGlossaryInEditingHint')}
+                </div>
+              </div>
+            </label>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontWeight: 500,
+                  fontSize: '0.9rem',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                {t('settings.editingFocus')}
+              </label>
+              <select
+                value={editingFocus}
+                onChange={handleEditingFocusChange}
+                style={{
+                  width: '100%',
+                  padding: '0.4rem 0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <option value="fix_problems">{t('settings.editingFocus.fix_problems')}</option>
+                <option value="style_only">{t('settings.editingFocus.style_only')}</option>
+                <option value="both">{t('settings.editingFocus.both')}</option>
+              </select>
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontWeight: 500,
+                  fontSize: '0.9rem',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                {t('settings.editingStylePreset')}
+              </label>
+              <select
+                value={editingStylePreset}
+                onChange={handleEditingStylePresetChange}
+                style={{
+                  width: '100%',
+                  padding: '0.4rem 0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <option value="default">{t('settings.editingStylePreset.default')}</option>
+                <option value="literary">{t('settings.editingStylePreset.literary')}</option>
+                <option value="minimal">{t('settings.editingStylePreset.minimal')}</option>
+                <option value="ai_revivification">{t('settings.editingStylePreset.ai_revivification')}</option>
+              </select>
+            </div>
+          </div>
+        )}
         <div
           style={{
             marginBottom: '0.75rem',
@@ -1081,6 +1417,13 @@ export function ProcessChapters({ project, onRefreshProject }: ProcessChaptersPr
           estimatedTokens={batch.warningState.estimatedTokens}
         />
       )}
+
+      <AlertModal
+        isOpen={!!errorModal}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title ?? ''}
+        message={errorModal?.message ?? ''}
+      />
     </>
   );
 }

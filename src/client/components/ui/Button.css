@@ -62,6 +62,24 @@
   transform: scale(0.98);
 }
 
+/* === Destructive Button === */
+.btn-destructive {
+  background: var(--error);
+  color: white;
+  border-color: var(--error);
+}
+
+.btn-destructive:hover {
+  background: rgba(239, 68, 68, 0.9);
+  border-color: rgba(239, 68, 68, 0.9);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-destructive:active {
+  transform: translateY(0);
+}
+
 /* === Glossary Button Variant === */
 .btn-glossary {
   background: var(--bg-card);

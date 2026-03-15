@@ -13,12 +13,15 @@ import type { StageResult } from '../types/pipeline.js';
 import type { Glossary, Character, Location, Term } from '../types/glossary.js';
 import { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from '../prompts/system/analyzer.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
+import { estimateTokens, splitIntoSections } from '../utils/chunker.js';
 import { log } from '../logger.js';
 
 interface AnalyzeStageOptions {
   chapterNumber: number;
   existingGlossary?: Glossary;
   temperature?: number;
+  /** Max tokens per section when chunking long chapters. Default 8000. Set to 0 to disable chunking. */
+  maxSectionTokens?: number;
 }
 
 /** Allowed gender values (DB constraint). LLM may return "masculine", "f", etc. */
@@ -163,47 +166,33 @@ export class AnalyzeStage {
     }
 
     try {
-      // Create glossary text for context
-      let glossaryText = '';
-      if (options.existingGlossary) {
-        const manager = new GlossaryManager(options.existingGlossary);
-        glossaryText = manager.toPromptText();
+      const maxSectionTokens = options.maxSectionTokens ?? 8000;
+      const estimatedTokensCount = estimateTokens(sourceText);
+      const useChunkedAnalysis =
+        maxSectionTokens > 0 && estimatedTokensCount > maxSectionTokens;
+
+      let result: AnalysisResult;
+      let tokensUsed = 0;
+
+      if (useChunkedAnalysis) {
+        const sections = splitIntoSections(sourceText, maxSectionTokens);
+        log.info('AnalyzeStage: chunked analysis', {
+          sectionsCount: sections.length,
+          estimatedTokens: estimatedTokensCount,
+          maxSectionTokens,
+        });
+        const sectionResults: AnalysisResult[] = [];
+        for (let i = 0; i < sections.length; i++) {
+          const sectionResult = await this.analyzeSection(sections[i], options);
+          sectionResults.push(sectionResult.result);
+          tokensUsed += sectionResult.tokensUsed;
+        }
+        result = this.mergeAnalysisResults(sectionResults, options);
+      } else {
+        const sectionResult = await this.analyzeSection(sourceText, options);
+        result = sectionResult.result;
+        tokensUsed = sectionResult.tokensUsed;
       }
-
-      // Build messages
-      const messages: Message[] = [
-        { role: 'system', content: ANALYZER_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: createAnalyzerPrompt(
-            sourceText,
-            'English',
-            'Russian',
-            glossaryText || undefined
-          ),
-        },
-      ];
-
-      // Call LLM
-      const temperature = options.temperature ?? 0.3;
-      const promptChars = messages.reduce((s, m) => s + (m.content?.length ?? 0), 0);
-      const model = (this.provider as { model?: string })?.model ?? '';
-      // Analysis is a single request per chapter (no chunking). For long chapters or reasoning
-      // models (o1, gpt-5) this can take 2–5+ min — ensure OPENAI_TIMEOUT_MS is high enough.
-      const isReasoningModel = /^gpt-5|^o1-|^o3-|^o4-/i.test(model);
-      log.debug('AnalyzeStage: calling provider.completeJSON', { promptChars, model });
-      if (isReasoningModel) {
-        log.info('AnalyzeStage: reasoning model in use, first response may take 1–5 minutes');
-      }
-      const response = await this.provider.completeJSON<RawAnalysisResponse>(messages, {
-        temperature,
-        maxTokens: 4096,
-      });
-      const tokensUsed = response.tokensUsed?.total ?? 0;
-      log.debug('AnalyzeStage: provider returned', { tokensUsed });
-
-      // Parse and validate response
-      const result = this.parseResponse(response.data, options);
 
       return {
         stage: 'analyze',
@@ -223,6 +212,185 @@ export class AnalyzeStage {
         duration: Date.now() - startTime,
       };
     }
+  }
+
+  private async analyzeSection(
+    sectionText: string,
+    options: AnalyzeStageOptions
+  ): Promise<{ result: AnalysisResult; tokensUsed: number }> {
+    let glossaryText = '';
+    if (options.existingGlossary) {
+      const manager = new GlossaryManager(options.existingGlossary);
+      glossaryText = manager.toPromptText();
+    }
+
+    const messages: Message[] = [
+      { role: 'system', content: ANALYZER_SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: createAnalyzerPrompt(
+          sectionText,
+          'English',
+          'Russian',
+          glossaryText || undefined
+        ),
+      },
+    ];
+
+    const temperature = options.temperature ?? 0.3;
+    const model = (this.provider as { model?: string })?.model ?? '';
+    const isReasoningModel = /^gpt-5|^o1-|^o3-|^o4-/i.test(model);
+    if (isReasoningModel) {
+      log.info('AnalyzeStage: reasoning model in use, first response may take 1–5 minutes');
+    }
+    const response = await this.provider.completeJSON<RawAnalysisResponse>(messages, {
+      temperature,
+      maxTokens: 4096,
+    });
+    const tokensUsed = response.tokensUsed?.total ?? 0;
+    const result = this.parseResponse(response.data, options);
+    return { result, tokensUsed };
+  }
+
+  private mergeAnalysisResults(
+    sectionResults: AnalysisResult[],
+    options: AnalyzeStageOptions
+  ): AnalysisResult {
+    if (sectionResults.length === 0) {
+      return this.parseResponse({}, options);
+    }
+    if (sectionResults.length === 1) {
+      return sectionResults[0];
+    }
+
+    const existingChars = options.existingGlossary?.characters ?? [];
+    const existingLocs = options.existingGlossary?.locations ?? [];
+    const existingTermsList = options.existingGlossary?.terms ?? [];
+    const existingCharNames = new Set(existingChars.map((c) => c.originalName.toLowerCase()));
+    const existingLocNames = new Set(existingLocs.map((l) => l.originalName.toLowerCase()));
+    const existingTermSet = new Set(existingTermsList.map((t) => t.originalTerm.toLowerCase()));
+
+    const charByName = new Map<string, (typeof sectionResults[0]['foundCharacters'][0]) & { suggestedTranslation?: string }>();
+    const locByName = new Map<string, (typeof sectionResults[0]['foundLocations'][0]) & { suggestedTranslation?: string }>();
+    const termByKey = new Map<string, (typeof sectionResults[0]['foundTerms'][0])>();
+
+    for (const r of sectionResults) {
+      for (const c of r.foundCharacters) {
+        const key = c.name.toLowerCase();
+        if (!charByName.has(key)) {
+          charByName.set(key, { ...c, suggestedTranslation: c.suggestedTranslation });
+        }
+      }
+      for (const l of r.foundLocations) {
+        const key = l.name.toLowerCase();
+        if (!locByName.has(key)) {
+          locByName.set(key, { ...l, suggestedTranslation: l.suggestedTranslation });
+        }
+      }
+      for (const t of r.foundTerms) {
+        const key = t.term.toLowerCase();
+        if (!termByKey.has(key)) {
+          termByKey.set(key, t);
+        }
+      }
+    }
+
+    const allKeyEvents: string[] = [];
+    const seenEvents = new Set<string>();
+    for (const r of sectionResults) {
+      for (const e of r.keyEvents ?? []) {
+        const norm = e.trim().toLowerCase();
+        if (norm && !seenEvents.has(norm)) {
+          seenEvents.add(norm);
+          allKeyEvents.push(e.trim());
+        }
+      }
+    }
+
+    const summaries = sectionResults.map((r) => r.chapterSummary).filter(Boolean);
+    const chapterSummary = summaries.join(' ');
+    const lastMood = sectionResults[sectionResults.length - 1]?.mood ?? '';
+    const styleNotes = sectionResults
+      .map((r) => r.styleNotes)
+      .filter(Boolean)
+      .join(' ');
+
+    const newCharsByOrig = new Map<string, (typeof sectionResults[0])['glossaryUpdate']['newCharacters'][0]>();
+    const newLocsByOrig = new Map<string, (typeof sectionResults[0])['glossaryUpdate']['newLocations'][0]>();
+    const newTermsByOrig = new Map<string, (typeof sectionResults[0])['glossaryUpdate']['newTerms'][0]>();
+
+    for (const r of sectionResults) {
+      for (const c of r.glossaryUpdate?.newCharacters ?? []) {
+        const key = c.originalName.toLowerCase();
+        if (!newCharsByOrig.has(key)) {
+          newCharsByOrig.set(key, c);
+        }
+      }
+      for (const l of r.glossaryUpdate?.newLocations ?? []) {
+        const key = l.originalName.toLowerCase();
+        if (!newLocsByOrig.has(key)) {
+          newLocsByOrig.set(key, l);
+        }
+      }
+      for (const t of r.glossaryUpdate?.newTerms ?? []) {
+        const key = t.originalTerm.toLowerCase();
+        if (!newTermsByOrig.has(key)) {
+          newTermsByOrig.set(key, t);
+        }
+      }
+    }
+
+    return {
+      chapterNumber: options.chapterNumber,
+      foundCharacters: Array.from(charByName.values()).map((c) => ({
+        name: c.name,
+        isNew: !existingCharNames.has(c.name.toLowerCase()),
+        suggestedTranslation: c.suggestedTranslation,
+        context: c.context ?? '',
+      })),
+      foundLocations: Array.from(locByName.values()).map((l) => ({
+        name: l.name,
+        isNew: !existingLocNames.has(l.name.toLowerCase()),
+        suggestedTranslation: l.suggestedTranslation,
+      })),
+      foundTerms: Array.from(termByKey.values()).map((t) => ({
+        term: t.term,
+        isNew: !existingTermSet.has(t.term.toLowerCase()),
+        suggestedTranslation: t.suggestedTranslation,
+        category: t.category ?? 'other',
+      })),
+      chapterSummary,
+      keyEvents: allKeyEvents,
+      mood: lastMood,
+      styleNotes: styleNotes || undefined,
+      glossaryUpdate: {
+        newCharacters: Array.from(newCharsByOrig.values()),
+        newLocations: Array.from(newLocsByOrig.values()),
+        newTerms: Array.from(newTermsByOrig.values()),
+        updatedCharacters: this.dedupeUpdated(
+          sectionResults.flatMap((r) => r.glossaryUpdate?.updatedCharacters ?? []),
+          (c) => c.originalName ?? ''
+        ),
+        updatedLocations: this.dedupeUpdated(
+          sectionResults.flatMap((r) => r.glossaryUpdate?.updatedLocations ?? []),
+          (l) => l.originalName ?? ''
+        ),
+        updatedTerms: this.dedupeUpdated(
+          sectionResults.flatMap((r) => r.glossaryUpdate?.updatedTerms ?? []),
+          (t) => t.originalTerm ?? ''
+        ),
+      },
+    };
+  }
+
+  private dedupeUpdated<T>(items: Partial<T>[], keyFn: (x: Partial<T>) => string): Partial<T>[] {
+    const seen = new Set<string>();
+    return items.filter((x) => {
+      const k = keyFn(x).toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
   }
 
   private parseResponse(raw: RawAnalysisResponse, options: AnalyzeStageOptions): AnalysisResult {
@@ -330,6 +498,7 @@ export class AnalyzeStage {
             aliases: [],
             firstAppearance: options.chapterNumber,
             isMainCharacter: c.role === 'protagonist',
+            mentionedInChapters: [options.chapterNumber],
           })),
         newLocations: (raw.locations ?? [])
           .filter((l) => !existingLocNames.has(l.name.toLowerCase()))
@@ -338,6 +507,7 @@ export class AnalyzeStage {
             translatedName: l.suggestedTranslation ?? l.name,
             type: normalizeLocationType(l.type),
             description: l.description ?? '',
+            mentionedInChapters: [options.chapterNumber],
           })),
         newTerms: (raw.terms ?? [])
           .filter((t) => !existingTermSet.has(t.term.toLowerCase()))
@@ -346,6 +516,7 @@ export class AnalyzeStage {
             translatedTerm: t.suggestedTranslation ?? t.term,
             category: normalizeTermCategory(t.category),
             description: t.description ?? '',
+            mentionedInChapters: [options.chapterNumber],
           })),
         updatedCharacters: mapUpdatedCharacters(),
         updatedLocations: mapUpdatedLocations(),

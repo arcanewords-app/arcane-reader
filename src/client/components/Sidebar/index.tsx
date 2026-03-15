@@ -133,7 +133,12 @@ export function Sidebar({
         </Button>
 
         {onRefreshProject && (
-          <ProcessChapters project={project} onRefreshProject={onRefreshProject} />
+          <ProcessChapters
+            project={project}
+            onRefreshProject={onRefreshProject}
+            onSettingsChange={onSettingsChange}
+            onOpenSettings={() => setShowSettings(true)}
+          />
         )}
 
         <ChapterList

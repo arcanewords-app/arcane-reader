@@ -8,12 +8,18 @@
 
 import type { ILLMProvider } from '../interfaces/llm-provider.js';
 import type { PipelineResult, PipelineOptions, StageResult } from '../types/pipeline.js';
-import type { ChapterSummary, AnalysisResult } from '../types/agent.js';
+import type { ChapterSummary, AnalysisResult, AgentContext } from '../types/agent.js';
 import { NovelAgent } from '../agents/novel-agent.js';
 import { AnalyzeStage } from '../stages/stage-1-analyze.js';
 import { TranslateStage } from '../stages/stage-2-translate.js';
 import { EditStage } from '../stages/stage-3-edit.js';
+import { formatChunkError } from '../constants/errors.js';
+import { filterGlossaryByChapter } from '../glossary/glossary-filter.js';
 import { log } from '../logger.js';
+import { runWithConcurrencyResilient } from '../utils/concurrency.js';
+
+/** Default concurrency for parallel analysis. */
+const DEFAULT_ANALYSIS_CONCURRENCY = 4;
 
 /** When editing runs after translation, we omit glossary from Stage 2 and use larger chunks. */
 const TRANSLATION_CHUNK_SIZE_WHEN_EDITING = 3500;
@@ -156,7 +162,12 @@ export class TranslationPipeline {
     const startTime = Date.now();
     let totalTokens = 0;
     const context = this.agent.getContext();
-    const updatedContext = this.agent.getContext();
+    /** When !skipAnalysis, filter glossary by chapter (mentionedInChapters) for translate/edit. */
+    const ctxForTranslateEdit = (): import('../types/agent.js').AgentContext => {
+      const base = this.agent.getContext();
+      if (options.skipAnalysis) return base;
+      return { ...base, glossary: filterGlossaryByChapter(base.glossary, chapterNumber) };
+    };
 
     const dummyStage1: StageResult<AnalysisResult> = {
       stage: 'analyze',
@@ -191,6 +202,7 @@ export class TranslationPipeline {
         chapterNumber,
         existingGlossary: context.glossary,
         temperature: options.temperatureByStage?.analysis,
+        maxSectionTokens: options.analysisMaxSectionTokens,
       });
       checkCancelled();
       totalTokens += stage1Result.tokensUsed;
@@ -222,13 +234,23 @@ export class TranslationPipeline {
         options.chunkSize ??
         (onlyEditIncludeGlossary ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
       const stage3Result = await this.editStage.execute(existingText, sourceText, {
-        context: updatedContext,
+        context: ctxForTranslateEdit(),
         checkQuality: true,
         chunkSize: onlyEditChunkSize,
         includeGlossary: onlyEditIncludeGlossary,
         temperature: options.temperatureByStage?.editing,
         customInstructions: options.customInstructions?.editing,
         editingStylePreset: options.editingStylePreset,
+        editingFocus: options.editingFocus,
+        chunkRetryAttempts: options.retryAttempts ?? 2,
+        chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
+        parallelChunks: options.parallelChunks,
+        isCancelled: options.isCancelled,
+        checkQualityForChunked: options.checkQualityForChunked,
+        qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
+        onProgress: options.onProgress
+          ? (d, t) => options.onProgress?.(d, t, 'editing')
+          : undefined,
       });
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
@@ -258,6 +280,7 @@ export class TranslationPipeline {
         existingGlossary:
           options.includeGlossaryInAnalysis !== false ? context.glossary : undefined,
         temperature: options.temperatureByStage?.analysis,
+        maxSectionTokens: options.analysisMaxSectionTokens,
       });
       checkCancelled();
       totalTokens += stage1Result.tokensUsed;
@@ -316,12 +339,22 @@ export class TranslationPipeline {
           options.chunkSize ??
           (editOnlyIncludeGlossary ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
         const stage3Result = await this.editStage.execute(existing, sourceText, {
-          context: this.agent.getContext(),
+          context: ctxForTranslateEdit(),
           checkQuality: true,
           chunkSize: editOnlyChunkSize,
           includeGlossary: editOnlyIncludeGlossary,
           customInstructions: options.customInstructions?.editing,
           editingStylePreset: options.editingStylePreset,
+          editingFocus: options.editingFocus,
+          chunkRetryAttempts: options.retryAttempts ?? 2,
+          chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
+          parallelChunks: options.parallelChunks,
+          isCancelled: options.isCancelled,
+          checkQualityForChunked: options.checkQualityForChunked,
+          qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
+          onProgress: options.onProgress
+            ? (d, t) => options.onProgress?.(d, t, 'editing')
+            : undefined,
         });
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
@@ -368,9 +401,8 @@ export class TranslationPipeline {
       includeGlossary: includeGlossaryInTranslation,
       chunkSize: translationChunkSize,
     });
-    const ctxAfter1 = this.agent.getContext();
     const stage2Result = await this.translateStage.execute(sourceText, {
-      context: ctxAfter1,
+      context: ctxForTranslateEdit(),
       chunkSize: translationChunkSize,
       includeGlossary: includeGlossaryInTranslation,
       temperature: options.temperatureByStage?.translation,
@@ -380,6 +412,8 @@ export class TranslationPipeline {
       neverSplitParagraphs: options.neverSplitParagraphs,
       textBlockTypes: options.textBlockTypes,
       customInstructions: options.customInstructions?.translation,
+      parallelChunks: options.parallelChunks,
+      onProgress: options.onProgress ? (d, t) => options.onProgress?.(d, t, 'translation') : undefined,
     });
     totalTokens += stage2Result.tokensUsed;
 
@@ -411,13 +445,23 @@ export class TranslationPipeline {
         chunkSize: editChunkSize,
       });
       stage3Result = await this.editStage.execute(stage2Result.data.translatedText, sourceText, {
-        context: ctxAfter1,
+        context: ctxForTranslateEdit(),
         checkQuality: true,
         chunkSize: editChunkSize,
         includeGlossary: includeGlossaryInEditing,
         temperature: options.temperatureByStage?.editing,
         customInstructions: options.customInstructions?.editing,
         editingStylePreset: options.editingStylePreset,
+        editingFocus: options.editingFocus,
+        chunkRetryAttempts: options.retryAttempts ?? 2,
+        chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
+        parallelChunks: options.parallelChunks,
+        isCancelled: options.isCancelled,
+        checkQualityForChunked: options.checkQualityForChunked,
+        qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
+        onProgress: options.onProgress
+          ? (d, t) => options.onProgress?.(d, t, 'editing')
+          : undefined,
       });
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {
@@ -485,6 +529,139 @@ export class TranslationPipeline {
   }
 
   /**
+   * Analyze multiple chapters in parallel (analysis-only stage).
+   * Uses concurrency limit (default 4) to respect API rate limits.
+   * All chapters receive the same glossary snapshot; results are merged and applied to agent.
+   */
+  async analyzeChaptersParallel(
+    chapters: Array<{ text: string; number: number; id?: string }>,
+    options: PipelineOptions & {
+      analysisConcurrency?: number;
+      onChapterComplete?: (
+        chapterId: string | undefined,
+        chapterNumber: number,
+        result: { success: boolean; tokensUsed: number; error?: string }
+      ) => void;
+    } = {}
+  ): Promise<{
+    results: Array<{
+      chapterNumber: number;
+      success: boolean;
+      data?: AnalysisResult;
+      tokensUsed: number;
+      duration: number;
+      error?: string;
+    }>;
+    totalTokensUsed: number;
+    totalDuration: number;
+    updatedContext: AgentContext;
+    /** Chapters that threw during analysis (resilient mode). */
+    failedChapters?: Array<{ chapterNumber: number; error: string }>;
+  }> {
+    const startTime = Date.now();
+    const context = this.agent.getContext();
+    const existingGlossary = options.includeGlossaryInAnalysis !== false ? context.glossary : undefined;
+    const concurrency = options.analysisConcurrency ?? DEFAULT_ANALYSIS_CONCURRENCY;
+
+    log.info('Pipeline: parallel analysis', {
+      chaptersCount: chapters.length,
+      concurrency,
+      hasGlossary: !!existingGlossary,
+    });
+
+    const onChapterComplete = options.onChapterComplete;
+    const rawResults = await runWithConcurrencyResilient(
+      chapters,
+      concurrency,
+      async (chapter) => {
+        const stageResult = await this.analyzeStage.execute(chapter.text, {
+          chapterNumber: chapter.number,
+          existingGlossary,
+          temperature: options.temperatureByStage?.analysis,
+          maxSectionTokens: options.analysisMaxSectionTokens,
+        });
+        return {
+          chapterNumber: chapter.number,
+          stageResult,
+        };
+      },
+      {
+        isCancelled: options.isCancelled,
+        onItemComplete: onChapterComplete
+          ? (index, res) => {
+              const chapter = chapters[index]!;
+              const chapterNumber = chapter.number;
+              const chapterId = chapter.id;
+              if (res.success && res.data) {
+                const { stageResult } = res.data;
+                onChapterComplete(chapterId, chapterNumber, {
+                  success: stageResult.success,
+                  tokensUsed: stageResult.tokensUsed,
+                  error: stageResult.error,
+                });
+              } else {
+                onChapterComplete(chapterId, chapterNumber, {
+                  success: false,
+                  tokensUsed: 0,
+                  error: res.error,
+                });
+              }
+            }
+          : undefined,
+      }
+    );
+
+    const successful: AnalysisResult[] = [];
+    const failedChapters: Array<{ chapterNumber: number; error: string }> = [];
+    const results = rawResults.map((r, i) => {
+      if (r.success && r.data) {
+        const { chapterNumber, stageResult } = r.data;
+        if (stageResult.success && stageResult.data) {
+          successful.push(stageResult.data);
+        }
+        return {
+          chapterNumber,
+          success: stageResult.success,
+          data: stageResult.data,
+          tokensUsed: stageResult.tokensUsed,
+          duration: stageResult.duration,
+          error: stageResult.error,
+        };
+      }
+      const chapterNumber = chapters[i]!.number;
+      failedChapters.push({ chapterNumber, error: r.error ?? 'Unknown error' });
+      return {
+        chapterNumber,
+        success: false,
+        tokensUsed: 0,
+        duration: 0,
+        error: r.error,
+      };
+    });
+
+    if (successful.length > 0) {
+      successful.sort((a, b) => a.chapterNumber - b.chapterNumber);
+      this.agent.applyBatchAnalysisResults(successful);
+      log.info('Pipeline: batch analysis applied', {
+        successfulCount: successful.length,
+        failedCount: results.length - successful.length,
+        failedChapters: failedChapters.length > 0 ? failedChapters : undefined,
+      });
+    }
+
+    const totalTokensUsed = results.reduce((sum, r) => sum + r.tokensUsed, 0);
+    const totalDuration = Date.now() - startTime;
+
+    return {
+      results,
+      totalTokensUsed,
+      totalDuration,
+      updatedContext: this.agent.getContext(),
+      ...(failedChapters.length > 0 && { failedChapters }),
+    };
+  }
+
+  /**
    * Get the current agent (for saving state)
    */
   getAgent(): NovelAgent {
@@ -520,7 +697,7 @@ export class TranslationPipeline {
       stage1,
       stage2,
       stage3,
-      finalTranslation: `[ERROR] ${error}`,
+      finalTranslation: formatChunkError(error),
       totalTokensUsed: totalTokens,
       totalDuration,
       updatedContext: this.agent.getContext(),

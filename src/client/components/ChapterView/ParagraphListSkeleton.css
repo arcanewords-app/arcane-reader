@@ -1,0 +1,17 @@
+/* ParagraphListSkeleton - loading placeholder */
+
+.paragraph-list-skeleton__stats {
+  margin-left: 0.5rem;
+}
+
+.paragraph-list-skeleton__content {
+  padding: 1rem;
+}
+
+.paragraph-list-skeleton__row .paragraph-cell {
+  padding-left: 1rem;
+}
+
+.paragraph-list-skeleton__row .paragraph-cell-original {
+  background-image: none;
+}

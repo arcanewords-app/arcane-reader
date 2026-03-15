@@ -142,6 +142,143 @@ export class NovelAgent {
   }
 
   /**
+   * Apply multiple analysis results (from parallel batch analysis).
+   * Merges glossary updates (first wins for new*, dedupe for updated*), records each chapter summary.
+   */
+  applyBatchAnalysisResults(results: AnalysisResult[]): void {
+    if (results.length === 0) return;
+
+    const merged = this.mergeAnalysisResultsForBatch(results);
+    this.updateGlossary(merged.glossaryUpdate);
+
+    for (const r of results) {
+      const summary: ChapterSummary = {
+        chapterNumber: r.chapterNumber,
+        summary: r.chapterSummary ?? '',
+        keyEvents: r.keyEvents ?? [],
+        activeCharacters: r.foundCharacters.map((c) => c.name) ?? [],
+        location: r.foundLocations[0]?.name ?? '',
+      };
+      this.recordChapterTranslation(summary);
+    }
+
+    const last = results[results.length - 1]!;
+    this.state.currentContext = {
+      lastEvents: last.keyEvents.slice(-5),
+      activeCharacters: last.foundCharacters.map((c) => c.name),
+      currentLocation: last.foundLocations[0]?.name ?? this.state.currentContext.currentLocation,
+      currentMood: last.mood,
+      openPlotThreads: this.state.currentContext.openPlotThreads,
+    };
+
+    const styleNotes = results.map((r) => r.styleNotes).filter(Boolean).join('\n');
+    if (styleNotes) {
+      this.state.styleProfile.writingStyle = this.state.styleProfile.writingStyle
+        ? `${this.state.styleProfile.writingStyle}\n${styleNotes}`
+        : styleNotes;
+    }
+
+    this.state.updatedAt = new Date();
+  }
+
+  private mergeAnalysisResultsForBatch(
+    results: AnalysisResult[]
+  ): { glossaryUpdate: import('../types/glossary.js').GlossaryUpdate } {
+    const existingChars = this.state.glossary.characters;
+    const existingLocs = this.state.glossary.locations;
+    const existingTerms = this.state.glossary.terms;
+    const existingCharNames = new Set(existingChars.map((c) => c.originalName.toLowerCase()));
+    const existingLocNames = new Set(existingLocs.map((l) => l.originalName.toLowerCase()));
+    const existingTermSet = new Set(existingTerms.map((t) => t.originalTerm.toLowerCase()));
+
+    const newCharsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['newCharacters'][0]>();
+    const newLocsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['newLocations'][0]>();
+    const newTermsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['newTerms'][0]>();
+
+    const updatedCharsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['updatedCharacters'][0]>();
+    const updatedLocsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['updatedLocations'][0]>();
+    const updatedTermsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['updatedTerms'][0]>();
+
+    for (const r of results) {
+      for (const c of r.glossaryUpdate?.newCharacters ?? []) {
+        const key = c.originalName.toLowerCase();
+        if (!newCharsByOrig.has(key) && !existingCharNames.has(key)) {
+          newCharsByOrig.set(key, c);
+        }
+      }
+      for (const l of r.glossaryUpdate?.newLocations ?? []) {
+        const key = l.originalName.toLowerCase();
+        if (!newLocsByOrig.has(key) && !existingLocNames.has(key)) {
+          newLocsByOrig.set(key, l);
+        }
+      }
+      for (const t of r.glossaryUpdate?.newTerms ?? []) {
+        const key = t.originalTerm.toLowerCase();
+        if (!newTermsByOrig.has(key) && !existingTermSet.has(key)) {
+          newTermsByOrig.set(key, t);
+        }
+      }
+      for (const c of r.glossaryUpdate?.updatedCharacters ?? []) {
+        const key = (c.originalName ?? '').toLowerCase();
+        if (key) updatedCharsByOrig.set(key, c);
+      }
+      for (const l of r.glossaryUpdate?.updatedLocations ?? []) {
+        const key = (l.originalName ?? '').toLowerCase();
+        if (key) updatedLocsByOrig.set(key, l);
+      }
+      for (const t of r.glossaryUpdate?.updatedTerms ?? []) {
+        const key = (t.originalTerm ?? '').toLowerCase();
+        if (key) updatedTermsByOrig.set(key, t);
+      }
+    }
+
+    const findExistingChar = (name: string) =>
+      existingChars.find((c) => c.originalName.toLowerCase() === name.toLowerCase());
+    const findExistingLoc = (name: string) =>
+      existingLocs.find((l) => l.originalName.toLowerCase() === name.toLowerCase());
+    const findExistingTerm = (term: string) =>
+      existingTerms.find((t) => t.originalTerm.toLowerCase() === term.toLowerCase());
+
+    const updatedCharacters = Array.from(updatedCharsByOrig.values())
+      .map((c) => {
+        const existing = findExistingChar(c.originalName ?? '');
+        return existing ? { ...c, id: existing.id } : c;
+      })
+      .filter((c) => c.id);
+    const updatedLocations = Array.from(updatedLocsByOrig.values())
+      .map((l) => {
+        const existing = findExistingLoc(l.originalName ?? '');
+        return existing ? { ...l, id: existing.id } : l;
+      })
+      .filter((l) => l.id);
+    const updatedTerms = Array.from(updatedTermsByOrig.values())
+      .map((t) => {
+        const existing = findExistingTerm(t.originalTerm ?? '');
+        return existing ? { ...t, id: existing.id } : t;
+      })
+      .filter((t) => t.id);
+
+    const minChapter = Math.min(...results.map((r) => r.chapterNumber));
+    const newCharacters = Array.from(newCharsByOrig.values()).map((c) => ({
+      ...c,
+      firstAppearance: c.firstAppearance ?? minChapter,
+    }));
+    const newLocations = Array.from(newLocsByOrig.values());
+    const newTerms = Array.from(newTermsByOrig.values());
+
+    return {
+      glossaryUpdate: {
+        newCharacters,
+        newLocations,
+        newTerms,
+        updatedCharacters,
+        updatedLocations,
+        updatedTerms,
+      },
+    };
+  }
+
+  /**
    * Update glossary with new entries
    */
   updateGlossary(update: GlossaryUpdate): void {

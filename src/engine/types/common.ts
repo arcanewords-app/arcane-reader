@@ -26,6 +26,8 @@ export interface TextChunk {
   content: string;
   index: number;
   tokenCount?: number;
+  /** Separator that followed this chunk in the original text (e.g. '\n\n' or '\n\n\n'). Used when merging. */
+  separatorAfter?: string;
 }
 
 export interface TranslationConfig {
