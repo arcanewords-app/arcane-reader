@@ -104,7 +104,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     route(`/projects/${projectId}/chapters/${chapterId}/reading`);
   };
 
-  if (loading || !project) {
+  // Show loading until project is ready and, when on chapter route, until chapter is loaded
+  const isLoadingPage = loading || !project || (!!chapterId && chapter === null);
+  if (isLoadingPage) {
     return (
       <div class="page-loading">
         <LoadingSpinner size="lg" text={t('common.loading')} />

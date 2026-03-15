@@ -2962,22 +2962,35 @@ app.post(
                     project.settings?.stageModels?.analysis ??
                     project.settings?.model ??
                     config.openai.model;
+                  const existingChapter = await getChapter(projectId, chapterId, token, {
+                    useServiceRole: true,
+                  });
+                  const preserveStatus =
+                    existingChapter?.status === 'completed' ||
+                    existingChapter?.status === 'draft';
+                  const preservedSource = existingChapter?.translationMeta?.source;
                   await updateChapter(
                     projectId,
                     chapterId,
                     {
-                      status: 'analyzed',
+                      status: preserveStatus ? existingChapter!.status : 'analyzed',
                       translationMeta: {
+                        ...(existingChapter?.translationMeta || {}),
                         tokensUsed: progResult.tokensUsed,
                         tokensByStage: {
+                          ...(existingChapter?.translationMeta?.tokensByStage || {}),
                           analysis: progResult.tokensUsed,
-                          translation: 0,
-                          editing: 0,
+                          translation:
+                            existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
+                          editing:
+                            existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
                         },
                         duration: 0,
                         model: analysisModel,
-                        translatedAt: nowIso,
+                        translatedAt:
+                          existingChapter?.translationMeta?.translatedAt ?? nowIso,
                         lastAnalysisAt: nowIso,
+                        ...(preservedSource ? { source: preservedSource } : {}),
                       },
                     },
                     token,
@@ -3111,18 +3124,34 @@ app.post(
           project.settings?.stageModels?.analysis ??
           project.settings?.model ??
           config.openai.model;
+        const existingChapter = await getChapter(projectId, chResult.chapterId, token, {
+          useServiceRole: true,
+        });
+        const preserveStatus =
+          existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
+        const preservedSource = existingChapter?.translationMeta?.source;
         await updateChapter(
           projectId,
           chResult.chapterId,
           {
-            status: 'analyzed',
+            status: preserveStatus ? existingChapter!.status : 'analyzed',
             translationMeta: {
+              ...(existingChapter?.translationMeta || {}),
               tokensUsed: chResult.tokensUsed,
-              tokensByStage: { analysis: chResult.tokensUsed, translation: 0, editing: 0 },
+              tokensByStage: {
+                ...(existingChapter?.translationMeta?.tokensByStage || {}),
+                analysis: chResult.tokensUsed,
+                translation:
+                  existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
+                editing:
+                  existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
+              },
               duration: result.totalDuration,
               model: analysisModel,
-              translatedAt: nowIso,
+              translatedAt:
+                existingChapter?.translationMeta?.translatedAt ?? nowIso,
               lastAnalysisAt: nowIso,
+              ...(preservedSource ? { source: preservedSource } : {}),
             },
           },
           token,

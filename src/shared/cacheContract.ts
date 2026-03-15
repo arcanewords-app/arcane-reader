@@ -11,6 +11,9 @@ export const MAX_CHAPTERS_PER_PROJECT = 50_000;
 /** Max paragraphs to fetch for chapter summary (Supabase default is 1000). */
 export const MAX_PARAGRAPHS_FOR_SUMMARY = 500_000;
 
+/** PostgREST default row limit per request (Supabase caps SELECT at this). */
+export const POSTGREST_MAX_ROWS = 1000;
+
 export const CACHE_TTL = {
   // Client-side
   clientPublicationMs: 120_000, // 2 min — public content rarely changes

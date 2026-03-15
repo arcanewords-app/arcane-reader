@@ -6,10 +6,7 @@
  */
 
 import { supabase, createClientWithToken } from './supabaseClient.js';
-import {
-  MAX_CHAPTERS_PER_PROJECT,
-  MAX_PARAGRAPHS_FOR_SUMMARY,
-} from '../shared/cacheContract.js';
+import { POSTGREST_MAX_ROWS } from '../shared/cacheContract.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
@@ -394,11 +391,11 @@ export async function getAllProjectsLightweight(
 
   const projectIds = projects.map((p) => p.id);
 
-  const [chapterCounts, translatedCounts, glossaryCounts] = await Promise.all([
-    getChapterCountsByProject(client, projectIds),
-    getTranslatedChapterCountsByProject(client, projectIds),
+  const [chapterCountsResult, glossaryCounts] = await Promise.all([
+    getChapterCountsByProjectRpc(client, projectIds),
     getGlossaryCountsByProject(client, projectIds),
   ]);
+  const { chapterCounts, translatedCounts } = chapterCountsResult;
 
   return projects.map((p) => {
     const settings = (p.settings as ProjectSettings) || getDefaultProjectSettings();
@@ -417,43 +414,28 @@ export async function getAllProjectsLightweight(
   });
 }
 
-async function getChapterCountsByProject(
+/**
+ * Get chapter counts via RPC (bypasses PostgREST 1000 row limit).
+ */
+async function getChapterCountsByProjectRpc(
   client: ReturnType<typeof createClientWithToken>,
   projectIds: string[]
-): Promise<Record<string, number>> {
-  if (projectIds.length === 0) return {};
-  const { data, error } = await client
-    .from('chapters')
-    .select('project_id')
-    .in('project_id', projectIds)
-    .limit(MAX_CHAPTERS_PER_PROJECT * Math.max(1, projectIds.length));
-  if (error) throw new Error(`Failed to get chapter counts: ${error.message}`);
-  const counts: Record<string, number> = {};
-  for (const row of data || []) {
-    const pid = row.project_id as string;
-    counts[pid] = (counts[pid] ?? 0) + 1;
-  }
-  return counts;
-}
+): Promise<{ chapterCounts: Record<string, number>; translatedCounts: Record<string, number> }> {
+  const chapterCounts: Record<string, number> = {};
+  const translatedCounts: Record<string, number> = {};
+  if (projectIds.length === 0) return { chapterCounts, translatedCounts };
 
-async function getTranslatedChapterCountsByProject(
-  client: ReturnType<typeof createClientWithToken>,
-  projectIds: string[]
-): Promise<Record<string, number>> {
-  if (projectIds.length === 0) return {};
-  const { data, error } = await client
-    .from('chapters')
-    .select('project_id')
-    .eq('status', 'completed')
-    .in('project_id', projectIds)
-    .limit(MAX_CHAPTERS_PER_PROJECT * Math.max(1, projectIds.length));
-  if (error) throw new Error(`Failed to get translated chapter counts: ${error.message}`);
-  const counts: Record<string, number> = {};
+  const { data, error } = await client.rpc('get_chapter_counts_by_projects', {
+    p_project_ids: projectIds,
+  });
+
+  if (error) throw new Error(`Failed to get chapter counts: ${error.message}`);
   for (const row of data || []) {
     const pid = row.project_id as string;
-    counts[pid] = (counts[pid] ?? 0) + 1;
+    chapterCounts[pid] = Number(row.total_count ?? 0);
+    translatedCounts[pid] = Number(row.translated_count ?? 0);
   }
-  return counts;
+  return { chapterCounts, translatedCounts };
 }
 
 async function getGlossaryCountsByProject(
@@ -629,64 +611,53 @@ export async function getChaptersSummary(
     return [];
   }
 
-  const { data: chapters, error } = await client
-    .from('chapters')
-    .select('id, number, title, status, translation_meta')
-    .eq('project_id', projectId)
-    .order('number', { ascending: true })
-    .limit(MAX_CHAPTERS_PER_PROJECT);
+  const results: ChapterSummary[] = [];
+  let offset = 0;
 
-  if (error) throw new Error(`Failed to get chapters: ${error.message}`);
-  if (!chapters || chapters.length === 0) return [];
+  for (;;) {
+    const { data: rows, error } = await client.rpc('get_chapters_summary_batch', {
+      p_project_id: projectId,
+      p_offset: offset,
+      p_limit: POSTGREST_MAX_ROWS,
+    });
 
-  const chapterIds = chapters.map((c) => c.id);
+    if (error) throw new Error(`Failed to get chapters: ${error.message}`);
+    if (!rows || rows.length === 0) break;
 
-  const [paragraphRows, translatedParagraphRows] = await Promise.all([
-    client
-      .from('paragraphs')
-      .select('chapter_id')
-      .in('chapter_id', chapterIds)
-      .limit(MAX_PARAGRAPHS_FOR_SUMMARY),
-    client
-      .from('paragraphs')
-      .select('chapter_id')
-      .in('chapter_id', chapterIds)
-      .not('translated_text', 'is', null)
-      .limit(MAX_PARAGRAPHS_FOR_SUMMARY),
-  ]);
+    for (const ch of rows as Array<{
+      id: string;
+      number: number;
+      title: string;
+      status: string;
+      translation_meta: unknown;
+      paragraph_count: number;
+      translated_paragraph_count: number;
+    }>) {
+      const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
+      const paragraphCount = Number(ch.paragraph_count ?? 0);
+      const translatedParagraphCount = Number(ch.translated_paragraph_count ?? 0);
+      const hasTranslation =
+        ch.status === 'completed' ||
+        (ch.status === 'draft' && translatedParagraphCount > 0) ||
+        (translatedParagraphCount > 0 && ch.status !== 'error');
+      results.push({
+        id: ch.id,
+        number: ch.number,
+        title: ch.title,
+        status: ch.status as ChapterStatus,
+        hasTranslation,
+        hasOriginalText: paragraphCount > 0,
+        paragraphCount,
+        translatedParagraphCount,
+        lastAnalysisAt: meta?.lastAnalysisAt,
+      });
+    }
 
-  const paragraphCounts: Record<string, number> = {};
-  for (const row of paragraphRows.data || []) {
-    const cid = row.chapter_id as string;
-    paragraphCounts[cid] = (paragraphCounts[cid] ?? 0) + 1;
+    if (rows.length < POSTGREST_MAX_ROWS) break;
+    offset += POSTGREST_MAX_ROWS;
   }
 
-  const translatedCounts: Record<string, number> = {};
-  for (const row of translatedParagraphRows.data || []) {
-    const cid = row.chapter_id as string;
-    translatedCounts[cid] = (translatedCounts[cid] ?? 0) + 1;
-  }
-
-  return chapters.map((ch) => {
-    const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
-    const paragraphCount = paragraphCounts[ch.id] ?? 0;
-    const translatedParagraphCount = translatedCounts[ch.id] ?? 0;
-    const hasTranslation =
-      ch.status === 'completed' ||
-      (ch.status === 'draft' && translatedParagraphCount > 0) ||
-      (translatedParagraphCount > 0 && ch.status !== 'error');
-    return {
-      id: ch.id,
-      number: ch.number,
-      title: ch.title,
-      status: ch.status as ChapterStatus,
-      hasTranslation,
-      hasOriginalText: paragraphCount > 0,
-      paragraphCount,
-      translatedParagraphCount,
-      lastAnalysisAt: meta?.lastAnalysisAt,
-    };
-  });
+  return results;
 }
 
 /**
@@ -1035,74 +1006,89 @@ export async function resetStuckChapters(token: string, projectId?: string): Pro
 
 /**
  * Load lightweight chapter list for a project (no paragraphs, no text).
+ * Uses pagination to bypass PostgREST 1000 row limit.
  */
 async function loadChaptersForProjectLightweight(
   projectId: string,
   token: string
 ): Promise<ChapterListItem[]> {
   const client = createClientWithToken(token);
+  const allChapters: ChapterListItem[] = [];
+  let offset = 0;
 
-  const { data: chapters, error } = await client
-    .from('chapters')
-    .select('id, number, title, status, translation_meta, created_at, updated_at')
-    .eq('project_id', projectId)
-    .order('number', { ascending: true })
-    .limit(MAX_CHAPTERS_PER_PROJECT);
+  for (;;) {
+    const { data: chapters, error } = await client
+      .from('chapters')
+      .select('id, number, title, status, translation_meta, created_at, updated_at')
+      .eq('project_id', projectId)
+      .order('number', { ascending: true })
+      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
 
-  if (error) {
-    throw new Error(`Failed to load chapters: ${error.message}`);
+    if (error) {
+      throw new Error(`Failed to load chapters: ${error.message}`);
+    }
+
+    if (!chapters || chapters.length === 0) {
+      break;
+    }
+
+    for (const ch of chapters) {
+      const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
+      const hasTranslation = ch.status === 'completed' || ch.status === 'draft';
+      allChapters.push({
+        id: ch.id,
+        number: ch.number,
+        title: ch.title,
+        status: ch.status as ChapterStatus,
+        hasTranslation,
+        translationMeta: meta,
+      });
+    }
+
+    if (chapters.length < POSTGREST_MAX_ROWS) {
+      break;
+    }
+    offset += POSTGREST_MAX_ROWS;
   }
 
-  if (!chapters || chapters.length === 0) {
-    return [];
-  }
-
-  return chapters.map((ch) => {
-    const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
-    const hasTranslation = ch.status === 'completed' || ch.status === 'draft';
-    return {
-      id: ch.id,
-      number: ch.number,
-      title: ch.title,
-      status: ch.status as ChapterStatus,
-      hasTranslation,
-      translationMeta: meta,
-    };
-  });
+  return allChapters;
 }
 
 /**
  * Load all chapters for a project (with paragraphs).
- * Uses nested select to fetch chapters + paragraphs in one query (avoids N+1).
+ * Uses pagination to bypass PostgREST 1000 row limit.
  */
 async function loadChaptersForProject(projectId: string, token: string): Promise<Chapter[]> {
   const client = createClientWithToken(token);
+  const allChapters: Chapter[] = [];
+  let offset = 0;
 
-  const { data: chapters, error } = await client
-    .from('chapters')
-    .select('*, paragraphs(*)')
-    .eq('project_id', projectId)
-    .order('number', { ascending: true })
-    .limit(MAX_CHAPTERS_PER_PROJECT);
+  for (;;) {
+    const { data: chapters, error } = await client
+      .from('chapters')
+      .select('*, paragraphs(*)')
+      .eq('project_id', projectId)
+      .order('number', { ascending: true })
+      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
 
-  if (error) {
-    throw new Error(`Failed to load chapters: ${error.message}`);
-  }
+    if (error) {
+      throw new Error(`Failed to load chapters: ${error.message}`);
+    }
 
-  if (!chapters || chapters.length === 0) {
-    return [];
-  }
+    if (!chapters || chapters.length === 0) {
+      break;
+    }
 
-  // Log loaded chapters order for debugging (only in development)
-  if (process.env.NODE_ENV === 'development' && chapters.length <= 5) {
-    logger.debug(
-      { projectId, chaptersCount: chapters.length },
-      `Chapters loaded: ${chapters.map((c) => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', ')}`
-    );
-  }
+    // Log loaded chapters order for debugging (only in development)
+    if (process.env.NODE_ENV === 'development' && chapters.length <= 5 && offset === 0) {
+      logger.debug(
+        { projectId, chaptersCount: chapters.length },
+        `Chapters loaded: ${chapters.map((c) => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', ')}`
+      );
+    }
 
-  // Extract and transform paragraphs from nested response (one query instead of N)
-  const chaptersWithParagraphs = await Promise.all(
+    // Extract and transform paragraphs from nested response (one query instead of N)
+    const chaptersWithParagraphs = await Promise.all(
     chapters.map(async (chapter) => {
       const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
       const paragraphs = rawParagraphs
@@ -1195,41 +1181,63 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
       return transformChapterFromDB(chapter, paragraphsList);
     })
-  );
+    );
 
-  return chaptersWithParagraphs;
+    allChapters.push(...chaptersWithParagraphs);
+
+    if (chapters.length < POSTGREST_MAX_ROWS) {
+      break;
+    }
+    offset += POSTGREST_MAX_ROWS;
+  }
+
+  return allChapters;
 }
 
 /**
  * Load all chapters for a project using service role (no auth).
  * Used for publication export where project is loaded by publication.projectId.
+ * Uses pagination to bypass PostgREST 1000 row limit.
  */
 async function loadChaptersForProjectWithServiceRole(projectId: string): Promise<Chapter[]> {
   const { createServiceRoleClient } = await import('./supabaseClient.js');
   const client = createServiceRoleClient();
+  const allChapters: Chapter[] = [];
+  let offset = 0;
 
-  const { data: chapters, error } = await client
-    .from('chapters')
-    .select('*, paragraphs(*)')
-    .eq('project_id', projectId)
-    .order('number', { ascending: true })
-    .limit(MAX_CHAPTERS_PER_PROJECT);
+  for (;;) {
+    const { data: chapters, error } = await client
+      .from('chapters')
+      .select('*, paragraphs(*)')
+      .eq('project_id', projectId)
+      .order('number', { ascending: true })
+      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
 
-  if (error) {
-    throw new Error(`Failed to load chapters: ${error.message}`);
+    if (error) {
+      throw new Error(`Failed to load chapters: ${error.message}`);
+    }
+
+    if (!chapters || chapters.length === 0) {
+      break;
+    }
+
+    const batch = chapters.map((chapter) => {
+      const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
+      const paragraphs = rawParagraphs
+        .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
+        .map(transformParagraphFromDB);
+      return transformChapterFromDB(chapter, paragraphs);
+    });
+
+    allChapters.push(...batch);
+
+    if (chapters.length < POSTGREST_MAX_ROWS) {
+      break;
+    }
+    offset += POSTGREST_MAX_ROWS;
   }
 
-  if (!chapters || chapters.length === 0) {
-    return [];
-  }
-
-  return chapters.map((chapter) => {
-    const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
-    const paragraphs = rawParagraphs
-      .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
-      .map(transformParagraphFromDB);
-    return transformChapterFromDB(chapter, paragraphs);
-  });
+  return allChapters;
 }
 
 /**
@@ -2757,33 +2765,54 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
 
   // Load chapters for this project (chapters are under project owned by publication owner).
   // Use service role to read chapters for published project.
-  // Lightweight: do NOT select translated_text — use two queries to avoid transferring full text for 1000+ chapters.
-  // For reading, use separate endpoint GET /api/publications/:id/chapters/:chapterId (getPublicationChapterContent).
+  // Pagination bypasses PostgREST 1000 row limit for publications with >1000 chapters.
   let list: Array<{ id: string; number: number; title: string; hasTranslation: boolean }> = [];
   try {
     const { createServiceRoleClient } = await import('./supabaseClient.js');
     const serviceClient = createServiceRoleClient();
-    const [chaptersResult, translatedResult] = await Promise.all([
-      serviceClient
+    const allChapters: Array<{ id: string; number: number; title: string }> = [];
+    const allTranslatedIds = new Set<string>();
+
+    // Paginate chapters (ordered by number)
+    let chapterOffset = 0;
+    for (;;) {
+      const chaptersResult = await serviceClient
         .from('chapters')
         .select('id, number, title')
         .eq('project_id', pub.projectId)
-        .order('number', { ascending: true }),
-      serviceClient
+        .order('number', { ascending: true })
+        .range(chapterOffset, chapterOffset + POSTGREST_MAX_ROWS - 1);
+      const chapters = chaptersResult.data || [];
+      for (const c of chapters) {
+        allChapters.push({ id: c.id, number: c.number, title: c.title });
+      }
+      if (chapters.length < POSTGREST_MAX_ROWS) break;
+      chapterOffset += POSTGREST_MAX_ROWS;
+    }
+
+    // Paginate translated chapter IDs (need all to build hasTranslation map)
+    let translatedOffset = 0;
+    for (;;) {
+      const translatedResult = await serviceClient
         .from('chapters')
         .select('id')
         .eq('project_id', pub.projectId)
-        .not('translated_text', 'is', null),
-    ]);
-    const chapters = chaptersResult.data || [];
-    const translatedIds = new Set(
-      (translatedResult.data || []).map((c) => c.id)
-    );
-    list = chapters.map((c) => ({
+        .not('translated_text', 'is', null)
+        .order('id', { ascending: true })
+        .range(translatedOffset, translatedOffset + POSTGREST_MAX_ROWS - 1);
+      const translated = translatedResult.data || [];
+      for (const c of translated) {
+        allTranslatedIds.add(c.id);
+      }
+      if (translated.length < POSTGREST_MAX_ROWS) break;
+      translatedOffset += POSTGREST_MAX_ROWS;
+    }
+
+    list = allChapters.map((c) => ({
       id: c.id,
       number: c.number,
       title: c.title,
-      hasTranslation: translatedIds.has(c.id),
+      hasTranslation: allTranslatedIds.has(c.id),
     }));
   } catch {
     // Service role not configured: return publication without chapters (client can still show metadata)
@@ -3266,28 +3295,25 @@ export async function getUserReadingHistory(
 
   if (items.length === 0) return [];
 
-  // Get chapter counts per project (service role for chapters)
+  // Get chapter counts per project via RPC (bypasses PostgREST 1000 row limit)
   const projectIds = [...new Set(items.map((i) => i.projectId))];
   const chapterCountByProject: Record<string, number> = {};
 
   try {
     const { createServiceRoleClient } = await import('./supabaseClient.js');
     const serviceClient = createServiceRoleClient();
-    const { data: chapterCounts } = await serviceClient
-      .from('chapters')
-      .select('project_id')
-      .in('project_id', projectIds)
-      .limit(MAX_CHAPTERS_PER_PROJECT * Math.max(1, projectIds.length));
+    const { data: chapterCounts, error } = await serviceClient.rpc(
+      'get_chapter_counts_by_projects',
+      { p_project_ids: projectIds }
+    );
 
-    if (chapterCounts) {
-      for (const pid of projectIds) {
-        chapterCountByProject[pid] = chapterCounts.filter(
-          (c: { project_id: string }) => c.project_id === pid
-        ).length;
+    if (!error && chapterCounts) {
+      for (const row of chapterCounts as Array<{ project_id: string; total_count: number }>) {
+        chapterCountByProject[row.project_id] = Number(row.total_count ?? 0);
       }
     }
   } catch {
-    // Service role not configured: use 0 for totalChapters
+    // Service role not configured or RPC missing: use 0 for totalChapters
     for (const pid of projectIds) {
       chapterCountByProject[pid] = 0;
     }

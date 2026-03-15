@@ -108,8 +108,17 @@ export function ChapterView({
 
   const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
 
-  // Show only translation column when translation was uploaded (author marked as ready-made)
-  const isTranslationOnlyDisplay = chapter?.translationMeta?.source === 'uploaded';
+  // Show only translation column when source=uploaded AND no meaningful original (e.g. mark-as-translated where original=translation).
+  // When we have original that differs from translation, show both columns (left: original, right: translation).
+  const isTranslationOnlyDisplay = useMemo(() => {
+    if (chapter?.translationMeta?.source !== 'uploaded') return false;
+    const hasMeaningfulOriginal = chapter?.paragraphs?.some(
+      (p) =>
+        p.originalText &&
+        p.originalText.trim() !== (p.translatedText || '').trim()
+    );
+    return !hasMeaningfulOriginal;
+  }, [chapter?.translationMeta?.source, chapter?.paragraphs]);
 
   // Empty paragraphs (no valid translation) - for "translate empty" / "translate selected"
   const emptyParagraphIds = useMemo(() => {
@@ -209,7 +218,7 @@ export function ChapterView({
       clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onChapterUpdate from parent; pollingInterval is managed inside
-  }, [chapter.status, chapter.id, project.id, onChapterUpdate]);
+  }, [chapter?.status, chapter?.id, project.id, onChapterUpdate]);
 
   const handleSelectAllEmpty = () => setSelectedParagraphIds([...emptyParagraphIds]);
   const handleDeselectAll = () => setSelectedParagraphIds([]);
