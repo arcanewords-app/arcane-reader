@@ -32,6 +32,8 @@ interface ReadingModeProps {
   project?: Project | ProjectWithChapterList;
   /** Publication mode: show translated text from catalog */
   publicationId?: string;
+  /** URL path segment for publication (slug or id). Use for share links and canonical URLs. */
+  publicationPath?: string;
   publicationTitle?: string;
   publicationChapters?: Array<{ id: string; number: number; title: string }>;
   /** When > 0, show Glossary button in header (publication mode only). */
@@ -124,6 +126,7 @@ function startScrollCorrection(
 export function ReadingMode({
   project,
   publicationId,
+  publicationPath,
   publicationTitle,
   publicationChapters = [],
   publicationGlossaryCount = 0,
@@ -1006,7 +1009,8 @@ export function ReadingMode({
 
     let url: string;
     if (isPublicationMode && publicationId) {
-      url = `${window.location.origin}/p/${publicationId}/chapters/${currentChapter.id}/reading`;
+      const path = publicationPath ?? publicationId;
+      url = `${window.location.origin}/p/${path}/chapters/${currentChapter.id}/reading`;
     } else if (project) {
       const params = new URLSearchParams();
       params.set('project', project.id);
@@ -1018,7 +1022,7 @@ export function ReadingMode({
     }
     setShareLink(url);
     setShowShareModal(true);
-  }, [isPublicationMode, publicationId, project, chapters, currentChapterIndex]);
+  }, [isPublicationMode, publicationId, publicationPath, project, chapters, currentChapterIndex]);
 
   const handleCopyShareLink = useCallback(async () => {
     if (!shareLink) return;

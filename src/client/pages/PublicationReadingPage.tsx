@@ -22,6 +22,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       title: string | null;
       description: string | null;
       coverImageUrl: string | null;
+      slug: string | null;
     };
     chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
     glossaryCount: number;
@@ -79,6 +80,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
               title: result.title,
               description: result.description,
               coverImageUrl: result.coverImageUrl,
+              slug: result.slug ?? null,
             },
             chapters: result.chapters || [],
             glossaryCount: result.glossaryCount ?? 0,
@@ -194,6 +196,15 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       : null;
   usePageMeta(readingMeta);
 
+  const publicationChapters = useMemo(
+    () =>
+      (data?.chapters ?? [])
+        .filter((ch) => ch.hasTranslation)
+        .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- data.chapters identity stable after load
+    [data?.chapters]
+  );
+
   if (!publicationId) return null;
 
   const waitingForProgress = chapterId && !progressLoaded;
@@ -216,15 +227,6 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     );
   }
 
-  const publicationChapters = useMemo(
-    () =>
-      data.chapters
-        .filter((ch) => ch.hasTranslation)
-        .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- data.chapters identity stable after load
-    [data.chapters]
-  );
-
   if (publicationChapters.length === 0) {
     return (
       <div class="publication-reading-placeholder">
@@ -246,6 +248,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   return (
     <ReadingMode
       publicationId={publicationId}
+      publicationPath={pubPath}
       publicationTitle={data.publication.title || undefined}
       publicationChapters={publicationChapters}
       publicationGlossaryCount={data.glossaryCount}
