@@ -65,7 +65,7 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.8.2",
+    "@preact/preset-vite": "2.8.2",
     "@types/adm-zip": "^0.5.7",
     "@types/cors": "^2.8.17",
     "@types/diff-match-patch": "^1.0.36",
