@@ -73,7 +73,9 @@
     "deleting": "Удаление...",
     "errorDeleting": "Ошибка удаления",
     "errorDeleteFailed": "Не удалось удалить главу",
-    "errorReorder": "Ошибка изменения порядка"
+    "errorReorder": "Ошибка изменения порядка",
+    "pollingLostTitle": "Соединение потеряно",
+    "pollingLostMessage": "Соединение потеряно или сервер перезапущен. Обновите страницу или повторите перевод."
   },
   "translationPanel": {
     "scope": "Объём",
@@ -142,7 +144,8 @@
     "dragHandleTitle": "Перетащите для изменения порядка",
     "deleteTitle": "Удалить",
     "uploadError": "Ошибка загрузки файла",
-    "errorUpdateNumber": "Ошибка обновления номера"
+    "errorUpdateNumber": "Ошибка обновления номера",
+    "importJobLost": "Задача импорта потеряна — возможно, сервер перезапущен. Попробуйте снова."
   },
   "paragraphList": {
     "save": "Сохранить",
@@ -464,6 +467,8 @@
     "errorTranslation": "Ошибка перевода",
     "errorStatusCheck": "Ошибка проверки статуса",
     "errorTimeout": "Превышено время ожидания",
+    "errorJobTimeout": "Таймаут задачи — возможно, сервер перезапущен. Попробуйте снова.",
+    "errorJobLost": "Задача потеряна — возможно, сервер перезапущен. Попробуйте снова.",
     "selectOneChapter": "Выберите хотя бы одну главу для перевода.",
     "translateSelectedCount": "Обработать выбранные ({{count}})",
     "chooseChaptersHint": "Выберите главы и стадии. По умолчанию отмечены пустые и с ошибками.",
@@ -794,6 +799,8 @@
     "read": "Прочитано",
     "filterAll": "Все",
     "filterAllWithCount": "Все ({{count}})",
+    "filterTranslated": "Только переведённые",
+    "filterUntranslated": "Непереведённые",
     "filterUnread": "Непрочитанные",
     "filterRead": "Прочитанные",
     "orderFromStart": "С начала",

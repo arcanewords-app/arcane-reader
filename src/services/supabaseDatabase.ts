@@ -590,6 +590,32 @@ export async function verifyChapterAccess(
 }
 
 /**
+ * Get chapter status and updated_at (lightweight, for status polling and orphan detection).
+ * Returns null if chapter not found or user has no access (RLS).
+ */
+export async function getChapterStatusRow(
+  projectId: string,
+  chapterId: string,
+  token: string
+): Promise<{ status: string; updated_at: string } | null> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('chapters')
+    .select('status, updated_at')
+    .eq('id', chapterId)
+    .eq('project_id', projectId)
+    .single();
+
+  if (error || !data) return null;
+  return {
+    status: (data.status as string) ?? 'pending',
+    updated_at: (data.updated_at as string) ?? new Date().toISOString(),
+  };
+}
+
+/**
  * Get chapters summary for a project (for ProcessChapters - no full text loaded).
  */
 export async function getChaptersSummary(
@@ -708,16 +734,23 @@ export async function createProject(
 /**
  * Update a project
  * Note: Token is required for RLS authentication
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  * @throws {Error} If token is required but not provided
  */
 export async function updateProject(
   id: string,
   updates: Partial<Project>,
   userId: string,
-  token: string
+  token: string,
+  options?: { useServiceRole?: boolean }
 ): Promise<ProjectWithChapterList | undefined> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   const projectData = transformProjectToDB(updates);
 
@@ -736,7 +769,8 @@ export async function updateProject(
     throw new Error(`Failed to update project: ${error.message}`);
   }
 
-  // Reload full project with relations
+  // Reload full project with relations (skip when useServiceRole - caller typically doesn't need it)
+  if (useServiceRole) return undefined;
   return getProject(id, userId, token);
 }
 
@@ -1328,14 +1362,21 @@ async function loadGlossaryForProject(projectId: string, token: string): Promise
 
 /**
  * Get a single glossary entry by id (for merging chapter appearance).
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  */
 export async function getGlossaryEntry(
   projectId: string,
   entryId: string,
-  token: string
+  token: string,
+  options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | null> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   const { data: row, error } = await client
     .from('glossary_entries')
@@ -1544,14 +1585,21 @@ export interface ImportChapterBatchResultItem {
 /**
  * Import many chapters in one RPC call.
  * Uses DB-side transaction to keep numbering and paragraph inserts consistent.
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  */
 export async function importChaptersBatch(
   projectId: string,
   chapters: ImportChapterBatchInputItem[],
-  token: string
+  token: string,
+  options?: { useServiceRole?: boolean }
 ): Promise<ImportChapterBatchResultItem[]> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   if (!Array.isArray(chapters) || chapters.length === 0) {
     return [];
@@ -2249,15 +2297,22 @@ async function renumberChapters(projectId: string, token: string): Promise<void>
 /**
  * Add a glossary entry to a project
  * Note: Token is required for RLS authentication
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  * @throws {Error} If token is required but not provided
  */
 export async function addGlossaryEntry(
   projectId: string,
   entry: Omit<GlossaryEntry, 'id'>,
-  token: string
+  token: string,
+  options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | undefined> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   // Verify project exists (RLS will ensure user has access)
   const { data: project, error: projectError } = await client
@@ -2305,15 +2360,22 @@ export async function addGlossaryEntry(
 
 /**
  * Update a glossary entry
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  */
 export async function updateGlossaryEntry(
   projectId: string,
   entryId: string,
   updates: Partial<GlossaryEntry>,
-  token: string
+  token: string,
+  options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | undefined> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  const useServiceRole = options?.useServiceRole === true;
+  if (!useServiceRole) {
+    validateToken(token);
+  }
+  const client = useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   // Get current entry to merge imageUrls if needed
   const { data: currentEntry } = await client
@@ -3043,14 +3105,20 @@ export async function getUserPublications(
 
 /**
  * Get publication by project ID (for owner).
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  */
 export async function getPublicationByProjectId(
   projectId: string,
   userId: string,
-  token: string
+  token: string,
+  options?: { useServiceRole?: boolean }
 ): Promise<ReturnType<typeof transformPublicationFromDB> | null> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  if (!options?.useServiceRole) {
+    validateToken(token);
+  }
+  const client = options?.useServiceRole
+    ? (await import('./supabaseClient.js')).createServiceRoleClient()
+    : createClientWithToken(token);
 
   const { data, error } = await client
     .from('publications')

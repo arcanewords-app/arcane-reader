@@ -4,7 +4,10 @@
  * Provides functions to check and manage user token limits
  */
 
-import { createClientWithToken } from '../services/supabaseClient.js';
+import {
+  createClientWithToken,
+  createServiceRoleClient,
+} from '../services/supabaseClient.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import {
   TOKEN_LIMITS,
@@ -138,6 +141,7 @@ export async function checkTokenLimit(
 /**
  * Increment user's token usage
  * Creates record if it doesn't exist
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
  */
 export async function incrementTokenUsage(
   userId: string,
@@ -147,10 +151,15 @@ export async function incrementTokenUsage(
     analysis?: number;
     translation: number;
     editing?: number;
-  }
+  },
+  options?: { useServiceRole?: boolean }
 ): Promise<void> {
-  validateToken(token);
-  const client = createClientWithToken(token);
+  if (!options?.useServiceRole) {
+    validateToken(token);
+  }
+  const client = options?.useServiceRole
+    ? createServiceRoleClient()
+    : createClientWithToken(token);
   const date = getCurrentDateUTC();
   const cacheKeysToInvalidate = [
     buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date),

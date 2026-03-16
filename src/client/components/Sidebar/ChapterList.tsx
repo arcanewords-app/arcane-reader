@@ -362,11 +362,40 @@ export function ChapterList({
         });
 
         // Poll job status until terminal state (adaptive interval to reduce API/Redis load)
+        const MAX_IMPORT_POLL_ATTEMPTS = 120;
         let pollDelayMs = IMPORT_POLL_INTERVAL_MIN_MS;
         let previousSnapshot = '';
+        let importPollAttempt = 0;
         // eslint-disable-next-line no-constant-condition -- exits by terminal statuses
         while (true) {
-          const state = await api.getImportJob(projectId as string, job.jobId, controller.signal);
+          importPollAttempt++;
+          if (importPollAttempt > MAX_IMPORT_POLL_ATTEMPTS) {
+            const msg = t('chapterList.importJobLost');
+            setQueue((prev) => {
+              const next = prev.map((it) =>
+                it.id === current.id ? { ...it, status: 'error' as const, error: msg } : it
+              ) as QueueItem[];
+              queueRef.current = next;
+              return next;
+            });
+            await refreshChaptersSafely('import timeout');
+            return false;
+          }
+          let state;
+          try {
+            state = await api.getImportJob(projectId as string, job.jobId, controller.signal);
+          } catch (jobErr) {
+            const msg = t('chapterList.importJobLost');
+            setQueue((prev) => {
+              const next = prev.map((it) =>
+                it.id === current.id ? { ...it, status: 'error' as const, error: msg } : it
+              ) as QueueItem[];
+              queueRef.current = next;
+              return next;
+            });
+            await refreshChaptersSafely('import error');
+            return false;
+          }
           const currentSnapshot = `${state.status}|${state.phase}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
           const hasStateChanged = currentSnapshot !== previousSnapshot;
           previousSnapshot = currentSnapshot;

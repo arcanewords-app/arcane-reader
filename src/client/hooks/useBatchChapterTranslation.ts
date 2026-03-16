@@ -40,6 +40,9 @@ export interface BatchProgress {
 const INITIAL_POLL_MS = 1500;
 const MAX_POLL_MS = 12000;
 const MAX_POLL_ATTEMPTS = 90; // ~5 min with backoff
+// With chunk-level progress, hasStateChanged resets poll delay often; lower multiplier suffices
+const getMaxJobPollAttempts = (chapterCount: number) =>
+  Math.max(120, Math.min(600, chapterCount * 20));
 
 /**
  * Poll chapter status until translation completes or errors. Uses lightweight status endpoint and exponential backoff.
@@ -319,13 +322,62 @@ export function useBatchChapterTranslation(
               const ANALYSIS_POLL_BACKOFF = 1.5;
               let pollDelayMs = ANALYSIS_POLL_MIN_MS;
               let previousSnapshot = '';
+              let jobPollAttempt = 0;
               // eslint-disable-next-line no-constant-condition -- exits by terminal statuses
               while (true) {
                 if (cancelledRef.current) {
                   await api.cancelAnalysisJob(projectId, jobId).catch(() => {});
                   break;
                 }
-                const state = await api.getAnalysisJob(projectId, jobId, undefined);
+                jobPollAttempt++;
+                if (jobPollAttempt > getMaxJobPollAttempts(chapters.length)) {
+                  onError?.(
+                    t('projectInfo.batchAnalyzing', 'Batch analysis'),
+                    t('projectInfo.errorJobTimeout')
+                  );
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          chapters: prev.chapters.map((c) => ({
+                            ...c,
+                            status: 'error' as const,
+                            reason: t('projectInfo.errorJobTimeout'),
+                          })),
+                        }
+                      : null
+                  );
+                  break;
+                }
+                let state;
+                try {
+                  state = await api.getAnalysisJob(projectId, jobId, undefined);
+                } catch (jobErr) {
+                  const status = (jobErr as { status?: number })?.status;
+                  onError?.(
+                    t('projectInfo.batchAnalyzing', 'Batch analysis'),
+                    status === 404
+                      ? t('projectInfo.errorJobLost')
+                      : (jobErr as Error).message || t('projectInfo.errorJobLost')
+                  );
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          chapters: prev.chapters.map((c) => ({
+                            ...c,
+                            status: 'error' as const,
+                            reason: status === 404 ? t('projectInfo.errorJobLost') : (jobErr as Error).message,
+                          })),
+                        }
+                      : null
+                  );
+                  break;
+                }
                 const currentSnapshot = `${state.status}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
                 const hasStateChanged = currentSnapshot !== previousSnapshot;
                 previousSnapshot = currentSnapshot;
@@ -466,6 +518,7 @@ export function useBatchChapterTranslation(
               const TRANSLATE_POLL_BACKOFF = 1.5;
               let pollDelayMs = TRANSLATE_POLL_MIN_MS;
               let previousSnapshot = '';
+              let jobPollAttempt = 0;
 
               // eslint-disable-next-line no-constant-condition -- exits by terminal statuses
               while (true) {
@@ -474,8 +527,58 @@ export function useBatchChapterTranslation(
                   translateJobIdRef.current = null;
                   break;
                 }
-                const state = await api.getTranslateJob(projectId, jobId, undefined);
-                const currentSnapshot = `${state.status}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
+                jobPollAttempt++;
+                if (jobPollAttempt > getMaxJobPollAttempts(chapters.length)) {
+                  translateJobIdRef.current = null;
+                  onError?.(
+                    t('projectInfo.batchTranslating', 'Batch translation'),
+                    t('projectInfo.errorJobTimeout')
+                  );
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          chapters: prev.chapters.map((c) => ({
+                            ...c,
+                            status: 'error' as const,
+                            reason: t('projectInfo.errorJobTimeout'),
+                          })),
+                        }
+                      : null
+                  );
+                  break;
+                }
+                let state;
+                try {
+                  state = await api.getTranslateJob(projectId, jobId, undefined);
+                } catch (jobErr) {
+                  translateJobIdRef.current = null;
+                  const status = (jobErr as { status?: number })?.status;
+                  onError?.(
+                    t('projectInfo.batchTranslating', 'Batch translation'),
+                    status === 404
+                      ? t('projectInfo.errorJobLost')
+                      : (jobErr as Error).message || t('projectInfo.errorJobLost')
+                  );
+                  setProgress((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentChapter: null,
+                          currentChapterId: null,
+                          chapters: prev.chapters.map((c) => ({
+                            ...c,
+                            status: 'error' as const,
+                            reason: status === 404 ? t('projectInfo.errorJobLost') : (jobErr as Error).message,
+                          })),
+                        }
+                      : null
+                  );
+                  break;
+                }
+                const currentSnapshot = `${state.status}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}|${state.currentChapterChunksDone ?? ''}|${state.currentChapterTotalChunks ?? ''}`;
                 const hasStateChanged = currentSnapshot !== previousSnapshot;
                 previousSnapshot = currentSnapshot;
 

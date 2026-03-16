@@ -450,19 +450,21 @@ export function ProcessChapters({
       >
         {allChaptersSorted.length > 0 && (
           <div class="process-chapters-quick-block">
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}>
-              {t('processChapters.uploadedTranslationHint', 'Загрузили готовый перевод?')}
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleMarkEntireProjectAsTranslated}
-              disabled={allChaptersSorted.length === 0}
-              title={t('processChapters.markEntireProject', 'Mark entire project as translated')}
-            >
-              <Icon name="done_all" size="sm" />{' '}
-              {t('processChapters.markEntireProject', 'Mark entire project')}
-            </Button>
+            <div class="process-chapters-quick-block-inner">
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                {t('processChapters.uploadedTranslationHint', 'Загрузили готовый перевод?')}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleMarkEntireProjectAsTranslated}
+                disabled={allChaptersSorted.length === 0}
+                title={t('processChapters.markEntireProject', 'Mark entire project as translated')}
+              >
+                <Icon name="done_all" size="sm" />{' '}
+                {t('processChapters.markEntireProject', 'Mark entire project')}
+              </Button>
+            </div>
           </div>
         )}
         <p style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>

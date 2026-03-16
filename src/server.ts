@@ -41,6 +41,7 @@ import {
   updateReaderSettings,
   getReaderSettings,
   resetStuckChapters,
+  getChapterStatusRow,
   listPublicationsPublic,
   getPublicationBySlugOrId,
   getPublicationWithChapters,
@@ -421,6 +422,8 @@ function clearTranslationProgress(projectId: string, chapterId: string): void {
   translationProgressStore.delete(translationProgressKey(projectId, chapterId));
 }
 
+const SERVER_START_TIME_MS = Date.now();
+
 const IMPORT_JOB_FORMATS = new Set(['epub', 'fb2', 'csv']);
 const IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT = 200;
 const IMPORT_JOB_TTL_SECONDS = parseInt(process.env.IMPORT_JOB_TTL_SECONDS ?? '1800', 10);
@@ -568,11 +571,13 @@ async function invalidateProjectAndRelatedCaches(
   userId: string,
   projectId: string,
   token: string,
-  options?: { invalidatePublicationList?: boolean }
+  options?: { invalidatePublicationList?: boolean; useServiceRole?: boolean }
 ): Promise<void> {
   await invalidateUserProjectCaches(userId, projectId);
   try {
-    const publication = await getPublicationByProjectId(projectId, userId, token);
+    const publication = await getPublicationByProjectId(projectId, userId, token, {
+      useServiceRole: options?.useServiceRole,
+    });
     if (!publication) return;
     await invalidatePublicationCaches(publication.id, publication.id);
     if (publication.slug) {
@@ -640,6 +645,8 @@ function toPublicTranslateJob(
     total: job.total,
     progress: job.total > 0 ? Number(((job.current / job.total) * 100).toFixed(1)) : 0,
     currentChapterTitle: job.currentChapterTitle,
+    currentChapterChunksDone: job.currentChapterChunksDone,
+    currentChapterTotalChunks: job.currentChapterTotalChunks,
     chapters: compact ? [] : job.chapters,
     totalTokensUsed: job.totalTokensUsed,
     errors: job.errors,
@@ -1548,7 +1555,9 @@ app.post(
             const needsTypeUpdate =
               !project.type || (project.type === 'text' && detectedType !== 'text');
             if (isFirstChapter && needsTypeUpdate) {
-              await updateProject(projectId, { type: detectedType }, userId, token);
+              await updateProject(projectId, { type: detectedType }, userId, token, {
+                useServiceRole: true,
+              });
             }
 
             if (isFirstChapter && Object.keys(lazyResult.metadata || {}).length > 0) {
@@ -1573,7 +1582,9 @@ app.post(
                 delete (updatedMetadata as Record<string, unknown>).coverImage;
               }
               if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-                await updateProject(projectId, { metadata: updatedMetadata }, userId, token);
+                await updateProject(projectId, { metadata: updatedMetadata }, userId, token, {
+                  useServiceRole: true,
+                });
               }
             }
 
@@ -1610,7 +1621,9 @@ app.post(
               const shouldFlushBatch = pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE;
 
               if (shouldFlushBatch) {
-                await importChaptersBatch(projectId, pendingBatch, token);
+                await importChaptersBatch(projectId, pendingBatch, token, {
+                  useServiceRole: true,
+                });
                 const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
                 for (let i = 0; i < pendingBatchTitles.length; i++) {
                   const chapterTitle = pendingBatchTitles[i];
@@ -1658,7 +1671,9 @@ app.post(
               }
             }
             if (pendingBatch.length > 0) {
-              await importChaptersBatch(projectId, pendingBatch, token);
+              await importChaptersBatch(projectId, pendingBatch, token, {
+                useServiceRole: true,
+              });
               const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
               for (let i = 0; i < pendingBatchTitles.length; i++) {
                 const chapterTitle = pendingBatchTitles[i];
@@ -1749,7 +1764,9 @@ app.post(
             const needsTypeUpdate =
               !project.type || (project.type === 'text' && detectedType !== 'text');
             if (isFirstChapter && needsTypeUpdate) {
-              await updateProject(projectId, { type: detectedType }, userId, token);
+              await updateProject(projectId, { type: detectedType }, userId, token, {
+                useServiceRole: true,
+              });
             }
 
             if (
@@ -1778,7 +1795,9 @@ app.post(
                 delete (updatedMetadata as Record<string, unknown>).coverImage;
               }
               if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-                await updateProject(projectId, { metadata: updatedMetadata }, userId, token);
+                await updateProject(projectId, { metadata: updatedMetadata }, userId, token, {
+                  useServiceRole: true,
+                });
               }
             }
 
@@ -1808,7 +1827,9 @@ app.post(
                 chapterNumber === parseResult.chapters.length;
 
               if (shouldFlushBatch) {
-                await importChaptersBatch(projectId, pendingBatch, token);
+                await importChaptersBatch(projectId, pendingBatch, token, {
+                  useServiceRole: true,
+                });
                 const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
                 for (let i = 0; i < pendingBatchTitles.length; i++) {
                   const chapterTitle = pendingBatchTitles[i];
@@ -1841,7 +1862,9 @@ app.post(
           }
 
           try {
-            await invalidateProjectAndRelatedCaches(userId, projectId, token);
+            await invalidateProjectAndRelatedCaches(userId, projectId, token, {
+              useServiceRole: true,
+            });
           } catch (cacheError) {
             req.log?.warn(
               { err: cacheError, jobId, projectId },
@@ -2277,18 +2300,38 @@ app.get(
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
-      const chapter = await getChapter(
+      const token = requireToken(req);
+      const statusRow = await getChapterStatusRow(
         req.params.projectId,
         req.params.chapterId,
-        requireToken(req)
+        token
       );
-      if (!chapter) {
+      if (!statusRow) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
+      const { status, updated_at: updatedAt } = statusRow;
+
+      // Orphan detection: chapter was translating before server restart (no progress in memory, updated_at before start)
+      if (
+        status === 'translating' &&
+        !getTranslationProgress(req.params.projectId, req.params.chapterId) &&
+        new Date(updatedAt).getTime() < SERVER_START_TIME_MS
+      ) {
+        await updateChapter(
+          req.params.projectId,
+          req.params.chapterId,
+          { status: 'pending' },
+          token,
+          { useServiceRole: true }
+        );
+        await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
+        return res.json({ status: 'pending' });
+      }
+
       const payload: { status: string; chunksDone?: number; totalChunks?: number } = {
-        status: chapter.status,
+        status,
       };
-      if (chapter.status === 'translating') {
+      if (status === 'translating') {
         const progress = getTranslationProgress(req.params.projectId, req.params.chapterId);
         if (progress) {
           payload.chunksDone = progress.chunksDone;
@@ -3019,12 +3062,14 @@ app.post(
 
             if (result.glossaryUpdates.length > 0) {
               for (const entry of result.glossaryUpdates) {
-                await addGlossaryEntry(projectId, entry, token);
+                await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
               }
             }
             if (result.glossaryUpdatesExisting.length > 0) {
               for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-                await updateGlossaryEntry(projectId, entryId, updates, token);
+                await updateGlossaryEntry(projectId, entryId, updates, token, {
+                  useServiceRole: true,
+                });
               }
             }
 
@@ -3035,7 +3080,9 @@ app.post(
                 chResult.chapterNumber;
               if (chResult.glossaryAppearanceEntryIds.length > 0) {
                 for (const entryId of chResult.glossaryAppearanceEntryIds) {
-                  const entry = await getGlossaryEntry(projectId, entryId, token);
+                  const entry = await getGlossaryEntry(projectId, entryId, token, {
+                    useServiceRole: true,
+                  });
                   if (entry) {
                     const merged = [
                       ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
@@ -3044,7 +3091,8 @@ app.post(
                       projectId,
                       entryId,
                       { mentionedInChapters: merged },
-                      token
+                      token,
+                      { useServiceRole: true }
                     );
                   }
                 }
@@ -3056,12 +3104,14 @@ app.post(
                 analysis: result.totalTokensUsed,
                 translation: 0,
                 editing: 0,
-              });
+              }, { useServiceRole: true });
             } catch (tokenError) {
               req.log?.warn({ err: tokenError }, 'Failed to update token usage (non-critical)');
             }
 
-            await invalidateProjectAndRelatedCaches(userId, projectId, token);
+            await invalidateProjectAndRelatedCaches(userId, projectId, token, {
+              useServiceRole: true,
+            });
 
             const successful = result.chapterResults.filter((c) => c.success).length;
             const failed = result.chapterResults.filter((c) => !c.success).length;
@@ -3094,12 +3144,14 @@ app.post(
 
       if (result.glossaryUpdates.length > 0) {
         for (const entry of result.glossaryUpdates) {
-          await addGlossaryEntry(projectId, entry, token);
+          await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
         }
       }
       if (result.glossaryUpdatesExisting.length > 0) {
         for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-          await updateGlossaryEntry(projectId, entryId, updates, token);
+          await updateGlossaryEntry(projectId, entryId, updates, token, {
+            useServiceRole: true,
+          });
         }
       }
 
@@ -3110,12 +3162,16 @@ app.post(
           chResult.chapterNumber;
         if (chResult.glossaryAppearanceEntryIds.length > 0) {
           for (const entryId of chResult.glossaryAppearanceEntryIds) {
-            const entry = await getGlossaryEntry(projectId, entryId, token);
+            const entry = await getGlossaryEntry(projectId, entryId, token, {
+              useServiceRole: true,
+            });
             if (entry) {
               const merged = [
                 ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
               ].sort((a, b) => a - b);
-              await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+              await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
+                useServiceRole: true,
+              });
             }
           }
         }
@@ -3164,12 +3220,14 @@ app.post(
           analysis: result.totalTokensUsed,
           translation: 0,
           editing: 0,
-        });
+        }, { useServiceRole: true });
       } catch (tokenError) {
         req.log?.warn({ err: tokenError }, 'Failed to update token usage (non-critical)');
       }
 
-      await invalidateProjectAndRelatedCaches(req.user.id, projectId, token);
+      await invalidateProjectAndRelatedCaches(req.user.id, projectId, token, {
+        useServiceRole: true,
+      });
 
       res.json({
         success: true,
@@ -3384,8 +3442,12 @@ app.post(
                 });
               }
 
-              await updateChapter(projectId, chapter.id, { status: 'translating' }, token);
-              await invalidateProjectAndRelatedCaches(userId, projectId, token);
+              await updateChapter(projectId, chapter.id, { status: 'translating' }, token, {
+                useServiceRole: true,
+              });
+              await invalidateProjectAndRelatedCaches(userId, projectId, token, {
+                useServiceRole: true,
+              });
 
               try {
                 await performTranslation(
@@ -3399,7 +3461,17 @@ app.post(
                   userId,
                   undefined,
                   stages,
-                  { externalIsCancelled: () => cancelledFlag }
+                  {
+                    externalIsCancelled: () => cancelledFlag,
+                    onProgress: (chunksDone, totalChunks) => {
+                      translateJobStore
+                        .updateJob(jobId, {
+                          currentChapterChunksDone: chunksDone,
+                          currentChapterTotalChunks: totalChunks,
+                        })
+                        .catch(() => {});
+                    },
+                  }
                 );
               } catch (chErr) {
                 const errMsg = chErr instanceof Error ? chErr.message : String(chErr);
@@ -3412,11 +3484,15 @@ app.post(
                 await translateJobStore.updateJob(jobId, {
                   chapters: updatedChapters,
                   errors: [...jobNow.errors, `${chapter.title}: ${errMsg}`],
+                  currentChapterChunksDone: undefined,
+                  currentChapterTotalChunks: undefined,
                 });
                 continue;
               }
 
-              const updatedChapter = await getChapter(projectId, chapter.id, token);
+              const updatedChapter = await getChapter(projectId, chapter.id, token, {
+                useServiceRole: true,
+              });
               const meta = updatedChapter?.translationMeta;
               const tokensUsed = meta?.tokensUsed ?? 0;
               const tokensByStage = meta?.tokensByStage;
@@ -3441,6 +3517,8 @@ app.post(
                 chapters: updatedChapters,
                 totalTokensUsed: totalTokensAccum,
                 currentChapterTitle: undefined,
+                currentChapterChunksDone: undefined,
+                currentChapterTotalChunks: undefined,
               });
             }
 
@@ -3454,7 +3532,9 @@ app.post(
               return;
             }
 
-            await invalidateProjectAndRelatedCaches(userId, projectId, token);
+            await invalidateProjectAndRelatedCaches(userId, projectId, token, {
+              useServiceRole: true,
+            });
             await translateJobStore.updateJob(jobId, {
               status: 'completed',
               finishedAt: new Date().toISOString(),
@@ -3745,7 +3825,11 @@ async function performTranslation(
   userId: string,
   paragraphIds?: string[],
   stages: TranslationStages = 'all',
-  options?: { externalIsCancelled?: () => boolean }
+  options?: {
+    externalIsCancelled?: () => boolean;
+    /** Called on chunk progress (e.g. for batch job updates) */
+    onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
+  }
 ): Promise<void> {
   const cancelKey = translationCancelKey(projectId, chapterId);
   const isCancelled = () =>
@@ -4048,8 +4132,10 @@ async function performTranslation(
         includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
         includeGlossaryInTranslation: phase1IncludeGlossaryInTranslation,
         includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
-        onProgress: (chunksDone: number, totalChunks: number, stage?: string) =>
-          setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage }),
+        onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
+          setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
+          options?.onProgress?.(chunksDone, totalChunks, stage);
+        },
       });
     } catch (pipelineError) {
       const errorMessage =
@@ -4069,23 +4155,29 @@ async function performTranslation(
       );
       if (result.glossaryUpdates?.length) {
         for (const entry of result.glossaryUpdates) {
-          await addGlossaryEntry(projectId, entry, token);
+          await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
         }
       }
       if (result.glossaryUpdatesExisting?.length) {
         for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-          await updateGlossaryEntry(projectId, entryId, updates, token);
+          await updateGlossaryEntry(projectId, entryId, updates, token, {
+            useServiceRole: true,
+          });
         }
       }
       if (result.glossaryAppearanceEntryIds?.length) {
         const chapterNum = chapter.number;
         for (const entryId of result.glossaryAppearanceEntryIds) {
-          const entry = await getGlossaryEntry(projectId, entryId, token);
+          const entry = await getGlossaryEntry(projectId, entryId, token, {
+            useServiceRole: true,
+          });
           if (entry) {
             const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
               (a, b) => a - b
             );
-            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
+              useServiceRole: true,
+            });
           }
         }
       }
@@ -4093,7 +4185,9 @@ async function performTranslation(
         useServiceRole: true,
       });
       try {
-        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage, {
+          useServiceRole: true,
+        });
       } catch (tokenError) {
         logger.warn(
           { err: tokenError, projectId, chapterId },
@@ -4127,23 +4221,29 @@ async function performTranslation(
     if (Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis') {
       if (result.glossaryUpdates?.length) {
         for (const entry of result.glossaryUpdates) {
-          await addGlossaryEntry(projectId, entry, token);
+          await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
         }
       }
       if (result.glossaryUpdatesExisting?.length) {
         for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-          await updateGlossaryEntry(projectId, entryId, updates, token);
+          await updateGlossaryEntry(projectId, entryId, updates, token, {
+            useServiceRole: true,
+          });
         }
       }
       if (result.glossaryAppearanceEntryIds?.length) {
         const chapterNum = chapter.number;
         for (const entryId of result.glossaryAppearanceEntryIds) {
-          const entry = await getGlossaryEntry(projectId, entryId, token);
+          const entry = await getGlossaryEntry(projectId, entryId, token, {
+            useServiceRole: true,
+          });
           if (entry) {
             const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
               (a, b) => a - b
             );
-            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
+              useServiceRole: true,
+            });
           }
         }
       }
@@ -4170,7 +4270,9 @@ async function performTranslation(
         { useServiceRole: true }
       );
       try {
-        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage, {
+          useServiceRole: true,
+        });
       } catch (tokenError) {
         logger.warn(
           { err: tokenError, projectId, chapterId },
@@ -4245,7 +4347,9 @@ async function performTranslation(
       // Count tokens toward usage even when translation failed (stages were run)
       if (result.tokensUsed > 0) {
         try {
-          await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+          await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage, {
+            useServiceRole: true,
+          });
         } catch (tokenError) {
           logger.warn(
             { err: tokenError, projectId, chapterId },
@@ -4423,7 +4527,9 @@ async function performTranslation(
       );
       savedDraftThisRun = true;
       try {
-        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage, {
+          useServiceRole: true,
+        });
       } catch (tokenError) {
         logger.warn(
           { err: tokenError, projectId, chapterId },
@@ -4442,8 +4548,10 @@ async function performTranslation(
           stages: ['editing'],
           existingTranslatedText: buildMarkedTextFromParagraphs(syncedParagraphs),
           isCancelled,
-          onProgress: (chunksDone: number, totalChunks: number, stage?: string) =>
-            setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage }),
+          onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
+            setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
+            options?.onProgress?.(chunksDone, totalChunks, stage);
+          },
         });
       } catch (phase2Error) {
         logger.error(
@@ -4536,7 +4644,9 @@ async function performTranslation(
         { useServiceRole: true }
       );
       try {
-        await incrementTokenUsage(userId, token, result2.tokensUsed, result2.tokensByStage);
+        await incrementTokenUsage(userId, token, result2.tokensUsed, result2.tokensByStage, {
+          useServiceRole: true,
+        });
       } catch (tokenError) {
         logger.warn(
           { err: tokenError, projectId, chapterId },
@@ -4606,7 +4716,9 @@ async function performTranslation(
         { useServiceRole: true }
       );
       try {
-        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage);
+        await incrementTokenUsage(userId, token, result.tokensUsed, result.tokensByStage, {
+          useServiceRole: true,
+        });
       } catch (tokenError) {
         logger.warn(
           { err: tokenError, projectId, chapterId },
@@ -4673,23 +4785,29 @@ async function performTranslation(
     // Auto-add detected glossary entries (new + updates for existing)
     if (result.glossaryUpdates?.length) {
       for (const entry of result.glossaryUpdates) {
-        await addGlossaryEntry(projectId, entry, token);
+        await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
       }
     }
     if (result.glossaryUpdatesExisting?.length) {
       for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-        await updateGlossaryEntry(projectId, entryId, updates, token);
+        await updateGlossaryEntry(projectId, entryId, updates, token, {
+          useServiceRole: true,
+        });
       }
     }
     if (result.glossaryAppearanceEntryIds?.length) {
       const chapterNum = chapter.number;
       for (const entryId of result.glossaryAppearanceEntryIds) {
-        const entry = await getGlossaryEntry(projectId, entryId, token);
+        const entry = await getGlossaryEntry(projectId, entryId, token, {
+          useServiceRole: true,
+        });
         if (entry) {
           const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
             (a, b) => a - b
           );
-          await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token);
+          await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
+            useServiceRole: true,
+          });
         }
       }
     }
@@ -4755,7 +4873,9 @@ async function performTranslation(
     );
   } finally {
     try {
-      await invalidateProjectAndRelatedCaches(userId, projectId, token);
+      await invalidateProjectAndRelatedCaches(userId, projectId, token, {
+        useServiceRole: true,
+      });
     } catch (error) {
       logger.warn({ err: error, userId, projectId }, 'Cache invalidation after translation failed');
     }

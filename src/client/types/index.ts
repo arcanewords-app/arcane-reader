@@ -411,6 +411,9 @@ export interface TranslateJobState {
   total: number;
   progress: number;
   currentChapterTitle?: string;
+  /** Chunk progress within current chapter (for polling backoff reset) */
+  currentChapterChunksDone?: number;
+  currentChapterTotalChunks?: number;
   chapters: TranslateJobChapter[];
   totalTokensUsed: number;
   errors: string[];

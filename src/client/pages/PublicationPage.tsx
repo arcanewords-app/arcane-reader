@@ -28,6 +28,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
+  const [translationFilter, setTranslationFilter] = useState<
+    'translated' | 'all' | 'untranslated'
+  >('translated');
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('asc');
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
@@ -163,6 +166,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   usePageMeta(meta);
 
   const chapters = pub?.chapters || [];
+  const hasTranslatedChapters = chapters.some((ch) => ch.hasTranslation);
+  const hasUntranslatedChapters = chapters.some((ch) => !ch.hasTranslation);
+  const showTranslationFilter = hasTranslatedChapters && hasUntranslatedChapters;
+
   const filteredChapters = useMemo(() => {
     const filtered = chapters.filter((ch) => {
       const matchesSearch =
@@ -170,6 +177,12 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         (ch.title || '').toLowerCase().includes(chapterSearch.toLowerCase()) ||
         String(ch.number).includes(chapterSearch);
       if (!matchesSearch) return false;
+      // Translation filter (only when both types exist; otherwise show all)
+      if (showTranslationFilter) {
+        if (translationFilter === 'translated' && !ch.hasTranslation) return false;
+        if (translationFilter === 'untranslated' && ch.hasTranslation) return false;
+      }
+      // Read status filter (auth only)
       if (!isAuthenticated || chapterFilter === 'all') return true;
       const isRead = readChapterIds.has(ch.id);
       if (chapterFilter === 'read') return isRead;
@@ -179,7 +192,16 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     return [...filtered].sort((a, b) =>
       chapterOrder === 'desc' ? b.number - a.number : a.number - b.number
     );
-  }, [chapters, chapterSearch, chapterFilter, chapterOrder, isAuthenticated, readChapterIds]);
+  }, [
+    chapters,
+    chapterSearch,
+    showTranslationFilter,
+    translationFilter,
+    chapterFilter,
+    chapterOrder,
+    isAuthenticated,
+    readChapterIds,
+  ]);
 
   const handleChapterListScroll = useCallback(() => {
     const el = chapterListRef.current;
@@ -430,6 +452,31 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     <Icon name="arrow_downward" size="sm" /> {t('publication.orderFromEnd')}
                   </button>
                 </div>
+                {showTranslationFilter && (
+                  <div class="publication-page-chapter-filters">
+                    <button
+                      type="button"
+                      class={translationFilter === 'translated' ? 'active' : ''}
+                      onClick={() => setTranslationFilter('translated')}
+                    >
+                      <Icon name="translate" size="sm" /> {t('publication.filterTranslated')}
+                    </button>
+                    <button
+                      type="button"
+                      class={translationFilter === 'all' ? 'active' : ''}
+                      onClick={() => setTranslationFilter('all')}
+                    >
+                      <Icon name="grid_view" size="sm" /> {t('publication.filterAll')}
+                    </button>
+                    <button
+                      type="button"
+                      class={translationFilter === 'untranslated' ? 'active' : ''}
+                      onClick={() => setTranslationFilter('untranslated')}
+                    >
+                      <Icon name="block" size="sm" /> {t('publication.filterUntranslated')}
+                    </button>
+                  </div>
+                )}
                 {isAuthenticated && (
                   <div class="publication-page-chapter-filters">
                     <button

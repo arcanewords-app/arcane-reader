@@ -73,7 +73,9 @@
     "deleting": "Usuwanie...",
     "errorDeleting": "Błąd usuwania",
     "errorDeleteFailed": "Nie udało się usunąć rozdziału",
-    "errorReorder": "Błąd zmiany kolejności"
+    "errorReorder": "Błąd zmiany kolejności",
+    "pollingLostTitle": "Utracono połączenie",
+    "pollingLostMessage": "Połączenie utracone lub serwer został zrestartowany. Odśwież stronę lub spróbuj ponownie przetłumaczyć."
   },
   "translationPanel": {
     "scope": "Zakres",
@@ -142,7 +144,8 @@
     "dragHandleTitle": "Przeciągnij, aby zmienić kolejność",
     "deleteTitle": "Usuń",
     "uploadError": "Błąd przesyłania pliku",
-    "errorUpdateNumber": "Nie udało się zaktualizować numeru"
+    "errorUpdateNumber": "Nie udało się zaktualizować numeru",
+    "importJobLost": "Zadanie importu utracone — serwer mógł zostać zrestartowany. Spróbuj ponownie."
   },
   "paragraphList": {
     "save": "Zapisz",
@@ -465,6 +468,8 @@
     "errorTranslation": "Błąd tłumaczenia",
     "errorStatusCheck": "Błąd sprawdzania statusu",
     "errorTimeout": "Przekroczono limit czasu",
+    "errorJobTimeout": "Limit czasu zadania — serwer mógł zostać zrestartowany. Spróbuj ponownie.",
+    "errorJobLost": "Zadanie utracone — serwer mógł zostać zrestartowany. Spróbuj ponownie.",
     "selectOneChapter": "Wybierz co najmniej jeden rozdział do tłumaczenia.",
     "translateSelectedCount": "Przetwórz wybrane ({{count}})",
     "chooseChaptersHint": "Wybierz rozdziały i etapy. Domyślnie zaznaczone są puste i z błędami.",
@@ -795,6 +800,8 @@
     "read": "Przeczytane",
     "filterAll": "Wszystkie",
     "filterAllWithCount": "Wszystkie ({{count}})",
+    "filterTranslated": "Tylko przetłumaczone",
+    "filterUntranslated": "Nieprzetłumaczone",
     "filterUnread": "Nieprzeczytane",
     "filterRead": "Przeczytane",
     "orderFromStart": "Od pierwszej do ostatniej",

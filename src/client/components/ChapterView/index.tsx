@@ -166,6 +166,8 @@ export function ChapterView({
   }, [readerSettings]);
 
   // Poll for chapter updates during translation (lightweight status + exponential backoff, skip when tab hidden)
+  const MAX_POLL_ATTEMPTS = 120;
+  const MAX_CONSECUTIVE_ERRORS = 5;
   useEffect(() => {
     if (!chapter || chapter.status !== 'translating') {
       setChunkProgress(null);
@@ -182,6 +184,8 @@ export function ChapterView({
 
     let delayMs = 1500;
     const maxDelayMs = 10000;
+    let attempt = 0;
+    let consecutiveErrors = 0;
     let timeoutId: ReturnType<typeof setTimeout>;
 
     const poll = async () => {
@@ -190,8 +194,10 @@ export function ChapterView({
         setPollingInterval(timeoutId);
         return;
       }
+      attempt++;
       try {
         const data = await api.getChapterStatus(project.id, chapter.id);
+        consecutiveErrors = 0;
         const { status, chunksDone, totalChunks } = data;
         if (chunksDone !== undefined && totalChunks !== undefined) {
           setChunkProgress({ chunksDone, totalChunks });
@@ -205,6 +211,20 @@ export function ChapterView({
         }
       } catch (error) {
         console.error('Polling error:', error);
+        consecutiveErrors++;
+        if (
+          consecutiveErrors >= MAX_CONSECUTIVE_ERRORS ||
+          attempt >= MAX_POLL_ATTEMPTS
+        ) {
+          setChunkProgress(null);
+          setPollingInterval(null);
+          setErrorModal({
+            title: t('chapter.pollingLostTitle'),
+            message: t('chapter.pollingLostMessage'),
+          });
+          onChapterUpdate({ ...chapter, status: 'pending' });
+          return;
+        }
       }
       delayMs = Math.min(delayMs * 1.4, maxDelayMs);
       timeoutId = setTimeout(poll, delayMs);

@@ -47,20 +47,28 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .process-chapters-search-wrap {
   margin-left: auto;
+  width: fit-content;
+  max-width: 180px;
+  flex-shrink: 0;
 }
 
 .process-chapters-search-wrap .form-group {
   margin-bottom: 0;
+  width: 100%;
 }
 
 .process-chapters-search-wrap .form-input,
 .process-chapters-search {
   max-width: 180px;
   font-size: 0.85rem;
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
 }
 
 .process-chapters-pagination-row {
@@ -182,6 +190,12 @@
   border: 1px solid var(--border);
 }
 
+.process-chapters-quick-block-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Override form-actions when used as footer wrapper for ProcessChapters */
 .form-actions .process-chapters-footer {
   flex: none;
@@ -197,5 +211,29 @@
   .process-chapters-footer-left,
   .process-chapters-footer-right {
     justify-content: center;
+  }
+}
+
+/* Narrow modal: search on own row, filters/pagination stack */
+@media (max-width: 600px) {
+  .process-chapters-selection-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .process-chapters-search-wrap {
+    margin-left: 0;
+    margin-top: 0.25rem;
+    max-width: 100%;
+  }
+
+  .process-chapters-search-wrap .form-input,
+  .process-chapters-search {
+    max-width: 100%;
+  }
+
+  .process-chapters-pagination-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

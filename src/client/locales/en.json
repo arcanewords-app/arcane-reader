@@ -73,7 +73,9 @@
     "deleting": "Deleting...",
     "errorDeleting": "Delete error",
     "errorDeleteFailed": "Failed to delete chapter",
-    "errorReorder": "Reorder error"
+    "errorReorder": "Reorder error",
+    "pollingLostTitle": "Connection lost",
+    "pollingLostMessage": "Connection lost or server restarted. Refresh the page or try translating again."
   },
   "translationPanel": {
     "scope": "Scope",
@@ -142,7 +144,8 @@
     "dragHandleTitle": "Drag to reorder",
     "deleteTitle": "Delete",
     "uploadError": "File upload error",
-    "errorUpdateNumber": "Failed to update number"
+    "errorUpdateNumber": "Failed to update number",
+    "importJobLost": "Import job lost — server may have restarted. Please try again."
   },
   "paragraphList": {
     "save": "Save",
@@ -464,6 +467,8 @@
     "errorTranslation": "Translation error",
     "errorStatusCheck": "Status check error",
     "errorTimeout": "Timeout exceeded",
+    "errorJobTimeout": "Job timeout — server may have restarted. Please try again.",
+    "errorJobLost": "Job lost — server may have restarted. Please try again.",
     "selectOneChapter": "Select at least one chapter to translate.",
     "translateSelectedCount": "Process selected ({{count}})",
     "chooseChaptersHint": "Select chapters and stages. Empty and error chapters are selected by default.",
@@ -792,6 +797,8 @@
     "notTranslated": "No translation",
     "read": "Read",
     "filterAll": "All",
+    "filterTranslated": "Translated",
+    "filterUntranslated": "Untranslated",
     "filterUnread": "Unread",
     "filterRead": "Read",
     "orderFromStart": "First to last",
