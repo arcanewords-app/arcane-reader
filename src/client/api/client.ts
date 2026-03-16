@@ -29,6 +29,7 @@ import type {
   ImportJobState,
   AnalysisJobState,
   TranslateJobState,
+  ProjectJobsResponse,
   MarkTranslatedBatchResponse,
   TokenUsage,
   TokenUsageHistory,
@@ -833,6 +834,18 @@ export const api = {
   ): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/analysis-jobs/${jobId}/cancel`, {
       method: 'POST',
+    });
+  },
+
+  /** List all chapter jobs (analysis + translate) for a project. */
+  async getProjectJobs(projectId: string, signal?: AbortSignal): Promise<ProjectJobsResponse> {
+    return fetchJson(`/api/projects/${projectId}/jobs`, {
+      signal,
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
     });
   },
 

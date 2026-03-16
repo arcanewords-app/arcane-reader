@@ -309,7 +309,7 @@ export function ChapterView({
 
   return (
     <div id="chapterView">
-      <Card>
+      <Card className="chapter-toolbar-card">
         <ChapterHeader
           chapter={chapter}
           chapterListItem={chapterListItem}

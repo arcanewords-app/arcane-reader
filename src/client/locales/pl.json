@@ -153,6 +153,17 @@
     "characters": "znaków",
     "selectParagraph": "Zaznacz akapit {{index}}"
   },
+  "jobsPanel": {
+    "title": "Aktywne zadania",
+    "queued": "W kolejce",
+    "processing": "W trakcie",
+    "completed": "Zakończono",
+    "error": "Błąd",
+    "canceled": "Anulowano",
+    "analysis": "Analiza",
+    "translation": "Tłumaczenie",
+    "cancel": "Anuluj"
+  },
   "sidebar": {
     "projects": "Projekty",
     "chapters": "Rozdziały",

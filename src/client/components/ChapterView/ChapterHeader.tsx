@@ -114,80 +114,73 @@ export function ChapterHeader({
 
   return (
     <div class={`chapter-header ${isEditingTitle ? 'is-editing-title' : ''}`}>
-      <div class="chapter-nav">
-        <button
-          class="chapter-nav-btn"
-          disabled={!canPrev}
-          onClick={onPrev}
-          title={t('chapter.prevChapter')}
-        >
-          <Icon name="chevron_left" />
-        </button>
-        {chapter && isEditingTitle ? (
-          <div class="chapter-title-edit">
-            <input
-              ref={titleInputRef}
-              type="text"
-              class="chapter-title-input"
-              value={editedTitle}
-              onInput={(e) => setEditedTitle((e.target as HTMLInputElement).value)}
-              onKeyDown={handleKeyDown}
-              onBlur={handleSaveTitle}
-              disabled={savingTitle}
-            />
-            <div class="chapter-title-edit-actions">
-              <button
-                class="chapter-title-save-btn"
-                onClick={handleSaveTitle}
+      <div class="chapter-header-left">
+        <div class="chapter-nav">
+          <button
+            class="chapter-nav-btn"
+            disabled={!canPrev}
+            onClick={onPrev}
+            title={t('chapter.prevChapter')}
+          >
+            <Icon name="chevron_left" />
+          </button>
+          {chapter && isEditingTitle ? (
+            <div class="chapter-title-edit">
+              <input
+                ref={titleInputRef}
+                type="text"
+                class="chapter-title-input"
+                value={editedTitle}
+                onInput={(e) => setEditedTitle((e.target as HTMLInputElement).value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleSaveTitle}
                 disabled={savingTitle}
-                title={t('chapter.saveEnter')}
-              >
-                <Icon name="check" size="sm" />
-              </button>
-              <button
-                class="chapter-title-cancel-btn"
-                onClick={handleCancelEdit}
-                disabled={savingTitle}
-                title={t('chapter.cancelEsc')}
-              >
-                <Icon name="close" size="sm" />
-              </button>
+              />
+              <div class="chapter-title-edit-actions">
+                <button
+                  class="chapter-title-save-btn"
+                  onClick={handleSaveTitle}
+                  disabled={savingTitle}
+                  title={t('chapter.saveEnter')}
+                >
+                  <Icon name="check" size="sm" />
+                </button>
+                <button
+                  class="chapter-title-cancel-btn"
+                  onClick={handleCancelEdit}
+                  disabled={savingTitle}
+                  title={t('chapter.cancelEsc')}
+                >
+                  <Icon name="close" size="sm" />
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div class="chapter-title-wrapper">
-            <h2 class="chapter-title">{title}</h2>
-            {chapter && (
-              <button
-                class="chapter-title-edit-btn"
-                onClick={handleStartEdit}
-                title={t('chapter.editTitle')}
-              >
-                <Icon name="edit" size="sm" />
-              </button>
-            )}
-          </div>
-        )}
-        <button
-          class="chapter-nav-btn"
-          disabled={!canNext}
-          onClick={onNext}
-          title={t('chapter.nextChapter')}
-        >
-          <Icon name="chevron_right" />
-        </button>
-
-        {/* Settings button - в навигации, а не в actions */}
-        <button
-          class="chapter-nav-btn chapter-settings-btn"
-          onClick={onToggleSettings}
-          title={t('reader.displaySettings')}
-        >
-          <Icon name="settings" />
-        </button>
+          ) : (
+            <div class="chapter-title-wrapper">
+              <h2 class="chapter-title">{title}</h2>
+              {chapter && (
+                <button
+                  class="chapter-title-edit-btn"
+                  onClick={handleStartEdit}
+                  title={t('chapter.editTitle')}
+                >
+                  <Icon name="edit" size="sm" />
+                </button>
+              )}
+            </div>
+          )}
+          <button
+            class="chapter-nav-btn"
+            disabled={!canNext}
+            onClick={onNext}
+            title={t('chapter.nextChapter')}
+          >
+            <Icon name="chevron_right" />
+          </button>
+        </div>
       </div>
 
-      <div class="chapter-actions">
+      <div class="chapter-header-right">
         {showSkeletonActions ? (
           <>
             <Skeleton variant="block" width={72} height={32} />
@@ -227,6 +220,14 @@ export function ChapterHeader({
                 <Icon name="translate" size="sm" /> {t('chapter.translate', 'Перевод')}
               </Button>
             )}
+
+            <button
+              class="chapter-header-btn"
+              onClick={onToggleSettings}
+              title={t('reader.displaySettings')}
+            >
+              <Icon name="settings" />
+            </button>
           </>
         )}
       </div>

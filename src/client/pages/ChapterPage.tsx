@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { ProjectWithChapterList, Chapter, ProjectSettings } from '../types';
@@ -21,10 +21,21 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const prevProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    loadProject();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject is stable, avoid refetch loop
+    const projectIdChanged = prevProjectIdRef.current !== projectId;
+    prevProjectIdRef.current = projectId;
+
+    if (projectIdChanged || !project) {
+      loadProject();
+      return;
+    }
+
+    if (chapterId) {
+      loadChapterOnly(chapterId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProject/loadChapterOnly use projectId/chapterId
   }, [projectId, chapterId]);
 
   useEffect(() => {
@@ -60,6 +71,16 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
       route('/');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChapterOnly = async (cid: string) => {
+    setChapter(null);
+    try {
+      const loadedChapter = await api.getChapter(projectId, cid);
+      setChapter(loadedChapter);
+    } catch (error) {
+      console.error('Failed to load chapter:', error);
     }
   };
 
@@ -104,8 +125,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     route(`/projects/${projectId}/chapters/${chapterId}/reading`);
   };
 
-  // Show loading until project is ready and, when on chapter route, until chapter is loaded
-  const isLoadingPage = loading || !project || (!!chapterId && chapter === null);
+  // Full-page loading only when loading project or project not yet loaded.
+  // When switching chapters (loadChapterOnly), project exists — show ChapterView with skeleton.
+  const isLoadingPage = loading || !project;
   if (isLoadingPage) {
     return (
       <div class="page-loading">

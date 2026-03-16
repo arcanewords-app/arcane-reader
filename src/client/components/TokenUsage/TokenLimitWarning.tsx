@@ -20,7 +20,8 @@ export function TokenLimitWarning({
 }: TokenLimitWarningProps) {
   const { t } = useTranslation();
   const unlimited = usage.tokensLimit <= 0;
-  const tokensAfterTranslation = usage.tokensUsed + estimatedTokens;
+  const effectiveUsed = usage.tokensUsed + (usage.tokensBlocked ?? 0);
+  const tokensAfterTranslation = effectiveUsed + estimatedTokens;
   const remainingAfter = unlimited ? -1 : Math.max(0, usage.tokensLimit - tokensAfterTranslation);
   const percentageAfter =
     unlimited || usage.tokensLimit <= 0 ? 0 : (tokensAfterTranslation / usage.tokensLimit) * 100;
@@ -61,7 +62,7 @@ export function TokenLimitWarning({
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.currentUsage')}</span>
                 <span class="token-limit-stat-value">
-                  {usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
+                  {effectiveUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
                 </span>
               </div>
               <div class="token-limit-stat">
@@ -86,7 +87,7 @@ export function TokenLimitWarning({
               <div class="token-limit-stat">
                 <span class="token-limit-stat-label">{t('tokenLimit.currentUsage')}</span>
                 <span class="token-limit-stat-value">
-                  {usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
+                  {effectiveUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
                 </span>
               </div>
               <div class="token-limit-stat">

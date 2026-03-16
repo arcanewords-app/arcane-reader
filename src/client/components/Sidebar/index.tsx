@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { ChapterList } from './ChapterList';
 import { ProcessChapters } from './ProcessChapters';
+import { JobsPanel } from './JobsPanel';
 import { Button, Icon } from '../ui';
 import { route } from 'preact-router';
 import type { Chapter, Project, ProjectWithChapterList, ProjectSettings } from '../../types';
@@ -42,6 +43,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
+  const [triggerJobsFetch, setTriggerJobsFetch] = useState(0);
 
   if (!project) {
     return null;
@@ -93,7 +95,7 @@ export function Sidebar({
             }
             route('/projects');
           }}
-          className="sidebar-dashboard-link"
+          className="sidebar-action sidebar-dashboard-link"
         >
           <Icon name="arrow_back" size="sm" /> {t('sidebar.allProjects')}
         </Button>
@@ -116,29 +118,37 @@ export function Sidebar({
             }
             route(`/projects/${project.id}`);
           }}
-          className="sidebar-settings-link"
-          style={{ marginBottom: '0.75rem' }}
+          className="sidebar-action"
         >
           <Icon name="description" size="sm" /> {t('sidebar.aboutProject')}
         </Button>
 
         {/* Settings Button */}
-        <Button
-          variant="secondary"
-          onClick={() => setShowSettings(true)}
-          className="sidebar-settings-link"
-          style={{ marginBottom: '1rem' }}
-        >
+        <Button variant="secondary" onClick={() => setShowSettings(true)} className="sidebar-action">
           <Icon name="settings" size="sm" /> {t('sidebar.projectSettings')}
         </Button>
 
+        {/* Glossary - near top for quick access without scrolling */}
+        <Button variant="secondary" onClick={onOpenGlossary} className="sidebar-action">
+          <Icon name="menu_book" size="sm" /> {t('sidebar.glossary')}{' '}
+          <span class="glossary-count">{project.glossary.length}</span>
+        </Button>
+
         {onRefreshProject && (
-          <ProcessChapters
-            project={project}
-            onRefreshProject={onRefreshProject}
-            onSettingsChange={onSettingsChange}
-            onOpenSettings={() => setShowSettings(true)}
-          />
+          <>
+            <JobsPanel
+              project={project}
+              onRefreshProject={onRefreshProject}
+              triggerFetch={triggerJobsFetch}
+            />
+            <ProcessChapters
+              project={project}
+              onRefreshProject={onRefreshProject}
+              onSettingsChange={onSettingsChange}
+              onOpenSettings={() => setShowSettings(true)}
+              onBatchStarted={() => setTriggerJobsFetch((c) => c + 1)}
+            />
+          </>
         )}
 
         <ChapterList
@@ -152,11 +162,6 @@ export function Sidebar({
           onChaptersUpdate={onChaptersUpdate}
           onProjectUpdate={onProjectUpdate}
         />
-
-        <Button variant="glossary" onClick={onOpenGlossary}>
-          <Icon name="menu_book" size="sm" /> {t('sidebar.glossary')}{' '}
-          <span class="glossary-count">{project.glossary.length}</span>
-        </Button>
       </aside>
 
       {showSettings && (

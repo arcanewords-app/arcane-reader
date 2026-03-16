@@ -272,6 +272,8 @@ import {
   getUserTokenUsage,
   checkTokenLimit,
   incrementTokenUsage,
+  reserveTokens,
+  releaseTokens,
   getTokenUsageHistory,
 } from './middleware/tokenLimits.js';
 import { estimateTokensForStages, type TranslationStages } from './config/tokenLimits.js';
@@ -305,6 +307,7 @@ import {
   type TranslateJobState,
   type TranslateJobChapter,
 } from './services/translateJobStore.js';
+import { enqueueChapterJob } from './services/chapterJobQueue.js';
 import {
   uploadFile,
   deleteFile,
@@ -2934,6 +2937,32 @@ app.post(
         });
       }
 
+      const totalTextLength = chaptersWithText.reduce(
+        (sum, ch) => sum + (ch.originalText?.length ?? 0),
+        0
+      );
+      const estimatedTokens = estimateTokensForStages(totalTextLength, ['analysis']);
+      const limitCheck = await checkTokenLimit(
+        req.user!.id,
+        token,
+        estimatedTokens,
+        req.user!.role
+      );
+      if (!limitCheck.allowed) {
+        const now = new Date();
+        const resetTime = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
+        );
+        return res.status(429).json({
+          error: 'Token limit exceeded',
+          message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          estimatedTokens,
+          resetAt: resetTime.toISOString(),
+        });
+      }
+
       const preferAsync =
         req.get('Prefer')?.toLowerCase().includes('respond-async') ||
         req.query?.async === '1' ||
@@ -2941,6 +2970,8 @@ app.post(
 
       if (preferAsync) {
         const userId = req.user!.id;
+        await reserveTokens(userId, token, estimatedTokens);
+
         const jobId = generateAnalysisJobId();
         const jobChapters: AnalysisJobChapter[] = chaptersWithText.map((ch) => ({
           chapterId: ch.id,
@@ -2962,11 +2993,12 @@ app.post(
           cancelRequested: false,
         };
         await analysisJobStore.createJob(job);
+        await analysisJobStore.addToProjectIndex(projectId, jobId);
         await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
 
         res.status(202).json({ jobId, status: 'queued' as const });
 
-        setImmediate(async () => {
+        enqueueChapterJob(userId, jobId, 'analysis', async () => {
           const currentJob = await analysisJobStore.getJob(jobId);
           if (!currentJob) return;
           await analysisJobStore.updateJob(jobId, { status: 'processing' });
@@ -3057,6 +3089,11 @@ app.post(
                 finishedAt: new Date().toISOString(),
               });
               await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+              try {
+                await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
+              } catch (tokenError) {
+                req.log?.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
+              }
               return;
             }
 
@@ -3100,13 +3137,17 @@ app.post(
             }
 
             try {
-              await incrementTokenUsage(userId, token, result.totalTokensUsed, {
-                analysis: result.totalTokensUsed,
-                translation: 0,
-                editing: 0,
-              }, { useServiceRole: true });
+              await releaseTokens(userId, estimatedTokens, {
+                tokensActual: result.totalTokensUsed,
+                tokensByStage: {
+                  analysis: result.totalTokensUsed,
+                  translation: 0,
+                  editing: 0,
+                },
+                useServiceRole: true,
+              });
             } catch (tokenError) {
-              req.log?.warn({ err: tokenError }, 'Failed to update token usage (non-critical)');
+              req.log?.warn({ err: tokenError }, 'Failed to release tokens (non-critical)');
             }
 
             await invalidateProjectAndRelatedCaches(userId, projectId, token, {
@@ -3132,6 +3173,13 @@ app.post(
               finishedAt: new Date().toISOString(),
             });
             await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+            try {
+              await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
+            } catch (tokenError) {
+              req.log?.warn({ err: tokenError }, 'Failed to release tokens on error (non-critical)');
+            }
+          } finally {
+            await analysisJobStore.removeFromProjectIndex(projectId, jobId);
           }
         });
         return;
@@ -3246,6 +3294,41 @@ app.post(
         details: errorMessage,
       });
     }
+  }
+);
+
+// List all jobs for a project (analysis + translate)
+app.get(
+  '/api/projects/:projectId/jobs',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const projectId = req.params.projectId;
+    const project = await getProject(projectId, req.user.id, requireToken(req));
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    const [analysisJobs, translateJobs] = await Promise.all([
+      analysisJobStore.listByProject(projectId),
+      translateJobStore.listByProject(projectId),
+    ]);
+
+    const jobs = [
+      ...analysisJobs
+        .filter((j) => j.userId === req.user!.id)
+        .map((j) => ({ type: 'analysis' as const, ...toPublicAnalysisJob(j, { compact: true }) })),
+      ...translateJobs
+        .filter((j) => j.userId === req.user!.id)
+        .map((j) => ({ type: 'translate' as const, ...toPublicTranslateJob(j, { compact: true }) })),
+    ].sort(
+      (a, b) =>
+        new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+    );
+
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.json({ jobs });
   }
 );
 
@@ -3384,6 +3467,8 @@ app.post(
 
       if (preferAsync) {
         const userId = req.user.id;
+        await reserveTokens(userId, token, estimatedTokens);
+
         const jobId = generateTranslateJobId();
         const jobChapters: TranslateJobChapter[] = chaptersToTranslate.map((ch) => ({
           chapterId: ch.id,
@@ -3405,11 +3490,12 @@ app.post(
           cancelRequested: false,
         };
         await translateJobStore.createJob(job);
+        await translateJobStore.addToProjectIndex(projectId, jobId);
         await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
 
         res.status(202).json({ jobId, status: 'queued' as const });
 
-        setImmediate(async () => {
+        enqueueChapterJob(userId, jobId, 'translate', async () => {
           const currentJob = await translateJobStore.getJob(jobId);
           if (!currentJob) return;
           await translateJobStore.updateJob(jobId, { status: 'processing' });
@@ -3529,6 +3615,12 @@ app.post(
                 finishedAt: new Date().toISOString(),
               });
               await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+              try {
+                await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
+              } catch (tokenError) {
+                req.log?.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
+              }
+              await translateJobStore.removeFromProjectIndex(projectId, jobId);
               return;
             }
 
@@ -3550,6 +3642,13 @@ app.post(
               finishedAt: new Date().toISOString(),
             });
             await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+            try {
+              await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
+            } catch (tokenError) {
+              req.log?.warn({ err: tokenError }, 'Failed to release tokens on error (non-critical)');
+            }
+          } finally {
+            await translateJobStore.removeFromProjectIndex(projectId, jobId);
           }
         });
         return;

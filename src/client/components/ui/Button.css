@@ -80,37 +80,6 @@
   transform: translateY(0);
 }
 
-/* === Glossary Button Variant === */
-.btn-glossary {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.12);
-  width: 100%;
-  font-size: 0.9375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.btn-glossary:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
-  color: var(--accent-bright);
-  box-shadow: 0 2px 8px rgba(157, 111, 255, 0.2);
-}
-
-.btn-glossary .glossary-count {
-  background: var(--accent);
-  color: white;
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 650;
-  min-width: 24px;
-  text-align: center;
-}
-
 /* === Button Sizes === */
 .btn-sm {
   padding: 0.625rem 1.25rem;

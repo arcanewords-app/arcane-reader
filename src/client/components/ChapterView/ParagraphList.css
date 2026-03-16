@@ -9,7 +9,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: visible;
-  flex: 1;
   display: flex;
   flex-direction: column;
   transition: background var(--duration-slow) ease;
@@ -44,11 +43,10 @@
 }
 
 .paragraphs-unified {
-  flex: 1;
-  overflow-y: auto;
   overflow-x: auto;
+  overflow-y: auto;
   min-width: 0;
-  max-height: calc(100vh - 280px);
+  max-height: 80vh; /* Scroll within panel when many paragraphs; content-sized when few */
   scrollbar-width: thin;
   scrollbar-color: var(--accent-dim) transparent;
 }

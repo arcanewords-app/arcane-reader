@@ -35,6 +35,9 @@ export interface AnalysisJobStore {
   cancelJob(jobId: string): Promise<AnalysisJobState | null>;
   deleteJob(jobId: string): Promise<void>;
   setTtl(jobId: string, seconds: number): Promise<void>;
+  addToProjectIndex(projectId: string, jobId: string): Promise<void>;
+  removeFromProjectIndex(projectId: string, jobId: string): Promise<void>;
+  listByProject(projectId: string): Promise<AnalysisJobState[]>;
 }
 
 function getRedisEnv(): { url: string; token: string } | null {
@@ -50,6 +53,10 @@ function analysisJobKey(jobId: string): string {
 
 function analysisJobCancelKey(jobId: string): string {
   return `analysis_job_cancel:${jobId}`;
+}
+
+function projectAnalysisJobsKey(projectId: string): string {
+  return `project:analysis_jobs:${projectId}`;
 }
 
 function hasJobChanged(current: AnalysisJobState, next: AnalysisJobState): boolean {
@@ -137,10 +144,35 @@ class RedisAnalysisJobStore implements AnalysisJobStore {
     await this.redis.expire(analysisJobKey(jobId), seconds);
     await this.redis.expire(analysisJobCancelKey(jobId), seconds);
   }
+
+  async addToProjectIndex(projectId: string, jobId: string): Promise<void> {
+    await this.redis.sadd(projectAnalysisJobsKey(projectId), jobId);
+  }
+
+  async removeFromProjectIndex(projectId: string, jobId: string): Promise<void> {
+    await this.redis.srem(projectAnalysisJobsKey(projectId), jobId);
+  }
+
+  async listByProject(projectId: string): Promise<AnalysisJobState[]> {
+    const jobIds = await this.redis.smembers(projectAnalysisJobsKey(projectId));
+    const jobs: AnalysisJobState[] = [];
+    for (const id of jobIds) {
+      const job = await this.getJob(id);
+      if (job) {
+        jobs.push(job);
+      } else {
+        await this.removeFromProjectIndex(projectId, id);
+      }
+    }
+    return jobs.sort(
+      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+    );
+  }
 }
 
 class MemoryAnalysisJobStore implements AnalysisJobStore {
   private readonly jobs = new Map<string, AnalysisJobState>();
+  private readonly projectIndex = new Map<string, Set<string>>();
   private readonly cancelFlags = new Map<string, boolean>();
   private readonly ttlTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly updateLocks = new Map<string, Promise<void>>();
@@ -222,12 +254,51 @@ class MemoryAnalysisJobStore implements AnalysisJobStore {
   async setTtl(jobId: string, seconds: number): Promise<void> {
     const existing = this.ttlTimers.get(jobId);
     if (existing) clearTimeout(existing);
+    const job = this.jobs.get(jobId);
+    const projectId = job?.projectId;
     const tid = setTimeout(() => {
       this.jobs.delete(jobId);
       this.cancelFlags.delete(jobId);
       this.ttlTimers.delete(jobId);
+      if (projectId) {
+        const set = this.projectIndex.get(projectId);
+        if (set) {
+          set.delete(jobId);
+          if (set.size === 0) this.projectIndex.delete(projectId);
+        }
+      }
     }, seconds * 1000);
     this.ttlTimers.set(jobId, tid);
+  }
+
+  async addToProjectIndex(projectId: string, jobId: string): Promise<void> {
+    let set = this.projectIndex.get(projectId);
+    if (!set) {
+      set = new Set();
+      this.projectIndex.set(projectId, set);
+    }
+    set.add(jobId);
+  }
+
+  async removeFromProjectIndex(projectId: string, jobId: string): Promise<void> {
+    const set = this.projectIndex.get(projectId);
+    if (set) {
+      set.delete(jobId);
+      if (set.size === 0) this.projectIndex.delete(projectId);
+    }
+  }
+
+  async listByProject(projectId: string): Promise<AnalysisJobState[]> {
+    const set = this.projectIndex.get(projectId);
+    if (!set) return [];
+    const jobs: AnalysisJobState[] = [];
+    for (const id of set) {
+      const job = this.jobs.get(id);
+      if (job) jobs.push(job);
+    }
+    return jobs.sort(
+      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+    );
   }
 }
 

@@ -1,12 +1,27 @@
-.sidebar-dashboard-link {
+/* Shared style for all sidebar action buttons - full width, consistent look */
+.sidebar-action {
   width: 100%;
-  margin-bottom: 1rem;
+}
+
+.sidebar-dashboard-link {
   font-size: 0.9rem;
+}
+
+/* Glossary count badge (used with variant="secondary") */
+.sidebar .glossary-count {
+  background: var(--accent);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 650;
+  min-width: 24px;
+  text-align: center;
 }
 
 .sidebar-process-chapters {
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 /* Mobile header with close button */
@@ -80,7 +95,7 @@
 @media (min-width: 1024px) {
   .sidebar-dashboard-link,
   .sidebar-process-chapters {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .sidebar-project-header {

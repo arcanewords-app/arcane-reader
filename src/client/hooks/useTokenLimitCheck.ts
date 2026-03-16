@@ -38,7 +38,8 @@ export function useTokenLimitCheck() {
         onProceed();
         return 'ok';
       }
-      const tokensAfter = tokenUsage.tokensUsed + estimatedTokens;
+      const effectiveUsed = tokenUsage.tokensUsed + (tokenUsage.tokensBlocked ?? 0);
+      const tokensAfter = effectiveUsed + estimatedTokens;
       const willExceed = tokensAfter > tokenUsage.tokensLimit;
       const percentageAfter = (tokensAfter / tokenUsage.tokensLimit) * 100;
       const shouldWarn = percentageAfter >= WARNING_THRESHOLD * 100;

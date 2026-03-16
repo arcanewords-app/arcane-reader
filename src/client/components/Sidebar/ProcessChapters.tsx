@@ -36,6 +36,8 @@ interface ProcessChaptersProps {
   onSettingsChange?: (settings: ProjectSettings) => void;
   /** Opens full project settings modal */
   onOpenSettings?: () => void;
+  /** Called when user starts a batch (triggers JobsPanel to fetch immediately) */
+  onBatchStarted?: () => void;
 }
 
 function isChapterEmptyFromSummary(chapter: ChapterSummary): boolean {
@@ -328,6 +330,7 @@ export function ProcessChapters({
     if (batchSelectedStages.length === 0) return;
     setShowTranslateAllModal(false);
     batch.startBatch(selectedChaptersForTranslate, { stages: batchSelectedStages });
+    onBatchStarted?.();
   }, [selectedChaptersForTranslate, batchSelectedStages, batch, t]);
 
   const handleMarkAsTranslatedBatch = useCallback(() => {

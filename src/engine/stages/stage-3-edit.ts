@@ -405,6 +405,9 @@ export class EditStage {
 
     if (parallelChunks <= 1) {
       for (let i = 0; i < translatedChunks.length; i++) {
+        if (isCancelled?.()) {
+          throw new Error('Cancelled');
+        }
         const { result, tokensUsed: tok } = await editOne(translatedChunks[i]!, i);
         editedChunks[i] = result;
         totalTokensUsed += tok;

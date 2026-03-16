@@ -21,6 +21,8 @@ import { buildRedisKey, redisDelMany } from '../services/redisCache.js';
 export interface TokenUsage {
   date: string;
   tokensUsed: number;
+  /** Tokens reserved for in-progress jobs (count toward limit) */
+  tokensBlocked: number;
   tokensLimit: number;
   tokensRemaining: number;
   percentageUsed: number;
@@ -75,6 +77,7 @@ export async function getUserTokenUsage(
   }
 
   const tokensUsed = data?.tokens_used || 0;
+  const tokensBlocked = data?.tokens_blocked ?? 0;
   const tokensByStage = data?.tokens_by_stage || {
     analysis: 0,
     translation: 0,
@@ -82,14 +85,16 @@ export async function getUserTokenUsage(
   };
 
   const unlimited = isUnlimitedTokenLimit(tokensLimit);
-  const tokensRemaining = unlimited ? -1 : Math.max(0, tokensLimit - tokensUsed);
-  const percentageUsed = unlimited || tokensLimit <= 0 ? 0 : (tokensUsed / tokensLimit) * 100;
+  const effectiveUsed = tokensUsed + tokensBlocked;
+  const tokensRemaining = unlimited ? -1 : Math.max(0, tokensLimit - effectiveUsed);
+  const percentageUsed = unlimited || tokensLimit <= 0 ? 0 : (effectiveUsed / tokensLimit) * 100;
   const warning =
     !unlimited && tokensLimit > 0 && percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
 
   return {
     date: targetDate,
     tokensUsed,
+    tokensBlocked,
     tokensLimit,
     tokensRemaining,
     percentageUsed,
@@ -116,9 +121,10 @@ export async function checkTokenLimit(
   const { tokensLimit } = usage;
   const unlimited = isUnlimitedTokenLimit(tokensLimit);
 
-  const totalAfterTranslation = usage.tokensUsed + estimatedTokens;
+  const effectiveUsed = usage.tokensUsed + usage.tokensBlocked;
+  const totalAfterTranslation = effectiveUsed + estimatedTokens;
   const allowed = unlimited || totalAfterTranslation <= tokensLimit;
-  const remaining = unlimited ? -1 : Math.max(0, tokensLimit - usage.tokensUsed);
+  const remaining = unlimited ? -1 : Math.max(0, tokensLimit - effectiveUsed);
   const warning = !unlimited && usage.percentageUsed >= TOKEN_LIMITS.WARNING_THRESHOLD * 100;
 
   let message: string | undefined;
@@ -130,7 +136,7 @@ export async function checkTokenLimit(
 
   return {
     allowed,
-    currentUsage: usage.tokensUsed,
+    currentUsage: effectiveUsed,
     limit: tokensLimit,
     remaining,
     warning,
@@ -223,6 +229,144 @@ export async function incrementTokenUsage(
   if (error) {
     const { logger } = await import('../logger.js');
     logger.error({ err: error }, 'Failed to increment token usage');
+    return;
+  }
+  await redisDelMany(cacheKeysToInvalidate);
+}
+
+/**
+ * Reserve tokens for a job (add to tokens_blocked).
+ * Call before starting a background job.
+ * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)
+ */
+export async function reserveTokens(
+  userId: string,
+  token: string,
+  tokensToReserve: number,
+  options?: { useServiceRole?: boolean }
+): Promise<void> {
+  if (tokensToReserve <= 0) return;
+  if (!options?.useServiceRole) {
+    validateToken(token);
+  }
+  const client =
+    options?.useServiceRole === true
+      ? createServiceRoleClient()
+      : createClientWithToken(token);
+  const date = getCurrentDateUTC();
+  const cacheKeysToInvalidate = [
+    buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date),
+    buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, 7),
+    buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, 30),
+  ];
+
+  const { data: existing } = await client
+    .from('user_token_usage')
+    .select('tokens_used, tokens_blocked, tokens_by_stage')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .single();
+
+  const currentBlocked = existing?.tokens_blocked ?? 0;
+  const newBlocked = currentBlocked + tokensToReserve;
+
+  const { error } = await client.from('user_token_usage').upsert(
+    {
+      user_id: userId,
+      date,
+      tokens_used: existing?.tokens_used ?? 0,
+      tokens_blocked: newBlocked,
+      tokens_by_stage: existing?.tokens_by_stage ?? {
+        analysis: 0,
+        translation: 0,
+        editing: 0,
+      },
+    },
+    {
+      onConflict: 'user_id,date',
+      ignoreDuplicates: false,
+    }
+  );
+
+  if (error) {
+    const { logger } = await import('../logger.js');
+    logger.error({ err: error }, 'Failed to reserve tokens');
+    throw new Error(`Failed to reserve tokens: ${error.message}`);
+  }
+  await redisDelMany(cacheKeysToInvalidate);
+}
+
+/**
+ * Release reserved tokens and optionally add actual usage (on job success).
+ * Call when job completes (success/error/cancel).
+ * @param tokensToRelease - Amount that was reserved (to subtract from tokens_blocked)
+ * @param tokensActual - Actual tokens used (to add to tokens_used on success)
+ * @param options.useServiceRole - Use service role client
+ */
+export async function releaseTokens(
+  userId: string,
+  tokensToRelease: number,
+  options?: {
+    tokensActual?: number;
+    tokensByStage?: {
+      analysis?: number;
+      translation: number;
+      editing?: number;
+    };
+    useServiceRole?: boolean;
+  }
+): Promise<void> {
+  const client = createServiceRoleClient();
+  const date = getCurrentDateUTC();
+  const cacheKeysToInvalidate = [
+    buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date),
+    buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, 7),
+    buildRedisKey(CACHE_PREFIX.userTokenHistory, userId, 30),
+  ];
+
+  const { data: existing } = await client
+    .from('user_token_usage')
+    .select('tokens_used, tokens_blocked, tokens_by_stage')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .single();
+
+  const currentBlocked = existing?.tokens_blocked ?? 0;
+  const newBlocked = Math.max(0, currentBlocked - tokensToRelease);
+  let newTokensUsed = existing?.tokens_used ?? 0;
+  let newTokensByStage = existing?.tokens_by_stage ?? {
+    analysis: 0,
+    translation: 0,
+    editing: 0,
+  };
+
+  if (options?.tokensActual != null && options.tokensActual > 0 && options.tokensByStage) {
+    newTokensUsed += options.tokensActual;
+    newTokensByStage = {
+      analysis: (newTokensByStage.analysis || 0) + (options.tokensByStage.analysis ?? 0),
+      translation:
+        (newTokensByStage.translation || 0) + (options.tokensByStage.translation ?? 0),
+      editing: (newTokensByStage.editing || 0) + (options.tokensByStage.editing ?? 0),
+    };
+  }
+
+  const { error } = await client.from('user_token_usage').upsert(
+    {
+      user_id: userId,
+      date,
+      tokens_blocked: newBlocked,
+      tokens_used: newTokensUsed,
+      tokens_by_stage: newTokensByStage,
+    },
+    {
+      onConflict: 'user_id,date',
+      ignoreDuplicates: false,
+    }
+  );
+
+  if (error) {
+    const { logger } = await import('../logger.js');
+    logger.error({ err: error }, 'Failed to release tokens');
     return;
   }
   await redisDelMany(cacheKeysToInvalidate);

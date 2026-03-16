@@ -44,6 +44,9 @@ export interface TranslateJobStore {
   cancelJob(jobId: string): Promise<TranslateJobState | null>;
   deleteJob(jobId: string): Promise<void>;
   setTtl(jobId: string, seconds: number): Promise<void>;
+  addToProjectIndex(projectId: string, jobId: string): Promise<void>;
+  removeFromProjectIndex(projectId: string, jobId: string): Promise<void>;
+  listByProject(projectId: string): Promise<TranslateJobState[]>;
 }
 
 function getRedisEnv(): { url: string; token: string } | null {
@@ -59,6 +62,10 @@ function translateJobKey(jobId: string): string {
 
 function translateJobCancelKey(jobId: string): string {
   return `translate_job_cancel:${jobId}`;
+}
+
+function projectTranslateJobsKey(projectId: string): string {
+  return `project:translate_jobs:${projectId}`;
 }
 
 function hasJobChanged(current: TranslateJobState, next: TranslateJobState): boolean {
@@ -146,10 +153,35 @@ class RedisTranslateJobStore implements TranslateJobStore {
     await this.redis.expire(translateJobKey(jobId), seconds);
     await this.redis.expire(translateJobCancelKey(jobId), seconds);
   }
+
+  async addToProjectIndex(projectId: string, jobId: string): Promise<void> {
+    await this.redis.sadd(projectTranslateJobsKey(projectId), jobId);
+  }
+
+  async removeFromProjectIndex(projectId: string, jobId: string): Promise<void> {
+    await this.redis.srem(projectTranslateJobsKey(projectId), jobId);
+  }
+
+  async listByProject(projectId: string): Promise<TranslateJobState[]> {
+    const jobIds = await this.redis.smembers(projectTranslateJobsKey(projectId));
+    const jobs: TranslateJobState[] = [];
+    for (const id of jobIds) {
+      const job = await this.getJob(id);
+      if (job) {
+        jobs.push(job);
+      } else {
+        await this.removeFromProjectIndex(projectId, id);
+      }
+    }
+    return jobs.sort(
+      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+    );
+  }
 }
 
 class MemoryTranslateJobStore implements TranslateJobStore {
   private readonly jobs = new Map<string, TranslateJobState>();
+  private readonly projectIndex = new Map<string, Set<string>>();
   private readonly cancelFlags = new Map<string, boolean>();
   private readonly ttlTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly updateLocks = new Map<string, Promise<void>>();
@@ -231,12 +263,51 @@ class MemoryTranslateJobStore implements TranslateJobStore {
   async setTtl(jobId: string, seconds: number): Promise<void> {
     const existing = this.ttlTimers.get(jobId);
     if (existing) clearTimeout(existing);
+    const job = this.jobs.get(jobId);
+    const projectId = job?.projectId;
     const tid = setTimeout(() => {
       this.jobs.delete(jobId);
       this.cancelFlags.delete(jobId);
       this.ttlTimers.delete(jobId);
+      if (projectId) {
+        const set = this.projectIndex.get(projectId);
+        if (set) {
+          set.delete(jobId);
+          if (set.size === 0) this.projectIndex.delete(projectId);
+        }
+      }
     }, seconds * 1000);
     this.ttlTimers.set(jobId, tid);
+  }
+
+  async addToProjectIndex(projectId: string, jobId: string): Promise<void> {
+    let set = this.projectIndex.get(projectId);
+    if (!set) {
+      set = new Set();
+      this.projectIndex.set(projectId, set);
+    }
+    set.add(jobId);
+  }
+
+  async removeFromProjectIndex(projectId: string, jobId: string): Promise<void> {
+    const set = this.projectIndex.get(projectId);
+    if (set) {
+      set.delete(jobId);
+      if (set.size === 0) this.projectIndex.delete(projectId);
+    }
+  }
+
+  async listByProject(projectId: string): Promise<TranslateJobState[]> {
+    const set = this.projectIndex.get(projectId);
+    if (!set) return [];
+    const jobs: TranslateJobState[] = [];
+    for (const id of set) {
+      const job = this.jobs.get(id);
+      if (job) jobs.push(job);
+    }
+    return jobs.sort(
+      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+    );
   }
 }
 

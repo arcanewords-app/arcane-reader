@@ -162,6 +162,17 @@
     "aboutProject": "About project",
     "projectSettings": "Project settings"
   },
+  "jobsPanel": {
+    "title": "Active tasks",
+    "queued": "Queued",
+    "processing": "Processing",
+    "completed": "Completed",
+    "error": "Error",
+    "canceled": "Canceled",
+    "analysis": "Analysis",
+    "translation": "Translation",
+    "cancel": "Cancel"
+  },
   "settings": {
     "title": "Project settings",
     "appLanguage": "App language",

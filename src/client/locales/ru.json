@@ -153,6 +153,17 @@
     "characters": "символов",
     "selectParagraph": "Выбрать абзац {{index}}"
   },
+  "jobsPanel": {
+    "title": "Активные задачи",
+    "queued": "В очереди",
+    "processing": "Выполняется",
+    "completed": "Завершено",
+    "error": "Ошибка",
+    "canceled": "Отменено",
+    "analysis": "Анализ",
+    "translation": "Перевод",
+    "cancel": "Отменить"
+  },
   "sidebar": {
     "projects": "Проекты",
     "chapters": "Главы",

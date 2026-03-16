@@ -1,0 +1,113 @@
+.jobs-panel {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.jobs-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.jobs-panel-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.jobs-panel-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-radius: var(--radius-full);
+}
+
+.jobs-panel-loading {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+
+.jobs-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.jobs-panel-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8125rem;
+}
+
+.jobs-panel-item:last-child {
+  border-bottom: none;
+}
+
+.jobs-panel-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.jobs-panel-item-type {
+  color: var(--text-secondary);
+}
+
+.jobs-panel-item-status {
+  font-weight: 500;
+}
+
+.jobs-panel-item-status--queued,
+.jobs-panel-item-status--processing {
+  color: var(--accent);
+}
+
+.jobs-panel-item-status--completed {
+  color: var(--success);
+}
+
+.jobs-panel-item-status--error {
+  color: var(--error);
+}
+
+.jobs-panel-item-status--canceled {
+  color: var(--text-dim);
+}
+
+.jobs-panel-item-progress {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.jobs-panel-item-chapter {
+  margin-left: 0.25rem;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.jobs-panel-item-tokens {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.jobs-panel-item-cancel {
+  margin-top: 0.5rem;
+}

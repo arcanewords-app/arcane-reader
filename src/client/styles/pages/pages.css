@@ -42,6 +42,7 @@
     max-width: 100%;
     min-width: 0;
   }
+
 }
 
 /* Tablet: can use grid with smaller gap */
@@ -49,5 +50,28 @@
   .project-page-container,
   .chapter-page-container {
     display: block; /* Keep block on tablet for now */
+  }
+}
+
+/* Chapter page: single scroll, toolbar sticky, content-sized (no empty space) */
+@media (min-width: 1024px) {
+  .chapter-page-container .content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .chapter-page-container #chapterView {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .chapter-page-container #chapterView > .card.chapter-toolbar-card {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-card);
   }
 }

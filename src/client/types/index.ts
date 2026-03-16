@@ -421,6 +421,15 @@ export interface TranslateJobState {
   finishedAt: string | null;
 }
 
+/** Unified job item from GET /api/projects/:projectId/jobs */
+export type ProjectJobItem =
+  | ({ type: 'analysis' } & Omit<AnalysisJobState, 'projectId' | 'userId' | 'cancelRequested'>)
+  | ({ type: 'translate' } & Omit<TranslateJobState, 'projectId' | 'userId' | 'cancelRequested'>);
+
+export interface ProjectJobsResponse {
+  jobs: ProjectJobItem[];
+}
+
 /** Options for chapter translate API and hooks (scope + stages). */
 export type TranslationStageKind = 'analysis' | 'translation' | 'editing';
 
@@ -478,6 +487,8 @@ export interface AuthUser {
 export interface TokenUsage {
   date: string;
   tokensUsed: number;
+  /** Tokens reserved for in-progress jobs (count toward limit) */
+  tokensBlocked: number;
   tokensLimit: number;
   tokensRemaining: number;
   percentageUsed: number;
