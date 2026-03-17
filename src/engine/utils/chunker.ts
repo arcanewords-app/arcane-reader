@@ -101,7 +101,9 @@ function splitIntoParagraphs(text: string): string[] {
  * Split text into [content, separator][] pairs. Preserves the exact separator between paragraphs.
  * E.g. "a\n\nb\n\n\nc" -> [["a","\n\n"], ["b","\n\n\n"], ["c",""]]
  */
-function splitIntoParagraphsWithSeparators(text: string): Array<{ content: string; separatorAfter: string }> {
+function splitIntoParagraphsWithSeparators(
+  text: string
+): Array<{ content: string; separatorAfter: string }> {
   const parts = text.split(/(\n{2,})/);
   const result: Array<{ content: string; separatorAfter: string }> = [];
   for (let i = 0; i < parts.length; i += 2) {

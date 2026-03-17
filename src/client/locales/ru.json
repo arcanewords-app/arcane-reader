@@ -153,6 +153,29 @@
     "characters": "символов",
     "selectParagraph": "Выбрать абзац {{index}}"
   },
+  "searchReplace": {
+    "findPlaceholder": "Найти",
+    "replacePlaceholder": "Заменить",
+    "caseSensitive": "Аа",
+    "prevMatch": "Предыдущее совпадение",
+    "nextMatch": "Следующее совпадение",
+    "matchCount": "{{current}} / {{total}}",
+    "noMatches": "Совпадений не найдено",
+    "resultsCount": "{{count}} совпадений",
+    "findInChapter": "Найти в главе",
+    "findInProject": "Найти в проекте",
+    "replace": "Заменить",
+    "replaceAll": "Заменить всё",
+    "previewTitle": "Превью замены ({{count}} параграфов)",
+    "previewHint": "Будут обновлены следующие параграфы:",
+    "paragraphLabel": "Параграф #{{index}}",
+    "before": "Было",
+    "after": "Стало",
+    "andMore": "...и ещё {{count}}",
+    "applyReplace": "Применить замену",
+    "updatedCount": "Обновлено {{count}}",
+    "failedCount": "{{count}} ошибок"
+  },
   "jobsPanel": {
     "title": "Активные задачи",
     "queued": "В очереди",
@@ -169,6 +192,9 @@
     "chapters": "Главы",
     "settings": "Настройки",
     "glossary": "Глоссарий",
+    "reports": "Жалобы на перевод",
+    "reportsEmpty": "Пока нет жалоб",
+    "reportsGoToChapter": "Перейти к главе",
     "allProjects": "Все проекты",
     "aboutProject": "О проекте",
     "projectSettings": "Настройки проекта"
@@ -635,7 +661,16 @@
     "backToPublication": "Вернуться к публикации",
     "settingsTitle": "Настройки чтения",
     "noOriginalText": "Нет оригинального текста",
-    "noTranslatedText": "Нет переведенного текста"
+    "noTranslatedText": "Нет переведенного текста",
+    "reportTranslation": "Жалоба на перевод",
+    "reportChapter": "Глава: {{title}}",
+    "reportDescriptionLabel": "Опишите проблему",
+    "reportPlaceholder": "например: опечатка, неверный смысл, ошибка форматирования...",
+    "reportHint": "Минимум 5 символов. Ваша жалоба поможет улучшить перевод.",
+    "reportMinLength": "Описание должно содержать минимум 5 символов",
+    "reportMaxLength": "Описание не должно превышать 5000 символов",
+    "reportSubmit": "Отправить",
+    "reportSent": "Отправлено"
   },
   "dashboard": {
     "myProjects": "Мои проекты",
@@ -704,7 +739,14 @@
     "orderNewest": "Сначала новые",
     "orderOldest": "Сначала старые",
     "targetLanguageLabel": "Язык",
-    "languageAll": "Все языки"
+    "languageAll": "Все языки",
+    "filterByAuthor": "Автор",
+    "filterByTranslator": "Переводчик",
+    "filterByTag": "Тег",
+    "clearFilter": "Сбросить фильтр",
+    "clearAllFilters": "Сбросить все фильтры",
+    "clearFilterHint": "Попробуйте сбросить фильтр, чтобы увидеть больше публикаций.",
+    "noPublicationsForFilter": "Нет публикаций по этому фильтру"
   },
   "nav": {
     "catalog": "Каталог",
@@ -727,6 +769,9 @@
     "subtitle": "Создание общедоступных тегов, авторов и переводчиков.",
     "deniedTitle": "Требуется доступ администратора",
     "deniedMessage": "У вас недостаточно прав для открытия этого раздела.",
+    "filter": {
+      "all": "Все"
+    },
     "kinds": {
       "tag": "Тег",
       "author": "Автор",
@@ -741,19 +786,36 @@
       "photo": "Фотография",
       "photoHint": "Нажмите или перетащите изображение",
       "removePhoto": "Удалить фото",
-      "submit": "Создать сущность"
+      "submit": "Создать сущность",
+      "searchPlaceholder": "Поиск по названию",
+      "edit": "Редактировать",
+      "delete": "Удалить",
+      "editTitle": "Редактировать сущность",
+      "save": "Сохранить"
     },
     "list": {
       "title": "Недавно созданные",
       "empty": "Сущностей пока нет."
     },
+    "delete": {
+      "title": "Удалить сущность",
+      "message": "Вы уверены, что хотите удалить «{{name}}»? Это действие нельзя отменить."
+    },
     "messages": {
-      "created": "Сущность успешно создана."
+      "created": "Сущность успешно создана.",
+      "updated": "Сущность успешно обновлена.",
+      "deleted": "Сущность успешно удалена."
     },
     "errors": {
       "nameRequired": "Название обязательно.",
       "forbidden": "Создавать сущности может только администратор.",
-      "createFailed": "Не удалось создать сущность."
+      "createFailed": "Не удалось создать сущность.",
+      "updateFailed": "Не удалось обновить сущность.",
+      "deleteFailed": "Не удалось удалить сущность.",
+      "deleteUsed": "Эта сущность используется в {{count}} публикации(ях). Сначала удалите её из всех публикаций."
+    },
+    "usage": {
+      "publicationsCount": "Используется в {{count}} публикации(ях)"
     }
   },
   "cabinet": {
@@ -802,6 +864,7 @@
   "publication": {
     "untitled": "Без названия",
     "unknownAuthor": "Неизвестный автор",
+    "languageLabel": "Язык: {{language}}",
     "authorLabel": "Автор",
     "translatorLabel": "Переводчик",
     "notFound": "Публикация не найдена",
@@ -851,6 +914,8 @@
   },
   "info": {
     "menu": "Инфо",
+    "aboutProject": "О проекте",
+    "legal": "Правовая информация",
     "about": "О проекте",
     "contact": "Контакты",
     "privacy": "Политика конфиденциальности",

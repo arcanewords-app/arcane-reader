@@ -161,69 +161,71 @@ export function ChapterTocModal({
       <div class="reading-toc-list" ref={tocListRef} onScroll={handleTocScroll}>
         {filteredChapters.length === 0 ? (
           <div class="toc-empty">{t('toc.noResults')}</div>
-        ) : (() => {
-          const total = filteredChapters.length;
-          const useVirtualization = total > TOC_VIRTUAL_THRESHOLD;
-          const totalHeight = useVirtualization ? total * TOC_ITEM_HEIGHT : 0;
-          const start = useVirtualization
-            ? Math.max(0, Math.floor(tocScrollTop / TOC_ITEM_HEIGHT) - TOC_BUFFER)
-            : 0;
-          const end = useVirtualization
-            ? Math.min(
-                total,
-                Math.ceil((tocScrollTop + tocHeight) / TOC_ITEM_HEIGHT) + TOC_BUFFER
-              )
-            : total;
-          const visibleChapters = useVirtualization
-            ? filteredChapters.slice(start, end)
-            : filteredChapters;
-          const paddingTop = useVirtualization ? start * TOC_ITEM_HEIGHT : 0;
-          const paddingBottom = useVirtualization
-            ? Math.max(0, totalHeight - end * TOC_ITEM_HEIGHT)
-            : 0;
+        ) : (
+          (() => {
+            const total = filteredChapters.length;
+            const useVirtualization = total > TOC_VIRTUAL_THRESHOLD;
+            const totalHeight = useVirtualization ? total * TOC_ITEM_HEIGHT : 0;
+            const start = useVirtualization
+              ? Math.max(0, Math.floor(tocScrollTop / TOC_ITEM_HEIGHT) - TOC_BUFFER)
+              : 0;
+            const end = useVirtualization
+              ? Math.min(
+                  total,
+                  Math.ceil((tocScrollTop + tocHeight) / TOC_ITEM_HEIGHT) + TOC_BUFFER
+                )
+              : total;
+            const visibleChapters = useVirtualization
+              ? filteredChapters.slice(start, end)
+              : filteredChapters;
+            const paddingTop = useVirtualization ? start * TOC_ITEM_HEIGHT : 0;
+            const paddingBottom = useVirtualization
+              ? Math.max(0, totalHeight - end * TOC_ITEM_HEIGHT)
+              : 0;
 
-          const renderItem = (chapter: ChapterTocItem) => {
-            const isActive = chapter.id === currentChapterId;
-            const isRead = readChapterIds?.has(chapter.id);
-            return (
-              <button
-                key={chapter.id}
-                type="button"
-                class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''}`}
-                onClick={() => onSelectChapter(chapter.id)}
-                style={useVirtualization ? { minHeight: TOC_ITEM_HEIGHT + 'px' } : undefined}
-              >
-                <span class="reading-toc-number">{chapter.number}</span>
-                <span class="reading-toc-title">
-                  {chapter.title ||
-                    t('chapterList.defaultChapterTitle', { number: chapter.number })}
-                </span>
-                {isRead && (
-                  <span class="reading-toc-read" title={t('publication.read')}>
-                    <Icon name="check" size="sm" />
-                  </span>
-                )}
-                {isActive && <span class="reading-toc-current">{t('readingMode.current')}</span>}
-              </button>
-            );
-          };
-
-          if (useVirtualization) {
-            return (
-              <div style={{ height: totalHeight + 'px', position: 'relative' }}>
-                <div
-                  style={{
-                    paddingTop: paddingTop + 'px',
-                    paddingBottom: paddingBottom + 'px',
-                  }}
+            const renderItem = (chapter: ChapterTocItem) => {
+              const isActive = chapter.id === currentChapterId;
+              const isRead = readChapterIds?.has(chapter.id);
+              return (
+                <button
+                  key={chapter.id}
+                  type="button"
+                  class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''}`}
+                  onClick={() => onSelectChapter(chapter.id)}
+                  style={useVirtualization ? { minHeight: TOC_ITEM_HEIGHT + 'px' } : undefined}
                 >
-                  {visibleChapters.map(renderItem)}
+                  <span class="reading-toc-number">{chapter.number}</span>
+                  <span class="reading-toc-title">
+                    {chapter.title ||
+                      t('chapterList.defaultChapterTitle', { number: chapter.number })}
+                  </span>
+                  {isRead && (
+                    <span class="reading-toc-read" title={t('publication.read')}>
+                      <Icon name="check" size="sm" />
+                    </span>
+                  )}
+                  {isActive && <span class="reading-toc-current">{t('readingMode.current')}</span>}
+                </button>
+              );
+            };
+
+            if (useVirtualization) {
+              return (
+                <div style={{ height: totalHeight + 'px', position: 'relative' }}>
+                  <div
+                    style={{
+                      paddingTop: paddingTop + 'px',
+                      paddingBottom: paddingBottom + 'px',
+                    }}
+                  >
+                    {visibleChapters.map(renderItem)}
+                  </div>
                 </div>
-              </div>
-            );
-          }
-          return <>{visibleChapters.map(renderItem)}</>;
-        })()}
+              );
+            }
+            return <>{visibleChapters.map(renderItem)}</>;
+          })()
+        )}
       </div>
     </Modal>
   );

@@ -106,7 +106,10 @@ class RedisTranslateJobStore implements TranslateJobStore {
     return value ?? null;
   }
 
-  async updateJob(jobId: string, patch: Partial<TranslateJobState>): Promise<TranslateJobState | null> {
+  async updateJob(
+    jobId: string,
+    patch: Partial<TranslateJobState>
+  ): Promise<TranslateJobState | null> {
     return this.withJobLock(jobId, async () => {
       const current = await this.getJob(jobId);
       if (!current) return null;
@@ -173,9 +176,7 @@ class RedisTranslateJobStore implements TranslateJobStore {
         await this.removeFromProjectIndex(projectId, id);
       }
     }
-    return jobs.sort(
-      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-    );
+    return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
   }
 }
 
@@ -214,7 +215,10 @@ class MemoryTranslateJobStore implements TranslateJobStore {
     return this.jobs.get(jobId) ?? null;
   }
 
-  async updateJob(jobId: string, patch: Partial<TranslateJobState>): Promise<TranslateJobState | null> {
+  async updateJob(
+    jobId: string,
+    patch: Partial<TranslateJobState>
+  ): Promise<TranslateJobState | null> {
     return this.withJobLock(jobId, async () => {
       const current = this.jobs.get(jobId);
       if (!current) return null;
@@ -305,9 +309,7 @@ class MemoryTranslateJobStore implements TranslateJobStore {
       const job = this.jobs.get(id);
       if (job) jobs.push(job);
     }
-    return jobs.sort(
-      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-    );
+    return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
   }
 }
 

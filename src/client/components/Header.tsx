@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import type { SystemStatus, AuthUser } from '../types';
+import type { AuthUser } from '../types';
 import { useUserRole } from '../hooks/useUserRole';
 import { Button, Icon } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
@@ -10,8 +10,6 @@ import { setSavedLocale, type AppLocale } from '../i18n';
 import './Header.css';
 
 interface HeaderProps {
-  status: 'loading' | 'ready' | 'error';
-  systemStatus: SystemStatus | null;
   user?: AuthUser | null;
   onLogout?: () => void;
   onMenuToggle?: () => void;
@@ -21,15 +19,7 @@ interface HeaderProps {
   onOpenRegister?: () => void;
 }
 
-export function Header({
-  status,
-  systemStatus,
-  user,
-  onLogout,
-  onMenuToggle,
-  onOpenLogin,
-  onOpenRegister,
-}: HeaderProps) {
+export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegister }: HeaderProps) {
   const { t, i18n } = useTranslation();
   const { isAtLeast } = useUserRole();
   const isAuthor = user ? isAtLeast('author') : false;
@@ -38,7 +28,14 @@ export function Header({
   const [hasSidebar, setHasSidebar] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [localeOpen, setLocaleOpen] = useState(false);
   const currentLocale = (i18n.language || 'ru') as AppLocale;
+
+  const localeLabels: Record<AppLocale, string> = {
+    ru: t('settings.appLanguageRu'),
+    en: t('settings.appLanguageEn'),
+    pl: t('settings.appLanguagePl'),
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -76,21 +73,20 @@ export function Header({
     return chars.slice(0, 2).toUpperCase() || '?';
   };
 
-  const getStatusText = () => {
-    if (status === 'loading') return t('header.statusChecking');
-    if (status === 'error') return t('header.statusError');
-    if (systemStatus?.ai.configured) return t('header.statusConnected');
-    return t('header.statusApiNotConfigured');
-  };
-
   return (
     <header>
       <div class="header-content">
         {/* Mobile menu button - только на мобильных */}
         {onMenuToggle && isMobile && hasSidebar && (
-          <button class="mobile-menu-btn" onClick={onMenuToggle} aria-label={t('header.menuAria')}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="header-mobile-menu-btn"
+            onClick={onMenuToggle}
+            aria-label={t('header.menuAria')}
+          >
             <Icon name="menu" />
-          </button>
+          </Button>
         )}
 
         {/* Branding - Логотип и название */}
@@ -157,104 +153,135 @@ export function Header({
 
         {/* Right section - Системная информация и управление */}
         <div class="header-actions">
-          {/* Token Usage - слева от info, чтобы не прыгал UI при переходе между страницами */}
-          {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
+          {/* Group 1: Tools - TokenUsage, More, Locale */}
+          <div class="header-toolbar">
+            {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
 
-          {/* More menu (About, Contact, Privacy, Terms) */}
-          <div class="header-info-wrap">
-            <button
-              type="button"
-              class="header-info-btn"
-              onClick={() => setInfoOpen((o) => !o)}
-              onBlur={() => setTimeout(() => setInfoOpen(false), 150)}
-              aria-expanded={infoOpen}
-              aria-haspopup="true"
-              aria-label={t('info.menu')}
-              title={t('info.menu')}
-            >
-              <span class="header-info-icon" aria-hidden="true">
-                <Icon name="more_vert" />
-              </span>
-            </button>
-            {infoOpen && (
-              <div class="header-info-dropdown" role="menu">
-                <a
-                  href="/about"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    route('/about');
-                    setInfoOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  {t('info.about')}
-                </a>
-                <a
-                  href="/contact"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    route('/contact');
-                    setInfoOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  {t('info.contact')}
-                </a>
-                <a
-                  href="/privacy"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    route('/privacy');
-                    setInfoOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  {t('info.privacy')}
-                </a>
-                <a
-                  href="/terms"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    route('/terms');
-                    setInfoOpen(false);
-                  }}
-                  role="menuitem"
-                >
-                  {t('info.terms')}
-                </a>
+            {/* Info menu (About, Contact, Privacy, Terms) - grouped by category */}
+            <div class="header-info-wrap">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="header-info-btn"
+                onClick={() => setInfoOpen((o) => !o)}
+                onBlur={() => setTimeout(() => setInfoOpen(false), 150)}
+                aria-expanded={infoOpen}
+                aria-haspopup="true"
+                aria-label={t('info.menu')}
+                title={t('info.menu')}
+              >
+                <Icon name="info" size="sm" />
+                <span class="header-info-label">{t('info.menu')}</span>
+              </Button>
+              {infoOpen && (
+                <div class="header-info-dropdown" role="menu">
+                  <div class="header-info-section">
+                    <div class="header-info-section-title">{t('info.aboutProject')}</div>
+                    <a
+                      href="/about"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        route('/about');
+                        setInfoOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('info.about')}
+                    </a>
+                    <a
+                      href="/contact"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        route('/contact');
+                        setInfoOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('info.contact')}
+                    </a>
+                  </div>
+                  <div class="header-info-divider" aria-hidden="true" />
+                  <div class="header-info-section">
+                    <div class="header-info-section-title">{t('info.legal')}</div>
+                    <a
+                      href="/privacy"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        route('/privacy');
+                        setInfoOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('info.privacy')}
+                    </a>
+                    <a
+                      href="/terms"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        route('/terms');
+                        setInfoOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('info.terms')}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Language Selector - compact dropdown */}
+            <div class="header-locale-wrap">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="header-locale-btn"
+                onClick={() => setLocaleOpen((o) => !o)}
+                onBlur={() => setTimeout(() => setLocaleOpen(false), 150)}
+                aria-expanded={localeOpen}
+                aria-haspopup="true"
+                aria-label={localeLabels[currentLocale]}
+                title={localeLabels[currentLocale]}
+              >
+                <Icon name="language" size="sm" />
+                <span class="header-locale-code">{currentLocale.toUpperCase()}</span>
+              </Button>
+              {localeOpen && (
+                <div class="header-locale-dropdown" role="menu">
+                  {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
+                    <button
+                      key={locale}
+                      type="button"
+                      role="menuitem"
+                      class={`locale-dropdown-item ${currentLocale === locale ? 'active' : ''}`}
+                      onClick={() => {
+                        setSavedLocale(locale);
+                        setLocaleOpen(false);
+                      }}
+                    >
+                      {locale.toUpperCase()} — {localeLabels[locale]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Auth Buttons (guests only) */}
+            {!user && (onOpenLogin || onOpenRegister) && (
+              <div class="header-auth-buttons">
+                <Button variant="secondary" size="sm" onClick={onOpenLogin}>
+                  {t('header.login')}
+                </Button>
+                <Button variant="primary" size="sm" onClick={onOpenRegister ?? onOpenLogin}>
+                  {t('header.register')}
+                </Button>
               </div>
             )}
           </div>
 
-          {user ? (
-            <>
-              {/* System Status */}
-              <div class={`api-status ${status}`} title={getStatusText()}>
-                <span class="status-dot"></span>
-                <span class="status-text">{getStatusText()}</span>
-              </div>
-
-              {/* Language Selector */}
-              <div class="header-locale">
-                {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
-                  <button
-                    key={locale}
-                    type="button"
-                    class={`locale-btn ${currentLocale === locale ? 'active' : ''}`}
-                    onClick={() => setSavedLocale(locale)}
-                    title={
-                      locale === 'ru'
-                        ? t('settings.appLanguageRu')
-                        : locale === 'en'
-                          ? t('settings.appLanguageEn')
-                          : t('settings.appLanguagePl')
-                    }
-                  >
-                    {locale.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
+          {/* Group 2: User block - Avatar, Logout (logged-in only) */}
+          {user && (
+            <div class="header-user-block">
               {/* User Menu - Avatar (click → profile) + Logout */}
               <div class="header-user-menu">
                 <button
@@ -274,42 +301,7 @@ export function Header({
                   {t('header.logout')}
                 </Button>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Language Selector для неавторизованных */}
-              <div class="header-locale">
-                {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
-                  <button
-                    key={locale}
-                    type="button"
-                    class={`locale-btn ${currentLocale === locale ? 'active' : ''}`}
-                    onClick={() => setSavedLocale(locale)}
-                    title={
-                      locale === 'ru'
-                        ? t('settings.appLanguageRu')
-                        : locale === 'en'
-                          ? t('settings.appLanguageEn')
-                          : t('settings.appLanguagePl')
-                    }
-                  >
-                    {locale.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              {/* Auth Buttons */}
-              {(onOpenLogin || onOpenRegister) && (
-                <div class="header-auth-buttons">
-                  <Button variant="secondary" size="sm" onClick={onOpenLogin}>
-                    {t('header.login')}
-                  </Button>
-                  <Button variant="primary" size="sm" onClick={onOpenRegister ?? onOpenLogin}>
-                    {t('header.register')}
-                  </Button>
-                </div>
-              )}
-            </>
+            </div>
           )}
         </div>
       </div>

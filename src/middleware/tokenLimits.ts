@@ -4,10 +4,7 @@
  * Provides functions to check and manage user token limits
  */
 
-import {
-  createClientWithToken,
-  createServiceRoleClient,
-} from '../services/supabaseClient.js';
+import { createClientWithToken, createServiceRoleClient } from '../services/supabaseClient.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import {
   TOKEN_LIMITS,
@@ -163,9 +160,7 @@ export async function incrementTokenUsage(
   if (!options?.useServiceRole) {
     validateToken(token);
   }
-  const client = options?.useServiceRole
-    ? createServiceRoleClient()
-    : createClientWithToken(token);
+  const client = options?.useServiceRole ? createServiceRoleClient() : createClientWithToken(token);
   const date = getCurrentDateUTC();
   const cacheKeysToInvalidate = [
     buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date),
@@ -250,9 +245,7 @@ export async function reserveTokens(
     validateToken(token);
   }
   const client =
-    options?.useServiceRole === true
-      ? createServiceRoleClient()
-      : createClientWithToken(token);
+    options?.useServiceRole === true ? createServiceRoleClient() : createClientWithToken(token);
   const date = getCurrentDateUTC();
   const cacheKeysToInvalidate = [
     buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date),
@@ -344,8 +337,7 @@ export async function releaseTokens(
     newTokensUsed += options.tokensActual;
     newTokensByStage = {
       analysis: (newTokensByStage.analysis || 0) + (options.tokensByStage.analysis ?? 0),
-      translation:
-        (newTokensByStage.translation || 0) + (options.tokensByStage.translation ?? 0),
+      translation: (newTokensByStage.translation || 0) + (options.tokensByStage.translation ?? 0),
       editing: (newTokensByStage.editing || 0) + (options.tokensByStage.editing ?? 0),
     };
   }

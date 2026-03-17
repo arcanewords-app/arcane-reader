@@ -1123,98 +1123,98 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
     // Extract and transform paragraphs from nested response (one query instead of N)
     const chaptersWithParagraphs = await Promise.all(
-    chapters.map(async (chapter) => {
-      const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
-      const paragraphs = rawParagraphs
-        .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
-        .map(transformParagraphFromDB);
-      let paragraphsList = paragraphs;
-      const chapterData = transformChapterFromDB(chapter, paragraphsList);
+      chapters.map(async (chapter) => {
+        const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
+        const paragraphs = rawParagraphs
+          .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
+          .map(transformParagraphFromDB);
+        let paragraphsList = paragraphs;
+        const chapterData = transformChapterFromDB(chapter, paragraphsList);
 
-      // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
-      const hasTranslation =
-        (chapterData.translatedChunks && chapterData.translatedChunks.length > 0) ||
-        (chapterData.translatedText && chapterData.translatedText.trim().length > 0);
+        // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
+        const hasTranslation =
+          (chapterData.translatedChunks && chapterData.translatedChunks.length > 0) ||
+          (chapterData.translatedText && chapterData.translatedText.trim().length > 0);
 
-      const hasEmptyParagraphs =
-        paragraphsList.length > 0 &&
-        !paragraphsList.some(
-          (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
-        );
-
-      if (
-        hasTranslation &&
-        hasEmptyParagraphs &&
-        chapterData.translatedChunks &&
-        chapterData.translatedChunks.length > 0
-      ) {
-        // Auto-recovery: sync translatedChunks to paragraphs
-        logger.info(
-          { chapterId: chapter.id, chapterTitle: chapterData.title },
-          `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`
-        );
-
-        const syncedParagraphs = autoSyncChunksToParagraphs(
-          paragraphsList,
-          chapterData.translatedChunks
-        );
+        const hasEmptyParagraphs =
+          paragraphsList.length > 0 &&
+          !paragraphsList.some(
+            (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+          );
 
         if (
-          syncedParagraphs.some(
-            (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
-          )
+          hasTranslation &&
+          hasEmptyParagraphs &&
+          chapterData.translatedChunks &&
+          chapterData.translatedChunks.length > 0
         ) {
-          // Update paragraphs in database (batched)
-          const BATCH_SIZE = 15;
-          for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
-            const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
-            await Promise.all(
-              batch.map(async (paragraph: Paragraph) => {
-                const paragraphData: Record<string, unknown> = {};
-                if (paragraph.translatedText !== undefined)
-                  paragraphData.translated_text = paragraph.translatedText || null;
-                if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
-                if (paragraph.editedAt !== undefined)
-                  paragraphData.edited_at = paragraph.editedAt || null;
-                if (paragraph.editedBy !== undefined)
-                  paragraphData.edited_by = paragraph.editedBy || null;
-
-                const { error } = await client
-                  .from('paragraphs')
-                  .update(paragraphData)
-                  .eq('id', paragraph.id)
-                  .eq('chapter_id', chapter.id);
-                if (error)
-                  logger.warn(
-                    { paragraphId: paragraph.id, error: error.message },
-                    'loadChapters auto-recovery: failed paragraph update'
-                  );
-              })
-            );
-            if (i + BATCH_SIZE < syncedParagraphs.length) {
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          }
-
-          // Reload updated paragraphs
-          paragraphsList = await loadParagraphsForChapter(chapter.id, token);
-
-          const syncedCount = paragraphsList.filter(
-            (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
-          ).length;
+          // Auto-recovery: sync translatedChunks to paragraphs
           logger.info(
-            {
-              chapterId: chapter.id,
-              syncedCount,
-              chunksCount: chapterData.translatedChunks.length,
-            },
-            `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`
+            { chapterId: chapter.id, chapterTitle: chapterData.title },
+            `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`
           );
-        }
-      }
 
-      return transformChapterFromDB(chapter, paragraphsList);
-    })
+          const syncedParagraphs = autoSyncChunksToParagraphs(
+            paragraphsList,
+            chapterData.translatedChunks
+          );
+
+          if (
+            syncedParagraphs.some(
+              (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+            )
+          ) {
+            // Update paragraphs in database (batched)
+            const BATCH_SIZE = 15;
+            for (let i = 0; i < syncedParagraphs.length; i += BATCH_SIZE) {
+              const batch = syncedParagraphs.slice(i, i + BATCH_SIZE);
+              await Promise.all(
+                batch.map(async (paragraph: Paragraph) => {
+                  const paragraphData: Record<string, unknown> = {};
+                  if (paragraph.translatedText !== undefined)
+                    paragraphData.translated_text = paragraph.translatedText || null;
+                  if (paragraph.status !== undefined) paragraphData.status = paragraph.status;
+                  if (paragraph.editedAt !== undefined)
+                    paragraphData.edited_at = paragraph.editedAt || null;
+                  if (paragraph.editedBy !== undefined)
+                    paragraphData.edited_by = paragraph.editedBy || null;
+
+                  const { error } = await client
+                    .from('paragraphs')
+                    .update(paragraphData)
+                    .eq('id', paragraph.id)
+                    .eq('chapter_id', chapter.id);
+                  if (error)
+                    logger.warn(
+                      { paragraphId: paragraph.id, error: error.message },
+                      'loadChapters auto-recovery: failed paragraph update'
+                    );
+                })
+              );
+              if (i + BATCH_SIZE < syncedParagraphs.length) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+              }
+            }
+
+            // Reload updated paragraphs
+            paragraphsList = await loadParagraphsForChapter(chapter.id, token);
+
+            const syncedCount = paragraphsList.filter(
+              (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
+            ).length;
+            logger.info(
+              {
+                chapterId: chapter.id,
+                syncedCount,
+                chunksCount: chapterData.translatedChunks.length,
+              },
+              `Auto-recovery: restored ${syncedCount} paragraphs from ${chapterData.translatedChunks.length} chunks`
+            );
+          }
+        }
+
+        return transformChapterFromDB(chapter, paragraphsList);
+      })
     );
 
     allChapters.push(...chaptersWithParagraphs);
@@ -2544,6 +2544,176 @@ export async function updateParagraph(
   return transformParagraphFromDB(updatedParagraph);
 }
 
+/** Escape % and _ for use in ilike pattern (literal match) */
+function escapeIlike(s: string): string {
+  return s.replace(/[%_\\]/g, '\\$&');
+}
+
+export interface ProjectSearchMatch {
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string;
+  paragraphId: string;
+  paragraphIndex: number;
+  field: 'original' | 'translated';
+  snippet: string;
+  fullText: string;
+}
+
+const SEARCH_MAX_RESULTS = 200;
+
+const SEARCH_CHAPTER_BATCH = 5;
+
+/**
+ * Search paragraphs across project. Returns matches with snippet.
+ * Searches chapter-by-chapter in small batches to avoid statement timeout on large projects.
+ */
+export async function searchParagraphsInProject(
+  projectId: string,
+  query: string,
+  field: 'original' | 'translated' | 'both',
+  token: string
+): Promise<ProjectSearchMatch[]> {
+  validateToken(token);
+  const trimmed = query.trim().slice(0, 500);
+  if (!trimmed) return [];
+
+  const client = createClientWithToken(token);
+  const pattern = `%${escapeIlike(trimmed)}%`;
+  const matches: ProjectSearchMatch[] = [];
+  let chapterOffset = 0;
+
+  const searchInField = async (col: 'original_text' | 'translated_text') => {
+    while (matches.length < SEARCH_MAX_RESULTS) {
+      const { data: chapters, error: chError } = await client
+        .from('chapters')
+        .select('id, number, title')
+        .eq('project_id', projectId)
+        .order('number', { ascending: true })
+        .range(chapterOffset, chapterOffset + SEARCH_CHAPTER_BATCH - 1);
+
+      if (chError || !chapters?.length) break;
+      chapterOffset += chapters.length;
+
+      const chapterMap = new Map(
+        (chapters as Array<{ id: string; number: number; title: string }>).map((c) => [c.id, c])
+      );
+      const ids = (chapters as Array<{ id: string }>).map((c) => c.id);
+
+      const { data: rows, error } = await client
+        .from('paragraphs')
+        .select('id, index, chapter_id, original_text, translated_text')
+        .in('chapter_id', ids)
+        .ilike(col, pattern)
+        .limit(SEARCH_MAX_RESULTS - matches.length);
+
+      if (error) throw new Error(`Search failed: ${error.message}`);
+      if (!rows) continue;
+
+      for (const row of rows as Array<{
+        id: string;
+        index: number;
+        chapter_id: string;
+        original_text: string | null;
+        translated_text: string | null;
+      }>) {
+        const ch = chapterMap.get(row.chapter_id);
+        if (!ch) continue;
+        const text = (col === 'original_text' ? row.original_text : row.translated_text) || '';
+        const idx = text.toLowerCase().indexOf(trimmed.toLowerCase());
+        const start = Math.max(0, idx - 50);
+        const end = Math.min(text.length, idx + trimmed.length + 50);
+        let snippet = text.slice(start, end);
+        if (start > 0) snippet = '…' + snippet;
+        if (end < text.length) snippet = snippet + '…';
+
+        matches.push({
+          chapterId: ch.id,
+          chapterNumber: ch.number,
+          chapterTitle: ch.title,
+          paragraphId: row.id,
+          paragraphIndex: row.index + 1,
+          field: col === 'original_text' ? 'original' : 'translated',
+          snippet,
+          fullText: text,
+        });
+      }
+
+      if (chapters.length < SEARCH_CHAPTER_BATCH) break;
+    }
+  };
+
+  if (field === 'original' || field === 'both') {
+    await searchInField('original_text');
+    if (field === 'both') chapterOffset = 0;
+  }
+  if (field === 'translated' || field === 'both') {
+    if (field === 'both') chapterOffset = 0;
+    await searchInField('translated_text');
+  }
+
+  matches.sort((a, b) => {
+    if (a.chapterNumber !== b.chapterNumber) return a.chapterNumber - b.chapterNumber;
+    return a.paragraphIndex - b.paragraphIndex;
+  });
+
+  return matches.slice(0, SEARCH_MAX_RESULTS);
+}
+
+export interface BulkParagraphUpdate {
+  chapterId: string;
+  paragraphId: string;
+  translatedText: string;
+}
+
+export interface BulkUpdateResult {
+  succeeded: string[];
+  failed: Array<{ paragraphId: string; error: string }>;
+}
+
+/**
+ * Bulk update paragraph translated text. Returns succeeded and failed.
+ */
+export async function bulkUpdateParagraphs(
+  projectId: string,
+  updates: BulkParagraphUpdate[],
+  token: string
+): Promise<BulkUpdateResult> {
+  validateToken(token);
+
+  const succeeded: string[] = [];
+  const failed: Array<{ paragraphId: string; error: string }> = [];
+
+  for (const u of updates) {
+    try {
+      const paragraph = await updateParagraph(
+        projectId,
+        u.chapterId,
+        u.paragraphId,
+        {
+          translatedText: u.translatedText,
+          status: 'edited',
+          editedAt: new Date().toISOString(),
+          editedBy: 'user',
+        },
+        token
+      );
+      if (paragraph) {
+        succeeded.push(u.paragraphId);
+      } else {
+        failed.push({ paragraphId: u.paragraphId, error: 'Not found' });
+      }
+    } catch (err) {
+      failed.push({
+        paragraphId: u.paragraphId,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  }
+
+  return { succeeded, failed };
+}
+
 // ============================================
 // Publication Types (catalog)
 // ============================================
@@ -2674,6 +2844,7 @@ export async function createPublicEntity(
 
 export async function listPublicEntities(options?: {
   kind?: PublicEntityKind;
+  search?: string;
   limit?: number;
   offset?: number;
 }): Promise<PublicEntity[]> {
@@ -2688,6 +2859,10 @@ export async function listPublicEntities(options?: {
 
   if (options?.kind) {
     query = query.eq('kind', options.kind);
+  }
+
+  if (options?.search?.trim()) {
+    query = query.ilike('name', `%${options.search.trim()}%`);
   }
 
   const { data, error } = await query;
@@ -2712,6 +2887,70 @@ export async function getPublicEntityById(id: string): Promise<PublicEntity | nu
   return transformPublicEntityFromDB(data as PublicEntityRow);
 }
 
+export async function updatePublicEntity(
+  id: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    photoUrl?: string | null;
+  },
+  token: string
+): Promise<PublicEntity> {
+  validateToken(token);
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (data.name !== undefined) payload.name = data.name.trim();
+  if (data.description !== undefined) payload.description = data.description?.trim() || null;
+  if (data.photoUrl !== undefined) payload.photo_url = data.photoUrl;
+
+  const { data: row, error } = await client
+    .from('public_entities')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to update public entity: ${error.message}`);
+  }
+  if (!row) {
+    throw new Error('Failed to update public entity: entity not found or no rows updated');
+  }
+
+  return transformPublicEntityFromDB(row as PublicEntityRow);
+}
+
+export async function deletePublicEntity(id: string, token: string): Promise<void> {
+  validateToken(token);
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { error } = await client.from('public_entities').delete().eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to delete public entity: ${error.message}`);
+  }
+}
+
+/**
+ * Count publications that reference this entity (as author, translator, or tag).
+ */
+export async function countPublicationsUsingEntity(entityId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('publications')
+    .select('*', { count: 'exact', head: true })
+    .or(
+      `author_entity_id.eq.${entityId},translator_entity_id.eq.${entityId},tag_entity_ids.cs.{"${entityId}"}`
+    );
+
+  if (error) {
+    throw new Error(`Failed to count entity usage: ${error.message}`);
+  }
+  return count ?? 0;
+}
+
 /**
  * List published publications (public, no auth).
  * Uses anon client - RLS allows SELECT where status = 'published'.
@@ -2721,6 +2960,9 @@ export async function listPublicationsPublic(options?: {
   offset?: number;
   orderBy?: 'published_at' | 'created_at';
   orderAsc?: boolean;
+  authorEntityId?: string;
+  translatorEntityId?: string;
+  tagEntityId?: string;
 }): Promise<
   {
     id: string;
@@ -2743,11 +2985,23 @@ export async function listPublicationsPublic(options?: {
   const offset = options?.offset ?? 0;
   const orderBy = options?.orderBy ?? 'published_at';
   const orderAsc = options?.orderAsc ?? false;
+  const authorEntityId = options?.authorEntityId;
+  const translatorEntityId = options?.translatorEntityId;
+  const tagEntityId = options?.tagEntityId;
 
-  const { data, error } = await supabase
-    .from('publications')
-    .select('*')
-    .eq('status', 'published')
+  let query = supabase.from('publications').select('*').eq('status', 'published');
+
+  if (authorEntityId) {
+    query = query.eq('author_entity_id', authorEntityId);
+  }
+  if (translatorEntityId) {
+    query = query.eq('translator_entity_id', translatorEntityId);
+  }
+  if (tagEntityId) {
+    query = query.contains('tag_entity_ids', [tagEntityId]);
+  }
+
+  const { data, error } = await query
     .order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
       ascending: orderAsc,
       nullsFirst: false,
@@ -3396,5 +3650,181 @@ export async function getUserReadingHistory(
     readCount: item.readCount,
     lastReadChapterId: item.lastReadChapterId,
     lastReadAt: item.lastReadAt,
+  }));
+}
+
+// ============================================
+// Translation Reports (complaints on publication translations)
+// ============================================
+
+export interface TranslationReportRow {
+  id: string;
+  publicationId: string;
+  chapterId: string;
+  chapterNumber?: number;
+  chapterTitle?: string;
+  description: string;
+  reporterUserId: string | null;
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * Create a translation report (complaint). Public endpoint - no auth required.
+ * Validates: publication exists and is published; chapter belongs to publication's project.
+ */
+export async function createTranslationReport(data: {
+  publicationId: string;
+  chapterId: string;
+  description: string;
+  reporterUserId?: string | null;
+  reporterIpHash?: string | null;
+}): Promise<{ id: string }> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const pub = await getPublicationById(data.publicationId);
+  if (!pub) {
+    throw new Error('Publication not found or not published');
+  }
+
+  // Verify chapter belongs to publication's project
+  const { data: chapter, error: chapterError } = await client
+    .from('chapters')
+    .select('id, number, title')
+    .eq('id', data.chapterId)
+    .eq('project_id', pub.projectId)
+    .single();
+
+  if (chapterError || !chapter) {
+    throw new Error('Chapter not found or does not belong to this publication');
+  }
+
+  const desc = String(data.description || '').trim();
+  if (desc.length < 5) {
+    throw new Error('Description must be at least 5 characters');
+  }
+  if (desc.length > 5000) {
+    throw new Error('Description must not exceed 5000 characters');
+  }
+
+  // Rate limit: 1 report per publication+chapter per 10 minutes (by IP or user)
+  if (data.reporterUserId || data.reporterIpHash) {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    let rateLimitQuery = client
+      .from('translation_reports')
+      .select('id')
+      .eq('publication_id', data.publicationId)
+      .eq('chapter_id', data.chapterId)
+      .gte('created_at', tenMinutesAgo)
+      .limit(1);
+    if (data.reporterUserId) {
+      rateLimitQuery = rateLimitQuery.eq('reporter_user_id', data.reporterUserId);
+    } else {
+      rateLimitQuery = rateLimitQuery.eq('reporter_ip_hash', data.reporterIpHash!);
+    }
+    const { data: recent } = await rateLimitQuery;
+    if (recent && recent.length > 0) {
+      throw new Error('Please wait before submitting another report for this chapter');
+    }
+  }
+
+  const { data: inserted, error } = await client
+    .from('translation_reports')
+    .insert({
+      publication_id: data.publicationId,
+      chapter_id: data.chapterId,
+      description: desc,
+      reporter_user_id: data.reporterUserId ?? null,
+      reporter_ip_hash: data.reporterIpHash ?? null,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create translation report: ${error.message}`);
+  }
+
+  return { id: inserted.id };
+}
+
+/**
+ * Get translation reports count for a project (owner only).
+ * Uses publication linked to project; returns 0 if no publication.
+ */
+export async function getTranslationReportsCountByProject(
+  projectId: string,
+  userId: string,
+  token: string
+): Promise<number> {
+  const pub = await getPublicationByProjectId(projectId, userId, token);
+  if (!pub) return 0;
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { count, error } = await client
+    .from('translation_reports')
+    .select('*', { count: 'exact', head: true })
+    .eq('publication_id', pub.id);
+
+  if (error) {
+    logger.warn({ err: error, projectId }, 'Failed to get translation reports count');
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Get translation reports for a project (owner only).
+ * Returns reports with chapter info for the publication.
+ */
+export async function getTranslationReportsByProject(
+  projectId: string,
+  userId: string,
+  token: string
+): Promise<TranslationReportRow[]> {
+  const pub = await getPublicationByProjectId(projectId, userId, token);
+  if (!pub) return [];
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: rows, error } = await client
+    .from('translation_reports')
+    .select('id, publication_id, chapter_id, description, reporter_user_id, status, created_at')
+    .eq('publication_id', pub.id)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    logger.warn({ err: error, projectId }, 'Failed to get translation reports');
+    return [];
+  }
+
+  if (!rows || rows.length === 0) return [];
+
+  // Enrich with chapter number/title
+  const chapterIds = [...new Set(rows.map((r) => r.chapter_id))];
+  const { data: chapters } = await client
+    .from('chapters')
+    .select('id, number, title')
+    .in('id', chapterIds);
+
+  const chapterMap = new Map(
+    (chapters || []).map((c) => [c.id, { number: c.number, title: c.title }])
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    publicationId: r.publication_id,
+    chapterId: r.chapter_id,
+    chapterNumber: chapterMap.get(r.chapter_id)?.number,
+    chapterTitle: chapterMap.get(r.chapter_id)?.title,
+    description: r.description,
+    reporterUserId: r.reporter_user_id,
+    status: r.status,
+    createdAt: r.created_at,
   }));
 }

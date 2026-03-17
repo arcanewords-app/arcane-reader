@@ -36,8 +36,6 @@ import { ReadingModePage } from './pages/ReadingModePage';
 import { PublicationPage } from './pages/PublicationPage';
 import { PublicationReadingPage } from './pages/PublicationReadingPage';
 
-type AppStatus = 'loading' | 'ready' | 'error';
-
 // Main app component with routing
 export function AppRouter() {
   const { t } = useTranslation();
@@ -47,7 +45,6 @@ export function AppRouter() {
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [emailForConfirmation, setEmailForConfirmation] = useState('');
-  const [status, setStatus] = useState<AppStatus>('loading');
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -194,15 +191,12 @@ export function AppRouter() {
     };
   }, [syncAuthState]);
 
-  // Initialize system status
+  // Initialize system status (for maxFileSize, etc.)
   useEffect(() => {
     api
       .getStatus()
-      .then((data) => {
-        setSystemStatus(data);
-        setStatus('ready');
-      })
-      .catch(() => setStatus('error'));
+      .then((data) => setSystemStatus(data))
+      .catch(() => setSystemStatus(null));
   }, []);
 
   // Handle window resize - close sidebar on desktop
@@ -343,8 +337,6 @@ export function AppRouter() {
             )}
 
             <Header
-              status={status}
-              systemStatus={systemStatus}
               user={authUser}
               onLogout={handleLogout}
               onMenuToggle={handleMenuToggle}

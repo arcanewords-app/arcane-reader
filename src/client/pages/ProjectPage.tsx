@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
@@ -8,6 +8,7 @@ import { trackEvent } from '../utils/analytics';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
+import { ReportsModal } from '../components/Reports';
 import { PageLoading } from '../components/ui';
 import { api } from '../api/client';
 
@@ -22,6 +23,8 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const refreshTrigger = useSignal(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const [reportsCount, setReportsCount] = useState(0);
 
   useEffect(() => {
     loadProject();
@@ -47,6 +50,10 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
       if (loadedProject) {
         trackEvent('view_item', { item_id: loadedProject.id });
         setProject(loadedProject);
+        api
+          .getProjectReportsCount(projectId)
+          .then(({ count }) => setReportsCount(count))
+          .catch(() => {});
       } else {
         route('/');
       }
@@ -67,15 +74,23 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
     route('/projects');
   };
 
-  const handleRefreshProject = async () => {
-    if (!project) return;
-    invalidateProject(project.id);
-    const updated = await getProject(project.id, true);
-    if (updated) {
-      setProject(updated);
-      refreshTrigger.value += 1;
-    }
-  };
+  const handleRefreshProject = useCallback(
+    async () => {
+      if (!project) return;
+      invalidateProject(project.id);
+      const updated = await getProject(project.id, true);
+      if (updated) {
+        setProject(updated);
+        refreshTrigger.value += 1;
+        api
+          .getProjectReportsCount(project.id)
+          .then(({ count }) => setReportsCount(count))
+          .catch(() => {});
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- project?.id only, to avoid JobsPanel fetch cascade on every re-render
+    [project?.id]
+  );
 
   const handleEnterReadingMode = () => {
     if (!project) return;
@@ -130,8 +145,13 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           return result;
         }}
         onOpenGlossary={() => {
-          handleSidebarClose(); // Close sidebar on mobile
+          handleSidebarClose();
           setShowGlossary(true);
+        }}
+        reportsCount={reportsCount}
+        onOpenReports={() => {
+          handleSidebarClose();
+          setShowReports(true);
         }}
         onDeleteChapter={async (chapterId) => {
           if (!project) return;
@@ -175,6 +195,14 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
             route(`/projects/${project.id}/chapters/${chapterId}`);
           }}
           onUpdate={handleRefreshProject}
+        />
+      )}
+
+      {showReports && project && (
+        <ReportsModal
+          isOpen={showReports}
+          onClose={() => setShowReports(false)}
+          projectId={project.id}
         />
       )}
     </div>

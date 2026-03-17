@@ -91,11 +91,7 @@ export {
 } from './utils/chunker.js';
 
 // Error constants
-export {
-  CHUNK_ERROR_PREFIX,
-  formatChunkError,
-  isChunkError,
-} from './constants/errors.js';
+export { CHUNK_ERROR_PREFIX, formatChunkError, isChunkError } from './constants/errors.js';
 
 // Prompts
 export { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from './prompts/system/analyzer.js';

@@ -40,6 +40,8 @@ export const CACHE_TTL = {
   redisTokenHistorySec: 60,
   /** Analysis results per chapter. Invalidate on chapter content change. */
   redisAnalysisResultSec: 86400, // 24 h
+  /** Project reports count (translation complaints). */
+  redisProjectReportsCountSec: 120,
   healthSnapshotMs: 10_000,
 } as const;
 
@@ -62,6 +64,7 @@ export const CACHE_PREFIX = {
   userReadingHistory: 'user:reading-history',
   analysisResult: 'analysis:result',
   analysisBatchProgress: 'analysis:batch:progress',
+  projectReportsCount: 'user:project:reports-count',
 } as const;
 
 export function cacheVersionedKey(parts: Array<string | number | boolean>): string {

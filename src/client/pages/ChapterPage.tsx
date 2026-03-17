@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'preact/hooks';
+import { useCallback, useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { ProjectWithChapterList, Chapter, ProjectSettings } from '../types';
@@ -6,6 +6,7 @@ import { getProject, invalidateProject } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
+import { ReportsModal } from '../components/Reports';
 import { LoadingSpinner } from '../components/ui';
 import { api } from '../api/client';
 
@@ -21,6 +22,8 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const [reportsCount, setReportsCount] = useState(0);
   const prevProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -61,6 +64,10 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
       }
       setProject(loadedProject);
       setLoading(false);
+      api
+        .getProjectReportsCount(projectId)
+        .then(({ count }) => setReportsCount(count))
+        .catch(() => {});
 
       if (chapterId) {
         const loadedChapter = await api.getChapter(projectId, chapterId);
@@ -112,14 +119,22 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     setProject({ ...project, settings });
   };
 
-  const handleRefreshProject = async () => {
-    if (!project) return;
-    invalidateProject(project.id);
-    const updated = await getProject(project.id, true);
-    if (updated) {
-      setProject(updated);
-    }
-  };
+  const handleRefreshProject = useCallback(
+    async () => {
+      if (!project) return;
+      invalidateProject(project.id);
+      const updated = await getProject(project.id, true);
+      if (updated) {
+        setProject(updated);
+        api
+          .getProjectReportsCount(project.id)
+          .then(({ count }) => setReportsCount(count))
+          .catch(() => {});
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- project?.id only, to avoid JobsPanel fetch cascade on every re-render
+    [project?.id]
+  );
 
   const handleEnterReadingMode = () => {
     route(`/projects/${projectId}/chapters/${chapterId}/reading`);
@@ -192,8 +207,13 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           }
         }}
         onOpenGlossary={() => {
-          handleSidebarClose(); // Close sidebar on mobile
+          handleSidebarClose();
           setShowGlossary(true);
+        }}
+        reportsCount={reportsCount}
+        onOpenReports={() => {
+          handleSidebarClose();
+          setShowReports(true);
         }}
         onChaptersUpdate={handleRefreshProject}
         onProjectUpdate={(updatedProject) => {
@@ -231,6 +251,14 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
             route(`/projects/${project.id}/chapters/${chapterId}`);
           }}
           onUpdate={handleRefreshProject}
+        />
+      )}
+
+      {showReports && project && (
+        <ReportsModal
+          isOpen={showReports}
+          onClose={() => setShowReports(false)}
+          projectId={project.id}
         />
       )}
     </div>

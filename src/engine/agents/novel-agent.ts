@@ -171,7 +171,10 @@ export class NovelAgent {
       openPlotThreads: this.state.currentContext.openPlotThreads,
     };
 
-    const styleNotes = results.map((r) => r.styleNotes).filter(Boolean).join('\n');
+    const styleNotes = results
+      .map((r) => r.styleNotes)
+      .filter(Boolean)
+      .join('\n');
     if (styleNotes) {
       this.state.styleProfile.writingStyle = this.state.styleProfile.writingStyle
         ? `${this.state.styleProfile.writingStyle}\n${styleNotes}`
@@ -181,9 +184,9 @@ export class NovelAgent {
     this.state.updatedAt = new Date();
   }
 
-  private mergeAnalysisResultsForBatch(
-    results: AnalysisResult[]
-  ): { glossaryUpdate: import('../types/glossary.js').GlossaryUpdate } {
+  private mergeAnalysisResultsForBatch(results: AnalysisResult[]): {
+    glossaryUpdate: import('../types/glossary.js').GlossaryUpdate;
+  } {
     const existingChars = this.state.glossary.characters;
     const existingLocs = this.state.glossary.locations;
     const existingTerms = this.state.glossary.terms;
@@ -191,13 +194,28 @@ export class NovelAgent {
     const existingLocNames = new Set(existingLocs.map((l) => l.originalName.toLowerCase()));
     const existingTermSet = new Set(existingTerms.map((t) => t.originalTerm.toLowerCase()));
 
-    const newCharsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['newCharacters'][0]>();
-    const newLocsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['newLocations'][0]>();
-    const newTermsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['newTerms'][0]>();
+    const newCharsByOrig = new Map<
+      string,
+      (typeof results)[0]['glossaryUpdate']['newCharacters'][0]
+    >();
+    const newLocsByOrig = new Map<
+      string,
+      (typeof results)[0]['glossaryUpdate']['newLocations'][0]
+    >();
+    const newTermsByOrig = new Map<string, (typeof results)[0]['glossaryUpdate']['newTerms'][0]>();
 
-    const updatedCharsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['updatedCharacters'][0]>();
-    const updatedLocsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['updatedLocations'][0]>();
-    const updatedTermsByOrig = new Map<string, (typeof results[0])['glossaryUpdate']['updatedTerms'][0]>();
+    const updatedCharsByOrig = new Map<
+      string,
+      (typeof results)[0]['glossaryUpdate']['updatedCharacters'][0]
+    >();
+    const updatedLocsByOrig = new Map<
+      string,
+      (typeof results)[0]['glossaryUpdate']['updatedLocations'][0]
+    >();
+    const updatedTermsByOrig = new Map<
+      string,
+      (typeof results)[0]['glossaryUpdate']['updatedTerms'][0]
+    >();
 
     for (const r of results) {
       for (const c of r.glossaryUpdate?.newCharacters ?? []) {

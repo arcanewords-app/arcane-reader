@@ -11,11 +11,21 @@ export function ParagraphListSkeleton() {
       <div class="panel-headers">
         <div class="panel-header-left">
           <Skeleton variant="text" width="10rem" height="1.25rem" />
-          <Skeleton variant="text" width="4rem" height="0.875rem" class="paragraph-list-skeleton__stats" />
+          <Skeleton
+            variant="text"
+            width="4rem"
+            height="0.875rem"
+            class="paragraph-list-skeleton__stats"
+          />
         </div>
         <div class="panel-header-right">
           <Skeleton variant="text" width="10rem" height="1.25rem" />
-          <Skeleton variant="text" width="4rem" height="0.875rem" class="paragraph-list-skeleton__stats" />
+          <Skeleton
+            variant="text"
+            width="4rem"
+            height="0.875rem"
+            class="paragraph-list-skeleton__stats"
+          />
         </div>
       </div>
 

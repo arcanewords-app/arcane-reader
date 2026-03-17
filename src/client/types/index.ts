@@ -136,6 +136,18 @@ export interface ChapterSummary {
   lastAnalysisAt?: string;
 }
 
+/** Search match from project-wide search */
+export interface ProjectSearchMatch {
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string;
+  paragraphId: string;
+  paragraphIndex: number;
+  field: 'original' | 'translated';
+  snippet: string;
+  fullText: string;
+}
+
 /** Project with lightweight chapter list (for lazy loading) */
 export type ProjectWithChapterList = Omit<Project, 'chapters'> & {
   chapters: ChapterListItem[];
@@ -561,6 +573,12 @@ export interface PublicationListItem {
   coverImageUrl: string | null;
   authorDisplay: string | null;
   translatorDisplay: string | null;
+  /** Entity ID for clickable author link to catalog filter. */
+  authorEntityId?: string | null;
+  /** Entity ID for clickable translator link to catalog filter. */
+  translatorEntityId?: string | null;
+  /** Tag entity IDs (for future tag display on cards). */
+  tagEntityIds?: string[];
   sourceLanguage: string;
   targetLanguage: string;
   publishedAt: string | null;

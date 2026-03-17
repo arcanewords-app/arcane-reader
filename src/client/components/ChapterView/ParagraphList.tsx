@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Paragraph, TextBlockType } from '../../types';
+import type { SearchHighlight } from '../SearchReplace';
 import { Icon } from '../ui';
 import { renderTextWithBlocks } from '../../utils/text-blocks';
 import './ParagraphList.css';
@@ -25,6 +26,8 @@ interface ParagraphListProps {
   onToggleParagraphSelection?: (id: string) => void;
   /** Text block types for special formatting (system messages, notes, etc.) */
   textBlockTypes?: TextBlockType[];
+  /** Search highlight: which paragraphs match, which to scroll to */
+  searchHighlight?: SearchHighlight | null;
 }
 
 export function ParagraphList({
@@ -36,6 +39,7 @@ export function ParagraphList({
   selectedParagraphIds = [],
   onToggleParagraphSelection,
   textBlockTypes = [],
+  searchHighlight,
 }: ParagraphListProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,6 +96,14 @@ export function ParagraphList({
       textareaRef.current.focus();
     }
   }, [editingId]);
+
+  // Scroll to current search match when currentParagraphId changes
+  useEffect(() => {
+    const id = searchHighlight?.currentParagraphId;
+    if (!id) return;
+    const el = document.getElementById(`paragraph-row-${id}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [searchHighlight?.currentParagraphId]);
 
   const startEditing = (paragraph: Paragraph) => {
     setEditingId(paragraph.id);
@@ -153,11 +165,7 @@ export function ParagraphList({
         )}
       </div>
 
-      <div
-        class="paragraphs-unified"
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-      >
+      <div class="paragraphs-unified" ref={scrollContainerRef} onScroll={handleScroll}>
         {useVirtualization && (
           <div style={{ height: totalHeight + 'px', position: 'relative' }}>
             <div
@@ -175,10 +183,13 @@ export function ParagraphList({
                   isEmpty &&
                   onToggleParagraphSelection;
                 const isSelected = selectedParagraphIds.includes(paragraph.id);
+                const isSearchMatch = searchHighlight?.paragraphIds.includes(paragraph.id);
+                const isSearchCurrent = searchHighlight?.currentParagraphId === paragraph.id;
                 return (
                   <div
                     key={paragraph.id}
-                    class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+                    id={`paragraph-row-${paragraph.id}`}
+                    class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
                     style={{
                       ...(singleColumn ? { gridTemplateColumns: '1fr' } : {}),
                       minHeight: EST_ROW_HEIGHT + 'px',
@@ -186,96 +197,98 @@ export function ParagraphList({
                     onMouseEnter={() => setHighlightedId(paragraph.id)}
                     onMouseLeave={() => setHighlightedId(null)}
                   >
-              {/* Original - hidden in original reading mode and translation-only display */}
-              {!isTranslationOnlyDisplay && (
-                <div
-                  class="paragraph-cell paragraph-cell-original"
-                  style={singleColumn ? { width: '100%' } : {}}
-                >
-                  {showCheckbox && (
-                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- label wraps checkbox; onClick only stops propagation
-                    <label
-                      htmlFor={`para-select-${paragraph.id}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        marginRight: '0.35rem',
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        id={`para-select-${paragraph.id}`}
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => onToggleParagraphSelection?.(paragraph.id)}
-                        style={{ accentColor: 'var(--accent)' }}
-                        aria-label={t('paragraphList.selectParagraph', { index: index + 1 })}
-                      />
-                    </label>
-                  )}
-                  <span class="paragraph-index">{index + 1}</span>
-                  <div class="paragraph-text">{paragraph.originalText}</div>
-                </div>
-              )}
-
-              {/* Translation - hidden only in original reading mode */}
-              {(!isOriginalReadingMode || isTranslationOnlyDisplay) && (
-                <div
-                  class="paragraph-cell paragraph-cell-translation"
-                  style={isTranslationOnlyDisplay ? { width: '100%' } : {}}
-                >
-                  {isTranslationOnlyDisplay && <span class="paragraph-index">{index + 1}</span>}
-                  {editingId === paragraph.id ? (
-                    <div>
-                      <textarea
-                        ref={textareaRef}
-                        class="paragraph-editor"
-                        value={editText}
-                        onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
-                        onKeyDown={handleKeyDown}
-                      />
-                      <div class="paragraph-actions">
-                        <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
-                          {t('common.cancel')}
-                        </button>
-                        <button
-                          class="btn btn-primary btn-sm"
-                          onClick={handleSave}
-                          disabled={saving}
-                        >
-                          {saving ? (
-                            <span class="spinner" />
-                          ) : (
-                            <>
-                              <Icon name="save" size="sm" /> {t('paragraphList.save')}
-                            </>
-                          )}
-                        </button>
+                    {/* Original - hidden in original reading mode and translation-only display */}
+                    {!isTranslationOnlyDisplay && (
+                      <div
+                        class="paragraph-cell paragraph-cell-original"
+                        style={singleColumn ? { width: '100%' } : {}}
+                      >
+                        {showCheckbox && (
+                          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- label wraps checkbox; onClick only stops propagation
+                          <label
+                            htmlFor={`para-select-${paragraph.id}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                              marginRight: '0.35rem',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              id={`para-select-${paragraph.id}`}
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => onToggleParagraphSelection?.(paragraph.id)}
+                              style={{ accentColor: 'var(--accent)' }}
+                              aria-label={t('paragraphList.selectParagraph', { index: index + 1 })}
+                            />
+                          </label>
+                        )}
+                        <span class="paragraph-index">{index + 1}</span>
+                        <div class="paragraph-text">{paragraph.originalText}</div>
                       </div>
-                    </div>
-                  ) : (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
-                      onClick={() => startEditing(paragraph)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          startEditing(paragraph);
-                        }
-                      }}
-                      dangerouslySetInnerHTML={{
-                        __html: paragraph.translatedText
-                          ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
-                          : `<em>${t('paragraphList.clickToEdit')}</em>`,
-                      }}
-                    />
-                  )}
-                </div>
-              )}
+                    )}
+
+                    {/* Translation - hidden only in original reading mode */}
+                    {(!isOriginalReadingMode || isTranslationOnlyDisplay) && (
+                      <div
+                        class="paragraph-cell paragraph-cell-translation"
+                        style={isTranslationOnlyDisplay ? { width: '100%' } : {}}
+                      >
+                        {isTranslationOnlyDisplay && (
+                          <span class="paragraph-index">{index + 1}</span>
+                        )}
+                        {editingId === paragraph.id ? (
+                          <div>
+                            <textarea
+                              ref={textareaRef}
+                              class="paragraph-editor"
+                              value={editText}
+                              onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
+                              onKeyDown={handleKeyDown}
+                            />
+                            <div class="paragraph-actions">
+                              <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
+                                {t('common.cancel')}
+                              </button>
+                              <button
+                                class="btn btn-primary btn-sm"
+                                onClick={handleSave}
+                                disabled={saving}
+                              >
+                                {saving ? (
+                                  <span class="spinner" />
+                                ) : (
+                                  <>
+                                    <Icon name="save" size="sm" /> {t('paragraphList.save')}
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
+                            onClick={() => startEditing(paragraph)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                startEditing(paragraph);
+                              }
+                            }}
+                            dangerouslySetInnerHTML={{
+                              __html: paragraph.translatedText
+                                ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
+                                : `<em>${t('paragraphList.clickToEdit')}</em>`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -291,10 +304,13 @@ export function ParagraphList({
               isEmpty &&
               onToggleParagraphSelection;
             const isSelected = selectedParagraphIds.includes(paragraph.id);
+            const isSearchMatch = searchHighlight?.paragraphIds.includes(paragraph.id);
+            const isSearchCurrent = searchHighlight?.currentParagraphId === paragraph.id;
             return (
               <div
                 key={paragraph.id}
-                class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+                id={`paragraph-row-${paragraph.id}`}
+                class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
                 style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
                 onMouseEnter={() => setHighlightedId(paragraph.id)}
                 onMouseLeave={() => setHighlightedId(null)}

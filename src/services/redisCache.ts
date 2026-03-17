@@ -30,6 +30,21 @@ export function hasRedisCache(): boolean {
   return getRedis() !== null;
 }
 
+/**
+ * Ping Redis to verify connectivity. Used by health check.
+ * Throws if Redis is not configured or unreachable.
+ */
+export async function redisPing(): Promise<void> {
+  const redis = getRedis();
+  if (!redis) {
+    throw new Error('Redis not configured');
+  }
+  const result = await redis.ping();
+  if (result !== 'PONG') {
+    throw new Error(`Redis ping unexpected response: ${result}`);
+  }
+}
+
 export function buildRedisKey(prefix: string, ...parts: CachePrimitive[]): string {
   return cacheVersionedKey([prefix, ...parts]);
 }

@@ -28,9 +28,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
-  const [translationFilter, setTranslationFilter] = useState<
-    'translated' | 'all' | 'untranslated'
-  >('translated');
+  const [translationFilter, setTranslationFilter] = useState<'translated' | 'all' | 'untranslated'>(
+    'translated'
+  );
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('asc');
   const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
@@ -256,7 +256,11 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const title = pub.title || t('publication.untitled');
   const authorDisplay = pub.authorDisplay || null;
   const translatorDisplay = pub.translatorDisplay || null;
-  const langLabel = `${pub.sourceLanguage} → ${pub.targetLanguage}`;
+  const langLabel = pub.targetLanguage
+    ? t('publication.languageLabel', {
+        language: t(`language.${pub.targetLanguage}`) || pub.targetLanguage.toUpperCase(),
+      })
+    : null;
   const hasExport = chapters.some((ch) => ch.hasTranslation);
   const glossaryCount = pub.glossaryCount ?? 0;
   const translatedChapters = chapters
@@ -332,7 +336,13 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
               {authorEntity ? (
                 <div class="publication-page-entity">
                   <span class="publication-page-entity-label">{t('publication.authorLabel')}</span>
-                  <EntityCard entity={authorEntity} compact />
+                  <EntityCard
+                    entity={authorEntity}
+                    compact
+                    onClick={() => {
+                      route(`/catalog?author=${authorEntity.id}`);
+                    }}
+                  />
                 </div>
               ) : (
                 authorDisplay && (
@@ -346,7 +356,13 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   <span class="publication-page-entity-label">
                     {t('publication.translatorLabel')}
                   </span>
-                  <EntityCard entity={translatorEntity} compact />
+                  <EntityCard
+                    entity={translatorEntity}
+                    compact
+                    onClick={() => {
+                      route(`/catalog?translator=${translatorEntity.id}`);
+                    }}
+                  />
                 </div>
               ) : (
                 translatorDisplay && (
@@ -362,11 +378,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           {tagEntities.length > 0 && (
             <div class="publication-page-tags">
               {tagEntities.map((entity) => (
-                <TagChip key={entity.id} entity={entity} />
+                <TagChip
+                  key={entity.id}
+                  entity={entity}
+                  onClick={() => {
+                    route(`/catalog?tag=${entity.id}`);
+                  }}
+                />
               ))}
             </div>
           )}
-          <p class="publication-page-lang">{langLabel}</p>
+          {langLabel && <p class="publication-page-lang">{langLabel}</p>}
           <div class="publication-page-actions">
             {glossaryCount > 0 && (
               <button
@@ -521,9 +543,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   const end = useVirtualization
                     ? Math.min(
                         total,
-                        Math.ceil(
-                          (chapterListScrollTop + chapterListHeight) / PUB_ITEM_HEIGHT
-                        ) + PUB_VIRTUAL_BUFFER
+                        Math.ceil((chapterListScrollTop + chapterListHeight) / PUB_ITEM_HEIGHT) +
+                          PUB_VIRTUAL_BUFFER
                       )
                     : total;
                   const visibleChapters = useVirtualization
@@ -613,9 +634,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                               <button
                                 type="button"
                                 class="publication-page-read-chapter"
-                                onClick={() =>
-                                  route(`/p/${pubPath}/chapters/${ch.id}/reading`)
-                                }
+                                onClick={() => route(`/p/${pubPath}/chapters/${ch.id}/reading`)}
                               >
                                 {t('home.read')}
                               </button>

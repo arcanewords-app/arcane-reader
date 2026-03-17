@@ -149,15 +149,10 @@ function parseOpfFallback(fileBuffer: Buffer): OpfFallbackResult | null {
   const parsed = xmlParser.parse(containerData);
   const root = parsed?.container || parsed;
   const rootfiles = root?.rootfiles;
-  const rootfile = Array.isArray(rootfiles?.rootfile)
-    ? rootfiles.rootfile[0]
-    : rootfiles?.rootfile;
+  const rootfile = Array.isArray(rootfiles?.rootfile) ? rootfiles.rootfile[0] : rootfiles?.rootfile;
   const attrs = rootfile?.['@'] || rootfile;
   const opfPath =
-    attrs?.['full-path'] ??
-    attrs?.['fullPath'] ??
-    attrs?.['@_full-path'] ??
-    attrs?.['@_fullPath'];
+    attrs?.['full-path'] ?? attrs?.['fullPath'] ?? attrs?.['@_full-path'] ?? attrs?.['@_fullPath'];
   if (!opfPath) return null;
   const opfEntryName = names.find((n: string) => n.toLowerCase() === opfPath.toLowerCase());
   if (!opfEntryName) return null;

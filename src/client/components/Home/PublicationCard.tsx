@@ -1,6 +1,8 @@
+import { useState, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Publication, PublicationListItem } from '../../types';
+import type { Publication, PublicationListItem, PublicEntity } from '../../types';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
+import { EntityChip } from './EntityChip';
 import { trackEvent } from '../../utils/analytics';
 import './PublicationCard.css';
 
@@ -8,22 +10,35 @@ import './PublicationCard.css';
 interface PublicationCardProps {
   publication: PublicationListItem | Publication;
   onRead: () => void;
+  /** Prefetched entities for instant popup on hover. */
+  authorEntity?: PublicEntity | null;
+  translatorEntity?: PublicEntity | null;
 }
 
-export function PublicationCard({ publication, onRead }: PublicationCardProps) {
+export function PublicationCard({
+  publication,
+  onRead,
+  authorEntity,
+  translatorEntity,
+}: PublicationCardProps) {
   const { t } = useTranslation();
+  const [showDescTooltip, setShowDescTooltip] = useState(false);
+
   const title = publication.title || t('publication.untitled');
   const coverImageUrl = publication.coverImageUrl;
   const authorDisplay = publication.authorDisplay || null;
   const translatorDisplay = publication.translatorDisplay || null;
-  const langLabel = `${publication.sourceLanguage} → ${publication.targetLanguage}`;
-  const publishedAt = publication.publishedAt
-    ? new Date(publication.publishedAt).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
+  const authorEntityId = publication.authorEntityId ?? null;
+  const translatorEntityId = publication.translatorEntityId ?? null;
+  const targetLanguage = publication.targetLanguage;
+  const langLabel = targetLanguage
+    ? t('publication.languageLabel', {
+        language: t(`language.${targetLanguage}`) || targetLanguage.toUpperCase(),
       })
     : null;
+
+  const handleDescMouseEnter = useCallback(() => setShowDescTooltip(true), []);
+  const handleDescMouseLeave = useCallback(() => setShowDescTooltip(false), []);
 
   return (
     <div class="publication-card">
@@ -62,28 +77,52 @@ export function PublicationCard({ publication, onRead }: PublicationCardProps) {
         )}
       </div>
       <div class="publication-card-content">
-        <h3 class="publication-card-title">{title}</h3>
-        {publication.description && (
-          <p class="publication-card-description">{publication.description}</p>
-        )}
-        {authorDisplay || translatorDisplay ? (
-          <div class="publication-card-authors">
-            {authorDisplay && (
-              <p class="publication-card-author">
-                {t('publication.authorLabel')}: {authorDisplay}
-              </p>
-            )}
-            {translatorDisplay && (
-              <p class="publication-card-translator">
-                {t('publication.translatorLabel')}: {translatorDisplay}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p class="publication-card-author">{t('publication.unknownAuthor')}</p>
-        )}
-        <p class="publication-card-lang">{langLabel}</p>
-        {publishedAt && <p class="publication-card-date">{publishedAt}</p>}
+        <div class="publication-card-main">
+          <h3 class="publication-card-title">{title}</h3>
+          {publication.description && (
+            <div
+              class="publication-card-description-wrap"
+              onMouseEnter={handleDescMouseEnter}
+              onMouseLeave={handleDescMouseLeave}
+            >
+              <p class="publication-card-description">{publication.description}</p>
+              {showDescTooltip && (
+                <div class="publication-card-tooltip" role="tooltip">
+                  {publication.description}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div class="publication-card-tags">
+          {authorDisplay || translatorDisplay ? (
+            <>
+              <div class="publication-card-chip-row">
+                <EntityChip
+                  display={authorDisplay}
+                  entityId={authorEntityId}
+                  routeParam="author"
+                  entity={authorEntity}
+                />
+              </div>
+              <div class="publication-card-chip-row">
+                <EntityChip
+                  display={translatorDisplay}
+                  entityId={translatorEntityId}
+                  routeParam="translator"
+                  entity={translatorEntity}
+                />
+              </div>
+            </>
+          ) : (
+            <p class="publication-card-meta-fallback">{t('publication.unknownAuthor')}</p>
+          )}
+          {langLabel && (
+            <div class="publication-card-chip-row">
+              <span class="publication-card-lang-badge">{langLabel}</span>
+            </div>
+          )}
+        </div>
         <button
           type="button"
           class="publication-card-read-btn"

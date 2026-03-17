@@ -413,7 +413,9 @@ export class TranslationPipeline {
       textBlockTypes: options.textBlockTypes,
       customInstructions: options.customInstructions?.translation,
       parallelChunks: options.parallelChunks,
-      onProgress: options.onProgress ? (d, t) => options.onProgress?.(d, t, 'translation') : undefined,
+      onProgress: options.onProgress
+        ? (d, t) => options.onProgress?.(d, t, 'translation')
+        : undefined,
     });
     totalTokens += stage2Result.tokensUsed;
 
@@ -560,7 +562,8 @@ export class TranslationPipeline {
   }> {
     const startTime = Date.now();
     const context = this.agent.getContext();
-    const existingGlossary = options.includeGlossaryInAnalysis !== false ? context.glossary : undefined;
+    const existingGlossary =
+      options.includeGlossaryInAnalysis !== false ? context.glossary : undefined;
     const concurrency = options.analysisConcurrency ?? DEFAULT_ANALYSIS_CONCURRENCY;
 
     log.info('Pipeline: parallel analysis', {

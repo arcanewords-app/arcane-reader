@@ -109,6 +109,116 @@
   opacity: 0.75;
 }
 
+/* List filters */
+.admin-entities-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-entities-list-header h2 {
+  margin: 0;
+  flex: 1;
+  min-width: 120px;
+}
+
+.admin-entities-filters {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.admin-entities-filters .form-group {
+  margin: 0;
+}
+
+.admin-entities-filters .form-input {
+  min-width: 180px;
+}
+
+/* Chip with actions */
+.admin-entities-chip--actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+.admin-entities-chip-text {
+  flex: 0 0 auto;
+}
+
+.admin-entities-chip-actions {
+  display: flex;
+  gap: 0.15rem;
+  opacity: 0.7;
+}
+
+.admin-entities-chip--actions:hover .admin-entities-chip-actions,
+.admin-entities-chip-actions:focus-within {
+  opacity: 1;
+}
+
+/* Card with actions */
+.admin-entities-card--actions {
+  position: relative;
+}
+
+.admin-entities-card-actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0.6;
+}
+
+.admin-entities-card--actions:hover .admin-entities-card-actions,
+.admin-entities-card-actions:focus-within {
+  opacity: 1;
+}
+
+.admin-entities-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast);
+}
+
+.admin-entities-action-btn:hover {
+  background: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.admin-entities-action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.admin-entities-action-btn--danger:hover {
+  background: color-mix(in srgb, var(--error) 20%, transparent);
+  color: var(--error);
+}
+
+.admin-entities-form--modal {
+  margin-bottom: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
 /* Photo upload zone */
 .admin-photo-upload .form-label {
   display: block;

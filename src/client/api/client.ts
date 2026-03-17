@@ -21,6 +21,7 @@ import type {
   Chapter,
   ChapterSummary,
   ChapterStats,
+  ProjectSearchMatch,
   GlossaryEntry,
   Paragraph,
   TranslateResponse,
@@ -524,6 +525,25 @@ export const api = {
     return fetchJsonDeduped(`/api/projects/${projectId}/chapters/summary`);
   },
 
+  async searchProject(
+    projectId: string,
+    query: string,
+    field: 'original' | 'translated' | 'both' = 'translated'
+  ): Promise<{ matches: ProjectSearchMatch[] }> {
+    const params = new URLSearchParams({ q: query, field });
+    return fetchJson(`/api/projects/${projectId}/search?${params}`);
+  },
+
+  async bulkUpdateParagraphs(
+    projectId: string,
+    updates: Array<{ chapterId: string; paragraphId: string; translatedText: string }>
+  ): Promise<{ succeeded: string[]; failed: Array<{ paragraphId: string; error: string }> }> {
+    return fetchJson(`/api/projects/${projectId}/paragraphs/bulk-update`, {
+      method: 'POST',
+      body: JSON.stringify({ updates }),
+    });
+  },
+
   async createProject(name: string): Promise<Project> {
     return fetchJson('/api/projects', {
       method: 'POST',
@@ -828,10 +848,7 @@ export const api = {
     });
   },
 
-  async cancelAnalysisJob(
-    projectId: string,
-    jobId: string
-  ): Promise<{ success: boolean }> {
+  async cancelAnalysisJob(projectId: string, jobId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/analysis-jobs/${jobId}/cancel`, {
       method: 'POST',
     });
@@ -886,10 +903,7 @@ export const api = {
     });
   },
 
-  async cancelTranslateJob(
-    projectId: string,
-    jobId: string
-  ): Promise<{ success: boolean }> {
+  async cancelTranslateJob(projectId: string, jobId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/translate-jobs/${jobId}/cancel`, {
       method: 'POST',
     });
@@ -1071,15 +1085,26 @@ export const api = {
     offset?: number;
     orderBy?: 'published_at' | 'created_at';
     orderAsc?: boolean;
+    authorEntityId?: string;
+    translatorEntityId?: string;
+    tagEntityId?: string;
   }): Promise<PublicationListItem[]> {
     const search = new URLSearchParams();
     if (params?.limit != null) search.set('limit', String(params.limit));
     if (params?.offset != null) search.set('offset', String(params.offset));
     if (params?.orderBy) search.set('orderBy', params.orderBy);
     if (params?.orderAsc) search.set('orderAsc', String(params.orderAsc));
+    if (params?.authorEntityId) search.set('author', params.authorEntityId);
+    if (params?.translatorEntityId) search.set('translator', params.translatorEntityId);
+    if (params?.tagEntityId) search.set('tag', params.tagEntityId);
     const q = search.toString();
     const requestUrl = `/api/publications${q ? `?${q}` : ''}`;
+    const hasEntityFilter =
+      Boolean(params?.authorEntityId) ||
+      Boolean(params?.translatorEntityId) ||
+      Boolean(params?.tagEntityId);
     const isDefaultCatalogRequest =
+      !hasEntityFilter &&
       (params?.limit ?? 50) === 50 &&
       (params?.offset ?? 0) === 0 &&
       (params?.orderBy ?? 'published_at') === 'published_at' &&
@@ -1201,6 +1226,21 @@ export const api = {
     return result;
   },
 
+  /** Report translation issue (public, optional auth). */
+  async reportTranslation(
+    publicationId: string,
+    chapterId: string,
+    description: string
+  ): Promise<{ success: boolean; id: string }> {
+    return fetchJson<{ success: boolean; id: string }>(
+      `/api/publications/${publicationId}/report`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ chapterId, description }),
+      }
+    );
+  },
+
   /** Get single chapter content for public reading (translated text only). Cached 2 min. */
   async getPublicationChapter(
     publicationId: string,
@@ -1249,6 +1289,28 @@ export const api = {
     });
   },
 
+  /** Get translation reports count for project (auth required, owner only). */
+  async getProjectReportsCount(projectId: string): Promise<{ count: number }> {
+    return fetchJson(`/api/projects/${projectId}/reports-count`);
+  },
+
+  /** Get translation reports for project (auth required, owner only). */
+  async getProjectReports(projectId: string): Promise<
+    Array<{
+      id: string;
+      publicationId: string;
+      chapterId: string;
+      chapterNumber?: number;
+      chapterTitle?: string;
+      description: string;
+      reporterUserId: string | null;
+      status: string;
+      createdAt: string;
+    }>
+  > {
+    return fetchJson(`/api/projects/${projectId}/reports`);
+  },
+
   /** Get current user's publications (auth required) */
   async getUserPublications(): Promise<Publication[]> {
     return fetchJson('/api/user/publications');
@@ -1264,14 +1326,16 @@ export const api = {
 
   async getPublicEntities(params?: {
     kind?: PublicEntityKind;
+    search?: string;
     limit?: number;
     offset?: number;
   }): Promise<PublicEntity[]> {
-    const search = new URLSearchParams();
-    if (params?.kind) search.set('kind', params.kind);
-    if (params?.limit != null) search.set('limit', String(params.limit));
-    if (params?.offset != null) search.set('offset', String(params.offset));
-    const q = search.toString();
+    const searchParams = new URLSearchParams();
+    if (params?.kind) searchParams.set('kind', params.kind);
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.limit != null) searchParams.set('limit', String(params.limit));
+    if (params?.offset != null) searchParams.set('offset', String(params.offset));
+    const q = searchParams.toString();
     return fetchJsonDeduped<PublicEntity[]>(`/api/public/entities${q ? `?${q}` : ''}`);
   },
 
@@ -1312,6 +1376,43 @@ export const api = {
     if (data.description) formData.append('description', data.description);
     if (data.photo) formData.append('photo', data.photo);
     return fetchFormData<PublicEntity>('/api/admin/entities', formData, { method: 'POST' });
+  },
+
+  async updatePublicEntity(
+    id: string,
+    data: { name?: string; description?: string | null; photoUrl?: string | null }
+  ): Promise<PublicEntity> {
+    const result = await fetchJson<PublicEntity>(`/api/admin/entities/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    publicationCache.publicEntity.delete(id);
+    return result;
+  },
+
+  async updatePublicEntityWithPhoto(
+    id: string,
+    data: { name?: string; description?: string; photo?: File; removePhoto?: boolean }
+  ): Promise<PublicEntity> {
+    const formData = new FormData();
+    if (data.name !== undefined) formData.append('name', data.name);
+    if (data.description !== undefined) formData.append('description', data.description);
+    if (data.photo) formData.append('photo', data.photo);
+    if (data.removePhoto) formData.append('removePhoto', 'true');
+    const result = await fetchFormData<PublicEntity>(`/api/admin/entities/${id}`, formData, {
+      method: 'PATCH',
+    });
+    publicationCache.publicEntity.delete(id);
+    return result;
+  },
+
+  async deletePublicEntity(id: string): Promise<void> {
+    await fetchJson(`/api/admin/entities/${id}`, { method: 'DELETE' });
+    publicationCache.publicEntity.delete(id);
+  },
+
+  async getEntityUsage(id: string): Promise<{ usageCount: number }> {
+    return fetchJson<{ usageCount: number }>(`/api/admin/entities/${id}/usage`);
   },
 
   // === Token Usage ===

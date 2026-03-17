@@ -44,7 +44,10 @@ export async function runWithConcurrencyResilient<T, R>(
   items: T[],
   limit: number,
   fn: (item: T, index: number) => Promise<R>,
-  options?: { isCancelled?: () => boolean; onItemComplete?: (index: number, result: ResilientResult<R>) => void }
+  options?: {
+    isCancelled?: () => boolean;
+    onItemComplete?: (index: number, result: ResilientResult<R>) => void;
+  }
 ): Promise<ResilientResult<R>[]> {
   if (items.length === 0) return [];
   if (limit < 1) limit = 1;

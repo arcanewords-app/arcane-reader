@@ -1280,8 +1280,7 @@ export function ProjectInfo({
               console.error('Failed to upload cover:', error);
               setErrorModal({
                 title: t('projectInfo.errorUploadCover'),
-                message:
-                  error instanceof Error ? error.message : t('projectInfo.errorUploadCover'),
+                message: error instanceof Error ? error.message : t('projectInfo.errorUploadCover'),
               });
             } finally {
               setUploadingCover(false);

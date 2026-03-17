@@ -14,6 +14,7 @@ import { isChunkError } from '../../../shared/chunkErrors';
 import { useChapterTranslation } from '../../hooks/useChapterTranslation';
 import { Card, AlertModal } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
+import { SearchReplaceBar, type SearchHighlight } from '../SearchReplace';
 import { ReaderSettingsPanel } from './ReaderSettings';
 import { ParagraphList } from './ParagraphList';
 import { ParagraphListSkeleton } from './ParagraphListSkeleton';
@@ -78,6 +79,8 @@ export function ChapterView({
   } | null>(null);
   const [selectedParagraphIds, setSelectedParagraphIds] = useState<string[]>([]);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchHighlight, setSearchHighlight] = useState<SearchHighlight | null>(null);
 
   const isLoading = !chapter;
   const effectiveChapter: Chapter = chapter ?? {
@@ -113,9 +116,7 @@ export function ChapterView({
   const isTranslationOnlyDisplay = useMemo(() => {
     if (chapter?.translationMeta?.source !== 'uploaded') return false;
     const hasMeaningfulOriginal = chapter?.paragraphs?.some(
-      (p) =>
-        p.originalText &&
-        p.originalText.trim() !== (p.translatedText || '').trim()
+      (p) => p.originalText && p.originalText.trim() !== (p.translatedText || '').trim()
     );
     return !hasMeaningfulOriginal;
   }, [chapter?.translationMeta?.source, chapter?.paragraphs]);
@@ -138,6 +139,29 @@ export function ChapterView({
   useEffect(() => {
     setSelectedParagraphIds(emptyParagraphIds.length > 0 ? [...emptyParagraphIds] : []);
   }, [effectiveChapter.id, emptyParagraphIdsKey, emptyParagraphIds]);
+
+  // Ctrl+F to open search or focus find input when already open
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch((v) => {
+          if (v) {
+            requestAnimationFrame(() => {
+              const input = document.querySelector(
+                '.search-replace-find input'
+              ) as HTMLInputElement;
+              input?.focus();
+            });
+            return v;
+          }
+          return true;
+        });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Apply reader settings as CSS variables
   useEffect(() => {
@@ -212,10 +236,7 @@ export function ChapterView({
       } catch (error) {
         console.error('Polling error:', error);
         consecutiveErrors++;
-        if (
-          consecutiveErrors >= MAX_CONSECUTIVE_ERRORS ||
-          attempt >= MAX_POLL_ATTEMPTS
-        ) {
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS || attempt >= MAX_POLL_ATTEMPTS) {
           setChunkProgress(null);
           setPollingInterval(null);
           setErrorModal({
@@ -322,11 +343,28 @@ export function ChapterView({
           isTranslationPanelOpen={showTranslationPanel}
           onApproveAll={handleApproveAll}
           onToggleSettings={() => setShowSettings(!showSettings)}
+          onToggleSearch={() => setShowSearch((v) => !v)}
+          isSearchOpen={showSearch}
           onEnterReadingMode={onEnterReadingMode}
           onChapterUpdate={onChapterUpdate}
           isOriginalReadingMode={isOriginalReadingMode}
           isLoading={isLoading}
         />
+
+        {showSearch && !isLoading && paragraphs.length > 0 && (
+          <SearchReplaceBar
+            paragraphs={paragraphs}
+            isOriginalReadingMode={isOriginalReadingMode}
+            onClose={() => {
+              setShowSearch(false);
+              setSearchHighlight(null);
+            }}
+            onHighlightChange={setSearchHighlight}
+            onReplace={async (paragraphId, newText) => {
+              await handleSaveParagraph(paragraphId, newText);
+            }}
+          />
+        )}
 
         {!isOriginalReadingMode && !isLoading && showTranslationPanel && (
           <TranslationPanel
@@ -395,6 +433,7 @@ export function ChapterView({
           selectedParagraphIds={selectedParagraphIds}
           onToggleParagraphSelection={handleToggleParagraphSelection}
           textBlockTypes={project.settings?.textBlockTypes ?? []}
+          searchHighlight={searchHighlight}
         />
       ) : (
         <Card>

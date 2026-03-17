@@ -1064,8 +1064,7 @@ function GlossaryEntrySelect({
     if (!searchQuery.trim()) return list;
     const q = searchQuery.trim().toLowerCase();
     return list.filter(
-      (e) =>
-        e.original.toLowerCase().includes(q) || e.translated.toLowerCase().includes(q)
+      (e) => e.original.toLowerCase().includes(q) || e.translated.toLowerCase().includes(q)
     );
   }, [entries, excludeIds, filterByType, searchQuery]);
 
@@ -1154,10 +1153,7 @@ function ManualMergeModal({
   }, [isOpen]);
 
   const canMerge =
-    leftEntry &&
-    rightEntry &&
-    leftEntry.id !== rightEntry.id &&
-    leftEntry.type === rightEntry.type;
+    leftEntry && rightEntry && leftEntry.id !== rightEntry.id && leftEntry.type === rightEntry.type;
 
   const handleMerge = async () => {
     if (!canMerge) return;
@@ -1245,9 +1241,7 @@ function ManualMergeModal({
           </div>
         </div>
         {leftEntry && rightEntry && leftEntry.id === rightEntry.id && (
-          <p class="form-hint glossary-manual-merge-hint">
-            {t('glossary.manualMergeSameEntry')}
-          </p>
+          <p class="form-hint glossary-manual-merge-hint">{t('glossary.manualMergeSameEntry')}</p>
         )}
       </div>
     </Modal>
@@ -1411,8 +1405,7 @@ function RelationshipsModal({
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.trim().toLowerCase();
     return entries.filter(
-      (e) =>
-        e.original.toLowerCase().includes(q) || e.translated.toLowerCase().includes(q)
+      (e) => e.original.toLowerCase().includes(q) || e.translated.toLowerCase().includes(q)
     );
   }, [entries, searchQuery]);
 
@@ -1428,9 +1421,7 @@ function RelationshipsModal({
 
     for (const chNum of sortedChapterNums) {
       const inChapter = filteredEntries.filter(
-        (e) =>
-          !assignedIds.has(e.id) &&
-          e.mentionedInChapters?.includes(chNum)
+        (e) => !assignedIds.has(e.id) && e.mentionedInChapters?.includes(chNum)
       );
       inChapter.forEach((e) => assignedIds.add(e.id));
       if (inChapter.length > 0) {
@@ -1447,9 +1438,7 @@ function RelationshipsModal({
   }, [filteredEntries, currentEntry.mentionedInChapters]);
 
   const toggleEntry = (id: string) => {
-    setDraftIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setDraftIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleApply = () => {
@@ -1484,9 +1473,7 @@ function RelationshipsModal({
           <Button variant="secondary" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={handleApply}>
-            {t('glossary.relationshipsApply')}
-          </Button>
+          <Button onClick={handleApply}>{t('glossary.relationshipsApply')}</Button>
         </>
       }
     >
@@ -1505,9 +1492,7 @@ function RelationshipsModal({
       <div class="glossary-relationships-modal-list">
         {groupedEntries.map(({ key, entries: groupEntries }) => (
           <div key={key} class="glossary-relationships-group">
-            <div class="glossary-relationships-group-title">
-              {renderGroupTitle(key)}
-            </div>
+            <div class="glossary-relationships-group-title">{renderGroupTitle(key)}</div>
             {groupEntries.map((e) => (
               <label
                 key={e.id}
@@ -1705,285 +1690,302 @@ function EditGlossaryModal({
 
   return (
     <>
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={t('glossary.editEntryTitle')}
-      className="nested"
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            onClick={() => onDelete(entry)}
-            style={{ marginRight: 'auto' }}
-          >
-            {t('common.delete')}
-          </Button>
-          <Button variant="secondary" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button onClick={handleSave} loading={saving}>
-            {t('common.save')}
-          </Button>
-        </>
-      }
-    >
-      <Select
-        label={t('glossary.typeLabel')}
-        value={type}
-        onChange={(e) => setType((e.target as HTMLSelectElement).value as GlossaryEntryType)}
-        options={[
-          { value: 'character', label: t('glossary.characters') },
-          { value: 'location', label: t('glossary.locations') },
-          { value: 'term', label: t('glossary.terms') },
-        ]}
-      />
-      {type === 'character' && (
-        <Select
-          label={t('glossary.genderLabel')}
-          value={gender}
-          onChange={(e) => setGender((e.target as HTMLSelectElement).value as typeof gender)}
-          options={[
-            { value: 'male', label: t('glossary.genderMale') },
-            { value: 'female', label: t('glossary.genderFemale') },
-            { value: 'neutral', label: t('glossary.genderNeutral') },
-            { value: 'unknown', label: t('glossary.genderUnknown') },
-          ]}
-        />
-      )}
-      <Input
-        label={t('glossary.originalLabel')}
-        value={original}
-        onInput={(e) => setOriginal((e.target as HTMLInputElement).value)}
-      />
-      <Input
-        label={t('glossary.translatedLabel')}
-        value={translated}
-        onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
-      />
-      <div class="form-group">
-        <label class="form-label">{t('glossary.description')}</label>
-        <textarea
-          class="form-input"
-          style={{
-            minHeight: '80px',
-            resize: 'vertical',
-            fontFamily: 'var(--font-display)',
-          }}
-          placeholder={descriptionPlaceholderEdit}
-          value={description}
-          onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
-        />
-        <div
-          style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-dim)',
-            marginTop: '0.25rem',
-            fontStyle: 'italic',
-          }}
-        >
-          {entry.autoDetected && description
-            ? t('glossary.descriptionAutoExtracted')
-            : t('glossary.descriptionHint')}
-        </div>
-      </div>
-      <Input
-        label={t('glossary.notesLabel')}
-        value={notes}
-        onInput={(e) => setNotes((e.target as HTMLInputElement).value)}
-        placeholder={t('glossary.notesPlaceholderEdit')}
-      />
-
-      {/* First Appearance Info */}
-      {entry.firstAppearance && (
-        <div class="form-group">
-          <label class="form-label">{t('glossary.firstMention')}</label>
-          <div
-            style={{
-              padding: '0.75rem',
-              background: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              color: 'var(--text-secondary)',
-              fontSize: '0.9rem',
-            }}
-          >
-            {t('glossary.firstMentionChapter', { n: entry.firstAppearance })}
-            {entry.autoDetected && (
-              <span style={{ marginLeft: '0.5rem', opacity: 0.7, fontSize: '0.85rem' }}>
-                {t('glossary.autoDetected')}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Mentioned in chapters */}
-      {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
-        <div class="form-group">
-          <label class="form-label">{t('glossary.chaptersMentionedLabel')}</label>
-          <div class="edit-modal-chapters-block">
-            {chapters?.length && (onRequestNavigateToChapter || onNavigateToChapter)
-              ? entry.mentionedInChapters.map((num) => {
-                  const ch = chapters.find((c) => c.number === num);
-                  const isClickable = !!ch?.id;
-                  return isClickable ? (
-                    <button
-                      key={num}
-                      type="button"
-                      class="glossary-chapter-pill"
-                      title={ch?.title ? `${num}: ${ch.title}` : String(num)}
-                      onClick={() => handleChapterClick(num)}
-                    >
-                      {ch?.title ? `${num}. ${ch.title}` : num}
-                    </button>
-                  ) : (
-                    <span key={num} class="glossary-chapter-pill glossary-chapter-pill-static">
-                      {num}
-                    </span>
-                  );
-                })
-              : entry.mentionedInChapters.join(', ')}
-          </div>
-        </div>
-      )}
-
-      {/* Relationships */}
-      <div class="form-group">
-        <label class="form-label">{t('glossary.relationshipsLabel')}</label>
-        <p class="form-hint" style={{ marginBottom: '0.5rem' }}>
-          {t('glossary.relationshipsHint')}
-        </p>
-        {otherEntries.length > 0 ? (
-          <div class="glossary-relationships-summary">
-            <span class="glossary-relationships-summary-text">
-              {relatedEntryIds.length > 0
-                ? t('glossary.relationshipsSelectedCount', { count: relatedEntryIds.length })
-                : t('glossary.relationshipsEmpty')}
-            </span>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={t('glossary.editEntryTitle')}
+        className="nested"
+        footer={
+          <>
             <Button
               variant="secondary"
-              onClick={() => setShowRelationshipsModal(true)}
-              aria-label={t('glossary.relationshipsSelectButton')}
+              onClick={() => onDelete(entry)}
+              style={{ marginRight: 'auto' }}
             >
-              {t('glossary.relationshipsSelectButton')}
+              {t('common.delete')}
             </Button>
-          </div>
-        ) : (
-          <span class="form-hint">{t('glossary.relationshipsEmpty')}</span>
-        )}
-      </div>
-
-      {/* Relationships modal (nested) */}
-      {showRelationshipsModal && (
-        <RelationshipsModal
-          isOpen={showRelationshipsModal}
-          onClose={() => setShowRelationshipsModal(false)}
-          entries={otherEntries}
-          selectedIds={relatedEntryIds}
-          onApply={(ids) => {
-            setRelatedEntryIds(ids);
-            setShowRelationshipsModal(false);
-          }}
-          typeIcons={typeIcons}
-          typeLabels={typeLabels}
-          currentEntry={entry}
-          chapters={chapters}
+            <Button variant="secondary" onClick={onClose}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSave} loading={saving}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <Select
+          label={t('glossary.typeLabel')}
+          value={type}
+          onChange={(e) => setType((e.target as HTMLSelectElement).value as GlossaryEntryType)}
+          options={[
+            { value: 'character', label: t('glossary.characters') },
+            { value: 'location', label: t('glossary.locations') },
+            { value: 'term', label: t('glossary.terms') },
+          ]}
         />
-      )}
-
-      {/* Primary location (characters only) */}
-      {type === 'character' && locationEntries.length > 0 && (
-        <div class="form-group">
-          <label class="form-label">{t('glossary.primaryLocationLabel')}</label>
+        {type === 'character' && (
           <Select
-            value={primaryLocationId}
-            onChange={(e) => setPrimaryLocationId((e.target as HTMLSelectElement).value)}
+            label={t('glossary.genderLabel')}
+            value={gender}
+            onChange={(e) => setGender((e.target as HTMLSelectElement).value as typeof gender)}
             options={[
-              { value: '', label: t('glossary.primaryLocationNone') },
-              ...locationEntries.map((e) => ({ value: e.id, label: `${e.original} → ${e.translated}` })),
+              { value: 'male', label: t('glossary.genderMale') },
+              { value: 'female', label: t('glossary.genderFemale') },
+              { value: 'neutral', label: t('glossary.genderNeutral') },
+              { value: 'unknown', label: t('glossary.genderUnknown') },
             ]}
           />
+        )}
+        <Input
+          label={t('glossary.originalLabel')}
+          value={original}
+          onInput={(e) => setOriginal((e.target as HTMLInputElement).value)}
+        />
+        <Input
+          label={t('glossary.translatedLabel')}
+          value={translated}
+          onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
+        />
+        <div class="form-group">
+          <label class="form-label">{t('glossary.description')}</label>
+          <textarea
+            class="form-input"
+            style={{
+              minHeight: '80px',
+              resize: 'vertical',
+              fontFamily: 'var(--font-display)',
+            }}
+            placeholder={descriptionPlaceholderEdit}
+            value={description}
+            onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
+          />
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-dim)',
+              marginTop: '0.25rem',
+              fontStyle: 'italic',
+            }}
+          >
+            {entry.autoDetected && description
+              ? t('glossary.descriptionAutoExtracted')
+              : t('glossary.descriptionHint')}
+          </div>
         </div>
-      )}
+        <Input
+          label={t('glossary.notesLabel')}
+          value={notes}
+          onInput={(e) => setNotes((e.target as HTMLInputElement).value)}
+          placeholder={t('glossary.notesPlaceholderEdit')}
+        />
 
-      {/* Image Gallery Section */}
-      <div class="form-group">
-        <label class="form-label">{t('glossary.imageGallery')}</label>
-        <div class="image-gallery-section">
-          {currentImageUrls.length > 0 && (
-            <div class="image-gallery-grid">
-              {currentImageUrls.map((imageUrl, index) => (
-                <div key={index} class="image-gallery-item">
-                  <button
-                    type="button"
-                    class="gallery-image-button"
-                    style={{ cursor: 'pointer', padding: 0, border: 'none', background: 'none' }}
-                    onClick={() => {
-                      const viewer = document.createElement('div');
-                      viewer.className = 'image-viewer-modal active';
-                      viewer.innerHTML = `
+        {/* First Appearance Info */}
+        {entry.firstAppearance && (
+          <div class="form-group">
+            <label class="form-label">{t('glossary.firstMention')}</label>
+            <div
+              style={{
+                padding: '0.75rem',
+                background: 'var(--bg-secondary)',
+                borderRadius: '8px',
+                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+              }}
+            >
+              {t('glossary.firstMentionChapter', { n: entry.firstAppearance })}
+              {entry.autoDetected && (
+                <span style={{ marginLeft: '0.5rem', opacity: 0.7, fontSize: '0.85rem' }}>
+                  {t('glossary.autoDetected')}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Mentioned in chapters */}
+        {entry.mentionedInChapters && entry.mentionedInChapters.length > 0 && (
+          <div class="form-group">
+            <label class="form-label">{t('glossary.chaptersMentionedLabel')}</label>
+            <div class="edit-modal-chapters-block">
+              {chapters?.length && (onRequestNavigateToChapter || onNavigateToChapter)
+                ? entry.mentionedInChapters.map((num) => {
+                    const ch = chapters.find((c) => c.number === num);
+                    const isClickable = !!ch?.id;
+                    return isClickable ? (
+                      <button
+                        key={num}
+                        type="button"
+                        class="glossary-chapter-pill"
+                        title={ch?.title ? `${num}: ${ch.title}` : String(num)}
+                        onClick={() => handleChapterClick(num)}
+                      >
+                        {ch?.title ? `${num}. ${ch.title}` : num}
+                      </button>
+                    ) : (
+                      <span key={num} class="glossary-chapter-pill glossary-chapter-pill-static">
+                        {num}
+                      </span>
+                    );
+                  })
+                : entry.mentionedInChapters.join(', ')}
+            </div>
+          </div>
+        )}
+
+        {/* Relationships */}
+        <div class="form-group">
+          <label class="form-label">{t('glossary.relationshipsLabel')}</label>
+          <p class="form-hint" style={{ marginBottom: '0.5rem' }}>
+            {t('glossary.relationshipsHint')}
+          </p>
+          {otherEntries.length > 0 ? (
+            <div class="glossary-relationships-summary">
+              <span class="glossary-relationships-summary-text">
+                {relatedEntryIds.length > 0
+                  ? t('glossary.relationshipsSelectedCount', { count: relatedEntryIds.length })
+                  : t('glossary.relationshipsEmpty')}
+              </span>
+              <Button
+                variant="secondary"
+                onClick={() => setShowRelationshipsModal(true)}
+                aria-label={t('glossary.relationshipsSelectButton')}
+              >
+                {t('glossary.relationshipsSelectButton')}
+              </Button>
+            </div>
+          ) : (
+            <span class="form-hint">{t('glossary.relationshipsEmpty')}</span>
+          )}
+        </div>
+
+        {/* Relationships modal (nested) */}
+        {showRelationshipsModal && (
+          <RelationshipsModal
+            isOpen={showRelationshipsModal}
+            onClose={() => setShowRelationshipsModal(false)}
+            entries={otherEntries}
+            selectedIds={relatedEntryIds}
+            onApply={(ids) => {
+              setRelatedEntryIds(ids);
+              setShowRelationshipsModal(false);
+            }}
+            typeIcons={typeIcons}
+            typeLabels={typeLabels}
+            currentEntry={entry}
+            chapters={chapters}
+          />
+        )}
+
+        {/* Primary location (characters only) */}
+        {type === 'character' && locationEntries.length > 0 && (
+          <div class="form-group">
+            <label class="form-label">{t('glossary.primaryLocationLabel')}</label>
+            <Select
+              value={primaryLocationId}
+              onChange={(e) => setPrimaryLocationId((e.target as HTMLSelectElement).value)}
+              options={[
+                { value: '', label: t('glossary.primaryLocationNone') },
+                ...locationEntries.map((e) => ({
+                  value: e.id,
+                  label: `${e.original} → ${e.translated}`,
+                })),
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Image Gallery Section */}
+        <div class="form-group">
+          <label class="form-label">{t('glossary.imageGallery')}</label>
+          <div class="image-gallery-section">
+            {currentImageUrls.length > 0 && (
+              <div class="image-gallery-grid">
+                {currentImageUrls.map((imageUrl, index) => (
+                  <div key={index} class="image-gallery-item">
+                    <button
+                      type="button"
+                      class="gallery-image-button"
+                      style={{ cursor: 'pointer', padding: 0, border: 'none', background: 'none' }}
+                      onClick={() => {
+                        const viewer = document.createElement('div');
+                        viewer.className = 'image-viewer-modal active';
+                        viewer.innerHTML = `
                         <img src="${imageUrl}" alt="${translated}" />
                         <div class="image-viewer-title">${translated} (${index + 1} / ${currentImageUrls.length})</div>
                       `;
-                      viewer.onclick = () => {
-                        document.body.removeChild(viewer);
-                      };
-                      document.body.appendChild(viewer);
-                    }}
-                  >
-                    <img
-                      src={imageUrl}
-                      alt={`${translated} - изображение ${index + 1}`}
-                      class="gallery-image-preview"
-                    />
-                  </button>
-                  <button
-                    class="gallery-image-delete"
-                    onClick={() => handleImageDelete(index)}
-                    disabled={deletingImageIndex === index}
-                    title={t('glossary.deleteImageTitle')}
-                  >
-                    {deletingImageIndex === index ? (
-                      <Icon name="schedule" size="sm" />
-                    ) : (
-                      <Icon name="delete" size="sm" />
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <label
-            class="image-upload-btn"
-            style={{
-              cursor: uploadingImage ? 'wait' : 'pointer',
-              opacity: uploadingImage ? 0.6 : 1,
-              marginTop: currentImageUrls.length > 0 ? '0.75rem' : '0',
-            }}
-          >
-            {uploadingImage
-              ? `... ${t('glossary.uploadImageLoading')}`
-              : t('glossary.addImageButton')}
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleImageUpload}
-              disabled={uploadingImage}
-            />
-          </label>
+                        viewer.onclick = () => {
+                          document.body.removeChild(viewer);
+                        };
+                        document.body.appendChild(viewer);
+                      }}
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={`${translated} - изображение ${index + 1}`}
+                        class="gallery-image-preview"
+                      />
+                    </button>
+                    <button
+                      class="gallery-image-delete"
+                      onClick={() => handleImageDelete(index)}
+                      disabled={deletingImageIndex === index}
+                      title={t('glossary.deleteImageTitle')}
+                    >
+                      {deletingImageIndex === index ? (
+                        <Icon name="schedule" size="sm" />
+                      ) : (
+                        <Icon name="delete" size="sm" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label
+              class="image-upload-btn"
+              style={{
+                cursor: uploadingImage ? 'wait' : 'pointer',
+                opacity: uploadingImage ? 0.6 : 1,
+                marginTop: currentImageUrls.length > 0 ? '0.75rem' : '0',
+              }}
+            >
+              {uploadingImage
+                ? `... ${t('glossary.uploadImageLoading')}`
+                : t('glossary.addImageButton')}
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageUpload}
+                disabled={uploadingImage}
+              />
+            </label>
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
 
-    <ConfirmModal
-      isOpen={!!goToChapterConfirm}
-      onClose={() => setGoToChapterConfirm(null)}
-      onConfirm={handleConfirmGoToChapter}
-      title={goToChapterConfirm ? t('glossary.goToChapterConfirm', { num: goToChapterConfirm.num, title: goToChapterConfirm.title }) : ''}
-      message={goToChapterConfirm ? t('glossary.goToChapterConfirm', { num: goToChapterConfirm.num, title: goToChapterConfirm.title }) : ''}
-      confirmLabel={t('glossary.goToChapterButton')}
-    />
+      <ConfirmModal
+        isOpen={!!goToChapterConfirm}
+        onClose={() => setGoToChapterConfirm(null)}
+        onConfirm={handleConfirmGoToChapter}
+        title={
+          goToChapterConfirm
+            ? t('glossary.goToChapterConfirm', {
+                num: goToChapterConfirm.num,
+                title: goToChapterConfirm.title,
+              })
+            : ''
+        }
+        message={
+          goToChapterConfirm
+            ? t('glossary.goToChapterConfirm', {
+                num: goToChapterConfirm.num,
+                title: goToChapterConfirm.title,
+              })
+            : ''
+        }
+        confirmLabel={t('glossary.goToChapterButton')}
+      />
     </>
   );
 }

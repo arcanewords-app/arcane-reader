@@ -5,7 +5,8 @@ import { Button } from './Button';
 interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void | Promise<void>;
+  /** Return false to prevent closing (e.g. on validation error). */
+  onConfirm: () => void | Promise<void | boolean>;
   title: string;
   message: string;
   confirmLabel?: string;
@@ -28,8 +29,10 @@ export function ConfirmModal({
   const { t } = useTranslation();
 
   const handleConfirm = async () => {
-    await onConfirm();
-    onClose();
+    const result = await onConfirm();
+    if (result !== false) {
+      onClose();
+    }
   };
 
   const confirmBtn = (
@@ -39,7 +42,7 @@ export function ConfirmModal({
       onClick={handleConfirm}
       disabled={loading}
     >
-      {loading ? t('common.loading') : confirmLabel ?? t('common.ok')}
+      {loading ? t('common.loading') : (confirmLabel ?? t('common.ok'))}
     </Button>
   );
 

@@ -97,7 +97,10 @@ class RedisAnalysisJobStore implements AnalysisJobStore {
     return value ?? null;
   }
 
-  async updateJob(jobId: string, patch: Partial<AnalysisJobState>): Promise<AnalysisJobState | null> {
+  async updateJob(
+    jobId: string,
+    patch: Partial<AnalysisJobState>
+  ): Promise<AnalysisJobState | null> {
     return this.withJobLock(jobId, async () => {
       const current = await this.getJob(jobId);
       if (!current) return null;
@@ -164,9 +167,7 @@ class RedisAnalysisJobStore implements AnalysisJobStore {
         await this.removeFromProjectIndex(projectId, id);
       }
     }
-    return jobs.sort(
-      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-    );
+    return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
   }
 }
 
@@ -205,7 +206,10 @@ class MemoryAnalysisJobStore implements AnalysisJobStore {
     return this.jobs.get(jobId) ?? null;
   }
 
-  async updateJob(jobId: string, patch: Partial<AnalysisJobState>): Promise<AnalysisJobState | null> {
+  async updateJob(
+    jobId: string,
+    patch: Partial<AnalysisJobState>
+  ): Promise<AnalysisJobState | null> {
     return this.withJobLock(jobId, async () => {
       const current = this.jobs.get(jobId);
       if (!current) return null;
@@ -296,9 +300,7 @@ class MemoryAnalysisJobStore implements AnalysisJobStore {
       const job = this.jobs.get(id);
       if (job) jobs.push(job);
     }
-    return jobs.sort(
-      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-    );
+    return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
   }
 }
 

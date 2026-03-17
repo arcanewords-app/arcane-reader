@@ -153,6 +153,29 @@
     "characters": "znaków",
     "selectParagraph": "Zaznacz akapit {{index}}"
   },
+  "searchReplace": {
+    "findPlaceholder": "Szukaj",
+    "replacePlaceholder": "Zamień",
+    "caseSensitive": "Aa",
+    "prevMatch": "Poprzednie dopasowanie",
+    "nextMatch": "Następne dopasowanie",
+    "matchCount": "{{current}} / {{total}}",
+    "noMatches": "Brak dopasowań",
+    "resultsCount": "{{count}} dopasowań",
+    "findInChapter": "Szukaj w rozdziale",
+    "findInProject": "Szukaj w projekcie",
+    "replace": "Zamień",
+    "replaceAll": "Zamień wszystko",
+    "previewTitle": "Podgląd zamiany ({{count}} akapitów)",
+    "previewHint": "Zostaną zaktualizowane następujące akapity:",
+    "paragraphLabel": "Akapit #{{index}}",
+    "before": "Przed",
+    "after": "Po",
+    "andMore": "...i {{count}} więcej",
+    "applyReplace": "Zastosuj zamianę",
+    "updatedCount": "Zaktualizowano {{count}}",
+    "failedCount": "{{count}} błędów"
+  },
   "jobsPanel": {
     "title": "Aktywne zadania",
     "queued": "W kolejce",
@@ -169,6 +192,9 @@
     "chapters": "Rozdziały",
     "settings": "Ustawienia",
     "glossary": "Słownik",
+    "reports": "Zgłoszenia tłumaczeń",
+    "reportsEmpty": "Brak zgłoszeń",
+    "reportsGoToChapter": "Przejdź do rozdziału",
     "allProjects": "Wszystkie projekty",
     "aboutProject": "O projekcie",
     "projectSettings": "Ustawienia projektu"
@@ -636,7 +662,16 @@
     "backToPublication": "Powrót do publikacji",
     "settingsTitle": "Ustawienia czytania",
     "noOriginalText": "Brak oryginalnego tekstu",
-    "noTranslatedText": "Brak przetłumaczonego tekstu"
+    "noTranslatedText": "Brak przetłumaczonego tekstu",
+    "reportTranslation": "Zgłoś tłumaczenie",
+    "reportChapter": "Rozdział: {{title}}",
+    "reportDescriptionLabel": "Opisz problem",
+    "reportPlaceholder": "np. literówka, błędne znaczenie, problem z formatowaniem...",
+    "reportHint": "Minimum 5 znaków. Twoje zgłoszenie pomoże ulepszyć tłumaczenie.",
+    "reportMinLength": "Opis musi zawierać co najmniej 5 znaków",
+    "reportMaxLength": "Opis nie może przekraczać 5000 znaków",
+    "reportSubmit": "Wyślij",
+    "reportSent": "Wysłano"
   },
   "dashboard": {
     "myProjects": "Moje projekty",
@@ -705,7 +740,14 @@
     "noMyPublications": "Nie masz jeszcze opublikowanych prac",
     "emptyMyWorksHint": "Opublikuj projekt na stronie projektów — pojawi się tutaj.",
     "orderNewest": "Najnowsze najpierw",
-    "orderOldest": "Najstarsze najpierw"
+    "orderOldest": "Najstarsze najpierw",
+    "filterByAuthor": "Autor",
+    "filterByTranslator": "Tłumacz",
+    "filterByTag": "Tag",
+    "clearFilter": "Wyczyść filtr",
+    "clearAllFilters": "Wyczyść wszystkie filtry",
+    "clearFilterHint": "Spróbuj wyczyścić filtr, aby zobaczyć więcej publikacji.",
+    "noPublicationsForFilter": "Brak publikacji dla tego filtra"
   },
   "nav": {
     "catalog": "Katalog",
@@ -728,6 +770,9 @@
     "subtitle": "Tworzenie publicznych tagów, autorów i tłumaczy.",
     "deniedTitle": "Wymagany dostęp administratora",
     "deniedMessage": "Nie masz uprawnień do tego obszaru.",
+    "filter": {
+      "all": "Wszystkie"
+    },
     "kinds": {
       "tag": "Tag",
       "author": "Autor",
@@ -742,19 +787,36 @@
       "photo": "Zdjęcie",
       "photoHint": "Kliknij lub przeciągnij obraz",
       "removePhoto": "Usuń zdjęcie",
-      "submit": "Utwórz encję"
+      "submit": "Utwórz encję",
+      "searchPlaceholder": "Szukaj po nazwie",
+      "edit": "Edytuj",
+      "delete": "Usuń",
+      "editTitle": "Edytuj encję",
+      "save": "Zapisz"
     },
     "list": {
       "title": "Ostatnio utworzone",
       "empty": "Brak encji."
     },
+    "delete": {
+      "title": "Usuń encję",
+      "message": "Czy na pewno chcesz usunąć „{{name}}”? Tej operacji nie można cofnąć."
+    },
     "messages": {
-      "created": "Encja została utworzona."
+      "created": "Encja została utworzona.",
+      "updated": "Encja została zaktualizowana.",
+      "deleted": "Encja została usunięta."
     },
     "errors": {
       "nameRequired": "Nazwa jest wymagana.",
       "forbidden": "Tylko administrator może tworzyć encje.",
-      "createFailed": "Nie udało się utworzyć encji."
+      "createFailed": "Nie udało się utworzyć encji.",
+      "updateFailed": "Nie udało się zaktualizować encji.",
+      "deleteFailed": "Nie udało się usunąć encji.",
+      "deleteUsed": "Ta encja jest używana w {{count}} publikacji(ach). Najpierw usuń ją ze wszystkich publikacji."
+    },
+    "usage": {
+      "publicationsCount": "Używana w {{count}} publikacji(ach)"
     }
   },
   "cabinet": {
@@ -803,6 +865,7 @@
   "publication": {
     "untitled": "Bez tytułu",
     "unknownAuthor": "Nieznany autor",
+    "languageLabel": "Język: {{language}}",
     "authorLabel": "Autor",
     "translatorLabel": "Tłumacz",
     "notFound": "Nie znaleziono publikacji",
@@ -852,6 +915,8 @@
   },
   "info": {
     "menu": "Info",
+    "aboutProject": "O projekcie",
+    "legal": "Informacje prawne",
     "about": "O projekcie",
     "contact": "Kontakt",
     "privacy": "Polityka prywatności",

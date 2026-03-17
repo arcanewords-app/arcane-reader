@@ -370,6 +370,37 @@
   border-color: var(--reader-accent);
 }
 
+.reading-mode .reader-settings-panel .reader-settings-select {
+  background: var(--reader-chrome-bg);
+  border-color: var(--reader-chrome-border);
+  color: var(--reader-text);
+}
+
+.reading-mode .reader-settings-panel .toggle-option {
+  background: var(--reader-chrome-bg);
+  border-color: transparent;
+  color: var(--reader-text-dim);
+}
+
+.reading-mode .reader-settings-panel .toggle-option:hover {
+  border-color: var(--reader-accent);
+  color: var(--reader-text);
+}
+
+.reading-mode .reader-settings-panel .toggle-option.active {
+  border-color: var(--reader-accent);
+  background: var(--reader-accent);
+  color: var(--reader-accent-text);
+}
+
+.reading-mode .reader-settings-panel .settings-checkbox-label {
+  color: var(--reader-text-dim);
+}
+
+.reading-mode .reader-settings-panel .theme-preview-colors {
+  border-color: var(--reader-chrome-border);
+}
+
 /* ===== Table of Contents Modal (uses reader vars when data-reader-theme is on root) ===== */
 .modal.toc-modal {
   width: 100%;
@@ -596,6 +627,117 @@
   border-top: 1px solid var(--reader-chrome-border);
 }
 
+/* Report translation modal */
+.reading-report-modal-footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.reading-report-cancel-btn {
+  padding: 0.5rem 1rem;
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
+  border-radius: 8px;
+  color: var(--reader-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.reading-report-cancel-btn:hover:not(:disabled) {
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: var(--reader-accent-text);
+}
+
+.reading-report-submit-btn {
+  padding: 0.5rem 1.25rem;
+  background: var(--reader-accent);
+  border: none;
+  border-radius: 8px;
+  color: var(--reader-accent-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.reading-report-submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.reading-report-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reading-report-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reading-report-modal-chapter {
+  font-size: 0.9rem;
+  color: var(--reader-text-dim);
+  margin-bottom: 0.25rem;
+}
+
+.reading-report-modal-label {
+  font-size: 0.9rem;
+  color: var(--reader-text);
+  margin-bottom: 0.25rem;
+}
+
+.reading-report-modal-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
+  border-radius: 8px;
+  color: var(--reader-text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.reading-report-modal-textarea:focus {
+  outline: none;
+  border-color: var(--reader-accent);
+}
+
+.reading-report-modal-hint {
+  font-size: 0.8rem;
+  color: var(--reader-text-dim);
+}
+
+.reading-report-modal-error {
+  font-size: 0.9rem;
+  color: var(--error);
+}
+
+.modal.reading-report-modal {
+  background: var(--reader-chrome-bg);
+  border: 1px solid var(--reader-chrome-border);
+}
+
+.modal.reading-report-modal .modal-header-row {
+  border-bottom-color: var(--reader-chrome-border);
+}
+
+.modal.reading-report-modal .modal-title {
+  color: var(--reader-text);
+}
+
+.modal.reading-report-modal .form-actions {
+  border-top: 1px solid var(--reader-chrome-border);
+}
+
 /* Scroll-based hide: slide chrome off-screen (transform only, no layout change) */
 /* Header/footer stay visible when near top/bottom of chapter */
 .reading-mode-chrome-hidden .reading-mode-header {
@@ -633,14 +775,14 @@
 /* Mobile: full-width text, font applies correctly */
 @media (max-width: 767px) {
   .reading-mode-text {
-    max-width: 97%;
+    max-width: min(var(--reader-container-width, 97%), 100%);
     font-size: max(var(--reader-font-size), 16px);
     line-height: max(var(--reader-line-height), 1.5);
   }
 
   .reading-mode-paragraph {
     line-height: max(var(--reader-line-height), 1.5);
-    margin-bottom: max(1em, var(--reader-paragraph-spacing, 0.5em));
+    margin-bottom: max(var(--reader-paragraph-spacing, 0.5em), 0.25em);
   }
 
   /* Bottom sheet for settings panel on mobile */
@@ -686,7 +828,7 @@
   }
 
   .reading-mode-text {
-    max-width: var(--reading-text-max-width-tablet);
+    max-width: min(var(--reader-container-width, 69%), 900px);
     font-size: var(--reader-font-size);
   }
 
@@ -722,7 +864,7 @@
   }
 
   .reading-mode-text {
-    max-width: var(--reading-text-max-width-desktop);
+    max-width: min(var(--reader-container-width, 69%), 900px);
     font-size: var(--reader-font-size);
   }
 

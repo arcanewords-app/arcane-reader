@@ -317,12 +317,12 @@
 
 /* === Reader Indent & Align === */
 
-[data-reader-indent='false'] .reading-mode-paragraph,
+.reading-mode[data-reader-indent='false'] .reading-mode-paragraph,
 [data-reader-indent='false'] .paragraph-cell {
   text-indent: 0;
 }
 
-[data-reader-align='left'] .reading-mode-paragraph,
+.reading-mode[data-reader-align='left'] .reading-mode-paragraph,
 [data-reader-align='left'] .paragraph-cell {
   text-align: left;
 }

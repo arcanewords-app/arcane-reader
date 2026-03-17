@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ChapterList } from './ChapterList';
 import { ProcessChapters } from './ProcessChapters';
 import { JobsPanel } from './JobsPanel';
+import { ProjectSearchModal } from '../SearchReplace';
 import { Button, Icon } from '../ui';
 import { route } from 'preact-router';
 import type { Chapter, Project, ProjectWithChapterList, ProjectSettings } from '../../types';
@@ -21,6 +22,9 @@ interface SidebarProps {
     onProgress?: (loaded: number, total: number) => void;
   }) => Promise<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>;
   onOpenGlossary: () => void;
+  /** When > 0, show Reports button. Callback to open reports modal. */
+  reportsCount?: number;
+  onOpenReports?: () => void;
   onChaptersUpdate?: () => void | Promise<void>;
   onProjectUpdate?: (project: Project | ProjectWithChapterList) => void;
   onSettingsChange?: (settings: ProjectSettings) => void;
@@ -35,6 +39,8 @@ export function Sidebar({
   onDeleteChapter,
   onUploadChapter,
   onOpenGlossary,
+  reportsCount = 0,
+  onOpenReports,
   onChaptersUpdate,
   onSettingsChange,
   onRefreshProject,
@@ -43,6 +49,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
+  const [showProjectSearch, setShowProjectSearch] = useState(false);
   const [triggerJobsFetch, setTriggerJobsFetch] = useState(0);
 
   if (!project) {
@@ -124,8 +131,21 @@ export function Sidebar({
         </Button>
 
         {/* Settings Button */}
-        <Button variant="secondary" onClick={() => setShowSettings(true)} className="sidebar-action">
+        <Button
+          variant="secondary"
+          onClick={() => setShowSettings(true)}
+          className="sidebar-action"
+        >
           <Icon name="settings" size="sm" /> {t('sidebar.projectSettings')}
+        </Button>
+
+        {/* Find in project */}
+        <Button
+          variant="secondary"
+          onClick={() => setShowProjectSearch(true)}
+          className="sidebar-action"
+        >
+          <Icon name="search" size="sm" /> {t('searchReplace.findInProject', 'Find in project')}
         </Button>
 
         {/* Glossary - near top for quick access without scrolling */}
@@ -133,6 +153,13 @@ export function Sidebar({
           <Icon name="menu_book" size="sm" /> {t('sidebar.glossary')}{' '}
           <span class="glossary-count">{project.glossary.length}</span>
         </Button>
+
+        {reportsCount > 0 && onOpenReports && (
+          <Button variant="secondary" onClick={onOpenReports} className="sidebar-action">
+            <Icon name="flag" size="sm" /> {t('sidebar.reports')}{' '}
+            <span class="sidebar-reports-badge">{reportsCount}</span>
+          </Button>
+        )}
 
         {onRefreshProject && (
           <>
@@ -173,6 +200,14 @@ export function Sidebar({
           onRefreshProject={onRefreshProject}
         />
       )}
+
+      <ProjectSearchModal
+        isOpen={showProjectSearch}
+        onClose={() => setShowProjectSearch(false)}
+        projectId={project.id}
+        isOriginalReadingMode={project.settings?.originalReadingMode ?? false}
+        onRefresh={onRefreshProject}
+      />
     </>
   );
 }

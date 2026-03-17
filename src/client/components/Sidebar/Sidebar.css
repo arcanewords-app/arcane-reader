@@ -8,7 +8,8 @@
 }
 
 /* Glossary count badge (used with variant="secondary") */
-.sidebar .glossary-count {
+.sidebar .glossary-count,
+.sidebar .sidebar-reports-badge {
   background: var(--accent);
   color: white;
   padding: 0.2rem 0.6rem;
@@ -17,6 +18,10 @@
   font-weight: 650;
   min-width: 24px;
   text-align: center;
+}
+
+.sidebar .sidebar-reports-badge {
+  background: var(--warning);
 }
 
 .sidebar-process-chapters {

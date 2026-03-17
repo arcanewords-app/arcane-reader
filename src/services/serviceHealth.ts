@@ -6,6 +6,7 @@
  */
 
 import { createServiceRoleClient } from './supabaseClient.js';
+import { hasRedisCache, redisPing } from './redisCache.js';
 import { logger } from '../logger.js';
 
 export type ServiceStatus = 'healthy' | 'degraded' | 'down';
@@ -165,3 +166,15 @@ async function checkSupabase(): Promise<void> {
 
 // Register Supabase as the first service
 serviceHealthManager.registerService('supabase', checkSupabase);
+
+/**
+ * Redis health checker: ping to verify connectivity.
+ * Only registered when Redis is configured.
+ */
+async function checkRedis(): Promise<void> {
+  await redisPing();
+}
+
+if (hasRedisCache()) {
+  serviceHealthManager.registerService('redis', checkRedis);
+}

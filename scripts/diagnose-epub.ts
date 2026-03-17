@@ -14,7 +14,9 @@ if (!path) {
 }
 
 function isZipHeader(buf: Buffer): boolean {
-  return buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && (buf[2] === 0x03 || buf[2] === 0x05);
+  return (
+    buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && (buf[2] === 0x03 || buf[2] === 0x05)
+  );
 }
 
 function findEpubInDir(dirPath: string): string | null {

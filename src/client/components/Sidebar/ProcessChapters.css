@@ -104,7 +104,8 @@
   color: var(--text-primary);
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-standard),
+  transition:
+    background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
 }
 
@@ -132,7 +133,8 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: 0.85rem;
-  transition: background var(--duration-fast) var(--ease-standard),
+  transition:
+    background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
 }
 

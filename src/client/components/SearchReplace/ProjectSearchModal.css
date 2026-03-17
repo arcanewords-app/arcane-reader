@@ -1,0 +1,131 @@
+.project-search-modal .modal-body {
+  min-height: 200px;
+}
+
+.project-search-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.project-search-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.project-search-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.project-search-error {
+  padding: 1rem;
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-md);
+  color: var(--error);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.project-search-results {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-search-results-header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border);
+}
+
+.project-search-list {
+  overflow-y: auto;
+}
+
+.project-search-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 4rem 2fr;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  align-items: center;
+}
+
+.project-search-row:last-child {
+  border-bottom: none;
+}
+
+.project-search-row:hover {
+  background: var(--bg-hover);
+}
+
+.project-search-chapter {
+  font-size: 0.85rem;
+  font-weight: 550;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-search-para {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.project-search-snippet {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-search-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.project-search-result {
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.project-search-result-ok {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+
+.project-search-result-partial {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+}
+
+@media (max-width: 600px) {
+  .project-search-row {
+    grid-template-columns: 1fr 3rem;
+  }
+
+  .project-search-row .project-search-para {
+    grid-column: 2;
+  }
+
+  .project-search-row .project-search-snippet {
+    grid-column: 1 / -1;
+  }
+}

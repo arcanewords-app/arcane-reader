@@ -7,7 +7,7 @@ import type {
   TranslationStageKind,
   ProjectSettings,
 } from '../../types';
-import { Button, Modal, Icon, Input, AlertModal } from '../ui';
+import { Button, Modal, Icon, Input, AlertModal, LoadingSpinner } from '../ui';
 import { api } from '../../api/client';
 import { useTokenEstimate } from '../../hooks/useTokenEstimate';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
@@ -20,14 +20,7 @@ const BATCH_STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translation', 'e
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
-type StatusFilter =
-  | 'all'
-  | 'empty'
-  | 'error'
-  | 'completed'
-  | 'draft'
-  | 'analyzed'
-  | 'not_analyzed';
+type StatusFilter = 'all' | 'empty' | 'error' | 'completed' | 'draft' | 'analyzed' | 'not_analyzed';
 
 interface ProcessChaptersProps {
   project: Project | ProjectWithChapterList;
@@ -38,10 +31,6 @@ interface ProcessChaptersProps {
   onOpenSettings?: () => void;
   /** Called when user starts a batch (triggers JobsPanel to fetch immediately) */
   onBatchStarted?: () => void;
-}
-
-function isChapterEmptyFromSummary(chapter: ChapterSummary): boolean {
-  return !chapter.hasTranslation;
 }
 
 function presetButtonStyle(filter: StatusFilter): Record<string, string> {
@@ -60,6 +49,41 @@ function presetButtonStyle(filter: StatusFilter): Record<string, string> {
         ? 'var(--accent)'
         : 'var(--text-dim)';
   return { ...base, color };
+}
+
+function filterChaptersByStatus<
+  T extends {
+    id: string;
+    number: number;
+    title: string;
+    status?: string;
+    hasTranslation?: boolean;
+    lastAnalysisAt?: string;
+    translationMeta?: { lastAnalysisAt?: string };
+  },
+>(list: T[], statusFilter: StatusFilter, hasLastAnalysis: (c: T) => boolean): T[] {
+  if (statusFilter === 'all') return list;
+  return list.filter((c) => {
+    const s = c as ChapterSummary;
+    const hasTranslation =
+      'hasTranslation' in s ? s.hasTranslation : s.status === 'completed' || s.status === 'draft';
+    switch (statusFilter) {
+      case 'empty':
+        return !hasTranslation;
+      case 'error':
+        return s.status === 'error';
+      case 'completed':
+        return s.status === 'completed';
+      case 'draft':
+        return s.status === 'draft';
+      case 'analyzed':
+        return s.status === 'analyzed';
+      case 'not_analyzed':
+        return !hasLastAnalysis(c);
+      default:
+        return true;
+    }
+  });
 }
 
 export function ProcessChapters({
@@ -83,15 +107,38 @@ export function ProcessChapters({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [modalDataRefreshing, setModalDataRefreshing] = useState(false);
   const translateModalWasOpenRef = useRef(false);
+  const prevModalOpenRef = useRef(false);
 
   useEffect(() => {
-    api
-      .getChaptersSummary(project.id)
-      .then(setSummary)
-      // Keep fallback to project.chapters when summary endpoint is temporarily unavailable.
-      .catch(() => setSummary(null));
-  }, [project.id, project.chapters.length, project.updatedAt]);
+    const justOpened = showTranslateAllModal && !prevModalOpenRef.current;
+    prevModalOpenRef.current = showTranslateAllModal;
+
+    if (showTranslateAllModal) {
+      if (justOpened) {
+        setModalDataRefreshing(true);
+        Promise.all([onRefreshProject(), api.getChaptersSummary(project.id).catch(() => null)])
+          .then(([, s]) => {
+            setSummary(s);
+          })
+          .finally(() => {
+            setModalDataRefreshing(false);
+          });
+      }
+    } else {
+      api
+        .getChaptersSummary(project.id)
+        .then(setSummary)
+        .catch(() => setSummary(null));
+    }
+  }, [
+    showTranslateAllModal,
+    project.id,
+    project.chapters.length,
+    project.updatedAt,
+    onRefreshProject,
+  ]);
 
   const estimate = useTokenEstimate();
   const batch = useBatchChapterTranslation(project.id, project, onRefreshProject, (title, msg) =>
@@ -119,7 +166,9 @@ export function ProcessChapters({
               (c as { status: string }).status === 'draft',
           };
     const notAnalyzedCount = chapters.filter(
-      (c) => !(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } }).lastAnalysisAt &&
+      (c) =>
+        !(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } })
+          .lastAnalysisAt &&
         !(c as { translationMeta?: { lastAnalysisAt?: string } }).translationMeta?.lastAnalysisAt
     ).length;
     return {
@@ -143,57 +192,25 @@ export function ProcessChapters({
     [summary, project.chapters]
   );
 
-  const defaultSelectionIds = useMemo(
-    () =>
-      (summary && (summary.length > 0 || project.chapters.length === 0)
-        ? summary
-        : project.chapters
-      )
-        .filter(
-          (c) =>
-            (c as ChapterSummary).status === 'error' ||
-            isChapterEmptyFromSummary(c as ChapterSummary)
-        )
-        .map((c) => c.id),
-    [summary, project.chapters]
-  );
-
   const hasLastAnalysis = useCallback(
     (c: { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } }) =>
-      !!(c.lastAnalysisAt ?? (c as { translationMeta?: { lastAnalysisAt?: string } }).translationMeta?.lastAnalysisAt),
+      !!(
+        c.lastAnalysisAt ??
+        (c as { translationMeta?: { lastAnalysisAt?: string } }).translationMeta?.lastAnalysisAt
+      ),
     []
   );
 
   const filteredChapters = useMemo(() => {
-    let list = allChaptersSorted;
-    if (statusFilter !== 'all') {
-      list = list.filter((c) => {
-        const s = c as ChapterSummary;
-        const hasTranslation = 'hasTranslation' in s ? s.hasTranslation : (s.status === 'completed' || s.status === 'draft');
-        switch (statusFilter) {
-          case 'empty':
-            return !hasTranslation;
-          case 'error':
-            return s.status === 'error';
-          case 'completed':
-            return s.status === 'completed';
-          case 'draft':
-            return s.status === 'draft';
-          case 'analyzed':
-            return s.status === 'analyzed';
-          case 'not_analyzed':
-            return !hasLastAnalysis(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } });
-          default:
-            return true;
-        }
-      });
-    }
+    let list = filterChaptersByStatus(allChaptersSorted, statusFilter, (c) =>
+      hasLastAnalysis(
+        c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } }
+      )
+    );
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       list = list.filter(
-        (c) =>
-          String(c.number).includes(q) ||
-          (c.title || '').toLowerCase().includes(q)
+        (c) => String(c.number).includes(q) || (c.title || '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -202,11 +219,7 @@ export function ProcessChapters({
   const totalPages = Math.max(1, Math.ceil(filteredChapters.length / pageSize));
   const clampedPage = Math.min(currentPage, totalPages);
   const paginatedChapters = useMemo(
-    () =>
-      filteredChapters.slice(
-        (clampedPage - 1) * pageSize,
-        clampedPage * pageSize
-      ),
+    () => filteredChapters.slice((clampedPage - 1) * pageSize, clampedPage * pageSize),
     [filteredChapters, clampedPage, pageSize]
   );
 
@@ -254,9 +267,13 @@ export function ProcessChapters({
   useEffect(() => {
     if (showTranslateAllModal) {
       if (!translateModalWasOpenRef.current) {
-        setTranslateSelectionIds(
-          defaultSelectionIds.length > 0 ? defaultSelectionIds : allChaptersSorted.map((c) => c.id)
+        const filtered = filterChaptersByStatus(allChaptersSorted, defaultStatusFilter, (c) =>
+          hasLastAnalysis(
+            c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } }
+          )
         );
+        const toSelect = filtered.length > pageSize ? filtered.slice(0, pageSize) : filtered;
+        setTranslateSelectionIds(toSelect.map((c) => c.id));
         setStatusFilter(defaultStatusFilter);
         setCurrentPage(1);
         translateModalWasOpenRef.current = true;
@@ -264,7 +281,7 @@ export function ProcessChapters({
     } else {
       translateModalWasOpenRef.current = false;
     }
-  }, [showTranslateAllModal, defaultSelectionIds, allChaptersSorted, defaultStatusFilter]);
+  }, [showTranslateAllModal, allChaptersSorted, defaultStatusFilter, pageSize, hasLastAnalysis]);
 
   const toggleBatchStage = useCallback((stage: TranslationStageKind) => {
     setBatchSelectedStages((prev) =>
@@ -306,10 +323,7 @@ export function ProcessChapters({
 
   const handleEditingFocusChange = useCallback(
     async (e: Event) => {
-      const value = (e.target as HTMLSelectElement).value as
-        | 'fix_problems'
-        | 'style_only'
-        | 'both';
+      const value = (e.target as HTMLSelectElement).value as 'fix_problems' | 'style_only' | 'both';
       const updated = await api.updateSettings(project.id, {
         editingFocus: value,
       });
@@ -419,7 +433,10 @@ export function ProcessChapters({
                 variant="secondary"
                 onClick={handleMarkAsTranslatedBatch}
                 disabled={selectedChaptersForTranslate.length === 0}
-                title={t('markAsTranslated.batchTitle', 'Пометить выбранные главы как переведённые')}
+                title={t(
+                  'markAsTranslated.batchTitle',
+                  'Пометить выбранные главы как переведённые'
+                )}
               >
                 <Icon name="done_all" size="sm" />{' '}
                 {t(
@@ -492,117 +509,139 @@ export function ProcessChapters({
           </div>
           <span class="process-chapters-separator">|</span>
           <div class="process-chapters-filter-presets">
-          <button
-            type="button"
-            class={statusFilter === 'all' ? 'process-chapters-preset-active' : ''}
-            onClick={() => {
-              setStatusFilter('all');
-              setCurrentPage(1);
-            }}
-            style={presetButtonStyle('all')}
-          >
-            {t('processChapters.filterAllWithCount', { count: stats.chapters }, `All (${stats.chapters})`)}
-          </button>
-          <button
-            type="button"
-            class={statusFilter === 'empty' ? 'process-chapters-preset-active' : ''}
-            onClick={() => {
-              const chapters = (summary ?? project.chapters).filter(
-                (c) => !(c as ChapterSummary).hasTranslation
-              );
-              setStatusFilter('empty');
-              setTranslateSelectionIds(chapters.map((c) => c.id));
-              setCurrentPage(1);
-            }}
-            style={presetButtonStyle('empty')}
-          >
-            {t('projectInfo.presetEmpty', { count: stats.empty }, 'Пустые ({{count}})')}
-          </button>
-          {stats.error > 0 && (
             <button
               type="button"
-              class={statusFilter === 'error' ? 'process-chapters-preset-active' : ''}
+              class={statusFilter === 'all' ? 'process-chapters-preset-active' : ''}
+              onClick={() => {
+                setStatusFilter('all');
+                setCurrentPage(1);
+              }}
+              style={presetButtonStyle('all')}
+            >
+              {t(
+                'processChapters.filterAllWithCount',
+                { count: stats.chapters },
+                `All (${stats.chapters})`
+              )}
+            </button>
+            <button
+              type="button"
+              class={statusFilter === 'empty' ? 'process-chapters-preset-active' : ''}
               onClick={() => {
                 const chapters = (summary ?? project.chapters).filter(
-                  (c) => (c as ChapterSummary).status === 'error'
+                  (c) => !(c as ChapterSummary).hasTranslation
                 );
-                setStatusFilter('error');
+                setStatusFilter('empty');
                 setTranslateSelectionIds(chapters.map((c) => c.id));
                 setCurrentPage(1);
               }}
-              style={presetButtonStyle('error')}
+              style={presetButtonStyle('empty')}
             >
-              {t('projectInfo.presetErrors', { count: stats.error }, 'С ошибками ({{count}})')}
+              {t('projectInfo.presetEmpty', { count: stats.empty }, 'Пустые ({{count}})')}
             </button>
-          )}
-          {stats.translated > 0 && (
-            <button
-              type="button"
-              class={statusFilter === 'completed' ? 'process-chapters-preset-active' : ''}
-              onClick={() => {
-                const chapters = (summary ?? project.chapters).filter(
-                  (c) => (c as ChapterSummary).status === 'completed'
-                );
-                setStatusFilter('completed');
-                setTranslateSelectionIds(chapters.map((c) => c.id));
-                setCurrentPage(1);
-              }}
-              style={presetButtonStyle('completed')}
-            >
-              {t('projectInfo.presetTranslated', { count: stats.translated }, 'Переведённые ({{count}})')}
-            </button>
-          )}
-          {stats.draft > 0 && (
-            <button
-              type="button"
-              class={statusFilter === 'draft' ? 'process-chapters-preset-active' : ''}
-              onClick={() => {
-                const chapters = (summary ?? project.chapters).filter(
-                  (c) => (c as ChapterSummary).status === 'draft'
-                );
-                setStatusFilter('draft');
-                setTranslateSelectionIds(chapters.map((c) => c.id));
-                setCurrentPage(1);
-              }}
-              style={presetButtonStyle('draft')}
-            >
-              {t('projectInfo.presetDraft', { count: stats.draft }, 'Черновики ({{count}})')}
-            </button>
-          )}
-          {stats.analyzed > 0 && (
-            <button
-              type="button"
-              class={statusFilter === 'analyzed' ? 'process-chapters-preset-active' : ''}
-              onClick={() => {
-                const chapters = (summary ?? project.chapters).filter(
-                  (c) => (c as ChapterSummary).status === 'analyzed'
-                );
-                setStatusFilter('analyzed');
-                setTranslateSelectionIds(chapters.map((c) => c.id));
-                setCurrentPage(1);
-              }}
-              style={presetButtonStyle('analyzed')}
-            >
-              {t('projectInfo.presetAnalyzed', { count: stats.analyzed }, 'Только анализ ({{count}})')}
-            </button>
-          )}
-          {stats.notAnalyzed > 0 && (
-            <button
-              type="button"
-              class={statusFilter === 'not_analyzed' ? 'process-chapters-preset-active' : ''}
-              onClick={() => {
-                const chapters = (summary ?? project.chapters).filter(
-                  (c) => !hasLastAnalysis(c as { lastAnalysisAt?: string; translationMeta?: { lastAnalysisAt?: string } })
-                );
-                setStatusFilter('not_analyzed');
-                setTranslateSelectionIds(chapters.map((c) => c.id));
-                setCurrentPage(1);
-              }}
-              style={presetButtonStyle('not_analyzed')}
-            >
-              {t('projectInfo.presetNotAnalyzed', { count: stats.notAnalyzed }, 'Не проанализированные ({{count}})')}
-            </button>
-          )}
+            {stats.error > 0 && (
+              <button
+                type="button"
+                class={statusFilter === 'error' ? 'process-chapters-preset-active' : ''}
+                onClick={() => {
+                  const chapters = (summary ?? project.chapters).filter(
+                    (c) => (c as ChapterSummary).status === 'error'
+                  );
+                  setStatusFilter('error');
+                  setTranslateSelectionIds(chapters.map((c) => c.id));
+                  setCurrentPage(1);
+                }}
+                style={presetButtonStyle('error')}
+              >
+                {t('projectInfo.presetErrors', { count: stats.error }, 'С ошибками ({{count}})')}
+              </button>
+            )}
+            {stats.translated > 0 && (
+              <button
+                type="button"
+                class={statusFilter === 'completed' ? 'process-chapters-preset-active' : ''}
+                onClick={() => {
+                  const chapters = (summary ?? project.chapters).filter(
+                    (c) => (c as ChapterSummary).status === 'completed'
+                  );
+                  setStatusFilter('completed');
+                  setTranslateSelectionIds(chapters.map((c) => c.id));
+                  setCurrentPage(1);
+                }}
+                style={presetButtonStyle('completed')}
+              >
+                {t(
+                  'projectInfo.presetTranslated',
+                  { count: stats.translated },
+                  'Переведённые ({{count}})'
+                )}
+              </button>
+            )}
+            {stats.draft > 0 && (
+              <button
+                type="button"
+                class={statusFilter === 'draft' ? 'process-chapters-preset-active' : ''}
+                onClick={() => {
+                  const chapters = (summary ?? project.chapters).filter(
+                    (c) => (c as ChapterSummary).status === 'draft'
+                  );
+                  setStatusFilter('draft');
+                  setTranslateSelectionIds(chapters.map((c) => c.id));
+                  setCurrentPage(1);
+                }}
+                style={presetButtonStyle('draft')}
+              >
+                {t('projectInfo.presetDraft', { count: stats.draft }, 'Черновики ({{count}})')}
+              </button>
+            )}
+            {stats.analyzed > 0 && (
+              <button
+                type="button"
+                class={statusFilter === 'analyzed' ? 'process-chapters-preset-active' : ''}
+                onClick={() => {
+                  const chapters = (summary ?? project.chapters).filter(
+                    (c) => (c as ChapterSummary).status === 'analyzed'
+                  );
+                  setStatusFilter('analyzed');
+                  setTranslateSelectionIds(chapters.map((c) => c.id));
+                  setCurrentPage(1);
+                }}
+                style={presetButtonStyle('analyzed')}
+              >
+                {t(
+                  'projectInfo.presetAnalyzed',
+                  { count: stats.analyzed },
+                  'Только анализ ({{count}})'
+                )}
+              </button>
+            )}
+            {stats.notAnalyzed > 0 && (
+              <button
+                type="button"
+                class={statusFilter === 'not_analyzed' ? 'process-chapters-preset-active' : ''}
+                onClick={() => {
+                  const chapters = (summary ?? project.chapters).filter(
+                    (c) =>
+                      !hasLastAnalysis(
+                        c as {
+                          lastAnalysisAt?: string;
+                          translationMeta?: { lastAnalysisAt?: string };
+                        }
+                      )
+                  );
+                  setStatusFilter('not_analyzed');
+                  setTranslateSelectionIds(chapters.map((c) => c.id));
+                  setCurrentPage(1);
+                }}
+                style={presetButtonStyle('not_analyzed')}
+              >
+                {t(
+                  'projectInfo.presetNotAnalyzed',
+                  { count: stats.notAnalyzed },
+                  'Не проанализированные ({{count}})'
+                )}
+              </button>
+            )}
           </div>
           {allChaptersSorted.length >= 100 && (
             <div class="process-chapters-search-wrap">
@@ -647,7 +686,11 @@ export function ProcessChapters({
             }}
             disabled={paginatedChapters.length === 0}
           >
-            {t('processChapters.selectDisplayed', { count: paginatedChapters.length }, `Select displayed (${paginatedChapters.length})`)}
+            {t(
+              'processChapters.selectDisplayed',
+              { count: paginatedChapters.length },
+              `Select displayed (${paginatedChapters.length})`
+            )}
           </button>
           {totalPages > 1 && (
             <span class="process-chapters-page-nav">
@@ -660,7 +703,11 @@ export function ProcessChapters({
                 {t('chapter.prev', 'Previous')}
               </button>
               <span class="process-chapters-page-of">
-                {t('processChapters.pageOf', { current: clampedPage, total: totalPages }, 'Page {{current}} of {{total}}')}
+                {t(
+                  'processChapters.pageOf',
+                  { current: clampedPage, total: totalPages },
+                  'Page {{current}} of {{total}}'
+                )}
               </span>
               <button
                 type="button"
@@ -683,7 +730,19 @@ export function ProcessChapters({
             marginBottom: '0.75rem',
           }}
         >
-          {allChaptersSorted.length === 0 ? (
+          {modalDataRefreshing ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '120px',
+                padding: '1rem',
+              }}
+            >
+              <LoadingSpinner size="sm" text={t('common.loading')} />
+            </div>
+          ) : allChaptersSorted.length === 0 ? (
             <div style={{ padding: '1rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
               {t('projectInfo.noChaptersInProject')}
             </div>
@@ -974,7 +1033,9 @@ export function ProcessChapters({
                 <option value="default">{t('settings.editingStylePreset.default')}</option>
                 <option value="literary">{t('settings.editingStylePreset.literary')}</option>
                 <option value="minimal">{t('settings.editingStylePreset.minimal')}</option>
-                <option value="ai_revivification">{t('settings.editingStylePreset.ai_revivification')}</option>
+                <option value="ai_revivification">
+                  {t('settings.editingStylePreset.ai_revivification')}
+                </option>
               </select>
             </div>
           </div>

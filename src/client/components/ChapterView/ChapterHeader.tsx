@@ -18,6 +18,8 @@ interface ChapterHeaderProps {
   isTranslationPanelOpen?: boolean;
   onApproveAll: () => void;
   onToggleSettings: () => void;
+  onToggleSearch?: () => void;
+  isSearchOpen?: boolean;
   onEnterReadingMode?: () => void;
   onChapterUpdate: (chapter: Chapter) => void;
   isOriginalReadingMode?: boolean;
@@ -37,6 +39,8 @@ export function ChapterHeader({
   isTranslationPanelOpen = false,
   onApproveAll,
   onToggleSettings,
+  onToggleSearch,
+  isSearchOpen = false,
   onEnterReadingMode,
   onChapterUpdate,
   isOriginalReadingMode = false,
@@ -219,6 +223,17 @@ export function ChapterHeader({
               >
                 <Icon name="translate" size="sm" /> {t('chapter.translate', 'Перевод')}
               </Button>
+            )}
+
+            {onToggleSearch && (
+              <button
+                class={`chapter-header-btn ${isSearchOpen ? 'is-active' : ''}`}
+                onClick={onToggleSearch}
+                title={t('searchReplace.findInChapter', 'Find in chapter')}
+                aria-label={t('searchReplace.findInChapter', 'Find in chapter')}
+              >
+                <Icon name="search" />
+              </button>
             )}
 
             <button

@@ -168,8 +168,7 @@ export class AnalyzeStage {
     try {
       const maxSectionTokens = options.maxSectionTokens ?? 8000;
       const estimatedTokensCount = estimateTokens(sourceText);
-      const useChunkedAnalysis =
-        maxSectionTokens > 0 && estimatedTokensCount > maxSectionTokens;
+      const useChunkedAnalysis = maxSectionTokens > 0 && estimatedTokensCount > maxSectionTokens;
 
       let result: AnalysisResult;
       let tokensUsed = 0;
@@ -228,12 +227,7 @@ export class AnalyzeStage {
       { role: 'system', content: ANALYZER_SYSTEM_PROMPT },
       {
         role: 'user',
-        content: createAnalyzerPrompt(
-          sectionText,
-          'English',
-          'Russian',
-          glossaryText || undefined
-        ),
+        content: createAnalyzerPrompt(sectionText, 'English', 'Russian', glossaryText || undefined),
       },
     ];
 
@@ -270,9 +264,15 @@ export class AnalyzeStage {
     const existingLocNames = new Set(existingLocs.map((l) => l.originalName.toLowerCase()));
     const existingTermSet = new Set(existingTermsList.map((t) => t.originalTerm.toLowerCase()));
 
-    const charByName = new Map<string, (typeof sectionResults[0]['foundCharacters'][0]) & { suggestedTranslation?: string }>();
-    const locByName = new Map<string, (typeof sectionResults[0]['foundLocations'][0]) & { suggestedTranslation?: string }>();
-    const termByKey = new Map<string, (typeof sectionResults[0]['foundTerms'][0])>();
+    const charByName = new Map<
+      string,
+      (typeof sectionResults)[0]['foundCharacters'][0] & { suggestedTranslation?: string }
+    >();
+    const locByName = new Map<
+      string,
+      (typeof sectionResults)[0]['foundLocations'][0] & { suggestedTranslation?: string }
+    >();
+    const termByKey = new Map<string, (typeof sectionResults)[0]['foundTerms'][0]>();
 
     for (const r of sectionResults) {
       for (const c of r.foundCharacters) {
@@ -315,9 +315,18 @@ export class AnalyzeStage {
       .filter(Boolean)
       .join(' ');
 
-    const newCharsByOrig = new Map<string, (typeof sectionResults[0])['glossaryUpdate']['newCharacters'][0]>();
-    const newLocsByOrig = new Map<string, (typeof sectionResults[0])['glossaryUpdate']['newLocations'][0]>();
-    const newTermsByOrig = new Map<string, (typeof sectionResults[0])['glossaryUpdate']['newTerms'][0]>();
+    const newCharsByOrig = new Map<
+      string,
+      (typeof sectionResults)[0]['glossaryUpdate']['newCharacters'][0]
+    >();
+    const newLocsByOrig = new Map<
+      string,
+      (typeof sectionResults)[0]['glossaryUpdate']['newLocations'][0]
+    >();
+    const newTermsByOrig = new Map<
+      string,
+      (typeof sectionResults)[0]['glossaryUpdate']['newTerms'][0]
+    >();
 
     for (const r of sectionResults) {
       for (const c of r.glossaryUpdate?.newCharacters ?? []) {

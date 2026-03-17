@@ -29,12 +29,10 @@ function processNext(userId: string): void {
   }
 
   userActive.set(userId, true);
-  job
-    .runFn()
-    .finally(() => {
-      userActive.set(userId, false);
-      processNext(userId);
-    });
+  job.runFn().finally(() => {
+    userActive.set(userId, false);
+    processNext(userId);
+  });
 }
 
 /**

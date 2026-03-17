@@ -142,23 +142,18 @@ export class TranslateStage {
         chunk: TextChunk,
         i: number
       ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> => {
-        return this.translateChunkWithRetry(
-          chunk,
-          i,
-          chunks.length,
-          {
-            fullGlossary,
-            contextText,
-            styleGuide,
-            temperature: options.temperature ?? 0.7,
-            includeGlossary,
-            textBlockTypes: options.textBlockTypes,
-            customInstructions: options.customInstructions,
-            retryAttempts,
-            retryDelayMs,
-            isCancelled: options.isCancelled,
-          }
-        );
+        return this.translateChunkWithRetry(chunk, i, chunks.length, {
+          fullGlossary,
+          contextText,
+          styleGuide,
+          temperature: options.temperature ?? 0.7,
+          includeGlossary,
+          textBlockTypes: options.textBlockTypes,
+          customInstructions: options.customInstructions,
+          retryAttempts,
+          retryDelayMs,
+          isCancelled: options.isCancelled,
+        });
       };
 
       if (parallelChunks <= 1) {
@@ -456,7 +451,9 @@ export class TranslateStage {
             // Preserve paragraph markers for server-side sync by id
             translatedText = paras
               .filter((p) => p.translated && p.translated.trim().length > 0)
-              .map((p) => (p.id ? `${p.id}${(p.translated || '').trim()}` : (p.translated || '').trim()))
+              .map((p) =>
+                p.id ? `${p.id}${(p.translated || '').trim()}` : (p.translated || '').trim()
+              )
               .join('\n\n');
           } else if (paras.length === 1) {
             translatedText = paras[0].translated || '';

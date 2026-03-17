@@ -42,6 +42,8 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const prevJobsRef = useRef<ProjectJobItem[]>([]);
+  const onRefreshRef = useRef(onRefreshProject);
+  onRefreshRef.current = onRefreshProject;
   const [isVisible, setIsVisible] = useState(
     typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
   );
@@ -66,8 +68,8 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
           return !inNew; // Job was active, now gone = completed and removed from index
         });
 
-      if (jobJustFinished && onRefreshProject) {
-        void onRefreshProject();
+      if (jobJustFinished && onRefreshRef.current) {
+        void onRefreshRef.current();
       }
 
       prevJobsRef.current = newJobs;
@@ -77,7 +79,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
     } finally {
       setLoading(false);
     }
-  }, [project.id, onRefreshProject]);
+  }, [project.id]);
 
   const handleCancel = useCallback(
     async (job: ProjectJobItem) => {
@@ -89,17 +91,15 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
           await api.cancelTranslateJob(project.id, job.jobId);
         }
         await fetchJobs();
-        await onRefreshProject?.();
+        await onRefreshRef.current?.();
       } finally {
         setCancelling(null);
       }
     },
-    [project.id, fetchJobs, onRefreshProject]
+    [project.id, fetchJobs]
   );
 
-  const activeCount = jobs.filter(
-    (j) => j.status === 'queued' || j.status === 'processing'
-  ).length;
+  const activeCount = jobs.filter((j) => j.status === 'queued' || j.status === 'processing').length;
 
   useEffect(() => {
     const handler = () => {
@@ -133,9 +133,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
         <Icon name="pending_actions" size="sm" />
         <span class="jobs-panel-title">
           {t('jobsPanel.title')}
-          {activeCount > 0 && (
-            <span class="jobs-panel-badge">{activeCount}</span>
-          )}
+          {activeCount > 0 && <span class="jobs-panel-badge">{activeCount}</span>}
         </span>
       </div>
       {loading ? (
@@ -144,8 +142,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
         <ul class="jobs-panel-list">
           {jobs.map((job) => {
             const canCancel =
-              (job.status === 'queued' || job.status === 'processing') &&
-              cancelling !== job.jobId;
+              (job.status === 'queued' || job.status === 'processing') && cancelling !== job.jobId;
             const statusClass =
               job.status === 'error'
                 ? 'error'
@@ -155,11 +152,12 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                     ? 'canceled'
                     : 'active';
             return (
-              <li key={`${job.type}-${job.jobId}`} class={`jobs-panel-item jobs-panel-item--${statusClass}`}>
+              <li
+                key={`${job.type}-${job.jobId}`}
+                class={`jobs-panel-item jobs-panel-item--${statusClass}`}
+              >
                 <div class="jobs-panel-item-header">
-                  <span class="jobs-panel-item-type">
-                    {jobTypeLabel(job.type, t)}
-                  </span>
+                  <span class="jobs-panel-item-type">{jobTypeLabel(job.type, t)}</span>
                   <span class={`jobs-panel-item-status jobs-panel-item-status--${job.status}`}>
                     {jobStatusLabel(job.status, t)}
                   </span>

@@ -4,7 +4,7 @@ import { route } from 'preact-router';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
-import type { PublicationListItem, Publication } from '../types';
+import type { PublicationListItem, Publication, PublicEntity } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
 import { LoadingSpinner, Input, Select, Icon } from '../components/ui';
 import './HomePage.css';
@@ -17,15 +17,52 @@ function getFilterFromUrl(): CatalogFilter {
   return params.get('filter') === 'mine' ? 'mine' : 'all';
 }
 
+function getEntityFilterFromUrl(): {
+  author?: string;
+  translator?: string;
+  tag?: string;
+} {
+  if (typeof window === 'undefined') return {};
+  const params = new URLSearchParams(window.location.search);
+  const author = params.get('author') || undefined;
+  const translator = params.get('translator') || undefined;
+  const tag = params.get('tag') || undefined;
+  return { author, translator, tag };
+}
+
+function buildCatalogUrl(
+  filter: CatalogFilter,
+  entityFilter: {
+    author?: string;
+    translator?: string;
+    tag?: string;
+  }
+): string {
+  const params = new URLSearchParams();
+  if (filter === 'mine') params.set('filter', 'mine');
+  if (entityFilter.author) params.set('author', entityFilter.author);
+  if (entityFilter.translator) params.set('translator', entityFilter.translator);
+  if (entityFilter.tag) params.set('tag', entityFilter.tag);
+  const q = params.toString();
+  return q ? `/catalog?${q}` : '/catalog';
+}
+
 export function HomePage() {
   const { t } = useTranslation();
   const { isAtLeast } = useUserRole();
   const isAuthor = !!authService.getToken() && isAtLeast('author');
   const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
+  const [entityFilter, setEntityFilter] = useState(getEntityFilterFromUrl);
+  const [entityFilterNames, setEntityFilterNames] = useState<{
+    author?: string;
+    translator?: string;
+    tag?: string;
+  }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('');
   const [orderAsc, setOrderAsc] = useState(false);
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
+  const [entityMap, setEntityMap] = useState<Record<string, PublicEntity | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +80,22 @@ export function HomePage() {
 
   const filteredPublications = useMemo(() => {
     let list = publications;
+    if (filter === 'mine' && isAuthor) {
+      if (entityFilter.author) {
+        list = list.filter((p) => (p as Publication).authorEntityId === entityFilter.author);
+      }
+      if (entityFilter.translator) {
+        list = list.filter(
+          (p) => (p as Publication).translatorEntityId === entityFilter.translator
+        );
+      }
+      if (entityFilter.tag) {
+        list = list.filter((p) => {
+          const ids = (p as Publication).tagEntityIds ?? [];
+          return ids.includes(entityFilter.tag!);
+        });
+      }
+    }
     if (targetLanguage) {
       list = list.filter((p) => p.targetLanguage === targetLanguage);
     }
@@ -66,13 +119,25 @@ export function HomePage() {
       const tb = new Date(b.publishedAt || 0).getTime();
       return orderAsc ? ta - tb : tb - ta;
     });
-  }, [publications, searchQuery, targetLanguage, orderAsc]);
+  }, [publications, filter, isAuthor, entityFilter, searchQuery, targetLanguage, orderAsc]);
 
-  // Sync filter from URL (e.g. browser back/forward)
+  // Sync filter and entity params from URL (browser back/forward, route changes)
   useEffect(() => {
-    const handler = () => setFilter(getFilterFromUrl());
-    window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
+    const syncFromUrl = () => {
+      setFilter(getFilterFromUrl());
+      setEntityFilter(getEntityFilterFromUrl());
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    const handleRouteChange = () => {
+      const path = window.location.pathname;
+      if (path === '/' || path === '/catalog') syncFromUrl();
+    };
+    window.addEventListener('arcane:route-change', handleRouteChange);
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+      window.removeEventListener('arcane:route-change', handleRouteChange);
+    };
   }, []);
 
   const loadIdRef = useRef(0);
@@ -82,6 +147,28 @@ export function HomePage() {
     setLoading(true);
     setError(null);
 
+    const prefetchEntities = (list: (PublicationListItem | Publication)[]) => {
+      const ids = new Set<string>();
+      for (const p of list) {
+        const authorId = (p as Publication).authorEntityId ?? p.authorEntityId;
+        const translatorId = (p as Publication).translatorEntityId ?? p.translatorEntityId;
+        if (authorId) ids.add(authorId);
+        if (translatorId) ids.add(translatorId);
+      }
+      if (ids.size === 0) {
+        setEntityMap({});
+        return;
+      }
+      Promise.all([...ids].map((id) => api.getPublicEntityById(id))).then((results) => {
+        if (loadIdRef.current !== loadId) return;
+        const map: Record<string, PublicEntity | null> = {};
+        [...ids].forEach((id, i) => {
+          map[id] = results[i] ?? null;
+        });
+        setEntityMap(map);
+      });
+    };
+
     if (filter === 'mine' && isAuthor) {
       api
         .getUserPublications()
@@ -89,6 +176,7 @@ export function HomePage() {
           if (loadIdRef.current !== loadId) return;
           const publishedOnly = list.filter((p) => p.status === 'published');
           setPublications(publishedOnly);
+          prefetchEntities(publishedOnly);
         })
         .catch((e) => {
           if (loadIdRef.current !== loadId) return;
@@ -100,10 +188,18 @@ export function HomePage() {
         });
     } else {
       api
-        .getPublications({ limit: 50, orderBy: 'published_at', orderAsc: false })
+        .getPublications({
+          limit: 50,
+          orderBy: 'published_at',
+          orderAsc: false,
+          authorEntityId: entityFilter.author,
+          translatorEntityId: entityFilter.translator,
+          tagEntityId: entityFilter.tag,
+        })
         .then((list) => {
           if (loadIdRef.current !== loadId) return;
           setPublications(list);
+          prefetchEntities(list);
         })
         .catch((e) => {
           if (loadIdRef.current !== loadId) return;
@@ -114,7 +210,32 @@ export function HomePage() {
           setLoading(false);
         });
     }
-  }, [filter, isAuthor]);
+  }, [filter, isAuthor, entityFilter]);
+
+  // Fetch entity names for active filter chips
+  useEffect(() => {
+    const { author, translator, tag } = entityFilter;
+    if (!author && !translator && !tag) {
+      setEntityFilterNames({});
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      author ? api.getPublicEntityById(author) : Promise.resolve(null),
+      translator ? api.getPublicEntityById(translator) : Promise.resolve(null),
+      tag ? api.getPublicEntityById(tag) : Promise.resolve(null),
+    ]).then(([authorEnt, translatorEnt, tagEnt]) => {
+      if (cancelled) return;
+      setEntityFilterNames({
+        author: authorEnt?.name,
+        translator: translatorEnt?.name,
+        tag: tagEnt?.name,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entityFilter]);
 
   useEffect(() => {
     loadData();
@@ -122,13 +243,27 @@ export function HomePage() {
 
   const switchToAll = useCallback(() => {
     setFilter('all');
-    route('/catalog');
-  }, []);
+    route(buildCatalogUrl('all', entityFilter));
+  }, [entityFilter]);
 
   const switchToMine = useCallback(() => {
     setFilter('mine');
-    route('/catalog?filter=mine');
-  }, []);
+    route(buildCatalogUrl('mine', entityFilter));
+  }, [entityFilter]);
+
+  const clearEntityFilter = useCallback(() => {
+    setEntityFilter({});
+    route(buildCatalogUrl(filter, {}));
+  }, [filter]);
+
+  const clearEntityFilterByKey = useCallback(
+    (key: 'author' | 'translator' | 'tag') => {
+      const next = { ...entityFilter, [key]: undefined };
+      setEntityFilter(next);
+      route(buildCatalogUrl(filter, next));
+    },
+    [entityFilter, filter]
+  );
 
   const handleRead = useCallback((path: string) => {
     route(`/p/${path}`);
@@ -166,12 +301,20 @@ export function HomePage() {
     );
   }
 
-  const emptyHint = isMineTab
-    ? t('home.emptyMyWorksHint')
-    : isAuthor
-      ? t('home.publishHint')
-      : t('home.emptyHintGuest');
-  const emptyTitle = isMineTab ? t('home.noMyPublications') : t('home.noPublications');
+  const hasEntityFilter =
+    Boolean(entityFilter.author) || Boolean(entityFilter.translator) || Boolean(entityFilter.tag);
+  const emptyHint = hasEntityFilter
+    ? t('home.clearFilterHint')
+    : isMineTab
+      ? t('home.emptyMyWorksHint')
+      : isAuthor
+        ? t('home.publishHint')
+        : t('home.emptyHintGuest');
+  const emptyTitle = hasEntityFilter
+    ? t('home.noPublicationsForFilter')
+    : isMineTab
+      ? t('home.noMyPublications')
+      : t('home.noPublications');
 
   return (
     <div class="home-page">
@@ -223,6 +366,16 @@ export function HomePage() {
           </div>
           <p class="home-empty-text">{emptyTitle}</p>
           <p class="home-empty-hint">{emptyHint}</p>
+          {hasEntityFilter && (
+            <button
+              type="button"
+              class="page-back-btn"
+              onClick={clearEntityFilter}
+              style={{ marginTop: '1rem' }}
+            >
+              {t('home.clearAllFilters')}
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -262,10 +415,71 @@ export function HomePage() {
               </div>
             </div>
           </div>
+          {hasEntityFilter && (
+            <div class="home-entity-filters">
+              {entityFilter.author && (
+                <span class="home-entity-chip">
+                  {t('home.filterByAuthor')}: {entityFilterNames.author ?? entityFilter.author}
+                  <button
+                    type="button"
+                    class="home-entity-chip-remove"
+                    onClick={() => clearEntityFilterByKey('author')}
+                    aria-label={t('home.clearFilter')}
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {entityFilter.translator && (
+                <span class="home-entity-chip">
+                  {t('home.filterByTranslator')}:{' '}
+                  {entityFilterNames.translator ?? entityFilter.translator}
+                  <button
+                    type="button"
+                    class="home-entity-chip-remove"
+                    onClick={() => clearEntityFilterByKey('translator')}
+                    aria-label={t('home.clearFilter')}
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {entityFilter.tag && (
+                <span class="home-entity-chip">
+                  {t('home.filterByTag')}: {entityFilterNames.tag ?? entityFilter.tag}
+                  <button
+                    type="button"
+                    class="home-entity-chip-remove"
+                    onClick={() => clearEntityFilterByKey('tag')}
+                    aria-label={t('home.clearFilter')}
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              <button type="button" class="home-entity-chip-clear-all" onClick={clearEntityFilter}>
+                {t('home.clearAllFilters')}
+              </button>
+            </div>
+          )}
           {filteredPublications.length === 0 ? (
             <div class="home-empty home-empty-filtered">
-              <p class="home-empty-text">{t('home.noSearchResults')}</p>
-              <p class="home-empty-hint">{t('home.noSearchResultsHint')}</p>
+              <p class="home-empty-text">
+                {hasEntityFilter ? t('home.noPublicationsForFilter') : t('home.noSearchResults')}
+              </p>
+              <p class="home-empty-hint">
+                {hasEntityFilter ? t('home.clearFilterHint') : t('home.noSearchResultsHint')}
+              </p>
+              {hasEntityFilter && (
+                <button
+                  type="button"
+                  class="page-back-btn"
+                  onClick={clearEntityFilter}
+                  style={{ marginTop: '1rem' }}
+                >
+                  {t('home.clearAllFilters')}
+                </button>
+              )}
             </div>
           ) : (
             <div class="home-grid">
@@ -274,6 +488,10 @@ export function HomePage() {
                   key={pub.id}
                   publication={pub}
                   onRead={() => handleRead(pub.slug || pub.id)}
+                  authorEntity={pub.authorEntityId ? entityMap[pub.authorEntityId] : undefined}
+                  translatorEntity={
+                    pub.translatorEntityId ? entityMap[pub.translatorEntityId] : undefined
+                  }
                 />
               ))}
             </div>

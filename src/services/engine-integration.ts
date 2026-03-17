@@ -16,10 +16,7 @@ import {
   type Glossary,
 } from '../engine/index.js';
 import { isChunkError } from '../shared/chunkErrors.js';
-import {
-  getCachedAnalysisResult,
-  setCachedAnalysisResult,
-} from './analysisCache.js';
+import { getCachedAnalysisResult, setCachedAnalysisResult } from './analysisCache.js';
 
 import type { AppConfig } from '../config.js';
 import type {
@@ -809,7 +806,10 @@ export async function analyzeChaptersBatch(
       (e) => e.type === type && e.original.trim().toLowerCase() === orig.trim().toLowerCase()
     );
 
-  const cached: Array<{ chapter: (typeof chapters)[0]; data: import('./analysisCache.js').CachedAnalysisResult }> = [];
+  const cached: Array<{
+    chapter: (typeof chapters)[0];
+    data: import('./analysisCache.js').CachedAnalysisResult;
+  }> = [];
   const toAnalyze: typeof chapters = [];
 
   if (useCache) {
@@ -835,7 +835,8 @@ export async function analyzeChaptersBatch(
     });
   }
 
-  let batchResult: Awaited<ReturnType<TranslationPipeline['analyzeChaptersParallel']>> | null = null;
+  let batchResult: Awaited<ReturnType<TranslationPipeline['analyzeChaptersParallel']>> | null =
+    null;
   if (toAnalyze.length > 0) {
     batchResult = await pipeline.analyzeChaptersParallel(
       toAnalyze.map((ch) => ({
@@ -846,7 +847,8 @@ export async function analyzeChaptersBatch(
       {
         includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
         temperatureByStage: {
-          analysis: project.settings?.temperatureByStage?.analysis ?? project.settings?.temperature ?? 0.5,
+          analysis:
+            project.settings?.temperatureByStage?.analysis ?? project.settings?.temperature ?? 0.5,
         },
         analysisMaxSectionTokens: config.translation?.analysisMaxSectionTokens,
         analysisConcurrency: options.analysisConcurrency ?? 4,
@@ -955,33 +957,52 @@ export async function analyzeChaptersBatch(
     }
   }
 
-  const newCharsByOrig = new Map<string, (typeof allResults[0]['data']['glossaryUpdate']['newCharacters'][0])>();
-  const newLocsByOrig = new Map<string, (typeof allResults[0]['data']['glossaryUpdate']['newLocations'][0])>();
-  const newTermsByOrig = new Map<string, (typeof allResults[0]['data']['glossaryUpdate']['newTerms'][0])>();
+  const newCharsByOrig = new Map<
+    string,
+    (typeof allResults)[0]['data']['glossaryUpdate']['newCharacters'][0]
+  >();
+  const newLocsByOrig = new Map<
+    string,
+    (typeof allResults)[0]['data']['glossaryUpdate']['newLocations'][0]
+  >();
+  const newTermsByOrig = new Map<
+    string,
+    (typeof allResults)[0]['data']['glossaryUpdate']['newTerms'][0]
+  >();
 
   for (const { data } of allResults) {
     const gu = data.glossaryUpdate;
     for (const c of gu.newCharacters ?? []) {
       const key = c.originalName.toLowerCase();
-      if (!newCharsByOrig.has(key) && !project.glossary.some((e) => e.type === 'character' && e.original.toLowerCase() === key)) {
+      if (
+        !newCharsByOrig.has(key) &&
+        !project.glossary.some((e) => e.type === 'character' && e.original.toLowerCase() === key)
+      ) {
         newCharsByOrig.set(key, c);
       }
     }
     for (const l of gu.newLocations ?? []) {
       const key = l.originalName.toLowerCase();
-      if (!newLocsByOrig.has(key) && !project.glossary.some((e) => e.type === 'location' && e.original.toLowerCase() === key)) {
+      if (
+        !newLocsByOrig.has(key) &&
+        !project.glossary.some((e) => e.type === 'location' && e.original.toLowerCase() === key)
+      ) {
         newLocsByOrig.set(key, l);
       }
     }
     for (const t of gu.newTerms ?? []) {
       const key = t.originalTerm.toLowerCase();
-      if (!newTermsByOrig.has(key) && !project.glossary.some((e) => e.type === 'term' && e.original.toLowerCase() === key)) {
+      if (
+        !newTermsByOrig.has(key) &&
+        !project.glossary.some((e) => e.type === 'term' && e.original.toLowerCase() === key)
+      ) {
         newTermsByOrig.set(key, t);
       }
     }
   }
 
-  const minChapter = allResults.length > 0 ? Math.min(...allResults.map((r) => r.chapterNumber)) : 1;
+  const minChapter =
+    allResults.length > 0 ? Math.min(...allResults.map((r) => r.chapterNumber)) : 1;
   let idx = 0;
   for (const c of newCharsByOrig.values()) {
     const chaps = entityChapters.get(`char:${c.originalName.toLowerCase()}`) ?? [minChapter];
@@ -1081,7 +1102,10 @@ export async function analyzeChaptersBatch(
     return combinedGlossary.find(
       (e) =>
         e.type === type &&
-        e.original.trim().toLowerCase().startsWith(n + ' ')
+        e.original
+          .trim()
+          .toLowerCase()
+          .startsWith(n + ' ')
     );
   };
 
@@ -1089,11 +1113,15 @@ export async function analyzeChaptersBatch(
     const analysis = data;
     const ids = new Set<string>();
     for (const c of analysis.foundCharacters ?? []) {
-      const entry = c.isNew ? byShortFormOrNew(c.name, 'character') : byOriginalOrNew(c.name, 'character');
+      const entry = c.isNew
+        ? byShortFormOrNew(c.name, 'character')
+        : byOriginalOrNew(c.name, 'character');
       if (entry?.id) ids.add(entry.id);
     }
     for (const l of analysis.foundLocations ?? []) {
-      const entry = l.isNew ? byShortFormOrNew(l.name, 'location') : byOriginalOrNew(l.name, 'location');
+      const entry = l.isNew
+        ? byShortFormOrNew(l.name, 'location')
+        : byOriginalOrNew(l.name, 'location');
       if (entry?.id) ids.add(entry.id);
     }
     for (const t of analysis.foundTerms ?? []) {

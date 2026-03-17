@@ -104,6 +104,12 @@
   outline-offset: 2px;
 }
 
+.chapter-header-btn.is-active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .chapter-title-wrapper {
   display: flex;
   align-items: center;
@@ -243,7 +249,6 @@
   cursor: not-allowed;
   transform: none !important;
 }
-
 
 /* При редактировании названия: ограничиваем ширину поля, чтобы справа не наезжало на статус/кнопки */
 .chapter-header.is-editing-title .chapter-title-edit {

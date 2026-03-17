@@ -7,6 +7,7 @@
  */
 
 import 'dotenv/config';
+import crypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -38,6 +39,8 @@ import {
   getGlossaryEntry,
   deleteGlossaryEntry,
   updateParagraph,
+  searchParagraphsInProject,
+  bulkUpdateParagraphs,
   updateReaderSettings,
   getReaderSettings,
   resetStuckChapters,
@@ -58,7 +61,13 @@ import {
   getUserReaderSettings,
   updateUserReaderSettings,
   getUserReadingHistory,
+  createTranslationReport,
+  getTranslationReportsCountByProject,
+  getTranslationReportsByProject,
   createPublicEntity,
+  updatePublicEntity,
+  deletePublicEntity,
+  countPublicationsUsingEntity,
   listPublicEntities,
   getPublicEntityById,
   type MarkTranslatedBatchResult,
@@ -318,7 +327,12 @@ import {
   createSignedUrl,
   listFiles,
 } from './services/storage.js';
-import { CACHE_PREFIX, CACHE_TTL, cacheVersionedKey } from './shared/cacheContract.js';
+import {
+  CACHE_PREFIX,
+  CACHE_SCHEMA_VERSION,
+  CACHE_TTL,
+  cacheVersionedKey,
+} from './shared/cacheContract.js';
 import {
   buildRedisKey,
   redisDelMany,
@@ -479,13 +493,19 @@ function publicationsListCacheKey(options: {
   offset: number;
   orderBy: string;
   orderAsc: boolean;
+  authorEntityId?: string;
+  translatorEntityId?: string;
+  tagEntityId?: string;
 }): string {
   return buildRedisKey(
     CACHE_PREFIX.publicationsList,
     options.limit,
     options.offset,
     options.orderBy,
-    options.orderAsc
+    options.orderAsc,
+    options.authorEntityId ?? '',
+    options.translatorEntityId ?? '',
+    options.tagEntityId ?? ''
   );
 }
 
@@ -525,6 +545,10 @@ function readingHistoryCacheKey(userId: string): string {
   return buildRedisKey(CACHE_PREFIX.userReadingHistory, userId);
 }
 
+function projectReportsCountCacheKey(projectId: string): string {
+  return buildRedisKey(CACHE_PREFIX.projectReportsCount, projectId);
+}
+
 function invalidateUserProjectCaches(userId: string, projectId?: string): Promise<void> {
   const keys = [userProjectsCacheKey(userId)];
   if (projectId) {
@@ -552,22 +576,22 @@ async function invalidatePublicationCaches(
   }
 }
 
-function invalidatePublicationListCaches(): Promise<void> {
-  return redisDelMany([
-    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'published_at', orderAsc: false }),
-    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'published_at', orderAsc: true }),
-    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'created_at', orderAsc: false }),
-    publicationsListCacheKey({ limit: 50, offset: 0, orderBy: 'created_at', orderAsc: true }),
-  ]);
+async function invalidatePublicationListCaches(): Promise<void> {
+  const pattern = `${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.publicationsList}:*`;
+  await redisDelByPattern(pattern);
 }
 
-function invalidatePublicEntitiesCaches(): Promise<void> {
-  return redisDelMany([
+function invalidatePublicEntitiesCaches(entityId?: string): Promise<void> {
+  const keys = [
     publicEntitiesCacheKey(),
     publicEntitiesCacheKey('tag'),
     publicEntitiesCacheKey('author'),
     publicEntitiesCacheKey('translator'),
-  ]);
+  ];
+  if (entityId) {
+    keys.push(publicEntityCacheKey(entityId));
+  }
+  return redisDelMany(keys);
 }
 
 async function invalidateProjectAndRelatedCaches(
@@ -1175,6 +1199,65 @@ app.get(
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to get chapters summary' });
+    }
+  }
+);
+
+// Search paragraphs in project (requires auth)
+app.get('/api/projects/:id/search', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const projectId = req.params.id;
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const field = (req.query.field as 'original' | 'translated' | 'both') || 'translated';
+
+    const token = requireToken(req);
+    const project = await getProject(projectId, req.user.id, token);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const matches = await searchParagraphsInProject(projectId, q, field, token);
+    res.json({ matches });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    res.status(500).json({ error: 'Failed to search project' });
+  }
+});
+
+// Bulk update paragraphs (requires auth)
+app.post(
+  '/api/projects/:id/paragraphs/bulk-update',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const projectId = req.params.id;
+      const { updates } = req.body as {
+        updates: Array<{ chapterId: string; paragraphId: string; translatedText: string }>;
+      };
+
+      if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ error: 'updates array required' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const result = await bulkUpdateParagraphs(projectId, updates, token);
+      await invalidateUserProjectCaches(req.user.id, projectId);
+      res.json(result);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      res.status(500).json({ error: 'Failed to bulk update paragraphs' });
     }
   }
 );
@@ -3020,7 +3103,9 @@ app.post(
                 const ch = chapterMap.get(chapterId);
                 if (!ch) return;
                 totalTokensAccum += progResult.tokensUsed;
-                const status: AnalysisJobChapter['status'] = progResult.success ? 'completed' : 'error';
+                const status: AnalysisJobChapter['status'] = progResult.success
+                  ? 'completed'
+                  : 'error';
                 const jobNow = await analysisJobStore.getJob(jobId);
                 if (!jobNow) return;
                 const updatedChapters = jobNow.chapters.map((c) =>
@@ -3028,7 +3113,9 @@ app.post(
                     ? { ...c, status, tokensUsed: progResult.tokensUsed }
                     : c
                 );
-                const completedCount = updatedChapters.filter((c) => c.status === 'completed').length;
+                const completedCount = updatedChapters.filter(
+                  (c) => c.status === 'completed'
+                ).length;
                 const errorCount = updatedChapters.filter((c) => c.status === 'error').length;
 
                 if (progResult.success) {
@@ -3041,8 +3128,7 @@ app.post(
                     useServiceRole: true,
                   });
                   const preserveStatus =
-                    existingChapter?.status === 'completed' ||
-                    existingChapter?.status === 'draft';
+                    existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
                   const preservedSource = existingChapter?.translationMeta?.source;
                   await updateChapter(
                     projectId,
@@ -3057,13 +3143,11 @@ app.post(
                           analysis: progResult.tokensUsed,
                           translation:
                             existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
-                          editing:
-                            existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
+                          editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
                         },
                         duration: 0,
                         model: analysisModel,
-                        translatedAt:
-                          existingChapter?.translationMeta?.translatedAt ?? nowIso,
+                        translatedAt: existingChapter?.translationMeta?.translatedAt ?? nowIso,
                         lastAnalysisAt: nowIso,
                         ...(preservedSource ? { source: preservedSource } : {}),
                       },
@@ -3092,7 +3176,10 @@ app.post(
               try {
                 await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
               } catch (tokenError) {
-                req.log?.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
+                req.log?.warn(
+                  { err: tokenError },
+                  'Failed to release tokens on cancel (non-critical)'
+                );
               }
               return;
             }
@@ -3176,7 +3263,10 @@ app.post(
             try {
               await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
             } catch (tokenError) {
-              req.log?.warn({ err: tokenError }, 'Failed to release tokens on error (non-critical)');
+              req.log?.warn(
+                { err: tokenError },
+                'Failed to release tokens on error (non-critical)'
+              );
             }
           } finally {
             await analysisJobStore.removeFromProjectIndex(projectId, jobId);
@@ -3214,20 +3304,24 @@ app.post(
               useServiceRole: true,
             });
             if (entry) {
-              const merged = [
-                ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
-              ].sort((a, b) => a - b);
-              await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
-                useServiceRole: true,
-              });
+              const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
+                (a, b) => a - b
+              );
+              await updateGlossaryEntry(
+                projectId,
+                entryId,
+                { mentionedInChapters: merged },
+                token,
+                {
+                  useServiceRole: true,
+                }
+              );
             }
           }
         }
         const nowIso = new Date().toISOString();
         const analysisModel =
-          project.settings?.stageModels?.analysis ??
-          project.settings?.model ??
-          config.openai.model;
+          project.settings?.stageModels?.analysis ?? project.settings?.model ?? config.openai.model;
         const existingChapter = await getChapter(projectId, chResult.chapterId, token, {
           useServiceRole: true,
         });
@@ -3245,15 +3339,12 @@ app.post(
               tokensByStage: {
                 ...(existingChapter?.translationMeta?.tokensByStage || {}),
                 analysis: chResult.tokensUsed,
-                translation:
-                  existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
-                editing:
-                  existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
+                translation: existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
+                editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
               },
               duration: result.totalDuration,
               model: analysisModel,
-              translatedAt:
-                existingChapter?.translationMeta?.translatedAt ?? nowIso,
+              translatedAt: existingChapter?.translationMeta?.translatedAt ?? nowIso,
               lastAnalysisAt: nowIso,
               ...(preservedSource ? { source: preservedSource } : {}),
             },
@@ -3264,11 +3355,17 @@ app.post(
       }
 
       try {
-        await incrementTokenUsage(req.user.id, token, result.totalTokensUsed, {
-          analysis: result.totalTokensUsed,
-          translation: 0,
-          editing: 0,
-        }, { useServiceRole: true });
+        await incrementTokenUsage(
+          req.user.id,
+          token,
+          result.totalTokensUsed,
+          {
+            analysis: result.totalTokensUsed,
+            translation: 0,
+            editing: 0,
+          },
+          { useServiceRole: true }
+        );
       } catch (tokenError) {
         req.log?.warn({ err: tokenError }, 'Failed to update token usage (non-critical)');
       }
@@ -3298,39 +3395,31 @@ app.post(
 );
 
 // List all jobs for a project (analysis + translate)
-app.get(
-  '/api/projects/:projectId/jobs',
-  requireAuth,
-  requireRole('author'),
-  async (req, res) => {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const projectId = req.params.projectId;
-    const project = await getProject(projectId, req.user.id, requireToken(req));
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+app.get('/api/projects/:projectId/jobs', requireAuth, requireRole('author'), async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  const projectId = req.params.projectId;
+  const project = await getProject(projectId, req.user.id, requireToken(req));
+  if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const [analysisJobs, translateJobs] = await Promise.all([
-      analysisJobStore.listByProject(projectId),
-      translateJobStore.listByProject(projectId),
-    ]);
+  const [analysisJobs, translateJobs] = await Promise.all([
+    analysisJobStore.listByProject(projectId),
+    translateJobStore.listByProject(projectId),
+  ]);
 
-    const jobs = [
-      ...analysisJobs
-        .filter((j) => j.userId === req.user!.id)
-        .map((j) => ({ type: 'analysis' as const, ...toPublicAnalysisJob(j, { compact: true }) })),
-      ...translateJobs
-        .filter((j) => j.userId === req.user!.id)
-        .map((j) => ({ type: 'translate' as const, ...toPublicTranslateJob(j, { compact: true }) })),
-    ].sort(
-      (a, b) =>
-        new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-    );
+  const jobs = [
+    ...analysisJobs
+      .filter((j) => j.userId === req.user!.id)
+      .map((j) => ({ type: 'analysis' as const, ...toPublicAnalysisJob(j, { compact: true }) })),
+    ...translateJobs
+      .filter((j) => j.userId === req.user!.id)
+      .map((j) => ({ type: 'translate' as const, ...toPublicTranslateJob(j, { compact: true }) })),
+  ].sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
 
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.json({ jobs });
-  }
-);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.json({ jobs });
+});
 
 // Analysis job status (polling endpoint)
 app.get(
@@ -3439,12 +3528,7 @@ app.post(
         0
       );
       const estimatedTokens = estimateTokensForStages(totalTextLength, stages);
-      const limitCheck = await checkTokenLimit(
-        req.user.id,
-        token,
-        estimatedTokens,
-        req.user.role
-      );
+      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
       if (!limitCheck.allowed) {
         const now = new Date();
         const resetTime = new Date(
@@ -3618,7 +3702,10 @@ app.post(
               try {
                 await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
               } catch (tokenError) {
-                req.log?.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
+                req.log?.warn(
+                  { err: tokenError },
+                  'Failed to release tokens on cancel (non-critical)'
+                );
               }
               await translateJobStore.removeFromProjectIndex(projectId, jobId);
               return;
@@ -3645,7 +3732,10 @@ app.post(
             try {
               await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
             } catch (tokenError) {
-              req.log?.warn({ err: tokenError }, 'Failed to release tokens on error (non-critical)');
+              req.log?.warn(
+                { err: tokenError },
+                'Failed to release tokens on error (non-critical)'
+              );
             }
           } finally {
             await translateJobStore.removeFromProjectIndex(projectId, jobId);
@@ -4553,7 +4643,10 @@ async function performTranslation(
             .filter(Boolean);
         }
       } else {
-        logger.debug({ projectId, chapterId }, 'Auto-sync: translation to paragraphs (text format)');
+        logger.debug(
+          { projectId, chapterId },
+          'Auto-sync: translation to paragraphs (text format)'
+        );
         syncedParagraphs = syncTranslationChunksToParagraphs(
           originalParagraphsForSync,
           translatedChunks,
@@ -5587,6 +5680,38 @@ async function translateWithOpenAI(
   return { text: translatedText, tokensUsed };
 }
 
+// ============ Translation Reports ============
+
+app.get('/api/projects/:id/reports-count', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = requireToken(req);
+    const projectId = req.params.id;
+
+    const count = await withRedisCache(
+      projectReportsCountCacheKey(projectId),
+      CACHE_TTL.redisProjectReportsCountSec,
+      () => getTranslationReportsCountByProject(projectId, userId, token)
+    );
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get reports count' });
+  }
+});
+
+app.get('/api/projects/:id/reports', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const token = requireToken(req);
+    const projectId = req.params.id;
+
+    const reports = await getTranslationReportsByProject(projectId, userId, token);
+    res.json(reports);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get reports' });
+  }
+});
+
 // ============ Glossary ============
 
 app.get('/api/projects/:id/glossary', requireAuth, requireRole('author'), async (req, res) => {
@@ -5684,7 +5809,16 @@ app.put(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const { original, translated, type, gender, description, notes, relatedEntryIds, primaryLocationId } = req.body;
+      const {
+        original,
+        translated,
+        type,
+        gender,
+        description,
+        notes,
+        relatedEntryIds,
+        primaryLocationId,
+      } = req.body;
 
       let declensions = req.body.declensions;
 
@@ -5703,8 +5837,10 @@ app.put(
         notes, // User notes (separate from description)
         declensions,
       };
-      if (relatedEntryIds !== undefined) updates.relatedEntryIds = Array.isArray(relatedEntryIds) ? relatedEntryIds : [];
-      if (primaryLocationId !== undefined) updates.primaryLocationId = primaryLocationId || undefined;
+      if (relatedEntryIds !== undefined)
+        updates.relatedEntryIds = Array.isArray(relatedEntryIds) ? relatedEntryIds : [];
+      if (primaryLocationId !== undefined)
+        updates.primaryLocationId = primaryLocationId || undefined;
 
       const entry = await updateGlossaryEntry(
         req.params.projectId,
@@ -7102,8 +7238,20 @@ const publicEntityCreateSchema = z.object({
 
 const publicEntityListQuerySchema = z.object({
   kind: z.enum(publicEntityKinds).optional(),
+  search: z.string().trim().max(100).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
+});
+
+const publicEntityUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform((value) => (value !== undefined && value.length > 0 ? value : null)),
+  photoUrl: z.string().trim().url().max(2048).nullable().optional(),
 });
 
 // ============ Publications (public catalog) ============
@@ -7196,12 +7344,13 @@ app.get('/api/public/entities', async (req, res) => {
       });
     }
 
-    const { kind, limit, offset } = parseResult.data;
-    const entities = await withRedisCache(
-      publicEntitiesCacheKey(kind),
-      CACHE_TTL.redisPublicEntitiesSec,
-      () => listPublicEntities({ kind, limit, offset })
-    );
+    const { kind, search, limit, offset } = parseResult.data;
+    const listOptions = { kind, search, limit, offset };
+    const entities = search
+      ? await listPublicEntities(listOptions)
+      : await withRedisCache(publicEntitiesCacheKey(kind), CACHE_TTL.redisPublicEntitiesSec, () =>
+          listPublicEntities(listOptions)
+        );
 
     res.json(entities);
   } catch (error) {
@@ -7230,6 +7379,118 @@ app.get('/api/public/entities/:id', async (req, res) => {
   }
 });
 
+// Update global public entity (admin only)
+app.patch(
+  '/api/admin/entities/:id',
+  requireAuth,
+  requireRole('admin'),
+  uploadImage.single('photo'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const entityId = req.params.id;
+      const existing = await getPublicEntityById(entityId);
+      if (!existing) {
+        return res.status(404).json({ error: 'Entity not found' });
+      }
+
+      const parseResult = publicEntityUpdateSchema.safeParse({
+        name: req.body?.name,
+        description: req.body?.description,
+        photoUrl: req.body?.photoUrl,
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          error: 'Invalid request body',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const token = requireToken(req);
+      const updates: { name?: string; description?: string | null; photoUrl?: string | null } = {};
+      if (parseResult.data.name !== undefined) updates.name = parseResult.data.name;
+      if (parseResult.data.description !== undefined)
+        updates.description = parseResult.data.description;
+      let photoUrl: string | null | undefined = parseResult.data.photoUrl;
+
+      // Support removePhoto from FormData
+      if (req.body?.removePhoto === 'true' || req.body?.removePhoto === true) {
+        photoUrl = null;
+      }
+
+      if (req.file) {
+        const ext = path.extname(req.file.originalname).slice(1) || 'jpg';
+        const storagePath = generateUniqueFilename(`public-entity-${existing.kind}`, ext);
+        const uploaded = await uploadFile('images', storagePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+        });
+        photoUrl = uploaded.publicUrl;
+      }
+
+      if (photoUrl !== undefined) updates.photoUrl = photoUrl;
+
+      const entity = await updatePublicEntity(entityId, updates, token);
+      await invalidatePublicEntitiesCaches(entityId);
+      res.json(entity);
+    } catch (error) {
+      req.log?.error({ err: error }, 'Failed to update public entity');
+      res.status(500).json({ error: 'Failed to update public entity' });
+    }
+  }
+);
+
+// Delete global public entity (admin only)
+app.delete('/api/admin/entities/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const entityId = req.params.id;
+    const existing = await getPublicEntityById(entityId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Entity not found' });
+    }
+
+    const usageCount = await countPublicationsUsingEntity(entityId);
+    if (usageCount > 0) {
+      return res.status(409).json({
+        error: 'Entity is used by publications',
+        usageCount,
+      });
+    }
+
+    const token = requireToken(req);
+    await deletePublicEntity(entityId, token);
+    await invalidatePublicEntitiesCaches(entityId);
+    res.status(204).send();
+  } catch (error) {
+    req.log?.error({ err: error }, 'Failed to delete public entity');
+    res.status(500).json({ error: 'Failed to delete public entity' });
+  }
+});
+
+// Get entity usage count (admin only)
+app.get('/api/admin/entities/:id/usage', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const entityId = req.params.id;
+    const existing = await getPublicEntityById(entityId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Entity not found' });
+    }
+
+    const usageCount = await countPublicationsUsingEntity(entityId);
+    res.json({ usageCount });
+  } catch (error) {
+    req.log?.error({ err: error }, 'Failed to get entity usage');
+    res.status(500).json({ error: 'Failed to get entity usage' });
+  }
+});
+
 // List published publications (public, no auth)
 app.get('/api/publications', async (req, res) => {
   try {
@@ -7237,10 +7498,30 @@ app.get('/api/publications', async (req, res) => {
     const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
     const orderBy = (req.query.orderBy as string) === 'created_at' ? 'created_at' : 'published_at';
     const orderAsc = req.query.orderAsc === 'true';
+    const authorEntityId = (req.query.author as string) || undefined;
+    const translatorEntityId = (req.query.translator as string) || undefined;
+    const tagEntityId = (req.query.tag as string) || undefined;
     const list = await withRedisCache(
-      publicationsListCacheKey({ limit, offset, orderBy, orderAsc }),
+      publicationsListCacheKey({
+        limit,
+        offset,
+        orderBy,
+        orderAsc,
+        authorEntityId,
+        translatorEntityId,
+        tagEntityId,
+      }),
       CACHE_TTL.redisPublicationsListSec,
-      () => listPublicationsPublic({ limit, offset, orderBy, orderAsc })
+      () =>
+        listPublicationsPublic({
+          limit,
+          offset,
+          orderBy,
+          orderAsc,
+          authorEntityId,
+          translatorEntityId,
+          tagEntityId,
+        })
     );
     res.json(list);
   } catch (error) {
@@ -7356,6 +7637,56 @@ app.get('/api/publications/:id/read-progress', optionalAuth, async (req, res) =>
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to get read progress';
     res.status(500).json({ error: msg });
+  }
+});
+
+// Report translation (public, optional auth)
+app.post('/api/publications/:id/report', optionalAuth, async (req, res) => {
+  try {
+    const slugOrId = req.params.id;
+    const pub = await getPublicationBySlugOrId(slugOrId);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    const body = req.body as { chapterId?: string; description?: string };
+    const chapterId = body.chapterId;
+    const description = body.description;
+
+    if (!chapterId || typeof chapterId !== 'string') {
+      res.status(400).json({ error: 'chapterId is required' });
+      return;
+    }
+    if (!description || typeof description !== 'string') {
+      res.status(400).json({ error: 'description is required' });
+      return;
+    }
+
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      '';
+    const reporterIpHash = ip
+      ? crypto.createHash('sha256').update(ip).digest('hex').substring(0, 32)
+      : null;
+
+    const { id } = await createTranslationReport({
+      publicationId: pub.id,
+      chapterId,
+      description,
+      reporterUserId: req.user?.id ?? null,
+      reporterIpHash,
+    });
+
+    // Invalidate reports count cache for publication's project
+    await redisDelMany([projectReportsCountCacheKey(pub.projectId)]);
+
+    res.json({ success: true, id });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to submit report';
+    const status = msg.includes('wait') ? 429 : msg.includes('not found') ? 404 : 500;
+    res.status(status).json({ error: msg });
   }
 });
 

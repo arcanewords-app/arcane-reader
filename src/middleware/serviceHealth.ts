@@ -36,6 +36,8 @@ const INFRASTRUCTURE_MESSAGE_PATTERNS = [
   'supabase',
   'postgres',
   'PGRST',
+  'redis',
+  'upstash',
 ];
 
 /**
@@ -114,12 +116,14 @@ export function serviceUnavailableErrorHandler(
 
   if (isSupabaseError(err)) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    serviceHealthManager.reportError('supabase', errorMessage);
-    req.log?.warn({ err }, 'Service unavailable (Supabase)');
+    const msg = errorMessage.toLowerCase();
+    const service = msg.includes('redis') || msg.includes('upstash') ? 'redis' : 'supabase';
+    serviceHealthManager.reportError(service, errorMessage);
+    req.log?.warn({ err, service }, 'Service unavailable');
     res.status(503).json({
       error: errorMessage,
       code: 'SERVICE_UNAVAILABLE',
-      service: 'supabase',
+      service,
     });
     return;
   }

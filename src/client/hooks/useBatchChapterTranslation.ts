@@ -343,95 +343,109 @@ export function useBatchChapterTranslation(
 
                 try {
                   await api.translateChapter(projectId, chapter.id, body);
-                const result = await pollChapterUntilDone(
-                  projectId,
-                  chapter.id,
-                  () => cancelledRef.current,
-                  t
-                );
-
-                await onRefreshProject();
-                const updatedProject = await getProjectFromStore(projectId);
-                const updatedChapter = updatedProject?.chapters.find((c) => c.id === chapter.id);
-
-                if (result.success && updatedProject && updatedChapter) {
-                  const chapterDuration =
-                    updatedChapter.translationMeta?.duration ?? Date.now() - chapterStartTime;
-                  const tokensUsed = updatedChapter.translationMeta?.tokensUsed ?? 0;
-                  const tokensByStage = updatedChapter.translationMeta?.tokensByStage;
-                  const currentGlossaryCount = updatedProject.glossary.length;
-                  const prevGlossaryCount = initialGlossaryCountRef.current;
-                  const glossaryEntries = Math.max(0, currentGlossaryCount - prevGlossaryCount);
-
-                  setProgress((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          completed: prev.completed + 1,
-                          totalTokens: prev.totalTokens + tokensUsed,
-                          totalDuration: prev.totalDuration + chapterDuration,
-                          totalGlossaryEntries: currentGlossaryCount - batchStartGlossary,
-                          chapters: prev.chapters.map((c) =>
-                            c.chapterId === chapter.id
-                              ? {
-                                  ...c,
-                                  status: 'completed' as const,
-                                  tokensUsed,
-                                  tokensByStage,
-                                  duration: chapterDuration,
-                                  glossaryEntries,
-                                }
-                              : c
-                          ),
-                        }
-                      : null
+                  const result = await pollChapterUntilDone(
+                    projectId,
+                    chapter.id,
+                    () => cancelledRef.current,
+                    t
                   );
-                  initialGlossaryCountRef.current = currentGlossaryCount;
-                } else if (result.cancelled) {
-                  setProgress((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          chapters: prev.chapters.map((c) =>
-                            c.chapterId === chapter.id ? { ...c, status: 'pending' as const } : c
-                          ),
-                        }
-                      : null
-                  );
-                } else {
-                  setProgress((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          errors: prev.errors + 1,
-                          chapters: prev.chapters.map((c) =>
-                            c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
-                          ),
-                        }
-                      : null
-                  );
-                }
-              } catch (err: unknown) {
-                const status = (err as { status?: number })?.status;
-                const errorData = (err as { data?: { message?: string } })?.data;
-                console.error(`Translation error for chapter ${chapter.id}:`, err);
 
-                if (status === 429) {
-                  const msg = t('projectInfo.tokenLimitExceededChapter', {
-                    title: chapter.title,
-                    message: errorData?.message ?? t('tokenLimit.dailyExhaustedShort'),
-                  });
-                  if (onError) {
-                    onError(t('tokenLimit.titleExceeded'), msg);
+                  await onRefreshProject();
+                  const updatedProject = await getProjectFromStore(projectId);
+                  const updatedChapter = updatedProject?.chapters.find((c) => c.id === chapter.id);
+
+                  if (result.success && updatedProject && updatedChapter) {
+                    const chapterDuration =
+                      updatedChapter.translationMeta?.duration ?? Date.now() - chapterStartTime;
+                    const tokensUsed = updatedChapter.translationMeta?.tokensUsed ?? 0;
+                    const tokensByStage = updatedChapter.translationMeta?.tokensByStage;
+                    const currentGlossaryCount = updatedProject.glossary.length;
+                    const prevGlossaryCount = initialGlossaryCountRef.current;
+                    const glossaryEntries = Math.max(0, currentGlossaryCount - prevGlossaryCount);
+
+                    setProgress((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            completed: prev.completed + 1,
+                            totalTokens: prev.totalTokens + tokensUsed,
+                            totalDuration: prev.totalDuration + chapterDuration,
+                            totalGlossaryEntries: currentGlossaryCount - batchStartGlossary,
+                            chapters: prev.chapters.map((c) =>
+                              c.chapterId === chapter.id
+                                ? {
+                                    ...c,
+                                    status: 'completed' as const,
+                                    tokensUsed,
+                                    tokensByStage,
+                                    duration: chapterDuration,
+                                    glossaryEntries,
+                                  }
+                                : c
+                            ),
+                          }
+                        : null
+                    );
+                    initialGlossaryCountRef.current = currentGlossaryCount;
+                  } else if (result.cancelled) {
+                    setProgress((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            chapters: prev.chapters.map((c) =>
+                              c.chapterId === chapter.id ? { ...c, status: 'pending' as const } : c
+                            ),
+                          }
+                        : null
+                    );
                   } else {
-                    alert(msg);
+                    setProgress((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            errors: prev.errors + 1,
+                            chapters: prev.chapters.map((c) =>
+                              c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
+                            ),
+                          }
+                        : null
+                    );
                   }
-                  if (authService.isAuthenticated()) loadTokenUsage();
-                  break;
-                }
+                } catch (err: unknown) {
+                  const status = (err as { status?: number })?.status;
+                  const errorData = (err as { data?: { message?: string } })?.data;
+                  console.error(`Translation error for chapter ${chapter.id}:`, err);
 
-                // 409 = translation already in progress (e.g. another tab or duplicate request); do not retry
-                if (status === 409) {
+                  if (status === 429) {
+                    const msg = t('projectInfo.tokenLimitExceededChapter', {
+                      title: chapter.title,
+                      message: errorData?.message ?? t('tokenLimit.dailyExhaustedShort'),
+                    });
+                    if (onError) {
+                      onError(t('tokenLimit.titleExceeded'), msg);
+                    } else {
+                      alert(msg);
+                    }
+                    if (authService.isAuthenticated()) loadTokenUsage();
+                    break;
+                  }
+
+                  // 409 = translation already in progress (e.g. another tab or duplicate request); do not retry
+                  if (status === 409) {
+                    setProgress((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            errors: prev.errors + 1,
+                            chapters: prev.chapters.map((c) =>
+                              c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
+                            ),
+                          }
+                        : null
+                    );
+                    continue;
+                  }
+
                   setProgress((prev) =>
                     prev
                       ? {
@@ -443,22 +457,8 @@ export function useBatchChapterTranslation(
                         }
                       : null
                   );
-                  continue;
                 }
-
-                setProgress((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        errors: prev.errors + 1,
-                        chapters: prev.chapters.map((c) =>
-                          c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
-                        ),
-                      }
-                    : null
-                );
               }
-            }
             }
             await onRefreshProject();
           } finally {

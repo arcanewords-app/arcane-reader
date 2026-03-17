@@ -228,13 +228,11 @@ export class EditStage {
             const timeoutMs = options.qualityCheckTimeoutMs ?? 30000;
             const glossaryForQuality =
               includeGlossary && fullGlossary
-                ? new GlossaryManager(filterGlossaryForChunk(editedText, fullGlossary)).toPromptText()
+                ? new GlossaryManager(
+                    filterGlossaryForChunk(editedText, fullGlossary)
+                  ).toPromptText()
                 : '';
-            const qualityPromise = this.checkQuality(
-              editedText,
-              originalText,
-              glossaryForQuality
-            );
+            const qualityPromise = this.checkQuality(editedText, originalText, glossaryForQuality);
             const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('Quality check timeout')), timeoutMs)
             );
@@ -248,7 +246,9 @@ export class EditStage {
             );
           }
         } else {
-          log.debug('EditStage: quality check skipped for chunked editing (checkQualityForChunked not set)');
+          log.debug(
+            'EditStage: quality check skipped for chunked editing (checkQualityForChunked not set)'
+          );
         }
       }
 
@@ -295,8 +295,22 @@ export class EditStage {
 
   private detectChanges(before: string, after: string): EditChange[] {
     if (!before.trim() && !after.trim()) return [];
-    if (!before.trim()) return [{ before: '', after: after.slice(0, 100) + (after.length > 100 ? '...' : ''), reason: 'Editorial improvement' }];
-    if (!after.trim()) return [{ before: before.slice(0, 100) + (before.length > 100 ? '...' : ''), after: '', reason: 'Editorial improvement' }];
+    if (!before.trim())
+      return [
+        {
+          before: '',
+          after: after.slice(0, 100) + (after.length > 100 ? '...' : ''),
+          reason: 'Editorial improvement',
+        },
+      ];
+    if (!after.trim())
+      return [
+        {
+          before: before.slice(0, 100) + (before.length > 100 ? '...' : ''),
+          after: '',
+          reason: 'Editorial improvement',
+        },
+      ];
 
     const dmp = new DiffMatchPatch();
     const diffs = dmp.diff_main(before, after);
@@ -313,8 +327,10 @@ export class EditStage {
         pendingInsert += text;
       } else {
         if (pendingDelete || pendingInsert) {
-          const beforeSnippet = pendingDelete.slice(0, 100) + (pendingDelete.length > 100 ? '...' : '');
-          const afterSnippet = pendingInsert.slice(0, 100) + (pendingInsert.length > 100 ? '...' : '');
+          const beforeSnippet =
+            pendingDelete.slice(0, 100) + (pendingDelete.length > 100 ? '...' : '');
+          const afterSnippet =
+            pendingInsert.slice(0, 100) + (pendingInsert.length > 100 ? '...' : '');
           if (beforeSnippet || afterSnippet) {
             changes.push({
               before: beforeSnippet,
@@ -384,23 +400,18 @@ export class EditStage {
       chunk: TextChunk,
       i: number
     ): Promise<{ result: MergeChunkInput; tokensUsed: number }> => {
-      return this.editChunkWithRetry(
-        chunk,
-        i,
-        translatedChunks.length,
-        {
-          fullGlossary,
-          styleNotes,
-          temperature,
-          includeGlossary,
-          customInstructions,
-          editingStylePreset,
-          editingFocus,
-          retryAttempts,
-          retryDelayMs,
-          isCancelled,
-        }
-      );
+      return this.editChunkWithRetry(chunk, i, translatedChunks.length, {
+        fullGlossary,
+        styleNotes,
+        temperature,
+        includeGlossary,
+        customInstructions,
+        editingStylePreset,
+        editingFocus,
+        retryAttempts,
+        retryDelayMs,
+        isCancelled,
+      });
     };
 
     if (parallelChunks <= 1) {

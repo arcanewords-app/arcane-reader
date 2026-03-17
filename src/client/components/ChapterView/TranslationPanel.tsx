@@ -132,10 +132,7 @@ export function TranslationPanel({
 
   const handleEditingFocusChange = useCallback(
     async (e: Event) => {
-      const value = (e.target as HTMLSelectElement).value as
-        | 'fix_problems'
-        | 'style_only'
-        | 'both';
+      const value = (e.target as HTMLSelectElement).value as 'fix_problems' | 'style_only' | 'both';
       const updated = await api.updateSettings(project.id, {
         editingFocus: value,
       });
@@ -371,7 +368,9 @@ export function TranslationPanel({
               <option value="default">{t('settings.editingStylePreset.default')}</option>
               <option value="literary">{t('settings.editingStylePreset.literary')}</option>
               <option value="minimal">{t('settings.editingStylePreset.minimal')}</option>
-              <option value="ai_revivification">{t('settings.editingStylePreset.ai_revivification')}</option>
+              <option value="ai_revivification">
+                {t('settings.editingStylePreset.ai_revivification')}
+              </option>
             </select>
           </div>
         </div>

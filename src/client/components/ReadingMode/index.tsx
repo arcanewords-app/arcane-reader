@@ -146,6 +146,11 @@ export function ReadingMode({
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
     const raw = project?.settings?.reader;
     if (!raw) return { ...defaultReaderSettings };
@@ -1035,6 +1040,41 @@ export function ReadingMode({
     }
   }, [shareLink]);
 
+  const handleReportSubmit = useCallback(async () => {
+    if (!publicationId || !currentChapter) return;
+    const desc = reportDescription.trim();
+    if (desc.length < 5) {
+      setReportError(t('readingMode.reportMinLength'));
+      return;
+    }
+    if (desc.length > 5000) {
+      setReportError(t('readingMode.reportMaxLength'));
+      return;
+    }
+    setReportError(null);
+    setReportSubmitting(true);
+    try {
+      await api.reportTranslation(publicationId, currentChapter.id, desc);
+      setReportSuccess(true);
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportDescription('');
+        setReportSuccess(false);
+      }, 1500);
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : t('common.retry'));
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [publicationId, currentChapter, reportDescription, t]);
+
+  const handleOpenReportModal = useCallback(() => {
+    setReportError(null);
+    setReportSuccess(false);
+    setReportDescription('');
+    setShowReportModal(true);
+  }, []);
+
   const handleSelectChapter = useCallback(
     (index: number) => {
       const ch = chapters[currentChapterIndex];
@@ -1054,6 +1094,8 @@ export function ReadingMode({
         class="reading-mode"
         data-reader-font={readerSettings.fontFamily}
         data-reader-theme={readerSettings.colorScheme}
+        data-reader-indent={(readerSettings.textIndent ?? true) ? 'true' : 'false'}
+        data-reader-align={readerSettings.textAlign ?? 'justify'}
       >
         <div class="reading-mode-empty">
           <div class="reading-mode-empty-content">
@@ -1099,6 +1141,8 @@ export function ReadingMode({
       class={`reading-mode${!menuVisible ? ' reading-mode-chrome-hidden' : ''}`}
       data-reader-font={readerSettings.fontFamily}
       data-reader-theme={readerSettings.colorScheme}
+      data-reader-indent={(readerSettings.textIndent ?? true) ? 'true' : 'false'}
+      data-reader-align={readerSettings.textAlign ?? 'justify'}
       data-header-visible={headerVisible ? 'true' : 'false'}
       data-footer-visible={footerVisible ? 'true' : 'false'}
     >
@@ -1135,6 +1179,15 @@ export function ReadingMode({
               title={t('sidebar.glossary')}
             >
               <Icon name="dictionary" />
+            </button>
+          )}
+          {isPublicationMode && currentChapter && (
+            <button
+              class="reading-mode-header-btn"
+              onClick={handleOpenReportModal}
+              title={t('readingMode.reportTranslation')}
+            >
+              <Icon name="flag" />
             </button>
           )}
           <button
@@ -1284,6 +1337,72 @@ export function ReadingMode({
         <div class="reading-share-modal-content">
           <p class="reading-share-modal-label">{t('readingMode.linkLabel')}</p>
           <input type="text" value={shareLink} readOnly class="reading-share-modal-input" />
+        </div>
+      </Modal>
+
+      <Modal
+        className="reading-report-modal"
+        isOpen={showReportModal}
+        onClose={() => {
+          if (!reportSubmitting) {
+            setShowReportModal(false);
+            setReportError(null);
+            setReportDescription('');
+          }
+        }}
+        title={t('readingMode.reportTranslation')}
+        footer={
+          <div class="reading-report-modal-footer">
+            <button
+              class="reading-report-cancel-btn"
+              onClick={() => setShowReportModal(false)}
+              disabled={reportSubmitting}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              class="reading-report-submit-btn"
+              onClick={handleReportSubmit}
+              disabled={reportSubmitting || reportDescription.trim().length < 5}
+            >
+              {reportSubmitting ? (
+                <LoadingSpinner size="sm" />
+              ) : reportSuccess ? (
+                <>
+                  <Icon name="check" size="sm" /> {t('readingMode.reportSent')}
+                </>
+              ) : (
+                t('readingMode.reportSubmit')
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div class="reading-report-modal-content">
+          {currentChapter && (
+            <p class="reading-report-modal-chapter">
+              {t('readingMode.reportChapter', {
+                title:
+                  currentChapter.title ||
+                  t('readingMode.chapterFallback', { n: currentChapter.number }),
+              })}
+            </p>
+          )}
+          <label class="reading-report-modal-label" for="report-description">
+            {t('readingMode.reportDescriptionLabel')}
+          </label>
+          <textarea
+            id="report-description"
+            class="reading-report-modal-textarea"
+            value={reportDescription}
+            onInput={(e) => setReportDescription((e.target as HTMLTextAreaElement).value)}
+            placeholder={t('readingMode.reportPlaceholder')}
+            rows={4}
+            maxLength={5000}
+            disabled={reportSubmitting}
+          />
+          <p class="reading-report-modal-hint">{t('readingMode.reportHint')}</p>
+          {reportError && <p class="reading-report-modal-error">{reportError}</p>}
         </div>
       </Modal>
 

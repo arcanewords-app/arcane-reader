@@ -153,11 +153,37 @@
     "characters": "characters",
     "selectParagraph": "Select paragraph {{index}}"
   },
+  "searchReplace": {
+    "findPlaceholder": "Find",
+    "replacePlaceholder": "Replace",
+    "caseSensitive": "Aa",
+    "prevMatch": "Previous match",
+    "nextMatch": "Next match",
+    "matchCount": "{{current}} / {{total}}",
+    "noMatches": "No matches",
+    "resultsCount": "{{count}} matches",
+    "findInChapter": "Find in chapter",
+    "findInProject": "Find in project",
+    "replace": "Replace",
+    "replaceAll": "Replace all",
+    "previewTitle": "Replace preview ({{count}} paragraphs)",
+    "previewHint": "The following paragraphs will be updated:",
+    "paragraphLabel": "Paragraph #{{index}}",
+    "before": "Before",
+    "after": "After",
+    "andMore": "...and {{count}} more",
+    "applyReplace": "Apply replace",
+    "updatedCount": "Updated {{count}}",
+    "failedCount": "{{count}} failed"
+  },
   "sidebar": {
     "projects": "Projects",
     "chapters": "Chapters",
     "settings": "Settings",
     "glossary": "Glossary",
+    "reports": "Translation reports",
+    "reportsEmpty": "No reports yet",
+    "reportsGoToChapter": "Go to chapter",
     "allProjects": "All projects",
     "aboutProject": "About project",
     "projectSettings": "Project settings"
@@ -635,7 +661,16 @@
     "backToPublication": "Back to publication",
     "settingsTitle": "Reading settings",
     "noOriginalText": "No original text",
-    "noTranslatedText": "No translated text"
+    "noTranslatedText": "No translated text",
+    "reportTranslation": "Report translation",
+    "reportChapter": "Chapter: {{title}}",
+    "reportDescriptionLabel": "Describe the issue",
+    "reportPlaceholder": "e.g. typo, wrong meaning, formatting problem...",
+    "reportHint": "Minimum 5 characters. Your report helps improve the translation.",
+    "reportMinLength": "Description must be at least 5 characters",
+    "reportMaxLength": "Description must not exceed 5000 characters",
+    "reportSubmit": "Submit",
+    "reportSent": "Sent"
   },
   "dashboard": {
     "myProjects": "My projects",
@@ -703,7 +738,14 @@
     "noMyPublications": "You have no published works yet",
     "emptyMyWorksHint": "Publish a project from the projects page — it will appear here.",
     "orderNewest": "Newest first",
-    "orderOldest": "Oldest first"
+    "orderOldest": "Oldest first",
+    "filterByAuthor": "Author",
+    "filterByTranslator": "Translator",
+    "filterByTag": "Tag",
+    "clearFilter": "Clear filter",
+    "clearAllFilters": "Clear all filters",
+    "clearFilterHint": "Try clearing the filter to see more publications.",
+    "noPublicationsForFilter": "No publications for this filter"
   },
   "nav": {
     "catalog": "Catalog",
@@ -726,6 +768,9 @@
     "subtitle": "Create global public tags, authors, and translators.",
     "deniedTitle": "Admin access required",
     "deniedMessage": "You do not have enough permissions to open this section.",
+    "filter": {
+      "all": "All"
+    },
     "kinds": {
       "tag": "Tag",
       "author": "Author",
@@ -740,19 +785,36 @@
       "photo": "Photo",
       "photoHint": "Click or drag image here",
       "removePhoto": "Remove photo",
-      "submit": "Create entity"
+      "submit": "Create entity",
+      "searchPlaceholder": "Search by name",
+      "edit": "Edit",
+      "delete": "Delete",
+      "editTitle": "Edit entity",
+      "save": "Save"
     },
     "list": {
       "title": "Recently created",
       "empty": "No entities yet."
     },
+    "delete": {
+      "title": "Delete entity",
+      "message": "Are you sure you want to delete \"{{name}}\"? This cannot be undone."
+    },
     "messages": {
-      "created": "Entity created successfully."
+      "created": "Entity created successfully.",
+      "updated": "Entity updated successfully.",
+      "deleted": "Entity deleted successfully."
     },
     "errors": {
       "nameRequired": "Name is required.",
       "forbidden": "Only admins can create entities.",
-      "createFailed": "Failed to create entity."
+      "createFailed": "Failed to create entity.",
+      "updateFailed": "Failed to update entity.",
+      "deleteFailed": "Failed to delete entity.",
+      "deleteUsed": "This entity is used in {{count}} publication(s). Remove it from all publications first."
+    },
+    "usage": {
+      "publicationsCount": "Used in {{count}} publication(s)"
     }
   },
   "cabinet": {
@@ -801,6 +863,7 @@
   "publication": {
     "untitled": "Untitled",
     "unknownAuthor": "Unknown author",
+    "languageLabel": "Language: {{language}}",
     "authorLabel": "Author",
     "translatorLabel": "Translator",
     "notFound": "Publication not found",
@@ -849,6 +912,8 @@
   },
   "info": {
     "menu": "Info",
+    "aboutProject": "About",
+    "legal": "Legal",
     "about": "About",
     "contact": "Contact",
     "privacy": "Privacy Policy",
