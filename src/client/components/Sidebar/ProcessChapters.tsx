@@ -111,34 +111,23 @@ export function ProcessChapters({
   const translateModalWasOpenRef = useRef(false);
   const prevModalOpenRef = useRef(false);
 
+  // Fetch summary only when opening the modal (not on project load).
+  // When modal is closed, stats use project.chapters as fallback.
   useEffect(() => {
     const justOpened = showTranslateAllModal && !prevModalOpenRef.current;
     prevModalOpenRef.current = showTranslateAllModal;
 
-    if (showTranslateAllModal) {
-      if (justOpened) {
-        setModalDataRefreshing(true);
-        Promise.all([onRefreshProject(), api.getChaptersSummary(project.id).catch(() => null)])
-          .then(([, s]) => {
-            setSummary(s);
-          })
-          .finally(() => {
-            setModalDataRefreshing(false);
-          });
-      }
-    } else {
-      api
-        .getChaptersSummary(project.id)
-        .then(setSummary)
-        .catch(() => setSummary(null));
+    if (showTranslateAllModal && justOpened) {
+      setModalDataRefreshing(true);
+      Promise.all([onRefreshProject(), api.getChaptersSummary(project.id).catch(() => null)])
+        .then(([, s]) => {
+          setSummary(s);
+        })
+        .finally(() => {
+          setModalDataRefreshing(false);
+        });
     }
-  }, [
-    showTranslateAllModal,
-    project.id,
-    project.chapters.length,
-    project.updatedAt,
-    onRefreshProject,
-  ]);
+  }, [showTranslateAllModal, project.id, onRefreshProject]);
 
   const estimate = useTokenEstimate();
   const batch = useBatchChapterTranslation(project.id, project, onRefreshProject, (title, msg) =>

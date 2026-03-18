@@ -34,7 +34,6 @@ export const CACHE_TTL = {
   // Server-side — user-scoped (fresher for editing)
   redisProjectListSec: 60,
   redisProjectSec: 120,
-  redisProjectSummarySec: 60,
   redisAuthProfileSec: 180,
   redisTokenUsageSec: 60,
   redisTokenHistorySec: 60,
@@ -56,7 +55,6 @@ export const CACHE_PREFIX = {
   publicEntity: 'public:entity',
   userProjects: 'user:projects:light',
   userProject: 'user:project:light',
-  userProjectSummary: 'user:project:summary',
   userTokenUsage: 'user:token-usage',
   userTokenHistory: 'user:token-history',
   userReadingProgress: 'user:read-progress',

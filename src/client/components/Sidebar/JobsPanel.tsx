@@ -5,8 +5,8 @@ import { api } from '../../api/client';
 import type { Project, ProjectWithChapterList, ProjectJobItem } from '../../types';
 import './JobsPanel.css';
 
-const JOBS_POLL_INTERVAL_MS = 30000; // 30 s when no active jobs (e.g. showing completed)
-const JOBS_POLL_INTERVAL_ACTIVE_MS = 5000; // 5 s when active jobs exist
+const JOBS_POLL_INTERVAL_MS = 30000; // 30 s when active jobs or expecting new job after trigger
+const EXPECTING_JOBS_MS = 90000; // Poll for 90 s after batch start to catch job when it appears
 
 interface JobsPanelProps {
   project: Project | ProjectWithChapterList;
@@ -47,6 +47,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
   const [isVisible, setIsVisible] = useState(
     typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
   );
+  const [expectingJobsUntil, setExpectingJobsUntil] = useState(0);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -112,18 +113,36 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
   }, [fetchJobs]);
 
   useEffect(() => {
-    if (triggerFetch != null && triggerFetch > 0) fetchJobs();
+    if (triggerFetch != null && triggerFetch > 0) {
+      fetchJobs();
+      setExpectingJobsUntil(Date.now() + EXPECTING_JOBS_MS);
+    }
   }, [triggerFetch, fetchJobs]);
 
   useEffect(() => {
-    fetchJobs();
-    if (!isVisible || activeCount === 0) return;
-    const pollMs = activeCount > 0 ? JOBS_POLL_INTERVAL_ACTIVE_MS : JOBS_POLL_INTERVAL_MS;
-    const interval = setInterval(fetchJobs, pollMs);
-    return () => clearInterval(interval);
-  }, [fetchJobs, isVisible, activeCount]);
+    if (expectingJobsUntil <= 0) return;
+    const remaining = expectingJobsUntil - Date.now();
+    if (remaining <= 0) {
+      setExpectingJobsUntil(0);
+      return;
+    }
+    const t = setTimeout(() => setExpectingJobsUntil(0), remaining);
+    return () => clearTimeout(t);
+  }, [expectingJobsUntil]);
 
-  if (jobs.length === 0 && !loading) {
+  const shouldPoll =
+    activeCount > 0 || (expectingJobsUntil > 0 && Date.now() < expectingJobsUntil);
+
+  useEffect(() => {
+    fetchJobs();
+    if (!isVisible || !shouldPoll) return;
+    const interval = setInterval(fetchJobs, JOBS_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shouldPoll derived from activeCount, expectingJobsUntil
+  }, [fetchJobs, isVisible, activeCount, expectingJobsUntil]);
+
+  const isExpecting = expectingJobsUntil > 0 && Date.now() < expectingJobsUntil;
+  if (jobs.length === 0 && !loading && !isExpecting) {
     return null;
   }
 
@@ -136,7 +155,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
           {activeCount > 0 && <span class="jobs-panel-badge">{activeCount}</span>}
         </span>
       </div>
-      {loading ? (
+      {loading || (isExpecting && jobs.length === 0) ? (
         <div class="jobs-panel-loading">{t('common.loading')}</div>
       ) : (
         <ul class="jobs-panel-list">

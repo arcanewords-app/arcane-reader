@@ -484,10 +484,6 @@ function userProjectCacheKey(userId: string, projectId: string): string {
   return buildRedisKey(CACHE_PREFIX.userProject, userId, projectId);
 }
 
-function userProjectSummaryCacheKey(userId: string, projectId: string): string {
-  return buildRedisKey(CACHE_PREFIX.userProjectSummary, userId, projectId);
-}
-
 function publicationsListCacheKey(options: {
   limit: number;
   offset: number;
@@ -552,10 +548,7 @@ function projectReportsCountCacheKey(projectId: string): string {
 function invalidateUserProjectCaches(userId: string, projectId?: string): Promise<void> {
   const keys = [userProjectsCacheKey(userId)];
   if (projectId) {
-    keys.push(
-      userProjectCacheKey(userId, projectId),
-      userProjectSummaryCacheKey(userId, projectId)
-    );
+    keys.push(userProjectCacheKey(userId, projectId));
   }
   return redisDelMany(keys);
 }
@@ -1190,11 +1183,7 @@ app.get(
       const user = req.user;
 
       const token = requireToken(req);
-      const summary = await withRedisCache(
-        userProjectSummaryCacheKey(user.id, req.params.id),
-        CACHE_TTL.redisProjectSummarySec,
-        () => getChaptersSummary(req.params.id, user.id, token)
-      );
+      const summary = await getChaptersSummary(req.params.id, user.id, token);
       res.json(summary);
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
