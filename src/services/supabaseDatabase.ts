@@ -1034,6 +1034,161 @@ export async function resetStuckChapters(token: string, projectId?: string): Pro
   return resetCount;
 }
 
+/**
+ * Reset stuck chapters for job recovery (service role).
+ * When chapterIds is provided, resets those chapters from 'translating' to 'pending' without 30 min timeout.
+ * When chapterIds is omitted, uses same logic as resetStuckChapters (30 min timeout) with service role.
+ */
+export async function resetStuckChaptersForRecovery(
+  projectId: string,
+  chapterIds?: string[]
+): Promise<number> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+  const STUCK_TIMEOUT = 30 * 60 * 1000; // 30 minutes (used when chapterIds not provided)
+
+  let chaptersToReset: string[] = [];
+
+  if (chapterIds && chapterIds.length > 0) {
+    // Force reset specified chapters without timeout check
+    const { data: chapters, error } = await client
+      .from('chapters')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('status', 'translating')
+      .in('id', chapterIds);
+
+    if (error) {
+      throw new Error(`Failed to get stuck chapters for recovery: ${error.message}`);
+    }
+    chaptersToReset = (chapters ?? []).map((c) => c.id);
+  } else {
+    // Same logic as resetStuckChapters but with service role
+    const { data: chapters, error } = await client
+      .from('chapters')
+      .select('id, translation_meta, updated_at')
+      .eq('project_id', projectId)
+      .eq('status', 'translating');
+
+    if (error) {
+      throw new Error(`Failed to get stuck chapters: ${error.message}`);
+    }
+
+    if (!chapters || chapters.length === 0) {
+      return 0;
+    }
+
+    const now = Date.now();
+    for (const chapter of chapters) {
+      let isStuck = false;
+      const translatedAtStr = (
+        chapter.translation_meta as { translatedAt?: string } | undefined
+      )?.translatedAt;
+      if (translatedAtStr) {
+        const translatedAt = new Date(translatedAtStr).getTime();
+        isStuck = now - translatedAt > STUCK_TIMEOUT;
+      } else {
+        const updatedAt =
+          chapter.updated_at != null
+            ? new Date(chapter.updated_at).getTime()
+            : now;
+        isStuck = now - updatedAt > STUCK_TIMEOUT;
+      }
+      if (isStuck) {
+        chaptersToReset.push(chapter.id);
+      }
+    }
+  }
+
+  if (chaptersToReset.length === 0) {
+    return 0;
+  }
+
+  const { error: updateError } = await client
+    .from('chapters')
+    .update({ status: 'pending' })
+    .in('id', chaptersToReset);
+
+  if (updateError) {
+    throw new Error(`Failed to reset stuck chapters: ${updateError.message}`);
+  }
+
+  return chaptersToReset.length;
+}
+
+/**
+ * Load chapters by IDs with full content (paragraphs) using service role.
+ * Used for job recovery when worker needs to load specific chapters.
+ */
+async function loadChaptersByIdsWithServiceRole(
+  projectId: string,
+  chapterIds: string[]
+): Promise<Chapter[]> {
+  if (chapterIds.length === 0) return [];
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: chapters, error } = await client
+    .from('chapters')
+    .select('*, paragraphs(*)')
+    .eq('project_id', projectId)
+    .in('id', chapterIds)
+    .order('number', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load chapters for recovery: ${error.message}`);
+  }
+
+  if (!chapters || chapters.length === 0) {
+    return [];
+  }
+
+  return chapters.map((chapter) => {
+    const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
+    const paragraphs = rawParagraphs
+      .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
+      .map(transformParagraphFromDB);
+    return transformChapterFromDB(chapter, paragraphs);
+  });
+}
+
+/**
+ * Get project with full chapters for job recovery (service role).
+ * Verifies project belongs to user, loads specified chapters with text.
+ */
+export async function getProjectFullForRecovery(
+  projectId: string,
+  userId: string,
+  chapterIds: string[]
+): Promise<Project | null> {
+  try {
+    const { createServiceRoleClient } = await import('./supabaseClient.js');
+    const client = createServiceRoleClient();
+
+    const { data: project, error } = await client
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !project) {
+      return null;
+    }
+
+    const [chapters, glossary] = await Promise.all([
+      loadChaptersByIdsWithServiceRole(projectId, chapterIds),
+      loadGlossaryForProjectPublic(projectId),
+    ]);
+
+    return transformProjectFromDB(project, chapters, glossary);
+  } catch (err) {
+    logger.warn({ err, projectId }, 'getProjectFullForRecovery failed');
+    return null;
+  }
+}
+
 // ============================================
 // Helper Functions to Load Related Data
 // ============================================
@@ -2741,6 +2896,11 @@ export interface PublicationRow {
   slug?: string | null;
 }
 
+/** Row from publications_list_with_counts view (adds translated_chapter_count). */
+interface PublicationListRow extends PublicationRow {
+  translated_chapter_count?: number;
+}
+
 interface PublicEntityRow {
   id: string;
   kind: PublicEntityKind;
@@ -2979,6 +3139,7 @@ export async function listPublicationsPublic(options?: {
     createdAt: string;
     updatedAt: string;
     slug: string | null;
+    translatedChapterCount: number;
   }[]
 > {
   const limit = options?.limit ?? 50;
@@ -2989,7 +3150,10 @@ export async function listPublicationsPublic(options?: {
   const translatorEntityId = options?.translatorEntityId;
   const tagEntityId = options?.tagEntityId;
 
-  let query = supabase.from('publications').select('*').eq('status', 'published');
+  let query = supabase
+    .from('publications_list_with_counts')
+    .select('*')
+    .eq('status', 'published');
 
   if (authorEntityId) {
     query = query.eq('author_entity_id', authorEntityId);
@@ -3009,10 +3173,82 @@ export async function listPublicationsPublic(options?: {
     .range(offset, offset + limit - 1);
 
   if (error) {
+    // Fallback if view not yet migrated: use publications + RPC
+    if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+      return listPublicationsPublicFallback({
+        limit,
+        offset,
+        orderBy,
+        orderAsc,
+        authorEntityId,
+        translatorEntityId,
+        tagEntityId,
+      });
+    }
     throw new Error(`Failed to list publications: ${error.message}`);
   }
 
-  return (data || []).map((row: PublicationRow) => transformPublicationFromDB(row));
+  return (data || []).map((row: PublicationListRow) => ({
+    ...transformPublicationFromDB(row),
+    translatedChapterCount: row.translated_chapter_count ?? 0,
+  }));
+}
+
+/** Fallback when publications_list_with_counts view is not yet created. */
+async function listPublicationsPublicFallback(options: {
+  limit?: number;
+  offset?: number;
+  orderBy?: 'published_at' | 'created_at';
+  orderAsc?: boolean;
+  authorEntityId?: string;
+  translatorEntityId?: string;
+  tagEntityId?: string;
+}): Promise<
+  Array<
+    ReturnType<typeof transformPublicationFromDB> & { translatedChapterCount: number }
+  >
+> {
+  const limit = options.limit ?? 50;
+  const offset = options.offset ?? 0;
+  const orderBy = options.orderBy ?? 'published_at';
+  const orderAsc = options.orderAsc ?? false;
+
+  let query = supabase.from('publications').select('*').eq('status', 'published');
+  if (options.authorEntityId) query = query.eq('author_entity_id', options.authorEntityId);
+  if (options.translatorEntityId) query = query.eq('translator_entity_id', options.translatorEntityId);
+  if (options.tagEntityId) query = query.contains('tag_entity_ids', [options.tagEntityId]);
+
+  const { data, error } = await query
+    .order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
+      ascending: orderAsc,
+      nullsFirst: false,
+    })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(`Failed to list publications: ${error.message}`);
+
+  const rows = (data || []) as PublicationRow[];
+  const projectIds = [...new Set(rows.map((r) => r.project_id))];
+  const translatedCounts: Record<string, number> = {};
+
+  try {
+    const { createServiceRoleClient } = await import('./supabaseClient.js');
+    const client = createServiceRoleClient();
+    const { data: counts } = await client.rpc('get_chapter_counts_by_projects', {
+      p_project_ids: projectIds,
+    });
+    for (const row of counts || []) {
+      const r = row as { project_id: string; translated_count?: number };
+      translatedCounts[r.project_id] = Number(r.translated_count ?? 0);
+    }
+  } catch {
+    // Service role or RPC unavailable
+  }
+
+  return rows.map((row) => ({
+    ...transformPublicationFromDB(row),
+    translatedChapterCount: translatedCounts[row.project_id] ?? 0,
+  }));
 }
 
 /**
@@ -3341,7 +3577,38 @@ export async function unpublishProject(
 export async function getUserPublications(
   userId: string,
   token: string
-): Promise<ReturnType<typeof transformPublicationFromDB>[]> {
+): Promise<
+  Array<ReturnType<typeof transformPublicationFromDB> & { translatedChapterCount?: number }>
+> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('publications_list_with_counts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    // Fallback if view not yet migrated
+    if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+      return getUserPublicationsFallback(userId, token);
+    }
+    throw new Error(`Failed to get user publications: ${error.message}`);
+  }
+
+  return (data || []).map((row: PublicationListRow) => ({
+    ...transformPublicationFromDB(row),
+    translatedChapterCount: row.translated_chapter_count ?? 0,
+  }));
+}
+
+async function getUserPublicationsFallback(
+  userId: string,
+  token: string
+): Promise<
+  Array<ReturnType<typeof transformPublicationFromDB> & { translatedChapterCount?: number }>
+> {
   validateToken(token);
   const client = createClientWithToken(token);
 
@@ -3351,10 +3618,30 @@ export async function getUserPublications(
     .eq('user_id', userId)
     .order('updated_at', { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to get user publications: ${error.message}`);
+  if (error) throw new Error(`Failed to get user publications: ${error.message}`);
+
+  const rows = (data || []) as PublicationRow[];
+  const projectIds = [...new Set(rows.map((r) => r.project_id))];
+  const translatedCounts: Record<string, number> = {};
+
+  try {
+    const { createServiceRoleClient } = await import('./supabaseClient.js');
+    const svc = createServiceRoleClient();
+    const { data: counts } = await svc.rpc('get_chapter_counts_by_projects', {
+      p_project_ids: projectIds,
+    });
+    for (const row of counts || []) {
+      const r = row as { project_id: string; translated_count?: number };
+      translatedCounts[r.project_id] = Number(r.translated_count ?? 0);
+    }
+  } catch {
+    /* service role or RPC unavailable */
   }
-  return (data || []).map((row: PublicationRow) => transformPublicationFromDB(row));
+
+  return rows.map((row) => ({
+    ...transformPublicationFromDB(row),
+    translatedChapterCount: translatedCounts[row.project_id] ?? 0,
+  }));
 }
 
 /**
@@ -3767,13 +4054,97 @@ export async function getTranslationReportsCountByProject(
   const { count, error } = await client
     .from('translation_reports')
     .select('*', { count: 'exact', head: true })
-    .eq('publication_id', pub.id);
+    .eq('publication_id', pub.id)
+    .eq('status', 'pending');
 
   if (error) {
     logger.warn({ err: error, projectId }, 'Failed to get translation reports count');
     return 0;
   }
   return count ?? 0;
+}
+
+export type TranslationReportStatus = 'pending' | 'reviewed' | 'resolved';
+
+/**
+ * Update translation report status (owner only).
+ * Verifies report belongs to project's publication.
+ */
+export async function updateTranslationReportStatus(
+  projectId: string,
+  reportId: string,
+  userId: string,
+  token: string,
+  status: TranslationReportStatus
+): Promise<void> {
+  const pub = await getPublicationByProjectId(projectId, userId, token);
+  if (!pub) {
+    throw new Error('Project or publication not found');
+  }
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: report, error: fetchError } = await client
+    .from('translation_reports')
+    .select('id')
+    .eq('id', reportId)
+    .eq('publication_id', pub.id)
+    .single();
+
+  if (fetchError || !report) {
+    throw new Error('Report not found or access denied');
+  }
+
+  const { error: updateError } = await client
+    .from('translation_reports')
+    .update({ status })
+    .eq('id', reportId)
+    .eq('publication_id', pub.id);
+
+  if (updateError) {
+    throw new Error(`Failed to update report status: ${updateError.message}`);
+  }
+}
+
+/**
+ * Delete translation report (owner only).
+ * Verifies report belongs to project's publication.
+ */
+export async function deleteTranslationReport(
+  projectId: string,
+  reportId: string,
+  userId: string,
+  token: string
+): Promise<void> {
+  const pub = await getPublicationByProjectId(projectId, userId, token);
+  if (!pub) {
+    throw new Error('Project or publication not found');
+  }
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: report, error: fetchError } = await client
+    .from('translation_reports')
+    .select('id')
+    .eq('id', reportId)
+    .eq('publication_id', pub.id)
+    .single();
+
+  if (fetchError || !report) {
+    throw new Error('Report not found or access denied');
+  }
+
+  const { error: deleteError } = await client
+    .from('translation_reports')
+    .delete()
+    .eq('id', reportId)
+    .eq('publication_id', pub.id);
+
+  if (deleteError) {
+    throw new Error(`Failed to delete report: ${deleteError.message}`);
+  }
 }
 
 /**

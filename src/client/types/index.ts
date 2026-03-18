@@ -562,6 +562,8 @@ export interface Publication {
   updatedAt: string;
   /** SEO-friendly URL path (e.g. zenit-koldovstva). Use for links when available. */
   slug?: string | null;
+  /** Number of translated chapters (when loaded from list/user APIs). */
+  translatedChapterCount?: number;
 }
 
 export interface PublicationListItem {
@@ -585,6 +587,8 @@ export interface PublicationListItem {
   createdAt: string;
   updatedAt: string;
   slug?: string | null;
+  /** Number of translated chapters (from publications_list_with_counts view). */
+  translatedChapterCount?: number;
 }
 
 export interface PublicationWithChapters extends Publication {

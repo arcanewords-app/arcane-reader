@@ -944,7 +944,7 @@ export const api = {
     });
   },
 
-  async bulkUpdateParagraphs(
+  async bulkUpdateParagraphsStatus(
     projectId: string,
     chapterId: string,
     paragraphIds: string[],
@@ -1309,6 +1309,25 @@ export const api = {
     }>
   > {
     return fetchJson(`/api/projects/${projectId}/reports`);
+  },
+
+  /** Update translation report status (auth required, owner only). */
+  async updateReportStatus(
+    projectId: string,
+    reportId: string,
+    status: 'pending' | 'reviewed' | 'resolved'
+  ): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/reports/${reportId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  /** Delete translation report (auth required, owner only). */
+  async deleteReport(projectId: string, reportId: string): Promise<{ success: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/reports/${reportId}`, {
+      method: 'DELETE',
+    });
   },
 
   /** Get current user's publications (auth required) */

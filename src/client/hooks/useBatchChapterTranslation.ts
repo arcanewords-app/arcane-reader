@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { useTokenEstimate } from './useTokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
@@ -82,7 +82,8 @@ export function useBatchChapterTranslation(
   projectId: string,
   project: Project | ProjectWithChapterList,
   onRefreshProject: () => Promise<void>,
-  onError?: (title: string, message: string) => void
+  onError?: (title: string, message: string) => void,
+  onBatchJobCreated?: () => void
 ) {
   const { t } = useTranslation();
   const estimate = useTokenEstimate();
@@ -305,6 +306,7 @@ export function useBatchChapterTranslation(
                 chapters.map((c) => c.id),
                 undefined
               );
+              onBatchJobCreated?.();
               // Async batch: job runs in background, JobsPanel shows progress
             } else if (chapters.length > 1) {
               currentChapterIdRef.current = null;
@@ -318,6 +320,7 @@ export function useBatchChapterTranslation(
                 },
                 undefined
               );
+              onBatchJobCreated?.();
               // Async batch: job runs in background, JobsPanel shows progress
             } else {
               for (let i = 0; i < chapters.length; i++) {
@@ -461,6 +464,19 @@ export function useBatchChapterTranslation(
               }
             }
             await onRefreshProject();
+          } catch (err) {
+            const errData =
+              err instanceof ApiError
+                ? (err.data as { message?: string; error?: string } | undefined)
+                : undefined;
+            const msg =
+              errData?.message ??
+              errData?.error ??
+              (err instanceof Error ? err.message : t('projectInfo.errorJobQueueUnavailable'));
+            if (onError) {
+              onError(t('projectInfo.errorBatchStartTitle'), msg);
+            }
+            console.error('Batch start failed:', err);
           } finally {
             setIsRunning(false);
             cancelledRef.current = false;
@@ -478,6 +494,7 @@ export function useBatchChapterTranslation(
       onRefreshProject,
       loadTokenUsage,
       onError,
+      onBatchJobCreated,
       t,
     ]
   );

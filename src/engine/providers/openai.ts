@@ -12,6 +12,25 @@ import type {
 } from '../interfaces/llm-provider.js';
 import { log } from '../logger.js';
 
+function isRateLimitError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    'status' in err &&
+    typeof (err as { status?: number }).status === 'number' &&
+    (err as { status: number }).status === 429
+  );
+}
+
+function logIfRateLimit(err: unknown, context: string): void {
+  if (isRateLimitError(err)) {
+    log.warn('OpenAI rate limit (429) - consider lowering BULL_*_CONCURRENCY or PARALLEL_CHUNKS', {
+      err,
+      context,
+      status: (err as { status: number }).status,
+    });
+  }
+}
+
 /**
  * Models that require max_completion_tokens (new API); older models use max_tokens.
  */
@@ -79,68 +98,78 @@ export class OpenAIProvider implements ILLMProvider {
   }
 
   async complete(messages: Message[], options?: CompletionOptions): Promise<CompletionResult> {
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-      ...temperatureParam(this.model, options?.temperature, 0.7),
-      ...this.maxTokensParam(options),
-      top_p: options?.topP,
-      frequency_penalty: options?.frequencyPenalty,
-      presence_penalty: options?.presencePenalty,
-      stop: options?.stop,
-    });
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        ...temperatureParam(this.model, options?.temperature, 0.7),
+        ...this.maxTokensParam(options),
+        top_p: options?.topP,
+        frequency_penalty: options?.frequencyPenalty,
+        presence_penalty: options?.presencePenalty,
+        stop: options?.stop,
+      });
 
-    const choice = response.choices[0];
+      const choice = response.choices[0];
 
-    return {
-      content: choice.message.content ?? '',
-      tokensUsed: {
-        prompt: response.usage?.prompt_tokens ?? 0,
-        completion: response.usage?.completion_tokens ?? 0,
-        total: response.usage?.total_tokens ?? 0,
-      },
-      finishReason: this.mapFinishReason(choice.finish_reason),
-      model: response.model,
-    };
+      return {
+        content: choice.message.content ?? '',
+        tokensUsed: {
+          prompt: response.usage?.prompt_tokens ?? 0,
+          completion: response.usage?.completion_tokens ?? 0,
+          total: response.usage?.total_tokens ?? 0,
+        },
+        finishReason: this.mapFinishReason(choice.finish_reason),
+        model: response.model,
+      };
+    } catch (err) {
+      logIfRateLimit(err, 'complete');
+      throw err;
+    }
   }
 
   async completeJSON<T>(
     messages: Message[],
     options?: CompletionOptions
   ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }> {
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-      ...temperatureParam(this.model, options?.temperature, 0.3),
-      ...this.maxTokensParam(options),
-      response_format: { type: 'json_object' },
-    });
-
-    const content = response.choices[0].message.content ?? '{}';
-
     try {
-      const data = JSON.parse(content) as T;
-      return {
-        data,
-        tokensUsed: {
-          prompt: response.usage?.prompt_tokens ?? 0,
-          completion: response.usage?.completion_tokens ?? 0,
-          total: response.usage?.total_tokens ?? 0,
-        },
-      };
-    } catch (parseErr) {
-      const preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
-      log.error('OpenAI provider: failed to parse JSON response', {
-        err: parseErr,
-        contentPreview: preview,
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        ...temperatureParam(this.model, options?.temperature, 0.3),
+        ...this.maxTokensParam(options),
+        response_format: { type: 'json_object' },
       });
-      throw new Error(`Failed to parse JSON response: ${content}`);
+
+      const content = response.choices[0].message.content ?? '{}';
+
+      try {
+        const data = JSON.parse(content) as T;
+        return {
+          data,
+          tokensUsed: {
+            prompt: response.usage?.prompt_tokens ?? 0,
+            completion: response.usage?.completion_tokens ?? 0,
+            total: response.usage?.total_tokens ?? 0,
+          },
+        };
+      } catch (parseErr) {
+        const preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
+        log.error('OpenAI provider: failed to parse JSON response', {
+          err: parseErr,
+          contentPreview: preview,
+        });
+        throw new Error(`Failed to parse JSON response: ${content}`);
+      }
+    } catch (err) {
+      logIfRateLimit(err, 'completeJSON');
+      throw err;
     }
   }
 

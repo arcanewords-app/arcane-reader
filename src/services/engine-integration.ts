@@ -851,7 +851,8 @@ export async function analyzeChaptersBatch(
             project.settings?.temperatureByStage?.analysis ?? project.settings?.temperature ?? 0.5,
         },
         analysisMaxSectionTokens: config.translation?.analysisMaxSectionTokens,
-        analysisConcurrency: options.analysisConcurrency ?? 4,
+        analysisConcurrency:
+          options.analysisConcurrency ?? config.translation?.analysisConcurrency ?? 4,
         isCancelled: options.isCancelled,
         onChapterComplete: onProgress
           ? (chapterId, _chapterNumber, result) => {

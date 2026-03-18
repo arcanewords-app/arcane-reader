@@ -19,6 +19,8 @@ interface SearchReplaceBarProps {
   isOriginalReadingMode: boolean;
   onClose: () => void;
   onHighlightChange: (highlight: SearchHighlight) => void;
+  /** Called when user clicks a search result row — parent should scroll to that paragraph */
+  onScrollToRequest?: (paragraphId: string) => void;
   /** For Phase 2: replace callbacks. Omit for Phase 1 (find only). */
   onReplace?: (paragraphId: string, newText: string) => Promise<void>;
 }
@@ -28,6 +30,7 @@ export function SearchReplaceBar({
   isOriginalReadingMode,
   onClose,
   onHighlightChange,
+  onScrollToRequest,
   onReplace,
 }: SearchReplaceBarProps) {
   const { t } = useTranslation();
@@ -88,9 +91,13 @@ export function SearchReplaceBar({
     setCurrentIndex((i) => (i >= matches.length - 1 ? 0 : i + 1));
   }, [matches.length]);
 
-  const handleRowClick = useCallback((_m: SearchMatch, idx: number) => {
-    setCurrentIndex(idx);
-  }, []);
+  const handleRowClick = useCallback(
+    (m: SearchMatch, idx: number) => {
+      setCurrentIndex(idx);
+      onScrollToRequest?.(m.paragraphId);
+    },
+    [onScrollToRequest]
+  );
 
   const [showPreview, setShowPreview] = useState(false);
   const [replacing, setReplacing] = useState(false);
@@ -196,6 +203,16 @@ export function SearchReplaceBar({
               placeholder={t('searchReplace.findPlaceholder', 'Find')}
               value={find}
               onInput={(e) => setFind((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (e.shiftKey) {
+                    handlePrev();
+                  } else {
+                    handleNext();
+                  }
+                }
+              }}
               maxLength={MAX_FIND_LENGTH}
               aria-label={t('searchReplace.findPlaceholder', 'Find')}
             />

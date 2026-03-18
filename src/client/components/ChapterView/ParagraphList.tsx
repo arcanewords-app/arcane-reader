@@ -8,10 +8,51 @@ import './ParagraphList.css';
 
 /** Virtualization: enable when paragraph count exceeds this. */
 const VIRTUAL_THRESHOLD = 80;
-/** Estimated row height for virtualized list (px). */
+/** Estimated row height for virtualized list (px). Used when row not yet measured. */
 const EST_ROW_HEIGHT = 80;
 /** Buffer items above/below viewport. */
 const VIRTUAL_BUFFER = 5;
+
+/** Compute accumulated heights and visible range for variable-height virtualization. */
+function computeVirtualRange(
+  count: number,
+  scrollTop: number,
+  containerHeight: number,
+  getHeight: (i: number) => number
+): {
+  totalHeight: number;
+  accumulated: number[];
+  startIndex: number;
+  endIndex: number;
+  paddingTop: number;
+  paddingBottom: number;
+} {
+  const acc: number[] = [0];
+  for (let i = 0; i < count; i++) {
+    acc.push(acc[acc.length - 1] + getHeight(i));
+  }
+  const totalHeight = acc[count];
+  let startIndex = count - 1;
+  for (let i = 0; i < count; i++) {
+    if (acc[i + 1] > scrollTop) {
+      startIndex = i;
+      break;
+    }
+  }
+  let endIndex = 0;
+  for (let i = count - 1; i >= 0; i--) {
+    if (acc[i] < scrollTop + containerHeight) {
+      endIndex = i;
+      break;
+    }
+  }
+  startIndex = Math.max(0, startIndex - VIRTUAL_BUFFER);
+  endIndex = Math.min(count - 1, endIndex + VIRTUAL_BUFFER);
+  if (startIndex > endIndex) startIndex = endIndex;
+  const paddingTop = acc[startIndex];
+  const paddingBottom = totalHeight - acc[Math.min(endIndex + 1, count)];
+  return { totalHeight, accumulated: acc, startIndex, endIndex, paddingTop, paddingBottom };
+}
 
 interface ParagraphListProps {
   paragraphs: Paragraph[];
@@ -28,6 +69,8 @@ interface ParagraphListProps {
   textBlockTypes?: TextBlockType[];
   /** Search highlight: which paragraphs match, which to scroll to */
   searchHighlight?: SearchHighlight | null;
+  /** Ref to receive scroll-to-paragraph function (called when user clicks search result row) */
+  scrollToParagraphRef?: { current: ((id: string) => void) | null };
 }
 
 export function ParagraphList({
@@ -40,6 +83,7 @@ export function ParagraphList({
   onToggleParagraphSelection,
   textBlockTypes = [],
   searchHighlight,
+  scrollToParagraphRef,
 }: ParagraphListProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,26 +94,54 @@ export function ParagraphList({
   const [containerHeight, setContainerHeight] = useState(400);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTopRafRef = useRef<number | null>(null);
+  const rowHeightsRef = useRef<Map<number, number>>(new Map());
+  const rowRefsRef = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [, setMeasurementVersion] = useState(0);
+  const measurementRafRef = useRef<number | null>(null);
 
   const useVirtualization = paragraphs.length > VIRTUAL_THRESHOLD;
-  const totalHeight = useVirtualization ? paragraphs.length * EST_ROW_HEIGHT : 0;
-  const startIndex = useVirtualization
-    ? Math.max(0, Math.floor(scrollTop / EST_ROW_HEIGHT) - VIRTUAL_BUFFER)
-    : 0;
-  const endIndex = useVirtualization
-    ? Math.min(
+
+  const getRowHeight = useCallback((i: number) => rowHeightsRef.current.get(i) ?? EST_ROW_HEIGHT, []);
+
+  const virtualRange = useVirtualization
+    ? computeVirtualRange(
         paragraphs.length,
-        Math.ceil((scrollTop + containerHeight) / EST_ROW_HEIGHT) + VIRTUAL_BUFFER
+        scrollTop,
+        containerHeight,
+        getRowHeight
       )
-    : paragraphs.length;
+    : null;
+
+  const totalHeight = virtualRange?.totalHeight ?? 0;
+  const startIndex = virtualRange?.startIndex ?? 0;
+  const endIndex = virtualRange ? virtualRange.endIndex + 1 : paragraphs.length; // endIndex is inclusive, slice needs exclusive
+  const paddingTop = virtualRange?.paddingTop ?? 0;
+  const paddingBottom = virtualRange?.paddingBottom ?? 0;
   const visibleParagraphs = useVirtualization ? paragraphs.slice(startIndex, endIndex) : paragraphs;
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
-    if (el) {
+    if (!el) return;
+    if (scrollTopRafRef.current !== null) return;
+    scrollTopRafRef.current = requestAnimationFrame(() => {
+      scrollTopRafRef.current = null;
       setScrollTop(el.scrollTop);
-    }
+    });
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTopRafRef.current !== null) cancelAnimationFrame(scrollTopRafRef.current);
+    };
+  }, []);
+
+  // Clear measured heights when chapter/paragraphs change
+  const firstParagraphId = paragraphs[0]?.id ?? '';
+  useEffect(() => {
+    rowHeightsRef.current.clear();
+    rowRefsRef.current.clear();
+  }, [firstParagraphId]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -81,6 +153,53 @@ export function ParagraphList({
     setContainerHeight(el.clientHeight);
     return () => ro.disconnect();
   }, [useVirtualization]);
+
+  // ResizeObserver for variable-height rows: measure each visible row and batch re-renders
+  const rowObserverRef = useRef<ResizeObserver | null>(null);
+  useEffect(() => {
+    if (!useVirtualization) return;
+    const scheduleMeasurementUpdate = () => {
+      if (measurementRafRef.current !== null) return;
+      measurementRafRef.current = requestAnimationFrame(() => {
+        measurementRafRef.current = null;
+        setMeasurementVersion((v) => v + 1);
+      });
+    };
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const idx = parseInt((entry.target as HTMLElement).dataset.rowIndex ?? '', 10);
+        if (!Number.isNaN(idx)) {
+          rowHeightsRef.current.set(idx, entry.contentRect.height);
+        }
+      }
+      scheduleMeasurementUpdate();
+    });
+    rowObserverRef.current = observer;
+    for (const [idx, el] of rowRefsRef.current) {
+      el.dataset.rowIndex = String(idx);
+      observer.observe(el);
+    }
+    return () => {
+      observer.disconnect();
+      rowObserverRef.current = null;
+      if (measurementRafRef.current !== null) cancelAnimationFrame(measurementRafRef.current);
+    };
+  }, [useVirtualization]);
+
+  const setRowRef = useCallback((el: HTMLDivElement | null, index: number) => {
+    const obs = rowObserverRef.current;
+    if (el) {
+      el.dataset.rowIndex = String(index);
+      rowRefsRef.current.set(index, el);
+      obs?.observe(el);
+    } else {
+      const old = rowRefsRef.current.get(index);
+      if (old) {
+        obs?.unobserve(old);
+        rowRefsRef.current.delete(index);
+      }
+    }
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -97,13 +216,39 @@ export function ParagraphList({
     }
   }, [editingId]);
 
-  // Scroll to current search match when currentParagraphId changes
+  // Scroll to paragraph (called when user clicks search result row)
+  const scrollToParagraph = useCallback(
+    (id: string) => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const idx = paragraphs.findIndex((p) => p.id === id);
+      if (idx < 0) return;
+
+      if (useVirtualization) {
+        const acc: number[] = [0];
+        for (let i = 0; i < paragraphs.length; i++) {
+          acc.push(acc[acc.length - 1] + getRowHeight(i));
+        }
+        const targetOffset = acc[idx];
+        const scrollPadding = Math.max(0, containerHeight / 2 - EST_ROW_HEIGHT / 2);
+        const top = Math.max(0, targetOffset - scrollPadding);
+        container.scrollTo({ top, behavior: 'smooth' });
+      } else {
+        const rowEl = document.getElementById(`paragraph-row-${id}`);
+        rowEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    [paragraphs, useVirtualization, getRowHeight, containerHeight]
+  );
+
   useEffect(() => {
-    const id = searchHighlight?.currentParagraphId;
-    if (!id) return;
-    const el = document.getElementById(`paragraph-row-${id}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [searchHighlight?.currentParagraphId]);
+    if (!scrollToParagraphRef) return;
+    scrollToParagraphRef.current = scrollToParagraph;
+    return () => {
+      scrollToParagraphRef.current = null;
+    };
+  }, [scrollToParagraphRef, scrollToParagraph]);
 
   const startEditing = (paragraph: Paragraph) => {
     setEditingId(paragraph.id);
@@ -170,8 +315,8 @@ export function ParagraphList({
           <div style={{ height: totalHeight + 'px', position: 'relative' }}>
             <div
               style={{
-                paddingTop: startIndex * EST_ROW_HEIGHT + 'px',
-                paddingBottom: Math.max(0, (paragraphs.length - endIndex) * EST_ROW_HEIGHT) + 'px',
+                paddingTop: paddingTop + 'px',
+                paddingBottom: Math.max(0, paddingBottom) + 'px',
               }}
             >
               {visibleParagraphs.map((paragraph, idx) => {
@@ -188,6 +333,7 @@ export function ParagraphList({
                 return (
                   <div
                     key={paragraph.id}
+                    ref={(el) => setRowRef(el, index)}
                     id={`paragraph-row-${paragraph.id}`}
                     class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
                     style={{

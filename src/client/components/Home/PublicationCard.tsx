@@ -37,6 +37,22 @@ export function PublicationCard({
       })
     : null;
 
+  const translatedChapterCount =
+    'translatedChapterCount' in publication ? publication.translatedChapterCount : undefined;
+
+  const declension = (n: number, forms: [string, string, string]) => {
+    const n10 = n % 10;
+    const n100 = n % 100;
+    if (n10 === 1 && n100 !== 11) return forms[0];
+    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return forms[1];
+    return forms[2];
+  };
+  const chapterForms: [string, string, string] = [
+    t('project.chapterOne'),
+    t('project.chapterFew'),
+    t('project.chapterMany'),
+  ];
+
   const handleDescMouseEnter = useCallback(() => setShowDescTooltip(true), []);
   const handleDescMouseLeave = useCallback(() => setShowDescTooltip(false), []);
 
@@ -120,6 +136,14 @@ export function PublicationCard({
           {langLabel && (
             <div class="publication-card-chip-row">
               <span class="publication-card-lang-badge">{langLabel}</span>
+              {translatedChapterCount != null && translatedChapterCount > 0 && (
+                <>
+                  <span class="publication-card-meta-sep">·</span>
+                  <span class="publication-card-chapters-badge">
+                    {translatedChapterCount} {declension(translatedChapterCount, chapterForms)}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>

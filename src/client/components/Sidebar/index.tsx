@@ -22,8 +22,9 @@ interface SidebarProps {
     onProgress?: (loaded: number, total: number) => void;
   }) => Promise<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>;
   onOpenGlossary: () => void;
-  /** When > 0, show Reports button. Callback to open reports modal. */
+  /** Pending reports count (shown as badge when > 0). Callback to open reports modal. */
   reportsCount?: number;
+  /** When provided, Reports button is shown (allows returning to view resolved reports). */
   onOpenReports?: () => void;
   onChaptersUpdate?: () => void | Promise<void>;
   onProjectUpdate?: (project: Project | ProjectWithChapterList) => void;
@@ -154,10 +155,12 @@ export function Sidebar({
           <span class="glossary-count">{project.glossary.length}</span>
         </Button>
 
-        {reportsCount > 0 && onOpenReports && (
+        {onOpenReports && (
           <Button variant="secondary" onClick={onOpenReports} className="sidebar-action">
             <Icon name="flag" size="sm" /> {t('sidebar.reports')}{' '}
-            <span class="sidebar-reports-badge">{reportsCount}</span>
+            {reportsCount > 0 && (
+              <span class="sidebar-reports-badge">{reportsCount}</span>
+            )}
           </Button>
         )}
 
@@ -174,6 +177,7 @@ export function Sidebar({
               onSettingsChange={onSettingsChange}
               onOpenSettings={() => setShowSettings(true)}
               onBatchStarted={() => setTriggerJobsFetch((c) => c + 1)}
+              onBatchJobCreated={() => setTriggerJobsFetch((c) => c + 1)}
             />
           </>
         )}

@@ -185,7 +185,10 @@
     "canceled": "Отменено",
     "analysis": "Анализ",
     "translation": "Перевод",
-    "cancel": "Отменить"
+    "cancel": "Отменить",
+    "startedAgoMinutes": "Запущено {{count}} мин назад",
+    "startedAgoHours": "Запущено {{count}} ч назад",
+    "goToChapter": "Перейти к главе"
   },
   "sidebar": {
     "projects": "Проекты",
@@ -195,6 +198,21 @@
     "reports": "Жалобы на перевод",
     "reportsEmpty": "Пока нет жалоб",
     "reportsGoToChapter": "Перейти к главе",
+    "reportStatus": {
+      "pending": "Ожидает",
+      "reviewed": "Просмотрено",
+      "resolved": "Решено"
+    },
+    "reportFilterAll": "Все",
+    "reportFilterPending": "Ожидают",
+    "reportFilterReviewed": "Просмотрены",
+    "reportFilterResolved": "Решены",
+    "reportMarkReviewed": "Просмотрено",
+    "reportMarkResolved": "Решено",
+    "reportDelete": "Удалить",
+    "reportDeleteConfirmTitle": "Удалить жалобу?",
+    "reportDeleteConfirmBody": "Жалоба будет удалена безвозвратно.",
+    "reportDeleteConfirm": "Удалить",
     "allProjects": "Все проекты",
     "aboutProject": "О проекте",
     "projectSettings": "Настройки проекта"
@@ -502,6 +520,8 @@
     "uploadCoverLoading": "Загрузка...",
     "errorCanceled": "Отменено пользователем",
     "errorTranslation": "Ошибка перевода",
+    "errorBatchStartTitle": "Ошибка запуска пакета",
+    "errorJobQueueUnavailable": "Очередь задач недоступна. Пакетный перевод доступен при self-host с Redis.",
     "errorStatusCheck": "Ошибка проверки статуса",
     "errorTimeout": "Превышено время ожидания",
     "errorJobTimeout": "Таймаут задачи — возможно, сервер перезапущен. Попробуйте снова.",

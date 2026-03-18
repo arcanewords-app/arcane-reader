@@ -184,6 +184,21 @@
     "reports": "Translation reports",
     "reportsEmpty": "No reports yet",
     "reportsGoToChapter": "Go to chapter",
+    "reportStatus": {
+      "pending": "Pending",
+      "reviewed": "Reviewed",
+      "resolved": "Resolved"
+    },
+    "reportFilterAll": "All",
+    "reportFilterPending": "Pending",
+    "reportFilterReviewed": "Reviewed",
+    "reportFilterResolved": "Resolved",
+    "reportMarkReviewed": "Mark reviewed",
+    "reportMarkResolved": "Mark resolved",
+    "reportDelete": "Delete",
+    "reportDeleteConfirmTitle": "Delete report?",
+    "reportDeleteConfirmBody": "This report will be permanently removed.",
+    "reportDeleteConfirm": "Delete",
     "allProjects": "All projects",
     "aboutProject": "About project",
     "projectSettings": "Project settings"
@@ -197,7 +212,10 @@
     "canceled": "Canceled",
     "analysis": "Analysis",
     "translation": "Translation",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "startedAgoMinutes": "Started {{count}} min ago",
+    "startedAgoHours": "Started {{count}} h ago",
+    "goToChapter": "Go to chapter"
   },
   "settings": {
     "title": "Project settings",
@@ -502,6 +520,8 @@
     "uploadCoverLoading": "Uploading...",
     "errorCanceled": "Canceled by user",
     "errorTranslation": "Translation error",
+    "errorBatchStartTitle": "Batch start failed",
+    "errorJobQueueUnavailable": "Job queue unavailable. Batch translation requires Redis when self-hosted.",
     "errorStatusCheck": "Status check error",
     "errorTimeout": "Timeout exceeded",
     "errorJobTimeout": "Job timeout — server may have restarted. Please try again.",

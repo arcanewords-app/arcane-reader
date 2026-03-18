@@ -24,6 +24,8 @@ export interface AnalysisJobState {
   startedAt: string;
   finishedAt: string | null;
   cancelRequested: boolean;
+  /** Reserved tokens for release on completion/error/cancel */
+  estimatedTokens?: number;
 }
 
 export interface AnalysisJobStore {
@@ -38,6 +40,9 @@ export interface AnalysisJobStore {
   addToProjectIndex(projectId: string, jobId: string): Promise<void>;
   removeFromProjectIndex(projectId: string, jobId: string): Promise<void>;
   listByProject(projectId: string): Promise<AnalysisJobState[]>;
+  hasActiveJobForUser(userId: string): Promise<boolean>;
+  setUserActiveJob(userId: string, jobId: string): Promise<void>;
+  clearUserActiveJob(userId: string, jobId: string): Promise<void>;
 }
 
 function getRedisEnv(): { url: string; token: string } | null {
@@ -57,6 +62,10 @@ function analysisJobCancelKey(jobId: string): string {
 
 function projectAnalysisJobsKey(projectId: string): string {
   return `project:analysis_jobs:${projectId}`;
+}
+
+function userActiveAnalysisKey(userId: string): string {
+  return `user:active_analysis:${userId}`;
 }
 
 function hasJobChanged(current: AnalysisJobState, next: AnalysisJobState): boolean {
@@ -169,11 +178,30 @@ class RedisAnalysisJobStore implements AnalysisJobStore {
     }
     return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
   }
+
+  async hasActiveJobForUser(userId: string): Promise<boolean> {
+    const jobId = await this.redis.get<string>(userActiveAnalysisKey(userId));
+    if (!jobId) return false;
+    const job = await this.getJob(jobId);
+    return job !== null && (job.status === 'queued' || job.status === 'processing');
+  }
+
+  async setUserActiveJob(userId: string, jobId: string): Promise<void> {
+    await this.redis.set(userActiveAnalysisKey(userId), jobId);
+  }
+
+  async clearUserActiveJob(userId: string, jobId: string): Promise<void> {
+    const current = await this.redis.get<string>(userActiveAnalysisKey(userId));
+    if (current === jobId) {
+      await this.redis.del(userActiveAnalysisKey(userId));
+    }
+  }
 }
 
 class MemoryAnalysisJobStore implements AnalysisJobStore {
   private readonly jobs = new Map<string, AnalysisJobState>();
   private readonly projectIndex = new Map<string, Set<string>>();
+  private readonly userActiveAnalysis = new Map<string, string>();
   private readonly cancelFlags = new Map<string, boolean>();
   private readonly ttlTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly updateLocks = new Map<string, Promise<void>>();
@@ -251,6 +279,10 @@ class MemoryAnalysisJobStore implements AnalysisJobStore {
       clearTimeout(tid);
       this.ttlTimers.delete(jobId);
     }
+    const job = this.jobs.get(jobId);
+    if (job) {
+      this.clearUserActiveJob(job.userId, jobId);
+    }
     this.jobs.delete(jobId);
     this.cancelFlags.delete(jobId);
   }
@@ -261,6 +293,8 @@ class MemoryAnalysisJobStore implements AnalysisJobStore {
     const job = this.jobs.get(jobId);
     const projectId = job?.projectId;
     const tid = setTimeout(() => {
+      const j = this.jobs.get(jobId);
+      if (j) this.clearUserActiveJob(j.userId, jobId);
       this.jobs.delete(jobId);
       this.cancelFlags.delete(jobId);
       this.ttlTimers.delete(jobId);
@@ -301,6 +335,23 @@ class MemoryAnalysisJobStore implements AnalysisJobStore {
       if (job) jobs.push(job);
     }
     return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+  }
+
+  async hasActiveJobForUser(userId: string): Promise<boolean> {
+    const jobId = this.userActiveAnalysis.get(userId);
+    if (!jobId) return false;
+    const job = this.jobs.get(jobId);
+    return job !== undefined && (job.status === 'queued' || job.status === 'processing');
+  }
+
+  async setUserActiveJob(userId: string, jobId: string): Promise<void> {
+    this.userActiveAnalysis.set(userId, jobId);
+  }
+
+  async clearUserActiveJob(userId: string, jobId: string): Promise<void> {
+    if (this.userActiveAnalysis.get(userId) === jobId) {
+      this.userActiveAnalysis.delete(userId);
+    }
   }
 }
 

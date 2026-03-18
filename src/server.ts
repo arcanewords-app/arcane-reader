@@ -64,6 +64,8 @@ import {
   createTranslationReport,
   getTranslationReportsCountByProject,
   getTranslationReportsByProject,
+  updateTranslationReportStatus,
+  deleteTranslationReport,
   createPublicEntity,
   updatePublicEntity,
   deletePublicEntity,
@@ -282,7 +284,6 @@ import {
   checkTokenLimit,
   incrementTokenUsage,
   reserveTokens,
-  releaseTokens,
   getTokenUsageHistory,
 } from './middleware/tokenLimits.js';
 import { estimateTokensForStages, type TranslationStages } from './config/tokenLimits.js';
@@ -316,7 +317,11 @@ import {
   type TranslateJobState,
   type TranslateJobChapter,
 } from './services/translateJobStore.js';
-import { enqueueChapterJob } from './services/chapterJobQueue.js';
+import {
+  addAnalysisJob,
+  addTranslateJob,
+  isBullAvailable,
+} from './services/chapterQueue.js';
 import {
   uploadFile,
   deleteFile,
@@ -3042,6 +3047,22 @@ app.post(
 
       if (preferAsync) {
         const userId = req.user!.id;
+
+        if (!isBullAvailable()) {
+          return res.status(503).json({
+            error: 'Job queue unavailable',
+            message: 'REDIS_URL required for async jobs. Configure Redis and restart.',
+          });
+        }
+
+        const hasActive = await analysisJobStore.hasActiveJobForUser(userId);
+        if (hasActive) {
+          return res.status(409).json({
+            error: 'Active job exists',
+            message: 'У вас уже есть активная задача. Дождитесь её завершения.',
+          });
+        }
+
         await reserveTokens(userId, token, estimatedTokens);
 
         const jobId = generateAnalysisJobId();
@@ -3063,210 +3084,32 @@ app.post(
           startedAt: new Date().toISOString(),
           finishedAt: null,
           cancelRequested: false,
+          estimatedTokens,
         };
         await analysisJobStore.createJob(job);
         await analysisJobStore.addToProjectIndex(projectId, jobId);
         await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
+        await analysisJobStore.setUserActiveJob(userId, jobId);
+
+        await addAnalysisJob({
+          jobId,
+          projectId,
+          userId,
+          estimatedTokens,
+          chapterIds: chaptersWithText.map((c) => c.id),
+        });
 
         res.status(202).json({ jobId, status: 'queued' as const });
-
-        enqueueChapterJob(userId, jobId, 'analysis', async () => {
-          const currentJob = await analysisJobStore.getJob(jobId);
-          if (!currentJob) return;
-          await analysisJobStore.updateJob(jobId, { status: 'processing' });
-
-          const chapterMap = new Map(chaptersWithText.map((c) => [c.id, c]));
-          let totalTokensAccum = 0;
-          let cancelledFlag = false;
-          const cancelCheckInterval = setInterval(async () => {
-            if (await analysisJobStore.isCancelRequested(jobId)) cancelledFlag = true;
-          }, 500);
-
-          try {
-            const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
-              useCache: true,
-              analysisConcurrency: 4,
-              isCancelled: () => cancelledFlag,
-              onProgress: async (chapterId, progResult) => {
-                if (await analysisJobStore.isCancelRequested(jobId)) return;
-                const ch = chapterMap.get(chapterId);
-                if (!ch) return;
-                totalTokensAccum += progResult.tokensUsed;
-                const status: AnalysisJobChapter['status'] = progResult.success
-                  ? 'completed'
-                  : 'error';
-                const jobNow = await analysisJobStore.getJob(jobId);
-                if (!jobNow) return;
-                const updatedChapters = jobNow.chapters.map((c) =>
-                  c.chapterId === chapterId
-                    ? { ...c, status, tokensUsed: progResult.tokensUsed }
-                    : c
-                );
-                const completedCount = updatedChapters.filter(
-                  (c) => c.status === 'completed'
-                ).length;
-                const errorCount = updatedChapters.filter((c) => c.status === 'error').length;
-
-                if (progResult.success) {
-                  const nowIso = new Date().toISOString();
-                  const analysisModel =
-                    project.settings?.stageModels?.analysis ??
-                    project.settings?.model ??
-                    config.openai.model;
-                  const existingChapter = await getChapter(projectId, chapterId, token, {
-                    useServiceRole: true,
-                  });
-                  const preserveStatus =
-                    existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
-                  const preservedSource = existingChapter?.translationMeta?.source;
-                  await updateChapter(
-                    projectId,
-                    chapterId,
-                    {
-                      status: preserveStatus ? existingChapter!.status : 'analyzed',
-                      translationMeta: {
-                        ...(existingChapter?.translationMeta || {}),
-                        tokensUsed: progResult.tokensUsed,
-                        tokensByStage: {
-                          ...(existingChapter?.translationMeta?.tokensByStage || {}),
-                          analysis: progResult.tokensUsed,
-                          translation:
-                            existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
-                          editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
-                        },
-                        duration: 0,
-                        model: analysisModel,
-                        translatedAt: existingChapter?.translationMeta?.translatedAt ?? nowIso,
-                        lastAnalysisAt: nowIso,
-                        ...(preservedSource ? { source: preservedSource } : {}),
-                      },
-                    },
-                    token,
-                    { useServiceRole: true }
-                  );
-                }
-
-                await analysisJobStore.updateJob(jobId, {
-                  current: completedCount + errorCount,
-                  chapters: updatedChapters,
-                  totalTokensUsed: totalTokensAccum,
-                  currentChapterTitle: ch.title,
-                });
-              },
-            });
-
-            clearInterval(cancelCheckInterval);
-            if (await analysisJobStore.isCancelRequested(jobId)) {
-              await analysisJobStore.updateJob(jobId, {
-                status: 'canceled',
-                finishedAt: new Date().toISOString(),
-              });
-              await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
-              try {
-                await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
-              } catch (tokenError) {
-                req.log?.warn(
-                  { err: tokenError },
-                  'Failed to release tokens on cancel (non-critical)'
-                );
-              }
-              return;
-            }
-
-            if (result.glossaryUpdates.length > 0) {
-              for (const entry of result.glossaryUpdates) {
-                await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
-              }
-            }
-            if (result.glossaryUpdatesExisting.length > 0) {
-              for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-                await updateGlossaryEntry(projectId, entryId, updates, token, {
-                  useServiceRole: true,
-                });
-              }
-            }
-
-            for (const chResult of result.chapterResults) {
-              if (!chResult.success) continue;
-              const chapterNum =
-                chaptersWithText.find((c) => c.id === chResult.chapterId)?.number ??
-                chResult.chapterNumber;
-              if (chResult.glossaryAppearanceEntryIds.length > 0) {
-                for (const entryId of chResult.glossaryAppearanceEntryIds) {
-                  const entry = await getGlossaryEntry(projectId, entryId, token, {
-                    useServiceRole: true,
-                  });
-                  if (entry) {
-                    const merged = [
-                      ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
-                    ].sort((a, b) => a - b);
-                    await updateGlossaryEntry(
-                      projectId,
-                      entryId,
-                      { mentionedInChapters: merged },
-                      token,
-                      { useServiceRole: true }
-                    );
-                  }
-                }
-              }
-            }
-
-            try {
-              await releaseTokens(userId, estimatedTokens, {
-                tokensActual: result.totalTokensUsed,
-                tokensByStage: {
-                  analysis: result.totalTokensUsed,
-                  translation: 0,
-                  editing: 0,
-                },
-                useServiceRole: true,
-              });
-            } catch (tokenError) {
-              req.log?.warn({ err: tokenError }, 'Failed to release tokens (non-critical)');
-            }
-
-            await invalidateProjectAndRelatedCaches(userId, projectId, token, {
-              useServiceRole: true,
-            });
-
-            const successful = result.chapterResults.filter((c) => c.success).length;
-            const failed = result.chapterResults.filter((c) => !c.success).length;
-            await analysisJobStore.updateJob(jobId, {
-              status: 'completed',
-              current: successful + failed,
-              totalTokensUsed: result.totalTokensUsed,
-              finishedAt: new Date().toISOString(),
-            });
-            await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
-          } catch (bgErr) {
-            clearInterval(cancelCheckInterval);
-            const errMsg = bgErr instanceof Error ? bgErr.message : String(bgErr);
-            req.log?.error({ err: bgErr }, `Analyze batch job ${jobId} failed: ${errMsg}`);
-            await analysisJobStore.updateJob(jobId, {
-              status: 'error',
-              errors: [errMsg],
-              finishedAt: new Date().toISOString(),
-            });
-            await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
-            try {
-              await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
-            } catch (tokenError) {
-              req.log?.warn(
-                { err: tokenError },
-                'Failed to release tokens on error (non-critical)'
-              );
-            }
-          } finally {
-            await analysisJobStore.removeFromProjectIndex(projectId, jobId);
-          }
-        });
         return;
       }
 
+      const analysisConcurrency = Math.max(
+        1,
+        config.translation?.analysisConcurrency ?? 4
+      );
       const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
         useCache: true,
-        analysisConcurrency: 4,
+        analysisConcurrency,
       });
 
       if (result.glossaryUpdates.length > 0) {
@@ -3540,6 +3383,22 @@ app.post(
 
       if (preferAsync) {
         const userId = req.user.id;
+
+        if (!isBullAvailable()) {
+          return res.status(503).json({
+            error: 'Job queue unavailable',
+            message: 'REDIS_URL required for async jobs. Configure Redis and restart.',
+          });
+        }
+
+        const hasActive = await translateJobStore.hasActiveJobForUser(userId);
+        if (hasActive) {
+          return res.status(409).json({
+            error: 'Active job exists',
+            message: 'У вас уже есть активная задача. Дождитесь её завершения.',
+          });
+        }
+
         await reserveTokens(userId, token, estimatedTokens);
 
         const jobId = generateTranslateJobId();
@@ -3561,175 +3420,24 @@ app.post(
           startedAt: new Date().toISOString(),
           finishedAt: null,
           cancelRequested: false,
+          estimatedTokens,
         };
         await translateJobStore.createJob(job);
         await translateJobStore.addToProjectIndex(projectId, jobId);
         await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
+        await translateJobStore.setUserActiveJob(userId, jobId);
+
+        await addTranslateJob({
+          jobId,
+          projectId,
+          userId,
+          estimatedTokens,
+          chapterIds: chaptersToTranslate.map((c) => c.id),
+          stages,
+          translateOnlyEmpty,
+        });
 
         res.status(202).json({ jobId, status: 'queued' as const });
-
-        enqueueChapterJob(userId, jobId, 'translate', async () => {
-          const currentJob = await translateJobStore.getJob(jobId);
-          if (!currentJob) return;
-          await translateJobStore.updateJob(jobId, { status: 'processing' });
-
-          let cancelledFlag = false;
-          const cancelCheckInterval = setInterval(async () => {
-            if (await translateJobStore.isCancelRequested(jobId)) cancelledFlag = true;
-          }, 500);
-
-          const sortedChapters = [...chaptersToTranslate].sort(
-            (a, b) => (a.number ?? 0) - (b.number ?? 0)
-          );
-          let totalTokensAccum = 0;
-
-          try {
-            for (let i = 0; i < sortedChapters.length; i++) {
-              if (await translateJobStore.isCancelRequested(jobId)) break;
-
-              const chapter = sortedChapters[i];
-              const chapterStartTime = Date.now();
-
-              const jobBeforeChapter = await translateJobStore.getJob(jobId);
-              if (jobBeforeChapter) {
-                await translateJobStore.updateJob(jobId, {
-                  current: i,
-                  currentChapterTitle: chapter.title,
-                  chapters: jobBeforeChapter.chapters.map((c) =>
-                    c.chapterId === chapter.id ? { ...c, status: 'processing' as const } : c
-                  ),
-                });
-              }
-
-              await updateChapter(projectId, chapter.id, { status: 'translating' }, token, {
-                useServiceRole: true,
-              });
-              await invalidateProjectAndRelatedCaches(userId, projectId, token, {
-                useServiceRole: true,
-              });
-
-              try {
-                await performTranslation(
-                  projectId,
-                  chapter.id,
-                  chapter,
-                  project,
-                  chapterStartTime,
-                  translateOnlyEmpty,
-                  token,
-                  userId,
-                  undefined,
-                  stages,
-                  {
-                    externalIsCancelled: () => cancelledFlag,
-                    onProgress: (chunksDone, totalChunks) => {
-                      translateJobStore
-                        .updateJob(jobId, {
-                          currentChapterChunksDone: chunksDone,
-                          currentChapterTotalChunks: totalChunks,
-                        })
-                        .catch(() => {});
-                    },
-                  }
-                );
-              } catch (chErr) {
-                const errMsg = chErr instanceof Error ? chErr.message : String(chErr);
-                req.log?.error({ err: chErr }, `Translate batch chapter ${chapter.id} failed`);
-                const jobNow = await translateJobStore.getJob(jobId);
-                if (!jobNow) continue;
-                const updatedChapters = jobNow.chapters.map((c) =>
-                  c.chapterId === chapter.id ? { ...c, status: 'error' as const } : c
-                );
-                await translateJobStore.updateJob(jobId, {
-                  chapters: updatedChapters,
-                  errors: [...jobNow.errors, `${chapter.title}: ${errMsg}`],
-                  currentChapterChunksDone: undefined,
-                  currentChapterTotalChunks: undefined,
-                });
-                continue;
-              }
-
-              const updatedChapter = await getChapter(projectId, chapter.id, token, {
-                useServiceRole: true,
-              });
-              const meta = updatedChapter?.translationMeta;
-              const tokensUsed = meta?.tokensUsed ?? 0;
-              const tokensByStage = meta?.tokensByStage;
-              const duration = meta?.duration ?? Date.now() - chapterStartTime;
-              totalTokensAccum += tokensUsed;
-
-              const jobNow = await translateJobStore.getJob(jobId);
-              if (!jobNow) continue;
-              const updatedChapters = jobNow.chapters.map((c) =>
-                c.chapterId === chapter.id
-                  ? {
-                      ...c,
-                      status: 'completed' as const,
-                      tokensUsed,
-                      tokensByStage,
-                      duration,
-                    }
-                  : c
-              );
-              await translateJobStore.updateJob(jobId, {
-                current: i + 1,
-                chapters: updatedChapters,
-                totalTokensUsed: totalTokensAccum,
-                currentChapterTitle: undefined,
-                currentChapterChunksDone: undefined,
-                currentChapterTotalChunks: undefined,
-              });
-            }
-
-            clearInterval(cancelCheckInterval);
-            if (await translateJobStore.isCancelRequested(jobId)) {
-              await translateJobStore.updateJob(jobId, {
-                status: 'canceled',
-                finishedAt: new Date().toISOString(),
-              });
-              await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
-              try {
-                await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
-              } catch (tokenError) {
-                req.log?.warn(
-                  { err: tokenError },
-                  'Failed to release tokens on cancel (non-critical)'
-                );
-              }
-              await translateJobStore.removeFromProjectIndex(projectId, jobId);
-              return;
-            }
-
-            await invalidateProjectAndRelatedCaches(userId, projectId, token, {
-              useServiceRole: true,
-            });
-            await translateJobStore.updateJob(jobId, {
-              status: 'completed',
-              finishedAt: new Date().toISOString(),
-            });
-            await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
-          } catch (bgErr) {
-            clearInterval(cancelCheckInterval);
-            const errMsg = bgErr instanceof Error ? bgErr.message : String(bgErr);
-            req.log?.error({ err: bgErr }, `Translate batch job ${jobId} failed: ${errMsg}`);
-            await translateJobStore.updateJob(jobId, {
-              status: 'error',
-              errors: [errMsg],
-              finishedAt: new Date().toISOString(),
-            });
-            await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
-            try {
-              await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
-            } catch (tokenError) {
-              req.log?.warn(
-                { err: tokenError },
-                'Failed to release tokens on error (non-critical)'
-              );
-            }
-          } finally {
-            await translateJobStore.removeFromProjectIndex(projectId, jobId);
-          }
-        });
         return;
       }
 
@@ -3991,8 +3699,9 @@ app.post(
  * Glossary accumulates per project: new entries from the analysis stage are saved
  * to the project and available for subsequent chapters. Stages (analysis |
  * translation | editing | all) are passed from the API request body.
+ * Exported for use by BullMQ worker (runTranslateJob).
  */
-async function performTranslation(
+export async function performTranslation(
   projectId: string,
   chapterId: string,
   chapter: Chapter,
@@ -5700,6 +5409,63 @@ app.get('/api/projects/:id/reports', requireAuth, requireRole('author'), async (
     res.status(500).json({ error: 'Failed to get reports' });
   }
 });
+
+const reportStatusSchema = z.object({
+  status: z.enum(['pending', 'reviewed', 'resolved']),
+});
+
+app.patch(
+  '/api/projects/:id/reports/:reportId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const token = requireToken(req);
+      const projectId = req.params.id;
+      const reportId = req.params.reportId;
+
+      const parsed = reportStatusSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid status. Use pending, reviewed, or resolved' });
+      }
+
+      await updateTranslationReportStatus(
+        projectId,
+        reportId,
+        userId,
+        token,
+        parsed.data.status
+      );
+      await redisDelMany([projectReportsCountCacheKey(projectId)]);
+      res.json({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to update report';
+      res.status(400).json({ error: msg });
+    }
+  }
+);
+
+app.delete(
+  '/api/projects/:id/reports/:reportId',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const token = requireToken(req);
+      const projectId = req.params.id;
+      const reportId = req.params.reportId;
+
+      await deleteTranslationReport(projectId, reportId, userId, token);
+      await redisDelMany([projectReportsCountCacheKey(projectId)]);
+      res.json({ success: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to delete report';
+      res.status(400).json({ error: msg });
+    }
+  }
+);
 
 // ============ Glossary ============
 
@@ -8231,6 +7997,6 @@ async function startServer(): Promise<void> {
   });
 }
 
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && !process.env.RUN_AS_WORKER) {
   startServer().catch((err) => logger.error({ err }, 'Server failed to start'));
 }

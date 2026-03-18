@@ -45,7 +45,7 @@
   justify-content: space-between;
   padding: 0 0 1rem;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.05) 100%);
+  background: transparent;
 }
 
 .glossary-modal-header .modal-title {

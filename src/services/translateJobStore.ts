@@ -33,6 +33,8 @@ export interface TranslateJobState {
   startedAt: string;
   finishedAt: string | null;
   cancelRequested: boolean;
+  /** Reserved tokens for release on completion/error/cancel */
+  estimatedTokens?: number;
 }
 
 export interface TranslateJobStore {
@@ -47,6 +49,9 @@ export interface TranslateJobStore {
   addToProjectIndex(projectId: string, jobId: string): Promise<void>;
   removeFromProjectIndex(projectId: string, jobId: string): Promise<void>;
   listByProject(projectId: string): Promise<TranslateJobState[]>;
+  hasActiveJobForUser(userId: string): Promise<boolean>;
+  setUserActiveJob(userId: string, jobId: string): Promise<void>;
+  clearUserActiveJob(userId: string, jobId: string): Promise<void>;
 }
 
 function getRedisEnv(): { url: string; token: string } | null {
@@ -66,6 +71,10 @@ function translateJobCancelKey(jobId: string): string {
 
 function projectTranslateJobsKey(projectId: string): string {
   return `project:translate_jobs:${projectId}`;
+}
+
+function userActiveTranslateKey(userId: string): string {
+  return `user:active_translate:${userId}`;
 }
 
 function hasJobChanged(current: TranslateJobState, next: TranslateJobState): boolean {
@@ -178,11 +187,30 @@ class RedisTranslateJobStore implements TranslateJobStore {
     }
     return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
   }
+
+  async hasActiveJobForUser(userId: string): Promise<boolean> {
+    const jobId = await this.redis.get<string>(userActiveTranslateKey(userId));
+    if (!jobId) return false;
+    const job = await this.getJob(jobId);
+    return job !== null && (job.status === 'queued' || job.status === 'processing');
+  }
+
+  async setUserActiveJob(userId: string, jobId: string): Promise<void> {
+    await this.redis.set(userActiveTranslateKey(userId), jobId);
+  }
+
+  async clearUserActiveJob(userId: string, jobId: string): Promise<void> {
+    const current = await this.redis.get<string>(userActiveTranslateKey(userId));
+    if (current === jobId) {
+      await this.redis.del(userActiveTranslateKey(userId));
+    }
+  }
 }
 
 class MemoryTranslateJobStore implements TranslateJobStore {
   private readonly jobs = new Map<string, TranslateJobState>();
   private readonly projectIndex = new Map<string, Set<string>>();
+  private readonly userActiveTranslate = new Map<string, string>();
   private readonly cancelFlags = new Map<string, boolean>();
   private readonly ttlTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly updateLocks = new Map<string, Promise<void>>();
@@ -260,6 +288,10 @@ class MemoryTranslateJobStore implements TranslateJobStore {
       clearTimeout(tid);
       this.ttlTimers.delete(jobId);
     }
+    const job = this.jobs.get(jobId);
+    if (job) {
+      this.clearUserActiveJob(job.userId, jobId);
+    }
     this.jobs.delete(jobId);
     this.cancelFlags.delete(jobId);
   }
@@ -270,6 +302,8 @@ class MemoryTranslateJobStore implements TranslateJobStore {
     const job = this.jobs.get(jobId);
     const projectId = job?.projectId;
     const tid = setTimeout(() => {
+      const j = this.jobs.get(jobId);
+      if (j) this.clearUserActiveJob(j.userId, jobId);
       this.jobs.delete(jobId);
       this.cancelFlags.delete(jobId);
       this.ttlTimers.delete(jobId);
@@ -310,6 +344,23 @@ class MemoryTranslateJobStore implements TranslateJobStore {
       if (job) jobs.push(job);
     }
     return jobs.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+  }
+
+  async hasActiveJobForUser(userId: string): Promise<boolean> {
+    const jobId = this.userActiveTranslate.get(userId);
+    if (!jobId) return false;
+    const job = this.jobs.get(jobId);
+    return job !== undefined && (job.status === 'queued' || job.status === 'processing');
+  }
+
+  async setUserActiveJob(userId: string, jobId: string): Promise<void> {
+    this.userActiveTranslate.set(userId, jobId);
+  }
+
+  async clearUserActiveJob(userId: string, jobId: string): Promise<void> {
+    if (this.userActiveTranslate.get(userId) === jobId) {
+      this.userActiveTranslate.delete(userId);
+    }
   }
 }
 

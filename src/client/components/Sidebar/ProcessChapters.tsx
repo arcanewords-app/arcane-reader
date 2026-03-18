@@ -31,6 +31,8 @@ interface ProcessChaptersProps {
   onOpenSettings?: () => void;
   /** Called when user starts a batch (triggers JobsPanel to fetch immediately) */
   onBatchStarted?: () => void;
+  /** Called when async batch job is created on server (triggers JobsPanel to fetch when job exists) */
+  onBatchJobCreated?: () => void;
 }
 
 function presetButtonStyle(filter: StatusFilter): Record<string, string> {
@@ -91,6 +93,8 @@ export function ProcessChapters({
   onRefreshProject,
   onSettingsChange,
   onOpenSettings,
+  onBatchStarted,
+  onBatchJobCreated,
 }: ProcessChaptersProps) {
   const { t } = useTranslation();
   const [showTranslateAllModal, setShowTranslateAllModal] = useState(false);
@@ -130,8 +134,12 @@ export function ProcessChapters({
   }, [showTranslateAllModal, project.id, onRefreshProject]);
 
   const estimate = useTokenEstimate();
-  const batch = useBatchChapterTranslation(project.id, project, onRefreshProject, (title, msg) =>
-    setErrorModal({ title, message: msg })
+  const batch = useBatchChapterTranslation(
+    project.id,
+    project,
+    onRefreshProject,
+    (title, msg) => setErrorModal({ title, message: msg }),
+    onBatchJobCreated
   );
   const translationProgress = batch.progress;
   useEffect(() => {
@@ -334,7 +342,7 @@ export function ProcessChapters({
     setShowTranslateAllModal(false);
     batch.startBatch(selectedChaptersForTranslate, { stages: batchSelectedStages });
     onBatchStarted?.();
-  }, [selectedChaptersForTranslate, batchSelectedStages, batch, t]);
+  }, [selectedChaptersForTranslate, batchSelectedStages, batch, onBatchStarted, t]);
 
   const handleMarkAsTranslatedBatch = useCallback(() => {
     if (selectedChaptersForTranslate.length === 0) {

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Chapter, ChapterListItem } from '../../types';
-import { Button, StatusBadge, Icon, Skeleton } from '../ui';
+import { Button, Modal, StatusBadge, Icon, Skeleton } from '../ui';
 import { api } from '../../api/client';
+import '../ui/Input.css';
 import './ChapterHeader.css';
 
 interface ChapterHeaderProps {
@@ -61,6 +62,7 @@ export function ChapterHeader({
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
+      titleInputRef.current.select();
     }
   }, [isEditingTitle]);
 
@@ -117,7 +119,7 @@ export function ChapterHeader({
   const showSkeletonActions = isLoading || !chapter;
 
   return (
-    <div class={`chapter-header ${isEditingTitle ? 'is-editing-title' : ''}`}>
+    <div class="chapter-header">
       <div class="chapter-header-left">
         <div class="chapter-nav">
           <button
@@ -128,51 +130,27 @@ export function ChapterHeader({
           >
             <Icon name="chevron_left" />
           </button>
-          {chapter && isEditingTitle ? (
-            <div class="chapter-title-edit">
-              <input
-                ref={titleInputRef}
-                type="text"
-                class="chapter-title-input"
-                value={editedTitle}
-                onInput={(e) => setEditedTitle((e.target as HTMLInputElement).value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleSaveTitle}
-                disabled={savingTitle}
-              />
-              <div class="chapter-title-edit-actions">
-                <button
-                  class="chapter-title-save-btn"
-                  onClick={handleSaveTitle}
-                  disabled={savingTitle}
-                  title={t('chapter.saveEnter')}
-                >
-                  <Icon name="check" size="sm" />
-                </button>
-                <button
-                  class="chapter-title-cancel-btn"
-                  onClick={handleCancelEdit}
-                  disabled={savingTitle}
-                  title={t('chapter.cancelEsc')}
-                >
-                  <Icon name="close" size="sm" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div class="chapter-title-wrapper">
-              <h2 class="chapter-title">{title}</h2>
-              {chapter && (
-                <button
-                  class="chapter-title-edit-btn"
-                  onClick={handleStartEdit}
-                  title={t('chapter.editTitle')}
-                >
-                  <Icon name="edit" size="sm" />
-                </button>
-              )}
-            </div>
-          )}
+          <div class="chapter-title-wrapper">
+            <h2
+              class={`chapter-title ${chapter ? 'chapter-title-editable' : ''}`}
+              onClick={chapter ? handleStartEdit : undefined}
+              onKeyDown={
+                chapter
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleStartEdit();
+                      }
+                    }
+                  : undefined
+              }
+              role={chapter ? 'button' : undefined}
+              tabIndex={chapter ? 0 : undefined}
+              title={chapter ? t('chapter.editTitle') : undefined}
+            >
+              {title}
+            </h2>
+          </div>
           <button
             class="chapter-nav-btn"
             disabled={!canNext}
@@ -246,6 +224,34 @@ export function ChapterHeader({
           </>
         )}
       </div>
+
+      <Modal
+        isOpen={isEditingTitle}
+        onClose={handleCancelEdit}
+        title={t('chapter.editTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={handleCancelEdit} disabled={savingTitle}>
+              {t('chapter.cancelEsc')}
+            </Button>
+            <Button variant="primary" onClick={handleSaveTitle} disabled={savingTitle}>
+              {t('chapter.saveEnter')}
+            </Button>
+          </>
+        }
+      >
+        <div class="form-group">
+          <input
+            ref={titleInputRef}
+            type="text"
+            class="form-input"
+            value={editedTitle}
+            onInput={(e) => setEditedTitle((e.target as HTMLInputElement).value)}
+            onKeyDown={handleKeyDown}
+            disabled={savingTitle}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type {
   Chapter,
@@ -81,6 +81,7 @@ export function ChapterView({
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchHighlight, setSearchHighlight] = useState<SearchHighlight | null>(null);
+  const scrollToParagraphRef = useRef<((id: string) => void) | null>(null);
 
   const isLoading = !chapter;
   const effectiveChapter: Chapter = chapter ?? {
@@ -291,7 +292,7 @@ export function ChapterView({
 
     if (!paragraphIds?.length) return;
 
-    await api.bulkUpdateParagraphs(project.id, chapter.id, paragraphIds, 'approved');
+    await api.bulkUpdateParagraphsStatus(project.id, chapter.id, paragraphIds, 'approved');
     const updated = await api.getChapter(project.id, chapter.id);
     onChapterUpdate(updated);
   };
@@ -360,6 +361,7 @@ export function ChapterView({
               setSearchHighlight(null);
             }}
             onHighlightChange={setSearchHighlight}
+            onScrollToRequest={(id) => scrollToParagraphRef.current?.(id)}
             onReplace={async (paragraphId, newText) => {
               await handleSaveParagraph(paragraphId, newText);
             }}
@@ -434,6 +436,7 @@ export function ChapterView({
           onToggleParagraphSelection={handleToggleParagraphSelection}
           textBlockTypes={project.settings?.textBlockTypes ?? []}
           searchHighlight={searchHighlight}
+          scrollToParagraphRef={scrollToParagraphRef}
         />
       ) : (
         <Card>

@@ -203,6 +203,12 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           isOpen={showReports}
           onClose={() => setShowReports(false)}
           projectId={project.id}
+          onReportsChange={() =>
+            api
+              .getProjectReportsCount(project.id)
+              .then(({ count }) => setReportsCount(count))
+              .catch(() => {})
+          }
         />
       )}
     </div>

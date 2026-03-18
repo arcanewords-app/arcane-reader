@@ -185,7 +185,10 @@
     "canceled": "Anulowano",
     "analysis": "Analiza",
     "translation": "Tłumaczenie",
-    "cancel": "Anuluj"
+    "cancel": "Anuluj",
+    "startedAgoMinutes": "Uruchomiono {{count}} min temu",
+    "startedAgoHours": "Uruchomiono {{count}} h temu",
+    "goToChapter": "Przejdź do rozdziału"
   },
   "sidebar": {
     "projects": "Projekty",
@@ -195,6 +198,21 @@
     "reports": "Zgłoszenia tłumaczeń",
     "reportsEmpty": "Brak zgłoszeń",
     "reportsGoToChapter": "Przejdź do rozdziału",
+    "reportStatus": {
+      "pending": "Oczekuje",
+      "reviewed": "Przejrzane",
+      "resolved": "Rozwiązane"
+    },
+    "reportFilterAll": "Wszystkie",
+    "reportFilterPending": "Oczekujące",
+    "reportFilterReviewed": "Przejrzane",
+    "reportFilterResolved": "Rozwiązane",
+    "reportMarkReviewed": "Oznacz jako przejrzane",
+    "reportMarkResolved": "Oznacz jako rozwiązane",
+    "reportDelete": "Usuń",
+    "reportDeleteConfirmTitle": "Usunąć zgłoszenie?",
+    "reportDeleteConfirmBody": "Zgłoszenie zostanie trwale usunięte.",
+    "reportDeleteConfirm": "Usuń",
     "allProjects": "Wszystkie projekty",
     "aboutProject": "O projekcie",
     "projectSettings": "Ustawienia projektu"
@@ -503,6 +521,8 @@
     "uploadCoverLoading": "Przesyłanie...",
     "errorCanceled": "Anulowano przez użytkownika",
     "errorTranslation": "Błąd tłumaczenia",
+    "errorBatchStartTitle": "Błąd uruchomienia pakietu",
+    "errorJobQueueUnavailable": "Kolejka zadań niedostępna. Tłumaczenie pakietowe wymaga Redis przy self-host.",
     "errorStatusCheck": "Błąd sprawdzania statusu",
     "errorTimeout": "Przekroczono limit czasu",
     "errorJobTimeout": "Limit czasu zadania — serwer mógł zostać zrestartowany. Spróbuj ponownie.",

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import { Button, Icon } from '../ui';
 import { api } from '../../api/client';
 import type { Project, ProjectWithChapterList, ProjectJobItem } from '../../types';
@@ -36,6 +37,16 @@ function jobTypeLabel(type: 'analysis' | 'translate', t: (key: string) => string
   return type === 'analysis' ? t('jobsPanel.analysis') : t('jobsPanel.translation');
 }
 
+function formatStartedAgo(startedAt: string, t: (key: string, opts: { count: number }) => string): string {
+  const started = new Date(startedAt).getTime();
+  const minutes = Math.floor((Date.now() - started) / 60_000);
+  if (minutes < 60) {
+    return t('jobsPanel.startedAgoMinutes', { count: Math.max(1, minutes) });
+  }
+  const hours = Math.floor(minutes / 60);
+  return t('jobsPanel.startedAgoHours', { count: hours });
+}
+
 export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanelProps) {
   const { t } = useTranslation();
   const [jobs, setJobs] = useState<ProjectJobItem[]>([]);
@@ -69,8 +80,11 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
           return !inNew; // Job was active, now gone = completed and removed from index
         });
 
-      if (jobJustFinished && onRefreshRef.current) {
-        void onRefreshRef.current();
+      if (jobJustFinished) {
+        setExpectingJobsUntil(0); // Stop expecting — job finished, panel can hide
+        if (onRefreshRef.current) {
+          void onRefreshRef.current();
+        }
       }
 
       prevJobsRef.current = newJobs;
@@ -149,11 +163,11 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
   return (
     <div class="jobs-panel">
       <div class="jobs-panel-header">
-        <Icon name="pending_actions" size="sm" />
-        <span class="jobs-panel-title">
-          {t('jobsPanel.title')}
-          {activeCount > 0 && <span class="jobs-panel-badge">{activeCount}</span>}
-        </span>
+        <div class="jobs-panel-header-left">
+          <Icon name="pending_actions" size="sm" />
+          <span class="jobs-panel-title">{t('jobsPanel.title')}</span>
+        </div>
+        {activeCount > 0 && <span class="jobs-panel-badge">{activeCount}</span>}
       </div>
       {loading || (isExpecting && jobs.length === 0) ? (
         <div class="jobs-panel-loading">{t('common.loading')}</div>
@@ -170,6 +184,11 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                   : job.status === 'canceled'
                     ? 'canceled'
                     : 'active';
+            const isActive = job.status === 'queued' || job.status === 'processing';
+            const currentChapter = job.currentChapterTitle
+              ? job.chapters.find((c) => c.title === job.currentChapterTitle)
+              : job.chapters[job.current];
+
             return (
               <li
                 key={`${job.type}-${job.jobId}`}
@@ -181,29 +200,81 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                     {jobStatusLabel(job.status, t)}
                   </span>
                 </div>
-                <div class="jobs-panel-item-progress">
-                  {job.current} / {job.total}
-                  {job.currentChapterTitle && (
-                    <span class="jobs-panel-item-chapter" title={job.currentChapterTitle}>
-                      · {job.currentChapterTitle}
+                {isActive && (
+                  <div class="jobs-panel-item-progress-row">
+                    <div class="jobs-panel-item-progress-bar">
+                      <div
+                        class="jobs-panel-item-progress-fill"
+                        style={{ width: `${Math.min(100, Math.max(0, job.progress ?? 0))}%` }}
+                      />
+                    </div>
+                    <span class="jobs-panel-item-progress-text">
+                      {job.current} / {job.total}
                     </span>
-                  )}
-                </div>
-                {job.totalTokensUsed > 0 && (
-                  <div class="jobs-panel-item-tokens">
-                    {job.totalTokensUsed.toLocaleString()} {t('projectInfo.tokensCount')}
+                  </div>
+                )}
+                {!isActive && (
+                  <div class="jobs-panel-item-progress">
+                    {job.current} / {job.total}
+                    {job.currentChapterTitle && (
+                      <span class="jobs-panel-item-chapter" title={job.currentChapterTitle}>
+                        · {job.currentChapterTitle}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {(job.currentChapterTitle || job.totalTokensUsed > 0 || (isActive && job.startedAt)) && (
+                  <div class="jobs-panel-item-meta">
+                    {job.currentChapterTitle &&
+                      (currentChapter?.chapterId ? (
+                        <a
+                          href={`/projects/${project.id}/chapters/${currentChapter.chapterId}`}
+                          class="jobs-panel-item-chapter-link"
+                          title={t('jobsPanel.goToChapter')}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            route(`/projects/${project.id}/chapters/${currentChapter.chapterId}`);
+                          }}
+                        >
+                          {job.currentChapterTitle}
+                        </a>
+                      ) : (
+                        <span class="jobs-panel-item-chapter" title={job.currentChapterTitle}>
+                          {job.currentChapterTitle}
+                        </span>
+                      ))}
+                    {job.totalTokensUsed > 0 && (
+                      <>
+                        {job.currentChapterTitle && <span> · </span>}
+                        <span class="jobs-panel-item-tokens">
+                          {job.totalTokensUsed.toLocaleString()} {t('projectInfo.tokensCount')}
+                        </span>
+                      </>
+                    )}
+                    {isActive && job.startedAt && (
+                      <>
+                        {(job.currentChapterTitle || job.totalTokensUsed > 0) && (
+                          <span> · </span>
+                        )}
+                        <span class="jobs-panel-item-started">
+                          {formatStartedAgo(job.startedAt, t)}
+                        </span>
+                      </>
+                    )}
                   </div>
                 )}
                 {canCancel && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="jobs-panel-item-cancel"
-                    onClick={() => handleCancel(job)}
-                    disabled={cancelling === job.jobId}
-                  >
-                    {t('jobsPanel.cancel')}
-                  </Button>
+                  <div class="jobs-panel-item-footer">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="jobs-panel-item-cancel"
+                      onClick={() => handleCancel(job)}
+                      disabled={cancelling === job.jobId}
+                    >
+                      {t('jobsPanel.cancel')}
+                    </Button>
+                  </div>
                 )}
               </li>
             );

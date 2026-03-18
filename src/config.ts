@@ -30,10 +30,12 @@ export interface AppConfig {
     chunkRetryAttempts?: number;
     /** Delay in ms before each chunk retry (default 1500). */
     chunkRetryDelayMs?: number;
-    /** Max chunks to process in parallel for translation (default 1). Use 2-3 for faster translation. */
+    /** Max chunks to process in parallel for translation (default 2). Use 2-3 for faster translation. */
     parallelChunks?: number;
     /** Max tokens per section for chunked analysis of long chapters (default 8000). Set 0 to disable. */
     analysisMaxSectionTokens?: number;
+    /** Max chapters to analyze in parallel within one job (default 4). */
+    analysisConcurrency?: number;
   };
 
   // Storage
@@ -74,8 +76,9 @@ export function loadConfig(): AppConfig {
       neverSplitParagraphs: process.env.NEVER_SPLIT_PARAGRAPHS !== 'false',
       chunkRetryAttempts: parseInt(process.env.CHUNK_RETRY_ATTEMPTS ?? '2', 10),
       chunkRetryDelayMs: parseInt(process.env.CHUNK_RETRY_DELAY_MS ?? '1500', 10),
-      parallelChunks: parseInt(process.env.PARALLEL_CHUNKS ?? '1', 10),
+      parallelChunks: parseInt(process.env.PARALLEL_CHUNKS ?? '2', 10),
       analysisMaxSectionTokens: parseInt(process.env.ANALYSIS_MAX_SECTION_TOKENS ?? '8000', 10),
+      analysisConcurrency: parseInt(process.env.ANALYSIS_CONCURRENCY ?? '4', 10),
     },
 
     storage: {
