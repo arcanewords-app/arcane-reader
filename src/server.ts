@@ -7395,8 +7395,8 @@ app.get('/api/publications/:id/read-progress', optionalAuth, async (req, res) =>
   }
 });
 
-// Report translation (public, optional auth)
-app.post('/api/publications/:id/report', optionalAuth, async (req, res) => {
+// Report translation (auth required — spammers can be banned)
+app.post('/api/publications/:id/report', requireAuth, async (req, res) => {
   try {
     const slugOrId = req.params.id;
     const pub = await getPublicationBySlugOrId(slugOrId);
@@ -7418,20 +7418,12 @@ app.post('/api/publications/:id/report', optionalAuth, async (req, res) => {
       return;
     }
 
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.socket?.remoteAddress ||
-      '';
-    const reporterIpHash = ip
-      ? crypto.createHash('sha256').update(ip).digest('hex').substring(0, 32)
-      : null;
-
     const { id } = await createTranslationReport({
       publicationId: pub.id,
       chapterId,
       description,
-      reporterUserId: req.user?.id ?? null,
-      reporterIpHash,
+      reporterUserId: req.user!.id,
+      reporterIpHash: null,
     });
 
     // Invalidate reports count cache for publication's project

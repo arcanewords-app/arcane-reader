@@ -1181,7 +1181,7 @@ export function ReadingMode({
               <Icon name="dictionary" />
             </button>
           )}
-          {isPublicationMode && currentChapter && (
+          {isPublicationMode && currentChapter && isAuthenticated && (
             <button
               class="reading-mode-header-btn"
               onClick={handleOpenReportModal}

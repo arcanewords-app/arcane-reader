@@ -3995,27 +3995,7 @@ export async function createTranslationReport(data: {
     throw new Error('Description must not exceed 5000 characters');
   }
 
-  // Rate limit: 1 report per publication+chapter per 10 minutes (by IP or user)
-  if (data.reporterUserId || data.reporterIpHash) {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    let rateLimitQuery = client
-      .from('translation_reports')
-      .select('id')
-      .eq('publication_id', data.publicationId)
-      .eq('chapter_id', data.chapterId)
-      .gte('created_at', tenMinutesAgo)
-      .limit(1);
-    if (data.reporterUserId) {
-      rateLimitQuery = rateLimitQuery.eq('reporter_user_id', data.reporterUserId);
-    } else {
-      rateLimitQuery = rateLimitQuery.eq('reporter_ip_hash', data.reporterIpHash!);
-    }
-    const { data: recent } = await rateLimitQuery;
-    if (recent && recent.length > 0) {
-      throw new Error('Please wait before submitting another report for this chapter');
-    }
-  }
-
+  // No rate limit for authenticated users — spammers can be banned. Auth is required.
   const { data: inserted, error } = await client
     .from('translation_reports')
     .insert({
