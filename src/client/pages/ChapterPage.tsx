@@ -155,6 +155,11 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const chapterListItem = sortedChapters.find((c) => c.id === chapterId);
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
 
+  const searchFromUrl =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('search') ?? ''
+      : '';
+
   if (!chapterListItem) {
     route(`/projects/${projectId}`);
     return null;
@@ -236,6 +241,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           onChapterUpdate={handleChapterUpdate}
           onEnterReadingMode={handleEnterReadingMode}
           onSettingsChange={handleSettingsChange}
+          initialSearchQuery={searchFromUrl}
         />
       </section>
 

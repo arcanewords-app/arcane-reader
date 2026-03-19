@@ -63,6 +63,9 @@ export function HomePage() {
   const [orderAsc, setOrderAsc] = useState(false);
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
   const [entityMap, setEntityMap] = useState<Record<string, PublicEntity | null>>({});
+  const [readingHistoryMap, setReadingHistoryMap] = useState<
+    Record<string, { lastReadChapterId: string | null }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,6 +172,23 @@ export function HomePage() {
       });
     };
 
+    const hasAuth = !!authService.getToken();
+    if (!hasAuth) setReadingHistoryMap({});
+    const historyPromise = hasAuth
+      ? api.getReadingHistory().catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] });
+
+    const loadHistory = () => {
+      historyPromise.then(({ items }) => {
+        if (loadIdRef.current !== loadId) return;
+        const map: Record<string, { lastReadChapterId: string | null }> = {};
+        items.forEach((item) => {
+          map[item.publicationId] = { lastReadChapterId: item.lastReadChapterId };
+        });
+        setReadingHistoryMap(map);
+      });
+    };
+
     if (filter === 'mine' && isAuthor) {
       api
         .getUserPublications()
@@ -177,6 +197,7 @@ export function HomePage() {
           const publishedOnly = list.filter((p) => p.status === 'published');
           setPublications(publishedOnly);
           prefetchEntities(publishedOnly);
+          loadHistory();
         })
         .catch((e) => {
           if (loadIdRef.current !== loadId) return;
@@ -200,6 +221,7 @@ export function HomePage() {
           if (loadIdRef.current !== loadId) return;
           setPublications(list);
           prefetchEntities(list);
+          loadHistory();
         })
         .catch((e) => {
           if (loadIdRef.current !== loadId) return;
@@ -265,8 +287,12 @@ export function HomePage() {
     [entityFilter, filter]
   );
 
-  const handleRead = useCallback((path: string) => {
-    route(`/p/${path}`);
+  const handleRead = useCallback((path: string, chapterId?: string) => {
+    if (chapterId) {
+      route(`/p/${path}/chapters/${chapterId}/reading`);
+    } else {
+      route(`/p/${path}`);
+    }
   }, []);
 
   const showMyWorksTab = isAuthor;
@@ -487,7 +513,8 @@ export function HomePage() {
                 <PublicationCard
                   key={pub.id}
                   publication={pub}
-                  onRead={() => handleRead(pub.slug || pub.id)}
+                  onRead={(path, chapterId) => handleRead(path, chapterId)}
+                  readingProgress={readingHistoryMap[pub.id]}
                   authorEntity={pub.authorEntityId ? entityMap[pub.authorEntityId] : undefined}
                   translatorEntity={
                     pub.translatorEntityId ? entityMap[pub.translatorEntityId] : undefined

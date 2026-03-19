@@ -57,9 +57,11 @@ export function ReportsModal({
     fetchReports();
   }, [isOpen, projectId, fetchReports]);
 
-  const handleGoToChapter = (chapterId: string) => {
+  const handleGoToChapter = (chapterId: string, description?: string) => {
     onClose();
-    route(`/projects/${projectId}/chapters/${chapterId}`);
+    const searchQuery = description?.trim().slice(0, 60) ?? '';
+    const searchParam = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : '';
+    route(`/projects/${projectId}/chapters/${chapterId}${searchParam}`);
   };
 
   const handleUpdateStatus = async (reportId: string, status: 'reviewed' | 'resolved') => {
@@ -119,10 +121,16 @@ export function ReportsModal({
 
   const filterTabs: { value: ReportStatusFilter; labelKey: string; icon: string }[] = [
     { value: 'all', labelKey: 'sidebar.reportFilterAll', icon: 'grid_view' },
-    { value: 'pending', labelKey: 'sidebar.reportFilterPending', icon: 'schedule' },
-    { value: 'reviewed', labelKey: 'sidebar.reportFilterReviewed', icon: 'visibility' },
+    { value: 'pending', labelKey: 'sidebar.reportFilterPending', icon: 'flag' },
+    { value: 'reviewed', labelKey: 'sidebar.reportFilterReviewed', icon: 'schedule' },
     { value: 'resolved', labelKey: 'sidebar.reportFilterResolved', icon: 'check_circle' },
   ];
+
+  const statusIcons: Record<string, string> = {
+    pending: 'flag',
+    reviewed: 'schedule',
+    resolved: 'check_circle',
+  };
 
   return (
     <>
@@ -143,6 +151,7 @@ export function ReportsModal({
           <p class="reports-modal-empty">{t('sidebar.reportsEmpty')}</p>
         ) : (
           <>
+            <p class="reports-modal-hint">{t('sidebar.reportsHint')}</p>
             <div class="reports-modal-filters">
               {filterTabs.map(({ value, labelKey, icon }) => (
                 <button
@@ -167,53 +176,61 @@ export function ReportsModal({
                     <span
                       class={`reports-modal-item-status reports-modal-status-${r.status}`}
                     >
+                      <Icon name={statusIcons[r.status] ?? 'flag'} size="sm" />{' '}
                       {getStatusLabel(r.status)}
                     </span>
                   </div>
                   <p class="reports-modal-item-description">{r.description}</p>
                   <div class="reports-modal-item-actions">
                     <Button
-                      variant="secondary"
+                      variant="primary"
                       size="sm"
-                      onClick={() => handleGoToChapter(r.chapterId)}
+                      onClick={() => handleGoToChapter(r.chapterId, r.description)}
                     >
                       <Icon name="arrow_forward" size="sm" />{' '}
                       {t('sidebar.reportsGoToChapter')}
                     </Button>
-                    {r.status !== 'reviewed' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleUpdateStatus(r.id, 'reviewed')}
-                        disabled={actionLoading === r.id}
-                      >
-                        {actionLoading === r.id ? (
-                          <LoadingSpinner size="sm" />
-                        ) : (
-                          t('sidebar.reportMarkReviewed')
-                        )}
-                      </Button>
-                    )}
-                    {r.status !== 'resolved' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleUpdateStatus(r.id, 'resolved')}
-                        disabled={actionLoading === r.id}
-                      >
-                        {actionLoading === r.id ? (
-                          <LoadingSpinner size="sm" />
-                        ) : (
-                          t('sidebar.reportMarkResolved')
-                        )}
-                      </Button>
-                    )}
+                    <div class="reports-modal-status-actions">
+                      {r.status !== 'reviewed' && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleUpdateStatus(r.id, 'reviewed')}
+                          disabled={actionLoading === r.id}
+                          title={t('sidebar.reportMarkReviewedTitle')}
+                          aria-label={t('sidebar.reportMarkReviewedTitle')}
+                        >
+                          {actionLoading === r.id ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            t('sidebar.reportMarkReviewed')
+                          )}
+                        </Button>
+                      )}
+                      {r.status !== 'resolved' && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleUpdateStatus(r.id, 'resolved')}
+                          disabled={actionLoading === r.id}
+                          title={t('sidebar.reportMarkResolvedTitle')}
+                          aria-label={t('sidebar.reportMarkResolvedTitle')}
+                        >
+                          {actionLoading === r.id ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            t('sidebar.reportMarkResolved')
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => setDeleteConfirmId(r.id)}
                       disabled={actionLoading === r.id}
                       title={t('sidebar.reportDelete')}
+                      aria-label={t('sidebar.reportDelete')}
                       className="reports-modal-delete-btn"
                     >
                       <Icon name="delete" size="sm" />

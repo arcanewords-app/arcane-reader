@@ -26,6 +26,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [showToc, setShowToc] = useState(false);
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
   const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
+  const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   const [translationFilter, setTranslationFilter] = useState<'translated' | 'all' | 'untranslated'>(
@@ -54,11 +55,13 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     setIsAuthenticated(!!user);
     if (!user || !publicationId) {
       setReadChapterIds(new Set());
+      setLastReadChapterId(null);
       return;
     }
     try {
-      const { chapterIds } = await api.getReadProgress(publicationId);
+      const { chapterIds, lastReadChapterId: lastId } = await api.getReadProgress(publicationId);
       setReadChapterIds(new Set(chapterIds));
+      setLastReadChapterId(lastId ?? null);
     } catch {
       // Ignore read progress errors on public page.
     }
@@ -267,6 +270,18 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     .filter((ch) => ch.hasTranslation)
     .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
 
+  const lastReadChapter = lastReadChapterId
+    ? chapters.find((ch) => ch.id === lastReadChapterId)
+    : null;
+  const showContinueReading =
+    isAuthenticated && lastReadChapterId && lastReadChapter?.hasTranslation;
+  const continueChapterLabel =
+    lastReadChapter && showContinueReading
+      ? lastReadChapter.title?.trim()
+        ? lastReadChapter.title
+        : t('chapterList.defaultChapterTitle', { number: lastReadChapter.number })
+      : '';
+
   const handleExport = async (format: 'epub' | 'fb2') => {
     if (!pub || translatedChapters.length === 0) return;
     if (!isAuthenticated) {
@@ -451,13 +466,31 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
             <div class="publication-page-chapters">
               <h2>{t('publication.chapters')}</h2>
               <div class="publication-page-chapters-toolbar">
-                <input
-                  type="text"
-                  class="publication-page-chapter-search"
-                  placeholder={t('toc.searchPlaceholder')}
-                  value={chapterSearch}
-                  onInput={(e: Event) => setChapterSearch((e.target as HTMLInputElement).value)}
-                />
+                <div class="publication-page-chapters-search-row">
+                  <input
+                    type="text"
+                    class="publication-page-chapter-search"
+                    placeholder={t('toc.searchPlaceholder')}
+                    value={chapterSearch}
+                    onInput={(e: Event) => setChapterSearch((e.target as HTMLInputElement).value)}
+                  />
+                  {showContinueReading && lastReadChapterId && (
+                    <button
+                      type="button"
+                      class="publication-page-continue-from"
+                      onClick={() =>
+                        route(`/p/${pubPath}/chapters/${lastReadChapterId}/reading`)
+                      }
+                    >
+                      <Icon name="menu_book" size="sm" />
+                      <span class="publication-page-continue-from-label">
+                        {t('publication.continueFromChapter', {
+                          chapter: continueChapterLabel,
+                        })}
+                      </span>
+                    </button>
+                  )}
+                </div>
                 <div class="publication-page-chapter-filters">
                   <button
                     type="button"
@@ -666,6 +699,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         onClose={() => setShowToc(false)}
         chapters={translatedChapters}
         readChapterIds={isAuthenticated ? readChapterIds : undefined}
+        lastReadChapterId={isAuthenticated ? lastReadChapterId : undefined}
         onSelectChapter={(chapterId) => {
           setShowToc(false);
           route(`/p/${pubPath}/chapters/${chapterId}/reading`);

@@ -9,7 +9,9 @@ import './PublicationCard.css';
 /** Card accepts both list item and full publication (e.g. from "My works" API). */
 interface PublicationCardProps {
   publication: PublicationListItem | Publication;
-  onRead: () => void;
+  onRead: (path: string, chapterId?: string) => void;
+  /** Reading progress for "Continue" button (when user has read this publication). */
+  readingProgress?: { lastReadChapterId: string | null };
   /** Prefetched entities for instant popup on hover. */
   authorEntity?: PublicEntity | null;
   translatorEntity?: PublicEntity | null;
@@ -18,6 +20,7 @@ interface PublicationCardProps {
 export function PublicationCard({
   publication,
   onRead,
+  readingProgress,
   authorEntity,
   translatorEntity,
 }: PublicationCardProps) {
@@ -56,111 +59,143 @@ export function PublicationCard({
   const handleDescMouseEnter = useCallback(() => setShowDescTooltip(true), []);
   const handleDescMouseLeave = useCallback(() => setShowDescTooltip(false), []);
 
+  const pubPath = publication.slug || publication.id;
+  const lastChapterId = readingProgress?.lastReadChapterId ?? undefined;
+
+  const openPublication = useCallback(() => {
+    trackEvent('select_content', {
+      content_type: 'publication',
+      item_id: publication.id,
+    });
+    onRead(pubPath);
+  }, [publication.id, onRead, pubPath]);
+
+  const handleCardAreaKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openPublication();
+      }
+    },
+    [openPublication]
+  );
+
+  const handleReadOrContinueClick = useCallback(() => {
+    trackEvent('select_content', {
+      content_type: 'publication',
+      item_id: publication.id,
+    });
+    if (lastChapterId) {
+      onRead(pubPath, lastChapterId);
+    } else {
+      onRead(pubPath);
+    }
+  }, [publication.id, lastChapterId, onRead, pubPath]);
+
   return (
     <div class="publication-card">
-      <div class="publication-card-cover">
-        {coverImageUrl ? (
-          <>
-            <img
-              src={coverImageUrl}
-              alt={title}
-              loading="lazy"
-              decoding="async"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const placeholder = target.parentElement?.querySelector(
-                  '.publication-card-placeholder'
-                );
-                if (placeholder) placeholder.classList.remove('hidden');
-              }}
-              onLoad={(e) => {
-                const target = e.target as HTMLImageElement;
-                const placeholder = target.parentElement?.querySelector(
-                  '.publication-card-placeholder'
-                );
-                if (placeholder) placeholder.classList.add('hidden');
-              }}
-            />
-            <div class="publication-card-placeholder hidden">
-              <BookPlaceholder projectName={title} projectType="book" />
-            </div>
-          </>
-        ) : (
-          <div class="publication-card-placeholder">
-            <BookPlaceholder projectName={title} projectType="book" />
-          </div>
-        )}
-      </div>
-      <div class="publication-card-content">
-        <div class="publication-card-main">
-          <h3 class="publication-card-title">{title}</h3>
-          {publication.description && (
-            <div
-              class="publication-card-description-wrap"
-              onMouseEnter={handleDescMouseEnter}
-              onMouseLeave={handleDescMouseLeave}
-            >
-              <p class="publication-card-description">{publication.description}</p>
-              {showDescTooltip && (
-                <div class="publication-card-tooltip" role="tooltip">
-                  {publication.description}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div class="publication-card-tags">
-          {authorDisplay || translatorDisplay ? (
+      <div
+        class="publication-card-clickable"
+        role="button"
+        tabIndex={0}
+        aria-label={t('home.openPublicationAria', { title })}
+        onClick={openPublication}
+        onKeyDown={handleCardAreaKeyDown}
+      >
+        <div class="publication-card-cover">
+          {coverImageUrl ? (
             <>
-              <div class="publication-card-chip-row">
-                <EntityChip
-                  display={authorDisplay}
-                  entityId={authorEntityId}
-                  routeParam="author"
-                  entity={authorEntity}
-                />
-              </div>
-              <div class="publication-card-chip-row">
-                <EntityChip
-                  display={translatorDisplay}
-                  entityId={translatorEntityId}
-                  routeParam="translator"
-                  entity={translatorEntity}
-                />
+              <img
+                src={coverImageUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const placeholder = target.parentElement?.querySelector(
+                    '.publication-card-placeholder'
+                  );
+                  if (placeholder) placeholder.classList.remove('hidden');
+                }}
+                onLoad={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  const placeholder = target.parentElement?.querySelector(
+                    '.publication-card-placeholder'
+                  );
+                  if (placeholder) placeholder.classList.add('hidden');
+                }}
+              />
+              <div class="publication-card-placeholder hidden">
+                <BookPlaceholder projectName={title} projectType="book" />
               </div>
             </>
           ) : (
-            <p class="publication-card-meta-fallback">{t('publication.unknownAuthor')}</p>
-          )}
-          {langLabel && (
-            <div class="publication-card-chip-row">
-              <span class="publication-card-lang-badge">{langLabel}</span>
-              {translatedChapterCount != null && translatedChapterCount > 0 && (
-                <>
-                  <span class="publication-card-meta-sep">·</span>
-                  <span class="publication-card-chapters-badge">
-                    {translatedChapterCount} {declension(translatedChapterCount, chapterForms)}
-                  </span>
-                </>
-              )}
+            <div class="publication-card-placeholder">
+              <BookPlaceholder projectName={title} projectType="book" />
             </div>
           )}
         </div>
-        <button
-          type="button"
-          class="publication-card-read-btn"
-          onClick={() => {
-            trackEvent('select_content', {
-              content_type: 'publication',
-              item_id: publication.id,
-            });
-            onRead();
-          }}
-        >
-          {t('home.read')}
-        </button>
+        <div class="publication-card-content">
+          <div class="publication-card-main">
+            <h3 class="publication-card-title">{title}</h3>
+            {publication.description && (
+              <div
+                class="publication-card-description-wrap"
+                onMouseEnter={handleDescMouseEnter}
+                onMouseLeave={handleDescMouseLeave}
+              >
+                <p class="publication-card-description">{publication.description}</p>
+                {showDescTooltip && (
+                  <div class="publication-card-tooltip" role="tooltip">
+                    {publication.description}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div class="publication-card-tags">
+            {authorDisplay || translatorDisplay ? (
+              <>
+                <div class="publication-card-chip-row">
+                  <EntityChip
+                    display={authorDisplay}
+                    entityId={authorEntityId}
+                    routeParam="author"
+                    entity={authorEntity}
+                  />
+                </div>
+                <div class="publication-card-chip-row">
+                  <EntityChip
+                    display={translatorDisplay}
+                    entityId={translatorEntityId}
+                    routeParam="translator"
+                    entity={translatorEntity}
+                  />
+                </div>
+              </>
+            ) : (
+              <p class="publication-card-meta-fallback">{t('publication.unknownAuthor')}</p>
+            )}
+            {langLabel && (
+              <div class="publication-card-chip-row">
+                <span class="publication-card-lang-badge">{langLabel}</span>
+                {translatedChapterCount != null && translatedChapterCount > 0 && (
+                  <>
+                    <span class="publication-card-meta-sep">·</span>
+                    <span class="publication-card-chapters-badge">
+                      {translatedChapterCount} {declension(translatedChapterCount, chapterForms)}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+      <button type="button" class="publication-card-read-btn" onClick={handleReadOrContinueClick}>
+        {lastChapterId ? t('profile.continue') : t('home.read')}
+      </button>
     </div>
   );
 }

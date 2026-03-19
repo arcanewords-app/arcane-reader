@@ -18,6 +18,8 @@ interface ChapterTocModalProps {
   title?: string;
   /** Set of chapter IDs marked as read (shows checkmark indicator). */
   readChapterIds?: Set<string>;
+  /** Last read chapter ID — visually highlighted for "Continue from here". */
+  lastReadChapterId?: string | null;
 }
 
 export function ChapterTocModal({
@@ -28,6 +30,7 @@ export function ChapterTocModal({
   currentChapterId,
   title,
   readChapterIds,
+  lastReadChapterId,
 }: ChapterTocModalProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
@@ -186,11 +189,12 @@ export function ChapterTocModal({
             const renderItem = (chapter: ChapterTocItem) => {
               const isActive = chapter.id === currentChapterId;
               const isRead = readChapterIds?.has(chapter.id);
+              const isLastRead = chapter.id === lastReadChapterId;
               return (
                 <button
                   key={chapter.id}
                   type="button"
-                  class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''}`}
+                  class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''} ${isLastRead ? 'last-read' : ''}`}
                   onClick={() => onSelectChapter(chapter.id)}
                   style={useVirtualization ? { minHeight: TOC_ITEM_HEIGHT + 'px' } : undefined}
                 >
@@ -202,6 +206,11 @@ export function ChapterTocModal({
                   {isRead && (
                     <span class="reading-toc-read" title={t('publication.read')}>
                       <Icon name="check" size="sm" />
+                    </span>
+                  )}
+                  {isLastRead && (
+                    <span class="reading-toc-continue" title={t('profile.continueReading')}>
+                      <Icon name="bookmark" size="sm" />
                     </span>
                   )}
                   {isActive && <span class="reading-toc-current">{t('readingMode.current')}</span>}

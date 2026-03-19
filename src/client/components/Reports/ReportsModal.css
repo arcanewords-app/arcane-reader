@@ -15,6 +15,13 @@
   color: var(--error);
 }
 
+.reports-modal-hint {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
 /* Aligned with publication-page-chapter-filters (PublicationPage.css) */
 .reports-modal-filters {
   display: flex;
@@ -95,6 +102,9 @@
 }
 
 .reports-modal-item-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
@@ -128,6 +138,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.reports-modal-status-actions {
+  display: flex;
+  gap: 0.35rem;
   align-items: center;
 }
 

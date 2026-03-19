@@ -23,6 +23,8 @@ interface SearchReplaceBarProps {
   onScrollToRequest?: (paragraphId: string) => void;
   /** For Phase 2: replace callbacks. Omit for Phase 1 (find only). */
   onReplace?: (paragraphId: string, newText: string) => Promise<void>;
+  /** Pre-fill search query (e.g. from report description when navigating from ReportsModal). */
+  initialFind?: string;
 }
 
 export function SearchReplaceBar({
@@ -32,9 +34,10 @@ export function SearchReplaceBar({
   onHighlightChange,
   onScrollToRequest,
   onReplace,
+  initialFind = '',
 }: SearchReplaceBarProps) {
   const { t } = useTranslation();
-  const [find, setFind] = useState('');
+  const [find, setFind] = useState(initialFind);
   const [replace, setReplace] = useState('');
   const [debouncedFind, setDebouncedFind] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);

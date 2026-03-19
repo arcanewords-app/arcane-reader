@@ -34,6 +34,8 @@ interface ChapterViewProps {
   onEnterReadingMode?: () => void;
   /** Called when project settings are updated (e.g. from TranslationPanel editing block) */
   onSettingsChange?: (settings: ProjectSettings) => void;
+  /** Pre-fill and auto-open search (e.g. from ?search= when navigating from ReportsModal). */
+  initialSearchQuery?: string;
 }
 
 const defaultReaderSettings: ReaderSettings = {
@@ -59,6 +61,7 @@ export function ChapterView({
   onChapterUpdate,
   onEnterReadingMode,
   onSettingsChange,
+  initialSearchQuery = '',
 }: ChapterViewProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
@@ -82,6 +85,13 @@ export function ChapterView({
   const [showSearch, setShowSearch] = useState(false);
   const [searchHighlight, setSearchHighlight] = useState<SearchHighlight | null>(null);
   const scrollToParagraphRef = useRef<((id: string) => void) | null>(null);
+
+  // Auto-open search when navigating with ?search= (e.g. from ReportsModal)
+  useEffect(() => {
+    if (initialSearchQuery.trim()) {
+      setShowSearch(true);
+    }
+  }, [initialSearchQuery]);
 
   const isLoading = !chapter;
   const effectiveChapter: Chapter = chapter ?? {
@@ -365,6 +375,7 @@ export function ChapterView({
             onReplace={async (paragraphId, newText) => {
               await handleSaveParagraph(paragraphId, newText);
             }}
+            initialFind={initialSearchQuery}
           />
         )}
 

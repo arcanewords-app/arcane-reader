@@ -10,6 +10,30 @@
   transition: all var(--duration-normal) var(--ease-standard);
 }
 
+/* Cover + meta: opens publication page (separate from bottom CTA). */
+.publication-card-clickable {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.publication-card-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
 .publication-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -210,10 +234,10 @@
   margin: 0;
 }
 
-/* Read button - always at bottom */
+/* Read / Continue: outside clickable card (Continue → last chapter in reader). */
 .publication-card-read-btn {
   flex-shrink: 0;
-  margin-top: var(--space-sm);
+  margin: var(--space-sm) var(--space-md) var(--space-md);
   padding: var(--space-sm) var(--space-md);
   background: var(--accent);
   border: none;
