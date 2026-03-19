@@ -17,6 +17,12 @@ const MAX_STALLED_COUNT = 2;
 const BULL_ANALYSIS_CONCURRENCY = parseInt(process.env.BULL_ANALYSIS_CONCURRENCY ?? '3', 10);
 const BULL_TRANSLATE_CONCURRENCY = parseInt(process.env.BULL_TRANSLATE_CONCURRENCY ?? '3', 10);
 
+function isJobStoreRedisAvailable(): boolean {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  return !!(url && token);
+}
+
 let analysisWorker: Worker<AnalysisJobPayload> | null = null;
 let translateWorker: Worker<TranslateJobPayload> | null = null;
 
@@ -24,6 +30,14 @@ export function startChapterWorkers(): void {
   if (!isBullAvailable()) {
     logger.warn('REDIS_URL not set; chapter workers will not start');
     return;
+  }
+
+  if (!isJobStoreRedisAvailable()) {
+    logger.error(
+      'KV_REST_API_URL and KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_*) are required for the worker. ' +
+        'Job stores use Redis to share state between server and worker; without it, job cancellation and status will not work.'
+    );
+    process.exit(1);
   }
 
   const connection = getBullConnectionOptions();

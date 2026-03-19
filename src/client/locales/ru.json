@@ -186,6 +186,7 @@
     "analysis": "Анализ",
     "translation": "Перевод",
     "cancel": "Отменить",
+    "cancelRequested": "Отмена запрошена…",
     "startedAgoMinutes": "Запущено {{count}} мин назад",
     "startedAgoHours": "Запущено {{count}} ч назад",
     "goToChapter": "Перейти к главе"

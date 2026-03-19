@@ -7993,6 +7993,15 @@ async function startServer(): Promise<void> {
       },
       `Server listening on http://localhost:${PORT}`
     );
+    const hasJobStoreRedis =
+      (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL) &&
+      (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN);
+    if (isBullAvailable() && !hasJobStoreRedis) {
+      logger.warn(
+        'REDIS_URL is set but KV_REST_API_URL/KV_REST_API_TOKEN are not. ' +
+          'Job cancellation will not work across server/worker. Set Upstash REST credentials for job stores.'
+      );
+    }
     serviceHealthManager.startPeriodicChecks(30_000);
   });
 }

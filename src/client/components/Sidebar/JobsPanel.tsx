@@ -6,7 +6,8 @@ import { api } from '../../api/client';
 import type { Project, ProjectWithChapterList, ProjectJobItem } from '../../types';
 import './JobsPanel.css';
 
-const JOBS_POLL_INTERVAL_MS = 30000; // 30 s when active jobs or expecting new job after trigger
+const JOBS_POLL_INTERVAL_ACTIVE_MS = 8000; // 8 s when active jobs (faster status/cancel feedback)
+const JOBS_POLL_INTERVAL_IDLE_MS = 30000; // 30 s when expecting new job after batch start
 const EXPECTING_JOBS_MS = 90000; // Poll for 90 s after batch start to catch job when it appears
 
 interface JobsPanelProps {
@@ -146,14 +147,16 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
 
   const shouldPoll =
     activeCount > 0 || (expectingJobsUntil > 0 && Date.now() < expectingJobsUntil);
+  const pollIntervalMs =
+    activeCount > 0 ? JOBS_POLL_INTERVAL_ACTIVE_MS : JOBS_POLL_INTERVAL_IDLE_MS;
 
   useEffect(() => {
     fetchJobs();
     if (!isVisible || !shouldPoll) return;
-    const interval = setInterval(fetchJobs, JOBS_POLL_INTERVAL_MS);
+    const interval = setInterval(fetchJobs, pollIntervalMs);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shouldPoll derived from activeCount, expectingJobsUntil
-  }, [fetchJobs, isVisible, activeCount, expectingJobsUntil]);
+  }, [fetchJobs, isVisible, activeCount, expectingJobsUntil, pollIntervalMs]);
 
   const isExpecting = expectingJobsUntil > 0 && Date.now() < expectingJobsUntil;
   if (jobs.length === 0 && !loading && !isExpecting) {
@@ -174,8 +177,9 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
       ) : (
         <ul class="jobs-panel-list">
           {jobs.map((job) => {
-            const canCancel =
-              (job.status === 'queued' || job.status === 'processing') && cancelling !== job.jobId;
+            const isActiveJob = job.status === 'queued' || job.status === 'processing';
+            const canCancel = isActiveJob && cancelling !== job.jobId;
+            const showCancelButton = isActiveJob && (canCancel || cancelling === job.jobId);
             const statusClass =
               job.status === 'error'
                 ? 'error'
@@ -263,7 +267,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                     )}
                   </div>
                 )}
-                {canCancel && (
+                {showCancelButton && (
                   <div class="jobs-panel-item-footer">
                     <Button
                       variant="secondary"
@@ -272,7 +276,9 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                       onClick={() => handleCancel(job)}
                       disabled={cancelling === job.jobId}
                     >
-                      {t('jobsPanel.cancel')}
+                      {cancelling === job.jobId
+                        ? t('jobsPanel.cancelRequested')
+                        : t('jobsPanel.cancel')}
                     </Button>
                   </div>
                 )}

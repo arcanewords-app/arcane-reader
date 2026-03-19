@@ -213,6 +213,7 @@
     "analysis": "Analysis",
     "translation": "Translation",
     "cancel": "Cancel",
+    "cancelRequested": "Cancel requested…",
     "startedAgoMinutes": "Started {{count}} min ago",
     "startedAgoHours": "Started {{count}} h ago",
     "goToChapter": "Go to chapter"

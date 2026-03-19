@@ -101,6 +101,7 @@ export function useBatchChapterTranslation(
   const cancelledRef = useRef(false);
   const currentChapterIdRef = useRef<string | null>(null);
   const translateJobIdRef = useRef<string | null>(null);
+  const analysisJobIdRef = useRef<string | null>(null);
   const markTranslatedAbortRef = useRef<AbortController | null>(null);
   const initialGlossaryCountRef = useRef(0);
 
@@ -112,6 +113,9 @@ export function useBatchChapterTranslation(
     if (currentChapterIdRef.current) {
       api.cancelTranslation(projectId, currentChapterIdRef.current).catch(() => {});
     }
+    if (analysisJobIdRef.current) {
+      api.cancelAnalysisJob(projectId, analysisJobIdRef.current).catch(() => {});
+    }
     if (translateJobIdRef.current) {
       api.cancelTranslateJob(projectId, translateJobIdRef.current).catch(() => {});
     }
@@ -122,6 +126,7 @@ export function useBatchChapterTranslation(
     cancelledRef.current = false;
     markTranslatedAbortRef.current = null;
     translateJobIdRef.current = null;
+    analysisJobIdRef.current = null;
   }, []);
 
   const startMarkAsTranslatedBatch = useCallback(
@@ -301,17 +306,19 @@ export function useBatchChapterTranslation(
           try {
             if (onlyAnalysis && chapters.length > 1) {
               currentChapterIdRef.current = null;
-              await api.startAnalyzeBatch(
+              translateJobIdRef.current = null;
+              const res = await api.startAnalyzeBatch(
                 projectId,
                 chapters.map((c) => c.id),
                 undefined
               );
+              analysisJobIdRef.current = res.jobId;
               onBatchJobCreated?.();
               // Async batch: job runs in background, JobsPanel shows progress
             } else if (chapters.length > 1) {
               currentChapterIdRef.current = null;
-              translateJobIdRef.current = null;
-              await api.startTranslateBatch(
+              analysisJobIdRef.current = null;
+              const res = await api.startTranslateBatch(
                 projectId,
                 chapters.map((c) => c.id),
                 {
@@ -320,6 +327,7 @@ export function useBatchChapterTranslation(
                 },
                 undefined
               );
+              translateJobIdRef.current = res.jobId;
               onBatchJobCreated?.();
               // Async batch: job runs in background, JobsPanel shows progress
             } else {
@@ -482,6 +490,7 @@ export function useBatchChapterTranslation(
             cancelledRef.current = false;
             currentChapterIdRef.current = null;
             translateJobIdRef.current = null;
+            analysisJobIdRef.current = null;
           }
         })();
       });

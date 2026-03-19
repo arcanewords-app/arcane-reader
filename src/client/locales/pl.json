@@ -186,6 +186,7 @@
     "analysis": "Analiza",
     "translation": "Tłumaczenie",
     "cancel": "Anuluj",
+    "cancelRequested": "Anulowanie w toku…",
     "startedAgoMinutes": "Uruchomiono {{count}} min temu",
     "startedAgoHours": "Uruchomiono {{count}} h temu",
     "goToChapter": "Przejdź do rozdziału"
