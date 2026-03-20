@@ -9,11 +9,11 @@ import type { AuthUser } from '../../types';
 interface RegisterFormProps {
   onSuccess: (user: AuthUser) => void;
   onSwitchToLogin: () => void;
-  /** Invitation code (required when app is in invite-only mode) */
-  invitationCode?: string;
+  /** Called before navigating away (e.g. to Privacy/Terms) so modal closes and user sees the page */
+  onClose?: () => void;
 }
 
-export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormProps) {
+export function RegisterForm({ onSwitchToLogin, onClose }: RegisterFormProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,8 +46,7 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
     setLoading(true);
 
     try {
-      // Register user (pass invitation code when in invite-only mode)
-      await authService.register(email, password, invitationCode);
+      await authService.register(email, password);
 
       // Show success message - email confirmation required
       trackEvent('sign_up');
@@ -160,6 +159,7 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
                 href="/privacy"
                 onClick={(e) => {
                   e.preventDefault();
+                  onClose?.();
                   route('/privacy');
                 }}
               >
@@ -169,6 +169,7 @@ export function RegisterForm({ onSwitchToLogin, invitationCode }: RegisterFormPr
                 href="/terms"
                 onClick={(e) => {
                   e.preventDefault();
+                  onClose?.();
                   route('/terms');
                 }}
               >

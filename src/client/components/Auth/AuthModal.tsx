@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { route } from 'preact-router';
 import { Modal } from '../ui';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
-import { InviteStep } from './InviteStep';
-import { authService } from '../../services/authService';
 import type { AuthUser } from '../../types';
 import './AuthModal.css';
 
@@ -28,9 +25,6 @@ export function AuthModal({
 }: AuthModalProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [inviteRequired, setInviteRequired] = useState<boolean | null>(null);
-  const [inviteVerified, setInviteVerified] = useState(false);
-  const [inviteCode, setInviteCode] = useState('');
 
   // When modal opens, sync tab to initialMode (e.g. "Register" button opened with register tab)
   useEffect(() => {
@@ -38,12 +32,6 @@ export function AuthModal({
       setMode(initialMode);
     }
   }, [isOpen, initialMode]);
-
-  useEffect(() => {
-    if (mode === 'register' && inviteRequired === null) {
-      authService.isInviteRequired().then(setInviteRequired);
-    }
-  }, [mode, inviteRequired]);
 
   const handleSuccess = (user: AuthUser) => {
     onSuccess(user);
@@ -55,30 +43,13 @@ export function AuthModal({
 
   const handleSwitchToLogin = () => {
     setMode('login');
-    setInviteVerified(false);
-    setInviteCode('');
   };
-
-  const handleInviteSuccess = (code: string) => {
-    setInviteVerified(true);
-    setInviteCode(code);
-  };
-
-  const showInviteStep = mode === 'register' && inviteRequired === true && !inviteVerified;
-  const showRegisterForm = mode === 'register' && (inviteRequired === false || inviteVerified);
-  const registerInviteCode = inviteVerified ? inviteCode : undefined;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose ?? (() => {})}
-      title={
-        mode === 'login'
-          ? t('auth.loginTitle')
-          : showInviteStep
-            ? t('auth.registerTitle')
-            : t('auth.registerTitle')
-      }
+      title={mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
       preventClose={false}
       className="auth-modal"
     >
@@ -118,16 +89,6 @@ export function AuthModal({
               {t('auth.register')}
             </button>
           </div>
-          {onClose && (
-            <button
-              type="button"
-              class="auth-modal-close"
-              onClick={onClose}
-              aria-label={t('common.close')}
-            >
-              ×
-            </button>
-          )}
         </div>
 
         {mode === 'login' ? (
@@ -136,43 +97,13 @@ export function AuthModal({
             onSwitchToRegister={handleSwitchToRegister}
             onEmailNotConfirmed={onEmailNotConfirmed}
           />
-        ) : inviteRequired === null ? (
-          <div
-            class="auth-form"
-            style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}
-          >
-            {t('auth.loading')}
-          </div>
-        ) : showInviteStep ? (
-          <InviteStep onSuccess={handleInviteSuccess} onSwitchToLogin={handleSwitchToLogin} />
-        ) : showRegisterForm ? (
+        ) : (
           <RegisterForm
             onSuccess={handleSuccess}
             onSwitchToLogin={handleSwitchToLogin}
-            invitationCode={registerInviteCode}
+            onClose={onClose}
           />
-        ) : null}
-
-        <div class="auth-modal-footer-links">
-          <a
-            href="/privacy"
-            onClick={(e) => {
-              e.preventDefault();
-              route('/privacy');
-            }}
-          >
-            {t('info.privacy')}
-          </a>
-          <a
-            href="/terms"
-            onClick={(e) => {
-              e.preventDefault();
-              route('/terms');
-            }}
-          >
-            {t('info.terms')}
-          </a>
-        </div>
+        )}
       </>
     </Modal>
   );

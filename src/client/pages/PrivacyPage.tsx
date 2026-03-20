@@ -30,6 +30,8 @@ export function PrivacyPage() {
           <h2>{t('privacy.dataWeCollect')}</h2>
           <h3>{t('privacy.guests')}</h3>
           <p>{t('privacy.guestsDesc')}</p>
+          <h3>{t('privacy.users')}</h3>
+          <p>{t('privacy.usersDesc')}</p>
           <h3>{t('privacy.authors')}</h3>
           <p>{t('privacy.authorsDesc')}</p>
         </section>

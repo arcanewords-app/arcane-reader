@@ -19,25 +19,6 @@
   margin-bottom: 0.75rem;
 }
 
-.auth-modal-close {
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--text-secondary);
-  background: none;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.auth-modal-close:hover {
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
 .auth-tabs {
   margin-bottom: 0 !important;
 }
@@ -82,27 +63,6 @@
   text-decoration: underline;
 }
 
-.auth-modal-footer-links {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
-  font-size: 0.8125rem;
-  color: var(--text-dim);
-}
-
-.auth-modal-footer-links a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.auth-modal-footer-links a:hover {
-  text-decoration: underline;
-}
-
-.auth-modal-footer-links a + a {
-  margin-left: 0.5rem;
-}
-
 /* Email Confirmation Modal should appear above Auth Modal */
 .email-confirmation-modal-overlay {
   z-index: 1500;
@@ -123,13 +83,6 @@
   .auth-modal-header-row {
     margin-bottom: 0.5rem;
     gap: 0.35rem;
-  }
-
-  .auth-modal-close {
-    width: 2.25rem;
-    height: 2.25rem;
-    min-width: 44px;
-    min-height: 44px;
   }
 
   .auth-tabs button {
