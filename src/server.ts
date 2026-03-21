@@ -181,6 +181,158 @@ function injectPublicationMeta(
   return out;
 }
 
+/** Static page SEO meta (title, description). Russian default to match index.html. */
+const STATIC_PAGE_META: Record<
+  string,
+  { title: string; description: string }
+> = {
+  '/': {
+    title: 'Arcane — Переводчик новелл',
+    description:
+      'Arcane — библиотека переводов новелл. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.',
+  },
+  '/catalog': {
+    title: 'Arcane — Переводчик новелл',
+    description:
+      'Каталог переводов новелл. Опубликованные переводы от авторов. Читайте онлайн или скачивайте EPUB, FB2.',
+  },
+  '/about': {
+    title: 'О проекте Arcane',
+    description:
+      'Arcane — веб-интерфейс для перевода новелл с поддержкой AI и глоссария. Импорт EPUB, FB2, TXT, CSV. Трёхэтапный пайплайн: анализ → перевод → редактура.',
+  },
+  '/contact': {
+    title: 'Контакты',
+    description: 'По вопросам, предложениям и сотрудничеству с Arcane — библиотекой переводов новелл.',
+  },
+  '/privacy': {
+    title: 'Политика конфиденциальности',
+    description:
+      'Политика конфиденциальности Arcane. Какие данные собираем, цели обработки, права пользователей (GDPR).',
+  },
+  '/terms': {
+    title: 'Условия использования',
+    description:
+      'Условия использования Arcane. Правила для читателей и авторов-переводчиков, ответственность за контент.',
+  },
+};
+
+/**
+ * Inject static page meta (title, description, og:*, canonical) into index.html.
+ * For / and /catalog: canonical points to / (avoid duplicate content).
+ */
+function injectStaticPageMeta(
+  html: string,
+  opts: {
+    title: string;
+    description: string;
+    pageUrl: string;
+    canonicalUrl?: string;
+  }
+): string {
+  const t = escapeMetaContent(opts.title);
+  const d = escapeMetaContent(opts.description);
+  const origin = opts.pageUrl.startsWith('http') ? new URL(opts.pageUrl).origin : '';
+  const img = `${origin}/arcane_icon.png`;
+  const url = escapeMetaContent(opts.pageUrl);
+  const canonicalUrl = opts.canonicalUrl ? escapeMetaContent(opts.canonicalUrl) : url;
+  const titleSuffix = ' | Arcane';
+
+  let out = html
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${t}${titleSuffix}</title>`)
+    .replace(
+      /<meta name="description" content="[^"]*" *\/?>/,
+      `<meta name="description" content="${d}" />`
+    )
+    .replace(
+      /<meta property="og:title" content="[^"]*" *\/?>/,
+      `<meta property="og:title" content="${t}" />`
+    )
+    .replace(
+      /<meta property="og:description" content="[^"]*" *\/?>/,
+      `<meta property="og:description" content="${d}" />`
+    )
+    .replace(/<meta property="og:image" content="[^"]*" *\/?>/, `<meta property="og:image" content="${img}" />`);
+  if (!out.includes('og:url')) {
+    out = out.replace(
+      /<meta property="og:type" content="[^"]*" *\/?>/,
+      `<meta property="og:url" content="${url}" />\n    <meta property="og:type" content="website" />`
+    );
+  } else {
+    out = out.replace(/<meta property="og:url" content="[^"]*" *\/?>/, `<meta property="og:url" content="${url}" />`);
+  }
+  out = out
+    .replace(/<meta name="twitter:title" content="[^"]*" *\/?>/, `<meta name="twitter:title" content="${t}" />`)
+    .replace(
+      /<meta name="twitter:description" content="[^"]*" *\/?>/,
+      `<meta name="twitter:description" content="${d}" />`
+    );
+
+  const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
+  if (out.includes('rel="canonical"')) {
+    out = out.replace(/<link rel="canonical" href="[^"]*" *\/?>/i, canonicalTag);
+  } else {
+    out = out.replace('</head>', `    ${canonicalTag}\n  </head>`);
+  }
+  return out;
+}
+
+/** Inject Organization + WebSite JSON-LD for homepage. */
+function injectOrganizationJsonLd(html: string, baseUrl: string): string {
+  const org = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Arcane',
+    url: baseUrl,
+    description:
+      'Arcane — библиотека переводов новелл. Переводчик с AI и глоссарием. EPUB, FB2.',
+  };
+  const website = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Arcane',
+    url: baseUrl,
+    description:
+      'Библиотека переводов новелл. Читайте и скачивайте переводы онлайн. Переводчик с AI.',
+  };
+  const jsonLd =
+    `<script type="application/ld+json">${JSON.stringify(org)}</script>\n    ` +
+    `<script type="application/ld+json">${JSON.stringify(website)}</script>`;
+  return html.replace('</head>', `    ${jsonLd}\n  </head>`);
+}
+
+/**
+ * Serve index.html with page-specific meta for static routes.
+ */
+function serveStaticPageHtml(req: express.Request, res: express.Response, pathname: string): void {
+  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  const pageUrl = base + pathname;
+  const meta = STATIC_PAGE_META[pathname];
+  if (!meta) {
+    const indexPath = fs.existsSync(path.join(clientPath, 'index.html'))
+      ? path.join(clientPath, 'index.html')
+      : path.join(publicPath, 'index.html');
+    res.sendFile(indexPath);
+    return;
+  }
+  const canonicalUrl = pathname === '/catalog' ? base + '/' : pageUrl;
+  const indexPath = fs.existsSync(path.join(clientPath, 'index.html'))
+    ? path.join(clientPath, 'index.html')
+    : path.join(publicPath, 'index.html');
+  let html = fs.readFileSync(indexPath, 'utf-8');
+  html = html.replace(/__PUBLIC_URL__/g, base);
+  html = injectStaticPageMeta(html, {
+    title: meta.title,
+    description: meta.description,
+    pageUrl,
+    canonicalUrl,
+  });
+  if (pathname === '/' || pathname === '/catalog') {
+    html = injectOrganizationJsonLd(html, base + '/');
+  }
+  res.type('html').send(html);
+}
+
 /**
  * Inject visible content into #app for crawlers (SPA renders empty HTML otherwise).
  * H1, description, author, links "Читать онлайн" and "Скачать" so bots see intent.
@@ -238,6 +390,7 @@ function injectPublicationJsonLd(
     authorDisplay: string | null;
     translatorDisplay: string | null;
     targetLanguage: string;
+    numberOfPages?: number;
   }
 ): string {
   const base = opts.url.startsWith('http') ? new URL(opts.url).origin : '';
@@ -268,8 +421,56 @@ function injectPublicationJsonLd(
       name: opts.translatorDisplay,
     };
   }
+  if (opts.numberOfPages != null && opts.numberOfPages > 0) {
+    (book as Record<string, unknown>).numberOfPages = opts.numberOfPages;
+  }
 
   const jsonLd = `<script type="application/ld+json">${JSON.stringify(book)}</script>`;
+  return html.replace('</head>', `    ${jsonLd}\n  </head>`);
+}
+
+/**
+ * Inject BreadcrumbList JSON-LD for publication pages.
+ */
+function injectBreadcrumbJsonLd(
+  html: string,
+  opts: {
+    baseUrl: string;
+    catalogUrl: string;
+    publicationName: string;
+    publicationUrl: string;
+    chapterName?: string;
+    chapterUrl?: string;
+  }
+): string {
+  const items: Array<{
+    '@type': string;
+    position: number;
+    name: string;
+    item: string;
+  }> = [
+    { '@type': 'ListItem', position: 1, name: 'Каталог', item: opts.catalogUrl },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: opts.publicationName,
+      item: opts.publicationUrl,
+    },
+  ];
+  if (opts.chapterName && opts.chapterUrl) {
+    items.push({
+      '@type': 'ListItem',
+      position: 3,
+      name: opts.chapterName,
+      item: opts.chapterUrl,
+    });
+  }
+  const breadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items,
+  };
+  const jsonLd = `<script type="application/ld+json">${JSON.stringify(breadcrumb)}</script>`;
   return html.replace('</head>', `    ${jsonLd}\n  </head>`);
 }
 
@@ -7769,21 +7970,29 @@ ${entries
 }
 
 // ============ SEO: robots.txt & sitemap.xml ============
+// Vercel rewrites /robots.txt → /api/robots, /sitemap.xml → /api/sitemap.
+// Express receives /api/robots and /api/sitemap, so we need both route sets.
 
-app.get('/robots.txt', (req, res) => {
+function sendRobotsTxt(req: express.Request, res: express.Response): void {
   const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
   res.type('text/plain').send(
     `User-agent: *
 Allow: /
+Disallow: /profile
+Disallow: /projects
+Disallow: /admin
 
 Sitemap: ${base}/sitemap.xml
 `
   );
-});
+}
 
-app.get('/sitemap.xml', async (req, res) => {
+const SITEMAP_CHAPTER_PUBS_LIMIT = 100;
+
+async function sendSitemapXml(req: express.Request, res: express.Response): Promise<void> {
   const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
   let pubUrls = '';
+  let chapterUrls = '';
   try {
     const pubs = await listPublicationsPublic({ limit: 1000 });
     for (const p of pubs) {
@@ -7798,6 +8007,28 @@ app.get('/sitemap.xml', async (req, res) => {
     <priority>0.8</priority>
   </url>
 `;
+    }
+    for (let i = 0; i < Math.min(pubs.length, SITEMAP_CHAPTER_PUBS_LIMIT); i++) {
+      const p = pubs[i];
+      const pubPath = (p as { slug?: string | null }).slug || p.id;
+      try {
+        const data = await getPublicationWithChapters(pubPath);
+        if (!data?.chapters?.length) continue;
+        const firstTranslated = data.chapters.find((c) => c.hasTranslation);
+        if (!firstTranslated) continue;
+        const lastmod = p.updatedAt
+          ? `<lastmod>${new Date(p.updatedAt).toISOString().slice(0, 10)}</lastmod>
+    `
+          : '';
+        chapterUrls += `  <url>
+    <loc>${escapeHtml(base + '/p/' + pubPath + '/chapters/' + firstTranslated.id + '/reading')}</loc>
+    ${lastmod}<changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+`;
+      } catch {
+        /* skip on error */
+      }
     }
   } catch (err) {
     logger.warn({ err }, 'Failed to load publications for sitemap');
@@ -7821,10 +8052,17 @@ app.get('/sitemap.xml', async (req, res) => {
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-${staticPages}${pubUrls}</urlset>
+${staticPages}${pubUrls}${chapterUrls}</urlset>
 `
   );
-});
+}
+
+app.get('/robots.txt', sendRobotsTxt);
+app.get('/sitemap.xml', (req, res, next) => sendSitemapXml(req, res).catch(next));
+
+// Vercel rewrites: /robots.txt → /api/robots, /sitemap.xml → /api/sitemap
+app.get('/api/robots', sendRobotsTxt);
+app.get('/api/sitemap', (req, res, next) => sendSitemapXml(req, res).catch(next));
 
 // ============ SEO: Publication pages with dynamic meta ============
 
@@ -7899,6 +8137,17 @@ async function servePublicationHtml(
     authorDisplay: pub.authorDisplay,
     translatorDisplay: pub.translatorDisplay,
     targetLanguage: pub.targetLanguage,
+    numberOfPages: data.chapters?.length ?? 0,
+  });
+  const catalogUrl = `${base}/catalog`;
+  const ch = chapterId ? data.chapters.find((c) => c.id === chapterId) : null;
+  html = injectBreadcrumbJsonLd(html, {
+    baseUrl: base,
+    catalogUrl,
+    publicationName: title,
+    publicationUrl: `${base}/p/${pubPath}`,
+    chapterName: ch ? ch.title || `Chapter ${ch.number}` : undefined,
+    chapterUrl: chapterId ? pageUrl : undefined,
   });
   res.type('html').send(html);
 }
@@ -7915,10 +8164,20 @@ app.get('/p/:publicationId/chapters/:chapterId/reading', (req, res, next) => {
 
 app.use(serviceUnavailableErrorHandler);
 
+// ============ SEO: Static pages with dynamic meta ============
+// Serve /, /catalog, /about, /contact, /privacy, /terms with unique title, description, canonical
+
+const STATIC_SEO_PATHS = ['/', '/catalog', '/about', '/contact', '/privacy', '/terms'];
+
+for (const p of STATIC_SEO_PATHS) {
+  app.get(p, (req, res) => {
+    serveStaticPageHtml(req, res, p === '/' ? '/' : p);
+  });
+}
+
 // ============ SPA Fallback ============
 
 app.get('*', (_req, res) => {
-  // Serve index.html from dist/client if exists, fallback to public
   const indexPath = fs.existsSync(path.join(clientPath, 'index.html'))
     ? path.join(clientPath, 'index.html')
     : path.join(publicPath, 'index.html');

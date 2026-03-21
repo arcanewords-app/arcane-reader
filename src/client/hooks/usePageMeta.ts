@@ -30,6 +30,11 @@ function setCanonical(url: string): void {
   el.setAttribute('href', url);
 }
 
+export interface BreadcrumbItem {
+  name: string;
+  url: string;
+}
+
 export interface PageMeta {
   title: string;
   description: string;
@@ -40,6 +45,9 @@ export interface PageMeta {
   authorDisplay?: string | null;
   translatorDisplay?: string | null;
   targetLanguage?: string;
+  numberOfPages?: number;
+  /** For JSON-LD BreadcrumbList */
+  breadcrumbs?: BreadcrumbItem[];
 }
 
 /**
@@ -80,6 +88,8 @@ export function usePageMeta(meta: PageMeta | null): void {
         translator: { '@type': 'Person', name: meta.translatorDisplay },
       }),
       ...(meta.targetLanguage && { inLanguage: meta.targetLanguage }),
+      ...(meta.numberOfPages != null &&
+        meta.numberOfPages > 0 && { numberOfPages: meta.numberOfPages }),
     };
     let jsonLdEl = document.querySelector('script[data-arcane-jsonld="book"]');
     if (!jsonLdEl) {
@@ -89,6 +99,27 @@ export function usePageMeta(meta: PageMeta | null): void {
       document.head.appendChild(jsonLdEl);
     }
     jsonLdEl.textContent = JSON.stringify(bookSchema);
+
+    if (meta.breadcrumbs && meta.breadcrumbs.length > 0) {
+      const breadcrumbSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: meta.breadcrumbs.map((item, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: item.name,
+          item: item.url,
+        })),
+      };
+      let breadcrumbEl = document.querySelector('script[data-arcane-jsonld="breadcrumb"]');
+      if (!breadcrumbEl) {
+        breadcrumbEl = document.createElement('script');
+        breadcrumbEl.setAttribute('type', 'application/ld+json');
+        breadcrumbEl.setAttribute('data-arcane-jsonld', 'breadcrumb');
+        document.head.appendChild(breadcrumbEl);
+      }
+      breadcrumbEl.textContent = JSON.stringify(breadcrumbSchema);
+    }
 
     return () => {
       document.title = DEFAULT_TITLE;
@@ -110,6 +141,8 @@ export function usePageMeta(meta: PageMeta | null): void {
       );
       const jsonLdEl = document.querySelector('script[data-arcane-jsonld="book"]');
       if (jsonLdEl) jsonLdEl.remove();
+      const breadcrumbEl = document.querySelector('script[data-arcane-jsonld="breadcrumb"]');
+      if (breadcrumbEl) breadcrumbEl.remove();
     };
   }, [
     meta?.title,
@@ -118,5 +151,7 @@ export function usePageMeta(meta: PageMeta | null): void {
     meta?.authorDisplay,
     meta?.translatorDisplay,
     meta?.targetLanguage,
+    meta?.numberOfPages,
+    meta?.breadcrumbs,
   ]);
 }

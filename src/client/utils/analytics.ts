@@ -1,3 +1,5 @@
+import { onCLS, onINP, onLCP } from 'web-vitals';
+
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
@@ -6,6 +8,26 @@ declare global {
 }
 
 let gaInitialized = false;
+
+function sendWebVitalsToGA(
+  metric: { name: string; value: number; id: string; delta: number }
+): void {
+  if (!window.gtag || !gaInitialized) return;
+  const value = metric.name === 'CLS' ? Math.round(metric.value * 1000) : Math.round(metric.value);
+  window.gtag('event', metric.name, {
+    event_category: 'Web Vitals',
+    value,
+    event_label: metric.id,
+    non_interaction: true,
+  });
+}
+
+export function initWebVitals(): void {
+  if (typeof window === 'undefined') return;
+  onCLS(sendWebVitalsToGA);
+  onINP(sendWebVitalsToGA);
+  onLCP(sendWebVitalsToGA);
+}
 
 export function initGA(measurementId: string): void {
   if (gaInitialized || typeof window === 'undefined') return;

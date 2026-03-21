@@ -192,6 +192,29 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
           authorDisplay: data.publication.authorDisplay,
           translatorDisplay: data.publication.translatorDisplay,
           targetLanguage: data.publication.targetLanguage,
+          numberOfPages: (data?.chapters ?? []).length,
+          breadcrumbs:
+            typeof window !== 'undefined' && publicationId
+              ? [
+                  { name: t('nav.catalog'), url: `${window.location.origin}/catalog` },
+                  {
+                    name: data.publication.title || t('publication.untitled'),
+                    url: `${window.location.origin}/p/${publicationId}`,
+                  },
+                  ...(currentChapterForMeta && chapterId
+                    ? [
+                        {
+                          name:
+                            currentChapterForMeta.title ||
+                            t('chapterList.defaultChapterTitle', {
+                              number: currentChapterForMeta.number,
+                            }),
+                          url: `${window.location.origin}/p/${publicationId}/chapters/${chapterId}/reading`,
+                        },
+                      ]
+                    : []),
+                ]
+              : undefined,
         }
       : null;
   usePageMeta(readingMeta);

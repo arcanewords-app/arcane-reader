@@ -2,7 +2,13 @@ import { Router, route } from 'preact-router';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import { useCookieConsent } from './contexts/CookieConsentContext';
 import { CookieBanner } from './components/CookieBanner/CookieBanner';
-import { initGA, setupRouteChangeListener, trackEvent, trackPageView } from './utils/analytics';
+import {
+  initGA,
+  initWebVitals,
+  setupRouteChangeListener,
+  trackEvent,
+  trackPageView,
+} from './utils/analytics';
 
 /** Legacy redirect: /cabinet → /projects */
 function CabinetRedirect() {
@@ -294,6 +300,7 @@ export function AppRouter() {
 
     initGA(measurementId);
     trackPageView(window.location.pathname);
+    initWebVitals();
 
     const cleanup = setupRouteChangeListener();
     return cleanup;

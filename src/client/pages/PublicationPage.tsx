@@ -164,6 +164,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           authorDisplay: pub.authorDisplay,
           translatorDisplay: pub.translatorDisplay,
           targetLanguage: pub.targetLanguage,
+          numberOfPages: (pub.chapters || []).length,
+          breadcrumbs:
+            typeof window !== 'undefined'
+              ? [
+                  { name: t('nav.catalog'), url: `${window.location.origin}/catalog` },
+                  {
+                    name: pub.title || t('publication.untitled'),
+                    url: `${window.location.origin}/p/${publicationId}`,
+                  },
+                ]
+              : undefined,
         }
       : null;
   usePageMeta(meta);
