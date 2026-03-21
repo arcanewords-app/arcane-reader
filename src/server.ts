@@ -15,7 +15,39 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { z } from 'zod';
+import {
+  registerBodySchema,
+  loginBodySchema,
+  refreshBodySchema,
+  profileUpdateBodySchema,
+  tokenUsageQuerySchema,
+  tokenUsageHistoryQuerySchema,
+  reportStatusSchema,
+  publicEntityCreateSchema,
+  publicEntityListQuerySchema,
+  publicEntityUpdateSchema,
+  projectCreateBodySchema,
+  projectSearchQuerySchema,
+  projectSettingsBodySchema,
+  metadataUpdateBodySchema,
+  exportDownloadQuerySchema,
+  chapterIdsBodySchema,
+  translateBatchBodySchema,
+  chapterTitleBodySchema,
+  chapterNumberBodySchema,
+  chaptersOrderBodySchema,
+  paragraphBulkUpdateBodySchema,
+  paragraphBulkStatusBodySchema,
+  paragraphUpdateBodySchema,
+  exportBodySchema,
+  glossaryCreateBodySchema,
+  glossaryUpdateBodySchema,
+  glossaryMergeBodySchema,
+  publicationsListQuerySchema,
+  reportBodySchema,
+  readingPositionBodySchema,
+  publishBodySchema,
+} from './api/schemas/index.js';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
 import {
@@ -87,7 +119,11 @@ import {
 } from './storage/database.js';
 import { requireAuth, optionalAuth, requireRole } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
-import { handleServiceError, serviceUnavailableErrorHandler } from './middleware/serviceHealth.js';
+import {
+  handleServiceError,
+  requireHealthySupabase,
+  serviceUnavailableErrorHandler,
+} from './middleware/serviceHealth.js';
 import { logger } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { isChunkError } from './shared/chunkErrors.js';
@@ -909,6 +945,9 @@ app.use(express.json());
 app.use(requestContext);
 app.use(requestLogging);
 
+// Circuit breaker: return 503 immediately when Supabase is down (avoids hanging DB calls)
+app.use('/api', requireHealthySupabase);
+
 // Serve static files - prefer dist/client if exists (production), fallback to public (legacy)
 const distClientPath = path.join(__dirname, '../dist/client');
 const publicPath = path.join(__dirname, '../public');
@@ -925,15 +964,18 @@ app.use(express.static(clientPath));
 // Register
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    const parsed = registerBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
-
+    const { email, password } = parsed.data;
     const user = await authService.register(email, password);
     res.json({ user });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const message = error instanceof Error ? error.message : 'Registration failed';
     res.status(400).json({ error: message });
   }
@@ -942,12 +984,14 @@ app.post('/api/auth/register', async (req, res) => {
 // Login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    const parsed = loginBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
-
+    const { email, password } = parsed.data;
     const user = await authService.login(email, password);
 
     // Get session token to return to client
@@ -964,6 +1008,7 @@ app.post('/api/auth/login', async (req, res) => {
         : null,
     });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const message = error instanceof Error ? error.message : 'Login failed';
     res.status(401).json({ error: message });
   }
@@ -975,6 +1020,7 @@ app.post('/api/auth/logout', async (req, res) => {
     await authService.logout();
     res.json({ success: true });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const message = error instanceof Error ? error.message : 'Logout failed';
     res.status(500).json({ error: message });
   }
@@ -1007,11 +1053,14 @@ app.get('/api/auth/me', async (req, res) => {
 // Refresh session (exchange refresh_token for new access_token)
 app.post('/api/auth/refresh', async (req, res) => {
   try {
-    const { refresh_token: refreshToken } = req.body;
-    if (!refreshToken || typeof refreshToken !== 'string') {
-      return res.status(400).json({ error: 'refresh_token is required' });
+    const parsed = refreshBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
-
+    const { refresh_token: refreshToken } = parsed.data;
     const session = await authService.refreshSession(refreshToken);
     if (!session) {
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
@@ -1047,17 +1096,30 @@ app.get('/api/status', (_req, res) => {
 // Service health (public, no auth) - runtime connectivity to external services.
 // Uses a simple projects select(id) query; actual API handlers (e.g. GET /api/projects)
 // do many more queries (chapters, glossary, etc.) and may fail independently.
+// Returns cached result immediately; refreshes in background when stale (non-blocking).
 app.get('/api/health', async (_req, res) => {
   try {
     const now = Date.now();
-    if (!healthSnapshot || now - healthSnapshot.ts > CACHE_TTL.healthSnapshotMs) {
-      await serviceHealthManager.checkAll();
-      healthSnapshot = {
-        ts: now,
-        data: serviceHealthManager.getHealthResult(),
-      };
+    const isStale = !healthSnapshot || now - healthSnapshot.ts > CACHE_TTL.healthSnapshotMs;
+
+    if (isStale) {
+      serviceHealthManager.checkAll().then(() => {
+        healthSnapshot = {
+          ts: Date.now(),
+          data: serviceHealthManager.getHealthResult(),
+        };
+      }).catch((err) => {
+        logger.error({ err }, 'Health check background refresh failed');
+        healthSnapshot = {
+          ts: Date.now(),
+          data: serviceHealthManager.getHealthResult(),
+        };
+      });
     }
-    const result = healthSnapshot.data;
+
+    const result = healthSnapshot
+      ? healthSnapshot.data
+      : serviceHealthManager.getHealthResult();
     const statusCode = result.status === 'down' ? 503 : 200;
     res.status(statusCode).json(result);
   } catch (error) {
@@ -1082,7 +1144,11 @@ app.get('/api/user/token-usage', requireAuth, async (req, res) => {
     }
     const user = req.user;
 
-    const date = (req.query.date as string | undefined) ?? new Date().toISOString().split('T')[0];
+    const queryResult = tokenUsageQuerySchema.safeParse(req.query);
+    const date =
+      queryResult.success && queryResult.data.date
+        ? queryResult.data.date
+        : new Date().toISOString().split('T')[0];
     const usage = await withRedisCache(
       tokenUsageCacheKey(user.id, date),
       CACHE_TTL.redisTokenUsageSec,
@@ -1090,6 +1156,7 @@ app.get('/api/user/token-usage', requireAuth, async (req, res) => {
     );
     res.json(usage);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const errorMessage = error instanceof Error ? error.message : 'Failed to get token usage';
     req.log?.error({ err: error }, 'Error getting token usage');
     res.status(500).json({ error: errorMessage });
@@ -1104,7 +1171,8 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
     }
     const user = req.user;
 
-    const days = parseInt((req.query.days as string) || '7', 10);
+    const queryResult = tokenUsageHistoryQuerySchema.safeParse(req.query);
+    const days = queryResult.success && queryResult.data.days ? queryResult.data.days : 7;
     const history = await withRedisCache(
       tokenUsageHistoryCacheKey(user.id, days),
       CACHE_TTL.redisTokenHistorySec,
@@ -1112,6 +1180,7 @@ app.get('/api/user/token-usage/history', requireAuth, async (req, res) => {
     );
     res.json({ history });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to get token usage history';
     req.log?.error({ err: error }, 'Error getting token usage history');
@@ -1134,6 +1203,7 @@ app.get('/api/user/reading-history', requireAuth, async (req, res) => {
     );
     res.json({ items });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const errorMessage = error instanceof Error ? error.message : 'Failed to get reading history';
     req.log?.error({ err: error }, 'Error getting reading history');
     res.status(500).json({ error: errorMessage });
@@ -1153,6 +1223,7 @@ app.get('/api/user/profile', requireAuth, async (req, res) => {
       avatarUrl: req.user.avatarUrl ?? null,
     });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const errorMessage = error instanceof Error ? error.message : 'Failed to get profile';
     req.log?.error({ err: error }, 'Error getting profile');
     res.status(500).json({ error: errorMessage });
@@ -1165,10 +1236,14 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const { avatarUrl } = req.body;
-    if (typeof avatarUrl !== 'string' && avatarUrl !== null) {
-      return res.status(400).json({ error: 'avatarUrl must be a string or null' });
+    const parsed = profileUpdateBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
+    const { avatarUrl } = parsed.data;
     const { createClientWithToken } = await import('./services/supabaseClient.js');
     const client = createClientWithToken(requireToken(req));
     const { data, error } = await client
@@ -1184,6 +1259,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
     await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, req.user.id)]);
     res.json({ avatarUrl: data?.avatar_url ?? null });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
     req.log?.error({ err: error }, 'Error updating profile');
     res.status(500).json({ error: errorMessage });
@@ -1244,6 +1320,7 @@ app.post(
       await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, req.user.id)]);
       res.json({ avatarUrl: data?.avatar_url ?? null });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload avatar';
       req.log?.error({ err: error }, 'Error uploading avatar');
       res.status(500).json({ error: errorMessage });
@@ -1307,8 +1384,14 @@ app.post('/api/projects', requireAuth, requireRole('author'), async (req, res) =
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    const { name, sourceLanguage, targetLanguage } = req.body;
+    const parsed = projectCreateBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { name, sourceLanguage, targetLanguage } = parsed.data;
     const token = requireToken(req);
     const project = await createProject(
       { name, sourceLanguage, targetLanguage },
@@ -1380,8 +1463,10 @@ app.get('/api/projects/:id/search', requireAuth, requireRole('author'), async (r
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const projectId = req.params.id;
-    const q = typeof req.query.q === 'string' ? req.query.q : '';
-    const field = (req.query.field as 'original' | 'translated' | 'both') || 'translated';
+    const queryResult = projectSearchQuerySchema.safeParse(req.query);
+    const { q, field } = queryResult.success
+      ? queryResult.data
+      : { q: '', field: 'translated' as const };
 
     const token = requireToken(req);
     const project = await getProject(projectId, req.user.id, token);
@@ -1408,13 +1493,14 @@ app.post(
         return res.status(401).json({ error: 'Unauthorized' });
       }
       const projectId = req.params.id;
-      const { updates } = req.body as {
-        updates: Array<{ chapterId: string; paragraphId: string; translatedText: string }>;
-      };
-
-      if (!Array.isArray(updates) || updates.length === 0) {
-        return res.status(400).json({ error: 'updates array required' });
+      const parsed = paragraphBulkUpdateBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { updates } = parsed.data;
 
       const token = requireToken(req);
       const project = await getProject(projectId, req.user.id, token);
@@ -1458,6 +1544,15 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const parsed = projectSettingsBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const body = parsed.data;
+
     const token = requireToken(req);
     const project = await getProject(req.params.id, req.user.id, token);
     if (!project) {
@@ -1481,7 +1576,7 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
       editingStylePreset,
       editingFocus,
       allowReasoningModelsForAnalysis,
-    } = req.body;
+    } = body;
 
     // Preserve existing reader settings
     const existingReader = project.settings.reader;
@@ -1523,7 +1618,7 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
     }
 
     if (textBlockTypes !== undefined) {
-      updatedSettings.textBlockTypes = textBlockTypes;
+      updatedSettings.textBlockTypes = textBlockTypes as typeof project.settings.textBlockTypes;
     }
     if (customInstructions !== undefined) {
       updatedSettings.customInstructions = customInstructions;
@@ -1560,6 +1655,7 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
 
     res.json(updatedProject.settings);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to update settings' });
   }
 });
@@ -1584,6 +1680,7 @@ app.get(
       const reader = getReaderSettings(project);
       res.json(reader);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to get reader settings' });
     }
   }
@@ -1620,6 +1717,7 @@ app.put(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.id, token);
       res.json(reader);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to update reader settings' });
     }
   }
@@ -1639,6 +1737,7 @@ app.get('/api/user/reader-settings', requireAuth, async (req, res) => {
     }
     res.json(reader);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get reader settings' });
   }
 });
@@ -1654,6 +1753,7 @@ app.put('/api/user/reader-settings', requireAuth, async (req, res) => {
     const reader = await updateUserReaderSettings(req.user.id, req.body, token);
     res.json(reader);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to update reader settings' });
   }
 });
@@ -2162,6 +2262,7 @@ app.post(
         }
       });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const message = error instanceof Error ? error.message : 'Failed to start import job';
       if (message.includes('Token is required') || message.includes('Invalid token')) {
         return res.status(401).json({ error: message });
@@ -2528,6 +2629,7 @@ app.post(
         });
       }
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const message = error instanceof Error ? error.message : 'Failed to add chapter';
       // Check if error is related to token validation
       if (message.includes('Token is required') || message.includes('Invalid token')) {
@@ -2596,6 +2698,7 @@ app.get(
       }
       res.json(payload);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to get chapter status' });
     }
   }
@@ -2629,6 +2732,7 @@ app.get(
       }
       res.json(chapter);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to get chapter' });
     }
   }
@@ -2663,6 +2767,7 @@ app.delete(
       await invalidateUserProjectCaches(req.user.id, req.params.projectId);
       res.json({ success: true });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to delete chapter' });
     }
   }
@@ -2726,6 +2831,7 @@ app.post(
         res.json({ success: false, message: 'Chapter is not being translated' });
       }
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to cancel translation');
       res.status(500).json({ error: 'Failed to cancel translation' });
     }
@@ -2817,6 +2923,7 @@ app.post(
         recovered: true,
       });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       req.log?.error({ err: error }, 'Failed to sync translation');
       res.status(500).json({ error: `Failed to sync translation: ${errorMessage}` });
@@ -2915,6 +3022,7 @@ app.post(
         res.status(500).json({ error: 'Failed to update chapter' });
       }
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       req.log?.error({ err: error }, 'Failed to upload translation');
       res.status(500).json({
@@ -3042,6 +3150,7 @@ app.post(
         res.status(500).json({ error: 'Failed to update chapter' });
       }
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       req.log?.error({ err: error }, 'Failed to mark chapter as translated');
       res.status(500).json({
@@ -3069,23 +3178,15 @@ app.post(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const body = (req.body || {}) as {
-        chapterIds?: unknown;
-        options?: { continueOnError?: boolean };
-      };
-      const chapterIdsRaw = Array.isArray(body.chapterIds) ? body.chapterIds : [];
-      const chapterIds = Array.from(
-        new Set(chapterIdsRaw.filter((id): id is string => typeof id === 'string' && id.length > 0))
-      );
-
-      if (chapterIds.length === 0) {
+      const parsed = chapterIdsBodySchema.safeParse(req.body || {});
+      if (!parsed.success) {
         return res.status(400).json({
-          error: 'No chapters selected',
-          message: 'Передайте непустой массив chapterIds.',
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
         });
       }
-
-      const continueOnError = body.options?.continueOnError ?? true;
+      const chapterIds = Array.from(new Set(parsed.data.chapterIds));
+      const continueOnError = parsed.data.options?.continueOnError ?? true;
       const aggregate: MarkTranslatedBatchResult = {
         summary: {
           total: chapterIds.length,
@@ -3131,6 +3232,7 @@ app.post(
 
       res.json(aggregate);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       req.log?.error({ err: error }, 'Failed to mark chapters as translated in batch');
       res.status(500).json({
@@ -3159,14 +3261,14 @@ app.post(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const body = req.body || {};
-      const chapterIds = Array.isArray(body.chapterIds) ? body.chapterIds : [];
-      if (chapterIds.length === 0) {
+      const parsed = chapterIdsBodySchema.safeParse(req.body || {});
+      if (!parsed.success) {
         return res.status(400).json({
-          error: 'chapterIds required',
-          message: 'Provide chapterIds array in request body.',
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
         });
       }
+      const chapterIds = parsed.data.chapterIds;
 
       const chaptersWithText: Array<Chapter & { originalText: string }> = [];
 
@@ -3488,11 +3590,15 @@ app.post(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const body = req.body || {};
-      const chapterIds = Array.isArray(body.chapterIds) ? body.chapterIds : [];
-      const translateOnlyEmpty = body.translateOnlyEmpty === true;
-      const stagesRaw = body.stages;
-      const validStage = (s: unknown): s is 'analysis' | 'translation' | 'editing' =>
+      const parsed = translateBatchBodySchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const { chapterIds, translateOnlyEmpty, stages: stagesRaw } = parsed.data;
+      const validStage = (s: string): s is 'analysis' | 'translation' | 'editing' =>
         s === 'analysis' || s === 'translation' || s === 'editing';
       let stages: TranslationStages = 'all';
       if (Array.isArray(stagesRaw) && stagesRaw.length > 0) {
@@ -3500,13 +3606,6 @@ app.post(
         if (arr.length > 0) stages = [...new Set(arr)];
       } else if (stagesRaw === 'all') {
         stages = 'all';
-      }
-
-      if (chapterIds.length === 0) {
-        return res.status(400).json({
-          error: 'chapterIds required',
-          message: 'Provide chapterIds array in request body.',
-        });
       }
 
       const chaptersToTranslate: Chapter[] = [];
@@ -3610,7 +3709,7 @@ app.post(
           estimatedTokens,
           chapterIds: chaptersToTranslate.map((c) => c.id),
           stages,
-          translateOnlyEmpty,
+          translateOnlyEmpty: translateOnlyEmpty ?? false,
         });
 
         res.status(202).json({ jobId, status: 'queued' as const });
@@ -3865,6 +3964,7 @@ app.post(
 
       res.json({ status: 'started', chapterId: chapter.id });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to start translation' });
     }
   }
@@ -5569,6 +5669,7 @@ app.get('/api/projects/:id/reports-count', requireAuth, requireRole('author'), a
     );
     res.json({ count });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get reports count' });
   }
 });
@@ -5582,12 +5683,9 @@ app.get('/api/projects/:id/reports', requireAuth, requireRole('author'), async (
     const reports = await getTranslationReportsByProject(projectId, userId, token);
     res.json(reports);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get reports' });
   }
-});
-
-const reportStatusSchema = z.object({
-  status: z.enum(['pending', 'reviewed', 'resolved']),
 });
 
 app.patch(
@@ -5603,7 +5701,10 @@ app.patch(
 
       const parsed = reportStatusSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid status. Use pending, reviewed, or resolved' });
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
 
       await updateTranslationReportStatus(
@@ -5616,6 +5717,7 @@ app.patch(
       await redisDelMany([projectReportsCountCacheKey(projectId)]);
       res.json({ success: true });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Failed to update report';
       res.status(400).json({ error: msg });
     }
@@ -5637,6 +5739,7 @@ app.delete(
       await redisDelMany([projectReportsCountCacheKey(projectId)]);
       res.json({ success: true });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Failed to delete report';
       res.status(400).json({ error: msg });
     }
@@ -5658,6 +5761,7 @@ app.get('/api/projects/:id/glossary', requireAuth, requireRole('author'), async 
     }
     res.json(project.glossary);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get glossary' });
   }
 });
@@ -5675,12 +5779,20 @@ app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    let declensions = req.body.declensions;
-    let translated = req.body.translated;
+    const parsed = glossaryCreateBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { declensions: declensionsIn, translated: translatedIn, ...rest } = parsed.data;
+    let declensions = declensionsIn;
+    let translated = translatedIn;
 
     // Auto-generate declensions for characters using arcane-engine
-    if (req.body.type === 'character' && req.body.original && !declensions) {
-      const result = getNameDeclensions(req.body.original, req.body.gender || 'unknown');
+    if (rest.type === 'character' && rest.original && !declensions) {
+      const result = getNameDeclensions(rest.original, rest.gender || 'unknown');
 
       // Use auto-generated translation if not provided
       if (!translated) {
@@ -5690,20 +5802,15 @@ app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async
       // Generate declensions for the translated name
       declensions = result.declensions;
 
-      req.log?.debug({ original: req.body.original, declensions }, 'Auto-declension result');
+      req.log?.debug({ original: rest.original, declensions }, 'Auto-declension result');
     }
 
     const entry = await addGlossaryEntry(
       req.params.id,
       {
-        type: req.body.type || 'term',
-        original: req.body.original,
-        translated: translated,
-        gender: req.body.gender,
-        description: req.body.description, // Character/location/term description
-        notes: req.body.notes, // User notes (separate from description)
-        declensions: declensions,
-        firstAppearance: req.body.firstAppearance, // Optional: chapter number
+        ...rest,
+        translated: translated ?? rest.original,
+        declensions,
       },
       requireToken(req)
     );
@@ -5718,6 +5825,7 @@ app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async
     await invalidateProjectAndRelatedCaches(req.user.id, req.params.id, token);
     res.json(entry);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to add glossary entry' });
   }
 });
@@ -5740,6 +5848,13 @@ app.put(
         return res.status(404).json({ error: 'Project not found' });
       }
 
+      const parsed = glossaryUpdateBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
       const {
         original,
         translated,
@@ -5749,12 +5864,13 @@ app.put(
         notes,
         relatedEntryIds,
         primaryLocationId,
-      } = req.body;
+        declensions: declensionsIn,
+      } = parsed.data;
 
-      let declensions = req.body.declensions;
+      let declensions = declensionsIn;
 
       // Re-generate declensions if character name changed
-      if (type === 'character' && translated && !declensions) {
+      if (type === 'character' && translated && original && !declensions) {
         const result = getNameDeclensions(original, gender || 'unknown');
         declensions = result.declensions;
       }
@@ -5764,8 +5880,8 @@ app.put(
         translated,
         type,
         gender,
-        description, // Character/location/term description
-        notes, // User notes (separate from description)
+        description,
+        notes,
         declensions,
       };
       if (relatedEntryIds !== undefined)
@@ -5800,6 +5916,7 @@ app.put(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json(entry);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to update glossary entry' });
     }
   }
@@ -5833,6 +5950,7 @@ app.delete(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to delete glossary entry' });
     }
   }
@@ -5868,6 +5986,7 @@ app.post(
       });
       res.json({ suggestions });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'suggest-merges failed');
       res.status(500).json({ error: 'Failed to get merge suggestions' });
     }
@@ -5890,13 +6009,14 @@ app.post(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const { entryIds, keepEntryId } = req.body as { entryIds?: string[]; keepEntryId?: string };
-      if (!Array.isArray(entryIds) || entryIds.length < 2) {
+      const parsed = glossaryMergeBodySchema.safeParse(req.body);
+      if (!parsed.success) {
         return res.status(400).json({
-          error: 'Bad request',
-          message: 'entryIds must be an array of at least 2 entry IDs.',
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
         });
       }
+      const { entryIds, keepEntryId } = parsed.data;
 
       const idSet = new Set(entryIds);
       const entries = project.glossary.filter((e) => idSet.has(e.id));
@@ -5978,6 +6098,7 @@ app.post(
         deletedCount: others.length,
       });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'glossary merge failed');
       res.status(500).json({ error: 'Failed to merge glossary entries' });
     }
@@ -6062,6 +6183,7 @@ app.post(
         entry: updatedEntry,
       });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to upload image');
       res.status(500).json({ error: 'Failed to upload image' });
     }
@@ -6134,6 +6256,7 @@ app.delete(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true, imageUrls: updatedEntry?.imageUrls || [] });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to delete image');
       res.status(500).json({ error: 'Failed to delete image' });
     }
@@ -6196,6 +6319,7 @@ app.delete(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to delete images');
       res.status(500).json({ error: 'Failed to delete images' });
     }
@@ -6283,6 +6407,7 @@ app.post(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ coverImageUrl, project: updatedProject });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to upload cover image');
       res.status(500).json({ error: 'Failed to upload cover image' });
     }
@@ -6335,6 +6460,7 @@ app.delete(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json({ success: true, project: updatedProject });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to delete cover image');
       res.status(500).json({ error: 'Failed to delete cover image' });
     }
@@ -6357,10 +6483,14 @@ app.put(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const { metadata: metadataUpdates } = req.body;
-      if (!metadataUpdates || typeof metadataUpdates !== 'object') {
-        return res.status(400).json({ error: 'metadata object is required' });
+      const parsed = metadataUpdateBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { metadata: metadataUpdates } = parsed.data;
 
       const updatedMetadata = { ...(project.metadata || {}), ...metadataUpdates };
       const updatedProject = await updateProject(
@@ -6377,6 +6507,7 @@ app.put(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, requireToken(req));
       res.json(updatedProject);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to update project metadata');
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update project metadata';
@@ -6416,6 +6547,7 @@ app.get(
       const stats = getChapterStats(chapter);
       res.json(stats);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to get chapter stats' });
     }
   }
@@ -6439,11 +6571,14 @@ app.put(
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const { title } = req.body;
-
-      if (!title || typeof title !== 'string' || !title.trim()) {
-        return res.status(400).json({ error: 'Title is required' });
+      const parsed = chapterTitleBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { title } = parsed.data;
 
       const chapter = await updateChapter(
         req.params.projectId,
@@ -6465,6 +6600,7 @@ app.put(
       await invalidateUserProjectCaches(req.user.id, req.params.projectId);
       res.json(chapter);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to update chapter title');
       res.status(500).json({ error: 'Failed to update chapter title' });
     }
@@ -6482,13 +6618,14 @@ app.put(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const { number } = req.body;
-
-      if (typeof number !== 'number' || number < 1 || !Number.isInteger(number)) {
-        return res
-          .status(400)
-          .json({ error: 'Valid chapter number is required (positive integer)' });
+      const parsed = chapterNumberBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { number } = parsed.data;
 
       const chapter = await updateChapterNumber(
         req.params.projectId,
@@ -6517,6 +6654,7 @@ app.put(
       const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
       res.json(project);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to update chapter number');
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update chapter number';
@@ -6534,10 +6672,14 @@ app.put(
     try {
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-      const { ids } = req.body || {};
-      if (!Array.isArray(ids) || ids.some((i) => typeof i !== 'string')) {
-        return res.status(400).json({ error: 'Invalid ids array' });
+      const parsed = chaptersOrderBodySchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { ids } = parsed.data;
 
       await updateChaptersOrder(req.params.projectId, ids, requireToken(req));
       await invalidateUserProjectCaches(req.user.id, req.params.projectId);
@@ -6546,6 +6688,7 @@ app.put(
       const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
       res.json(project);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to reorder chapters');
       const message = error instanceof Error ? error.message : 'Failed to reorder chapters';
       res.status(500).json({ error: message });
@@ -6560,7 +6703,14 @@ app.put(
   requireRole('author'),
   async (req, res) => {
     try {
-      const { translatedText, status } = req.body;
+      const parsed = paragraphUpdateBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const { translatedText, status } = parsed.data;
 
       const updates: Partial<Paragraph> = {};
       if (translatedText !== undefined) {
@@ -6592,6 +6742,7 @@ app.put(
       await invalidateUserProjectCaches(req.user!.id, req.params.projectId);
       res.json(paragraph);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to update paragraph' });
     }
   }
@@ -6607,11 +6758,14 @@ app.post(
       return res.status(401).json({ error: 'Unauthorized' });
     }
     try {
-      const { paragraphIds, status } = req.body;
-
-      if (!paragraphIds || !Array.isArray(paragraphIds) || !status) {
-        return res.status(400).json({ error: 'paragraphIds array and status required' });
+      const parsed = paragraphBulkStatusBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { paragraphIds, status } = parsed.data;
 
       const results: Paragraph[] = [];
       for (const paragraphId of paragraphIds) {
@@ -6634,6 +6788,7 @@ app.post(
       await invalidateUserProjectCaches(req.user.id, req.params.projectId);
       res.json({ updated: results.length, paragraphs: results });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to bulk update paragraphs' });
     }
   }
@@ -6648,12 +6803,15 @@ app.post('/api/projects/:id/export', requireAuth, requireRole('author'), async (
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { format, author } = req.body;
-    const projectId = req.params.id;
-
-    if (!format || (format !== 'epub' && format !== 'fb2')) {
-      return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
+    const parsed = exportBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
+    const { format, author } = parsed.data;
+    const projectId = req.params.id;
 
     const token = requireToken(req);
     const project = await getProjectFull(projectId, req.user.id, token);
@@ -6846,11 +7004,14 @@ app.get(
       }
 
       const projectId = req.params.id;
-      const pathParam = req.query.path as string;
-
-      if (!pathParam || typeof pathParam !== 'string') {
-        return res.status(400).json({ error: 'Missing path query parameter' });
+      const queryResult = exportDownloadQuerySchema.safeParse(req.query);
+      if (!queryResult.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: queryResult.error.flatten().fieldErrors,
+        });
       }
+      const pathParam = queryResult.data.path;
 
       const storagePath = decodeURIComponent(pathParam).replace(/^\/+/, '');
 
@@ -6873,6 +7034,7 @@ app.get(
       res.setHeader('Content-Length', buffer.length.toString());
       res.send(buffer);
     } catch (error: unknown) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Download failed';
       req.log?.error({ err: error }, 'Export download error');
       res.status(500).json({ error: msg });
@@ -6888,11 +7050,14 @@ app.post('/api/publications/:id/export', requireAuth, requireRole('author'), asy
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { format, author } = req.body;
-
-    if (!format || (format !== 'epub' && format !== 'fb2')) {
-      return res.status(400).json({ error: 'Invalid format. Use "epub" or "fb2"' });
+    const parsed = exportBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
+    const { format, author } = parsed.data;
 
     const pub = await getPublicationBySlugOrId(req.params.id);
     if (!pub) {
@@ -6980,7 +7145,8 @@ app.post('/api/publications/:id/export', requireAuth, requireRole('author'), asy
         format,
         outputDir: tmpDir,
         filename,
-        author: author || pub.translatorDisplay || pub.authorDisplay,
+        author:
+          (author || pub.translatorDisplay || pub.authorDisplay) ?? undefined,
       });
 
       if (!fs.existsSync(exportedPath)) {
@@ -7029,6 +7195,7 @@ app.post('/api/publications/:id/export', requireAuth, requireRole('author'), asy
       throw exportError;
     }
   } catch (error: unknown) {
+    if (handleServiceError(error, req, res)) return;
     req.log?.error({ err: error }, 'Publication export error');
     res
       .status(500)
@@ -7074,6 +7241,7 @@ app.get(
       res.setHeader('Content-Length', buffer.length.toString());
       res.send(buffer);
     } catch (error: unknown) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Download failed';
       req.log?.error({ err: error }, 'Publication export download error');
       res.status(500).json({ error: msg });
@@ -7153,38 +7321,6 @@ function sanitizeFilename(filename: string): string {
   ); // Fallback if empty after sanitization
 }
 
-const publicEntityKinds = ['tag', 'author', 'translator'] as const;
-
-const publicEntityCreateSchema = z.object({
-  kind: z.enum(publicEntityKinds),
-  name: z.string().trim().min(1).max(120),
-  description: z
-    .string()
-    .trim()
-    .max(2000)
-    .optional()
-    .transform((value) => (value && value.length > 0 ? value : undefined)),
-  photoUrl: z.string().trim().url().max(2048).optional(),
-});
-
-const publicEntityListQuerySchema = z.object({
-  kind: z.enum(publicEntityKinds).optional(),
-  search: z.string().trim().max(100).optional(),
-  limit: z.coerce.number().int().min(1).max(200).optional(),
-  offset: z.coerce.number().int().min(0).optional(),
-});
-
-const publicEntityUpdateSchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
-  description: z
-    .string()
-    .trim()
-    .max(2000)
-    .optional()
-    .transform((value) => (value !== undefined && value.length > 0 ? value : null)),
-  photoUrl: z.string().trim().url().max(2048).nullable().optional(),
-});
-
 // ============ Publications (public catalog) ============
 
 // Create global public entity (admin only)
@@ -7253,6 +7389,7 @@ app.post(
         throw error;
       }
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to create public entity');
       res.status(500).json({ error: 'Failed to create public entity' });
     }
@@ -7285,6 +7422,7 @@ app.get('/api/public/entities', async (req, res) => {
 
     res.json(entities);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to list public entities';
     res.status(500).json({ error: msg });
   }
@@ -7305,6 +7443,7 @@ app.get('/api/public/entities/:id', async (req, res) => {
     await redisSetJson(key, entity, CACHE_TTL.redisPublicEntitySec);
     res.json(entity);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get public entity';
     res.status(500).json({ error: msg });
   }
@@ -7368,6 +7507,7 @@ app.patch(
       await invalidatePublicEntitiesCaches(entityId);
       res.json(entity);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Failed to update public entity');
       res.status(500).json({ error: 'Failed to update public entity' });
     }
@@ -7400,6 +7540,7 @@ app.delete('/api/admin/entities/:id', requireAuth, requireRole('admin'), async (
     await invalidatePublicEntitiesCaches(entityId);
     res.status(204).send();
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     req.log?.error({ err: error }, 'Failed to delete public entity');
     res.status(500).json({ error: 'Failed to delete public entity' });
   }
@@ -7417,6 +7558,7 @@ app.get('/api/admin/entities/:id/usage', requireAuth, requireRole('admin'), asyn
     const usageCount = await countPublicationsUsingEntity(entityId);
     res.json({ usageCount });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     req.log?.error({ err: error }, 'Failed to get entity usage');
     res.status(500).json({ error: 'Failed to get entity usage' });
   }
@@ -7425,37 +7567,51 @@ app.get('/api/admin/entities/:id/usage', requireAuth, requireRole('admin'), asyn
 // List published publications (public, no auth)
 app.get('/api/publications', async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 100);
-    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-    const orderBy = (req.query.orderBy as string) === 'created_at' ? 'created_at' : 'published_at';
-    const orderAsc = req.query.orderAsc === 'true';
-    const authorEntityId = (req.query.author as string) || undefined;
-    const translatorEntityId = (req.query.translator as string) || undefined;
-    const tagEntityId = (req.query.tag as string) || undefined;
+    const queryResult = publicationsListQuerySchema.safeParse(req.query);
+    const params = queryResult.success
+      ? {
+          limit: Math.min(queryResult.data.limit ?? 50, 100),
+          offset: Math.max(0, queryResult.data.offset ?? 0),
+          orderBy: queryResult.data.orderBy ?? 'published_at',
+          orderAsc: queryResult.data.orderAsc ?? false,
+          authorEntityId: queryResult.data.author,
+          translatorEntityId: queryResult.data.translator,
+          tagEntityId: queryResult.data.tag,
+        }
+      : {
+          limit: 50,
+          offset: 0,
+          orderBy: 'published_at' as const,
+          orderAsc: false,
+          authorEntityId: undefined,
+          translatorEntityId: undefined,
+          tagEntityId: undefined,
+        };
     const list = await withRedisCache(
       publicationsListCacheKey({
-        limit,
-        offset,
-        orderBy,
-        orderAsc,
-        authorEntityId,
-        translatorEntityId,
-        tagEntityId,
+        limit: params.limit,
+        offset: params.offset,
+        orderBy: params.orderBy,
+        orderAsc: params.orderAsc,
+        authorEntityId: params.authorEntityId,
+        translatorEntityId: params.translatorEntityId,
+        tagEntityId: params.tagEntityId,
       }),
       CACHE_TTL.redisPublicationsListSec,
       () =>
         listPublicationsPublic({
-          limit,
-          offset,
-          orderBy,
-          orderAsc,
-          authorEntityId,
-          translatorEntityId,
-          tagEntityId,
+          limit: params.limit,
+          offset: params.offset,
+          orderBy: params.orderBy,
+          orderAsc: params.orderAsc,
+          authorEntityId: params.authorEntityId,
+          translatorEntityId: params.translatorEntityId,
+          tagEntityId: params.tagEntityId,
         })
     );
     res.json(list);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to list publications';
     res.status(500).json({ error: msg });
   }
@@ -7474,6 +7630,7 @@ app.get('/api/publications/:id', async (req, res) => {
     }
     res.json(pub);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get publication';
     res.status(500).json({ error: msg });
   }
@@ -7492,6 +7649,7 @@ app.get('/api/publications/:id/chapters', async (req, res) => {
     }
     res.json(result);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get publication';
     res.status(500).json({ error: msg });
   }
@@ -7519,6 +7677,7 @@ app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
     }
     res.json(chapter);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get chapter';
     res.status(500).json({ error: msg });
   }
@@ -7543,6 +7702,7 @@ app.get('/api/publications/:id/glossary', async (req, res) => {
     );
     res.json(entries);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get glossary';
     res.status(500).json({ error: msg });
   }
@@ -7566,6 +7726,7 @@ app.get('/api/publications/:id/read-progress', optionalAuth, async (req, res) =>
       lastReadParagraphIndex: progress.lastReadParagraphIndex,
     });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get read progress';
     res.status(500).json({ error: msg });
   }
@@ -7581,18 +7742,14 @@ app.post('/api/publications/:id/report', requireAuth, async (req, res) => {
       return;
     }
 
-    const body = req.body as { chapterId?: string; description?: string };
-    const chapterId = body.chapterId;
-    const description = body.description;
-
-    if (!chapterId || typeof chapterId !== 'string') {
-      res.status(400).json({ error: 'chapterId is required' });
-      return;
+    const parsed = reportBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
-    if (!description || typeof description !== 'string') {
-      res.status(400).json({ error: 'description is required' });
-      return;
-    }
+    const { chapterId, description } = parsed.data;
 
     const { id } = await createTranslationReport({
       publicationId: pub.id,
@@ -7607,6 +7764,7 @@ app.post('/api/publications/:id/report', requireAuth, async (req, res) => {
 
     res.json({ success: true, id });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to submit report';
     const status = msg.includes('wait') ? 429 : msg.includes('not found') ? 404 : 500;
     res.status(status).json({ error: msg });
@@ -7646,6 +7804,7 @@ app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, async (r
     ]);
     res.json({ success: true });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to mark chapter as read';
     res.status(500).json({ error: msg });
   }
@@ -7656,14 +7815,14 @@ app.patch('/api/publications/:id/reading-position', requireAuth, async (req, res
   try {
     const userId = req.user!.id;
     const token = req.token!;
-    const body = req.body as { chapterId?: string; paragraphIndex?: number };
-    const chapterId = body.chapterId;
-    const paragraphIndex = body.paragraphIndex ?? 0;
-
-    if (!chapterId || typeof chapterId !== 'string') {
-      res.status(400).json({ error: 'chapterId is required' });
-      return;
+    const parsed = readingPositionBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
+    const { chapterId, paragraphIndex = 0 } = parsed.data;
 
     const pub = await getPublicationBySlugOrId(req.params.id);
     if (!pub) {
@@ -7690,6 +7849,7 @@ app.patch('/api/publications/:id/reading-position', requireAuth, async (req, res
     ]);
     res.json({ success: true });
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to update reading position';
     res.status(500).json({ error: msg });
   }
@@ -7705,18 +7865,14 @@ app.post(
       const userId = req.user!.id;
       const token = req.token!;
       const projectId = req.params.projectId;
-      const body = req.body as {
-        status?: 'draft' | 'published';
-        title?: string | null;
-        description?: string | null;
-        coverImageUrl?: string | null;
-        authorDisplay?: string | null;
-        translatorDisplay?: string | null;
-        authorEntityId?: string | null;
-        translatorEntityId?: string | null;
-        sourceLanguage?: string;
-        targetLanguage?: string;
-      };
+      const parsed = publishBodySchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const body = parsed.data;
       const status = body.status ?? 'published';
 
       // Resolve author/translator from entity IDs if provided (project metadata or body)
@@ -7769,6 +7925,7 @@ app.post(
       await invalidatePublicationListCaches();
       res.json(publication);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Failed to publish';
       res.status(400).json({ error: msg });
     }
@@ -7793,6 +7950,7 @@ app.delete(
       await invalidatePublicationListCaches();
       res.json({ success: true });
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Failed to unpublish';
       res.status(400).json({ error: msg });
     }
@@ -7807,6 +7965,7 @@ app.get('/api/user/publications', requireAuth, requireRole('author'), async (req
     const list = await getUserPublications(userId, token);
     res.json(list);
   } catch (error) {
+    if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get publications';
     res.status(500).json({ error: msg });
   }
@@ -7826,6 +7985,7 @@ app.get(
       const pub = await getPublicationByProjectId(projectId, userId, token);
       res.json(pub);
     } catch (error) {
+      if (handleServiceError(error, req, res)) return;
       const msg = error instanceof Error ? error.message : 'Failed to get publication';
       res.status(500).json({ error: msg });
     }

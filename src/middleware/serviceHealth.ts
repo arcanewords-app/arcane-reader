@@ -81,6 +81,28 @@ export function sendServiceUnavailable(res: Response, service: string, errorMess
 }
 
 /**
+ * Circuit breaker: when Supabase is known down, return 503 immediately without hitting DB.
+ * Excludes /api/status and /api/health so they can return cached/static data.
+ */
+export function requireHealthySupabase(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  const path = req.path;
+  if (path === '/status' || path === '/health') return next();
+  if (serviceHealthManager.getOverallStatus() === 'down') {
+    res.status(503).json({
+      error: 'Service temporarily unavailable',
+      code: 'SERVICE_UNAVAILABLE',
+      service: 'supabase',
+    });
+    return;
+  }
+  next();
+}
+
+/**
  * Handles a caught error in route handlers. If the error is infrastructure-related,
  * reports to ServiceHealthManager, sends 503, and returns true.
  * Otherwise returns false so the caller can handle with generic 500.

@@ -1,5 +1,39 @@
 import { createClient } from '@supabase/supabase-js';
 
+const SUPABASE_REQUEST_TIMEOUT_MS = parseInt(
+  process.env.SUPABASE_REQUEST_TIMEOUT_MS ?? '30000',
+  10
+);
+
+/** Wraps fetch with a timeout to avoid hanging when Supabase is unresponsive. */
+function createFetchWithTimeout(timeoutMs: number): typeof fetch {
+  return async (
+    input: Parameters<typeof fetch>[0],
+    init?: RequestInit
+  ): Promise<Response> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    if (init?.signal) {
+      init.signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      });
+    }
+
+    try {
+      const res = await fetch(input, { ...init, signal: controller.signal });
+      clearTimeout(timeoutId);
+      return res;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
+    }
+  };
+}
+
+const supabaseFetch = createFetchWithTimeout(SUPABASE_REQUEST_TIMEOUT_MS);
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
@@ -9,7 +43,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: supabaseFetch },
+});
 
 // Create a Supabase client with user token for RLS authentication
 export function createClientWithToken(token: string) {
@@ -29,6 +65,7 @@ export function createClientWithToken(token: string) {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      fetch: supabaseFetch,
     },
   });
 }
@@ -39,5 +76,7 @@ export function createServiceRoleClient() {
   if (!serviceRoleKey) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY not set');
   }
-  return createClient(supabaseUrl!, serviceRoleKey);
+  return createClient(supabaseUrl!, serviceRoleKey, {
+    global: { fetch: supabaseFetch },
+  });
 }

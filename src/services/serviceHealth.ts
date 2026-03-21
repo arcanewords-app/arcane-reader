@@ -153,15 +153,22 @@ class ServiceHealthManagerImpl {
 
 export const serviceHealthManager = new ServiceHealthManagerImpl();
 
+const HEALTH_CHECK_TIMEOUT_MS = 10_000;
+
 /**
- * Supabase health checker: simple query to verify DB connectivity
+ * Supabase health checker: simple query to verify DB connectivity.
+ * Uses Promise.race with timeout to avoid hanging 60+ s when Supabase is unresponsive.
  */
 async function checkSupabase(): Promise<void> {
   const client = createServiceRoleClient();
-  const { error } = await client.from('projects').select('id').limit(1).maybeSingle();
-  if (error) {
-    throw new Error(error.message);
-  }
+  const queryPromise = (async () => {
+    const { error } = await client.from('projects').select('id').limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+  })();
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Health check timeout')), HEALTH_CHECK_TIMEOUT_MS);
+  });
+  await Promise.race([queryPromise, timeoutPromise]);
 }
 
 // Register Supabase as the first service

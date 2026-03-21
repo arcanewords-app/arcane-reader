@@ -11,6 +11,7 @@ import { useContext, useState, useCallback, useEffect, useRef } from 'preact/hoo
 const SERVICE_DEGRADED_EVENT = 'arcane:service-degraded';
 const POLL_INTERVAL_MS = 15_000;
 const RECOVERED_DISPLAY_MS = 5_000;
+const HEALTH_FETCH_TIMEOUT_MS = 10_000;
 
 export type ServiceHealthStatus = 'down' | 'degraded' | 'recovered';
 
@@ -34,15 +35,23 @@ type ServiceHealthContextValue = {
 const ServiceHealthContext = createContext<ServiceHealthContextValue | null>(null);
 
 async function fetchHealth(): Promise<HealthResponse> {
-  const res = await fetch('/api/health');
-  const data = (await res.json().catch(() => ({}))) as HealthResponse;
-  return data;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), HEALTH_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch('/api/health', { signal: controller.signal });
+    const data = (await res.json().catch(() => ({}))) as HealthResponse;
+    return data;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export function ServiceHealthProvider({ children }: { children: preact.ComponentChildren }) {
   const [state, setState] = useState<ServiceHealthState>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const healthyCountRef = useRef(0);
+
+  const startPollingRef = useRef<() => void>(() => {});
 
   const checkHealth = useCallback(async () => {
     try {
@@ -68,10 +77,12 @@ export function ServiceHealthProvider({ children }: { children: preact.Component
           status: data.status === 'down' ? 'down' : 'degraded',
           message,
         });
+        startPollingRef.current();
       }
     } catch {
       healthyCountRef.current = 0;
       setState({ status: 'down', message: 'Service unavailable' });
+      startPollingRef.current();
     }
   }, []);
 
@@ -81,6 +92,8 @@ export function ServiceHealthProvider({ children }: { children: preact.Component
     checkHealth();
     pollRef.current = setInterval(checkHealth, POLL_INTERVAL_MS);
   }, [checkHealth]);
+
+  startPollingRef.current = startPolling;
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -105,11 +118,15 @@ export function ServiceHealthProvider({ children }: { children: preact.Component
     };
 
     window.addEventListener(SERVICE_DEGRADED_EVENT, handleDegraded);
+
+    // Proactive health check on mount: detect issues early without waiting for 503
+    checkHealth();
+
     return () => {
       window.removeEventListener(SERVICE_DEGRADED_EVENT, handleDegraded);
       stopPolling();
     };
-  }, [startPolling, stopPolling]);
+  }, [checkHealth, startPolling, stopPolling]);
 
   return (
     <ServiceHealthContext.Provider value={{ state, retry }}>

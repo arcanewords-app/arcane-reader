@@ -12,11 +12,39 @@ alwaysApply: true
 - Storage: `@supabase/supabase-js` via `@src/services/supabaseDatabase.ts`.
 - Cache: `@upstash/redis` via `@src/services/redisCache.ts` + contract in `@src/shared/cacheContract.ts`.
 
+## Validation (Zod)
+
+- **Use Zod for all request validation.** For every route that accepts `req.body` or `req.query`, define a schema in `@src/api/schemas/` and call `schema.safeParse()` in the handler.
+- Schemas by domain: `auth.ts`, `user.ts`, `projects.ts`, `chapters.ts`, `glossary.ts`, `publications.ts`, `admin.ts`. Shared primitives in `common.ts`.
+- On validation failure, return **400** with `{ error: 'Validation failed', details: parsed.error.flatten().fieldErrors }`.
+- Prefer inline `safeParse` in handlers over middleware; keep `handleServiceError` as first line in catch blocks.
+
 ## Server Entry
 
 - Express. Entry: `src/server.ts`. Routes: projects, chapters, glossary, publications, import, export.
 - Auth: `requireAuth`, `optionalAuth` from `@src/middleware/auth.ts`.
 - Errors: `handleServiceError`, `serviceUnavailableErrorHandler` from `@src/middleware/serviceHealth.ts`.
+
+## Error Handling (routes that use Supabase/Redis)
+
+Any route that calls Supabase or other external services **must** use `handleServiceError` in its catch block so that infrastructure failures return **503** (client shows service banner) instead of 500.
+
+**Pattern:**
+
+```typescript
+} catch (error) {
+  if (handleServiceError(error, req, res)) return;
+  // fallback: 500, validation message, etc.
+}
+```
+
+- **First line** in every catch: `if (handleServiceError(error, req, res)) return;`
+- `handleServiceError` returns `true` when it sends 503 and handles the response; then exit.
+- `handleServiceError` returns `false` for non-infrastructure errors; proceed with your own handling (500, 400, etc.).
+
+**Why 503 matters:** The client's `ServiceHealthContext` shows a "Service unavailable" banner only when it receives 503 or when `/api/health` reports down. A plain 500 does not trigger the banner.
+
+**Helpers:** `isSupabaseError(err)`, `sendServiceUnavailable(res, service, msg)` — use via `handleServiceError` in route handlers. See `@src/middleware/serviceHealth.ts`.
 
 ## Database
 
