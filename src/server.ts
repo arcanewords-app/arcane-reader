@@ -7,7 +7,6 @@
  */
 
 import 'dotenv/config';
-import crypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -37,12 +36,12 @@ import {
   chapterNumberBodySchema,
   chaptersOrderBodySchema,
   paragraphBulkUpdateBodySchema,
-  paragraphBulkStatusBodySchema,
   paragraphUpdateBodySchema,
   exportBodySchema,
   glossaryCreateBodySchema,
   glossaryUpdateBodySchema,
   glossaryMergeBodySchema,
+  glossaryBulkDeleteBodySchema,
   publicationsListQuerySchema,
   reportBodySchema,
   readingPositionBodySchema,
@@ -76,6 +75,7 @@ import {
   updateReaderSettings,
   getReaderSettings,
   resetStuckChapters,
+  resetStuckChaptersForRecovery,
   getChapterStatusRow,
   listPublicationsPublic,
   getPublicationBySlugOrId,
@@ -105,6 +105,7 @@ import {
   listPublicEntities,
   getPublicEntityById,
   type MarkTranslatedBatchResult,
+  deleteGlossaryEntriesBulk,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
 import {
@@ -521,6 +522,7 @@ import {
   checkTokenLimit,
   incrementTokenUsage,
   reserveTokens,
+  releaseTokens,
   getTokenUsageHistory,
 } from './middleware/tokenLimits.js';
 import { estimateTokensForStages, type TranslationStages } from './config/tokenLimits.js';
@@ -557,6 +559,7 @@ import {
 import {
   addAnalysisJob,
   addTranslateJob,
+  getChapterTranslateQueue,
   isBullAvailable,
 } from './services/chapterQueue.js';
 import {
@@ -3570,17 +3573,37 @@ app.post(
   requireAuth,
   requireRole('author'),
   async (req, res) => {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const job = await analysisJobStore.getJob(req.params.jobId);
-    if (!job) return res.status(404).json({ error: 'Analysis job not found' });
-    if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
-      return res.status(404).json({ error: 'Analysis job not found' });
-    }
-    if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+    try {
+      if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+      const job = await analysisJobStore.getJob(req.params.jobId);
+      if (!job) return res.status(404).json({ error: 'Analysis job not found' });
+      if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
+        return res.status(404).json({ error: 'Analysis job not found' });
+      }
+      if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+        return res.json({ success: true });
+      }
+
+      // Always perform store-side cleanup so user is unblocked immediately
+      await analysisJobStore.requestCancel(req.params.jobId);
+      await analysisJobStore.updateJob(req.params.jobId, {
+        status: 'canceled',
+        finishedAt: new Date().toISOString(),
+      });
+      await analysisJobStore.setTtl(req.params.jobId, ANALYSIS_JOB_TTL_SECONDS);
+      try {
+        await releaseTokens(job.userId, job.estimatedTokens ?? 0, { useServiceRole: true });
+      } catch (tokenErr) {
+        req.log?.warn({ err: tokenErr }, 'Failed to release tokens on cancel');
+      }
+      await analysisJobStore.removeFromProjectIndex(job.projectId, req.params.jobId);
+      await analysisJobStore.clearUserActiveJob(job.userId, req.params.jobId);
       return res.json({ success: true });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Analysis job cancel failed');
+      res.status(500).json({ error: 'Failed to cancel analysis job' });
     }
-    await analysisJobStore.requestCancel(req.params.jobId);
-    res.json({ success: true });
   }
 );
 
@@ -3770,17 +3793,56 @@ app.post(
   requireAuth,
   requireRole('author'),
   async (req, res) => {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const job = await translateJobStore.getJob(req.params.jobId);
-    if (!job) return res.status(404).json({ error: 'Translate job not found' });
-    if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
-      return res.status(404).json({ error: 'Translate job not found' });
-    }
-    if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+    try {
+      if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+      const job = await translateJobStore.getJob(req.params.jobId);
+      if (!job) return res.status(404).json({ error: 'Translate job not found' });
+      if (job.userId !== req.user.id || job.projectId !== req.params.projectId) {
+        return res.status(404).json({ error: 'Translate job not found' });
+      }
+      if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
+        return res.json({ success: true });
+      }
+
+      // Always perform store-side cleanup so user is unblocked immediately.
+      // If BullMQ job is orphan (no worker), also reset stuck chapters.
+      let isOrphan = false;
+      if (isBullAvailable()) {
+        try {
+          const queue = getChapterTranslateQueue();
+          const bullJob = await queue.getJob(req.params.jobId);
+          isOrphan = !bullJob || !(await bullJob.isActive());
+          if (isOrphan) {
+            const chapterIds = job.chapters.map((c) => c.chapterId);
+            await resetStuckChaptersForRecovery(job.projectId, chapterIds);
+          }
+        } catch (orphanErr) {
+          req.log?.warn(
+            { err: orphanErr, jobId: req.params.jobId },
+            'Orphan check failed, proceeding with cancel without chapter reset'
+          );
+        }
+      }
+
+      await translateJobStore.requestCancel(req.params.jobId);
+      await translateJobStore.updateJob(req.params.jobId, {
+        status: 'canceled',
+        finishedAt: new Date().toISOString(),
+      });
+      await translateJobStore.setTtl(req.params.jobId, TRANSLATE_JOB_TTL_SECONDS);
+      try {
+        await releaseTokens(job.userId, job.estimatedTokens ?? 0, { useServiceRole: true });
+      } catch (tokenErr) {
+        req.log?.warn({ err: tokenErr }, 'Failed to release tokens on cancel');
+      }
+      await translateJobStore.removeFromProjectIndex(job.projectId, req.params.jobId);
+      await translateJobStore.clearUserActiveJob(job.userId, req.params.jobId);
       return res.json({ success: true });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Translate job cancel failed');
+      res.status(500).json({ error: 'Failed to cancel translate job' });
     }
-    await translateJobStore.requestCancel(req.params.jobId);
-    res.json({ success: true });
   }
 );
 
@@ -5968,6 +6030,47 @@ app.delete(
   }
 );
 
+
+// Bulk delete glossary entries
+app.post(
+  '/api/projects/:projectId/glossary/bulk-delete',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const parsed = glossaryBulkDeleteBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const { entryIds } = parsed.data;
+
+      const deletedCount = await deleteGlossaryEntriesBulk(
+        req.params.projectId,
+        entryIds,
+        token
+      );
+
+      clearAgentCache(req.params.projectId);
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
+      res.json({ success: true, deletedCount });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      res.status(500).json({ error: 'Failed to bulk delete glossary entries' });
+    }
+  }
+);  
 // Suggest glossary merges (LLM analyzes and returns groups of entries to merge)
 app.post(
   '/api/projects/:projectId/glossary/suggest-merges',
@@ -6756,52 +6859,6 @@ app.put(
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to update paragraph' });
-    }
-  }
-);
-
-// Bulk update paragraph statuses (e.g., approve all) (requires auth)
-app.post(
-  '/api/projects/:projectId/chapters/:chapterId/paragraphs/bulk-status',
-  requireAuth,
-  requireRole('author'),
-  async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    try {
-      const parsed = paragraphBulkStatusBodySchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          details: parsed.error.flatten().fieldErrors,
-        });
-      }
-      const { paragraphIds, status } = parsed.data;
-
-      const results: Paragraph[] = [];
-      for (const paragraphId of paragraphIds) {
-        const paragraph = await updateParagraph(
-          req.params.projectId,
-          req.params.chapterId,
-          paragraphId,
-          { status },
-          requireToken(req)
-        );
-        if (paragraph) {
-          results.push(paragraph);
-        }
-      }
-
-      req.log?.info(
-        { event: 'paragraphs.bulk_updated', count: results.length, status },
-        `Bulk update: ${results.length} paragraphs -> ${status}`
-      );
-      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
-      res.json({ updated: results.length, paragraphs: results });
-    } catch (error) {
-      if (handleServiceError(error, req, res)) return;
-      res.status(500).json({ error: 'Failed to bulk update paragraphs' });
     }
   }
 );

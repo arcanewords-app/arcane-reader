@@ -44,6 +44,11 @@ export const glossaryMergeBodySchema = z.object({
   keepEntryId: z.string().min(1).optional(),
 });
 
+export const glossaryBulkDeleteBodySchema = z.object({
+  entryIds: z.array(z.string().min(1)).min(1),
+});
+
 export type GlossaryCreateBody = z.infer<typeof glossaryCreateBodySchema>;
+export type GlossaryBulkDeleteBody = z.infer<typeof glossaryBulkDeleteBodySchema>;
 export type GlossaryUpdateBody = z.infer<typeof glossaryUpdateBodySchema>;
 export type GlossaryMergeBody = z.infer<typeof glossaryMergeBodySchema>;

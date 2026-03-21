@@ -25,7 +25,6 @@ import type {
   GlossaryEntry,
   Paragraph,
   TranslateResponse,
-  BulkUpdateResponse,
   ChapterTranslationOptions,
   ImportJobState,
   AnalysisJobState,
@@ -944,18 +943,6 @@ export const api = {
     });
   },
 
-  async bulkUpdateParagraphsStatus(
-    projectId: string,
-    chapterId: string,
-    paragraphIds: string[],
-    status: string
-  ): Promise<BulkUpdateResponse> {
-    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/paragraphs/bulk-status`, {
-      method: 'POST',
-      body: JSON.stringify({ paragraphIds, status }),
-    });
-  },
-
   // === Glossary ===
 
   async getGlossary(projectId: string): Promise<GlossaryEntry[]> {
@@ -983,6 +970,17 @@ export const api = {
   async deleteGlossaryEntry(projectId: string, entryId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/glossary/${entryId}`, {
       method: 'DELETE',
+    });
+  },
+
+  /** Bulk delete glossary entries (one request) */
+  async deleteGlossaryEntries(
+    projectId: string,
+    entryIds: string[]
+  ): Promise<{ success: boolean; deletedCount: number }> {
+    return fetchJson(`/api/projects/${projectId}/glossary/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ entryIds }),
     });
   },
 

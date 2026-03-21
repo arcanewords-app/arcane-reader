@@ -454,11 +454,6 @@ export interface ChapterTranslationOptions {
   stages?: TranslationStages;
 }
 
-export interface BulkUpdateResponse {
-  updated: number;
-  paragraphs: Paragraph[];
-}
-
 export type MarkTranslatedBatchStatus = 'success' | 'failed' | 'skipped';
 
 export interface MarkTranslatedBatchResultItem {

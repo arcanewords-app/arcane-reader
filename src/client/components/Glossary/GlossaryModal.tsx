@@ -215,11 +215,10 @@ export function GlossaryModal({
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
     try {
-      for (const id of selectedIds) {
-        await api.deleteGlossaryEntry(projectId, id);
-      }
+      await api.deleteGlossaryEntries(projectId, [...selectedIds]);
       setSelectedIds(new Set());
       setSelectMode(false);
+      setShowBulkDeleteConfirm(false);
       onUpdate();
     } catch (err) {
       console.error('Bulk delete failed:', err);

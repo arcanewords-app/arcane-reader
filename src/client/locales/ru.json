@@ -44,7 +44,6 @@
     "saveEnter": "Сохранить (Enter)",
     "cancelEsc": "Отмена (Esc)",
     "read": "Читать",
-    "approveAll": "Одобрить всё",
     "selectAll": "Выбрать все",
     "deselectAll": "Снять выбор",
     "translateAllEmpty": "Все пустые ({{count}})",

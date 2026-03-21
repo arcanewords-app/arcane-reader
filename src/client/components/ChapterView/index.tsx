@@ -294,19 +294,6 @@ export function ChapterView({
     }
   };
 
-  const handleApproveAll = async () => {
-    if (!chapter) return;
-    const paragraphIds = chapter.paragraphs
-      ?.filter((p) => p.translatedText && p.status !== 'approved')
-      .map((p) => p.id);
-
-    if (!paragraphIds?.length) return;
-
-    await api.bulkUpdateParagraphsStatus(project.id, chapter.id, paragraphIds, 'approved');
-    const updated = await api.getChapter(project.id, chapter.id);
-    onChapterUpdate(updated);
-  };
-
   const handleMarkAsTranslated = async () => {
     if (!chapter) return;
     setMarkingAsTranslated(true);
@@ -352,7 +339,6 @@ export function ChapterView({
           onNext={onNext}
           onToggleTranslationPanel={() => setShowTranslationPanel((v) => !v)}
           isTranslationPanelOpen={showTranslationPanel}
-          onApproveAll={handleApproveAll}
           onToggleSettings={() => setShowSettings(!showSettings)}
           onToggleSearch={() => setShowSearch((v) => !v)}
           isSearchOpen={showSearch}

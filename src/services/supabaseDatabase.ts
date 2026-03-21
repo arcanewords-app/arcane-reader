@@ -2621,6 +2621,37 @@ export async function deleteGlossaryEntry(
   return true;
 }
 
+/**
+ * Delete multiple glossary entries in one request
+ * @returns Number of entries deleted
+ */
+export async function deleteGlossaryEntriesBulk(
+  projectId: string,
+  entryIds: string[],
+  token: string
+): Promise<number> {
+  if (entryIds.length === 0) return 0;
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('glossary_entries')
+    .delete()
+    .eq('project_id', projectId)
+    .in('id', entryIds)
+    .select('id');
+
+  if (error) {
+    throw new Error(`Failed to bulk delete glossary entries: ${error.message}`);
+  }
+
+  const deletedCount = data?.length ?? 0;
+  if (deletedCount > 0) {
+    await client.from('projects').update({}).eq('id', projectId);
+  }
+  return deletedCount;
+}
+
 // ============================================
 // Paragraph Operations
 // ============================================

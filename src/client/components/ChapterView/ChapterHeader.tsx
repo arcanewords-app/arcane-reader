@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Chapter, ChapterListItem } from '../../types';
-import { Button, Modal, StatusBadge, Icon, Skeleton } from '../ui';
+import { Button, Modal, Icon, Skeleton } from '../ui';
 import { api } from '../../api/client';
 import '../ui/Input.css';
+import { ChapterStatusSelect } from './ChapterStatusSelect';
 import './ChapterHeader.css';
 
 interface ChapterHeaderProps {
@@ -17,7 +18,6 @@ interface ChapterHeaderProps {
   onNext: () => void;
   onToggleTranslationPanel: () => void;
   isTranslationPanelOpen?: boolean;
-  onApproveAll: () => void;
   onToggleSettings: () => void;
   onToggleSearch?: () => void;
   isSearchOpen?: boolean;
@@ -38,7 +38,6 @@ export function ChapterHeader({
   onNext,
   onToggleTranslationPanel,
   isTranslationPanelOpen = false,
-  onApproveAll,
   onToggleSettings,
   onToggleSearch,
   isSearchOpen = false,
@@ -68,7 +67,6 @@ export function ChapterHeader({
 
   const hasTranslations = chapter?.paragraphs?.some((p) => p.translatedText);
   const hasTranslatedText = !!chapter?.translatedText;
-  const isCompleted = chapter?.status === 'completed';
 
   const hasOriginalText = !!(chapter?.originalText && chapter.originalText.trim().length > 0);
   const hasOriginalParagraphs = chapter?.paragraphs?.some(
@@ -172,7 +170,11 @@ export function ChapterHeader({
         ) : (
           <>
             {!isOriginalReadingMode && chapter && (
-              <StatusBadge status={chapter.status} showText={chapter.status !== 'completed'} />
+              <ChapterStatusSelect
+                chapter={chapter}
+                projectId={projectId}
+                onChapterUpdate={onChapterUpdate}
+              />
             )}
 
             {canRead && onEnterReadingMode && (
@@ -183,12 +185,6 @@ export function ChapterHeader({
                 title={t('chapter.readingMode')}
               >
                 <Icon name="menu_book" size="sm" /> {t('chapter.read')}
-              </Button>
-            )}
-
-            {hasTranslations && !isCompleted && (
-              <Button variant="secondary" size="sm" onClick={onApproveAll}>
-                <Icon name="done_all" size="sm" /> {t('chapter.approveAll')}
               </Button>
             )}
 

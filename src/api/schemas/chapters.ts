@@ -30,6 +30,10 @@ export const chapterNumberBodySchema = z.object({
   number: z.number().int().positive(),
 });
 
+export const chapterStatusBodySchema = z.object({
+  status: z.enum(['pending', 'translating', 'analyzed', 'draft', 'completed', 'error']),
+});
+
 export const chaptersOrderBodySchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
 });
@@ -46,11 +50,6 @@ export const paragraphBulkUpdateBodySchema = z.object({
     .min(1),
 });
 
-export const paragraphBulkStatusBodySchema = z.object({
-  paragraphIds: z.array(z.string().min(1)).min(1),
-  status: paragraphStatusSchema,
-});
-
 export const paragraphUpdateBodySchema = z.object({
   translatedText: z.string().optional(),
   status: paragraphStatusSchema.optional(),
@@ -65,8 +64,8 @@ export type ChapterIdsBody = z.infer<typeof chapterIdsBodySchema>;
 export type TranslateBatchBody = z.infer<typeof translateBatchBodySchema>;
 export type ChapterTitleBody = z.infer<typeof chapterTitleBodySchema>;
 export type ChapterNumberBody = z.infer<typeof chapterNumberBodySchema>;
+export type ChapterStatusBody = z.infer<typeof chapterStatusBodySchema>;
 export type ChaptersOrderBody = z.infer<typeof chaptersOrderBodySchema>;
 export type ParagraphBulkUpdateBody = z.infer<typeof paragraphBulkUpdateBodySchema>;
-export type ParagraphBulkStatusBody = z.infer<typeof paragraphBulkStatusBodySchema>;
 export type ParagraphUpdateBody = z.infer<typeof paragraphUpdateBodySchema>;
 export type ExportBody = z.infer<typeof exportBodySchema>;

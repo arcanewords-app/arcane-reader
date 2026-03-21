@@ -44,7 +44,6 @@
     "saveEnter": "Zapisz (Enter)",
     "cancelEsc": "Anuluj (Esc)",
     "read": "Czytaj",
-    "approveAll": "Zatwierdź wszystko",
     "selectAll": "Zaznacz wszystko",
     "deselectAll": "Odznacz",
     "translateAllEmpty": "Wszystkie puste ({{count}})",
