@@ -705,6 +705,7 @@ let healthSnapshot: {
   ts: number;
   data: ReturnType<typeof serviceHealthManager.getHealthResult>;
 } | null = null;
+let healthCheckInProgress: Promise<void> | null = null;
 
 async function withRedisCache<T>(
   key: string,
@@ -1103,18 +1104,29 @@ app.get('/api/health', async (_req, res) => {
     const isStale = !healthSnapshot || now - healthSnapshot.ts > CACHE_TTL.healthSnapshotMs;
 
     if (isStale) {
-      serviceHealthManager.checkAll().then(() => {
-        healthSnapshot = {
-          ts: Date.now(),
-          data: serviceHealthManager.getHealthResult(),
-        };
-      }).catch((err) => {
-        logger.error({ err }, 'Health check background refresh failed');
-        healthSnapshot = {
-          ts: Date.now(),
-          data: serviceHealthManager.getHealthResult(),
-        };
-      });
+      const lastStatus = healthSnapshot?.data?.status ?? serviceHealthManager.getOverallStatus();
+      const skipBackgroundCheck = lastStatus === 'down';
+
+      if (!skipBackgroundCheck && !healthCheckInProgress) {
+        healthCheckInProgress = serviceHealthManager
+          .checkAll()
+          .then(() => {
+            healthSnapshot = {
+              ts: Date.now(),
+              data: serviceHealthManager.getHealthResult(),
+            };
+          })
+          .catch((err) => {
+            logger.error({ err }, 'Health check background refresh failed');
+            healthSnapshot = {
+              ts: Date.now(),
+              data: serviceHealthManager.getHealthResult(),
+            };
+          })
+          .finally(() => {
+            healthCheckInProgress = null;
+          });
+      }
     }
 
     const result = healthSnapshot

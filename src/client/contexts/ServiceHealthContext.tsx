@@ -9,7 +9,7 @@ import { createContext } from 'preact';
 import { useContext, useState, useCallback, useEffect, useRef } from 'preact/hooks';
 
 const SERVICE_DEGRADED_EVENT = 'arcane:service-degraded';
-const POLL_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 300_000; // 5 minutes
 const RECOVERED_DISPLAY_MS = 5_000;
 const HEALTH_FETCH_TIMEOUT_MS = 10_000;
 

@@ -41,7 +41,7 @@ export const CACHE_TTL = {
   redisAnalysisResultSec: 86400, // 24 h
   /** Project reports count (translation complaints). */
   redisProjectReportsCountSec: 120,
-  healthSnapshotMs: 10_000,
+  healthSnapshotMs: 30_000,
 } as const;
 
 export const CACHE_PREFIX = {
