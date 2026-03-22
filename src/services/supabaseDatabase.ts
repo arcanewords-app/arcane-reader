@@ -2973,6 +2973,7 @@ export interface PublicationRow {
   slug?: string | null;
   epub_storage_path?: string | null;
   fb2_storage_path?: string | null;
+  show_glossary?: boolean | null;
 }
 
 /** Row from publications_list_with_counts view (adds translated_chapter_count). */
@@ -3012,6 +3013,7 @@ function transformPublicationFromDB(row: PublicationRow): {
   slug: string | null;
   epubStoragePath: string | null;
   fb2StoragePath: string | null;
+  showGlossary: boolean;
 } {
   return {
     id: row.id,
@@ -3035,6 +3037,7 @@ function transformPublicationFromDB(row: PublicationRow): {
     slug: (row as { slug?: string | null }).slug ?? null,
     epubStoragePath: (row as { epub_storage_path?: string | null }).epub_storage_path ?? null,
     fb2StoragePath: (row as { fb2_storage_path?: string | null }).fb2_storage_path ?? null,
+    showGlossary: (row as { show_glossary?: boolean | null }).show_glossary !== false,
   };
 }
 
@@ -3454,10 +3457,12 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
   }
 
   let glossaryCount = 0;
-  try {
-    glossaryCount = await getGlossaryCountForProject(pub.projectId);
-  } catch {
-    // Service role or glossary table issue: return 0 so client hides Glossary button
+  if (pub.showGlossary !== false) {
+    try {
+      glossaryCount = await getGlossaryCountForProject(pub.projectId);
+    } catch {
+      // Service role or glossary table issue: return 0 so client hides Glossary button
+    }
   }
 
   return { publication: pub, chapters: list, glossaryCount };
@@ -3680,6 +3685,35 @@ export async function updatePublicationExportPaths(
 
   if (error) {
     throw new Error(`Failed to update publication export paths: ${error.message}`);
+  }
+}
+
+/**
+ * Update publication display settings (owner only).
+ * Used for showGlossary toggle.
+ */
+export async function updatePublicationDisplaySettings(
+  publicationId: string,
+  userId: string,
+  token: string,
+  data: { showGlossary?: boolean }
+): Promise<void> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (data.showGlossary !== undefined) updatePayload.show_glossary = data.showGlossary;
+
+  const { error } = await client
+    .from('publications')
+    .update(updatePayload)
+    .eq('id', publicationId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update publication display settings: ${error.message}`);
   }
 }
 

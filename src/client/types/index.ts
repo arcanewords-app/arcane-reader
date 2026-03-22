@@ -561,6 +561,8 @@ export interface Publication {
   epubStoragePath?: string | null;
   /** Storage path for built FB2 export (e.g. publication-{id}/book.fb2). Null when not built. */
   fb2StoragePath?: string | null;
+  /** When false, hide glossary from readers even when entries exist. Default true. */
+  showGlossary?: boolean;
   /** Number of translated chapters (when loaded from list/user APIs). */
   translatedChapterCount?: number;
 }
@@ -586,6 +588,8 @@ export interface PublicationListItem {
   createdAt: string;
   updatedAt: string;
   slug?: string | null;
+  /** When false, hide glossary from readers. */
+  showGlossary?: boolean;
   /** Number of translated chapters (from publications_list_with_counts view). */
   translatedChapterCount?: number;
 }

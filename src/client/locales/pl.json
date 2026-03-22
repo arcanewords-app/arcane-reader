@@ -591,6 +591,8 @@
     "publicationPublished": "Opublikowano w katalogu. Nowe rozdziały i zmiany pojawiają się automatycznie.",
     "publicationUpdatesHint": "Gdy dodasz rozdziały lub edytujesz tekst, czytelnicy zobaczą zaktualizowaną wersję bez ponownej publikacji.",
     "publicationNotPublished": "Opublikuj projekt, aby był widoczny w katalogu dla czytelników.",
+    "showGlossaryToReaders": "Pokaż czytelnikom słownik",
+    "showGlossaryHint": "Słownik służy do tłumaczenia; możesz go ukryć przed czytelnikami, dopóki nie będziesz chciał się nim podzielić.",
     "publicationView": "Otwórz w katalogu",
     "updatePublication": "Zaktualizuj dane w katalogu",
     "publish": "Opublikuj w katalogu",

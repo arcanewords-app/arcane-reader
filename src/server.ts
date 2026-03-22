@@ -48,6 +48,7 @@ import {
   publishBodySchema,
   buildExportsBodySchema,
   publicationDownloadQuerySchema,
+  publicationDisplaySettingsBodySchema,
 } from './api/schemas/index.js';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
@@ -87,6 +88,7 @@ import {
   createOrUpdatePublication,
   unpublishProject,
   updatePublicationExportPaths,
+  updatePublicationDisplaySettings,
   getUserPublications,
   getPublicationByProjectId,
   getProjectForPublicationExport,
@@ -7247,6 +7249,60 @@ app.post(
   }
 );
 
+// ============ Publication Display Settings (author: toggle showGlossary) ============
+
+app.patch(
+  '/api/publications/:id',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parsed = publicationDisplaySettingsBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const data = parsed.data;
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No display settings to update' });
+      }
+
+      const pub = await getPublicationBySlugOrId(req.params.id);
+      if (!pub) {
+        return res.status(404).json({ error: 'Publication not found' });
+      }
+      if (pub.status !== 'published') {
+        return res.status(400).json({ error: 'Publication must be published' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(pub.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(403).json({ error: 'Forbidden: not the publication owner' });
+      }
+
+      await updatePublicationDisplaySettings(pub.id, req.user.id, token, data);
+
+      await invalidatePublicationCaches(pub.id, pub.id);
+      if (pub.slug) {
+        await invalidatePublicationCaches(pub.slug);
+      }
+
+      res.json({ success: true });
+    } catch (error: unknown) {
+      if (handleServiceError(error, req, res)) return;
+      const msg = error instanceof Error ? error.message : 'Failed to update publication';
+      res.status(500).json({ error: msg });
+    }
+  }
+);
+
 // ============ Publication Download (user+: download built EPUB/FB2) ============
 
 app.get(
@@ -7732,7 +7788,7 @@ app.get('/api/publications/:id/chapters/:chapterId', async (req, res) => {
   }
 });
 
-// Get publication glossary (public, read-only; returns empty array if not published)
+// Get publication glossary (public, read-only; returns empty array if not published or hidden by author)
 app.get('/api/publications/:id/glossary', async (req, res) => {
   try {
     const pub = await withRedisCache(
@@ -7742,6 +7798,10 @@ app.get('/api/publications/:id/glossary', async (req, res) => {
     );
     if (!pub) {
       res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+    if (pub.showGlossary === false) {
+      res.json([]);
       return;
     }
     const entries = await withRedisCache(

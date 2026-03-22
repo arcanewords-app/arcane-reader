@@ -47,8 +47,15 @@ export const publicationDownloadQuerySchema = z.object({
   format: z.enum(['epub', 'fb2']),
 });
 
+export const publicationDisplaySettingsBodySchema = z.object({
+  showGlossary: z.boolean().optional(),
+});
+
 export type BuildExportsBody = z.infer<typeof buildExportsBodySchema>;
 export type PublicationDownloadQuery = z.infer<typeof publicationDownloadQuerySchema>;
+export type PublicationDisplaySettingsBody = z.infer<
+  typeof publicationDisplaySettingsBodySchema
+>;
 export type PublicationsListQuery = z.infer<typeof publicationsListQuerySchema>;
 export type ReportBody = z.infer<typeof reportBodySchema>;
 export type ReadingPositionBody = z.infer<typeof readingPositionBodySchema>;

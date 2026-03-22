@@ -53,6 +53,7 @@ export function ProjectInfo({
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const [updatingPublication, setUpdatingPublication] = useState(false);
+  const [updatingShowGlossary, setUpdatingShowGlossary] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
 
@@ -1190,6 +1191,55 @@ export function ProjectInfo({
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
                 {t('projectInfo.publicationUpdatesHint')}
               </p>
+              {stats.glossary > 0 && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={publication.showGlossary !== false}
+                    disabled={updatingShowGlossary}
+                    onChange={async () => {
+                      if (!publication) return;
+                      const next = publication.showGlossary === false;
+                      setUpdatingShowGlossary(true);
+                      try {
+                        await api.updatePublicationDisplaySettings(publication.id, {
+                          showGlossary: next,
+                        });
+                        setPublication((p) => (p ? { ...p, showGlossary: next } : null));
+                      } catch (error) {
+                        setErrorModal({
+                          title: t('projectInfo.publishError'),
+                          message:
+                            error instanceof Error ? error.message : t('projectInfo.publishError'),
+                        });
+                      } finally {
+                        setUpdatingShowGlossary(false);
+                      }
+                    }}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      marginTop: '2px',
+                      cursor: updatingShowGlossary ? 'wait' : 'pointer',
+                    }}
+                    aria-label={t('projectInfo.showGlossaryToReaders')}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{t('projectInfo.showGlossaryToReaders')}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                      {t('projectInfo.showGlossaryHint')}
+                    </div>
+                  </div>
+                </label>
+              )}
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <Button
                   variant="secondary"
