@@ -6,7 +6,7 @@
  */
 
 import { supabase, createClientWithToken } from './supabaseClient.js';
-import { POSTGREST_MAX_ROWS } from '../shared/cacheContract.js';
+import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../shared/cacheContract.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
@@ -1245,7 +1245,7 @@ async function loadChaptersForProjectLightweight(
 
 /**
  * Load all chapters for a project (with paragraphs).
- * Uses pagination to bypass PostgREST 1000 row limit.
+ * Uses small batches to avoid statement timeout on large projects (no heavy JOIN).
  */
 async function loadChaptersForProject(projectId: string, token: string): Promise<Chapter[]> {
   const client = createClientWithToken(token);
@@ -1253,12 +1253,13 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
   let offset = 0;
 
   for (;;) {
+    // 1. Load chapters batch (without paragraphs) - small batch to avoid timeout
     const { data: chapters, error } = await client
       .from('chapters')
-      .select('*, paragraphs(*)')
+      .select('*')
       .eq('project_id', projectId)
       .order('number', { ascending: true })
-      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
+      .range(offset, offset + CHAPTER_LOAD_BATCH - 1);
 
     if (error) {
       throw new Error(`Failed to load chapters: ${error.message}`);
@@ -1266,6 +1267,28 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
     if (!chapters || chapters.length === 0) {
       break;
+    }
+
+    const chapterIds = chapters.map((c) => c.id);
+
+    // 2. Load paragraphs for this batch (separate query avoids heavy JOIN)
+    const { data: paragraphsRows, error: pError } = await client
+      .from('paragraphs')
+      .select('*')
+      .in('chapter_id', chapterIds);
+
+    if (pError) {
+      throw new Error(`Failed to load paragraphs: ${pError.message}`);
+    }
+
+    // Group paragraphs by chapter_id and sort by index
+    const paragraphsByChapter = new Map<string, Record<string, unknown>[]>();
+    for (const row of paragraphsRows ?? []) {
+      const chapterId = (row as Record<string, unknown>).chapter_id as string;
+      if (!paragraphsByChapter.has(chapterId)) {
+        paragraphsByChapter.set(chapterId, []);
+      }
+      paragraphsByChapter.get(chapterId)!.push(row as Record<string, unknown>);
     }
 
     // Log loaded chapters order for debugging (only in development)
@@ -1276,13 +1299,13 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
       );
     }
 
-    // Extract and transform paragraphs from nested response (one query instead of N)
+    // 3. Build chapters with paragraphs and auto-recovery
     const chaptersWithParagraphs = await Promise.all(
       chapters.map(async (chapter) => {
-        const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
-        const paragraphs = rawParagraphs
-          .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
-          .map(transformParagraphFromDB);
+        const rawParagraphs = (paragraphsByChapter.get(chapter.id) ?? []).sort(
+          (a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0)
+        );
+        const paragraphs = rawParagraphs.map(transformParagraphFromDB);
         let paragraphsList = paragraphs;
         const chapterData = transformChapterFromDB(chapter, paragraphsList);
 
@@ -1374,10 +1397,10 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
     allChapters.push(...chaptersWithParagraphs);
 
-    if (chapters.length < POSTGREST_MAX_ROWS) {
+    if (chapters.length < CHAPTER_LOAD_BATCH) {
       break;
     }
-    offset += POSTGREST_MAX_ROWS;
+    offset += CHAPTER_LOAD_BATCH;
   }
 
   return allChapters;
@@ -1386,7 +1409,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 /**
  * Load all chapters for a project using service role (no auth).
  * Used for publication export where project is loaded by publication.projectId.
- * Uses pagination to bypass PostgREST 1000 row limit.
+ * Uses small batches to avoid statement timeout on large projects (no heavy JOIN).
  */
 async function loadChaptersForProjectWithServiceRole(projectId: string): Promise<Chapter[]> {
   const { createServiceRoleClient } = await import('./supabaseClient.js');
@@ -1395,12 +1418,13 @@ async function loadChaptersForProjectWithServiceRole(projectId: string): Promise
   let offset = 0;
 
   for (;;) {
+    // 1. Load chapters batch (without paragraphs) - small batch to avoid timeout
     const { data: chapters, error } = await client
       .from('chapters')
-      .select('*, paragraphs(*)')
+      .select('*')
       .eq('project_id', projectId)
       .order('number', { ascending: true })
-      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
+      .range(offset, offset + CHAPTER_LOAD_BATCH - 1);
 
     if (error) {
       throw new Error(`Failed to load chapters: ${error.message}`);
@@ -1410,20 +1434,42 @@ async function loadChaptersForProjectWithServiceRole(projectId: string): Promise
       break;
     }
 
+    const chapterIds = chapters.map((c) => c.id);
+
+    // 2. Load paragraphs for this batch (separate query avoids heavy JOIN)
+    const { data: paragraphsRows, error: pError } = await client
+      .from('paragraphs')
+      .select('*')
+      .in('chapter_id', chapterIds);
+
+    if (pError) {
+      throw new Error(`Failed to load paragraphs: ${pError.message}`);
+    }
+
+    // Group paragraphs by chapter_id and sort by index
+    const paragraphsByChapter = new Map<string, Record<string, unknown>[]>();
+    for (const row of paragraphsRows ?? []) {
+      const chapterId = (row as Record<string, unknown>).chapter_id as string;
+      if (!paragraphsByChapter.has(chapterId)) {
+        paragraphsByChapter.set(chapterId, []);
+      }
+      paragraphsByChapter.get(chapterId)!.push(row as Record<string, unknown>);
+    }
+
     const batch = chapters.map((chapter) => {
-      const rawParagraphs = (chapter.paragraphs ?? []) as Record<string, unknown>[];
-      const paragraphs = rawParagraphs
-        .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0))
-        .map(transformParagraphFromDB);
+      const rawParagraphs = (paragraphsByChapter.get(chapter.id) ?? []).sort(
+        (a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0)
+      );
+      const paragraphs = rawParagraphs.map(transformParagraphFromDB);
       return transformChapterFromDB(chapter, paragraphs);
     });
 
     allChapters.push(...batch);
 
-    if (chapters.length < POSTGREST_MAX_ROWS) {
+    if (chapters.length < CHAPTER_LOAD_BATCH) {
       break;
     }
-    offset += POSTGREST_MAX_ROWS;
+    offset += CHAPTER_LOAD_BATCH;
   }
 
   return allChapters;
