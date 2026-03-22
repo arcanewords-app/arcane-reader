@@ -6,6 +6,7 @@ import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
 import { trackEvent } from '../utils/analytics';
 import type { PublicationWithChapters, GlossaryEntry, PublicEntity } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
+import { useUserRole } from '../hooks/useUserRole';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
 import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
@@ -34,9 +35,11 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   );
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('asc');
-  const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
+  const [downloading, setDownloading] = useState<'epub' | 'fb2' | null>(null);
+  const [buildingExports, setBuildingExports] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const { user, isAtLeast } = useUserRole();
   const [authorEntity, setAuthorEntity] = useState<PublicEntity | null>(null);
   const [translatorEntity, setTranslatorEntity] = useState<PublicEntity | null>(null);
   const [tagEntities, setTagEntities] = useState<PublicEntity[]>([]);
@@ -155,8 +158,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
             const baseDesc =
               pub.description ||
               (pub.authorDisplay ? `${pub.title || ''} by ${pub.authorDisplay}` : pub.title || '');
-            const hasExport = (pub.chapters || []).some((ch) => ch.hasTranslation);
-            return hasExport
+            const hasBuiltExports = !!(pub.epubStoragePath || pub.fb2StoragePath);
+            return hasBuiltExports
               ? `${baseDesc} Читать онлайн или скачать EPUB, FB2.`
               : `${baseDesc} Читать онлайн.`;
           })(),
@@ -275,11 +278,14 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         language: t(`language.${pub.targetLanguage}`) || pub.targetLanguage.toUpperCase(),
       })
     : null;
-  const hasExport = chapters.some((ch) => ch.hasTranslation);
-  const glossaryCount = pub.glossaryCount ?? 0;
   const translatedChapters = chapters
     .filter((ch) => ch.hasTranslation)
     .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title }));
+  const hasBuiltExports = !!(pub.epubStoragePath || pub.fb2StoragePath);
+  const canBuildExports = translatedChapters.length > 0;
+  const isOwner = !!user && pub.userId === user.id;
+  const isAuthor = !!user && isAtLeast('author');
+  const glossaryCount = pub.glossaryCount ?? 0;
 
   const lastReadChapter = lastReadChapterId
     ? chapters.find((ch) => ch.id === lastReadChapterId)
@@ -293,49 +299,46 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         : t('chapterList.defaultChapterTitle', { number: lastReadChapter.number })
       : '';
 
-  const handleExport = async (format: 'epub' | 'fb2') => {
-    if (!pub || translatedChapters.length === 0) return;
+  const handleDownload = async (format: 'epub' | 'fb2') => {
+    if (!pub) return;
     if (!isAuthenticated) {
       setShowLoginPrompt(true);
       return;
     }
-    setExporting(format);
+    setDownloading(format);
     try {
-      const result = await api.exportPublication(pub.id, format);
-      if (result.downloadUrl) {
-        const token = authService.getToken();
-        const res = await fetch(result.downloadUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) throw new Error(res.statusText || 'Download failed');
-        const blob = await res.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.download = result.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        const link = document.createElement('a');
-        link.href = result.url;
-        link.download = result.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      await api.downloadPublicationExport(pub.id, format);
       trackEvent('export', { format });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return;
-      console.error('Export failed:', err);
+      console.error('Download failed:', err);
       setExportError(
         err instanceof Error
           ? err.message
           : t('projectInfo.exportError', { format: format.toUpperCase() })
       );
     } finally {
-      setExporting(null);
+      setDownloading(null);
+    }
+  };
+
+  const handleBuildExports = async () => {
+    if (!pub || !canBuildExports) return;
+    setBuildingExports(true);
+    try {
+      const result = await api.buildPublicationExports(pub.id);
+      if (result.epubReady || result.fb2Ready) {
+        const refreshed = await api.getPublicationWithChapters(publicationId!);
+        setData(refreshed);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
+      console.error('Build exports failed:', err);
+      setExportError(
+        err instanceof Error ? err.message : t('publication.buildExportsError')
+      );
+    } finally {
+      setBuildingExports(false);
     }
   };
 
@@ -436,41 +439,76 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                 {t('readingMode.toc')}
               </button>
             )}
-            {translatedChapters.length > 0 && (
-              <>
+            {hasBuiltExports ? (
+              isAuthenticated ? (
+                <>
+                  {pub.epubStoragePath && (
+                    <button
+                      type="button"
+                      class="publication-page-toc-btn"
+                      onClick={() => handleDownload('epub')}
+                      disabled={downloading !== null}
+                      title={t('export.epub')}
+                    >
+                      {downloading === 'epub' ? '...' : <Icon name="menu_book" size="sm" />}{' '}
+                      {t('export.epub')}
+                    </button>
+                  )}
+                  {pub.fb2StoragePath && (
+                    <button
+                      type="button"
+                      class="publication-page-toc-btn"
+                      onClick={() => handleDownload('fb2')}
+                      disabled={downloading !== null}
+                      title={t('export.fb2')}
+                    >
+                      {downloading === 'fb2' ? '...' : <Icon name="book_2" size="sm" />}{' '}
+                      {t('export.fb2')}
+                    </button>
+                  )}
+                </>
+              ) : (
                 <button
                   type="button"
                   class="publication-page-toc-btn"
-                  onClick={() => handleExport('epub')}
-                  disabled={exporting !== null}
-                  title={t('export.epub')}
+                  onClick={() => setShowLoginPrompt(true)}
+                  title={t('publication.downloadLoginRequired')}
                 >
-                  {exporting === 'epub' ? (
-                    '...'
-                  ) : (
-                    <>
-                      <Icon name="menu_book" size="sm" />{' '}
-                    </>
-                  )}
-                  {t('export.epub')}
+                  {t('publication.downloadLoginRequired')}
                 </button>
-                <button
-                  type="button"
-                  class="publication-page-toc-btn"
-                  onClick={() => handleExport('fb2')}
-                  disabled={exporting !== null}
-                  title={t('export.fb2')}
-                >
-                  {exporting === 'fb2' ? (
-                    '...'
-                  ) : (
-                    <>
-                      <Icon name="book_2" size="sm" />{' '}
-                    </>
-                  )}
-                  {t('export.fb2')}
-                </button>
-              </>
+              )
+            ) : isOwner && isAuthor && canBuildExports ? (
+              <button
+                type="button"
+                class="publication-page-toc-btn"
+                onClick={handleBuildExports}
+                disabled={buildingExports}
+                title={t('publication.prepareExports')}
+              >
+                {buildingExports ? '...' : <Icon name="download" size="sm" />}{' '}
+                {t('publication.prepareExports')}
+              </button>
+            ) : (
+              canBuildExports && (
+                <>
+                  <button
+                    type="button"
+                    class="publication-page-toc-btn"
+                    disabled
+                    title={t('publication.exportsNotReadyTooltip')}
+                  >
+                    <Icon name="menu_book" size="sm" /> {t('export.epub')}
+                  </button>
+                  <button
+                    type="button"
+                    class="publication-page-toc-btn"
+                    disabled
+                    title={t('publication.exportsNotReadyTooltip')}
+                  >
+                    <Icon name="book_2" size="sm" /> {t('export.fb2')}
+                  </button>
+                </>
+              )
             )}
           </div>
           {chapters.length > 0 && (
@@ -719,7 +757,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       <Modal
         isOpen={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title={t('publication.exportLoginRequired')}
+        title={t('publication.downloadLoginRequired')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowLoginPrompt(false)}>
@@ -738,7 +776,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           </>
         }
       >
-        <p class="publication-page-modal-text">{t('publication.exportLoginRequired')}</p>
+        <p class="publication-page-modal-text">{t('publication.downloadLoginRequired')}</p>
       </Modal>
       <Modal
         isOpen={!!exportError}

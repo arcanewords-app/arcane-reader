@@ -613,6 +613,7 @@
     "publishTitleLabel": "Tytuł w katalogu",
     "publishDescriptionLabel": "Krótki opis",
     "publishDescriptionPlaceholder": "Opis dzieła dla karty w katalogu",
+    "buildExportsOnPublish": "Przygotuj EPUB i FB2 do pobrania",
     "publishAuthorLabel": "Autor (książki)",
     "publishTranslatorLabel": "Tłumacz (wyświetlany w katalogu)",
     "publishAuthorNotSelected": "Nie wybrano",
@@ -907,7 +908,13 @@
     "orderFromStart": "Od pierwszej do ostatniej",
     "orderFromEnd": "Od ostatniej do pierwszej",
     "readingComingSoon": "Tryb czytania publikacji będzie dostępny w następnej aktualizacji.",
-    "exportLoginRequired": "Zaloguj się, aby wyeksportować publikację."
+    "exportLoginRequired": "Zaloguj się, aby wyeksportować publikację.",
+    "downloadLoginRequired": "Zaloguj się, aby pobrać",
+    "prepareExports": "Przygotuj pliki",
+    "buildExportsError": "Nie udało się przygotować plików do pobrania.",
+    "exportsNotReady": "Pobieranie niedostępne",
+    "exportsNotReadyTooltip": "Autor nie przygotował jeszcze plików",
+    "updateExports": "Aktualizuj pliki"
   },
   "language": {
     "en": "Angielski",

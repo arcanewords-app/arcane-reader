@@ -37,7 +37,8 @@ export function ProjectInfo({
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
   const [showDeleteCoverConfirm, setShowDeleteCoverConfirm] = useState(false);
-  const [exporting, setExporting] = useState<'epub' | 'fb2' | null>(null);
+  const [buildingExports, setBuildingExports] = useState(false);
+  const [buildExportsOnPublish, setBuildExportsOnPublish] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [deletingCover, setDeletingCover] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
@@ -227,8 +228,43 @@ export function ProjectInfo({
   const openPublishModal = useCallback(() => {
     setPublishTitle(project.metadata?.title ?? project.name);
     setPublishDescription(project.metadata?.description ?? '');
+    setBuildExportsOnPublish(false);
     setShowPublishModal(true);
   }, [project.metadata?.title, project.metadata?.description, project.name]);
+
+  // Helper: chapter has valid translation (works with Chapter or ChapterListItem)
+  const hasValidTranslation = (
+    chapter:
+      | Chapter
+      | {
+          status: string;
+          hasTranslation?: boolean;
+          translatedText?: string;
+          paragraphs?: Array<{ translatedText?: string }>;
+        }
+  ): boolean => {
+    if ('hasTranslation' in chapter && chapter.hasTranslation) return true;
+    if (chapter.status === 'completed' || chapter.status === 'draft') return true;
+    const ch = chapter as Chapter;
+    const translatedText = ch.translatedText?.trim() || '';
+    if (translatedText.length === 0) return false;
+    if (translatedText.startsWith('❌') || isChunkError(translatedText)) return false;
+    const hasValidParagraphs = ch.paragraphs?.some((p) => {
+      const pText = p.translatedText?.trim() || '';
+      return pText.length > 0 && !pText.startsWith('❌') && !isChunkError(pText);
+    });
+    return hasValidParagraphs === true || translatedText.length > 50;
+  };
+
+  const stats = {
+    chapters: project.chapters.length,
+    translated: project.chapters.filter((c) => c.status === 'completed').length,
+    pending: project.chapters.filter((c) => c.status === 'pending').length,
+    analyzed: project.chapters.filter((c) => c.status === 'analyzed').length,
+    error: project.chapters.filter((c) => c.status === 'error').length,
+    empty: project.chapters.filter((c) => !hasValidTranslation(c)).length,
+    glossary: project.glossary.length,
+  };
 
   const handlePublish = useCallback(async () => {
     setPublishing(true);
@@ -247,6 +283,21 @@ export function ProjectInfo({
       });
       setPublication(pub);
       setShowPublishModal(false);
+      if (buildExportsOnPublish && pub && stats.translated > 0) {
+        setBuildingExports(true);
+        try {
+          await api.buildPublicationExports(pub.id);
+          const refreshed = await api.getProjectPublication(project.id);
+          if (refreshed) setPublication(refreshed);
+        } catch {
+          setErrorModal({
+            title: t('projectInfo.exportError', { format: 'EPUB/FB2' }),
+            message: t('publication.buildExportsError'),
+          });
+        } finally {
+          setBuildingExports(false);
+        }
+      }
     } catch (error) {
       setErrorModal({
         title: t('projectInfo.publishError'),
@@ -264,6 +315,8 @@ export function ProjectInfo({
     translatorEntity,
     publishTitle,
     publishDescription,
+    buildExportsOnPublish,
+    stats.translated,
     t,
   ]);
 
@@ -281,6 +334,23 @@ export function ProjectInfo({
       setUnpublishing(false);
     }
   }, [project.id, t]);
+
+  const handleBuildExports = useCallback(async () => {
+    if (!publication) return;
+    setBuildingExports(true);
+    try {
+      await api.buildPublicationExports(publication.id);
+      const refreshed = await api.getProjectPublication(project.id);
+      if (refreshed) setPublication(refreshed);
+    } catch (error) {
+      setErrorModal({
+        title: t('projectInfo.exportError', { format: 'EPUB/FB2' }),
+        message: error instanceof Error ? error.message : t('publication.buildExportsError'),
+      });
+    } finally {
+      setBuildingExports(false);
+    }
+  }, [publication, project.id, t]);
 
   const handleUpdatePublication = useCallback(async () => {
     setUpdatingPublication(true);
@@ -365,40 +435,6 @@ export function ProjectInfo({
     [saveDescription, cancelEditingDescription]
   );
 
-  // Helper: chapter has valid translation (works with Chapter or ChapterListItem)
-  const hasValidTranslation = (
-    chapter:
-      | Chapter
-      | {
-          status: string;
-          hasTranslation?: boolean;
-          translatedText?: string;
-          paragraphs?: Array<{ translatedText?: string }>;
-        }
-  ): boolean => {
-    if ('hasTranslation' in chapter && chapter.hasTranslation) return true;
-    if (chapter.status === 'completed' || chapter.status === 'draft') return true;
-    const ch = chapter as Chapter;
-    const translatedText = ch.translatedText?.trim() || '';
-    if (translatedText.length === 0) return false;
-    if (translatedText.startsWith('❌') || isChunkError(translatedText)) return false;
-    const hasValidParagraphs = ch.paragraphs?.some((p) => {
-      const pText = p.translatedText?.trim() || '';
-      return pText.length > 0 && !pText.startsWith('❌') && !isChunkError(pText);
-    });
-    return hasValidParagraphs === true || translatedText.length > 50;
-  };
-
-  const stats = {
-    chapters: project.chapters.length,
-    translated: project.chapters.filter((c) => c.status === 'completed').length,
-    pending: project.chapters.filter((c) => c.status === 'pending').length,
-    analyzed: project.chapters.filter((c) => c.status === 'analyzed').length,
-    error: project.chapters.filter((c) => c.status === 'error').length,
-    empty: project.chapters.filter((c) => !hasValidTranslation(c)).length,
-    glossary: project.glossary.length,
-  };
-
   const settings = project.settings;
 
   const isOriginalReadingMode = settings.originalReadingMode ?? false;
@@ -437,64 +473,6 @@ export function ProjectInfo({
       setDeletingCover(false);
     }
   }, [project.id, onRefreshProject, t]);
-
-  const handleExport = async (format: 'epub' | 'fb2') => {
-    if (stats.translated === 0) {
-      setErrorModal({
-        title: t('projectInfo.noChaptersForExport'),
-        message: t('projectInfo.noChaptersForExport'),
-      });
-      return;
-    }
-
-    setExporting(format);
-    try {
-      const result = await api.exportProject(project.id, format);
-
-      // Prefer downloadUrl (proxy): same-origin + Content-Disposition: attachment → browser downloads instead of opening
-      if (result.downloadUrl) {
-        const token = authService.getToken();
-        const res = await fetch(result.downloadUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) throw new Error(res.statusText || 'Download failed');
-        const blob = await res.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.download = result.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        const link = document.createElement('a');
-        link.href = result.url;
-        link.download = result.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-
-      console.log(`✅ Экспорт ${format.toUpperCase()} завершен: ${result.filename}`);
-    } catch (error: unknown) {
-      // Ignore 401 errors - they are handled globally and will show login page
-      if (error instanceof ApiError && error.status === 401) {
-        // Auth error - handled globally
-        return;
-      }
-      console.error(`Failed to export ${format}:`, error);
-      setErrorModal({
-        title: t('projectInfo.exportError', { format: format.toUpperCase() }),
-        message:
-          error instanceof Error
-            ? error.message
-            : t('projectInfo.exportError', { format: format.toUpperCase() }),
-      });
-    } finally {
-      setExporting(null);
-    }
-  };
 
   return (
     <>
@@ -1228,6 +1206,20 @@ export function ProjectInfo({
                 >
                   {updatingPublication ? t('common.loading') : t('projectInfo.updatePublication')}
                 </Button>
+                {stats.translated > 0 && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleBuildExports}
+                    disabled={buildingExports}
+                  >
+                    {buildingExports
+                      ? t('common.loading')
+                      : publication.epubStoragePath || publication.fb2StoragePath
+                        ? t('publication.updateExports')
+                        : t('publication.prepareExports')}
+                  </Button>
+                )}
                 <Button
                   variant="secondary"
                   size="sm"
@@ -1409,33 +1401,6 @@ export function ProjectInfo({
               </div>
             )}
 
-        {/* Export Buttons - hidden in original reading mode */}
-        {!isOriginalReadingMode && stats.translated > 0 && (
-          <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
-              <Button
-                variant="secondary"
-                size="full"
-                onClick={() => handleExport('epub')}
-                loading={exporting === 'epub'}
-                disabled={exporting !== null}
-                title={t('export.epub')}
-              >
-                {t('export.epub')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="full"
-                onClick={() => handleExport('fb2')}
-                loading={exporting === 'fb2'}
-                disabled={exporting !== null}
-                title={t('export.fb2')}
-              >
-                {t('export.fb2')}
-              </Button>
-            </div>
-          </div>
-        )}
       </Card>
 
       {/* Delete Modal */}
@@ -1507,6 +1472,7 @@ export function ProjectInfo({
               rows={3}
               style={{
                 width: '100%',
+                boxSizing: 'border-box',
                 padding: '0.5rem 0.75rem',
                 borderRadius: '6px',
                 border: '1px solid var(--border)',
@@ -1517,6 +1483,25 @@ export function ProjectInfo({
               }}
             />
           </div>
+          {stats.translated > 0 && (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={buildExportsOnPublish}
+                onChange={(e) => setBuildExportsOnPublish((e.target as HTMLInputElement).checked)}
+              />
+              {t('projectInfo.buildExportsOnPublish')}
+            </label>
+          )}
           <div class="publish-modal-entities">
             <div class="publish-modal-entity-row">
               <span class="publish-modal-entity-label">{t('projectInfo.author')}</span>

@@ -2971,6 +2971,8 @@ export interface PublicationRow {
   created_at: string;
   updated_at: string;
   slug?: string | null;
+  epub_storage_path?: string | null;
+  fb2_storage_path?: string | null;
 }
 
 /** Row from publications_list_with_counts view (adds translated_chapter_count). */
@@ -3008,6 +3010,8 @@ function transformPublicationFromDB(row: PublicationRow): {
   createdAt: string;
   updatedAt: string;
   slug: string | null;
+  epubStoragePath: string | null;
+  fb2StoragePath: string | null;
 } {
   return {
     id: row.id,
@@ -3029,6 +3033,8 @@ function transformPublicationFromDB(row: PublicationRow): {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     slug: (row as { slug?: string | null }).slug ?? null,
+    epubStoragePath: (row as { epub_storage_path?: string | null }).epub_storage_path ?? null,
+    fb2StoragePath: (row as { fb2_storage_path?: string | null }).fb2_storage_path ?? null,
   };
 }
 
@@ -3646,6 +3652,35 @@ export async function unpublishProject(
     throw new Error(`Failed to unpublish: ${error.message}`);
   }
   return !!data;
+}
+
+/**
+ * Update publication export storage paths (owner only).
+ */
+export async function updatePublicationExportPaths(
+  publicationId: string,
+  userId: string,
+  token: string,
+  data: { epubStoragePath?: string | null; fb2StoragePath?: string | null }
+): Promise<void> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (data.epubStoragePath !== undefined) updatePayload.epub_storage_path = data.epubStoragePath;
+  if (data.fb2StoragePath !== undefined) updatePayload.fb2_storage_path = data.fb2StoragePath;
+
+  const { error } = await client
+    .from('publications')
+    .update(updatePayload)
+    .eq('id', publicationId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update publication export paths: ${error.message}`);
+  }
 }
 
 /**

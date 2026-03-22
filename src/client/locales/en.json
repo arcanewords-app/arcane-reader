@@ -614,6 +614,7 @@
     "publishTitleLabel": "Title in catalog",
     "publishDescriptionLabel": "Short description",
     "publishDescriptionPlaceholder": "Description for the catalog card",
+    "buildExportsOnPublish": "Prepare EPUB and FB2 for download",
     "publishAuthorLabel": "Author (book)",
     "publishTranslatorLabel": "Translator (shown in catalog)",
     "publishAuthorNotSelected": "Not selected",
@@ -906,7 +907,13 @@
     "orderFromStart": "First to last",
     "orderFromEnd": "Last to first",
     "readingComingSoon": "Reading mode for publications will be available in the next update.",
-    "exportLoginRequired": "Sign in to export this publication."
+    "exportLoginRequired": "Sign in to export this publication.",
+    "downloadLoginRequired": "Sign in to download",
+    "prepareExports": "Prepare files",
+    "buildExportsError": "Failed to prepare files for download.",
+    "exportsNotReady": "Download not yet available",
+    "exportsNotReadyTooltip": "Author has not prepared files yet",
+    "updateExports": "Update files"
   },
   "language": {
     "en": "English",

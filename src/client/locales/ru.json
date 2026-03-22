@@ -612,6 +612,7 @@
     "publishTitleLabel": "Название в каталоге",
     "publishDescriptionLabel": "Краткое описание",
     "publishDescriptionPlaceholder": "Описание произведения для карточки в каталоге",
+    "buildExportsOnPublish": "Подготовить EPUB и FB2 для скачивания",
     "publishAuthorLabel": "Автор книги",
     "publishTranslatorLabel": "Переводчик (отображается в каталоге)",
     "publishAuthorNotSelected": "Не выбрано",
@@ -906,7 +907,13 @@
     "orderFromStart": "С начала",
     "orderFromEnd": "С конца",
     "readingComingSoon": "Режим чтения публикаций будет доступен в следующем обновлении.",
-    "exportLoginRequired": "Войдите, чтобы экспортировать публикацию."
+    "exportLoginRequired": "Войдите, чтобы экспортировать публикацию.",
+    "downloadLoginRequired": "Войдите, чтобы скачать",
+    "prepareExports": "Подготовить файлы",
+    "buildExportsError": "Не удалось подготовить файлы для скачивания.",
+    "exportsNotReady": "Скачивание пока недоступно",
+    "exportsNotReadyTooltip": "Автор пока не подготовил файлы",
+    "updateExports": "Обновить файлы"
   },
   "language": {
     "en": "Английский",

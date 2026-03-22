@@ -557,6 +557,10 @@ export interface Publication {
   updatedAt: string;
   /** SEO-friendly URL path (e.g. zenit-koldovstva). Use for links when available. */
   slug?: string | null;
+  /** Storage path for built EPUB export (e.g. publication-{id}/book.epub). Null when not built. */
+  epubStoragePath?: string | null;
+  /** Storage path for built FB2 export (e.g. publication-{id}/book.fb2). Null when not built. */
+  fb2StoragePath?: string | null;
   /** Number of translated chapters (when loaded from list/user APIs). */
   translatedChapterCount?: number;
 }

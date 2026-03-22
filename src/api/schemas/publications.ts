@@ -39,6 +39,16 @@ export const publishBodySchema = z
   })
   .passthrough();
 
+export const buildExportsBodySchema = z.object({
+  formats: z.array(z.enum(['epub', 'fb2'])).optional(),
+});
+
+export const publicationDownloadQuerySchema = z.object({
+  format: z.enum(['epub', 'fb2']),
+});
+
+export type BuildExportsBody = z.infer<typeof buildExportsBodySchema>;
+export type PublicationDownloadQuery = z.infer<typeof publicationDownloadQuerySchema>;
 export type PublicationsListQuery = z.infer<typeof publicationsListQuerySchema>;
 export type ReportBody = z.infer<typeof reportBodySchema>;
 export type ReadingPositionBody = z.infer<typeof readingPositionBodySchema>;

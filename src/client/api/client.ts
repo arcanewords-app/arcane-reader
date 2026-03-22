@@ -1193,23 +1193,53 @@ export const api = {
     return result;
   },
 
-  /** Export publication to EPUB or FB2 (auth required). */
-  async exportPublication(
+  /** Build publication exports (EPUB/FB2) once and save to publication. Author only. */
+  async buildPublicationExports(
     publicationId: string,
-    format: 'epub' | 'fb2',
-    author?: string
-  ): Promise<{
-    success: boolean;
-    format: string;
-    filename: string;
-    url: string;
-    path: string;
-    downloadUrl?: string;
-  }> {
-    return fetchJson(`/api/publications/${publicationId}/export`, {
-      method: 'POST',
-      body: JSON.stringify({ format, author }),
+    formats?: ('epub' | 'fb2')[]
+  ): Promise<{ epubReady: boolean; fb2Ready: boolean }> {
+    const result = await fetchJson<{ epubReady: boolean; fb2Ready: boolean }>(
+      `/api/publications/${publicationId}/build-exports`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ formats: formats ?? ['epub', 'fb2'] }),
+      }
+    );
+    publicationCache.withChapters.delete(publicationId);
+    return result;
+  },
+
+  /** Download built publication export (user+ required). Fetches with auth and triggers browser download. */
+  async downloadPublicationExport(
+    publicationId: string,
+    format: 'epub' | 'fb2'
+  ): Promise<{ filename: string }> {
+    const url = `/api/publications/${publicationId}/download?format=${format}`;
+    const token = authService.getToken();
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new ApiError(
+        (errData as { error?: string })?.error || res.statusText || 'Download failed',
+        res.status,
+        errData
+      );
+    }
+    const blob = await res.blob();
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const match = contentDisposition?.match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] || `book.${format}`;
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+    return { filename };
   },
 
   /** Mark chapter as read (auth required). Invalidates read progress cache. */
