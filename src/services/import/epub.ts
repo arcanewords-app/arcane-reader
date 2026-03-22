@@ -37,6 +37,10 @@ function normalizeTocHref(href?: string): string {
   return href.split('#')[0].trim().toLowerCase();
 }
 
+function normalizeTocTitle(title: string): string {
+  return title.replace(/\s+-\s+/g, '. ');
+}
+
 function buildTocTitleMap(
   toc: Array<{ href?: string; title?: string }> | undefined
 ): Map<string, string> {
@@ -48,7 +52,7 @@ function buildTocTitleMap(
     const title = item.title?.trim();
     if (!title) continue;
     if (!map.has(key)) {
-      map.set(key, title);
+      map.set(key, normalizeTocTitle(title));
     }
   }
   return map;

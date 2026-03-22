@@ -3972,6 +3972,46 @@ export interface ReadingHistoryItem {
 }
 
 /**
+ * Update chapter status
+ */
+export async function updateChapterStatus(
+  projectId: string,
+  chapterId: string,
+  status: ChapterStatus,
+  token: string
+): Promise<Chapter | undefined> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data: chapter, error } = await client
+    .from('chapters')
+    .update({ status })
+    .eq('id', chapterId)
+    .eq('project_id', projectId)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return undefined; // Not found
+    }
+    throw new Error(`Failed to update chapter status: ${error.message}`);
+  }
+
+  logger.info(
+    {
+      event: 'chapter.status_updated',
+      chapterId,
+      chapterTitle: chapter.title,
+      status,
+    },
+    `Chapter status updated: "${chapter.title}" → ${status}`
+  );
+
+  return transformChapterFromDB(chapter);
+}
+
+/**
  * Get user's reading history: publications they have progress on, with metadata.
  * Ordered by last_read_at DESC.
  */

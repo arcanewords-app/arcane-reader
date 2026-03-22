@@ -866,6 +866,44 @@ export async function updateChapterNumber(
   return chapter;
 }
 
+/**
+ * Update chapter status
+ * @param projectId Project ID
+ * @param chapterId Chapter ID to update
+ * @param status New chapter status
+ * @returns Updated chapter or undefined if not found
+ */
+export async function updateChapterStatus(
+  projectId: string,
+  chapterId: string,
+  status: Chapter['status']
+): Promise<Chapter | undefined> {
+  const db = getDb();
+  const project = db.data.projects.find((p) => p.id === projectId);
+  if (!project) return undefined;
+
+  const chapter = project.chapters.find((c) => c.id === chapterId);
+  if (!chapter) return undefined;
+
+  const oldStatus = chapter.status;
+  chapter.status = status;
+  project.updatedAt = new Date().toISOString();
+  await db.write();
+
+  logger.info(
+    {
+      event: 'chapter.status_updated',
+      chapterId,
+      chapterTitle: chapter.title,
+      oldStatus,
+      newStatus: status,
+    },
+    `Chapter status changed: "${chapter.title}" ${oldStatus} → ${status}`
+  );
+
+  return chapter;
+}
+
 // ============ Glossary Operations ============
 
 export async function addGlossaryEntry(

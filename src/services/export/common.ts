@@ -146,7 +146,8 @@ export function getTranslatedText(chapter: Chapter): string {
 export function prepareProjectForExport(
   project: Project,
   author?: string,
-  textBlockTypes?: TextBlockType[]
+  textBlockTypes?: TextBlockType[],
+  includeChapterTitleInHtml: boolean = true
 ): ExportProject {
   // Filter completed or draft chapters with translations (draft = translation saved, editing not applied)
   const completedChapters = project.chapters
@@ -165,8 +166,8 @@ export function prepareProjectForExport(
     const translatedText = getTranslatedText(chapter);
     const htmlContent =
       blockTypes.length > 0
-        ? textToHtmlWithBlocks(translatedText, blockTypes, true, chapter.title)
-        : textToHtml(translatedText, true, chapter.title);
+        ? textToHtmlWithBlocks(translatedText, blockTypes, includeChapterTitleInHtml, chapter.title)
+        : textToHtml(translatedText, includeChapterTitleInHtml, chapter.title);
     const textContent = translatedText;
 
     return {

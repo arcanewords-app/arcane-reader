@@ -753,6 +753,17 @@ export const api = {
     });
   },
 
+  async updateChapterStatus(
+    projectId: string,
+    chapterId: string,
+    status: Chapter['status']
+  ): Promise<Chapter> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
+
   async cancelTranslation(projectId: string, chapterId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate/cancel`, {
       method: 'POST',

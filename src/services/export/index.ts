@@ -26,7 +26,13 @@ export async function exportProject(project: Project, options: ExportOptions): P
     (project.settings?.textBlockTypes?.length ?? 0) > 0
       ? project.settings!.textBlockTypes!
       : DEFAULT_TEXT_BLOCK_TYPES;
-  const exportData = prepareProjectForExport(project, options.author, textBlockTypes);
+  const includeChapterTitleInHtml = options.format !== 'epub';
+  const exportData = prepareProjectForExport(
+    project,
+    options.author,
+    textBlockTypes,
+    includeChapterTitleInHtml
+  );
 
   // Check if there are any chapters to export
   if (exportData.chapters.length === 0) {

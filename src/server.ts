@@ -34,6 +34,7 @@ import {
   translateBatchBodySchema,
   chapterTitleBodySchema,
   chapterNumberBodySchema,
+  chapterStatusBodySchema,
   chaptersOrderBodySchema,
   paragraphBulkUpdateBodySchema,
   paragraphUpdateBodySchema,
@@ -66,6 +67,7 @@ import {
   verifyChapterAccess,
   deleteChapter,
   updateChapterNumber,
+  updateChapterStatus,
   updateChaptersOrder,
   markChaptersAsTranslatedBatch,
   addGlossaryEntry,
@@ -6783,6 +6785,65 @@ app.put(
   }
 );
 
+// Update chapter status (requires auth)
+app.put(
+  '/api/projects/:projectId/chapters/:chapterId/status',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Verify project belongs to user
+      const project = await getProject(req.params.projectId, req.user.id, requireToken(req));
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const parsed = chapterStatusBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const { status } = parsed.data;
+
+      const chapter = await updateChapterStatus(
+        req.params.projectId,
+        req.params.chapterId,
+        status,
+        requireToken(req)
+      );
+
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      req.log?.info(
+        {
+          event: 'chapter.status.updated',
+          chapterId: req.params.chapterId,
+          chapterTitle: chapter.title,
+          status,
+        },
+        `Chapter status updated: "${chapter.title}" → ${status}`
+      );
+      await invalidateUserProjectCaches(req.user.id, req.params.projectId);
+
+      res.json(chapter);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Failed to update chapter status');
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update chapter status';
+      res.status(500).json({ error: errorMessage });
+    }
+  }
+);
+
 // Reorder chapters (accepts full ordered ids array)
 app.put(
   '/api/projects/:projectId/chapters/order',
@@ -7170,6 +7231,8 @@ app.post(
       const title = pub.title || fullProject.name;
       const author =
         pub.translatorDisplay || pub.authorDisplay || fullProject.metadata?.authors?.[0];
+      const exportBaseName =
+        sanitizeFilename(pub.slug || pub.title || fullProject.name || 'book') || 'book';
 
       if (!fs.existsSync(tmpDir)) {
         fs.mkdirSync(tmpDir, { recursive: true });
@@ -7182,7 +7245,7 @@ app.post(
       for (const format of formats) {
           if (format !== 'epub' && format !== 'fb2') continue;
           const ext = format;
-          const filename = `book.${ext}`;
+          const filename = `${exportBaseName}.${ext}`;
 
           {
             const exportedPath = await exportProject(fullProject, {

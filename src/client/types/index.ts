@@ -557,9 +557,9 @@ export interface Publication {
   updatedAt: string;
   /** SEO-friendly URL path (e.g. zenit-koldovstva). Use for links when available. */
   slug?: string | null;
-  /** Storage path for built EPUB export (e.g. publication-{id}/book.epub). Null when not built. */
+  /** Storage path for built EPUB export (e.g. publication-{id}/zenit-koldovstva.epub). Null when not built. */
   epubStoragePath?: string | null;
-  /** Storage path for built FB2 export (e.g. publication-{id}/book.fb2). Null when not built. */
+  /** Storage path for built FB2 export (e.g. publication-{id}/zenit-koldovstva.fb2). Null when not built. */
   fb2StoragePath?: string | null;
   /** When false, hide glossary from readers even when entries exist. Default true. */
   showGlossary?: boolean;
