@@ -11,12 +11,13 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 | Module map, data flow | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc) |
 | Route map (SSOT) | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc) |
 | All domain rules | [`.cursor/rules/`](.cursor/rules/) |
+| Local dev, vault, grep | [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md) |
 
 **Workflow:** orchestrator → read active [`.cursor/agents/<domain>/AGENT.md`](.cursor/agents/) + [`.cursor/skills/<domain>/SKILL.md`](.cursor/skills/) → follow domain `.mdc` rules.
 
-**Nested context (when editing under `src/`):** [`src/client/AGENTS.md`](src/client/AGENTS.md), [`src/engine/AGENTS.md`](src/engine/AGENTS.md).
+**Nested context:** [`src/client/AGENTS.md`](src/client/AGENTS.md), [`src/engine/AGENTS.md`](src/engine/AGENTS.md), [`docs/AGENTS.md`](docs/AGENTS.md) (Obsidian vault).
 
-**Utility subagents** (not domain team): `verifier.md`, `debugger.md`, `supabase-docs-setup.md` in [`.cursor/agents/`](.cursor/agents/).
+**Utility subagents** (not domain team): `devtools.md`, `verifier.md`, `debugger.md`, `supabase-docs-setup.md` in [`.cursor/agents/`](.cursor/agents/).
 
 ## Session anchors
 
@@ -38,11 +39,12 @@ Human vault (plans, ADR): [`docs/Home.md`](docs/Home.md) — not agent SSOT. Pre
 
 ## Commands
 
+Quick reference — full cheat sheet: [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md).
+
 ```bash
 npm run dev          # API + client
-npm run lint         # ESLint
-npm run typecheck    # tsc
-npm run format       # Prettier
+npm run dev:full     # + BullMQ worker
+npm run lint:all     # lint + typecheck
 ```
 
 ## Supabase Docs

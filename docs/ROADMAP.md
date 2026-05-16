@@ -53,11 +53,11 @@ Context preserved from May 2026 documentation setup.
 
 | Milestone | Deliverable |
 |-----------|-------------|
-| Rules SSOT | 11 rules in `.cursor/rules/`: core, architecture, api, routing, cache, auth, engine, client, design-system, deployment, logging |
+| Rules SSOT | 13 rules in `.cursor/rules/`: core, architecture, team-orchestrator, api, routing, cache, auth, engine, client, design-system, deployment, logging, local-dev |
 | Vault skeleton | [[Home]], `_meta/`, `00-start` … `06-runbooks`, `templates/`, junction `_canonical/rules/` |
 | Legacy triage | 74 files → [[archive/README]] with `stale: true`; triage log in [[_meta/archive-triage]] |
 | ADR | [[04-decisions/adr-0000-rules-first-documentation-ssot]] |
-| How-to | [[02-how-to/run-locally]], [[02-how-to/add-feature]], [[02-how-to/debug-translation]] |
+| How-to | [[02-how-to/run-locally]], [[02-how-to/obsidian-vault]], [[02-how-to/add-feature]], [[02-how-to/debug-translation]] |
 | AI anchors | [[project-status]], `Active Plans.base` (Obsidian) |
 | Repo integration | `AGENTS.md`, `README.md`, `docs/` un-ignored in `.gitignore` |
 

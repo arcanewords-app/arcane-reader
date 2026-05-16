@@ -1,0 +1,47 @@
+---
+description: Local development, scripts, Obsidian vault — npm, env, search commands
+globs: docs/**,scripts/**,package.json,env.example.txt,vite.config.ts,vercel.json
+alwaysApply: false
+---
+
+# Local Development & Vault
+
+## SSOT
+
+- **npm scripts:** `@package.json` — do not invent commands; use `npm run <script>` from there.
+- **Env vars:** `@.cursor/rules/deployment.mdc` + `@env.example.txt` — never commit `.env`.
+- **Routes:** `@.cursor/rules/routing.mdc` — do not duplicate the route map in vault notes.
+- **Code behavior:** `src/` wins over vault or archive docs.
+
+## Ports (local)
+
+| Service | Port |
+|---------|------|
+| Express API | 3000 (`PORT` in `.env`) |
+| Vite client | 5173 (proxies `/api` to 3000) |
+
+## Obsidian vault
+
+- **Vault root:** repository folder `docs/` (open this folder in Obsidian, not the repo root).
+- **Wikilinks:** paths relative to vault — e.g. `[[ROADMAP]]`, `[[05-plans/engine-refactor]]`, no `docs/` prefix.
+- **Rules mirror:** `docs/_canonical/rules/` — keep in sync when editing `.cursor/rules/*.mdc` (copies in repo).
+- **Product plans:** `docs/05-plans/` with frontmatter per `@docs/_meta/conventions.md`.
+
+## Truth hierarchy (vault edits)
+
+1. `src/` — behavior
+2. `.cursor/rules/` — agent policies
+3. `docs/` vault — plans, ADR, how-to
+4. `docs/archive/` — legacy; possibly stale
+
+## Workflow
+
+- Local setup / troubleshooting: read `@.cursor/skills/local-dev/SKILL.md` or invoke DevTools utility agent.
+- Env or deploy changes: update `deployment.mdc` + `env.example.txt` in the same task.
+- Plan completed: set plan `status: archived` in frontmatter; update `@docs/project-status.md`.
+
+## Do not
+
+- Commit `.env` or secrets.
+- Treat `docs/archive/` or old plans as SSOT without verifying against `src/` and rules.
+- Copy full routing tables into vault notes (link to `routing.mdc` instead).

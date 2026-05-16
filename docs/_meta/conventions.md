@@ -80,7 +80,8 @@ Code → Rule (if pattern changes) → Vault plan/note (if applicable)
 ## AI session context
 
 - Broad task: `@docs/ROADMAP.md` + `@docs/project-status.md` + domain rule (e.g. `@.cursor/rules/engine.mdc`)
-- Editing `src/client/**` or `src/engine/**`: nested `AGENTS.md` in that folder loads with Cursor
+- Editing `src/client/**`, `src/engine/**`, or `docs/**`: nested `AGENTS.md` in that folder loads with Cursor
+- Local dev / vault search: `@.cursor/skills/local-dev/SKILL.md` or DevTools utility agent
 - Deep dive: `@docs/03-explanation/...` or `@docs/02-how-to/...` as needed
 - Vault is **not** auto-loaded; attach explicitly in Cursor chat
 
