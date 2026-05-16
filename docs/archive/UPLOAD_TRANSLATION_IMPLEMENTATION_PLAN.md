@@ -1,0 +1,506 @@
+---
+stale: true
+status: archived
+domain: meta
+---
+
+# РџРѕРґСЂРѕР±РЅС‹Р№ РїР»Р°РЅ СЂР°Р·СЂР°Р±РѕС‚РєРё: Р—Р°РіСЂСѓР·РєР° РіРѕС‚РѕРІРѕРіРѕ РїРµСЂРµРІРѕРґР°
+
+> РџРѕС€Р°РіРѕРІР°СЏ СЂРµР°Р»РёР·Р°С†РёСЏ С„РёС‡Рё В«Р—Р°РіСЂСѓР·РєР° РіРѕС‚РѕРІРѕРіРѕ РїРµСЂРµРІРѕРґР°В» СЃ РјРёРЅРёРјР°Р»СЊРЅС‹РјРё РёР·РјРµРЅРµРЅРёСЏРјРё С„Р»РѕСѓ. РђРІС‚РѕСЂ Р·Р°РіСЂСѓР¶Р°РµС‚ С‚РµРєСЃС‚ РєР°Рє РїРµСЂРµРІРѕРґ в†’ РїРѕ РєРЅРѕРїРєРµ РѕС‚РїСЂР°РІР»СЏРµС‚СЃСЏ РЅР° Р±СЌРєРµРЅРґ в†’ UI РїРѕРєР°Р·С‹РІР°РµС‚ 1 РєРѕР»РѕРЅРєСѓ (С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґ).
+
+---
+
+## РљСЂР°С‚РєР°СЏ СЃРІРѕРґРєР°
+
+| Р­С‚Р°Рї | РћРїРёСЃР°РЅРёРµ | Р¤Р°Р№Р»С‹ |
+|------|----------|-------|
+| 1 | Backend: endpoint upload-translation, sync СЃ replaceAll | `server.ts` |
+| 2 | Client API: РјРµС‚РѕРґ uploadChapterTranslation | `api/client.ts` |
+| 3 | UI: СЂРµР¶РёРј 1 РєРѕР»РѕРЅРєР° РґР»СЏ translation-only | `ParagraphList.tsx`, `index.tsx`, CSS |
+| 4 | UI: РјРѕРґР°Р»РєР° Рё РєРЅРѕРїРєРё Р·Р°РіСЂСѓР·РєРё | `UploadTranslationModal.tsx`, `TranslationPanel.tsx`, `ChapterHeader.tsx` |
+| 5 | РРЅС‚РµРіСЂР°С†РёСЏ: Р±Р»РѕРєРёСЂРѕРІРєРё, РѕС€РёР±РєРё | `ChapterView`, РјРѕРґР°Р»РєР° |
+| 6 | Р¤Р°Р·Р° 2: РЅРѕРІР°СЏ РіР»Р°РІР° В«С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґВ» | РћС‚РґРµР»СЊРЅС‹Р№ endpoint, UI |
+
+**РџРѕСЂСЏРґРѕРє:** 1 в†’ 2 в†’ 3 в†’ 4 в†’ 5 (Р­С‚Р°Рї 6 вЂ” РїРѕ Р¶РµР»Р°РЅРёСЋ).
+
+---
+
+## РЎРѕРґРµСЂР¶Р°РЅРёРµ
+
+1. [РћР±Р·РѕСЂ Рё С†РµР»Рё](#1-РѕР±Р·РѕСЂ-Рё-С†РµР»Рё)
+2. [РЎС†РµРЅР°СЂРёРё Рё РїРѕС‚РѕРє РґР°РЅРЅС‹С…](#2-СЃС†РµРЅР°СЂРёРё-Рё-РїРѕС‚РѕРє-РґР°РЅРЅС‹С…)
+3. [РњРѕРґРµР»СЊ РґР°РЅРЅС‹С…](#3-РјРѕРґРµР»СЊ-РґР°РЅРЅС‹С…)
+4. [Р­С‚Р°Рї 1: Backend](#4-СЌС‚Р°Рї-1-backend)
+5. [Р­С‚Р°Рї 2: Client API](#5-СЌС‚Р°Рї-2-client-api)
+6. [Р­С‚Р°Рї 3: UI вЂ” СЂРµР¶РёРј В«1 РєРѕР»РѕРЅРєР°В»](#6-СЌС‚Р°Рї-3-ui--СЂРµР¶РёРј-1-РєРѕР»РѕРЅРєР°)
+7. [Р­С‚Р°Рї 4: UI вЂ” Р·Р°РіСЂСѓР·РєР° РїРµСЂРµРІРѕРґР°](#7-СЌС‚Р°Рї-4-ui--Р·Р°РіСЂСѓР·РєР°-РїРµСЂРµРІРѕРґР°)
+8. [Р­С‚Р°Рї 5: РРЅС‚РµРіСЂР°С†РёСЏ Рё edge cases](#8-СЌС‚Р°Рї-5-РёРЅС‚РµРіСЂР°С†РёСЏ-Рё-edge-cases)
+9. [Р­С‚Р°Рї 6: РќРѕРІР°СЏ РіР»Р°РІР° В«С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґВ»](#9-СЌС‚Р°Рї-6-РЅРѕРІР°СЏ-РіР»Р°РІР°-С‚РѕР»СЊРєРѕ-РїРµСЂРµРІРѕРґ)
+10. [РўРµСЃС‚РёСЂРѕРІР°РЅРёРµ](#10-С‚РµСЃС‚РёСЂРѕРІР°РЅРёРµ)
+11. [Р§РµРє-Р»РёСЃС‚ СЂРµР°Р»РёР·Р°С†РёРё](#11-С‡РµРє-Р»РёСЃС‚-СЂРµР°Р»РёР·Р°С†РёРё)
+
+---
+
+## 1. РћР±Р·РѕСЂ Рё С†РµР»Рё
+
+### 1.1 Р§С‚Рѕ РґРµР»Р°РµРј
+
+| РђСЃРїРµРєС‚ | РћРїРёСЃР°РЅРёРµ |
+|--------|----------|
+| **Р’С…РѕРґ** | РђРІС‚РѕСЂ РІСЃС‚Р°РІР»СЏРµС‚ РёР»Рё Р·Р°РіСЂСѓР¶Р°РµС‚ С‚РµРєСЃС‚, РєРѕС‚РѕСЂС‹Р№ СЏРІР»СЏРµС‚СЃСЏ РіРѕС‚РѕРІС‹Рј РїРµСЂРµРІРѕРґРѕРј |
+| **Р”РµР№СЃС‚РІРёРµ** | РљРЅРѕРїРєР° В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» в†’ РѕС‚РїСЂР°РІРєР° РЅР° API |
+| **Backend** | РЎРѕС…СЂР°РЅРµРЅРёРµ РєР°Рє `translatedText`, sync Рє РїР°СЂР°РіСЂР°С„Р°Рј, `status: completed` |
+| **UI** | Р”Р»СЏ РіР»Р°РІ СЃ РіРѕС‚РѕРІС‹Рј РїРµСЂРµРІРѕРґРѕРј (Р±РµР· РѕСЂРёРіРёРЅР°Р»Р°) вЂ” 1 РєРѕР»РѕРЅРєР° (С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґ) |
+
+### 1.2 РџСЂРёРЅС†РёРїС‹
+
+- РњРёРЅРёРјР°Р»СЊРЅС‹Рµ РёР·РјРµРЅРµРЅРёСЏ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРіРѕ С„Р»РѕСѓ
+- РџРµСЂРµРёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ `syncTranslationToParagraphs` Рё `updateChapter`
+- Р‘РµР· СЃРїРёСЃР°РЅРёСЏ С‚РѕРєРµРЅРѕРІ
+- РЎРѕРІРјРµСЃС‚РёРјРѕСЃС‚СЊ СЃ originalReadingMode Рё РѕР±С‹С‡РЅС‹Рј СЂРµР¶РёРјРѕРј
+
+---
+
+## 2. РЎС†РµРЅР°СЂРёРё Рё РїРѕС‚РѕРє РґР°РЅРЅС‹С…
+
+### 2.1 РЎС†РµРЅР°СЂРёР№ A: Р—Р°РіСЂСѓР·РєР° РїРµСЂРµРІРѕРґР° РґР»СЏ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµР№ РіР»Р°РІС‹
+
+```
+Р“Р»Р°РІР° СѓР¶Рµ РµСЃС‚СЊ (originalText, paragraphs)
+    в†’ РђРІС‚РѕСЂ РЅР°Р¶РёРјР°РµС‚ В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ»
+    в†’ РњРѕРґР°Р»РєР°: textarea / С„Р°Р№Р»
+    в†’ РљРЅРѕРїРєР° В«РЎРѕС…СЂР°РЅРёС‚СЊВ»
+    в†’ POST /upload-translation { translatedText }
+    в†’ syncTranslationToParagraphs(paragraphs, translatedText)
+    в†’ updateChapter(paragraphs, status: completed, translationMeta: { source: 'uploaded' })
+    в†’ UI РѕР±РЅРѕРІР»СЏРµС‚ РіР»Р°РІСѓ
+```
+
+### 2.2 РЎС†РµРЅР°СЂРёР№ B: РќРѕРІР°СЏ РіР»Р°РІР° В«С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґВ» (С„Р°Р·Р° 2)
+
+```
+РђРІС‚РѕСЂ РґРѕР±Р°РІР»СЏРµС‚ РіР»Р°РІСѓ РІ СЂРµР¶РёРјРµ В«Р“РѕС‚РѕРІС‹Р№ РїРµСЂРµРІРѕРґВ»
+    в†’ Р’СЃС‚Р°РІРєР°/Р·Р°РіСЂСѓР·РєР° С‚РµРєСЃС‚Р° (Р±РµР· РѕСЂРёРіРёРЅР°Р»Р°)
+    в†’ POST /chapters { translatedText, title } (СЂР°СЃС€РёСЂРµРЅРЅС‹Р№ addChapter)
+    в†’ РЎРѕР·РґР°С‘С‚СЃСЏ РіР»Р°РІР°: originalText="", paragraphs СЃ originalText="", translatedText=chunk
+    в†’ status: completed, translationOnly: true
+    в†’ UI: 1 РєРѕР»РѕРЅРєР° (С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґ)
+```
+
+### 2.3 Р РµР¶РёРј РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ В«1 РєРѕР»РѕРЅРєР°В»
+
+| РЈСЃР»РѕРІРёРµ | РћС‚РѕР±СЂР°Р¶РµРЅРёРµ |
+|---------|-------------|
+| `isOriginalReadingMode` | 1 РєРѕР»РѕРЅРєР°: РѕСЂРёРіРёРЅР°Р» |
+| `isTranslationOnlyDisplay` (РіР»Р°РІР° Р±РµР· РѕСЂРёРіРёРЅР°Р»Р°) | 1 РєРѕР»РѕРЅРєР°: РїРµСЂРµРІРѕРґ |
+| РћР±С‹С‡РЅС‹Р№ СЂРµР¶РёРј | 2 РєРѕР»РѕРЅРєРё: РѕСЂРёРіРёРЅР°Р» \| РїРµСЂРµРІРѕРґ |
+
+---
+
+## 3. РњРѕРґРµР»СЊ РґР°РЅРЅС‹С…
+
+### 3.1 РўРµРєСѓС‰Р°СЏ СЃС…РµРјР° (Р±РµР· РёР·РјРµРЅРµРЅРёР№ РґР»СЏ Р¤Р°Р·С‹ 1)
+
+- **Chapter:** `originalText`, `translatedText`, `translatedChunks`, `paragraphs`, `status`, `translationMeta`
+- **Paragraph:** `originalText`, `translatedText`, `status`, `editedBy`
+- **translationMeta:** `{ source?: 'uploaded' | 'ai', translatedAt?, tokensUsed?, ... }`
+
+### 3.2 Р”РѕР±Р°РІР»РµРЅРёСЏ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РґР»СЏ Р¤Р°Р·С‹ 2)
+
+- **Chapter:** `translationOnly?: boolean` вЂ” РіР»Р°РІР° СЃРѕР·РґР°РЅР° Р±РµР· РѕСЂРёРіРёРЅР°Р»Р° (С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґ)
+- Р’С‹РІРѕРґ РІ UI: `isTranslationOnlyDisplay = chapter.translationOnly || ( chapter.originalText РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚/РїСѓСЃС‚РѕР№ && chapter.translatedText РµСЃС‚СЊ )`
+
+### 3.3 Р”Р»СЏ В«С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґВ» (РЎС†РµРЅР°СЂРёР№ B)
+
+- `chapter.originalText = ""`
+- `paragraph.originalText = ""` (РµСЃР»Рё РІ Р‘Р” `original_text` NOT NULL вЂ” РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ placeholder `"вЂ”"` РёР»Рё РґРѕР±Р°РІРёС‚СЊ РјРёРіСЂР°С†РёСЋ)
+- **РџСЂРѕРІРµСЂРёС‚СЊ:** РѕРіСЂР°РЅРёС‡РµРЅРёСЏ Р‘Р” РЅР° `original_text` РІ `chapters` Рё `paragraphs`
+
+---
+
+## 4. Р­С‚Р°Рї 1: Backend
+
+### 4.1 Endpoint
+
+**РњР°СЂС€СЂСѓС‚:** `POST /api/projects/:projectId/chapters/:chapterId/upload-translation`
+
+**Request:**
+```json
+{
+  "translatedText": "string (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ, РЅРµ РїСѓСЃС‚РѕР№ РїРѕСЃР»Рµ trim)"
+}
+```
+
+**Response:** `Chapter` (РѕР±РЅРѕРІР»С‘РЅРЅР°СЏ РіР»Р°РІР° СЃ РїР°СЂР°РіСЂР°С„Р°РјРё)
+
+**РљРѕРґС‹ РѕС€РёР±РѕРє:**
+- `400` вЂ” РїСѓСЃС‚РѕР№ РїРµСЂРµРІРѕРґ, РіР»Р°РІР° РІ translating, РЅРµС‚ РїР°СЂР°РіСЂР°С„РѕРІ
+- `401` вЂ” РЅРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅ
+- `404` вЂ” РїСЂРѕРµРєС‚ РёР»Рё РіР»Р°РІР° РЅРµ РЅР°Р№РґРµРЅС‹
+
+### 4.2 Р›РѕРіРёРєР° РѕР±СЂР°Р±РѕС‚С‡РёРєР° (server.ts)
+
+```
+1. requireAuth
+2. project = getProject(projectId, userId, token)
+   if (!project) return 404
+3. chapter = getChapter(projectId, chapterId, token)
+   if (!chapter) return 404
+4. Р’Р°Р»РёРґР°С†РёСЏ:
+   - if (chapter.status === 'translating') return 400 "Р”РѕР¶РґРёС‚РµСЃСЊ РѕРєРѕРЅС‡Р°РЅРёСЏ РїРµСЂРµРІРѕРґР°"
+   - if (!chapter.paragraphs?.length) return 400 "Р“Р»Р°РІР° РЅРµ СЃРѕРґРµСЂР¶РёС‚ РїР°СЂР°РіСЂР°С„РѕРІ"
+   - translatedText = (req.body.translatedText || '').trim()
+   - if (!translatedText) return 400 "РўРµРєСЃС‚ РїРµСЂРµРІРѕРґР° РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј"
+5. syncResult = syncTranslationToParagraphs(chapter.paragraphs, translatedText)
+6. mergedText = mergeParagraphsToText(syncResult, 'translatedText')
+7. chunks = mergedText.split(/\n\s*\n/).map(t=>t.trim()).filter(Boolean)
+8. updatedChapter = await updateChapter(projectId, chapterId, {
+     paragraphs: syncResult,
+     translatedText: mergedText,
+     translatedChunks: chunks,
+     status: 'completed',
+     translationMeta: {
+       ...(chapter.translationMeta || {}),
+       source: 'uploaded',
+       translatedAt: new Date().toISOString(),
+       tokensUsed: 0
+     }
+   }, token)
+9. res.json(updatedChapter)
+```
+
+### 4.3 РРЅС‚РµРіСЂР°С†РёСЏ syncTranslationToParagraphs
+
+Р¤СѓРЅРєС†РёСЏ `syncTranslationToParagraphs` РІ server.ts РїСЂРёРЅРёРјР°РµС‚ `(originalParagraphs, translatedText)` Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РѕР±РЅРѕРІР»С‘РЅРЅС‹Рµ РїР°СЂР°РіСЂР°С„С‹. РџСЂРё Р·Р°РіСЂСѓР·РєРµ РїРµСЂРµРІРѕРґР°:
+- **replaceAll = true** вЂ” РїРµСЂРµР·Р°РїРёСЃС‹РІР°РµРј РІСЃРµ РїР°СЂР°РіСЂР°С„С‹ (РЅРµ С‚РѕР»СЊРєРѕ РїСѓСЃС‚С‹Рµ). РўРµРєСѓС‰Р°СЏ Р»РѕРіРёРєР° СЃРѕС…СЂР°РЅСЏРµС‚ СѓР¶Рµ Р·Р°РїРѕР»РЅРµРЅРЅС‹Рµ. Р”Р»СЏ В«Р·Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» РЅСѓР¶РЅРѕ **РїРѕР»РЅСѓСЋ Р·Р°РјРµРЅСѓ**.
+
+**Р’Р°СЂРёР°РЅС‚:** РґРѕР±Р°РІРёС‚СЊ 3-Р№ РїР°СЂР°РјРµС‚СЂ `replaceAll?: boolean` РІ `syncTranslationToParagraphs`. РџСЂРё `replaceAll=true` РЅРµ РїСЂРѕРІРµСЂСЏС‚СЊ `hasValidTranslation`, РІСЃРµРіРґР° РѕР±РЅРѕРІР»СЏС‚СЊ.
+
+РР»Рё: СЃРѕР·РґР°С‚СЊ РѕР±С‘СЂС‚РєСѓ `syncUploadedTranslationToParagraphs(originalParagraphs, translatedText)` вЂ” РІС‹Р·С‹РІР°РµС‚ С‚Сѓ Р¶Рµ Р»РѕРіРёРєСѓ, РЅРѕ Р±РµР· preserve existing.
+
+**Р РµРєРѕРјРµРЅРґР°С†РёСЏ:** Р”РѕР±Р°РІРёС‚СЊ РІ `syncTranslationToParagraphs` РїР°СЂР°РјРµС‚СЂ `replaceAll = false`. РџСЂРё `replaceAll = true` вЂ” РІСЃРµРіРґР° РїРµСЂРµР·Р°РїРёСЃС‹РІР°С‚СЊ РїРµСЂРµРІРѕРґРѕРј, РЅРµ СЃРѕС…СЂР°РЅСЏС‚СЊ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ.
+
+### 4.4 Р¤Р°Р№Р»С‹ РґР»СЏ РёР·РјРµРЅРµРЅРёСЏ
+
+| Р¤Р°Р№Р» | РР·РјРµРЅРµРЅРёСЏ |
+|------|-----------|
+| `src/server.ts` | 1. РќРѕРІС‹Р№ route `POST .../upload-translation`<br>2. Р Р°СЃС€РёСЂРёС‚СЊ `syncTranslationToParagraphs(paragraphs, text, replaceAll?)` вЂ” РїСЂРё replaceAll РЅРµ СЃРѕС…СЂР°РЅСЏС‚СЊ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ РїРµСЂРµРІРѕРґС‹<br>3. РћР±СЂР°Р±РѕС‚С‡РёРє СЃ РІР°Р»РёРґР°С†РёРµР№ Рё РІС‹Р·РѕРІРѕРј updateChapter |
+
+### 4.5 РџРѕСЂСЏРґРѕРє РёР·РјРµРЅРµРЅРёР№ РІ server.ts
+
+1. РќР°Р№С‚Рё `function syncTranslationToParagraphs` (~СЃС‚СЂРѕРєР° 1578)
+2. Р”РѕР±Р°РІРёС‚СЊ С‚СЂРµС‚РёР№ РїР°СЂР°РјРµС‚СЂ: `replaceAll: boolean = false`
+3. Р’ Р±Р»РѕРєРµ `if (hasValidTranslation(original))` РґРѕР±Р°РІРёС‚СЊ СѓСЃР»РѕРІРёРµ: `if (!replaceAll && hasValidTranslation(original)) return original;`
+4. РџРѕСЃР»Рµ route `/translate/sync` РґРѕР±Р°РІРёС‚СЊ РЅРѕРІС‹Р№ route `POST .../upload-translation`
+
+---
+
+## 5. Р­С‚Р°Рї 2: Client API
+
+### 5.1 РњРµС‚РѕРґ РІ api/client.ts
+
+```typescript
+async uploadChapterTranslation(
+  projectId: string,
+  chapterId: string,
+  translatedText: string
+): Promise<Chapter> {
+  const res = await fetchJson<Chapter>(
+    `/api/projects/${projectId}/chapters/${chapterId}/upload-translation`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ translatedText }),
+    }
+  );
+  return res;
+}
+```
+
+### 5.2 Р­РєСЃРїРѕСЂС‚
+
+РЈР±РµРґРёС‚СЊСЃСЏ, С‡С‚Рѕ РјРµС‚РѕРґ СЌРєСЃРїРѕСЂС‚РёСЂСѓРµС‚СЃСЏ (С‡РµСЂРµР· РѕР±СЉРµРєС‚ `api` РёР»Рё РёРјРµРЅРѕРІР°РЅРЅС‹Р№ СЌРєСЃРїРѕСЂС‚).
+
+### 5.3 Р¤Р°Р№Р»С‹
+
+| Р¤Р°Р№Р» | РР·РјРµРЅРµРЅРёСЏ |
+|------|-----------|
+| `src/client/api/client.ts` | Р”РѕР±Р°РІРёС‚СЊ `uploadChapterTranslation` РІ РѕР±СЉРµРєС‚ api |
+
+---
+
+## 6. Р­С‚Р°Рї 3: UI вЂ” СЂРµР¶РёРј В«1 РєРѕР»РѕРЅРєР°В»
+
+### 6.1 РћРїСЂРµРґРµР»РµРЅРёРµ `isTranslationOnlyDisplay`
+
+Р’ ChapterView РёР»Рё ParagraphList:
+
+```typescript
+const isTranslationOnlyDisplay = Boolean(
+  chapter.translatedText &&
+  (!chapter.originalText || chapter.originalText.trim().length === 0)
+);
+```
+
+РР»Рё РїРѕ С„Р»Р°РіСѓ (РµСЃР»Рё РґРѕР±Р°РІРёРј РІ Р¤Р°Р·Рµ 2):
+```typescript
+const isTranslationOnlyDisplay = chapter.translationOnly ?? 
+  (!!chapter.translatedText && !chapter.originalText?.trim());
+```
+
+### 6.2 РР·РјРµРЅРµРЅРёСЏ РІ ParagraphList
+
+| Prop | РўРµРєСѓС‰РµРµ | РќРѕРІРѕРµ |
+|------|---------|-------|
+| `isOriginalReadingMode` | РџРѕРєР°Р·Р°С‚СЊ 1 РєРѕР»РѕРЅРєСѓ (РѕСЂРёРіРёРЅР°Р») | Р‘РµР· РёР·РјРµРЅРµРЅРёР№ |
+| `isTranslationOnlyDisplay` | вЂ” | РџРѕРєР°Р·Р°С‚СЊ 1 РєРѕР»РѕРЅРєСѓ (РїРµСЂРµРІРѕРґ) |
+
+**Р›РѕРіРёРєР° РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ:**
+- `isOriginalReadingMode` в†’ header В«РћСЂРёРіРёРЅР°Р»В», 1 РєРѕР»РѕРЅРєР° СЃ originalText
+- `isTranslationOnlyDisplay` в†’ header В«РџРµСЂРµРІРѕРґВ» (Р±РµР· В«РћСЂРёРіРёРЅР°Р»В»), 1 РєРѕР»РѕРЅРєР° СЃ translatedText, РѕСЂРёРіРёРЅР°Р» СЃРєСЂС‹С‚
+- РРЅР°С‡Рµ в†’ 2 РєРѕР»РѕРЅРєРё (РѕСЂРёРіРёРЅР°Р» | РїРµСЂРµРІРѕРґ)
+
+### 6.3 РљРѕРЅРєСЂРµС‚РЅС‹Рµ РїСЂР°РІРєРё ParagraphList.tsx
+
+1. Р”РѕР±Р°РІРёС‚СЊ prop: `isTranslationOnlyDisplay?: boolean`
+2. Р—Р°РіРѕР»РѕРІРѕРє:
+   - Р•СЃР»Рё `isTranslationOnlyDisplay`: РѕРґРёРЅ header В«рџ‡·рџ‡є РџРµСЂРµРІРѕРґВ», С€РёСЂРёРЅР° 100%
+   - Р•СЃР»Рё `isOriginalReadingMode`: С‚РµРєСѓС‰РµРµ РїРѕРІРµРґРµРЅРёРµ
+   - РРЅР°С‡Рµ: РґРІР° header (РѕСЂРёРіРёРЅР°Р» | РїРµСЂРµРІРѕРґ)
+3. РЎС‚СЂРѕРєРё РїР°СЂР°РіСЂР°С„РѕРІ:
+   - Р•СЃР»Рё `isTranslationOnlyDisplay`: `gridTemplateColumns: '1fr'`, РїРѕРєР°Р·С‹РІР°С‚СЊ С‚РѕР»СЊРєРѕ СЏС‡РµР№РєСѓ РїРµСЂРµРІРѕРґР° (РїРµСЂРІР°СЏ СЏС‡РµР№РєР° = РїРµСЂРµРІРѕРґ)
+   - РўРµРєСѓС‰Р°СЏ СЂР°Р·РјРµС‚РєР°: `<div paragraph-cell-original>`, `<div paragraph-cell-translation>`. РџСЂРё translation-only: СЃРєСЂС‹С‚СЊ original, translation РЅР° РІСЃСЋ С€РёСЂРёРЅСѓ.
+
+### 6.4 РљРѕРЅРєСЂРµС‚РЅС‹Рµ РїСЂР°РІРєРё ParagraphList.css
+
+РџСЂРё `isTranslationOnlyDisplay`:
+- `.paragraph-row` вЂ” РѕРґРЅР° РєРѕР»РѕРЅРєР°
+- `.paragraph-cell-original` вЂ” `display: none` РёР»Рё РЅРµ СЂРµРЅРґРµСЂРёС‚СЊ
+- `.paragraph-cell-translation` вЂ” `width: 100%`, РїРµСЂРІР°СЏ РІ СЂСЏРґСѓ
+
+### 6.5 РџРµСЂРµРґР°С‡Р° prop РёР· ChapterView
+
+```tsx
+<ParagraphList
+  ...
+  isOriginalReadingMode={isOriginalReadingMode}
+  isTranslationOnlyDisplay={isTranslationOnlyDisplay}
+  ...
+/>
+```
+
+РіРґРµ `isTranslationOnlyDisplay` РІС‹С‡РёСЃР»СЏРµС‚СЃСЏ РёР· `chapter`.
+
+### 6.6 Р¤Р°Р№Р»С‹
+
+| Р¤Р°Р№Р» | РР·РјРµРЅРµРЅРёСЏ |
+|------|-----------|
+| `src/client/components/ChapterView/ParagraphList.tsx` | Prop `isTranslationOnlyDisplay`, СѓСЃР»РѕРІРЅС‹Р№ СЂРµРЅРґРµСЂРёРЅРі |
+| `src/client/components/ChapterView/ParagraphList.css` | РЎС‚РёР»Рё РґР»СЏ 1 РєРѕР»РѕРЅРєРё (РїРµСЂРµРІРѕРґ) |
+| `src/client/components/ChapterView/index.tsx` | Р’С‹С‡РёСЃР»РµРЅРёРµ `isTranslationOnlyDisplay`, РїРµСЂРµРґР°С‡Р° РІ ParagraphList |
+
+---
+
+## 7. Р­С‚Р°Рї 4: UI вЂ” Р·Р°РіСЂСѓР·РєР° РїРµСЂРµРІРѕРґР°
+
+### 7.1 РўРѕС‡РєРё РІС…РѕРґР°
+
+| РњРµСЃС‚Рѕ | РЈСЃР»РѕРІРёРµ | Р­Р»РµРјРµРЅС‚ |
+|-------|---------|---------|
+| TranslationPanel | `!isOriginalReadingMode` | РљРЅРѕРїРєР° В«рџ“¤ Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» |
+| ChapterHeader | `isOriginalReadingMode` (РїР°РЅРµР»СЊ СЃРєСЂС‹С‚Р°) | РљРЅРѕРїРєР° В«рџ“¤ Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» |
+
+### 7.2 РљРѕРјРїРѕРЅРµРЅС‚ UploadTranslationModal
+
+**Props:**
+- `isOpen: boolean`
+- `onClose: () => void`
+- `onSubmit: (translatedText: string) => Promise<void>`
+- `chapterTitle?: string`
+
+**РЎРѕРґРµСЂР¶РёРјРѕРµ:**
+- Р—Р°РіРѕР»РѕРІРѕРє: В«Р—Р°РіСЂСѓР·РёС‚СЊ РіРѕС‚РѕРІС‹Р№ РїРµСЂРµРІРѕРґВ»
+- Textarea (placeholder: В«Р’СЃС‚Р°РІСЊС‚Рµ РёР»Рё РІРІРµРґРёС‚Рµ С‚РµРєСЃС‚ РїРµСЂРµРІРѕРґР°вЂ¦В»)
+- РљРЅРѕРїРєР° В«Р’С‹Р±СЂР°С‚СЊ С„Р°Р№Р»В» (TXT) вЂ” РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, С‡РёС‚Р°РµРј FileReader
+- РџРѕРґСЃРєР°Р·РєР°: В«РўРµРєСЃС‚ Р±СѓРґРµС‚ СЂР°Р·Р±РёС‚ РїРѕ Р°Р±Р·Р°С†Р°Рј (РґРІРѕР№РЅРѕР№ РїРµСЂРµРЅРѕСЃ СЃС‚СЂРѕРєРё)В»
+- РљРЅРѕРїРєРё: В«РћС‚РјРµРЅР°В», В«Р—Р°РіСЂСѓР·РёС‚СЊВ»
+- РџСЂРё РѕС‚РїСЂР°РІРєРµ: disabled, СЃРїРёРЅРЅРµСЂ
+- РћР±СЂР°Р±РѕС‚РєР° РѕС€РёР±РѕРє: РїРѕРєР°Р·Р°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РїРѕРґ РєРЅРѕРїРєР°РјРё
+
+### 7.3 Р›РѕРіРёРєР° РєРЅРѕРїРєРё В«Р—Р°РіСЂСѓР·РёС‚СЊВ»
+
+```typescript
+const handleSubmit = async () => {
+  const text = textareaValue.trim();
+  if (!text) return;
+  setLoading(true);
+  try {
+    await onSubmit(text);
+    onClose();
+  } catch (e) {
+    setError(e.message || 'РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё');
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+### 7.4 Р—Р°РіСЂСѓР·РєР° С„Р°Р№Р»Р° (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
+
+```typescript
+const handleFileSelect = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => setTextareaValue(String(reader.result));
+  reader.readAsText(file, 'UTF-8');
+};
+```
+
+### 7.5 РРЅС‚РµРіСЂР°С†РёСЏ РІ ChapterView
+
+1. State: `showUploadModal = false`
+2. РћР±СЂР°Р±РѕС‚С‡РёРє:
+   ```typescript
+   const handleUploadTranslation = async (translatedText: string) => {
+     const updated = await api.uploadChapterTranslation(project.id, chapter.id, translatedText);
+     onChapterUpdate(updated);
+     setShowUploadModal(false);
+   };
+   ```
+3. РЈСЃР»РѕРІРёСЏ РїРѕРєР°Р·Р° РєРЅРѕРїРєРё:
+   - РќРµ РїРѕРєР°Р·С‹РІР°С‚СЊ, РµСЃР»Рё `chapter.status === 'translating'`
+   - РќРµ РїРѕРєР°Р·С‹РІР°С‚СЊ, РµСЃР»Рё РЅРµС‚ РїР°СЂР°РіСЂР°С„РѕРІ (РґР»СЏ СЃС†РµРЅР°СЂРёСЏ A)
+
+### 7.6 Р¤Р°Р№Р»С‹
+
+| Р¤Р°Р№Р» | Р”РµР№СЃС‚РІРёРµ |
+|------|----------|
+| `src/client/components/ChapterView/UploadTranslationModal.tsx` | **РЎРѕР·РґР°С‚СЊ** вЂ” РјРѕРґР°Р»РєР° СЃ textarea Рё file input |
+| `src/client/components/ChapterView/UploadTranslationModal.css` | **РЎРѕР·РґР°С‚СЊ** вЂ” СЃС‚РёР»Рё РјРѕРґР°Р»РєРё |
+| `src/client/components/ChapterView/TranslationPanel.tsx` | РљРЅРѕРїРєР° В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» |
+| `src/client/components/ChapterView/ChapterHeader.tsx` | РљРЅРѕРїРєР° В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» РґР»СЏ originalReadingMode |
+| `src/client/components/ChapterView/index.tsx` | State РјРѕРґР°Р»РєРё, СЂРµРЅРґРµСЂ UploadTranslationModal |
+
+---
+
+## 8. Р­С‚Р°Рї 5: РРЅС‚РµРіСЂР°С†РёСЏ Рё edge cases
+
+### 8.1 Р‘Р»РѕРєРёСЂРѕРІРєР° РїСЂРё translating
+
+- Р’ ChapterHeader Рё TranslationPanel: РµСЃР»Рё `chapter.status === 'translating'`, РєРЅРѕРїРєР° В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» disabled РёР»Рё СЃРєСЂС‹С‚Р°.
+- Tooltip: В«Р”РѕР¶РґРёС‚РµСЃСЊ РѕРєРѕРЅС‡Р°РЅРёСЏ РїРµСЂРµРІРѕРґР°В»
+
+### 8.2 РџСѓСЃС‚Р°СЏ РіР»Р°РІР°
+
+- Р•СЃР»Рё `!chapter.paragraphs?.length`, РєРЅРѕРїРєР° В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» disabled.
+- РЎРѕРѕР±С‰РµРЅРёРµ: В«РЎРЅР°С‡Р°Р»Р° РґРѕР±Р°РІСЊС‚Рµ РіР»Р°РІСѓ СЃ С‚РµРєСЃС‚РѕРјВ»
+
+### 8.3 originalReadingMode
+
+- РџР°РЅРµР»СЊ TranslationPanel СЃРєСЂС‹С‚Р°.
+- РљРЅРѕРїРєР° В«Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґВ» РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РІ ChapterHeader.
+- РџСЂРѕРІРµСЂРёС‚СЊ: РІ originalReadingMode РіР»Р°РІС‹ РјРѕРіСѓС‚ РЅРµ РёРјРµС‚СЊ РїР°СЂР°РіСЂР°С„РѕРІ (РµСЃР»Рё РґРѕР±Р°РІР»СЏР»РёСЃСЊ С‚РѕР»СЊРєРѕ РґР»СЏ С‡С‚РµРЅРёСЏ РѕСЂРёРіРёРЅР°Р»Р°). Р’ С‚Р°РєРѕРј СЃР»СѓС‡Р°Рµ РєРЅРѕРїРєР° disabled.
+
+### 8.4 РќРµСЃРѕРІРїР°РґРµРЅРёРµ РїР°СЂР°РіСЂР°С„РѕРІ
+
+- Backend: sync РґРµР»Р°РµС‚ РјР°РїРїРёРЅРі РїРѕ РїРѕСЂСЏРґРєСѓ, Р»РѕРіРёСЂСѓРµС‚ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ.
+- Frontend: РїРѕСЃР»Рµ СѓСЃРїРµС€РЅРѕР№ Р·Р°РіСЂСѓР·РєРё РјРѕР¶РЅРѕ РїРѕРєР°Р·Р°С‚СЊ toast/СѓРІРµРґРѕРјР»РµРЅРёРµ: В«РџРµСЂРµРІРѕРґ Р·Р°РіСЂСѓР¶РµРЅ. РЎРѕРїРѕСЃС‚Р°РІР»РµРЅРѕ N РїР°СЂР°РіСЂР°С„РѕРІВ» (РµСЃР»Рё РїРµСЂРµРґР°С‚СЊ СЃ Р±СЌРєРµРЅРґР°) вЂ” РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ.
+
+### 8.5 Р­РєСЃРїРѕСЂС‚ Рё РїСѓР±Р»РёРєР°С†РёРё
+
+- РЈР¶Рµ СЂР°Р±РѕС‚Р°СЋС‚: РїСЂРѕРІРµСЂРєР° `status === 'completed'` Рё `translatedText`.
+- Р—Р°РіСЂСѓР¶РµРЅРЅС‹Рµ РіР»Р°РІС‹ РїРѕРґС…РѕРґСЏС‚ Р±РµР· РґРѕСЂР°Р±РѕС‚РѕРє.
+
+---
+
+## 9. Р­С‚Р°Рї 6: РќРѕРІР°СЏ РіР»Р°РІР° В«С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґВ» (С„Р°Р·Р° 2)
+
+### 9.1 Р Р°СЃС€РёСЂРµРЅРёРµ addChapter
+
+**Р’Р°СЂРёР°РЅС‚ A:** РќРѕРІС‹Р№ endpoint `POST /api/projects/:id/chapters/translation-only`
+
+Body: `{ title: string, translatedText: string }`
+
+Р›РѕРіРёРєР°:
+1. РџР°СЂСЃРёРј translatedText РїРѕ `\n\n` в†’ chunks
+2. РЎРѕР·РґР°С‘Рј РїР°СЂР°РіСЂР°С„С‹: `originalText=""`, `translatedText=chunk`, `status='translated'`, `editedBy='user'`
+3. РЎРѕР·РґР°С‘Рј РіР»Р°РІСѓ: `originalText=""`, `translatedText`, `translatedChunks`, `paragraphs`, `status='completed'`, `translationMeta: { source: 'uploaded' }`
+4. РџСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё: `translation_only: true` (РµСЃР»Рё РґРѕР±Р°РІРёРј РєРѕР»РѕРЅРєСѓ)
+
+**Р’Р°СЂРёР°РЅС‚ B:** Р Р°СЃС€РёСЂРёС‚СЊ `POST /api/projects/:id/chapters` вЂ” РїСЂРё multipart РґРѕР±Р°РІР»СЏС‚СЊ РїРѕР»Рµ `mode: 'translation-only'` Рё `translatedText` РІ body.
+
+### 9.2 UI РґР»СЏ РЅРѕРІРѕР№ РіР»Р°РІС‹
+
+- РќР° СЃС‚СЂР°РЅРёС†Рµ РїСЂРѕРµРєС‚Р°: РєРЅРѕРїРєР° В«Р”РѕР±Р°РІРёС‚СЊ РіР»Р°РІСѓ (С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґ)В» РёР»Рё РїРµСЂРµРєР»СЋС‡Р°С‚РµР»СЊ РІ РјРѕРґР°Р»РєРµ РґРѕР±Р°РІР»РµРЅРёСЏ РіР»Р°РІС‹.
+- РњРѕРґР°Р»РєР°: РІРІРѕРґ РЅР°Р·РІР°РЅРёСЏ + textarea РґР»СЏ РїРµСЂРµРІРѕРґР°.
+- Р’С‹Р·РѕРІ РЅРѕРІРѕРіРѕ API.
+
+### 9.3 РџСЂРѕРІРµСЂРєР° Р‘Р”
+
+- РЈР±РµРґРёС‚СЊСЃСЏ, С‡С‚Рѕ `original_text` РІ chapters Рё paragraphs РґРѕРїСѓСЃРєР°РµС‚ РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ РёР»Рё NULL.
+- РџСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё вЂ” РјРёРіСЂР°С†РёСЏ РёР»Рё РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ placeholder.
+
+---
+
+## 10. РўРµСЃС‚РёСЂРѕРІР°РЅРёРµ
+
+### 10.1 Р СѓС‡РЅС‹Рµ С‚РµСЃС‚С‹
+
+| # | РЎС†РµРЅР°СЂРёР№ | РћР¶РёРґР°РЅРёРµ |
+|---|----------|----------|
+| 1 | Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґ РґР»СЏ РіР»Р°РІС‹ СЃ РѕСЂРёРіРёРЅР°Р»РѕРј | Р“Р»Р°РІР° completed, РїР°СЂР°РіСЂР°С„С‹ Р·Р°РїРѕР»РЅРµРЅС‹, UI 2 РєРѕР»РѕРЅРєРё |
+| 2 | Р—Р°РіСЂСѓР·РёС‚СЊ РїРµСЂРµРІРѕРґ РїСЂРё translating | 400, РєРЅРѕРїРєР° disabled |
+| 3 | Р—Р°РіСЂСѓР·РёС‚СЊ РїСѓСЃС‚РѕР№ С‚РµРєСЃС‚ | 400 |
+| 4 | Р“Р»Р°РІР° Р±РµР· РїР°СЂР°РіСЂР°С„РѕРІ | 400, РєРЅРѕРїРєР° disabled |
+| 5 | Р—Р°РјРµРЅРёС‚СЊ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ РїРµСЂРµРІРѕРґ | РџРѕР»РЅР°СЏ Р·Р°РјРµРЅР°, status completed |
+| 6 | originalReadingMode + Р·Р°РіСЂСѓР·РєР° РїРµСЂРµРІРѕРґР° | РљРЅРѕРїРєР° РІ header, РїРѕСЃР»Рµ Р·Р°РіСЂСѓР·РєРё вЂ” 1 РєРѕР»РѕРЅРєР° РїРµСЂРµРІРѕРґР°? (Р·Р°РІРёСЃРёС‚ РѕС‚ С‚РѕРіРѕ, РµСЃС‚СЊ Р»Рё original) |
+| 7 | РќРµСЃРѕРІРїР°РґРµРЅРёРµ РїР°СЂР°РіСЂР°С„РѕРІ (РїРµСЂРµРІРѕРґ 5, РѕСЂРёРіРёРЅР°Р» 10) | Sync РїРѕ РїРѕСЂСЏРґРєСѓ, 5 РїР°СЂР°РіСЂР°С„РѕРІ Р·Р°РїРѕР»РЅРµРЅС‹, 5 РїСѓСЃС‚С‹С… |
+
+### 10.2 Р РµРіСЂРµСЃСЃРёСЏ
+
+- РћР±С‹С‡РЅС‹Р№ AI-РїРµСЂРµРІРѕРґ
+- Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РїР°СЂР°РіСЂР°С„Р°
+- Р­РєСЃРїРѕСЂС‚
+- Р РµР¶РёРј С‡С‚РµРЅРёСЏ
+- originalReadingMode
+
+---
+
+## 11. Р§РµРє-Р»РёСЃС‚ СЂРµР°Р»РёР·Р°С†РёРё
+
+### Р­С‚Р°Рї 1: Backend
+- [ ] Р”РѕР±Р°РІРёС‚СЊ РїР°СЂР°РјРµС‚СЂ `replaceAll` РІ `syncTranslationToParagraphs`
+- [ ] РЎРѕР·РґР°С‚СЊ route `POST .../upload-translation`
+- [ ] Р’Р°Р»РёРґР°С†РёСЏ: translating, paragraphs, РїСѓСЃС‚РѕР№ С‚РµРєСЃС‚
+- [ ] Р’С‹Р·РѕРІ updateChapter СЃ translationMeta.source = 'uploaded'
+- [ ] РћР±РЅРѕРІРёС‚СЊ docs/API.md
+
+### Р­С‚Р°Рї 2: Client API
+- [ ] Р”РѕР±Р°РІРёС‚СЊ `api.uploadChapterTranslation()`
+
+### Р­С‚Р°Рї 3: UI вЂ” 1 РєРѕР»РѕРЅРєР°
+- [ ] Р’С‹С‡РёСЃР»РµРЅРёРµ `isTranslationOnlyDisplay` РІ ChapterView
+- [ ] Prop `isTranslationOnlyDisplay` РІ ParagraphList
+- [ ] РЈСЃР»РѕРІРЅС‹Р№ СЂРµРЅРґРµСЂРёРЅРі: 1 РєРѕР»РѕРЅРєР° (РїРµСЂРµРІРѕРґ) РїСЂРё translation-only
+- [ ] РЎС‚РёР»Рё ParagraphList.css
+
+### Р­С‚Р°Рї 4: UI вЂ” Р·Р°РіСЂСѓР·РєР°
+- [ ] РЎРѕР·РґР°С‚СЊ UploadTranslationModal (textarea, file, РєРЅРѕРїРєРё)
+- [ ] РљРЅРѕРїРєР° РІ TranslationPanel
+- [ ] РљРЅРѕРїРєР° РІ ChapterHeader (originalReadingMode)
+- [ ] РРЅС‚РµРіСЂР°С†РёСЏ РІ ChapterView, РѕР±СЂР°Р±РѕС‚С‡РёРє handleUploadTranslation
+- [ ] Р›РѕРєР°Р»РёР·Р°С†РёСЏ (ru, en, pl)
+
+### Р­С‚Р°Рї 5: РРЅС‚РµРіСЂР°С†РёСЏ
+- [ ] Disabled РїСЂРё translating
+- [ ] Disabled РїСЂРё РїСѓСЃС‚РѕР№ РіР»Р°РІРµ
+- [ ] РћР±СЂР°Р±РѕС‚РєР° РѕС€РёР±РѕРє РІ РјРѕРґР°Р»РєРµ
+
+### Р­С‚Р°Рї 6 (Р¤Р°Р·Р° 2)
+- [ ] Endpoint РґР»СЏ РЅРѕРІРѕР№ РіР»Р°РІС‹ В«С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґВ»
+- [ ] UI РґРѕР±Р°РІР»РµРЅРёСЏ С‚Р°РєРѕР№ РіР»Р°РІС‹
+- [ ] РџСЂРѕРІРµСЂРєР°/РјРёРіСЂР°С†РёСЏ Р‘Р” РґР»СЏ original_text
+
+### Р”РѕРєСѓРјРµРЅС‚Р°С†РёСЏ
+- [ ] РћР±РЅРѕРІРёС‚СЊ UPLOAD_TRANSLATION_PLAN.md
+- [ ] РћР±РЅРѕРІРёС‚СЊ docs/API.md

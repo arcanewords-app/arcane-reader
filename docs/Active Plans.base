@@ -1,0 +1,15 @@
+filters:
+  and:
+    - file.inFolder("05-plans")
+    - note["type"] == "plan"
+    - note["status"] == "active"
+views:
+  - type: table
+    name: Active Plans
+    order:
+      - property.updated
+      - desc
+    columns:
+      - file.name
+      - note.domain
+      - note.updated

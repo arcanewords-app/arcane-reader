@@ -1,0 +1,36 @@
+---
+description: Authentication, roles, and access control
+globs: src/middleware/auth.ts,src/server.ts,src/client/components/Auth/**
+alwaysApply: false
+---
+
+# Auth Rules
+
+## Stack
+
+- Supabase Auth (JWT Bearer). Profile `role` and `avatar_url` from `profiles` table.
+- Middleware: `@src/middleware/auth.ts` — `requireAuth`, `optionalAuth`, `requireRole(...)`.
+- Role types and hierarchy: `@src/types/roles.ts` (`isAtLeastRole`).
+
+## Roles (low → high)
+
+`guest` < `user` < `author` < `author_plus` < `super_author` < `admin`
+
+- Default for authenticated users without profile role: `user`.
+- API project/glossary/export routes typically use `requireRole('author')`.
+- Admin routes use `requireRole('admin')`.
+
+## Client gates
+
+- `AuthorGate` — author+ routes under `/projects/*`
+- `AdminGate` — `/admin/entities`
+- Guests hitting protected paths → redirect `/?login=required`
+
+## Cache
+
+- Auth profile cached in memory + Redis (`CACHE_PREFIX.authProfile`). Invalidate on profile/avatar updates per `@.cursor/rules/cache.mdc`.
+
+## When changing auth
+
+- Update `@src/middleware/auth.ts`, affected routes in `@src/server.ts`, and client gates if paths change.
+- Update route map in `@.cursor/rules/routing.mdc` if access levels change.

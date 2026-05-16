@@ -53,7 +53,10 @@ If you bring a translation that already contains special formatting, use **marke
 
 ## Documentation
 
-- [docs/ROUTES.md](docs/ROUTES.md) — All frontend and API routes, access levels, navigation map
+- **Agent / conventions (SSOT):** [`.cursor/rules/`](.cursor/rules/) — start with `architecture.mdc`, `routing.mdc`
+- **Obsidian vault:** [docs/Home.md](docs/Home.md) — plans, ADR, onboarding
+- **Routes:** [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc) (canonical); [docs/ROUTES.md](docs/ROUTES.md) is a stub
+- Legacy notes: [docs/archive/](docs/archive/) — may be outdated
 
 ## Development
 

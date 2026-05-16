@@ -1,0 +1,52 @@
+---
+description: System architecture and module boundaries
+alwaysApply: true
+---
+
+# Architecture
+
+## Overview
+
+Arcane Reader is a client-server app: Preact SPA → Express API → Supabase (PostgreSQL, Auth, Storage) + OpenAI/LLM via Arcane Engine.
+
+```
+Frontend (Preact) → Express API → Supabase / Storage
+                              ↓
+                         Arcane Engine (3-stage pipeline)
+```
+
+## Module map
+
+| Path | Responsibility |
+|------|----------------|
+| `@src/client/` | UI: pages, components, hooks, i18n, API client |
+| `@src/server.ts` | Express entry, REST routes, cache wrappers |
+| `@src/engine/` | Translation pipeline: Analyze → Translate → Edit |
+| `@src/services/` | Import/export, auth helpers, Supabase DB, Redis cache |
+| `@src/storage/` | DB types (`database.ts`) |
+| `@src/middleware/` | Auth, request context, service health (503) |
+| `@src/api/schemas/` | Zod request validation |
+| `@src/shared/cacheContract.ts` | Redis key prefixes and TTL |
+| `@src/worker.ts` | BullMQ worker (async analysis/translate jobs) |
+
+## Key entry points
+
+- Frontend routes: `@src/client/AppRouter.tsx`
+- API routes: `@src/server.ts`
+- Route map (canonical): `@.cursor/rules/routing.mdc`
+- Auth middleware: `@src/middleware/auth.ts`
+- Roles: `@src/types/roles.ts`
+
+## Data flow (translation)
+
+1. Client triggers analyze/translate on chapter(s).
+2. Server enqueues or runs sync jobs; engine stages use glossary + prompts.
+3. Results persisted via `@src/services/supabaseDatabase.ts`; caches invalidated per `@.cursor/rules/cache.mdc`.
+
+## Documentation hierarchy
+
+1. **Code** — behavior SSOT
+2. **`.cursor/rules/`** — conventions and policies SSOT for agents
+3. **`docs/` vault** — plans, ADR, human onboarding (see `docs/Home.md`)
+
+If legacy `docs/*.md` in `docs/archive/` disagrees with rules or code, **rules + code win**.
