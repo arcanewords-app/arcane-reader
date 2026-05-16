@@ -31,14 +31,14 @@ Owns the Preact SPA: pages, components, hooks, styles, i18n, and client-side rou
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/client/AppRouter.tsx` | Frontend route definitions |
-| `src/client/components/ui/` | Button, Modal, Input, Icon, etc. |
-| `src/client/styles/base/variables.css` | Design tokens |
-| `src/client/locales/en.json`, `ru.json`, `pl.json` | i18n strings |
-| `src/client/hooks/` | Shared hooks (`useChapterTranslation`, `useUserRole`, …) |
-| `src/client/contexts/` | `TokenUsageContext`, `ServiceHealthContext` |
+| File                                               | Purpose                                                  |
+| -------------------------------------------------- | -------------------------------------------------------- |
+| `src/client/AppRouter.tsx`                         | Frontend route definitions                               |
+| `src/client/components/ui/`                        | Button, Modal, Input, Icon, etc.                         |
+| `src/client/styles/base/variables.css`             | Design tokens                                            |
+| `src/client/locales/en.json`, `ru.json`, `pl.json` | i18n strings                                             |
+| `src/client/hooks/`                                | Shared hooks (`useChapterTranslation`, `useUserRole`, …) |
+| `src/client/contexts/`                             | `TokenUsageContext`, `ServiceHealthContext`              |
 
 Reference patterns: `PublicationPage.tsx`, `ReadingMode/index.tsx`.
 

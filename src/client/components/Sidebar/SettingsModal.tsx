@@ -147,11 +147,6 @@ export function SettingsModal({
   const textBlockTypes = settings.textBlockTypes ?? [];
   const customInstructions = settings.customInstructions ?? {};
 
-  const handleTextBlockTypesChange = async (newTypes: TextBlockType[]) => {
-    const updated = await api.updateSettings(project.id, { textBlockTypes: newTypes });
-    onSettingsChange(updated);
-  };
-
   const handleToggleBlockType = async (id: string, enabled: boolean) => {
     const current = textBlockTypes.length > 0 ? textBlockTypes : DEFAULT_TEXT_BLOCK_TYPES;
     const updated = await api.updateSettings(project.id, {
@@ -436,10 +431,14 @@ export function SettingsModal({
               )}
             </div>
             <div style={{ marginTop: '1rem' }}>
-              <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
+              <label
+                htmlFor="settings-custom-instructions-translation"
+                style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}
+              >
                 Custom instructions for translator
               </label>
               <textarea
+                id="settings-custom-instructions-translation"
                 value={customInstructionsLocal.translation ?? customInstructions.translation ?? ''}
                 onBlur={(e) =>
                   handleCustomInstructionsChange(
@@ -534,10 +533,14 @@ export function SettingsModal({
               </select>
             </div>
             <div style={{ marginTop: '0.75rem' }}>
-              <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}>
+              <label
+                htmlFor="settings-custom-instructions-editing"
+                style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}
+              >
                 Custom instructions for editor
               </label>
               <textarea
+                id="settings-custom-instructions-editing"
                 value={customInstructionsLocal.editing ?? customInstructions.editing ?? ''}
                 onBlur={(e) =>
                   handleCustomInstructionsChange('editing', (e.target as HTMLTextAreaElement).value)

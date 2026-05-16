@@ -20,13 +20,13 @@ export const CONTACT_EMAIL = 'ilya.murashka.w@gmail.com';
 
 The constant is used in:
 
-| Component / Page | Usage |
-|------------------|-------|
-| [ContactPage](../src/client/pages/ContactPage.tsx) | `mailto:` link |
-| [PrivacyPage](../src/client/pages/PrivacyPage.tsx) | Interpolation in `privacy.controllerDesc`, `privacy.yourRightsDesc`, `privacy.contactDesc` |
-| [TermsPage](../src/client/pages/TermsPage.tsx) | Interpolation in `terms.contactDesc` |
-| [UpgradeScreen](../src/client/components/Auth/UpgradeScreen.tsx) | `mailto:` for "Request upgrade" button |
-| [ProfilePage](../src/client/pages/ProfilePage.tsx) | `mailto:` for "Upgrade level" button |
+| Component / Page                                                 | Usage                                                                                      |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [ContactPage](../src/client/pages/ContactPage.tsx)               | `mailto:` link                                                                             |
+| [PrivacyPage](../src/client/pages/PrivacyPage.tsx)               | Interpolation in `privacy.controllerDesc`, `privacy.yourRightsDesc`, `privacy.contactDesc` |
+| [TermsPage](../src/client/pages/TermsPage.tsx)                   | Interpolation in `terms.contactDesc`                                                       |
+| [UpgradeScreen](../src/client/components/Auth/UpgradeScreen.tsx) | `mailto:` for "Request upgrade" button                                                     |
+| [ProfilePage](../src/client/pages/ProfilePage.tsx)               | `mailto:` for "Upgrade level" button                                                       |
 
 ## Changing the Email
 

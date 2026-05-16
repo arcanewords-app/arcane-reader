@@ -30,6 +30,7 @@ Authorization: Bearer <token>
 Р РµРіРёСЃС‚СЂР°С†РёСЏ РЅРѕРІРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
 
 **Request Body**:
+
 ```json
 {
   "email": "user@example.com",
@@ -38,6 +39,7 @@ Authorization: Bearer <token>
 ```
 
 **Response**:
+
 ```json
 {
   "user": {
@@ -52,6 +54,7 @@ Authorization: Bearer <token>
 Р’С…РѕРґ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
 
 **Request Body**:
+
 ```json
 {
   "email": "user@example.com",
@@ -60,6 +63,7 @@ Authorization: Bearer <token>
 ```
 
 **Response**:
+
 ```json
 {
   "user": {
@@ -79,6 +83,7 @@ Authorization: Bearer <token>
 Р’С‹С…РѕРґ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -92,6 +97,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "user": {
@@ -108,6 +114,7 @@ Authorization: Bearer <token>
 РџРѕР»СѓС‡РёС‚СЊ СЃС‚Р°С‚СѓСЃ СЃРёСЃС‚РµРјС‹.
 
 **Response**:
+
 ```json
 {
   "version": "0.1.0",
@@ -134,9 +141,11 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Query Parameters** (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ):
+
 - `date` - Р”Р°С‚Р° РІ С„РѕСЂРјР°С‚Рµ YYYY-MM-DD (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ СЃРµРіРѕРґРЅСЏ)
 
 **Response**:
+
 ```json
 {
   "date": "2026-01-29",
@@ -160,9 +169,11 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Query Parameters**:
+
 - `days` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ `7`) - РљРѕР»РёС‡РµСЃС‚РІРѕ РґРЅРµР№ РёСЃС‚РѕСЂРёРё
 
 **Response**:
+
 ```json
 {
   "history": [
@@ -189,6 +200,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 [
   {
@@ -216,6 +228,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "name": "Project Name",
@@ -241,6 +254,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -254,6 +268,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "stageModels": {
@@ -280,9 +295,11 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request**: `multipart/form-data`
+
 - `file`: Р¤Р°Р№Р» (TXT, EPUB, FB2)
 
 **Response**:
+
 ```json
 {
   "id": "chapter-id",
@@ -295,6 +312,7 @@ Authorization: Bearer <token>
 ```
 
 РР»Рё РґР»СЏ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹С… РіР»Р°РІ (EPUB/FB2):
+
 ```json
 {
   "chapters": [...],
@@ -318,6 +336,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -331,6 +350,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "title": "New Chapter Title"
@@ -346,6 +366,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "number": 5
@@ -363,6 +384,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body** (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ):
+
 ```json
 {
   "translateOnlyEmpty": false
@@ -370,6 +392,7 @@ Authorization: Bearer <token>
 ```
 
 **Response** (СѓСЃРїРµС…):
+
 ```json
 {
   "status": "started",
@@ -378,6 +401,7 @@ Authorization: Bearer <token>
 ```
 
 **Response** (РїСЂРµРІС‹С€РµРЅ Р»РёРјРёС‚ С‚РѕРєРµРЅРѕРІ - HTTP 429):
+
 ```json
 {
   "error": "Token limit exceeded",
@@ -390,6 +414,7 @@ Authorization: Bearer <token>
 ```
 
 **РџСЂРёРјРµС‡Р°РЅРёСЏ**:
+
 - РџРµСЂРµРІРѕРґ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ Р°СЃРёРЅС…СЂРѕРЅРЅРѕ. РЎС‚Р°С‚СѓСЃ РіР»Р°РІС‹ РѕР±РЅРѕРІР»СЏРµС‚СЃСЏ С‡РµСЂРµР· `status` РїРѕР»Рµ.
 - РџРµСЂРµРґ Р·Р°РїСѓСЃРєРѕРј РїРµСЂРµРІРѕРґР° РїСЂРѕРІРµСЂСЏРµС‚СЃСЏ РґРЅРµРІРЅРѕР№ Р»РёРјРёС‚ С‚РѕРєРµРЅРѕРІ (50,000 С‚РѕРєРµРЅРѕРІ РІ РґРµРЅСЊ).
 - Р•СЃР»Рё Р»РёРјРёС‚ РїСЂРµРІС‹С€РµРЅ, РІРѕР·РІСЂР°С‰Р°РµС‚СЃСЏ РѕС€РёР±РєР° 429 Рё РїРµСЂРµРІРѕРґ РЅРµ Р·Р°РїСѓСЃРєР°РµС‚СЃСЏ.
@@ -402,6 +427,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -416,6 +442,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -433,6 +460,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "translatedText": "РўРµРєСЃС‚ РїРµСЂРµРІРѕРґР°..."
@@ -442,10 +470,12 @@ Authorization: Bearer <token>
 **Response** (СѓСЃРїРµС…): РїРѕР»РЅС‹Р№ РѕР±СЉРµРєС‚ РіР»Р°РІС‹ (Chapter) СЃ РѕР±РЅРѕРІР»С‘РЅРЅС‹РјРё РїР°СЂР°РіСЂР°С„Р°РјРё Рё `status: "completed"`.
 
 **Response** (РѕС€РёР±РєРё):
+
 - `400` вЂ” РіР»Р°РІР° РІ РїСЂРѕС†РµСЃСЃРµ РїРµСЂРµРІРѕРґР°, РЅРµС‚ РїР°СЂР°РіСЂР°С„РѕРІ РёР»Рё РїСѓСЃС‚РѕР№ С‚РµРєСЃС‚
 - `404` вЂ” РїСЂРѕРµРєС‚ РёР»Рё РіР»Р°РІР° РЅРµ РЅР°Р№РґРµРЅС‹
 
 **РџСЂРёРјРµС‡Р°РЅРёСЏ**:
+
 - РўРѕРєРµРЅС‹ РЅРµ СЃРїРёСЃС‹РІР°СЋС‚СЃСЏ.
 - РЎСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ РїРµСЂРµРІРѕРґ РїРѕР»РЅРѕСЃС‚СЊСЋ Р·Р°РјРµРЅСЏРµС‚СЃСЏ.
 - `translationMeta.source` СѓСЃС‚Р°РЅР°РІР»РёРІР°РµС‚СЃСЏ РІ `"uploaded"`.
@@ -461,10 +491,12 @@ Authorization: Bearer <token>
 **Response** (СѓСЃРїРµС…): РїРѕР»РЅС‹Р№ РѕР±СЉРµРєС‚ РіР»Р°РІС‹ (Chapter) СЃ `status: "completed"` Рё `translationMeta.source: "uploaded"`.
 
 **Response** (РѕС€РёР±РєРё):
+
 - `400` вЂ” РіР»Р°РІР° РІ РїСЂРѕС†РµСЃСЃРµ РїРµСЂРµРІРѕРґР° РёР»Рё РЅРµС‚ РїР°СЂР°РіСЂР°С„РѕРІ
 - `404` вЂ” РїСЂРѕРµРєС‚ РёР»Рё РіР»Р°РІР° РЅРµ РЅР°Р№РґРµРЅС‹
 
 **РџСЂРёРјРµС‡Р°РЅРёСЏ**:
+
 - РўРѕРєРµРЅС‹ РЅРµ СЃРїРёСЃС‹РІР°СЋС‚СЃСЏ.
 - РўРµРєСЃС‚ РёР· `originalText` РєРѕРїРёСЂСѓРµС‚СЃСЏ РІ `translatedText`, `originalText` РѕС‡РёС‰Р°РµС‚СЃСЏ.
 
@@ -477,6 +509,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "translatedText": "РџРµСЂРµРІРµРґРµРЅРЅС‹Р№ С‚РµРєСЃС‚",
@@ -493,6 +526,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "paragraphIds": ["id1", "id2", "id3"],
@@ -501,6 +535,7 @@ Authorization: Bearer <token>
 ```
 
 **Response**:
+
 ```json
 {
   "updated": 3,
@@ -515,6 +550,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "total": 100,
@@ -543,6 +579,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "type": "character",
@@ -573,6 +610,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -586,9 +624,11 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request**: `multipart/form-data`
+
 - `image`: Р¤Р°Р№Р» РёР·РѕР±СЂР°Р¶РµРЅРёСЏ (JPEG, PNG, GIF, WebP)
 
 **Response**:
+
 ```json
 {
   "imageUrl": "https://...",
@@ -604,6 +644,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -620,9 +661,11 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request**: `multipart/form-data`
+
 - `image`: Р¤Р°Р№Р» РёР·РѕР±СЂР°Р¶РµРЅРёСЏ
 
 **Response**:
+
 ```json
 {
   "coverImageUrl": "https://...",
@@ -637,6 +680,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -653,6 +697,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Response**:
+
 ```json
 {
   "fontFamily": "literary",
@@ -670,6 +715,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "fontFamily": "serif",
@@ -691,6 +737,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "format": "epub",
@@ -700,7 +747,8 @@ Authorization: Bearer <token>
 
 **Response**: Р¤Р°Р№Р» (binary)
 
-**Content-Type**: 
+**Content-Type**:
+
 - `application/epub+zip` РґР»СЏ EPUB
 - `application/xml` РґР»СЏ FB2
 
@@ -711,6 +759,7 @@ Authorization: Bearer <token>
 РЎРїРёСЃРѕРє РѕРїСѓР±Р»РёРєРѕРІР°РЅРЅС‹С… РїСЂРѕРёР·РІРµРґРµРЅРёР№ (РїСѓР±Р»РёС‡РЅС‹Р№, Р±РµР· Р°РІС‚РѕСЂРёР·Р°С†РёРё).
 
 **Query Parameters** (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ):
+
 - `limit` вЂ” Р»РёРјРёС‚ (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 50, РјР°РєСЃ. 100)
 - `offset` вЂ” СЃРјРµС‰РµРЅРёРµ
 - `orderBy` вЂ” `published_at` (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ) РёР»Рё `created_at`
@@ -729,6 +778,7 @@ Authorization: Bearer <token>
 РџСѓР±Р»РёРєР°С†РёСЏ СЃРѕ СЃРїРёСЃРєРѕРј РіР»Р°РІ (РґР»СЏ СЃС‚СЂР°РЅРёС†С‹ С‡С‚РµРЅРёСЏ). РџСѓР±Р»РёС‡РЅС‹Р№.
 
 **Response**:
+
 ```json
 {
   "publication": { ... },
@@ -743,6 +793,7 @@ Authorization: Bearer <token>
 РљРѕРЅС‚РµРЅС‚ РѕРґРЅРѕР№ РіР»Р°РІС‹ РґР»СЏ СЂРµР¶РёРјР° С‡С‚РµРЅРёСЏ (С‚РѕР»СЊРєРѕ РїРµСЂРµРІРµРґС‘РЅРЅС‹Р№ С‚РµРєСЃС‚). РџСѓР±Р»РёС‡РЅС‹Р№.
 
 **Response**:
+
 ```json
 {
   "id": "...",
@@ -759,6 +810,7 @@ Authorization: Bearer <token>
 **Headers**: `Authorization: Bearer <token>`
 
 **Request Body**:
+
 ```json
 {
   "status": "published",

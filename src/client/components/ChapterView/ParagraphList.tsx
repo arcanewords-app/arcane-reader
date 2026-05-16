@@ -102,15 +102,13 @@ export function ParagraphList({
 
   const useVirtualization = paragraphs.length > VIRTUAL_THRESHOLD;
 
-  const getRowHeight = useCallback((i: number) => rowHeightsRef.current.get(i) ?? EST_ROW_HEIGHT, []);
+  const getRowHeight = useCallback(
+    (i: number) => rowHeightsRef.current.get(i) ?? EST_ROW_HEIGHT,
+    []
+  );
 
   const virtualRange = useVirtualization
-    ? computeVirtualRange(
-        paragraphs.length,
-        scrollTop,
-        containerHeight,
-        getRowHeight
-      )
+    ? computeVirtualRange(paragraphs.length, scrollTop, containerHeight, getRowHeight)
     : null;
 
   const totalHeight = virtualRange?.totalHeight ?? 0;

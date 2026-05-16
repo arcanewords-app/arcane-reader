@@ -53,9 +53,7 @@ export const publicationDisplaySettingsBodySchema = z.object({
 
 export type BuildExportsBody = z.infer<typeof buildExportsBodySchema>;
 export type PublicationDownloadQuery = z.infer<typeof publicationDownloadQuerySchema>;
-export type PublicationDisplaySettingsBody = z.infer<
-  typeof publicationDisplaySettingsBodySchema
->;
+export type PublicationDisplaySettingsBody = z.infer<typeof publicationDisplaySettingsBodySchema>;
 export type PublicationsListQuery = z.infer<typeof publicationsListQuerySchema>;
 export type ReportBody = z.infer<typeof reportBodySchema>;
 export type ReadingPositionBody = z.infer<typeof readingPositionBodySchema>;

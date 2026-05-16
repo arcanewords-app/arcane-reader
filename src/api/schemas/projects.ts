@@ -43,9 +43,7 @@ export const projectSettingsBodySchema = z
         editing: z.string().optional(),
       })
       .optional(),
-    editingStylePreset: z
-      .enum(['default', 'literary', 'minimal', 'ai_revivification'])
-      .optional(),
+    editingStylePreset: z.enum(['default', 'literary', 'minimal', 'ai_revivification']).optional(),
     editingFocus: z.enum(['fix_problems', 'style_only', 'both']).optional(),
     allowReasoningModelsForAnalysis: z.boolean().optional(),
   })

@@ -19,13 +19,13 @@ Wikilinks like `[[ROADMAP]]` resolve to files in this folder.
 
 ## Start pages
 
-| Note | Use |
-|------|-----|
-| [[Home]] | Main index |
-| [[ROADMAP]] | Priorities and phases |
-| [[project-status]] | What is shipped vs in progress |
-| [[05-plans/]] | Active RFCs (filter by `status: active` in frontmatter) |
-| [[_canonical/rules/]] | Agent rules (mirror of `.cursor/rules/`) |
+| Note                  | Use                                                     |
+| --------------------- | ------------------------------------------------------- |
+| [[Home]]              | Main index                                              |
+| [[ROADMAP]]           | Priorities and phases                                   |
+| [[project-status]]    | What is shipped vs in progress                          |
+| [[05-plans/]]         | Active RFCs (filter by `status: active` in frontmatter) |
+| [[_canonical/rules/]] | Agent rules (mirror of `.cursor/rules/`)                |
 
 ## Graph and backlinks
 
@@ -35,12 +35,12 @@ Wikilinks like `[[ROADMAP]]` resolve to files in this folder.
 
 ## When to update what
 
-| Event | Update |
-|-------|--------|
-| Feature shipped | [[project-status]]; archive related [[05-plans/]] note (`status: archived`) |
-| Priority shift | [[ROADMAP]] |
-| New convention or route | `.cursor/rules/*.mdc` first, then `_canonical/rules/` copy if tracked |
-| Explainer for humans | `03-explanation/` — derive from code, not `archive/` |
+| Event                   | Update                                                                      |
+| ----------------------- | --------------------------------------------------------------------------- |
+| Feature shipped         | [[project-status]]; archive related [[05-plans/]] note (`status: archived`) |
+| Priority shift          | [[ROADMAP]]                                                                 |
+| New convention or route | `.cursor/rules/*.mdc` first, then `_canonical/rules/` copy if tracked       |
+| Explainer for humans    | `03-explanation/` — derive from code, not `archive/`                        |
 
 ## Search from terminal (optional)
 

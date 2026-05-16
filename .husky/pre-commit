@@ -1,0 +1,2 @@
+# Prettier + ESLint/Stylelint on staged files; check:circular when src TS changes
+npx lint-staged

@@ -14,13 +14,13 @@ updated: 2026-05-16
 
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Preact, Vite, i18next |
-| Backend | Express, TypeScript, Zod |
-| Data | Supabase (Postgres, Auth, Storage) |
-| Cache | Upstash Redis |
-| AI | OpenAI / providers via Arcane Engine |
+| Layer    | Tech                                 |
+| -------- | ------------------------------------ |
+| Frontend | Preact, Vite, i18next                |
+| Backend  | Express, TypeScript, Zod             |
+| Data     | Supabase (Postgres, Auth, Storage)   |
+| Cache    | Upstash Redis                        |
+| AI       | OpenAI / providers via Arcane Engine |
 
 ## Core entities
 

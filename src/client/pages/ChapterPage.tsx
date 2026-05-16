@@ -157,7 +157,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
 
   const searchFromUrl =
     typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('search') ?? ''
+      ? (new URLSearchParams(window.location.search).get('search') ?? '')
       : '';
 
   if (!chapterListItem) {

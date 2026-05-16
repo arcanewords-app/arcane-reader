@@ -81,7 +81,7 @@ domain: meta
 
 ---
 
-### 2.2 updated* вЂ” РѕС‚РєСѓРґР° id?
+### 2.2 updated\* вЂ” РѕС‚РєСѓРґР° id?
 
 **РЎРёС‚СѓР°С†РёСЏ:** `glossaryUpdate.updatedCharacters` СЃС‚СЂРѕСЏС‚СЃСЏ РІ stage-1 С‡РµСЂРµР· `mapUpdatedCharacters()`. РўР°Рј `id: existing.id`, РіРґРµ `existing = findExistingChar(c.originalName)` РёР· `existingChars` (agent.glossary).
 
@@ -95,11 +95,11 @@ domain: meta
 
 ---
 
-### 2.3 Р—Р°РїРёСЃРё С‚РѕР»СЊРєРѕ РІ updated*
+### 2.3 Р—Р°РїРёСЃРё С‚РѕР»СЊРєРѕ РІ updated\*
 
 **РЎРёС‚СѓР°С†РёСЏ:** РњРѕРґРµР»СЊ РІРµСЂРЅСѓР»Р° СЃСѓС‰РЅРѕСЃС‚СЊ С‚РѕР»СЊРєРѕ РІ `updatedCharacters` (РЅР°РїСЂРёРјРµСЂ, СѓС‚РѕС‡РЅРёР»Р° РѕРїРёСЃР°РЅРёРµ), РЅРѕ РЅРµ РІ `characters`.
 
-**РўРµРєСѓС‰Р°СЏ Р»РѕРіРёРєР°:** ID РёР· updated* РґРѕР±Р°РІР»СЏСЋС‚СЃСЏ РІ glossaryAppearanceEntryIds. ID Р±РµСЂСѓС‚СЃСЏ РёР· `existing.id` РІ mapUpdatedCharacters. `existing` = findExistingChar РІ agent.glossary.
+**РўРµРєСѓС‰Р°СЏ Р»РѕРіРёРєР°:** ID РёР· updated\* РґРѕР±Р°РІР»СЏСЋС‚СЃСЏ РІ glossaryAppearanceEntryIds. ID Р±РµСЂСѓС‚СЃСЏ РёР· `existing.id` РІ mapUpdatedCharacters. `existing` = findExistingChar РІ agent.glossary.
 
 **РџСЂРѕР±Р»РµРјР°:** Р•СЃР»Рё Р·Р°РїРёСЃСЊ Р±С‹Р»Р° РґРѕР±Р°РІР»РµРЅР° РІ РїСЂРµРґС‹РґСѓС‰РµР№ РіР»Р°РІРµ, РІ agent РѕРЅР° СЃ engine id. Р’ project.glossary вЂ” СЃ DB id. РњС‹ РґРѕР±Р°РІР»СЏРµРј engine id РІ glossaryAppearanceEntryIds. РЎРµСЂРІРµСЂ РІС‹Р·С‹РІР°РµС‚ getGlossaryEntry(engineId) вЂ” РЅРµ РЅР°С…РѕРґРёС‚, РїСЂРѕРїСѓСЃРєР°РµС‚.
 
@@ -149,16 +149,19 @@ domain: meta
 
 ## 3. Р РµРєРѕРјРµРЅРґСѓРµРјРѕРµ РёСЃРїСЂР°РІР»РµРЅРёРµ
 
-**РџСЂРѕР±Р»РµРјР° 2.2/2.3:** id РёР· updated* РјРѕРіСѓС‚ Р±С‹С‚СЊ engine ids, Р° РЅРµ DB ids.
+**РџСЂРѕР±Р»РµРјР° 2.2/2.3:** id РёР· updated\* РјРѕРіСѓС‚ Р±С‹С‚СЊ engine ids, Р° РЅРµ DB ids.
 
-**РСЃРїСЂР°РІР»РµРЅРёРµ:** РџСЂРё РґРѕР±Р°РІР»РµРЅРёРё id РёР· updated* РІ glossaryAppearanceEntryIds СЂРµР·РѕР»РІРёС‚СЊ Р°РєС‚СѓР°Р»СЊРЅС‹Р№ id С‡РµСЂРµР· project.glossary РїРѕ original:
+**РСЃРїСЂР°РІР»РµРЅРёРµ:** РџСЂРё РґРѕР±Р°РІР»РµРЅРёРё id РёР· updated\* РІ glossaryAppearanceEntryIds СЂРµР·РѕР»РІРёС‚СЊ Р°РєС‚СѓР°Р»СЊРЅС‹Р№ id С‡РµСЂРµР· project.glossary РїРѕ original:
 
 ```ts
 // Р’РјРµСЃС‚Рѕ: if (c.id) ids.add(c.id);
 // Р”Р»СЏ updated*: РёСЃРєР°С‚СЊ РІ project.glossary РїРѕ original Рё Р±СЂР°С‚СЊ project id
-const resolvedId = project.glossary.find(
-  e => e.type === 'character' && e.original.trim().toLowerCase() === c.originalName?.trim().toLowerCase()
-)?.id ?? c.id;
+const resolvedId =
+  project.glossary.find(
+    (e) =>
+      e.type === 'character' &&
+      e.original.trim().toLowerCase() === c.originalName?.trim().toLowerCase()
+  )?.id ?? c.id;
 if (resolvedId) ids.add(resolvedId);
 ```
 
@@ -168,10 +171,10 @@ if (resolvedId) ids.add(resolvedId);
 
 ## 4. Р“РґРµ РІ РєРѕРґРµ
 
-| Р­С‚Р°Рї | Р¤Р°Р№Р» | РЎС‚СЂРѕРєРё/С„СѓРЅРєС†РёСЏ |
-|------|------|----------------|
-| isNew, new*, updated* | stage-1-analyze.ts | parseResponse, mapUpdated* |
-| glossaryAppearanceEntryIds | engine-integration.ts | byOriginal, byShortForm, С†РёРєР»С‹ РїРѕ found* Рё updated* |
-| addGlossaryEntry | server.ts | 1745, 1803, 2330 |
-| updateGlossaryEntry (mentionedInChapters) | server.ts | 1756вЂ“1760, 1814вЂ“1818, 2340вЂ“2346 |
-| getGlossaryEntry | server.ts, supabaseDatabase | РїСЂРё merge mentionedInChapters |
+| Р­С‚Р°Рї                                  | Р¤Р°Р№Р»                    | РЎС‚СЂРѕРєРё/С„СѓРЅРєС†РёСЏ                                 |
+| ----------------------------------------- | --------------------------- | ----------------------------------------------------------- |
+| isNew, new*, updated*                     | stage-1-analyze.ts          | parseResponse, mapUpdated\*                                 |
+| glossaryAppearanceEntryIds                | engine-integration.ts       | byOriginal, byShortForm, С†РёРєР»С‹ РїРѕ found* Рё updated* |
+| addGlossaryEntry                          | server.ts                   | 1745, 1803, 2330                                            |
+| updateGlossaryEntry (mentionedInChapters) | server.ts                   | 1756вЂ“1760, 1814вЂ“1818, 2340вЂ“2346                       |
+| getGlossaryEntry                          | server.ts, supabaseDatabase | РїСЂРё merge mentionedInChapters                            |

@@ -3,11 +3,7 @@
  * Used by server and background jobs (runAnalysisJob, runTranslateJob).
  */
 
-import {
-  cacheVersionedKey,
-  CACHE_PREFIX,
-  CACHE_SCHEMA_VERSION,
-} from '../shared/cacheContract.js';
+import { cacheVersionedKey, CACHE_PREFIX, CACHE_SCHEMA_VERSION } from '../shared/cacheContract.js';
 import { redisDelMany, redisDelByPattern, buildRedisKey } from './redisCache.js';
 import { getPublicationByProjectId } from './supabaseDatabase.js';
 import { logger } from '../logger.js';

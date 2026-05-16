@@ -84,11 +84,7 @@ export function sendServiceUnavailable(res: Response, service: string, errorMess
  * Circuit breaker: when Supabase is known down, return 503 immediately without hitting DB.
  * Excludes /api/status and /api/health so they can return cached/static data.
  */
-export function requireHealthySupabase(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+export function requireHealthySupabase(req: Request, res: Response, next: NextFunction): void {
   const path = req.path;
   if (path === '/status' || path === '/health') return next();
   if (serviceHealthManager.getOverallStatus() === 'down') {

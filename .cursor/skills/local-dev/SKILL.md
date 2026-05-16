@@ -18,21 +18,23 @@ Read `@.cursor/rules/deployment.mdc` for env/deploy policy. Human guide: `@docs/
 
 ## A. Local dev (npm)
 
-| Task | Command |
-|------|---------|
-| Install deps | `npm install` |
-| API + Vite UI | `npm run dev` |
-| API + UI + BullMQ worker | `npm run dev:full` |
-| Worker only | `npm run worker` |
-| Server only | `npm run dev:server` |
-| Client only | `npm run dev:client` |
-| Free port 3000 | `npm run kill-port` |
-| Force restart API | `npm run dev:force` |
-| Lint + typecheck | `npm run lint:all` |
-| ESLint | `npm run lint` |
-| Typecheck | `npm run typecheck` |
-| Format | `npm run format` |
-| Production build | `npm run build` |
+| Task                     | Command              |
+| ------------------------ | -------------------- |
+| Install deps             | `npm install`        |
+| API + Vite UI            | `npm run dev`        |
+| API + UI + BullMQ worker | `npm run dev:full`   |
+| Worker only              | `npm run worker`     |
+| Server only              | `npm run dev:server` |
+| Client only              | `npm run dev:client` |
+| Free port 3000           | `npm run kill-port`  |
+| Force restart API        | `npm run dev:force`  |
+| Lint + typecheck         | `npm run lint:all`   |
+| ESLint                   | `npm run lint`       |
+| Typecheck                | `npm run typecheck`  |
+| Format                   | `npm run format`     |
+| Production build         | `npm run build`      |
+
+**Node:** `.nvmrc` pins **22**. On Windows use [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 22`, `nvm use 22`. Restart the terminal after install so `PATH` picks up `C:\nvm4w\nodejs`.
 
 **First run:**
 
@@ -86,14 +88,14 @@ rg "function functionName" src/
 
 **Vault root = `docs/` folder.** Wikilinks omit `docs/`.
 
-| Task | Command |
-|------|---------|
-| Active plans | `rg "^status: active" docs/05-plans -g "*.md"` |
-| Stale notes | `rg "stale: true" docs/` |
-| Search topic in plans | `rg -i "keyword" docs/05-plans` |
-| Search all vault | `rg -i "keyword" docs --glob "*.md"` |
-| List plan files | `rg --files docs/05-plans -g "*.md"` |
-| Frontmatter status | `rg "^status:" docs/05-plans` |
+| Task                  | Command                                        |
+| --------------------- | ---------------------------------------------- |
+| Active plans          | `rg "^status: active" docs/05-plans -g "*.md"` |
+| Stale notes           | `rg "stale: true" docs/`                       |
+| Search topic in plans | `rg -i "keyword" docs/05-plans`                |
+| Search all vault      | `rg -i "keyword" docs --glob "*.md"`           |
+| List plan files       | `rg --files docs/05-plans -g "*.md"`           |
+| Frontmatter status    | `rg "^status:" docs/05-plans`                  |
 
 **Common wikilinks (from any note in vault):**
 
@@ -136,11 +138,11 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 
 ## F. Troubleshooting quick checks
 
-| Symptom | Check |
-|---------|--------|
-| Port in use | `npm run kill-port` |
-| 503 on batch translate | Redis env + `npm run worker` or `dev:full` |
-| Auth fails locally | Supabase keys in `.env`, JWT in browser |
+| Symptom                 | Check                                       |
+| ----------------------- | ------------------------------------------- |
+| Port in use             | `npm run kill-port`                         |
+| 503 on batch translate  | Redis env + `npm run worker` or `dev:full`  |
+| Auth fails locally      | Supabase keys in `.env`, JWT in browser     |
 | API unreachable from UI | API on 3000, Vite proxy in `vite.config.ts` |
 
 ---

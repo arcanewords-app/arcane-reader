@@ -15,10 +15,7 @@ export const translateBatchBodySchema = z.object({
   chapterIds: z.array(z.string().min(1)).min(1),
   translateOnlyEmpty: z.boolean().optional(),
   stages: z
-    .union([
-      z.literal('all'),
-      z.array(z.enum(['analysis', 'translation', 'editing'])),
-    ])
+    .union([z.literal('all'), z.array(z.enum(['analysis', 'translation', 'editing']))])
     .optional(),
 });
 

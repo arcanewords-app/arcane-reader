@@ -22,7 +22,7 @@ GET /api/projects/{projectId}/publication (С‚СЂРµР±СѓРµС‚ auth)
 2. Р’С‹Р·С‹РІР°РµС‚ getPublicationByProjectId(projectId, userId, token)
     в†“
 [Database]
-SELECT * FROM publications 
+SELECT * FROM publications
 WHERE project_id = {projectId} AND user_id = {userId}
     в†“
 [Р РµР·СѓР»СЊС‚Р°С‚С‹]
@@ -40,13 +40,13 @@ WHERE project_id = {projectId} AND user_id = {userId}
 
 ## РљР»СЋС‡РµРІС‹Рµ С‚РѕС‡РєРё
 
-| РљРѕРјРїРѕРЅРµРЅС‚ | Р¤СѓРЅРєС†РёСЏ | РџРѕРІРµРґРµРЅРёРµ |
-|-----------|---------|----------|
-| **Client** | `api.getProjectPublication()` | GET Р·Р°РїСЂРѕСЃ, РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚ 404 РєР°Рє null |
-| **Server** | GET `/api/projects/:projectId/publication` | РўСЂРµР±СѓРµС‚ auth, РІС‹Р·С‹РІР°РµС‚ DB С„СѓРЅРєС†РёСЋ |
-| **Database** | `getPublicationByProjectId()` | SELECT СЃ С„РёР»СЊС‚СЂРѕРј РїРѕ projectId Рё userId |
-| **Transform** | `transformPublicationFromDB()` | snake_case в†’ camelCase |
-| **UI State** | `publication` | null = РЅРµ РѕРїСѓР±Р»РёРєРѕРІР°РЅРѕ, Publication РѕР±СЉРµРєС‚ = РѕРїСѓР±Р»РёРєРѕРІР°РЅРѕ |
+| РљРѕРјРїРѕРЅРµРЅС‚ | Р¤СѓРЅРєС†РёСЏ                             | РџРѕРІРµРґРµРЅРёРµ                                                                        |
+| ------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **Client**         | `api.getProjectPublication()`              | GET Р·Р°РїСЂРѕСЃ, РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚ 404 РєР°Рє null                                |
+| **Server**         | GET `/api/projects/:projectId/publication` | РўСЂРµР±СѓРµС‚ auth, РІС‹Р·С‹РІР°РµС‚ DB С„СѓРЅРєС†РёСЋ                                   |
+| **Database**       | `getPublicationByProjectId()`              | SELECT СЃ С„РёР»СЊС‚СЂРѕРј РїРѕ projectId Рё userId                                       |
+| **Transform**      | `transformPublicationFromDB()`             | snake_case в†’ camelCase                                                                  |
+| **UI State**       | `publication`                              | null = РЅРµ РѕРїСѓР±Р»РёРєРѕРІР°РЅРѕ, Publication РѕР±СЉРµРєС‚ = РѕРїСѓР±Р»РёРєРѕРІР°РЅРѕ |
 
 ## РЎС‚Р°С‚СѓСЃС‹ РїСѓР±Р»РёРєР°С†РёРё
 
@@ -77,11 +77,13 @@ Publication {
 ## Р”РµР№СЃС‚РІРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 
 **Р•СЃР»Рё РѕРїСѓР±Р»РёРєРѕРІР°РЅРѕ**:
+
 - рџ‘ЃпёЏ **View** в†’ РѕС‚РєСЂС‹С‚СЊ РїСѓР±Р»РёС‡РЅСѓСЋ СЃС‚СЂР°РЅРёС†Сѓ `/p/{id}`
 - вњЏпёЏ **Update** в†’ РёР·РјРµРЅРёС‚СЊ title/description (published_at РЅРµ РёР·РјРµРЅСЏРµС‚СЃСЏ)
 - вќЊ **Unpublish** в†’ РёР·РјРµРЅРёС‚СЊ СЃС‚Р°С‚СѓСЃ РЅР° 'unpublished'
 
 **Р•СЃР»Рё РЅРµ РѕРїСѓР±Р»РёРєРѕРІР°РЅРѕ**:
+
 - рџ“ў **Publish** в†’ РѕС‚РєСЂС‹С‚СЊ РјРѕРґР°Р»СЊРЅРѕРµ РѕРєРЅРѕ (С‚СЂРµР±СѓРµС‚СЃСЏ min 1 РіР»Р°РІР°)
 
 ## РџСЂРѕРёР·РІРѕРґРёС‚РµР»СЊРЅРѕСЃС‚СЊ

@@ -55,17 +55,17 @@ export async function exportToEpub(
     content: chapter.htmlContent,
   }));
 
-const epubOptions = {
-  title: project.title,
-  author: project.author || 'Переведено Arcane',
-  lang: project.language || 'ru',
-  publisher: 'Arcane Translator',
-  description: project.metadata?.translatedAt
-    ? `Переведено: ${new Date(project.metadata.translatedAt).toLocaleDateString('ru-RU')}`
-    : undefined,
-  css: EPUB_CSS,
-  numberChaptersInTOC: false,
-};
+  const epubOptions = {
+    title: project.title,
+    author: project.author || 'Переведено Arcane',
+    lang: project.language || 'ru',
+    publisher: 'Arcane Translator',
+    description: project.metadata?.translatedAt
+      ? `Переведено: ${new Date(project.metadata.translatedAt).toLocaleDateString('ru-RU')}`
+      : undefined,
+    css: EPUB_CSS,
+    numberChaptersInTOC: false,
+  };
 
   logger.debug('EPUB export: starting generation (epub-gen-memory)');
   let buffer: Buffer;

@@ -127,7 +127,6 @@ export function ReadingMode({
   project,
   publicationId,
   publicationPath,
-  publicationTitle,
   publicationChapters = [],
   publicationGlossaryCount = 0,
   publicationGlossaryPreloaded,
@@ -1218,10 +1217,17 @@ export function ReadingMode({
       {showSettings && (
         <div
           class="reading-mode-settings-overlay"
-          onClick={() => setShowSettings(false)}
-          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowSettings(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowSettings(false);
+          }}
+          role="button"
+          tabIndex={-1}
+          aria-label={t('readingMode.settingsTitle')}
         >
-          <div class="reading-mode-settings-panel" onClick={(e) => e.stopPropagation()}>
+          <div class="reading-mode-settings-panel">
             <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
           </div>
         </div>

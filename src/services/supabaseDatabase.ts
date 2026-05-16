@@ -1081,17 +1081,13 @@ export async function resetStuckChaptersForRecovery(
     const now = Date.now();
     for (const chapter of chapters) {
       let isStuck = false;
-      const translatedAtStr = (
-        chapter.translation_meta as { translatedAt?: string } | undefined
-      )?.translatedAt;
+      const translatedAtStr = (chapter.translation_meta as { translatedAt?: string } | undefined)
+        ?.translatedAt;
       if (translatedAtStr) {
         const translatedAt = new Date(translatedAtStr).getTime();
         isStuck = now - translatedAt > STUCK_TIMEOUT;
       } else {
-        const updatedAt =
-          chapter.updated_at != null
-            ? new Date(chapter.updated_at).getTime()
-            : now;
+        const updatedAt = chapter.updated_at != null ? new Date(chapter.updated_at).getTime() : now;
         isStuck = now - updatedAt > STUCK_TIMEOUT;
       }
       if (isStuck) {
@@ -3236,10 +3232,7 @@ export async function listPublicationsPublic(options?: {
   const translatorEntityId = options?.translatorEntityId;
   const tagEntityId = options?.tagEntityId;
 
-  let query = supabase
-    .from('publications_list_with_counts')
-    .select('*')
-    .eq('status', 'published');
+  let query = supabase.from('publications_list_with_counts').select('*').eq('status', 'published');
 
   if (authorEntityId) {
     query = query.eq('author_entity_id', authorEntityId);
@@ -3290,9 +3283,7 @@ async function listPublicationsPublicFallback(options: {
   translatorEntityId?: string;
   tagEntityId?: string;
 }): Promise<
-  Array<
-    ReturnType<typeof transformPublicationFromDB> & { translatedChapterCount: number }
-  >
+  Array<ReturnType<typeof transformPublicationFromDB> & { translatedChapterCount: number }>
 > {
   const limit = options.limit ?? 50;
   const offset = options.offset ?? 0;
@@ -3301,7 +3292,8 @@ async function listPublicationsPublicFallback(options: {
 
   let query = supabase.from('publications').select('*').eq('status', 'published');
   if (options.authorEntityId) query = query.eq('author_entity_id', options.authorEntityId);
-  if (options.translatorEntityId) query = query.eq('translator_entity_id', options.translatorEntityId);
+  if (options.translatorEntityId)
+    query = query.eq('translator_entity_id', options.translatorEntityId);
   if (options.tagEntityId) query = query.contains('tag_entity_ids', [options.tagEntityId]);
 
   const { data, error } = await query

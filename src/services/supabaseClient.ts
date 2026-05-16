@@ -7,10 +7,7 @@ const SUPABASE_REQUEST_TIMEOUT_MS = parseInt(
 
 /** Wraps fetch with a timeout to avoid hanging when Supabase is unresponsive. */
 function createFetchWithTimeout(timeoutMs: number): typeof fetch {
-  return async (
-    input: Parameters<typeof fetch>[0],
-    init?: RequestInit
-  ): Promise<Response> => {
+  return async (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

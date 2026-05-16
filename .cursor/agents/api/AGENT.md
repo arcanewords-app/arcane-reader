@@ -33,13 +33,13 @@ Owns the Express HTTP layer: routes, request validation, auth middleware, error 
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/server.ts` | Express entry, REST routes |
-| `src/middleware/auth.ts` | `requireAuth`, `optionalAuth`, `requireRole` |
-| `src/middleware/serviceHealth.ts` | `handleServiceError`, 503 responses |
-| `src/api/schemas/` | Zod schemas by domain |
-| `src/types/roles.ts` | Role hierarchy |
+| File                              | Purpose                                      |
+| --------------------------------- | -------------------------------------------- |
+| `src/server.ts`                   | Express entry, REST routes                   |
+| `src/middleware/auth.ts`          | `requireAuth`, `optionalAuth`, `requireRole` |
+| `src/middleware/serviceHealth.ts` | `handleServiceError`, 503 responses          |
+| `src/api/schemas/`                | Zod schemas by domain                        |
+| `src/types/roles.ts`              | Role hierarchy                               |
 
 ## Skill
 

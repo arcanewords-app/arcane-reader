@@ -121,6 +121,15 @@
   overflow: hidden; /* Обрезаем переполнение */
 }
 
+button.chapter-title {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: inherit;
+  font: inherit;
+  width: 100%;
+}
+
 .chapter-title {
   font-size: clamp(1.25rem, 3vw, 1.5rem);
   font-weight: 700;

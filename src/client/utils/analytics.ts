@@ -9,9 +9,12 @@ declare global {
 
 let gaInitialized = false;
 
-function sendWebVitalsToGA(
-  metric: { name: string; value: number; id: string; delta: number }
-): void {
+function sendWebVitalsToGA(metric: {
+  name: string;
+  value: number;
+  id: string;
+  delta: number;
+}): void {
   if (!window.gtag || !gaInitialized) return;
   const value = metric.name === 'CLS' ? Math.round(metric.value * 1000) : Math.round(metric.value);
   window.gtag('event', metric.name, {
@@ -34,9 +37,8 @@ export function initGA(measurementId: string): void {
   gaInitialized = true;
 
   window.dataLayer = window.dataLayer || [];
-  // Must use arguments (not array) — gtag.js expects this format
-  window.gtag = function () {
-    window.dataLayer?.push(arguments);
+  window.gtag = function gtag(...args: unknown[]) {
+    window.dataLayer?.push(args);
   };
   window.gtag('js', new Date());
 

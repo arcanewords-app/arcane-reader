@@ -23,10 +23,10 @@ domain: meta
 
 ## РЎСЃС‹Р»РєРё РЅР° РґРµС‚Р°Р»СЊРЅС‹Рµ РґРѕРєСѓРјРµРЅС‚С‹
 
-| Р”РѕРєСѓРјРµРЅС‚ | РЎРѕРґРµСЂР¶Р°РЅРёРµ |
-|---------|-------------|
+| Р”РѕРєСѓРјРµРЅС‚                     | РЎРѕРґРµСЂР¶Р°РЅРёРµ                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `ANALYSIS_TRANSLATION_SEPARATION.md` | РўРµРєСѓС‰РёР№ С„СѓРЅРєС†РёРѕРЅР°Р», РІР°СЂРёР°РЅС‚С‹ UX, edge cases, РїР»Р°РЅ СЂРµС„Р°РєС‚РѕСЂРёРЅРіР° |
-| `ANALYSIS_GLOSSARY_REVIEW_MODAL.md` | Option A/B РјРѕРґР°Р»РєРё, РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёРµ СЃ 3 СЃС‚Р°РґРёСЏРјРё Рё Р±Р°С‚С‡РµРј, API |
+| `ANALYSIS_GLOSSARY_REVIEW_MODAL.md`  | Option A/B РјРѕРґР°Р»РєРё, РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёРµ СЃ 3 СЃС‚Р°РґРёСЏРјРё Рё Р±Р°С‚С‡РµРј, API      |
 
 ---
 
@@ -55,11 +55,11 @@ domain: meta
 
 **Р¦РµР»СЊ:** РќРµРІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ Р·Р°РїСѓСЃРєР° analysis + translation РІ РѕРґРЅРѕРј РІС‹Р·РѕРІРµ.
 
-| РЁР°Рі | Р—Р°РґР°С‡Р° | Р¤Р°Р№Р»С‹ |
-|-----|--------|-------|
-| 1.1 | Р’Р°Р»РёРґР°С†РёСЏ `stages` РЅР° Р±СЌРєРµРЅРґРµ: 400 РїСЂРё analysis + (translation \| editing) | `server.ts` |
-| 1.2 | UX: РІР·Р°РёРјРѕРёСЃРєР»СЋС‡РµРЅРёРµ СЃС‚Р°РґРёР№ РІ `toggleStage` / `toggleBatchStage` | `TranslationPanel.tsx`, `ProcessChapters.tsx` |
-| 1.3 | Р›РѕРєР°Р»РёР·Р°С†РёСЏ, РїРѕРґСЃРєР°Р·РєРё | `locales/*.json` |
+| РЁР°Рі | Р—Р°РґР°С‡Р°                                                                                    | Р¤Р°Р№Р»С‹                                    |
+| ------ | ----------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 1.1    | Р’Р°Р»РёРґР°С†РёСЏ `stages` РЅР° Р±СЌРєРµРЅРґРµ: 400 РїСЂРё analysis + (translation \| editing) | `server.ts`                                   |
+| 1.2    | UX: РІР·Р°РёРјРѕРёСЃРєР»СЋС‡РµРЅРёРµ СЃС‚Р°РґРёР№ РІ `toggleStage` / `toggleBatchStage`         | `TranslationPanel.tsx`, `ProcessChapters.tsx` |
+| 1.3    | Р›РѕРєР°Р»РёР·Р°С†РёСЏ, РїРѕРґСЃРєР°Р·РєРё                                                      | `locales/*.json`                              |
 
 **Р РµР·СѓР»СЊС‚Р°С‚:** РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РјРѕР¶РµС‚ Р·Р°РїСѓСЃРєР°С‚СЊ С‚РѕР»СЊРєРѕ Р°РЅР°Р»РёР· РР›Р С‚РѕР»СЊРєРѕ РїРµСЂРµРІРѕРґ/СЂРµРґР°РєС‚СѓСЂСѓ.
 
@@ -71,24 +71,24 @@ domain: meta
 
 #### Р•СЃР»Рё Option B (РїСЂРѕС‰Рµ)
 
-| РЁР°Рі | Р—Р°РґР°С‡Р° | Р¤Р°Р№Р»С‹ |
-|-----|--------|-------|
-| 2.1 | Р”РѕР±Р°РІРёС‚СЊ `lastAnalysisEntryIds` РІ `translationMeta` | `database.ts`, `server.ts` |
-| 2.2 | РЎРѕС…СЂР°РЅСЏС‚СЊ `lastAnalysisEntryIds` РїСЂРё analysis-only | `server.ts` |
-| 2.3 | API СЃР±СЂРѕСЃР° `lastAnalysisEntryIds` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ) | `server.ts` |
-| 2.4 | РљРѕРјРїРѕРЅРµРЅС‚ `AnalysisGlossaryReviewModal` | РЅРѕРІС‹Р№ С„Р°Р№Р» |
-| 2.5 | РРЅС‚РµРіСЂР°С†РёСЏ: РїРѕРєР°Р· РїСЂРё `status === 'analyzed'` Рё `lastAnalysisEntryIds?.length` | `ChapterView`, `ProcessChapters` |
+| РЁР°Рі | Р—Р°РґР°С‡Р°                                                                                     | Р¤Р°Р№Р»С‹                       |
+| ------ | ------------------------------------------------------------------------------------------------ | -------------------------------- |
+| 2.1    | Р”РѕР±Р°РІРёС‚СЊ `lastAnalysisEntryIds` РІ `translationMeta`                                     | `database.ts`, `server.ts`       |
+| 2.2    | РЎРѕС…СЂР°РЅСЏС‚СЊ `lastAnalysisEntryIds` РїСЂРё analysis-only                                   | `server.ts`                      |
+| 2.3    | API СЃР±СЂРѕСЃР° `lastAnalysisEntryIds` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)                                 | `server.ts`                      |
+| 2.4    | РљРѕРјРїРѕРЅРµРЅС‚ `AnalysisGlossaryReviewModal`                                                 | РЅРѕРІС‹Р№ С„Р°Р№Р»              |
+| 2.5    | РРЅС‚РµРіСЂР°С†РёСЏ: РїРѕРєР°Р· РїСЂРё `status === 'analyzed'` Рё `lastAnalysisEntryIds?.length` | `ChapterView`, `ProcessChapters` |
 
 #### Р•СЃР»Рё Option A (РїРѕР»РЅС‹Р№ РєРѕРЅС‚СЂРѕР»СЊ)
 
-| РЁР°Рі | Р—Р°РґР°С‡Р° | Р¤Р°Р№Р»С‹ |
-|-----|--------|-------|
-| 2.1 | РҐСЂР°РЅРµРЅРёРµ `pendingGlossaryEntries` РІ РіР»Р°РІРµ | `database.ts`, `server.ts` |
-| 2.2 | Analysis-only: РЅРµ СЃРѕС…СЂР°РЅСЏС‚СЊ РіР»РѕСЃСЃР°СЂРёР№, СЃРѕС…СЂР°РЅСЏС‚СЊ pending | `server.ts` |
-| 2.3 | API `POST .../glossary/apply-pending` | `server.ts` |
-| 2.4 | `GET chapter` РІРѕР·РІСЂР°С‰Р°РµС‚ `pendingGlossaryEntries` | `server.ts` |
-| 2.5 | РљРѕРјРїРѕРЅРµРЅС‚ `AnalysisGlossaryReviewModal` СЃ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёРµРј, approve/reject | РЅРѕРІС‹Р№ С„Р°Р№Р» |
-| 2.6 | РРЅС‚РµРіСЂР°С†РёСЏ РІ UI | `ChapterView`, С…СѓРєРё |
+| РЁР°Рі | Р—Р°РґР°С‡Р°                                                                                       | Р¤Р°Р№Р»С‹                 |
+| ------ | -------------------------------------------------------------------------------------------------- | -------------------------- |
+| 2.1    | РҐСЂР°РЅРµРЅРёРµ `pendingGlossaryEntries` РІ РіР»Р°РІРµ                                            | `database.ts`, `server.ts` |
+| 2.2    | Analysis-only: РЅРµ СЃРѕС…СЂР°РЅСЏС‚СЊ РіР»РѕСЃСЃР°СЂРёР№, СЃРѕС…СЂР°РЅСЏС‚СЊ pending              | `server.ts`                |
+| 2.3    | API `POST .../glossary/apply-pending`                                                              | `server.ts`                |
+| 2.4    | `GET chapter` РІРѕР·РІСЂР°С‰Р°РµС‚ `pendingGlossaryEntries`                                        | `server.ts`                |
+| 2.5    | РљРѕРјРїРѕРЅРµРЅС‚ `AnalysisGlossaryReviewModal` СЃ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёРµРј, approve/reject | РЅРѕРІС‹Р№ С„Р°Р№Р»        |
+| 2.6    | РРЅС‚РµРіСЂР°С†РёСЏ РІ UI                                                                          | `ChapterView`, С…СѓРєРё    |
 
 **Р‘Р°С‚С‡ (Option A):** Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ вЂ” `POST .../batch-analyze` СЃ РЅР°РєРѕРїР»РµРЅРёРµРј pending.
 
@@ -96,13 +96,13 @@ domain: meta
 
 ## Р—Р°С‚СЂР°РіРёРІР°РµРјС‹Рµ РѕР±Р»Р°СЃС‚Рё
 
-| РћР±Р»Р°СЃС‚СЊ | Р¤Р°Р№Р»С‹ |
-|---------|-------|
-| **РЎРµСЂРІРµСЂ** | `server.ts` вЂ” РІР°Р»РёРґР°С†РёСЏ, pending/apply, batch-analyze |
-| **Р‘Р” / С‚РёРїС‹** | `database.ts`, `supabaseDatabase.ts`, `client/types` |
-| **UI** | `TranslationPanel.tsx`, `ProcessChapters.tsx`, `ChapterView` |
-| **РҐСѓРєРё** | `useChapterTranslation.ts`, `useBatchChapterTranslation.ts` |
-| **Engine** | Р‘РµР· РёР·РјРµРЅРµРЅРёР№ (РµСЃР»Рё СЂР°Р·РґРµР»РµРЅРёРµ С‚РѕР»СЊРєРѕ РЅР° СѓСЂРѕРІРЅРµ API/UI) |
+| РћР±Р»Р°СЃС‚СЊ      | Р¤Р°Р№Р»С‹                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| **РЎРµСЂРІРµСЂ**    | `server.ts` вЂ” РІР°Р»РёРґР°С†РёСЏ, pending/apply, batch-analyze                                |
+| **Р‘Р” / С‚РёРїС‹** | `database.ts`, `supabaseDatabase.ts`, `client/types`                                            |
+| **UI**              | `TranslationPanel.tsx`, `ProcessChapters.tsx`, `ChapterView`                                    |
+| **РҐСѓРєРё**        | `useChapterTranslation.ts`, `useBatchChapterTranslation.ts`                                     |
+| **Engine**          | Р‘РµР· РёР·РјРµРЅРµРЅРёР№ (РµСЃР»Рё СЂР°Р·РґРµР»РµРЅРёРµ С‚РѕР»СЊРєРѕ РЅР° СѓСЂРѕРІРЅРµ API/UI) |
 
 ---
 

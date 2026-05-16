@@ -3,8 +3,8 @@ type: explanation
 status: draft
 domain: meta
 stale: false
-created: {{date}}
-updated: {{date}}
+created: { { date } }
+updated: { { date } }
 canonical:
 ---
 
@@ -12,8 +12,4 @@ canonical:
 
 ## Summary
 
-
-
 ## See also
-
-

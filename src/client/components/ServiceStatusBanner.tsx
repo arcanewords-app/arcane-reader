@@ -11,7 +11,6 @@ export function ServiceStatusBanner() {
 
   const isRecovered = state.status === 'recovered';
   const isDown = state.status === 'down';
-  const isDegraded = state.status === 'degraded';
 
   const variant = isRecovered ? 'recovered' : isDown ? 'down' : 'degraded';
 

@@ -12,9 +12,25 @@ canonical: .cursor/rules/deployment.mdc
 
 ## Prerequisites
 
-- Node.js 20+
+- **Node.js 22** (see `.nvmrc`)
+- [NVM for Windows](https://github.com/coreybutler/nvm-windows) — `winget install CoreyButler.NVMforWindows`
 - Supabase project (URL + anon + service role keys)
 - OpenAI API key
+
+## Node version (nvm-windows)
+
+```powershell
+# New terminal after installing nvm
+nvm install 22
+nvm use 22
+node -v   # v22.x
+
+cd path\to\arcane-reader
+nvm use (Get-Content .nvmrc)   # or: nvm use 22
+npm install
+```
+
+Restart Cursor/terminal so `PATH` includes `C:\nvm4w\nodejs` and `%LOCALAPPDATA%\nvm`.
 
 ## Setup
 
@@ -26,12 +42,12 @@ cp env.example.txt .env
 
 ## Commands
 
-| Command | What runs |
-|---------|-----------|
-| `npm run dev` | Express API (3000) + Vite client (5173) |
-| `npm run dev:full` | Above + BullMQ worker (`src/worker.ts`) |
-| `npm run worker` | Worker only (needs Redis env) |
-| `npm run lint` / `npm run typecheck` | Quality checks before PR |
+| Command                              | What runs                               |
+| ------------------------------------ | --------------------------------------- |
+| `npm run dev`                        | Express API (3000) + Vite client (5173) |
+| `npm run dev:full`                   | Above + BullMQ worker (`src/worker.ts`) |
+| `npm run worker`                     | Worker only (needs Redis env)           |
+| `npm run lint` / `npm run typecheck` | Quality checks before PR                |
 
 ## Async translation / analysis
 

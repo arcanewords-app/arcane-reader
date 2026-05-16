@@ -3,15 +3,13 @@ type: plan
 status: active
 domain: meta
 stale: false
-created: {{date}}
-updated: {{date}}
+created: { { date } }
+updated: { { date } }
 ---
 
 # Plan: Title
 
 ## Goal
-
-
 
 ## Scope
 
@@ -24,5 +22,5 @@ updated: {{date}}
 
 ## Canonical references
 
-- Rules: 
-- Code: 
+- Rules:
+- Code:

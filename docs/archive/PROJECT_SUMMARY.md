@@ -15,7 +15,7 @@ domain: meta
 ## РљР»СЋС‡РµРІС‹Рµ С‚РµС…РЅРѕР»РѕРіРёРё
 
 - **Backend**: Node.js + Express + TypeScript
-- **Frontend**: Preact + Vite + TypeScript  
+- **Frontend**: Preact + Vite + TypeScript
 - **Database**: Supabase PostgreSQL
 - **Storage**: Supabase Storage (РёР·РѕР±СЂР°Р¶РµРЅРёСЏ)
 - **Auth**: Supabase Auth (JWT)
@@ -35,21 +35,25 @@ Frontend (Preact) в†’ Express API в†’ Supabase DB
 ## РћСЃРЅРѕРІРЅС‹Рµ СЃСѓС‰РЅРѕСЃС‚Рё
 
 ### Project
+
 - РЎРѕРґРµСЂР¶РёС‚ РіР»Р°РІС‹, РіР»РѕСЃСЃР°СЂРёР№, РЅР°СЃС‚СЂРѕР№РєРё
 - РўРёРїС‹: `book` (EPUB/FB2) РёР»Рё `text` (TXT)
 - РњРµС‚Р°РґР°РЅРЅС‹Рµ: РѕР±Р»РѕР¶РєР°, Р°РІС‚РѕСЂС‹, РѕРїРёСЃР°РЅРёРµ
 
 ### Chapter
+
 - РЎРѕРґРµСЂР¶РёС‚ РѕСЂРёРіРёРЅР°Р»СЊРЅС‹Р№ Рё РїРµСЂРµРІРµРґРµРЅРЅС‹Р№ С‚РµРєСЃС‚
 - Р Р°Р·Р±РёС‚ РЅР° РїР°СЂР°РіСЂР°С„С‹ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ
 - РЎС‚Р°С‚СѓСЃС‹: `pending`, `translating`, `completed`, `error`
 
 ### Paragraph
+
 - РњРёРЅРёРјР°Р»СЊРЅР°СЏ РµРґРёРЅРёС†Р° СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ
 - РЎС‚Р°С‚СѓСЃС‹: `pending`, `translated`, `edited`, `approved`
 - РЎРёРЅС…СЂРѕРЅРёР·РёСЂСѓРµС‚СЃСЏ СЃ РїРµСЂРµРІРµРґРµРЅРЅС‹Рј С‚РµРєСЃС‚РѕРј
 
 ### GlossaryEntry
+
 - РџРµСЂСЃРѕРЅР°Р¶Рё, Р»РѕРєР°С†РёРё, С‚РµСЂРјРёРЅС‹
 - РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ СЃРєР»РѕРЅРµРЅРёРµ РёРјРµРЅ
 - Р“Р°Р»РµСЂРµСЏ РёР·РѕР±СЂР°Р¶РµРЅРёР№
@@ -65,6 +69,7 @@ Frontend (Preact) в†’ Express API в†’ Supabase DB
 ## РљР»СЋС‡РµРІС‹Рµ С„Р°Р№Р»С‹
 
 ### Backend
+
 - `src/server.ts` вЂ” Express СЃРµСЂРІРµСЂ, РІСЃРµ API routes
 - `src/services/supabaseDatabase.ts` вЂ” СЂР°Р±РѕС‚Р° СЃ Р‘Р”
 - `src/services/engine-integration.ts` вЂ” РёРЅС‚РµРіСЂР°С†РёСЏ СЃ РґРІРёР¶РєРѕРј РїРµСЂРµРІРѕРґР°
@@ -73,11 +78,13 @@ Frontend (Preact) в†’ Express API в†’ Supabase DB
 - `src/middleware/auth.ts` вЂ” Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ С‡РµСЂРµР· Supabase
 
 ### Frontend
+
 - `src/client/App.tsx` РёР»Рё `AppRouter.tsx` вЂ” РіР»Р°РІРЅС‹Р№ РєРѕРјРїРѕРЅРµРЅС‚
 - `src/client/api/client.ts` вЂ” API РєР»РёРµРЅС‚
 - `src/client/components/` вЂ” UI РєРѕРјРїРѕРЅРµРЅС‚С‹
 
 ### Engine
+
 - `src/engine/pipeline/translation-pipeline.ts` вЂ” РѕСЃРЅРѕРІРЅРѕР№ pipeline
 - `src/engine/stages/` вЂ” СЃС‚Р°РґРёРё РїРµСЂРµРІРѕРґР°
 - `src/engine/agents/novel-agent.ts` вЂ” Р°РіРµРЅС‚ РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ РєРѕРЅС‚РµРєСЃС‚РѕРј
@@ -103,20 +110,24 @@ OPENAI_API_KEY=sk-...
 ## РћСЃРѕР±РµРЅРЅРѕСЃС‚Рё СЂРµР°Р»РёР·Р°С†РёРё
 
 ### РЎРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РїРµСЂРµРІРѕРґР° СЃ РїР°СЂР°РіСЂР°С„Р°РјРё
+
 - РџРµСЂРµРІРѕРґ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ `translatedChunks[]`
 - РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё СЃРёРЅС…СЂРѕРЅРёР·РёСЂСѓРµС‚СЃСЏ СЃ `paragraphs[]`
 - РџРѕРґРґРµСЂР¶РєР° С‡Р°СЃС‚РёС‡РЅРѕРіРѕ РїРµСЂРµРІРѕРґР° (С‚РѕР»СЊРєРѕ РїСѓСЃС‚С‹Рµ РїР°СЂР°РіСЂР°С„С‹)
 
 ### Р РµР¶РёРј РѕСЂРёРіРёРЅР°Р»СЊРЅРѕРіРѕ С‡С‚РµРЅРёСЏ
+
 - `originalReadingMode: true` вЂ” С‚РѕР»СЊРєРѕ Р°РЅР°Р»РёР·, Р±РµР· РїРµСЂРµРІРѕРґР°
 - РџРѕР»РµР·РЅРѕ РґР»СЏ С‡С‚РµРЅРёСЏ РѕСЂРёРіРёРЅР°Р»Р° СЃ Р°РЅР°Р»РёР·РѕРј СЃСѓС‰РЅРѕСЃС‚РµР№
 
 ### РќР°СЃС‚СЂРѕР№РєРё С‡С‚РµРЅРёСЏ
+
 - РЁСЂРёС„С‚С‹: literary, serif, sans, mono
 - Р¦РІРµС‚РѕРІС‹Рµ СЃС…РµРјС‹: dark, light, sepia, contrast
 - РќР°СЃС‚СЂРѕР№РєР° СЂР°Р·РјРµСЂР° С€СЂРёС„С‚Р°, РјРµР¶СЃС‚СЂРѕС‡РЅРѕРіРѕ РёРЅС‚РµСЂРІР°Р»Р°
 
 ### Р­РєСЃРїРѕСЂС‚
+
 - EPUB вЂ” С‡РµСЂРµР· Р±РёР±Р»РёРѕС‚РµРєСѓ `epub-gen`
 - FB2 вЂ” СЃРѕР±СЃС‚РІРµРЅРЅС‹Р№ РіРµРЅРµСЂР°С‚РѕСЂ XML
 - РЎРѕС…СЂР°РЅРµРЅРёРµ РјРµС‚Р°РґР°РЅРЅС‹С…, РѕР±Р»РѕР¶РµРє, СЃС‚СЂСѓРєС‚СѓСЂС‹ РіР»Р°РІ
@@ -124,20 +135,24 @@ OPENAI_API_KEY=sk-...
 ## РўРёРїРёС‡РЅС‹Рµ Р·Р°РґР°С‡Рё СЂР°Р·СЂР°Р±РѕС‚РєРё
 
 ### Р”РѕР±Р°РІРёС‚СЊ РЅРѕРІС‹Р№ API endpoint
+
 1. Р”РѕР±Р°РІРёС‚СЊ route РІ `src/server.ts`
 2. Р”РѕР±Р°РІРёС‚СЊ РјРµС‚РѕРґ РІ `src/client/api/client.ts`
 3. РћР±РЅРѕРІРёС‚СЊ С‚РёРїС‹ РІ `src/client/types/index.ts`
 
 ### Р”РѕР±Р°РІРёС‚СЊ РЅРѕРІС‹Р№ РєРѕРјРїРѕРЅРµРЅС‚
+
 1. РЎРѕР·РґР°С‚СЊ РІ `src/client/components/`
 2. РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ Preact hooks РґР»СЏ СЃРѕСЃС‚РѕСЏРЅРёСЏ
 3. РЎС‚РёР»Рё С‡РµСЂРµР· CSS РјРѕРґСѓР»Рё РёР»Рё inline styles
 
 ### РР·РјРµРЅРёС‚СЊ Р»РѕРіРёРєСѓ РїРµСЂРµРІРѕРґР°
+
 1. Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ СЃС‚Р°РґРёРё РІ `src/engine/stages/`
 2. РР»Рё РёР·РјРµРЅРёС‚СЊ pipeline РІ `src/engine/pipeline/translation-pipeline.ts`
 
 ### Р”РѕР±Р°РІРёС‚СЊ РїРѕРґРґРµСЂР¶РєСѓ РЅРѕРІРѕРіРѕ С„РѕСЂРјР°С‚Р°
+
 1. РЎРѕР·РґР°С‚СЊ РїР°СЂСЃРµСЂ РІ `src/services/import/`
 2. Р”РѕР±Р°РІРёС‚СЊ СЌРєСЃРїРѕСЂС‚РµСЂ РІ `src/services/export/`
 3. РћР±РЅРѕРІРёС‚СЊ С‚РёРїС‹ Рё РІР°Р»РёРґР°С†РёСЋ
@@ -152,6 +167,7 @@ OPENAI_API_KEY=sk-...
 ## РЎС‚СЂСѓРєС‚СѓСЂР° Р±Р°Р·С‹ РґР°РЅРЅС‹С…
 
 Р’СЃРµ РґР°РЅРЅС‹Рµ РІ Supabase PostgreSQL:
+
 - `projects` вЂ” РїСЂРѕРµРєС‚С‹ (СЃ JSON РїРѕР»СЏРјРё РґР»СЏ chapters, glossary)
 - Row Level Security (RLS) РґР»СЏ РёР·РѕР»СЏС†РёРё РґР°РЅРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 - Storage bucket `images` РґР»СЏ С„Р°Р№Р»РѕРІ
@@ -159,20 +175,23 @@ OPENAI_API_KEY=sk-...
 ## РџРѕС‚РѕРєРё РґР°РЅРЅС‹С…
 
 ### Р—Р°РіСЂСѓР·РєР° РіР»Р°РІС‹
+
 ```
 File upload в†’ Parse (TXT/EPUB/FB2) в†’ Create chapters в†’ Save to DB
 ```
 
 ### РџРµСЂРµРІРѕРґ РіР»Р°РІС‹
+
 ```
-User triggers в†’ Update status to "translating" в†’ 
-Pipeline (3 stages) в†’ Sync to paragraphs в†’ Save to DB в†’ 
+User triggers в†’ Update status to "translating" в†’
+Pipeline (3 stages) в†’ Sync to paragraphs в†’ Save to DB в†’
 Update status to "completed"
 ```
 
 ### Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РїР°СЂР°РіСЂР°С„Р°
+
 ```
-User edits в†’ Update paragraph в†’ Sync to chapter.translatedText в†’ 
+User edits в†’ Update paragraph в†’ Sync to chapter.translatedText в†’
 Save to DB
 ```
 

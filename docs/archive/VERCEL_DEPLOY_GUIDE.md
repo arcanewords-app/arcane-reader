@@ -38,6 +38,7 @@ npm run build
 **Framework Preset**: `Other` (РёР»Рё РѕСЃС‚Р°РІРёС‚СЊ РїСѓСЃС‚С‹Рј)
 
 **Build Settings** (РјРѕР¶РЅРѕ РѕСЃС‚Р°РІРёС‚СЊ РїСѓСЃС‚С‹РјРё - РІСЃС‘ РІ `vercel.json`):
+
 - **Build Command**: (РїСѓСЃС‚Рѕ) - РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ `npm run build` РёР· `vercel.json`
 - **Output Directory**: (РїСѓСЃС‚Рѕ) - РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ `dist/client` РёР· `vercel.json`
 - **Install Command**: (РїСѓСЃС‚Рѕ) - РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ `npm install` РёР· `vercel.json`
@@ -48,15 +49,16 @@ npm run build
 
 Р”РѕР±Р°РІСЊС‚Рµ РІСЃРµ РїРµСЂРµРјРµРЅРЅС‹Рµ РѕРєСЂСѓР¶РµРЅРёСЏ РёР· `.env`:
 
-| Variable | РћРїРёСЃР°РЅРёРµ | РџСЂРёРјРµСЂ |
-|----------|----------|--------|
-| `OPENAI_API_KEY` | API РєР»СЋС‡ OpenAI | `sk-...` |
-| `SUPABASE_URL` | URL РІР°С€РµРіРѕ Supabase РїСЂРѕРµРєС‚Р° | `https://xxx.supabase.co` |
-| `SUPABASE_ANON_KEY` | Anon РєР»СЋС‡ Supabase | `eyJ...` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service Role РєР»СЋС‡ (РґР»СЏ Storage) | `eyJ...` |
-| `NODE_ENV` | РћРєСЂСѓР¶РµРЅРёРµ | `production` |
+| Variable                    | РћРїРёСЃР°РЅРёРµ                         | РџСЂРёРјРµСЂ              |
+| --------------------------- | ---------------------------------------- | ------------------------- |
+| `OPENAI_API_KEY`            | API РєР»СЋС‡ OpenAI                      | `sk-...`                  |
+| `SUPABASE_URL`              | URL РІР°С€РµРіРѕ Supabase РїСЂРѕРµРєС‚Р° | `https://xxx.supabase.co` |
+| `SUPABASE_ANON_KEY`         | Anon РєР»СЋС‡ Supabase                   | `eyJ...`                  |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service Role РєР»СЋС‡ (РґР»СЏ Storage)   | `eyJ...`                  |
+| `NODE_ENV`                  | РћРєСЂСѓР¶РµРЅРёРµ                       | `production`              |
 
-**Р’Р°Р¶РЅРѕ**: 
+**Р’Р°Р¶РЅРѕ**:
+
 - `SUPABASE_SERVICE_ROLE_KEY` РЅСѓР¶РµРЅ РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ Storage (Р·Р°РіСЂСѓР·РєР°/СѓРґР°Р»РµРЅРёРµ С„Р°Р№Р»РѕРІ)
 - РќРµ РґРѕР±Р°РІР»СЏР№С‚Рµ `.env` С„Р°Р№Р» РІ git!
 
@@ -88,6 +90,7 @@ vercel
 ```
 
 РџСЂРё РїРµСЂРІРѕРј РґРµРїР»РѕРµ CLI СЃРїСЂРѕСЃРёС‚:
+
 - **Set up and deploy?** в†’ `Y`
 - **Which scope?** в†’ РІС‹Р±РµСЂРёС‚Рµ РІР°С€ Р°РєРєР°СѓРЅС‚
 - **Link to existing project?** в†’ `N` (РґР»СЏ РїРµСЂРІРѕРіРѕ СЂР°Р·Р°)
@@ -129,9 +132,11 @@ curl https://your-app.vercel.app/api/status
 ### 3. РџСЂРѕРІРµСЂРёС‚СЊ Р»РѕРіРё
 
 Р’ Vercel Dashboard:
+
 - **Deployments** в†’ РІС‹Р±РµСЂРёС‚Рµ РґРµРїР»РѕР№ в†’ **Functions** в†’ **View Function Logs**
 
 РР»Рё С‡РµСЂРµР· CLI:
+
 ```bash
 vercel logs
 ```
@@ -184,7 +189,7 @@ arcane-reader/
 
 1. **Install**: `npm install` - СѓСЃС‚Р°РЅРѕРІРєР° Р·Р°РІРёСЃРёРјРѕСЃС‚РµР№
 2. **Build**: `npm run build` - СЃР±РѕСЂРєР° РєР»РёРµРЅС‚Р° Рё СЃРµСЂРІРµСЂР°
-3. **Deploy**: 
+3. **Deploy**:
    - РЎС‚Р°С‚РёС‡РµСЃРєРёРµ С„Р°Р№Р»С‹ в†’ `dist/client` (CDN)
    - API в†’ `api/index.ts` (Serverless Function)
 4. **Routing**:
@@ -194,10 +199,12 @@ arcane-reader/
 ## рџ”„ РћР±РЅРѕРІР»РµРЅРёРµ РїРѕСЃР»Рµ РёР·РјРµРЅРµРЅРёР№
 
 ### Р§РµСЂРµР· Dashboard:
+
 - РџСЂРѕСЃС‚Рѕ Р·Р°РїСѓС€СЊС‚Рµ РёР·РјРµРЅРµРЅРёСЏ РІ git
 - Vercel Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё Р·Р°РґРµРїР»РѕРёС‚ РЅРѕРІСѓСЋ РІРµСЂСЃРёСЋ
 
 ### Р§РµСЂРµР· CLI:
+
 ```bash
 vercel --prod
 ```

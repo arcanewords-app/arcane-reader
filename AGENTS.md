@@ -4,14 +4,14 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 
 ## Start here
 
-| Need | Where |
-|------|--------|
+| Need                      | Where                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
 | Which agent owns the task | [`.cursor/rules/team-orchestrator.mdc`](.cursor/rules/team-orchestrator.mdc) (`alwaysApply`) |
-| Code style, PR checklist | [`.cursor/rules/core.mdc`](.cursor/rules/core.mdc) |
-| Module map, data flow | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc) |
-| Route map (SSOT) | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc) |
-| All domain rules | [`.cursor/rules/`](.cursor/rules/) |
-| Local dev, vault, grep | [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md) |
+| Code style, PR checklist  | [`.cursor/rules/core.mdc`](.cursor/rules/core.mdc)                                           |
+| Module map, data flow     | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc)                           |
+| Route map (SSOT)          | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc)                                     |
+| All domain rules          | [`.cursor/rules/`](.cursor/rules/)                                                           |
+| Local dev, vault, grep    | [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md)                     |
 
 **Workflow:** orchestrator → read active [`.cursor/agents/<domain>/AGENT.md`](.cursor/agents/) + [`.cursor/skills/<domain>/SKILL.md`](.cursor/skills/) → follow domain `.mdc` rules.
 

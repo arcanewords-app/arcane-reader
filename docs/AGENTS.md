@@ -13,14 +13,14 @@ This folder (`docs/`) is the **Obsidian vault root**. Open it directly in Obsidi
 
 ## Structure
 
-| Path | Purpose |
-|------|---------|
-| [[Home]] | Vault index |
-| [[05-plans/]] | Active product plans |
-| [[04-decisions/]] | ADRs |
+| Path                  | Purpose                    |
+| --------------------- | -------------------------- |
+| [[Home]]              | Vault index                |
+| [[05-plans/]]         | Active product plans       |
+| [[04-decisions/]]     | ADRs                       |
 | [[_canonical/rules/]] | Mirror of `.cursor/rules/` |
-| [[_meta/conventions]] | Vault + agent conventions |
-| [[archive/]] | Legacy (may be stale) |
+| [[_meta/conventions]] | Vault + agent conventions  |
+| [[archive/]]          | Legacy (may be stale)      |
 
 ## Rules
 

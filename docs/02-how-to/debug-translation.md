@@ -12,10 +12,10 @@ canonical: .cursor/rules/engine.mdc
 
 ## Sync vs async
 
-| Mode | Trigger | Where it runs |
-|------|---------|---------------|
-| Sync | Default batch/single translate | API process (`server.ts` + engine) |
-| Async | `?async=1` or `Prefer: respond-async` | BullMQ worker (`src/worker.ts`) |
+| Mode  | Trigger                               | Where it runs                      |
+| ----- | ------------------------------------- | ---------------------------------- |
+| Sync  | Default batch/single translate        | API process (`server.ts` + engine) |
+| Async | `?async=1` or `Prefer: respond-async` | BullMQ worker (`src/worker.ts`)    |
 
 Async requires `REDIS_URL` + worker. Poll job endpoints listed in [[../_canonical/rules/routing]].
 

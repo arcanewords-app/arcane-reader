@@ -23,10 +23,7 @@ import type { AnalysisJobPayload } from '../chapterQueue.js';
 import type { AnalysisJobChapter } from '../analysisJobStore.js';
 
 const analysisJobStore = createAnalysisJobStoreFromEnv();
-const ANALYSIS_JOB_TTL_SECONDS = parseInt(
-  process.env.ANALYSIS_JOB_TTL_SECONDS ?? '3600',
-  10
-);
+const ANALYSIS_JOB_TTL_SECONDS = parseInt(process.env.ANALYSIS_JOB_TTL_SECONDS ?? '3600', 10);
 
 export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void> {
   const { jobId, projectId, userId, estimatedTokens, chapterIds } = payload;
@@ -87,10 +84,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
     }, 500);
 
     try {
-      const analysisConcurrency = Math.max(
-        1,
-        config.translation?.analysisConcurrency ?? 4
-      );
+      const analysisConcurrency = Math.max(1, config.translation?.analysisConcurrency ?? 4);
       const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
         useCache: true,
         analysisConcurrency,
@@ -132,8 +126,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
                   tokensByStage: {
                     ...(existingChapter?.translationMeta?.tokensByStage || {}),
                     analysis: progResult.tokensUsed,
-                    translation:
-                      existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
+                    translation: existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
                     editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
                   },
                   duration: 0,
@@ -167,10 +160,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
         try {
           await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
         } catch (tokenError) {
-          logger.warn(
-            { err: tokenError },
-            'Failed to release tokens on cancel (non-critical)'
-          );
+          logger.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
         }
         return;
       }
@@ -199,9 +189,9 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
               useServiceRole: true,
             });
             if (entry) {
-              const merged = [
-                ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
-              ].sort((a, b) => a - b);
+              const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
+                (a, b) => a - b
+              );
               await updateGlossaryEntry(
                 projectId,
                 entryId,
@@ -254,10 +244,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
       try {
         await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
       } catch (tokenError) {
-        logger.warn(
-          { err: tokenError },
-          'Failed to release tokens on error (non-critical)'
-        );
+        logger.warn({ err: tokenError }, 'Failed to release tokens on error (non-critical)');
       }
     } finally {
       await analysisJobStore.removeFromProjectIndex(projectId, jobId);

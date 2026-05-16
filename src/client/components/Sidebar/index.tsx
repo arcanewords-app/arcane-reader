@@ -158,9 +158,7 @@ export function Sidebar({
         {onOpenReports && (
           <Button variant="secondary" onClick={onOpenReports} className="sidebar-action">
             <Icon name="flag" size="sm" /> {t('sidebar.reports')}{' '}
-            {reportsCount > 0 && (
-              <span class="sidebar-reports-badge">{reportsCount}</span>
-            )}
+            {reportsCount > 0 && <span class="sidebar-reports-badge">{reportsCount}</span>}
           </Button>
         )}
 

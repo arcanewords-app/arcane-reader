@@ -19,12 +19,12 @@ domain: meta
 
 РџРѕ РїСЂРѕРјРїС‚Сѓ РІ `engine/prompts/system/analyzer.ts` РѕР¶РёРґР°РµС‚СЃСЏ:
 
-| РЎСѓС‰РЅРѕСЃС‚СЊ   | РџРѕР»Рµ       | РћР¶РёРґР°РµРјС‹Рµ Р·РЅР°С‡РµРЅРёСЏ |
-|-----------|------------|---------------------|
-| characters | `gender`   | `male` \| `female` \| `neutral` \| `unknown` |
-| characters | `role`     | `protagonist` \| `antagonist` \| `supporting` \| `minor` |
-| locations  | `type`     | `city` \| `country` \| `building` \| `region` \| `world` \| `other` |
-| terms      | `category` | `skill` \| `magic` \| `item` \| `title` \| `organization` \| `race` \| `other` |
+| РЎСѓС‰РЅРѕСЃС‚СЊ | РџРѕР»Рµ   | РћР¶РёРґР°РµРјС‹Рµ Р·РЅР°С‡РµРЅРёСЏ                                            |
+| ---------------- | ---------- | ------------------------------------------------------------------------------ |
+| characters       | `gender`   | `male` \| `female` \| `neutral` \| `unknown`                                   |
+| characters       | `role`     | `protagonist` \| `antagonist` \| `supporting` \| `minor`                       |
+| locations        | `type`     | `city` \| `country` \| `building` \| `region` \| `world` \| `other`            |
+| terms            | `category` | `skill` \| `magic` \| `item` \| `title` \| `organization` \| `race` \| `other` |
 
 РќР° РїСЂР°РєС‚РёРєРµ РјРѕРґРµР»СЊ РјРѕР¶РµС‚ РІРµСЂРЅСѓС‚СЊ, РЅР°РїСЂРёРјРµСЂ: `"masculine"`, `"f"`, `"Female"`, `"town"`, `"spell"`, РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ РёР»Рё Р·РЅР°С‡РµРЅРёРµ РЅРµ РёР· СЃРїРёСЃРєР°.
 
@@ -64,12 +64,12 @@ domain: meta
 
 ## РС‚РѕРі
 
-| РСЃС‚РѕС‡РЅРёРє   | РџРѕР»Рµ / СЃСѓС‰РЅРѕСЃС‚СЊ | Р РёСЃРє Р±РµР· РЅРѕСЂРјР°Р»РёР·Р°С†РёРё        | Р“РґРµ РЅРѕСЂРјР°Р»РёР·СѓРµРј        |
-|-----------|------------------|------------------------------|------------------------|
-| LLM       | character.gender | РћС€РёР±РєР° `glossary_entries_gender_check` | stage-1 + Supabase     |
-| LLM       | location.type    | РќРµРІРµСЂРЅС‹Р№ С‚РёРї РІ РїР°Р№РїР»Р°Р№РЅРµ     | stage-1                |
-| LLM       | term.category    | РќРµРІРµСЂРЅР°СЏ РєР°С‚РµРіРѕСЂРёСЏ РІ РїР°Р№РїР»Р°Р№РЅРµ| stage-1                |
-| API/РєРѕРґ   | entry.type       | РћС€РёР±РєР° РїСЂРё РІСЃС‚Р°РІРєРµ (РµСЃР»Рё РµСЃС‚СЊ type_check) | Supabase               |
-| API/РєРѕРґ   | entry.gender     | РћС€РёР±РєР° `glossary_entries_gender_check` | Supabase               |
+| РСЃС‚РѕС‡РЅРёРє | РџРѕР»Рµ / СЃСѓС‰РЅРѕСЃС‚СЊ | Р РёСЃРє Р±РµР· РЅРѕСЂРјР°Р»РёР·Р°С†РёРё                          | Р“РґРµ РЅРѕСЂРјР°Р»РёР·СѓРµРј |
+| --------------- | --------------------------- | ----------------------------------------------------------------- | ----------------------------- |
+| LLM             | character.gender            | РћС€РёР±РєР° `glossary_entries_gender_check`                      | stage-1 + Supabase            |
+| LLM             | location.type               | РќРµРІРµСЂРЅС‹Р№ С‚РёРї РІ РїР°Р№РїР»Р°Р№РЅРµ                     | stage-1                       |
+| LLM             | term.category               | РќРµРІРµСЂРЅР°СЏ РєР°С‚РµРіРѕСЂРёСЏ РІ РїР°Р№РїР»Р°Р№РЅРµ         | stage-1                       |
+| API/РєРѕРґ      | entry.type                  | РћС€РёР±РєР° РїСЂРё РІСЃС‚Р°РІРєРµ (РµСЃР»Рё РµСЃС‚СЊ type_check) | Supabase                      |
+| API/РєРѕРґ      | entry.gender                | РћС€РёР±РєР° `glossary_entries_gender_check`                      | Supabase                      |
 
 РўР°РєРёРј РѕР±СЂР°Р·РѕРј, Рё РІС‹РІРѕРґ РЅРµР№СЂРѕСЃРµС‚Рё, Рё РґР°РЅРЅС‹Рµ РёР· API РїСЂРёРІРѕРґСЏС‚СЃСЏ Рє РґРѕРїСѓСЃС‚РёРјС‹Рј Р·РЅР°С‡РµРЅРёСЏРј РґРѕ Р·Р°РїРёСЃРё РІ Р‘Р” Рё РїСЂРё РїРµСЂРµРґР°С‡Рµ РїРѕ РїР°Р№РїР»Р°Р№РЅСѓ.

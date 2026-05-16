@@ -27,14 +27,14 @@ Owns the translation pipeline (Analyze → Translate → Edit), glossary logic, 
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/engine/index.ts` | Public exports |
-| `src/engine/stages/` | Analyze, Translate, Edit |
-| `src/engine/types/pipeline.ts`, `glossary.ts` | Core types |
-| `src/engine/prompts/system/` | System prompts |
-| `src/engine/constants/text-block-presets.ts` | Text block types |
-| `src/engine/glossary/` | Manager, declension |
+| File                                          | Purpose                  |
+| --------------------------------------------- | ------------------------ |
+| `src/engine/index.ts`                         | Public exports           |
+| `src/engine/stages/`                          | Analyze, Translate, Edit |
+| `src/engine/types/pipeline.ts`, `glossary.ts` | Core types               |
+| `src/engine/prompts/system/`                  | System prompts           |
+| `src/engine/constants/text-block-presets.ts`  | Text block types         |
+| `src/engine/glossary/`                        | Manager, declension      |
 
 Use `createAnalyzerPrompt`, `createTranslatorPrompt`, `createEditorPrompt` — do not inline prompts.
 

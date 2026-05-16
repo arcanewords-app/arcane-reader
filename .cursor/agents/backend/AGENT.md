@@ -30,14 +30,14 @@ Owns services, persistence, caching, async jobs, and import/export — the layer
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/services/supabaseDatabase.ts` | Primary DB access |
-| `src/services/redisCache.ts` | Redis helpers |
-| `src/shared/cacheContract.ts` | Cache keys, TTL, prefixes |
-| `src/storage/database.ts` | TypeScript DB types |
-| `src/worker.ts` | BullMQ consumer |
-| `src/services/import*`, `export*` | Book formats |
+| File                               | Purpose                   |
+| ---------------------------------- | ------------------------- |
+| `src/services/supabaseDatabase.ts` | Primary DB access         |
+| `src/services/redisCache.ts`       | Redis helpers             |
+| `src/shared/cacheContract.ts`      | Cache keys, TTL, prefixes |
+| `src/storage/database.ts`          | TypeScript DB types       |
+| `src/worker.ts`                    | BullMQ consumer           |
+| `src/services/import*`, `export*`  | Book formats              |
 
 For Supabase features: use `.cursor/skills/supabase-docs/SKILL.md` via SSH docs.
 

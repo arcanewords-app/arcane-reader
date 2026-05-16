@@ -9,5 +9,8 @@ export const paginationQuerySchema = z.object({
 });
 
 export const dateQuerySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });

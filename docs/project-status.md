@@ -30,14 +30,14 @@ Update this file when completing plans or shipping major features.
 
 ## Active plans (`05-plans/`)
 
-| Plan | Domain |
-|------|--------|
+| Plan                                      | Domain                      |
+| ----------------------------------------- | --------------------------- |
 | [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment |
-| [[05-plans/engine-refactor]] | Cancel/resume, draft saves |
-| [[05-plans/multilingual-ui-audit]] | Hardcoded string cleanup |
-| [[05-plans/reader-theme-improvements]] | Reader contrast/themes |
-| [[05-plans/seo-search-console]] | GSC submission |
-| [[05-plans/tokenization-follow-ups]] | Daily reset ops |
+| [[05-plans/engine-refactor]]              | Cancel/resume, draft saves  |
+| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup    |
+| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes      |
+| [[05-plans/seo-search-console]]           | GSC submission              |
+| [[05-plans/tokenization-follow-ups]]      | Daily reset ops             |
 
 ## Known tech debt
 

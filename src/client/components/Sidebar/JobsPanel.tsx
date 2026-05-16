@@ -38,7 +38,10 @@ function jobTypeLabel(type: 'analysis' | 'translate', t: (key: string) => string
   return type === 'analysis' ? t('jobsPanel.analysis') : t('jobsPanel.translation');
 }
 
-function formatStartedAgo(startedAt: string, t: (key: string, opts: { count: number }) => string): string {
+function formatStartedAgo(
+  startedAt: string,
+  t: (key: string, opts: { count: number }) => string
+): string {
   const started = new Date(startedAt).getTime();
   const minutes = Math.floor((Date.now() - started) / 60_000);
   if (minutes < 60) {
@@ -145,8 +148,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
     return () => clearTimeout(t);
   }, [expectingJobsUntil]);
 
-  const shouldPoll =
-    activeCount > 0 || (expectingJobsUntil > 0 && Date.now() < expectingJobsUntil);
+  const shouldPoll = activeCount > 0 || (expectingJobsUntil > 0 && Date.now() < expectingJobsUntil);
   const pollIntervalMs =
     activeCount > 0 ? JOBS_POLL_INTERVAL_ACTIVE_MS : JOBS_POLL_INTERVAL_IDLE_MS;
 
@@ -227,7 +229,9 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                     )}
                   </div>
                 )}
-                {(job.currentChapterTitle || job.totalTokensUsed > 0 || (isActive && job.startedAt)) && (
+                {(job.currentChapterTitle ||
+                  job.totalTokensUsed > 0 ||
+                  (isActive && job.startedAt)) && (
                   <div class="jobs-panel-item-meta">
                     {job.currentChapterTitle &&
                       (currentChapter?.chapterId ? (
@@ -257,9 +261,7 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                     )}
                     {isActive && job.startedAt && (
                       <>
-                        {(job.currentChapterTitle || job.totalTokensUsed > 0) && (
-                          <span> · </span>
-                        )}
+                        {(job.currentChapterTitle || job.totalTokensUsed > 0) && <span> · </span>}
                         <span class="jobs-panel-item-started">
                           {formatStartedAgo(job.startedAt, t)}
                         </span>

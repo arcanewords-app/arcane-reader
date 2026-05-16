@@ -226,10 +226,7 @@ function injectPublicationMeta(
 }
 
 /** Static page SEO meta (title, description). Russian default to match index.html. */
-const STATIC_PAGE_META: Record<
-  string,
-  { title: string; description: string }
-> = {
+const STATIC_PAGE_META: Record<string, { title: string; description: string }> = {
   '/': {
     title: 'Arcane — Переводчик новелл',
     description:
@@ -247,7 +244,8 @@ const STATIC_PAGE_META: Record<
   },
   '/contact': {
     title: 'Контакты',
-    description: 'По вопросам, предложениям и сотрудничеству с Arcane — библиотекой переводов новелл.',
+    description:
+      'По вопросам, предложениям и сотрудничеству с Arcane — библиотекой переводов новелл.',
   },
   '/privacy': {
     title: 'Политика конфиденциальности',
@@ -296,17 +294,26 @@ function injectStaticPageMeta(
       /<meta property="og:description" content="[^"]*" *\/?>/,
       `<meta property="og:description" content="${d}" />`
     )
-    .replace(/<meta property="og:image" content="[^"]*" *\/?>/, `<meta property="og:image" content="${img}" />`);
+    .replace(
+      /<meta property="og:image" content="[^"]*" *\/?>/,
+      `<meta property="og:image" content="${img}" />`
+    );
   if (!out.includes('og:url')) {
     out = out.replace(
       /<meta property="og:type" content="[^"]*" *\/?>/,
       `<meta property="og:url" content="${url}" />\n    <meta property="og:type" content="website" />`
     );
   } else {
-    out = out.replace(/<meta property="og:url" content="[^"]*" *\/?>/, `<meta property="og:url" content="${url}" />`);
+    out = out.replace(
+      /<meta property="og:url" content="[^"]*" *\/?>/,
+      `<meta property="og:url" content="${url}" />`
+    );
   }
   out = out
-    .replace(/<meta name="twitter:title" content="[^"]*" *\/?>/, `<meta name="twitter:title" content="${t}" />`)
+    .replace(
+      /<meta name="twitter:title" content="[^"]*" *\/?>/,
+      `<meta name="twitter:title" content="${t}" />`
+    )
     .replace(
       /<meta name="twitter:description" content="[^"]*" *\/?>/,
       `<meta name="twitter:description" content="${d}" />`
@@ -328,8 +335,7 @@ function injectOrganizationJsonLd(html: string, baseUrl: string): string {
     '@type': 'Organization',
     name: 'Arcane',
     url: baseUrl,
-    description:
-      'Arcane — библиотека переводов новелл. Переводчик с AI и глоссарием. EPUB, FB2.',
+    description: 'Arcane — библиотека переводов новелл. Переводчик с AI и глоссарием. EPUB, FB2.',
   };
   const website = {
     '@context': 'https://schema.org',
@@ -1139,9 +1145,7 @@ app.get('/api/health', async (_req, res) => {
       }
     }
 
-    const result = healthSnapshot
-      ? healthSnapshot.data
-      : serviceHealthManager.getHealthResult();
+    const result = healthSnapshot ? healthSnapshot.data : serviceHealthManager.getHealthResult();
     const statusCode = result.status === 'down' ? 503 : 200;
     res.status(statusCode).json(result);
   } catch (error) {
@@ -3403,10 +3407,7 @@ app.post(
         return;
       }
 
-      const analysisConcurrency = Math.max(
-        1,
-        config.translation?.analysisConcurrency ?? 4
-      );
+      const analysisConcurrency = Math.max(1, config.translation?.analysisConcurrency ?? 4);
       const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
         useCache: true,
         analysisConcurrency,
@@ -5788,13 +5789,7 @@ app.patch(
         });
       }
 
-      await updateTranslationReportStatus(
-        projectId,
-        reportId,
-        userId,
-        token,
-        parsed.data.status
-      );
+      await updateTranslationReportStatus(projectId, reportId, userId, token, parsed.data.status);
       await redisDelMany([projectReportsCountCacheKey(projectId)]);
       res.json({ success: true });
     } catch (error) {
@@ -6037,7 +6032,6 @@ app.delete(
   }
 );
 
-
 // Bulk delete glossary entries
 app.post(
   '/api/projects/:projectId/glossary/bulk-delete',
@@ -6063,11 +6057,7 @@ app.post(
       }
       const { entryIds } = parsed.data;
 
-      const deletedCount = await deleteGlossaryEntriesBulk(
-        req.params.projectId,
-        entryIds,
-        token
-      );
+      const deletedCount = await deleteGlossaryEntriesBulk(req.params.projectId, entryIds, token);
 
       clearAgentCache(req.params.projectId);
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
@@ -6077,7 +6067,7 @@ app.post(
       res.status(500).json({ error: 'Failed to bulk delete glossary entries' });
     }
   }
-);  
+);
 // Suggest glossary merges (LLM analyzes and returns groups of entries to merge)
 app.post(
   '/api/projects/:projectId/glossary/suggest-merges',
@@ -7243,42 +7233,42 @@ app.post(
       const folder = `publication-${publicationId}`;
 
       for (const format of formats) {
-          if (format !== 'epub' && format !== 'fb2') continue;
-          const ext = format;
-          const filename = `${exportBaseName}.${ext}`;
+        if (format !== 'epub' && format !== 'fb2') continue;
+        const ext = format;
+        const filename = `${exportBaseName}.${ext}`;
 
-          {
-            const exportedPath = await exportProject(fullProject, {
-              format,
-              outputDir: tmpDir,
-              filename,
-              author: author ?? undefined,
-            });
+        {
+          const exportedPath = await exportProject(fullProject, {
+            format,
+            outputDir: tmpDir,
+            filename,
+            author: author ?? undefined,
+          });
 
-            if (!fs.existsSync(exportedPath)) {
-              throw new Error(`Файл не был создан: ${exportedPath}`);
-            }
+          if (!fs.existsSync(exportedPath)) {
+            throw new Error(`Файл не был создан: ${exportedPath}`);
+          }
 
-            const fileBuffer = fs.readFileSync(exportedPath);
-            const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
-            const storagePath = `${folder}/${filename}`;
+          const fileBuffer = fs.readFileSync(exportedPath);
+          const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
+          const storagePath = `${folder}/${filename}`;
 
-            await uploadFile('exports', storagePath, fileBuffer, {
-              contentType,
-              cacheControl: '3600',
-              upsert: true,
-            });
+          await uploadFile('exports', storagePath, fileBuffer, {
+            contentType,
+            cacheControl: '3600',
+            upsert: true,
+          });
 
-            if (format === 'epub') epubStoragePath = storagePath;
-            else fb2StoragePath = storagePath;
+          if (format === 'epub') epubStoragePath = storagePath;
+          else fb2StoragePath = storagePath;
 
-            try {
-              fs.unlinkSync(exportedPath);
-            } catch {
-              /* ignore */
-            }
+          try {
+            fs.unlinkSync(exportedPath);
+          } catch {
+            /* ignore */
           }
         }
+      }
 
       await updatePublicationExportPaths(publicationId, req.user.id, token, {
         epubStoragePath: formats.includes('epub') ? epubStoragePath : undefined,
@@ -7303,119 +7293,108 @@ app.post(
     } catch (error: unknown) {
       if (handleServiceError(error, req, res)) return;
       req.log?.error({ err: error }, 'Build exports error');
-      res
-        .status(500)
-        .json({
-          error: error instanceof Error ? error.message : 'Failed to build publication exports',
-        });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to build publication exports',
+      });
     }
   }
 );
 
 // ============ Publication Display Settings (author: toggle showGlossary) ============
 
-app.patch(
-  '/api/publications/:id',
-  requireAuth,
-  requireRole('author'),
-  async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const parsed = publicationDisplaySettingsBodySchema.safeParse(req.body ?? {});
-      if (!parsed.success) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          details: parsed.error.flatten().fieldErrors,
-        });
-      }
-      const data = parsed.data;
-      if (Object.keys(data).length === 0) {
-        return res.status(400).json({ error: 'No display settings to update' });
-      }
-
-      const pub = await getPublicationBySlugOrId(req.params.id);
-      if (!pub) {
-        return res.status(404).json({ error: 'Publication not found' });
-      }
-      if (pub.status !== 'published') {
-        return res.status(400).json({ error: 'Publication must be published' });
-      }
-
-      const token = requireToken(req);
-      const project = await getProject(pub.projectId, req.user.id, token);
-      if (!project) {
-        return res.status(403).json({ error: 'Forbidden: not the publication owner' });
-      }
-
-      await updatePublicationDisplaySettings(pub.id, req.user.id, token, data);
-
-      await invalidatePublicationCaches(pub.id, pub.id);
-      if (pub.slug) {
-        await invalidatePublicationCaches(pub.slug);
-      }
-
-      res.json({ success: true });
-    } catch (error: unknown) {
-      if (handleServiceError(error, req, res)) return;
-      const msg = error instanceof Error ? error.message : 'Failed to update publication';
-      res.status(500).json({ error: msg });
+app.patch('/api/publications/:id', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    const parsed = publicationDisplaySettingsBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const data = parsed.data;
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No display settings to update' });
+    }
+
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+    if (pub.status !== 'published') {
+      return res.status(400).json({ error: 'Publication must be published' });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(pub.projectId, req.user.id, token);
+    if (!project) {
+      return res.status(403).json({ error: 'Forbidden: not the publication owner' });
+    }
+
+    await updatePublicationDisplaySettings(pub.id, req.user.id, token, data);
+
+    await invalidatePublicationCaches(pub.id, pub.id);
+    if (pub.slug) {
+      await invalidatePublicationCaches(pub.slug);
+    }
+
+    res.json({ success: true });
+  } catch (error: unknown) {
+    if (handleServiceError(error, req, res)) return;
+    const msg = error instanceof Error ? error.message : 'Failed to update publication';
+    res.status(500).json({ error: msg });
   }
-);
+});
 
 // ============ Publication Download (user+: download built EPUB/FB2) ============
 
-app.get(
-  '/api/publications/:id/download',
-  requireAuth,
-  async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const queryResult = publicationDownloadQuerySchema.safeParse(req.query);
-      if (!queryResult.success) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          details: queryResult.error.flatten().fieldErrors,
-        });
-      }
-      const { format } = queryResult.data;
-
-      const pub = await getPublicationBySlugOrId(req.params.id);
-      if (!pub) {
-        return res.status(404).json({ error: 'Publication not found' });
-      }
-      if (pub.status !== 'published') {
-        return res.status(404).json({ error: 'Publication not found' });
-      }
-
-      const storagePath = format === 'epub' ? pub.epubStoragePath : pub.fb2StoragePath;
-      if (!storagePath) {
-        return res.status(404).json({ error: 'Export not built yet' });
-      }
-
-      const buffer = await downloadFile('exports', storagePath);
-      const filename = storagePath.split('/').pop() || `book.${format}`;
-
-      const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
-
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Length', buffer.length.toString());
-      res.send(buffer);
-    } catch (error: unknown) {
-      if (handleServiceError(error, req, res)) return;
-      const msg = error instanceof Error ? error.message : 'Download failed';
-      req.log?.error({ err: error }, 'Publication download error');
-      res.status(500).json({ error: msg });
+app.get('/api/publications/:id/download', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    const queryResult = publicationDownloadQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: queryResult.error.flatten().fieldErrors,
+      });
+    }
+    const { format } = queryResult.data;
+
+    const pub = await getPublicationBySlugOrId(req.params.id);
+    if (!pub) {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+    if (pub.status !== 'published') {
+      return res.status(404).json({ error: 'Publication not found' });
+    }
+
+    const storagePath = format === 'epub' ? pub.epubStoragePath : pub.fb2StoragePath;
+    if (!storagePath) {
+      return res.status(404).json({ error: 'Export not built yet' });
+    }
+
+    const buffer = await downloadFile('exports', storagePath);
+    const filename = storagePath.split('/').pop() || `book.${format}`;
+
+    const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.send(buffer);
+  } catch (error: unknown) {
+    if (handleServiceError(error, req, res)) return;
+    const msg = error instanceof Error ? error.message : 'Download failed';
+    req.log?.error({ err: error }, 'Publication download error');
+    res.status(500).json({ error: msg });
   }
-);
+});
 
 // Cyrillic (Russian/Ukrainian) to Latin transliteration for readable export filenames.
 const CYRILLIC_TO_LATIN: Record<string, string> = {
@@ -8434,7 +8413,9 @@ async function servePublicationHtml(
     }
   } else {
     const hasBuiltExports = !!(pub.epubStoragePath || pub.fb2StoragePath);
-    pageDesc = hasBuiltExports ? `${pageDesc} Читать онлайн или скачать EPUB, FB2.` : `${pageDesc} Читать онлайн.`;
+    pageDesc = hasBuiltExports
+      ? `${pageDesc} Читать онлайн или скачать EPUB, FB2.`
+      : `${pageDesc} Читать онлайн.`;
   }
 
   const hasExport = !!(pub.epubStoragePath || pub.fb2StoragePath);

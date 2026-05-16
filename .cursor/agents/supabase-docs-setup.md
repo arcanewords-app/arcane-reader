@@ -11,7 +11,6 @@ When invoked:
 1. **Explain the purpose** in one short paragraph: this tool delivers Supabase docs over SSH/bash so they can be appended to project instructions or saved as a skill.
 
 2. **Ask which option they want** (use the AskQuestion tool if available, otherwise ask in plain text):
-
    - **Option 1 — Append to agent instructions (recommended)**  
      Lightweight instructions in the project’s agent file; always loaded; small footprint.
 

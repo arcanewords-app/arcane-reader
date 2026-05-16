@@ -445,7 +445,7 @@ export class TranslateStage {
         if (response.data && response.data.paragraphs && Array.isArray(response.data.paragraphs)) {
           const paras = response.data.paragraphs;
           const hasMarkers = paras.some(
-            (p) => p.id && typeof p.id === 'string' && /^--para:[^\-]+--$/.test(p.id.trim())
+            (p) => p.id && typeof p.id === 'string' && /^--para:[^-]+--$/.test(p.id.trim())
           );
           if (hasMarkers) {
             // Preserve paragraph markers for server-side sync by id

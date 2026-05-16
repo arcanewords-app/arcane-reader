@@ -3,8 +3,8 @@ type: how-to
 status: draft
 domain: meta
 stale: false
-created: {{date}}
-updated: {{date}}
+created: { { date } }
+updated: { { date } }
 canonical:
 ---
 
@@ -12,12 +12,8 @@ canonical:
 
 ## Prerequisites
 
-
-
 ## Steps
 
 1.
 
 ## Verification
-
-

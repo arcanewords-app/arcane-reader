@@ -46,15 +46,15 @@ parseTextToParagraphs(originalText)
 
 ### 1.4 РЎРѕСЃС‚РѕСЏРЅРёРµ РїРѕСЃР»Рµ Р·Р°РіСЂСѓР·РєРё
 
-| РџРѕР»Рµ | Р—РЅР°С‡РµРЅРёРµ |
-|------|----------|
-| `chapter.originalText` | РџРѕР»РЅС‹Р№ С‚РµРєСЃС‚ РёР· С„Р°Р№Р»Р° |
-| `chapter.translatedText` | undefined |
-| `chapter.translatedChunks` | undefined |
-| `chapter.status` | `'pending'` |
-| `paragraph.originalText` | РўРµРєСЃС‚ Р°Р±Р·Р°С†Р° |
-| `paragraph.translatedText` | undefined |
-| `paragraph.status` | `'pending'` |
+| РџРѕР»Рµ                   | Р—РЅР°С‡РµРЅРёРµ                        |
+| -------------------------- | --------------------------------------- |
+| `chapter.originalText`     | РџРѕР»РЅС‹Р№ С‚РµРєСЃС‚ РёР· С„Р°Р№Р»Р° |
+| `chapter.translatedText`   | undefined                               |
+| `chapter.translatedChunks` | undefined                               |
+| `chapter.status`           | `'pending'`                             |
+| `paragraph.originalText`   | РўРµРєСЃС‚ Р°Р±Р·Р°С†Р°                 |
+| `paragraph.translatedText` | undefined                               |
+| `paragraph.status`         | `'pending'`                             |
 
 ---
 
@@ -104,16 +104,16 @@ chapter.translationMeta = {
 
 ### 3.4 РЎРѕСЃС‚РѕСЏРЅРёРµ РїРѕСЃР»Рµ РґРµР№СЃС‚РІРёСЏ
 
-| РџРѕР»Рµ | Р—РЅР°С‡РµРЅРёРµ |
-|------|----------|
-| `chapter.originalText` | `""` |
-| `chapter.translatedText` | РўРµРєСЃС‚ РіР»Р°РІС‹ (РёР· РїР°СЂР°РіСЂР°С„РѕРІ) |
-| `chapter.translatedChunks` | РњР°СЃСЃРёРІ Р°Р±Р·Р°С†РµРІ |
-| `chapter.status` | `'completed'` |
-| `chapter.translationMeta.source` | `'uploaded'` |
-| `paragraph.originalText` | Р‘РµР· РёР·РјРµРЅРµРЅРёР№ (РєР°Рє РІ Р‘Р”) |
-| `paragraph.translatedText` | РўРµРєСЃС‚ Р°Р±Р·Р°С†Р° |
-| `paragraph.status` | `'translated'` |
+| РџРѕР»Рµ                         | Р—РЅР°С‡РµРЅРёРµ                                  |
+| -------------------------------- | ------------------------------------------------- |
+| `chapter.originalText`           | `""`                                              |
+| `chapter.translatedText`         | РўРµРєСЃС‚ РіР»Р°РІС‹ (РёР· РїР°СЂР°РіСЂР°С„РѕРІ) |
+| `chapter.translatedChunks`       | РњР°СЃСЃРёРІ Р°Р±Р·Р°С†РµРІ                       |
+| `chapter.status`                 | `'completed'`                                     |
+| `chapter.translationMeta.source` | `'uploaded'`                                      |
+| `paragraph.originalText`         | Р‘РµР· РёР·РјРµРЅРµРЅРёР№ (РєР°Рє РІ Р‘Р”)        |
+| `paragraph.translatedText`       | РўРµРєСЃС‚ Р°Р±Р·Р°С†Р°                           |
+| `paragraph.status`               | `'translated'`                                    |
 
 ---
 
@@ -147,13 +147,13 @@ chapter.translationMeta = {
 
 ## 5. Р’Р°Р»РёРґР°С†РёСЏ Рё РіСЂР°РЅРёС‡РЅС‹Рµ СЃР»СѓС‡Р°Рё
 
-| РЎР»СѓС‡Р°Р№ | Р РµС€РµРЅРёРµ |
-|--------|---------|
-| РќРµС‚ РїР°СЂР°РіСЂР°С„РѕРІ | 400, СЃРѕРѕР±С‰РµРЅРёРµ В«РќРµС‚ РїР°СЂР°РіСЂР°С„РѕРІВ» |
-| `status === 'translating'` | 400, В«Р”РѕР¶РґРёС‚РµСЃСЊ Р·Р°РІРµСЂС€РµРЅРёСЏ РїРµСЂРµРІРѕРґР°В» |
-| РЈР¶Рµ `status === 'completed'` | РњРѕР¶РЅРѕ СЂР°Р·СЂРµС€РёС‚СЊ (РїРѕРІС‚РѕСЂРЅРѕРµ РЅР°Р¶Р°С‚РёРµ вЂ” РёРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚СЊ) РёР»Рё 400 |
-| РџСѓСЃС‚С‹Рµ `paragraph.originalText` | РљРѕРїРёСЂСѓРµРј РєР°Рє РµСЃС‚СЊ: `translatedText = ""`, `status = 'translated'` |
-| Separator-РїР°СЂР°РіСЂР°С„С‹ | РСЃРєР»СЋС‡РµРЅС‹ РІ `parseTextToParagraphs`, РЅРµ СЂР°СЃСЃРјР°С‚СЂРёРІР°РµРј |
+| РЎР»СѓС‡Р°Р№                          | Р РµС€РµРЅРёРµ                                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| РќРµС‚ РїР°СЂР°РіСЂР°С„РѕРІ           | 400, СЃРѕРѕР±С‰РµРЅРёРµ В«РќРµС‚ РїР°СЂР°РіСЂР°С„РѕРІВ»                                                         |
+| `status === 'translating'`            | 400, В«Р”РѕР¶РґРёС‚РµСЃСЊ Р·Р°РІРµСЂС€РµРЅРёСЏ РїРµСЂРµРІРѕРґР°В»                                               |
+| РЈР¶Рµ `status === 'completed'`       | РњРѕР¶РЅРѕ СЂР°Р·СЂРµС€РёС‚СЊ (РїРѕРІС‚РѕСЂРЅРѕРµ РЅР°Р¶Р°С‚РёРµ вЂ” РёРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚СЊ) РёР»Рё 400 |
+| РџСѓСЃС‚С‹Рµ `paragraph.originalText` | РљРѕРїРёСЂСѓРµРј РєР°Рє РµСЃС‚СЊ: `translatedText = ""`, `status = 'translated'`                                |
+| Separator-РїР°СЂР°РіСЂР°С„С‹          | РСЃРєР»СЋС‡РµРЅС‹ РІ `parseTextToParagraphs`, РЅРµ СЂР°СЃСЃРјР°С‚СЂРёРІР°РµРј                                   |
 
 ---
 

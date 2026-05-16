@@ -26,12 +26,7 @@ export function ChapterStatusSelect({
   const currentStatus = chapter.status;
 
   if (currentStatus === 'translating') {
-    return (
-      <StatusBadge
-        status={currentStatus}
-        showText={currentStatus !== 'completed'}
-      />
-    );
+    return <StatusBadge status={currentStatus} showText={currentStatus !== 'completed'} />;
   }
 
   const handleSelect = async (status: ChapterStatus) => {
@@ -84,7 +79,9 @@ export function ChapterStatusSelect({
                 disabled={saving}
               >
                 <StatusBadge status={status} showText={true} />
-                {isCurrent && <Icon name="check" size="sm" className="chapter-status-select-check" />}
+                {isCurrent && (
+                  <Icon name="check" size="sm" className="chapter-status-select-check" />
+                )}
               </button>
             );
           })}

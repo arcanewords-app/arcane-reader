@@ -51,15 +51,15 @@ Code → Rule (if pattern changes) → 05-plans/ detail → update ROADMAP + pro
 
 Context preserved from May 2026 documentation setup.
 
-| Milestone | Deliverable |
-|-----------|-------------|
-| Rules SSOT | 13 rules in `.cursor/rules/`: core, architecture, team-orchestrator, api, routing, cache, auth, engine, client, design-system, deployment, logging, local-dev |
-| Vault skeleton | [[Home]], `_meta/`, `00-start` … `06-runbooks`, `templates/`, junction `_canonical/rules/` |
-| Legacy triage | 74 files → [[archive/README]] with `stale: true`; triage log in [[_meta/archive-triage]] |
-| ADR | [[04-decisions/adr-0000-rules-first-documentation-ssot]] |
-| How-to | [[02-how-to/run-locally]], [[02-how-to/obsidian-vault]], [[02-how-to/add-feature]], [[02-how-to/debug-translation]] |
-| AI anchors | [[project-status]], `Active Plans.base` (Obsidian) |
-| Repo integration | `AGENTS.md`, `README.md`, `docs/` un-ignored in `.gitignore` |
+| Milestone        | Deliverable                                                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rules SSOT       | 13 rules in `.cursor/rules/`: core, architecture, team-orchestrator, api, routing, cache, auth, engine, client, design-system, deployment, logging, local-dev |
+| Vault skeleton   | [[Home]], `_meta/`, `00-start` … `06-runbooks`, `templates/`, junction `_canonical/rules/`                                                                    |
+| Legacy triage    | 74 files → [[archive/README]] with `stale: true`; triage log in [[_meta/archive-triage]]                                                                      |
+| ADR              | [[04-decisions/adr-0000-rules-first-documentation-ssot]]                                                                                                      |
+| How-to           | [[02-how-to/run-locally]], [[02-how-to/obsidian-vault]], [[02-how-to/add-feature]], [[02-how-to/debug-translation]]                                           |
+| AI anchors       | [[project-status]], `Active Plans.base` (Obsidian)                                                                                                            |
+| Repo integration | `AGENTS.md`, `README.md`, `docs/` un-ignored in `.gitignore`                                                                                                  |
 
 Route map SSOT: [[_canonical/rules/routing]] (not `docs/ROUTES.md` stub).
 
@@ -67,16 +67,16 @@ Route map SSOT: [[_canonical/rules/routing]] (not `docs/ROUTES.md` stub).
 
 ## Product state (verified snapshot)
 
-| Area | Status |
-|------|--------|
-| Public catalog & publications | `/`, `/catalog`, `/p/:id`, reading mode |
-| Author workspace | Projects, chapters, glossary, merge suggestions |
-| Translation pipeline | Analyze → Translate → Edit; text block markers |
-| Import / export | EPUB, FB2; publication build-exports |
-| Token limits | Daily usage API + UI; middleware enforcement |
-| Async jobs | BullMQ analysis/translate (Redis + worker) |
-| SEO (technical) | robots.txt, sitemap.xml, dynamic publication meta |
-| UI i18n | ru / en / pl + header locale switcher |
+| Area                          | Status                                            |
+| ----------------------------- | ------------------------------------------------- |
+| Public catalog & publications | `/`, `/catalog`, `/p/:id`, reading mode           |
+| Author workspace              | Projects, chapters, glossary, merge suggestions   |
+| Translation pipeline          | Analyze → Translate → Edit; text block markers    |
+| Import / export               | EPUB, FB2; publication build-exports              |
+| Token limits                  | Daily usage API + UI; middleware enforcement      |
+| Async jobs                    | BullMQ analysis/translate (Redis + worker)        |
+| SEO (technical)               | robots.txt, sitemap.xml, dynamic publication meta |
+| UI i18n                       | ru / en / pl + header locale switcher             |
 
 Details and tech debt: [[project-status]].
 
@@ -86,35 +86,35 @@ Details and tech debt: [[project-status]].
 
 ### P0 — Engine quality (core product)
 
-| ID | Theme | Plan | Open work (summary) |
-|----|-------|------|---------------------|
-| **E1** | Stage 3 paragraph alignment | [[05-plans/engine-pipeline-improvements]] | `--para:{id}--` markers in editor; chunk/paragraph boundary alignment |
-| **E2** | Engine hardening | [[05-plans/engine-refactor]] | Cancel/resume by chunk; draft saves during long translate; document edge cases |
+| ID     | Theme                       | Plan                                      | Open work (summary)                                                            |
+| ------ | --------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| **E1** | Stage 3 paragraph alignment | [[05-plans/engine-pipeline-improvements]] | `--para:{id}--` markers in editor; chunk/paragraph boundary alignment          |
+| **E2** | Engine hardening            | [[05-plans/engine-refactor]]              | Cancel/resume by chunk; draft saves during long translate; document edge cases |
 
 ### P1 — UX and reach
 
-| ID | Theme | Plan | Open work (summary) |
-|----|-------|------|---------------------|
+| ID     | Theme                | Plan                                   | Open work (summary)                                                    |
+| ------ | -------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
 | **U1** | Reader themes / a11y | [[05-plans/reader-theme-improvements]] | WCAG contrast for `data-reader-theme`; publication vs project defaults |
-| **U2** | i18n completeness | [[05-plans/multilingual-ui-audit]] | Grep hardcoded UI strings; parity across en/ru/pl |
-| **I1** | SEO operations | [[05-plans/seo-search-console]] | Google Search Console, sitemap submit (tech SEO already in code) |
+| **U2** | i18n completeness    | [[05-plans/multilingual-ui-audit]]     | Grep hardcoded UI strings; parity across en/ru/pl                      |
+| **I1** | SEO operations       | [[05-plans/seo-search-console]]        | Google Search Console, sitemap submit (tech SEO already in code)       |
 
 ### P2 — Ops and platform
 
-| ID | Theme | Plan | Open work (summary) |
-|----|-------|------|---------------------|
-| **O1** | Token limits ops | [[05-plans/tokenization-follow-ups]] | Daily reset cron/RPC; admin unlimited paths |
-| **O2** | Production worker | [[_canonical/rules/deployment]] | Document/run BullMQ worker beside Vercel API |
+| ID     | Theme             | Plan                                 | Open work (summary)                          |
+| ------ | ----------------- | ------------------------------------ | -------------------------------------------- |
+| **O1** | Token limits ops  | [[05-plans/tokenization-follow-ups]] | Daily reset cron/RPC; admin unlimited paths  |
+| **O2** | Production worker | [[_canonical/rules/deployment]]      | Document/run BullMQ worker beside Vercel API |
 
 ### P3 — Backlog (archive review required)
 
 Do **not** start without triage against `src/`. If still relevant, create a new `05-plans/kebab-name.md`.
 
-| Archive file | Topic |
-|--------------|--------|
-| `REFACTOR_PLAN.md` | Large cross-cutting refactor |
+| Archive file                                                              | Topic                         |
+| ------------------------------------------------------------------------- | ----------------------------- |
+| `REFACTOR_PLAN.md`                                                        | Large cross-cutting refactor  |
 | `UPLOAD_TRANSLATION_PLAN.md`, `UPLOAD_TRANSLATION_IMPLEMENTATION_PLAN.md` | Upload ready-made translation |
-| `ROLES_AND_AUTH_REFACTOR_PLAN.md` | Roles and auth refactor |
+| `ROLES_AND_AUTH_REFACTOR_PLAN.md`                                         | Roles and auth refactor       |
 
 Source index: [[_meta/archive-triage]].
 
@@ -131,13 +131,13 @@ Source index: [[_meta/archive-triage]].
 
 On every meaningful change:
 
-| Change | Update |
-|--------|--------|
-| New/changed route | [[_canonical/rules/routing]], `AppRouter.tsx`, `server.ts` |
-| New convention | Relevant `.mdc` rule |
-| New env var | `env.example.txt`, [[_canonical/rules/deployment]] |
-| Plan completed | Plan `status: archived`; [[project-status]]; this ROADMAP if priorities shift |
-| Logging policy | [[_canonical/rules/logging]] |
+| Change            | Update                                                                        |
+| ----------------- | ----------------------------------------------------------------------------- |
+| New/changed route | [[_canonical/rules/routing]], `AppRouter.tsx`, `server.ts`                    |
+| New convention    | Relevant `.mdc` rule                                                          |
+| New env var       | `env.example.txt`, [[_canonical/rules/deployment]]                            |
+| Plan completed    | Plan `status: archived`; [[project-status]]; this ROADMAP if priorities shift |
+| Logging policy    | [[_canonical/rules/logging]]                                                  |
 
 Periodically: reconcile [[project-status]] with active P0–P2 rows above.
 
@@ -159,25 +159,25 @@ Flexible session order for the next 4–6 weeks:
 
 ## Links index
 
-| Entry | Path |
-|-------|------|
-| Vault home | [[Home]] |
-| Tactical snapshot | [[project-status]] |
-| This roadmap | `docs/ROADMAP.md` |
-| Conventions | [[_meta/conventions]] |
-| Archive triage | [[_meta/archive-triage]] |
-| Active plans | [[05-plans/]] |
-| Quick start | [[00-start/quick-start]] |
-| Translation debug | [[02-how-to/debug-translation]] |
-| Pipeline explainer | [[03-explanation/translation-pipeline]] |
-| Agent rules | `.cursor/rules/` (also `docs/_canonical/rules/`) |
+| Entry              | Path                                             |
+| ------------------ | ------------------------------------------------ |
+| Vault home         | [[Home]]                                         |
+| Tactical snapshot  | [[project-status]]                               |
+| This roadmap       | `docs/ROADMAP.md`                                |
+| Conventions        | [[_meta/conventions]]                            |
+| Archive triage     | [[_meta/archive-triage]]                         |
+| Active plans       | [[05-plans/]]                                    |
+| Quick start        | [[00-start/quick-start]]                         |
+| Translation debug  | [[02-how-to/debug-translation]]                  |
+| Pipeline explainer | [[03-explanation/translation-pipeline]]          |
+| Agent rules        | `.cursor/rules/` (also `docs/_canonical/rules/`) |
 
 ---
 
 ## Changelog
 
-| Date | Change |
-|------|--------|
+| Date       | Change                                                                         |
+| ---------- | ------------------------------------------------------------------------------ |
 | 2026-05-16 | Initial roadmap after rules + Obsidian vault + archive triage + 6 active plans |
 
 ---

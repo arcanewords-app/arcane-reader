@@ -70,7 +70,7 @@ CREATE TABLE user_token_usage (
   tokens_by_stage JSONB, -- { analysis: 0, translation: 0, editing: 0 }
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
+
   UNIQUE(user_id, date)
 );
 
@@ -97,6 +97,7 @@ CREATE POLICY "Users can update their own token usage"
 ### РћР±РЅРѕРІР»РµРЅРёРµ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёС… С‚Р°Р±Р»РёС†
 
 **РўР°Р±Р»РёС†Р° `chapters`** СѓР¶Рµ СЃРѕРґРµСЂР¶РёС‚ `translation_meta` (JSONB) СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ Рѕ С‚РѕРєРµРЅР°С…:
+
 - `tokensUsed` - РѕР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕРєРµРЅРѕРІ
 - `tokensByStage` - С‚РѕРєРµРЅС‹ РїРѕ СЌС‚Р°РїР°Рј
 - `translatedAt` - РґР°С‚Р° РїРµСЂРµРІРѕРґР°
@@ -114,6 +115,7 @@ CREATE POLICY "Users can update their own token usage"
 **Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ**: `supabase/functions/reset-daily-token-limits/index.ts`
 
 **Р›РѕРіРёРєР°**:
+
 - РЈРґР°Р»РµРЅРёРµ Р·Р°РїРёСЃРµР№ СЃС‚Р°СЂС€Рµ N РґРЅРµР№ (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 30 РґРЅРµР№)
 - РЎРѕР·РґР°РЅРёРµ РЅРѕРІС‹С… Р·Р°РїРёСЃРµР№ РґР»СЏ С‚РµРєСѓС‰РµРіРѕ РґРЅСЏ РґР»СЏ РІСЃРµС… Р°РєС‚РёРІРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
 - РР»Рё РїСЂРѕСЃС‚Рѕ СѓРґР°Р»РµРЅРёРµ СЃС‚Р°СЂС‹С… Р·Р°РїРёСЃРµР№ (РЅРѕРІС‹Рµ СЃРѕР·РґР°СЋС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїСЂРё РїРµСЂРІРѕРј РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРё)
@@ -121,6 +123,7 @@ CREATE POLICY "Users can update their own token usage"
 **Р Р°СЃРїРёСЃР°РЅРёРµ**: Cron `0 0 * * *` (РєР°Р¶РґС‹Р№ РґРµРЅСЊ РІ РїРѕР»РЅРѕС‡СЊ UTC)
 
 **РџРµСЂРµРјРµРЅРЅС‹Рµ РѕРєСЂСѓР¶РµРЅРёСЏ**:
+
 - `SUPABASE_URL` (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ)
 - `SUPABASE_SERVICE_ROLE_KEY` (РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ)
 - `TOKEN_RETENTION_DAYS` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 30)
@@ -134,19 +137,24 @@ CREATE POLICY "Users can update their own token usage"
 **Р¤Р°Р№Р»**: `src/middleware/tokenLimits.ts`
 
 **Р¤СѓРЅРєС†РёРё**:
+
 - `checkTokenLimit(userId, estimatedTokens)` - РїСЂРѕРІРµСЂРєР° Р»РёРјРёС‚Р° РїРµСЂРµРґ РїРµСЂРµРІРѕРґРѕРј
 - `getUserTokenUsage(userId, date)` - РїРѕР»СѓС‡РµРЅРёРµ С‚РµРєСѓС‰РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ С‚РѕРєРµРЅРѕРІ
 - `incrementTokenUsage(userId, tokensUsed, tokensByStage)` - СѓРІРµР»РёС‡РµРЅРёРµ СЃС‡РµС‚С‡РёРєР° С‚РѕРєРµРЅРѕРІ
 
 **Р›РѕРіРёРєР° РїСЂРѕРІРµСЂРєРё**:
+
 ```typescript
-async function checkTokenLimit(userId: string, estimatedTokens: number): Promise<{
+async function checkTokenLimit(
+  userId: string,
+  estimatedTokens: number
+): Promise<{
   allowed: boolean;
   currentUsage: number;
   limit: number;
   remaining: number;
   warning?: boolean; // true РµСЃР»Рё РѕСЃС‚Р°Р»РѕСЃСЊ < 20% Р»РёРјРёС‚Р°
-}>
+}>;
 ```
 
 ### 2. Р Р°СЃС‡РµС‚ С‚РѕРєРµРЅРѕРІ РїРµСЂРµРґ РїРµСЂРµРІРѕРґРѕРј
@@ -156,13 +164,14 @@ async function checkTokenLimit(userId: string, estimatedTokens: number): Promise
 **Р¤СѓРЅРєС†РёСЏ**: `estimateTokensForTranslation(textLength: number, options: TranslationOptions): number`
 
 **Р Р°СЃС‡РµС‚**:
+
 ```typescript
 // Р‘Р°Р·РѕРІС‹Рµ РєРѕСЌС„С„РёС†РёРµРЅС‚С‹ (РЅР° 10,000 СЃРёРјРІРѕР»РѕРІ)
 const TOKENS_PER_10K_CHARS = {
   analysis: 2000,
   translation: 10000,
   editing: 13000,
-  total: 25000
+  total: 25000,
 };
 
 function estimateTokensForTranslation(
@@ -171,11 +180,11 @@ function estimateTokensForTranslation(
 ): number {
   const charsIn10K = textLength / 10000;
   let tokens = 0;
-  
+
   if (!options.skipAnalysis) tokens += TOKENS_PER_10K_CHARS.analysis * charsIn10K;
   tokens += TOKENS_PER_10K_CHARS.translation * charsIn10K;
   if (!options.skipEditing) tokens += TOKENS_PER_10K_CHARS.editing * charsIn10K;
-  
+
   return Math.ceil(tokens);
 }
 ```
@@ -187,6 +196,7 @@ function estimateTokensForTranslation(
 РџРѕР»СѓС‡РёС‚СЊ СЃС‚Р°С‚РёСЃС‚РёРєСѓ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ С‚РѕРєРµРЅРѕРІ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
 
 **Response**:
+
 ```json
 {
   "date": "2026-01-29",
@@ -208,9 +218,11 @@ function estimateTokensForTranslation(
 РџРѕР»СѓС‡РёС‚СЊ РёСЃС‚РѕСЂРёСЋ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ С‚РѕРєРµРЅРѕРІ Р·Р° РїРѕСЃР»РµРґРЅРёРµ N РґРЅРµР№.
 
 **Query Parameters**:
+
 - `days` (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ, РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 7)
 
 **Response**:
+
 ```json
 {
   "history": [
@@ -233,6 +245,7 @@ function estimateTokensForTranslation(
 **Р¤Р°Р№Р»**: `src/server.ts` - POST `/api/projects/:projectId/chapters/:chapterId/translate`
 
 **РР·РјРµРЅРµРЅРёСЏ**:
+
 1. РџРµСЂРµРґ Р·Р°РїСѓСЃРєРѕРј РїРµСЂРµРІРѕРґР°:
    - Р Р°СЃСЃС‡РёС‚Р°С‚СЊ РїСЂРµРґРїРѕР»Р°РіР°РµРјРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕРєРµРЅРѕРІ
    - РџСЂРѕРІРµСЂРёС‚СЊ Р»РёРјРёС‚ С‡РµСЂРµР· middleware
@@ -244,6 +257,7 @@ function estimateTokensForTranslation(
    - РЎРѕС…СЂР°РЅРёС‚СЊ РґРµС‚Р°Р»СЊРЅСѓСЋ СЃС‚Р°С‚РёСЃС‚РёРєСѓ РІ `chapters.translation_meta` (РєР°Рє СЃРµР№С‡Р°СЃ)
 
 **Response РїСЂРё РїСЂРµРІС‹С€РµРЅРёРё Р»РёРјРёС‚Р°**:
+
 ```json
 {
   "error": "Token limit exceeded",
@@ -264,6 +278,7 @@ function estimateTokensForTranslation(
 **Р¤Р°Р№Р»**: `src/client/components/TokenUsage/TokenUsageIndicator.tsx`
 
 **Р¤СѓРЅРєС†РёРѕРЅР°Р»**:
+
 - РћС‚РѕР±СЂР°Р¶РµРЅРёРµ С‚РµРєСѓС‰РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ С‚РѕРєРµРЅРѕРІ
 - РџСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂ СЃ С†РІРµС‚РѕРІРѕР№ РёРЅРґРёРєР°С†РёРµР№:
   - Р—РµР»РµРЅС‹Р№: < 50% РёСЃРїРѕР»СЊР·РѕРІР°РЅРѕ
@@ -280,6 +295,7 @@ function estimateTokensForTranslation(
 **Р¤Р°Р№Р»**: `src/client/components/TokenUsage/TokenLimitWarning.tsx`
 
 **РћС‚РѕР±СЂР°Р¶РµРЅРёРµ**:
+
 - РџСЂРё РїРѕРїС‹С‚РєРµ Р·Р°РїСѓСЃС‚РёС‚СЊ РїРµСЂРµРІРѕРґ СЃ РѕСЃС‚Р°С‚РєРѕРј < 20% Р»РёРјРёС‚Р°
 - РџРѕРєР°Р·С‹РІР°РµС‚ СЃРєРѕР»СЊРєРѕ С‚РѕРєРµРЅРѕРІ Р±СѓРґРµС‚ РёСЃРїРѕР»СЊР·РѕРІР°РЅРѕ
 - РџРѕРєР°Р·С‹РІР°РµС‚ СЃРєРѕР»СЊРєРѕ РѕСЃС‚Р°РЅРµС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРµРІРѕРґР°
@@ -290,6 +306,7 @@ function estimateTokensForTranslation(
 **Р¤Р°Р№Р»**: `src/client/components/ChapterView/index.tsx`
 
 **РР·РјРµРЅРµРЅРёСЏ**:
+
 - РџСЂРѕРІРµСЂРєР° Р»РёРјРёС‚Р° РїРµСЂРµРґ РїРѕРєР°Р·РѕРј РєРЅРѕРїРєРё "РџРµСЂРµРІРµСЃС‚Рё"
 - РћС‚РѕР±СЂР°Р¶РµРЅРёРµ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёСЏ РµСЃР»Рё Р»РёРјРёС‚ Р±Р»РёР·РѕРє Рє РёСЃС‡РµСЂРїР°РЅРёСЋ
 - Р‘Р»РѕРєРёСЂРѕРІРєР° РєРЅРѕРїРєРё РµСЃР»Рё Р»РёРјРёС‚ РїСЂРµРІС‹С€РµРЅ
@@ -352,6 +369,7 @@ function estimateTokensForTranslation(
 4. вњ… РџСЂРѕС‚РµСЃС‚РёСЂРѕРІР°С‚СЊ Edge Function
 
 **Р¤Р°Р№Р»С‹**:
+
 - SQL РјРёРіСЂР°С†РёСЏ РґР»СЏ СЃРѕР·РґР°РЅРёСЏ С‚Р°Р±Р»РёС†С‹
 - `supabase/functions/reset-daily-token-limits/index.ts`
 - РћР±РЅРѕРІР»РµРЅРёРµ `docs/SUPABASE_EDGE_FUNCTIONS.md`
@@ -365,6 +383,7 @@ function estimateTokensForTranslation(
 5. вњ… РћР±РЅРѕРІРёС‚СЊ endpoint РїРµСЂРµРІРѕРґР° СЃ РїСЂРѕРІРµСЂРєРѕР№ Р»РёРјРёС‚РѕРІ
 
 **Р¤Р°Р№Р»С‹**:
+
 - `src/utils/tokenEstimation.ts` (РЅРѕРІС‹Р№)
 - `src/middleware/tokenLimits.ts` (РЅРѕРІС‹Р№)
 - `src/services/supabaseDatabase.ts` (РѕР±РЅРѕРІР»РµРЅРёРµ)
@@ -379,6 +398,7 @@ function estimateTokensForTranslation(
 5. вњ… РРЅС‚РµРіСЂРёСЂРѕРІР°С‚СЊ РєРѕРјРїРѕРЅРµРЅС‚С‹ РІ UI
 
 **Р¤Р°Р№Р»С‹**:
+
 - `src/client/components/TokenUsage/TokenUsageIndicator.tsx` (РЅРѕРІС‹Р№)
 - `src/client/components/TokenUsage/TokenLimitWarning.tsx` (РЅРѕРІС‹Р№)
 - `src/client/api/client.ts` (РѕР±РЅРѕРІР»РµРЅРёРµ)
@@ -397,6 +417,7 @@ function estimateTokensForTranslation(
 3. вњ… Р”РѕР±Р°РІРёС‚СЊ РїСЂРёРјРµСЂС‹ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ РІ РґРѕРєСѓРјРµРЅС‚Р°С†РёСЋ
 
 **Р¤Р°Р№Р»С‹**:
+
 - `docs/API.md` (РѕР±РЅРѕРІР»РµРЅРёРµ)
 - `docs/ARCHITECTURE.md` (РѕР±РЅРѕРІР»РµРЅРёРµ)
 
@@ -413,24 +434,25 @@ export const TOKEN_LIMITS = {
   DAILY_LIMIT: 50000, // С‚РѕРєРµРЅРѕРІ РІ РґРµРЅСЊ
   WARNING_THRESHOLD: 0.8, // РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ РїСЂРё 80% РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
   BLOCK_THRESHOLD: 1.0, // Р±Р»РѕРєРёСЂРѕРІРєР° РїСЂРё 100%
-  
+
   // РљРѕСЌС„С„РёС†РёРµРЅС‚С‹ СЂР°СЃС‡РµС‚Р° С‚РѕРєРµРЅРѕРІ (РЅР° 10,000 СЃРёРјРІРѕР»РѕРІ)
   TOKENS_PER_10K_CHARS: {
     analysis: 2000,
     translation: 10000,
     editing: 13000,
-    total: 25000
+    total: 25000,
   },
-  
+
   // Р’СЂРµРјСЏ СЃР±СЂРѕСЃР° Р»РёРјРёС‚Р° (UTC)
   RESET_TIME: '00:00:00',
-  RESET_TIMEZONE: 'UTC'
+  RESET_TIMEZONE: 'UTC',
 };
 ```
 
 ### РћР±СЂР°Р±РѕС‚РєР° РѕС€РёР±РѕРє
 
 **РЎС†РµРЅР°СЂРёРё**:
+
 1. **РџСЂРµРІС‹С€РµРЅРёРµ Р»РёРјРёС‚Р°**: HTTP 429 СЃ РґРµС‚Р°Р»СЏРјРё
 2. **РћС€РёР±РєР° СЂР°СЃС‡РµС‚Р° С‚РѕРєРµРЅРѕРІ**: Fallback РЅР° РєРѕРЅСЃРµСЂРІР°С‚РёРІРЅСѓСЋ РѕС†РµРЅРєСѓ
 3. **РћС€РёР±РєР° РѕР±РЅРѕРІР»РµРЅРёСЏ СЃС‡РµС‚С‡РёРєР°**: Р›РѕРіРёСЂРѕРІР°РЅРёРµ, РЅРѕ РЅРµ Р±Р»РѕРєРёСЂРѕРІРєР° РїРµСЂРµРІРѕРґР°
@@ -439,6 +461,7 @@ export const TOKEN_LIMITS = {
 ### РџСЂРѕРёР·РІРѕРґРёС‚РµР»СЊРЅРѕСЃС‚СЊ
 
 **РћРїС‚РёРјРёР·Р°С†РёРё**:
+
 - РљСЌС€РёСЂРѕРІР°РЅРёРµ С‚РµРєСѓС‰РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ С‚РѕРєРµРЅРѕРІ РІ РїР°РјСЏС‚Рё (TTL 1 РјРёРЅСѓС‚Р°)
 - РРЅРґРµРєСЃС‹ РЅР° `user_token_usage(user_id, date)`
 - РђСЃРёРЅС…СЂРѕРЅРЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ СЃС‡РµС‚С‡РёРєР° РїРѕСЃР»Рµ РїРµСЂРµРІРѕРґР° (РЅРµ Р±Р»РѕРєРёСЂСѓРµС‚ РѕС‚РІРµС‚)
@@ -446,6 +469,7 @@ export const TOKEN_LIMITS = {
 ### Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ
 
 **РњРµСЂС‹**:
+
 - RLS РїРѕР»РёС‚РёРєРё РґР»СЏ РёР·РѕР»СЏС†РёРё РґР°РЅРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
 - РџСЂРѕРІРµСЂРєР° Р»РёРјРёС‚Р° РЅР° backend (РЅРµ С‚РѕР»СЊРєРѕ РЅР° frontend)
 - Р’Р°Р»РёРґР°С†РёСЏ РІСЃРµС… РІС…РѕРґРЅС‹С… РґР°РЅРЅС‹С…
@@ -462,7 +486,7 @@ export const TOKEN_LIMITS = {
 ```sql
 -- РњРёРіСЂР°С†РёСЏ: Р°РіСЂРµРіР°С†РёСЏ С‚РѕРєРµРЅРѕРІ РёР· chapters.translation_meta
 INSERT INTO user_token_usage (user_id, date, tokens_used, tokens_by_stage)
-SELECT 
+SELECT
   p.user_id,
   DATE(c.translation_meta->>'translatedAt') as date,
   SUM((c.translation_meta->>'tokensUsed')::INTEGER) as tokens_used,
@@ -503,6 +527,7 @@ ON CONFLICT (user_id, date) DO UPDATE SET
 ### Р›РѕРіРёСЂРѕРІР°РЅРёРµ
 
 **РЎРѕР±С‹С‚РёСЏ РґР»СЏ Р»РѕРіРёСЂРѕРІР°РЅРёСЏ**:
+
 - РџСЂРµРІС‹С€РµРЅРёРµ Р»РёРјРёС‚Р° (WARN)
 - РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ Рѕ РїСЂРёР±Р»РёР¶РµРЅРёРё Рє Р»РёРјРёС‚Сѓ (INFO)
 - РћР±РЅРѕРІР»РµРЅРёРµ СЃС‡РµС‚С‡РёРєР° С‚РѕРєРµРЅРѕРІ (DEBUG)

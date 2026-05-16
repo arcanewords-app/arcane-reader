@@ -43,7 +43,8 @@
   cursor: pointer;
   font: inherit;
   text-align: left;
-  transition: background-color var(--duration-normal) var(--ease-standard),
+  transition:
+    background-color var(--duration-normal) var(--ease-standard),
     border-color var(--duration-normal) var(--ease-standard);
 }
 

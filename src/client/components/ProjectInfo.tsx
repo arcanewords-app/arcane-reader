@@ -311,6 +311,7 @@ export function ProjectInfo({
     project.id,
     project.metadata?.authorEntityId,
     project.metadata?.translatorEntityId,
+    project.metadata?.tagEntityIds,
     project.metadata?.authors,
     authorEntity,
     translatorEntity,
@@ -386,6 +387,7 @@ export function ProjectInfo({
     project.metadata?.coverImageUrl,
     project.metadata?.authorEntityId,
     project.metadata?.translatorEntityId,
+    project.metadata?.tagEntityIds,
     project.name,
     authorEntity,
     translatorEntity,
@@ -1450,7 +1452,6 @@ export function ProjectInfo({
                 </Button>
               </div>
             )}
-
       </Card>
 
       {/* Delete Modal */}

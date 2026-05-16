@@ -3,7 +3,10 @@
  */
 import 'dotenv/config';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listPublicationsPublic, getPublicationWithChapters } from '../src/services/supabaseDatabase.js';
+import {
+  listPublicationsPublic,
+  getPublicationWithChapters,
+} from '../src/services/supabaseDatabase.js';
 
 function escapeHtml(s: string): string {
   return s
@@ -16,10 +19,7 @@ function escapeHtml(s: string): string {
 
 const SITEMAP_CHAPTER_PUBS_LIMIT = 100;
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-): Promise<void> {
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'arcane-reader.com';
   const proto = req.headers['x-forwarded-proto'] ?? 'https';
   const base = `${proto}://${host}`;

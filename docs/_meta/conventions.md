@@ -20,13 +20,13 @@ If `docs/archive/` or an old plan conflicts with a rule or code, **rules + code 
 
 ## When to write where
 
-| Need | Where |
-|------|--------|
-| New coding convention, API policy, route | Extend `.cursor/rules/` first |
-| Irreversible architecture decision | `04-decisions/` ADR |
-| Future work / RFC | `05-plans/` with `type: plan` |
-| Explainer for humans | `03-explanation/` — derive from rules + code, do not copy archive blindly |
-| Large reference tables (routes) | `.cursor/rules/routing.mdc` only |
+| Need                                     | Where                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| New coding convention, API policy, route | Extend `.cursor/rules/` first                                             |
+| Irreversible architecture decision       | `04-decisions/` ADR                                                       |
+| Future work / RFC                        | `05-plans/` with `type: plan`                                             |
+| Explainer for humans                     | `03-explanation/` — derive from rules + code, do not copy archive blindly |
+| Large reference tables (routes)          | `.cursor/rules/routing.mdc` only                                          |
 
 ## File naming
 
@@ -40,7 +40,7 @@ If `docs/archive/` or an old plan conflicts with a rule or code, **rules + code 
 type: tutorial | how-to | reference | explanation | adr | plan | runbook
 status: draft | active | deprecated | archived
 domain: engine | client | api | auth | glossary | export | infra | meta
-canonical: .cursor/rules/engine.mdc   # optional
+canonical: .cursor/rules/engine.mdc # optional
 stale: false
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
@@ -87,8 +87,8 @@ Code → Rule (if pattern changes) → Vault plan/note (if applicable)
 
 ## Cursor-local vs committed agent files
 
-| Path | In git | Purpose |
-|------|--------|---------|
-| `.cursor/rules/`, `agents/`, `skills/` | yes | Agent SSOT |
-| `.cursor/plans/` | no (gitignored) | Cursor UI session plans — not product docs |
-| `docs/05-plans/` | yes | Product/engineering plans for humans and agents |
+| Path                                   | In git          | Purpose                                         |
+| -------------------------------------- | --------------- | ----------------------------------------------- |
+| `.cursor/rules/`, `agents/`, `skills/` | yes             | Agent SSOT                                      |
+| `.cursor/plans/`                       | no (gitignored) | Cursor UI session plans — not product docs      |
+| `docs/05-plans/`                       | yes             | Product/engineering plans for humans and agents |

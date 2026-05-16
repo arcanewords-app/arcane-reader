@@ -182,7 +182,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       : null;
   usePageMeta(meta);
 
-  const chapters = pub?.chapters || [];
+  const chapters = useMemo(() => pub?.chapters ?? [], [pub?.chapters]);
   const hasTranslatedChapters = chapters.some((ch) => ch.hasTranslation);
   const hasUntranslatedChapters = chapters.some((ch) => !ch.hasTranslation);
   const showTranslationFilter = hasTranslatedChapters && hasUntranslatedChapters;
@@ -334,9 +334,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return;
       console.error('Build exports failed:', err);
-      setExportError(
-        err instanceof Error ? err.message : t('publication.buildExportsError')
-      );
+      setExportError(err instanceof Error ? err.message : t('publication.buildExportsError'));
     } finally {
       setBuildingExports(false);
     }
@@ -527,9 +525,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     <button
                       type="button"
                       class="publication-page-continue-from"
-                      onClick={() =>
-                        route(`/p/${pubPath}/chapters/${lastReadChapterId}/reading`)
-                      }
+                      onClick={() => route(`/p/${pubPath}/chapters/${lastReadChapterId}/reading`)}
                     >
                       <Icon name="menu_book" size="sm" />
                       <span class="publication-page-continue-from-label">

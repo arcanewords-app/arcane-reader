@@ -129,25 +129,18 @@ export function ChapterHeader({
             <Icon name="chevron_left" />
           </button>
           <div class="chapter-title-wrapper">
-            <h2
-              class={`chapter-title ${chapter ? 'chapter-title-editable' : ''}`}
-              onClick={chapter ? handleStartEdit : undefined}
-              onKeyDown={
-                chapter
-                  ? (e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleStartEdit();
-                      }
-                    }
-                  : undefined
-              }
-              role={chapter ? 'button' : undefined}
-              tabIndex={chapter ? 0 : undefined}
-              title={chapter ? t('chapter.editTitle') : undefined}
-            >
-              {title}
-            </h2>
+            {chapter ? (
+              <button
+                type="button"
+                class="chapter-title chapter-title-editable"
+                onClick={handleStartEdit}
+                title={t('chapter.editTitle')}
+              >
+                {title}
+              </button>
+            ) : (
+              <h2 class="chapter-title">{title}</h2>
+            )}
           </div>
           <button
             class="chapter-nav-btn"

@@ -18,21 +18,11 @@ import type { Chapter } from '../../storage/database.js';
 import type { TranslateJobPayload } from '../chapterQueue.js';
 
 const translateJobStore = createTranslateJobStoreFromEnv();
-const TRANSLATE_JOB_TTL_SECONDS = parseInt(
-  process.env.TRANSLATE_JOB_TTL_SECONDS ?? '3600',
-  10
-);
+const TRANSLATE_JOB_TTL_SECONDS = parseInt(process.env.TRANSLATE_JOB_TTL_SECONDS ?? '3600', 10);
 
 export async function runTranslateJob(payload: TranslateJobPayload): Promise<void> {
-  const {
-    jobId,
-    projectId,
-    userId,
-    estimatedTokens,
-    chapterIds,
-    stages,
-    translateOnlyEmpty,
-  } = payload;
+  const { jobId, projectId, userId, estimatedTokens, chapterIds, stages, translateOnlyEmpty } =
+    payload;
   const token = ''; // Service role used for all DB ops
 
   try {
@@ -203,10 +193,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
         try {
           await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
         } catch (tokenError) {
-          logger.warn(
-            { err: tokenError },
-            'Failed to release tokens on cancel (non-critical)'
-          );
+          logger.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
         }
         return;
       }
@@ -232,10 +219,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
       try {
         await releaseTokens(userId, estimatedTokens, { useServiceRole: true });
       } catch (tokenError) {
-        logger.warn(
-          { err: tokenError },
-          'Failed to release tokens on error (non-critical)'
-        );
+        logger.warn({ err: tokenError }, 'Failed to release tokens on error (non-critical)');
       }
     } finally {
       await translateJobStore.removeFromProjectIndex(projectId, jobId);

@@ -113,7 +113,7 @@ export function mergeSegmentsWithUnclosedBlocks(
     /[\u2014\u2013\u2012\u2015\u2212-]/.test(normalized)
   ) {
     segments = normalized
-      .split(/\n(?=\s*[\u2014\u2013\u2012\u2015\u2212\-])/)
+      .split(/\n(?=\s*[\u2014\u2013\u2012\u2015\u2212-])/)
       .map((s) => s.trim())
       .filter(Boolean);
     if (segments.length === 0) return [];

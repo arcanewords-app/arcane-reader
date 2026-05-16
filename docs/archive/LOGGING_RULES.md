@@ -12,13 +12,13 @@ All backend log messages must be in **English**. Logging is local-first (stdout)
 
 ## 1. Where to log
 
-| Place | What to log | Level | Use |
-|-------|-------------|--------|-----|
-| **API route handlers** | Errors, business outcome (e.g. "chapter translated", "export started") | error / info | `req.log` |
-| **Services** (DB, export, engine, storage) | Errors, important state changes (e.g. project created, chapter deleted) | error / warn / info | `logger` |
-| **Engine / pipeline** | Errors always; progress (stage done, tokens) at **info**; per-chunk/details at **debug** | error / warn / info / debug | `logger` |
-| **Middleware** | Errors (e.g. auth failed, token increment failed) | error | `logger` |
-| **Startup** | Server started, config summary | info | `logger` |
+| Place                                      | What to log                                                                              | Level                       | Use       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- | --------------------------- | --------- |
+| **API route handlers**                     | Errors, business outcome (e.g. "chapter translated", "export started")                   | error / info                | `req.log` |
+| **Services** (DB, export, engine, storage) | Errors, important state changes (e.g. project created, chapter deleted)                  | error / warn / info         | `logger`  |
+| **Engine / pipeline**                      | Errors always; progress (stage done, tokens) at **info**; per-chunk/details at **debug** | error / warn / info / debug | `logger`  |
+| **Middleware**                             | Errors (e.g. auth failed, token increment failed)                                        | error                       | `logger`  |
+| **Startup**                                | Server started, config summary                                                           | info                        | `logger`  |
 
 - **Errors**: always log (with `err` or message). Use `logger.error({ err }, 'message')` or `req.log.error({ err }, 'message')`.
 - **Business events**: e.g. `translation.started`, `translation.completed`, `export.completed`, `project.created`. Prefer structured: `log.info({ event: '...', projectId, chapterId }, 'Message')`.
@@ -38,11 +38,11 @@ All backend log messages must be in **English**. Logging is local-first (stdout)
 
 ## 3. Levels
 
-| Level | Use |
-|-------|-----|
-| **error** | Operation failed (user- or system-facing). Include error and context (ids, no secrets). |
-| **warn** | Recoverable problem or unexpected but handled case (e.g. missing optional data, fallback used). |
-| **info** | Normal business events and important steps (translation done, export done, project created). |
+| Level     | Use                                                                                               |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| **error** | Operation failed (user- or system-facing). Include error and context (ids, no secrets).           |
+| **warn**  | Recoverable problem or unexpected but handled case (e.g. missing optional data, fallback used).   |
+| **info**  | Normal business events and important steps (translation done, export done, project created).      |
 | **debug** | Detailed progress (pipeline stage, chunk index, file paths). Only visible when `LOG_LEVEL=debug`. |
 
 In **production** default is `info`; set `LOG_LEVEL=debug` temporarily for troubleshooting.

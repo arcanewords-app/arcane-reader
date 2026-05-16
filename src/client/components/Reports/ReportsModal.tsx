@@ -27,12 +27,7 @@ interface ReportsModalProps {
   onReportsChange?: () => void;
 }
 
-export function ReportsModal({
-  isOpen,
-  onClose,
-  projectId,
-  onReportsChange,
-}: ReportsModalProps) {
+export function ReportsModal({ isOpen, onClose, projectId, onReportsChange }: ReportsModalProps) {
   const { t } = useTranslation();
   const [reports, setReports] = useState<TranslationReport[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,9 +63,7 @@ export function ReportsModal({
     setActionLoading(reportId);
     try {
       await api.updateReportStatus(projectId, reportId, status);
-      setReports((prev) =>
-        prev.map((r) => (r.id === reportId ? { ...r, status } : r))
-      );
+      setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status } : r)));
       onReportsChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.retry'));
@@ -115,9 +108,7 @@ export function ReportsModal({
   };
 
   const filteredReports =
-    statusFilter === 'all'
-      ? reports
-      : reports.filter((r) => r.status === statusFilter);
+    statusFilter === 'all' ? reports : reports.filter((r) => r.status === statusFilter);
 
   const filterTabs: { value: ReportStatusFilter; labelKey: string; icon: string }[] = [
     { value: 'all', labelKey: 'sidebar.reportFilterAll', icon: 'grid_view' },
@@ -173,9 +164,7 @@ export function ReportsModal({
                         t('readingMode.chapterFallback', { n: r.chapterNumber ?? 0 })}
                     </span>
                     <span class="reports-modal-item-date">{formatDate(r.createdAt)}</span>
-                    <span
-                      class={`reports-modal-item-status reports-modal-status-${r.status}`}
-                    >
+                    <span class={`reports-modal-item-status reports-modal-status-${r.status}`}>
                       <Icon name={statusIcons[r.status] ?? 'flag'} size="sm" />{' '}
                       {getStatusLabel(r.status)}
                     </span>
@@ -187,8 +176,7 @@ export function ReportsModal({
                       size="sm"
                       onClick={() => handleGoToChapter(r.chapterId, r.description)}
                     >
-                      <Icon name="arrow_forward" size="sm" />{' '}
-                      {t('sidebar.reportsGoToChapter')}
+                      <Icon name="arrow_forward" size="sm" /> {t('sidebar.reportsGoToChapter')}
                     </Button>
                     <div class="reports-modal-status-actions">
                       {r.status !== 'reviewed' && (
@@ -240,9 +228,7 @@ export function ReportsModal({
               ))}
             </div>
             {filteredReports.length === 0 && statusFilter !== 'all' && (
-              <p class="reports-modal-empty">
-                {t('sidebar.reportsEmpty')}
-              </p>
+              <p class="reports-modal-empty">{t('sidebar.reportsEmpty')}</p>
             )}
           </>
         )}
@@ -278,9 +264,7 @@ export function ReportsModal({
           </div>
         }
       >
-        <p class="reports-modal-confirm-body">
-          {t('sidebar.reportDeleteConfirmBody')}
-        </p>
+        <p class="reports-modal-confirm-body">{t('sidebar.reportDeleteConfirmBody')}</p>
       </Modal>
     </>
   );

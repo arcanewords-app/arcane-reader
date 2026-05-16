@@ -58,8 +58,8 @@ domain: meta
 - **`src/client/hooks/useBatchChapterTranslation.ts`**:
   - `currentChapterIdRef` вЂ” ref СЃ id С‚РµРєСѓС‰РµР№ РїРµСЂРµРІРѕРґРёРјРѕР№ РіР»Р°РІС‹.
   - РџСЂРё СЃС‚Р°СЂС‚Рµ РєР°Р¶РґРѕР№ РіР»Р°РІС‹: `currentChapterIdRef.current = chapter.id`.
-  - Р’ `cancel()`:  
-    - `cancelledRef.current = true`;  
+  - Р’ `cancel()`:
+    - `cancelledRef.current = true`;
     - РµСЃР»Рё `currentChapterIdRef.current` РµСЃС‚СЊ вЂ” `api.cancelTranslation(projectId, currentChapterIdRef.current).catch(() => {})`.
   - Р’ `finally` С†РёРєР»Р°: `currentChapterIdRef.current = null`.
 
@@ -100,14 +100,14 @@ domain: meta
 
 ### РљР»СЋС‡РµРІС‹Рµ С„Р°Р№Р»С‹
 
-| Р§С‚Рѕ РїСЂРѕРІРµСЂРёС‚СЊ              | Р¤Р°Р№Р» |
-|---------------------------|------|
-| Р РµРµСЃС‚СЂ Рё endpoint cancel  | `src/server.ts` (РїРѕРёСЃРє `translationCancelRegistry`, `translate/cancel`, `performTranslation`) |
-| РџРµСЂРµРґР°С‡Р° isCancelled       | `src/server.ts` в†’ `translateChapterWithPipeline(..., { isCancelled })` |
-| РџСЂРѕРІРµСЂРєРё РІ РїР°Р№РїР»Р°Р№РЅРµ      | `src/engine/pipeline/translation-pipeline.ts` (`checkCancelled`) |
-| Р’С‹Р·РѕРІ cancel СЃ РєР»РёРµРЅС‚Р°    | `src/client/hooks/useBatchChapterTranslation.ts` (`cancel`, `currentChapterIdRef`) |
-| РљРЅРѕРїРєР° Рё РјРѕРґР°Р»РєР°          | `src/client/components/ProjectInfo.tsx` (РјРѕРґР°Р»РєР° РїСЂРѕРіСЂРµСЃСЃР°, `footer`, `handleCancelTranslation`) |
-| API cancel                | `src/client/api/client.ts` (`cancelTranslation`) |
+| Р§С‚Рѕ РїСЂРѕРІРµСЂРёС‚СЊ              | Р¤Р°Р№Р»                                                                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Р РµРµСЃС‚СЂ Рё endpoint cancel        | `src/server.ts` (РїРѕРёСЃРє `translationCancelRegistry`, `translate/cancel`, `performTranslation`)               |
+| РџРµСЂРµРґР°С‡Р° isCancelled           | `src/server.ts` в†’ `translateChapterWithPipeline(..., { isCancelled })`                                         |
+| РџСЂРѕРІРµСЂРєРё РІ РїР°Р№РїР»Р°Р№РЅРµ | `src/engine/pipeline/translation-pipeline.ts` (`checkCancelled`)                                                 |
+| Р’С‹Р·РѕРІ cancel СЃ РєР»РёРµРЅС‚Р°    | `src/client/hooks/useBatchChapterTranslation.ts` (`cancel`, `currentChapterIdRef`)                               |
+| РљРЅРѕРїРєР° Рё РјРѕРґР°Р»РєР°         | `src/client/components/ProjectInfo.tsx` (РјРѕРґР°Р»РєР° РїСЂРѕРіСЂРµСЃСЃР°, `footer`, `handleCancelTranslation`) |
+| API cancel                             | `src/client/api/client.ts` (`cancelTranslation`)                                                                 |
 
 ### РћРіСЂР°РЅРёС‡РµРЅРёСЏ С‚РµРєСѓС‰РµР№ СЂРµР°Р»РёР·Р°С†РёРё
 

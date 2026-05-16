@@ -1225,10 +1225,10 @@ export const api = {
     publicationId: string,
     data: { showGlossary?: boolean }
   ): Promise<{ success: boolean }> {
-    const result = await fetchJson<{ success: boolean }>(
-      `/api/publications/${publicationId}`,
-      { method: 'PATCH', body: JSON.stringify(data) }
-    );
+    const result = await fetchJson<{ success: boolean }>(`/api/publications/${publicationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
     publicationCache.withChapters.delete(publicationId);
     publicationCache.glossary.delete(publicationId);
     return result;

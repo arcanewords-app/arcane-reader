@@ -78,14 +78,14 @@ Move UI controls from mixed emoji to a consistent icon system based on Google Ma
 
 Icons are neutral by default. Apply color only for significant status states via semantic tokens:
 
-| Situation | Token | Use case |
-|-----------|-------|----------|
-| default/neutral | `--text-secondary` | Generic controls, inactive filters |
-| active/focused | `--accent` | Selected filter, active tab, focused context |
-| success/completed | `--success` | Chapter done, upload success, mark translated |
-| warning/limit-soon | `--warning` | Token limit approaching, has untranslated chapters |
-| error/failed | `--error` | Chapter error, upload failed, batch error |
-| disabled | `--text-dim` | Disabled controls (plus reduced opacity) |
+| Situation          | Token              | Use case                                           |
+| ------------------ | ------------------ | -------------------------------------------------- |
+| default/neutral    | `--text-secondary` | Generic controls, inactive filters                 |
+| active/focused     | `--accent`         | Selected filter, active tab, focused context       |
+| success/completed  | `--success`        | Chapter done, upload success, mark translated      |
+| warning/limit-soon | `--warning`        | Token limit approaching, has untranslated chapters |
+| error/failed       | `--error`          | Chapter error, upload failed, batch error          |
+| disabled           | `--text-dim`       | Disabled controls (plus reduced opacity)           |
 
 Apply color via container class or modifier (e.g. `.is-success`, `.is-error`), not inline styles. New status icons MUST use a semantic class; PR review rejects ad-hoc icon colors.
 
