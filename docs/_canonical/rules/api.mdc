@@ -1,7 +1,7 @@
 ---
 description: Express API, Supabase, Redis cache, route docs sync
-globs: src/server.ts,src/middleware/**,src/services/**,.cursor/rules/routing.mdc
-alwaysApply: true
+globs: src/server.ts,src/middleware/**,src/api/**
+alwaysApply: false
 ---
 
 # API Rules

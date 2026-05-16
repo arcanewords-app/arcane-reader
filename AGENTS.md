@@ -1,24 +1,59 @@
 # Arcane Reader — Agent Instructions
 
+## Team (specialized agents)
+
+A **4-agent team** routes work by domain. The orchestrator rule is always active; each agent has a profile and a skill.
+
+| Agent | Profile | Skill | Primary paths |
+|-------|---------|-------|---------------|
+| **UI** | [`.cursor/agents/ui/AGENT.md`](.cursor/agents/ui/AGENT.md) | [`.cursor/skills/ui/SKILL.md`](.cursor/skills/ui/SKILL.md) | `src/client/**` |
+| **API** | [`.cursor/agents/api/AGENT.md`](.cursor/agents/api/AGENT.md) | [`.cursor/skills/api/SKILL.md`](.cursor/skills/api/SKILL.md) | `src/server.ts`, `src/middleware/**`, `src/api/**` |
+| **Backend** | [`.cursor/agents/backend/AGENT.md`](.cursor/agents/backend/AGENT.md) | [`.cursor/skills/backend/SKILL.md`](.cursor/skills/backend/SKILL.md) | `src/services/**`, `src/storage/**`, `src/worker.ts`, `src/shared/**` |
+| **Engine** | [`.cursor/agents/engine/AGENT.md`](.cursor/agents/engine/AGENT.md) | [`.cursor/skills/engine/SKILL.md`](.cursor/skills/engine/SKILL.md) | `src/engine/**` |
+
+**Orchestrator:** [`.cursor/rules/team-orchestrator.mdc`](.cursor/rules/team-orchestrator.mdc) (`alwaysApply: true`) — picks primary/secondary agent from paths and task type; does not duplicate agent content.
+
+**Workflow:** orchestrator → read `AGENT.md` + `SKILL.md` for active agent(s) → follow linked `.cursor/rules/*.mdc`.
+
+**Other agents** in [`.cursor/agents/`](.cursor/agents/) (e.g. `debugger.md`, `verifier.md`) are utility subagents, not part of the domain team.
+
+## Rules layering
+
+| Layer | Rules | How loaded |
+|-------|-------|------------|
+| **Global** | `team-orchestrator`, `core`, `architecture` | `alwaysApply: true` — every session |
+| **Domain** | `api`, `cache`, `client`, `engine`, … | File **globs** when editing matching paths; plus explicit list in each `AGENT.md` |
+| **Skills** | `.cursor/skills/<agent>/SKILL.md` | Read when acting as that agent; patterns only, not policy SSOT |
+
+| Agent | Global + typical domain rules |
+|-------|------------------------------|
+| **UI** | + `client`, `design-system`; `routing` when routes change |
+| **API** | + `api`, `auth`, `cache`, `logging`, `routing` |
+| **Backend** | + `cache`, `deployment`; `api` when route contracts matter |
+| **Engine** | + `engine` |
+
+Domain rules are **not** globally always-on (e.g. `api.mdc` and `cache.mdc` use globs so UI/Engine sessions stay lean).
+
 ## Documentation (SSOT)
 
 **Canonical source:** [`.cursor/rules/`](.cursor/rules/) — always prefer rules + code over `docs/archive/` legacy files.
 
-| Rule | Topic |
-|------|--------|
-| `core.mdc` | Code style, structure |
-| `architecture.mdc` | System architecture |
-| `api.mdc` | Express API, Zod, 503 |
-| `routing.mdc` | **Route map (SSOT)** |
-| `cache.mdc` | Redis invalidation |
-| `auth.mdc` | Roles, JWT |
-| `engine.mdc` | Translation pipeline |
-| `client.mdc` | Preact UI |
-| `design-system.mdc` | Tokens, icons, a11y |
-| `deployment.mdc` | Env, Vercel, worker |
-| `logging.mdc` | Pino, req.log, levels |
+| Rule | Topic | alwaysApply |
+|------|--------|-------------|
+| `team-orchestrator.mdc` | Team routing (UI / API / Backend / Engine) | yes |
+| `core.mdc` | Code style, structure | yes |
+| `architecture.mdc` | System architecture | yes |
+| `api.mdc` | Express API, Zod, 503 | globs |
+| `cache.mdc` | Redis invalidation | globs |
+| `auth.mdc` | Roles, JWT | globs |
+| `engine.mdc` | Translation pipeline | globs |
+| `client.mdc` | Preact UI | globs |
+| `design-system.mdc` | Tokens, icons, a11y | globs |
+| `deployment.mdc` | Env, Vercel, worker | globs |
+| `logging.mdc` | Pino, req.log, levels | globs |
+| `routing.mdc` | Route map (SSOT) | globs |
 
-**Session anchor:** [`docs/project-status.md`](docs/project-status.md) — open tasks and verified features.
+**Session anchors:** [`docs/ROADMAP.md`](docs/ROADMAP.md) (priorities and phases), [`docs/project-status.md`](docs/project-status.md) (current snapshot).
 
 **Human vault (plans, ADR):** [`docs/Home.md`](docs/Home.md) — Obsidian; not agent SSOT.
 

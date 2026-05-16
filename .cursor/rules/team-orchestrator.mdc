@@ -1,0 +1,66 @@
+---
+description: Team orchestrator — routes tasks to UI, API, Backend, or Engine agent profiles
+alwaysApply: true
+---
+
+# Team Orchestrator
+
+You are part of a **4-agent team**. Before implementing, determine which agent(s) own the task. Do not duplicate agent profiles here — read the assigned profile and skill.
+
+## Team roster
+
+| Agent | Profile | Skill | Primary paths |
+|-------|---------|-------|---------------|
+| **UI** | `.cursor/agents/ui/AGENT.md` | `.cursor/skills/ui/SKILL.md` | `src/client/**` |
+| **API** | `.cursor/agents/api/AGENT.md` | `.cursor/skills/api/SKILL.md` | `src/server.ts`, `src/middleware/**`, `src/api/**` |
+| **Backend** | `.cursor/agents/backend/AGENT.md` | `.cursor/skills/backend/SKILL.md` | `src/services/**`, `src/storage/**`, `src/worker.ts`, `src/shared/**` |
+| **Engine** | `.cursor/agents/engine/AGENT.md` | `.cursor/skills/engine/SKILL.md` | `src/engine/**` |
+
+## Routing procedure
+
+1. **Identify paths** — which files will be created or edited?
+2. **Pick primary agent** — the agent whose paths cover most of the change.
+3. **Pick secondary agent** (if needed) — when the task clearly spans two domains (e.g. new API route + client page).
+4. **Read before coding** — for each active agent, read its `AGENT.md` and `SKILL.md` in the same turn when domain knowledge is needed.
+5. **State role** — briefly announce: "Acting as **UI Agent** (primary)" or "Acting as **API Agent** (primary), **Backend Agent** (secondary)".
+
+## Routing matrix
+
+| Glob / signal | Agent |
+|---------------|-------|
+| `src/client/**` | UI |
+| `src/server.ts`, `src/middleware/**`, `src/api/**` | API |
+| `src/services/**`, `src/storage/**`, `src/worker.ts`, `src/shared/**` | Backend |
+| `src/engine/**` | Engine |
+
+## Cross-cutting tasks
+
+| Task type | Primary | Secondary |
+|-----------|---------|-----------|
+| New user-facing feature (page + API) | UI | API (+ Backend if new DB ops) |
+| New REST endpoint only | API | Backend (if new service/DB logic) |
+| Translation / analyze behavior | Engine | API (if new routes/queues), Backend (if persistence/cache) |
+| Import/export, cache, worker jobs | Backend | API (if new endpoints) |
+| Route map / auth gates | API | UI (if client routes/gates change) |
+
+## Rules layering
+
+**Global (alwaysApply):** `team-orchestrator.mdc`, `core.mdc`, `architecture.mdc` — loaded in every session.
+
+**Domain (globs + agent profile):** e.g. `api.mdc`, `cache.mdc`, `client.mdc` — auto-attached when matching files are in context, or listed in the active agent's `AGENT.md`. Read domain rules from the agent profile; do not assume all domain rules are always loaded.
+
+**Skills:** `.cursor/skills/<agent>/SKILL.md` — patterns and how-to; rules remain SSOT for policies.
+
+## Shared rules (all agents)
+
+Always respect the three global rules above and domain rules listed in each agent's `AGENT.md`.
+
+## Manual override
+
+If the user names an agent explicitly (e.g. "as Engine agent"), follow that profile and skill even when paths suggest another agent.
+
+## Do not
+
+- Copy full checklists from agent profiles into responses — follow them silently.
+- Skip reading `SKILL.md` when the skill's "When To Use" matches the task.
+- Let one agent's boundaries leak (e.g. UI calling Supabase directly, Engine adding Express routes).

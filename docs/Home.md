@@ -11,11 +11,12 @@ updated: 2026-05-16
 
 ## Start here
 
-1. **Project status (AI anchor):** [[project-status]]
-2. **Agents & conventions (SSOT):** [[_canonical/rules/]] — Cursor rules in `.cursor/rules/`
-3. **Conventions:** [[_meta/conventions]]
-4. **Archive triage:** [[_meta/archive-triage]]
-5. **Onboarding:** [[00-start/quick-start]]
+1. **Global roadmap (master plan):** [[ROADMAP]]
+2. **Project status (AI anchor):** [[project-status]]
+3. **Agents & conventions (SSOT):** [[_canonical/rules/]] — Cursor rules in `.cursor/rules/`
+4. **Conventions:** [[_meta/conventions]]
+5. **Archive triage:** [[_meta/archive-triage]]
+6. **Onboarding:** [[00-start/quick-start]]
 
 ## Canonical rules (`.cursor/rules/`)
 

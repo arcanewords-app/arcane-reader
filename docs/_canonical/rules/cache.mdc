@@ -1,6 +1,7 @@
 ---
 description: Cache consistency and invalidation policy
-alwaysApply: true
+globs: src/server.ts,src/services/**,src/shared/cacheContract.ts,src/worker.ts
+alwaysApply: false
 ---
 
 # Cache Consistency Policy

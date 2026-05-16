@@ -10,6 +10,8 @@ updated: 2026-05-16
 
 **Use in AI sessions:** `@docs/project-status.md` at the start of complex tasks.
 
+**Strategic priorities and phases:** [[ROADMAP]]
+
 Update this file when completing plans or shipping major features.
 
 ## Currently implemented (code-verified)
@@ -45,6 +47,7 @@ Update this file when completing plans or shipping major features.
 
 ## Documentation entry points
 
+- Master roadmap: [[ROADMAP]]
 - Agent SSOT: `.cursor/rules/` (see [[Home#Canonical rules]])
 - Vault MOC: [[Home]]
 - Triage log: [[_meta/archive-triage]]
