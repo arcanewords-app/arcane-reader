@@ -5,6 +5,7 @@ domain: meta
 stale: false
 created: 2026-05-16
 updated: 2026-05-16
+canonical: .cursor/rules/architecture.mdc
 ---
 
 # Rules audit (2026-05-16)
@@ -22,12 +23,13 @@ updated: 2026-05-16
 | `routing.mdc` | Rewritten | Full route map from code + former ROUTES.md |
 | `architecture.mdc` | **New** | Module map + doc hierarchy |
 | `auth.mdc` | **New** | Roles, middleware, gates |
+| `deployment.mdc` | **New** | Env, Vercel, worker (verified vs code) |
+| `logging.mdc` | **New** | Pino policy from `logger.ts` + archive LOGGING_RULES |
 
 ## Gaps (future rules, not blocking)
 
 | Topic | Suggested file | Verify against |
 |-------|----------------|----------------|
-| Deployment | `deployment.mdc` | `vercel.json`, `env.example.txt`, DEPLOYMENT guides in archive |
 | Import/export | extend `api.mdc` or `engine.mdc` | `src/services/import/`, `export/` |
 
 ## Stale doc references removed from rules

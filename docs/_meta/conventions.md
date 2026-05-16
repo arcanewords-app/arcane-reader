@@ -57,8 +57,28 @@ updated: YYYY-MM-DD
 - Wikilinks: `[[architecture]]`, `[[_canonical/rules/routing]]`
 - Code: `` `src/server.ts` `` or `@src/server.ts` in rules / AGENTS.md
 
+## Workflow (every task)
+
+```
+Code → Rule (if pattern changes) → Vault plan/note (if applicable)
+```
+
+1. Implement and verify in `src/`.
+2. Update `.cursor/rules/*.mdc` if conventions, routes, env, or logging policy changed.
+3. Update `docs/05-plans/` status or `docs/project-status.md` when scope shifts.
+4. Do not copy from `docs/archive/` without code verification.
+
 ## PR checklist
 
 - Behavior change → code + relevant `.mdc` rule(s)
-- Route change → `routing.mdc` + `AppRouter.tsx` + `server.ts`
-- Optional plan/ADR update in vault
+- New route → `routing.mdc` + `AppRouter.tsx` + `server.ts` (same PR)
+- New env var → `env.example.txt` + `deployment.mdc`
+- New logging pattern → `logging.mdc` if policy-level
+- Plan done → `05-plans/*` set `status: archived`; update [[../project-status]]
+- Optional: ADR in `04-decisions/` for irreversible decisions
+
+## AI session context
+
+- Broad task: `@docs/project-status.md` + domain rule (e.g. `@.cursor/rules/engine.mdc`)
+- Deep dive: `@docs/03-explanation/...` or `@docs/02-how-to/...` as needed
+- Vault is **not** auto-loaded; attach explicitly in Cursor chat

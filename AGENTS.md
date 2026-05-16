@@ -15,6 +15,10 @@
 | `engine.mdc` | Translation pipeline |
 | `client.mdc` | Preact UI |
 | `design-system.mdc` | Tokens, icons, a11y |
+| `deployment.mdc` | Env, Vercel, worker |
+| `logging.mdc` | Pino, req.log, levels |
+
+**Session anchor:** [`docs/project-status.md`](docs/project-status.md) — open tasks and verified features.
 
 **Human vault (plans, ADR):** [`docs/Home.md`](docs/Home.md) — Obsidian; not agent SSOT.
 

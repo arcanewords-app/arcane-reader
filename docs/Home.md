@@ -11,10 +11,11 @@ updated: 2026-05-16
 
 ## Start here
 
-1. **Agents & conventions (SSOT):** [[_canonical/rules/]] — Cursor rules in `.cursor/rules/`
-2. **Conventions:** [[_meta/conventions]]
-3. **Rules audit:** [[_meta/rules-audit]]
-4. **Onboarding:** [[00-start/quick-start]]
+1. **Project status (AI anchor):** [[project-status]]
+2. **Agents & conventions (SSOT):** [[_canonical/rules/]] — Cursor rules in `.cursor/rules/`
+3. **Conventions:** [[_meta/conventions]]
+4. **Archive triage:** [[_meta/archive-triage]]
+5. **Onboarding:** [[00-start/quick-start]]
 
 ## Canonical rules (`.cursor/rules/`)
 
@@ -29,6 +30,8 @@ updated: 2026-05-16
 | [[_canonical/rules/engine]] | Translation pipeline |
 | [[_canonical/rules/client]] | Preact UI |
 | [[_canonical/rules/design-system]] | Tokens, icons, a11y |
+| [[_canonical/rules/deployment]] | Env, Vercel, worker |
+| [[_canonical/rules/logging]] | Pino, req.log, levels |
 
 If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code + rules win**.
 
@@ -45,7 +48,13 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 | [[06-runbooks/]] | Ops / incidents |
 | [[archive/]] | Legacy docs (may be stale) |
 
+## How-to
+
+- [[02-how-to/run-locally]]
+- [[02-how-to/add-feature]]
+- [[02-how-to/debug-translation]]
+
 ## Active work
 
-- Plans: folder [[05-plans/]] — filter with **Active Plans** base view
+- Plans: [[05-plans/]] — **Active Plans** base view (6 active)
 - Decisions: [[04-decisions/adr-0000-rules-first-documentation-ssot]]

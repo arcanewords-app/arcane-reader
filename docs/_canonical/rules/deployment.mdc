@@ -1,0 +1,61 @@
+---
+description: Deployment, environment variables, Vercel and worker
+globs: vercel.json,env.example.txt,api/**,package.json
+alwaysApply: false
+---
+
+# Deployment
+
+## Required environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` | Translation / analysis |
+| `SUPABASE_URL` | Database, auth, storage |
+| `SUPABASE_ANON_KEY` | Client + user-scoped API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side admin DB ops |
+| `PORT` | API port (default 3000) |
+
+See `@env.example.txt` for optional: `ANTHROPIC_API_KEY`, chunking, `PUBLIC_URL`, `VITE_GA_MEASUREMENT_ID`.
+
+## Async jobs (production)
+
+| Variable | Purpose |
+|----------|---------|
+| `REDIS_URL` | BullMQ connection (analysis/translate queues) |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Job state + cancel flags (worker) |
+
+Without Redis: sync translate/analyze still work; async endpoints return **503** per `@.cursor/rules/routing.mdc`.
+
+## Local development
+
+```bash
+npm install
+cp env.example.txt .env
+npm run dev          # API + Vite client
+npm run dev:full     # + BullMQ worker
+```
+
+## Build and run
+
+```bash
+npm run build        # client (Vite) + server (tsc)
+npm run start        # node dist/server.js
+npm run start:worker # separate process for queues
+```
+
+## Vercel
+
+- Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes.
+- Set all env vars in Vercel project settings (same names as `.env`).
+- **Worker:** BullMQ worker is **not** a Vercel serverless function — run `start:worker` on a long-lived host (Railway, Fly, second Vercel service, etc.) with same `REDIS_URL` and `KV_REST_*`.
+
+## Supabase
+
+- Apply SQL from `docs/supabase-migrations/` and `docs/migrations/` as needed for your environment.
+- Edge functions / cron (e.g. token daily reset): see `docs/archive/SUPABASE_EDGE_FUNCTIONS.md` — verify against production before relying on archive steps.
+
+## When changing deployment
+
+- Update this rule and `@env.example.txt` together.
+- Do not copy unverified steps from `docs/archive/DEPLOYMENT.md` or `VERCEL_DEPLOY_GUIDE.md` without checking the repo.

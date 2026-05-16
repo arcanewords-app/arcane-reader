@@ -25,3 +25,17 @@ alwaysApply: true
 - Prefer `@file.ts` references over copying code into rules.
 - Use existing components from `src/client/components/ui/` (Button, Modal, Input, etc.).
 - DB: snake_case columns. See `@src/storage/database.ts` for types.
+
+## Documentation workflow
+
+On every meaningful change:
+
+1. **Code** first.
+2. **Rule** if conventions, routes, env, or logging policy changed (`@.cursor/rules/`).
+3. **Vault** optional: `docs/05-plans/` status, `docs/project-status.md`.
+
+PR checklist:
+
+- New/changed route → `@.cursor/rules/routing.mdc` + `@src/client/AppRouter.tsx` + `@src/server.ts`
+- New env var → `@env.example.txt` + `@.cursor/rules/deployment.mdc`
+- Plan completed → archive plan note (`status: archived`) and update `@docs/project-status.md`

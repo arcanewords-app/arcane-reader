@@ -1,0 +1,51 @@
+---
+description: Logging policy — levels, req.log vs logger, English only
+globs: src/middleware/**,src/logger.ts,src/server.ts
+alwaysApply: false
+---
+
+# Logging
+
+## Stack
+
+- Pino: `@src/logger.ts`
+- Request scope: `@src/middleware/requestContext.ts`, `@src/middleware/requestLogging.ts`
+- `LOG_LEVEL` env (default `info` in production, `debug` in dev)
+
+## Where to log
+
+| Place | Logger | Level |
+|-------|--------|-------|
+| Express route handlers | `req.log` | error / info |
+| Services, engine, helpers (no `req`) | `logger` | error / warn / info / debug |
+
+## Message rules
+
+- **English only.**
+- Structured context in object, short message: `req.log.info({ event: 'translation.started', chapterId }, 'Translation started')`.
+- Errors: `logger.error({ err }, 'Failed to save chapter')` — use `err` key for serializer.
+
+## Do not log
+
+- Secrets (API keys, tokens, passwords).
+- Full request/response bodies or PII dumps.
+- Per-item lines in tight loops (use one summary or `debug`).
+- Redundant "success" if HTTP middleware already logged 200 without extra context.
+
+## Levels
+
+| Level | Use |
+|-------|-----|
+| `error` | Failed operation |
+| `warn` | Recoverable / fallback |
+| `info` | Business events (translation done, export done) |
+| `debug` | Pipeline chunks, verbose progress (`LOG_LEVEL=debug`) |
+
+## Client
+
+- No noisy `console.log` in UI. `console.error` in catch blocks for dev only.
+
+## HTTP request logging
+
+- `requestLogging` logs `http.request` with method, path, status, durationMs.
+- Skips `/api/debug/logs`, `/debug` paths to reduce noise.
