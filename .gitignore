@@ -14,6 +14,7 @@ data/
 *.db
 
 # IDE
+# .cursor/plans/ — Cursor UI session plans (local only; not committed)
 .cursor/*
 !.cursor/rules/
 !.cursor/agents/

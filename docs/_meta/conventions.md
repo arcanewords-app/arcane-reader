@@ -79,6 +79,15 @@ Code → Rule (if pattern changes) → Vault plan/note (if applicable)
 
 ## AI session context
 
-- Broad task: `@docs/project-status.md` + domain rule (e.g. `@.cursor/rules/engine.mdc`)
+- Broad task: `@docs/ROADMAP.md` + `@docs/project-status.md` + domain rule (e.g. `@.cursor/rules/engine.mdc`)
+- Editing `src/client/**` or `src/engine/**`: nested `AGENTS.md` in that folder loads with Cursor
 - Deep dive: `@docs/03-explanation/...` or `@docs/02-how-to/...` as needed
 - Vault is **not** auto-loaded; attach explicitly in Cursor chat
+
+## Cursor-local vs committed agent files
+
+| Path | In git | Purpose |
+|------|--------|---------|
+| `.cursor/rules/`, `agents/`, `skills/` | yes | Agent SSOT |
+| `.cursor/plans/` | no (gitignored) | Cursor UI session plans — not product docs |
+| `docs/05-plans/` | yes | Product/engineering plans for humans and agents |

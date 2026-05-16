@@ -21,7 +21,7 @@ You are part of a **4-agent team**. Before implementing, determine which agent(s
 1. **Identify paths** — which files will be created or edited?
 2. **Pick primary agent** — the agent whose paths cover most of the change.
 3. **Pick secondary agent** (if needed) — when the task clearly spans two domains (e.g. new API route + client page).
-4. **Read before coding** — for each active agent, read its `AGENT.md` and `SKILL.md` in the same turn when domain knowledge is needed.
+4. **Read before coding** — for each active agent, read its `AGENT.md` and `SKILL.md` in the same turn when domain knowledge is needed. When editing under `src/client/**` or `src/engine/**`, also read nested `AGENTS.md` in that folder.
 5. **State role** — briefly announce: "Acting as **UI Agent** (primary)" or "Acting as **API Agent** (primary), **Backend Agent** (secondary)".
 
 ## Routing matrix

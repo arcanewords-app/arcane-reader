@@ -1,103 +1,55 @@
 # Arcane Reader — Agent Instructions
 
-## Team (specialized agents)
+Navigation map for AI agents. **Policies and architecture live in `.cursor/rules/`** (loaded automatically); do not duplicate them here.
 
-A **4-agent team** routes work by domain. The orchestrator rule is always active; each agent has a profile and a skill.
+## Start here
 
-| Agent | Profile | Skill | Primary paths |
-|-------|---------|-------|---------------|
-| **UI** | [`.cursor/agents/ui/AGENT.md`](.cursor/agents/ui/AGENT.md) | [`.cursor/skills/ui/SKILL.md`](.cursor/skills/ui/SKILL.md) | `src/client/**` |
-| **API** | [`.cursor/agents/api/AGENT.md`](.cursor/agents/api/AGENT.md) | [`.cursor/skills/api/SKILL.md`](.cursor/skills/api/SKILL.md) | `src/server.ts`, `src/middleware/**`, `src/api/**` |
-| **Backend** | [`.cursor/agents/backend/AGENT.md`](.cursor/agents/backend/AGENT.md) | [`.cursor/skills/backend/SKILL.md`](.cursor/skills/backend/SKILL.md) | `src/services/**`, `src/storage/**`, `src/worker.ts`, `src/shared/**` |
-| **Engine** | [`.cursor/agents/engine/AGENT.md`](.cursor/agents/engine/AGENT.md) | [`.cursor/skills/engine/SKILL.md`](.cursor/skills/engine/SKILL.md) | `src/engine/**` |
+| Need | Where |
+|------|--------|
+| Which agent owns the task | [`.cursor/rules/team-orchestrator.mdc`](.cursor/rules/team-orchestrator.mdc) (`alwaysApply`) |
+| Code style, PR checklist | [`.cursor/rules/core.mdc`](.cursor/rules/core.mdc) |
+| Module map, data flow | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc) |
+| Route map (SSOT) | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc) |
+| All domain rules | [`.cursor/rules/`](.cursor/rules/) |
 
-**Orchestrator:** [`.cursor/rules/team-orchestrator.mdc`](.cursor/rules/team-orchestrator.mdc) (`alwaysApply: true`) — picks primary/secondary agent from paths and task type; does not duplicate agent content.
+**Workflow:** orchestrator → read active [`.cursor/agents/<domain>/AGENT.md`](.cursor/agents/) + [`.cursor/skills/<domain>/SKILL.md`](.cursor/skills/) → follow domain `.mdc` rules.
 
-**Workflow:** orchestrator → read `AGENT.md` + `SKILL.md` for active agent(s) → follow linked `.cursor/rules/*.mdc`.
+**Nested context (when editing under `src/`):** [`src/client/AGENTS.md`](src/client/AGENTS.md), [`src/engine/AGENTS.md`](src/engine/AGENTS.md).
 
-**Other agents** in [`.cursor/agents/`](.cursor/agents/) (e.g. `debugger.md`, `verifier.md`) are utility subagents, not part of the domain team.
+**Utility subagents** (not domain team): `verifier.md`, `debugger.md`, `supabase-docs-setup.md` in [`.cursor/agents/`](.cursor/agents/).
 
-## Rules layering
+## Session anchors
 
-| Layer | Rules | How loaded |
-|-------|-------|------------|
-| **Global** | `team-orchestrator`, `core`, `architecture` | `alwaysApply: true` — every session |
-| **Domain** | `api`, `cache`, `client`, `engine`, … | File **globs** when editing matching paths; plus explicit list in each `AGENT.md` |
-| **Skills** | `.cursor/skills/<agent>/SKILL.md` | Read when acting as that agent; patterns only, not policy SSOT |
+For large or multi-step work, attach at session start:
 
-| Agent | Global + typical domain rules |
-|-------|------------------------------|
-| **UI** | + `client`, `design-system`; `routing` when routes change |
-| **API** | + `api`, `auth`, `cache`, `logging`, `routing` |
-| **Backend** | + `cache`, `deployment`; `api` when route contracts matter |
-| **Engine** | + `engine` |
+```
+@docs/ROADMAP.md
+@docs/project-status.md
+```
 
-Domain rules are **not** globally always-on (e.g. `api.mdc` and `cache.mdc` use globs so UI/Engine sessions stay lean).
+Human vault (plans, ADR): [`docs/Home.md`](docs/Home.md) — not agent SSOT. Prefer **code + `.cursor/rules/`** over `docs/archive/`.
 
-## Documentation (SSOT)
+## Truth hierarchy
 
-**Canonical source:** [`.cursor/rules/`](.cursor/rules/) — always prefer rules + code over `docs/archive/` legacy files.
+1. `src/` — behavior
+2. `.cursor/rules/` — conventions and policies
+3. `docs/` vault — plans and how-to
+4. `docs/archive/` — legacy; may be stale
 
-| Rule | Topic | alwaysApply |
-|------|--------|-------------|
-| `team-orchestrator.mdc` | Team routing (UI / API / Backend / Engine) | yes |
-| `core.mdc` | Code style, structure | yes |
-| `architecture.mdc` | System architecture | yes |
-| `api.mdc` | Express API, Zod, 503 | globs |
-| `cache.mdc` | Redis invalidation | globs |
-| `auth.mdc` | Roles, JWT | globs |
-| `engine.mdc` | Translation pipeline | globs |
-| `client.mdc` | Preact UI | globs |
-| `design-system.mdc` | Tokens, icons, a11y | globs |
-| `deployment.mdc` | Env, Vercel, worker | globs |
-| `logging.mdc` | Pino, req.log, levels | globs |
-| `routing.mdc` | Route map (SSOT) | globs |
+## Commands
 
-**Session anchors:** [`docs/ROADMAP.md`](docs/ROADMAP.md) (priorities and phases), [`docs/project-status.md`](docs/project-status.md) (current snapshot).
-
-**Human vault (plans, ADR):** [`docs/Home.md`](docs/Home.md) — Obsidian; not agent SSOT.
-
-When changing routes: update `routing.mdc`, `src/client/AppRouter.tsx`, and `src/server.ts` in one task.
-
-## Architecture
-
-- **client/** — Preact UI, Vite, i18next. Pages, components, hooks, contexts.
-- **engine/** — Translation pipeline: Analyze → Translate → Edit. Glossary, prompts, stages.
-- **services/** — Import (epub, fb2, csv, txt), export (epub, fb2), auth, storage.
-- **storage/** — DB layer. Supabase for prod, LowDB fallback.
-- **middleware/** — Express: auth, requestContext, serviceHealth.
-
-## Conventions
-
-- TypeScript strict. Preact (not React). Functional components.
-- snake_case for DB columns. See `@storage/database.ts`.
-- 2 spaces, LF, UTF-8 — `.editorconfig`.
-- Lint: `npm run lint`, typecheck: `npm run typecheck`, format: `npm run format`.
-
-## Project specifics
-
-- **Text Blocks**: `{{block:type-id}}text{{/block:type-id}}`. Types in `@src/engine/constants/text-block-presets.ts`.
-- **Glossary**: characters, locations, terms. Declension via Petrovich.
-- **Pipeline**: 3 stages. Prompts in `src/engine/prompts/system/`.
-
-Details: `@.cursor/rules/engine.mdc`, `@.cursor/rules/architecture.mdc`, `@README.md`.
+```bash
+npm run dev          # API + client
+npm run lint         # ESLint
+npm run typecheck    # tsc
+npm run format       # Prettier
+```
 
 ## Supabase Docs
 
-Before working on a Supabase feature, check the docs via `ssh supabase.sh <command>`.
+Before Supabase work, use live docs via SSH (see [`.cursor/skills/supabase-docs/SKILL.md`](.cursor/skills/supabase-docs/SKILL.md)):
 
 ```bash
-# Search for a topic
 ssh supabase.sh grep -rl 'auth' /supabase/docs/
-
-# Read a specific guide
 ssh supabase.sh cat /supabase/docs/guides/auth/passwords.md
-
-# Find all guides in a section
-ssh supabase.sh find /supabase/docs/guides/database -name '*.md'
-
-# Search with context
-ssh supabase.sh grep -r 'RLS' /supabase/docs/guides/auth --include='*.md' -l
 ```
-
-All docs live under `/supabase/docs/` as markdown files. You can use any standard Unix tools (grep, find, cat, etc.) to search and read them.
