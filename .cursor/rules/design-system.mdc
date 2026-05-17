@@ -65,15 +65,7 @@ alwaysApply: false
 - MAY use emoji only for explicitly decorative, non-interactive content states.
 - New or touched controls MUST use `Icon`; sizes: `sm` (18px), `md` (20px), `lg` (24px).
 - Source: Google Material Symbols (Outlined) in `index.html`; wrapper `@src/client/components/ui/Icon.tsx`.
-
-### Canonical icon names (action → Material Symbol)
-
-- Navigation: `arrow_back`, `chevron_left`, `chevron_right`, `close`, `more_vert`
-- Reader: `menu_book`, `toc`, `share`, `settings`, `content_copy`, `search`
-- Translation: `translate`, `manage_search`, `edit`, `auto_awesome`, `check_circle`, `done_all`, `skip_next`
-- Glossary/actions: `person`, `place`, `delete`, `upload_file`, `image`, `warning`, `error`, `schedule`
-
-Legacy emoji → icon mapping: `arrow_back`, `menu_book`, `translate`, `delete`, etc. (reject new emoji control icons in PR).
+- Canonical symbol names: `@src/client/components/ui/ICON_NAMES.md`.
 
 ## Icon Color Contract
 

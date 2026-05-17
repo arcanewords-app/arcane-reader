@@ -22,7 +22,7 @@ Owns the Preact SPA: pages, components, hooks, styles, i18n, and client-side rou
 
 ## Rules To Follow
 
-- `.cursor/rules/team-orchestrator.mdc` (always)
+- `.cursor/rules/team-orchestrator.mdc` (when implementing / cross-domain)
 - `.cursor/rules/core.mdc` (always)
 - `.cursor/rules/architecture.mdc` (always)
 - `.cursor/rules/client.mdc` — glob: `src/client/**`

@@ -1,9 +1,11 @@
 ---
 name: local-dev
-description: Local dev setup, npm scripts, ripgrep, Obsidian vault (docs/). Use for run locally, search repo/vault, env troubleshooting, plan updates.
+description: Local dev on Windows VM — npm, ripgrep, tool choice for search/files, Obsidian vault. Use for run locally, search repo/vault, env troubleshooting, or when shell commands fail.
 ---
 
 # Local Dev & Obsidian Skill
+
+**Environment:** Windows VM, **PowerShell** shell, repo root `f:\arcane\arcane-reader`.
 
 ## When To Use
 
@@ -13,6 +15,64 @@ description: Local dev setup, npm scripts, ripgrep, Obsidian vault (docs/). Use 
 - Port conflicts, 503 on async jobs, env variable questions
 
 Read `@.cursor/rules/deployment.mdc` for env/deploy policy. Human guide: `@docs/02-how-to/obsidian-vault.md`.
+
+---
+
+## G. Tool choice (read before searching or reading files)
+
+Use this order. **Do not switch to a different tool family after one failure** (e.g. `grep` after `rg`, or `cat` after Read).
+
+| Goal                                | 1st choice                           | 2nd choice                      | Avoid on Windows          |
+| ----------------------------------- | ------------------------------------ | ------------------------------- | ------------------------- |
+| Search in `src/`                    | `rg "pattern" src/`                  | Cursor Grep / SemanticSearch    | `grep -r`, `find / -name` |
+| Search in `docs/`, Obsidian running | MCP `search_simple` / `search_query` | `rg -i "kw" docs --glob "*.md"` | MCP path `docs/foo.md`    |
+| Search in `docs/`, no MCP           | `rg -i "kw" docs --glob "*.md"`      | Read known path                 | —                         |
+| Read file at known path             | Cursor **Read** tool                 | `Get-Content path`              | `cat`, `type`             |
+| Find file by name/pattern           | Cursor **Glob**                      | `rg --files -g "*.tsx" src/`    | `find . -name`            |
+| List npm scripts                    | Read `package.json` or §A table      | —                               | invent `npm run …`        |
+| Edit vault note (Obsidian up)       | MCP `vault_patch` / `vault_read`     | —                               | rewrite entire note       |
+| Edit code                           | domain agent + StrReplace/Write      | —                               | DevTools for feature code |
+
+**Path rules**
+
+- Shell / `rg`: repo-relative — `src/server.ts`, `docs/05-plans/foo.md`
+- MCP Obsidian: vault-relative — `05-plans/foo.md` (no `docs/` prefix)
+- `@` in chat: workspace path — `@src/server.ts`, `@.cursor/skills/local-dev/SKILL.md`
+
+---
+
+## H. Windows VM (PowerShell)
+
+Default shell is **PowerShell**, not bash. Prefer `rg` and npm; use PS cmdlets only when IDE tools are unavailable.
+
+```powershell
+# Repo root (run once)
+Set-Location f:\arcane\arcane-reader
+
+# Env file
+Copy-Item env.example.txt .env
+
+# rg — use forward slashes; double-quote regex
+rg "safeParse" src/server.ts
+rg -i "keyword" docs --glob "*.md"
+rg --files src/client -g "*.tsx"
+
+# Port / process (if kill-port script insufficient)
+npm run kill-port
+```
+
+| Instead of (bash)     | Use (Windows)                       |
+| --------------------- | ----------------------------------- |
+| `cp a b`              | `Copy-Item a b`                     |
+| `rm file`             | `Remove-Item file`                  |
+| `cat file`            | Read tool, or `Get-Content file`    |
+| `export VAR=1`        | `$env:VAR = "1"`                    |
+| `grep -r pat .`       | `rg pat`                            |
+| `find . -name '*.ts'` | Glob tool or `rg --files -g '*.ts'` |
+
+**If `rg` is missing:** `where.exe rg` — install [ripgrep](https://github.com/BurntSushi/ripgrep/releases) or use Cursor **Grep** tool; do not fall back to `Select-String` across the whole tree.
+
+**WSL:** Only use bash/`grep` if the user explicitly works in a WSL terminal; Cursor Agent shell here is PowerShell.
 
 ---
 
@@ -54,7 +114,7 @@ Edit `.env`: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SE
 
 ## B. Ripgrep (code search)
 
-Use `rg` from repo root (`f:\arcane\arcane-reader` or `./`).
+Use `rg` from repo root after `Set-Location f:\arcane\arcane-reader` (see §H). On Windows, quote patterns with double quotes.
 
 ```bash
 # API route handlers
@@ -87,6 +147,12 @@ rg "function functionName" src/
 ## C. Obsidian vault (`docs/`)
 
 **Vault root = `docs/` folder.** Wikilinks omit `docs/`.
+
+### MCP (preferred when Obsidian is running)
+
+With **Local REST API** enabled and Cursor MCP `obsidian` connected, use MCP tools instead of only `rg` for read/search/patch. See `@.cursor/skills/obsidian-mcp/SKILL.md`. Setup: copy `@.cursor/mcp.json.example` to `~/.cursor/mcp.json` and set your API key; see `@.cursor/agents/obsidian-mcp-setup.md`.
+
+### Ripgrep fallback
 
 | Task                  | Command                                        |
 | --------------------- | ---------------------------------------------- |
@@ -153,3 +219,7 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 - Using `docs/archive/` as SSOT without code check
 - Wikilinks with `docs/` prefix inside vault notes
 - Committing `.env` or logging secrets
+- `grep`, `find`, `cat`, `cp` in PowerShell when §G lists a better tool
+- Retrying the same search with bash vs PS vs MCP without fixing the root cause
+- MCP paths like `docs/05-plans/x.md` (wrong — use `05-plans/x.md`)
+- Reading entire `routing.mdc` when only one route is needed — `rg "path" .cursor/rules/routing.mdc`

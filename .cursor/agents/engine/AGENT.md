@@ -20,7 +20,7 @@ Owns the translation pipeline (Analyze → Translate → Edit), glossary logic, 
 
 ## Rules To Follow
 
-- `.cursor/rules/team-orchestrator.mdc` (always)
+- `.cursor/rules/team-orchestrator.mdc` (when implementing / cross-domain)
 - `.cursor/rules/core.mdc` (always)
 - `.cursor/rules/architecture.mdc` (always)
 - `.cursor/rules/engine.mdc` — glob: `src/engine/**`

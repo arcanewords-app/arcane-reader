@@ -1,6 +1,13 @@
 # Documentation vault — nested agent context
 
-Applies when editing files under `docs/`. Global rule: [`.cursor/rules/local-dev.mdc`](../.cursor/rules/local-dev.mdc). Skill: [`.cursor/skills/local-dev/SKILL.md`](../.cursor/skills/local-dev/SKILL.md).
+Applies when editing files under `docs/`. Global rules: [`.cursor/rules/local-dev.mdc`](../.cursor/rules/local-dev.mdc), [`.cursor/rules/obsidian-mcp.mdc`](../.cursor/rules/obsidian-mcp.mdc).
+
+| Task                                       | Read                                                                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Vault read/write/search (Obsidian running) | [`.cursor/skills/obsidian-mcp/SKILL.md`](../.cursor/skills/obsidian-mcp/SKILL.md) — MCP tools; vault-relative paths (no `docs/` prefix) |
+| Terminal search, npm, fallback if MCP down | [`.cursor/skills/local-dev/SKILL.md`](../.cursor/skills/local-dev/SKILL.md)                                                             |
+
+**Prerequisite for MCP:** Obsidian Desktop open with this folder as vault; Cursor MCP server `obsidian` connected (see [[02-how-to/obsidian-vault#MCP for Cursor agents]]).
 
 ## Vault root
 

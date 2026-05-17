@@ -64,4 +64,14 @@ Attach for large tasks:
 
 Vault notes are **not** auto-loaded; attach explicitly or edit under `docs/` so `local-dev.mdc` applies.
 
+### MCP for Cursor agents
+
+1. Enable **Local REST API & MCP Server** (community plugin; bundled in this vault).
+2. Copy API key from **Settings → Local REST API**.
+3. Copy repo [`.cursor/mcp.json.example`](../../.cursor/mcp.json.example) to `~/.cursor/mcp.json` and replace `YOUR_API_KEY`.
+4. Keep Obsidian running with this vault open (`docs/` folder).
+5. In Cursor: **Settings → MCP** — server `obsidian` should connect (HTTP `http://127.0.0.1:27123/mcp/` on Windows is simplest).
+
+Agents use `.cursor/skills/obsidian-mcp/SKILL.md` for vault tools. Rotate the API key if it was ever committed or shared. Plugin secrets file `data.json` is gitignored.
+
 See also: [[run-locally]], [[_meta/conventions]]

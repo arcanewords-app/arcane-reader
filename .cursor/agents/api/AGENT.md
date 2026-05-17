@@ -22,7 +22,7 @@ Owns the Express HTTP layer: routes, request validation, auth middleware, error 
 
 ## Rules To Follow
 
-- `.cursor/rules/team-orchestrator.mdc` (always)
+- `.cursor/rules/team-orchestrator.mdc` (when implementing / cross-domain)
 - `.cursor/rules/core.mdc` (always)
 - `.cursor/rules/architecture.mdc` (always)
 - `.cursor/rules/api.mdc` — glob: `src/server.ts`, `src/middleware/**`, `src/api/**`

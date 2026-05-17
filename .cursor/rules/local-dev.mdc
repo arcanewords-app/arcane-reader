@@ -11,32 +11,18 @@ alwaysApply: false
 - **npm scripts:** `@package.json` — do not invent commands; use `npm run <script>` from there.
 - **Env vars:** `@.cursor/rules/deployment.mdc` + `@env.example.txt` — never commit `.env`.
 - **Routes:** `@.cursor/rules/routing.mdc` — do not duplicate the route map in vault notes.
-- **Code behavior:** `src/` wins over vault or archive docs.
-
-## Ports (local)
-
-| Service | Port |
-|---------|------|
-| Express API | 3000 (`PORT` in `.env`) |
-| Vite client | 5173 (proxies `/api` to 3000) |
+- **Commands, tool choice, Windows VM, rg, vault:** `@.cursor/skills/local-dev/SKILL.md` (§G–H before shell).
 
 ## Obsidian vault
 
 - **Vault root:** repository folder `docs/` (open this folder in Obsidian, not the repo root).
-- **Wikilinks:** paths relative to vault — e.g. `[[ROADMAP]]`, `[[05-plans/engine-refactor]]`, no `docs/` prefix.
-- **Rules mirror:** `docs/_canonical/rules/` — keep in sync when editing `.cursor/rules/*.mdc` (copies in repo).
-- **Product plans:** `docs/05-plans/` with frontmatter per `@docs/_meta/conventions.md`.
-
-## Truth hierarchy (vault edits)
-
-1. `src/` — behavior
-2. `.cursor/rules/` — agent policies
-3. `docs/` vault — plans, ADR, how-to
-4. `docs/archive/` — legacy; possibly stale
+- **Rules mirror:** `docs/_canonical/rules/` — keep in sync when editing `.cursor/rules/*.mdc`.
+- **MCP (Obsidian running):** `@.cursor/skills/obsidian-mcp/SKILL.md` and `@.cursor/rules/obsidian-mcp.mdc`. If MCP is unavailable, use `rg` per local-dev skill.
 
 ## Workflow
 
 - Local setup / troubleshooting: read `@.cursor/skills/local-dev/SKILL.md` or invoke DevTools utility agent.
+- Vault edits with Obsidian running: read `@.cursor/skills/obsidian-mcp/SKILL.md` (MCP first).
 - Env or deploy changes: update `deployment.mdc` + `env.example.txt` in the same task.
 - Plan completed: set plan `status: archived` in frontmatter; update `@docs/project-status.md`.
 

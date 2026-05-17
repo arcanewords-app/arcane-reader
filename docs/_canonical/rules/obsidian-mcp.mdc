@@ -1,0 +1,15 @@
+---
+description: Obsidian vault MCP — prefer MCP tools for docs/ edits when Obsidian is running
+globs: docs/**
+---
+
+# Obsidian MCP (vault)
+
+When editing files under `docs/` and Obsidian is running with Local REST API enabled:
+
+1. Read `@.cursor/skills/obsidian-mcp/SKILL.md` for tool names, paths, and workflows.
+2. Prefer MCP tools (`vault_read`, `vault_patch`, `search_query`) over rewriting whole files or using only `rg`.
+3. Use vault-relative paths (no `docs/` prefix in MCP calls).
+4. If MCP is unavailable, use `rg` from `@.cursor/skills/local-dev/SKILL.md` §C and tell the user to start Obsidian.
+
+Do not duplicate full route tables into vault notes — link to `_canonical/rules/routing` or `.cursor/rules/routing.mdc`.
