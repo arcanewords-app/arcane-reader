@@ -22,16 +22,17 @@ Read `@.cursor/rules/deployment.mdc` for env/deploy policy. Human guide: `@docs/
 
 Use this order. **Do not switch to a different tool family after one failure** (e.g. `grep` after `rg`, or `cat` after Read).
 
-| Goal                                | 1st choice                           | 2nd choice                      | Avoid on Windows          |
-| ----------------------------------- | ------------------------------------ | ------------------------------- | ------------------------- |
-| Search in `src/`                    | `rg "pattern" src/`                  | Cursor Grep / SemanticSearch    | `grep -r`, `find / -name` |
-| Search in `docs/`, Obsidian running | MCP `search_simple` / `search_query` | `rg -i "kw" docs --glob "*.md"` | MCP path `docs/foo.md`    |
-| Search in `docs/`, no MCP           | `rg -i "kw" docs --glob "*.md"`      | Read known path                 | —                         |
-| Read file at known path             | Cursor **Read** tool                 | `Get-Content path`              | `cat`, `type`             |
-| Find file by name/pattern           | Cursor **Glob**                      | `rg --files -g "*.tsx" src/`    | `find . -name`            |
-| List npm scripts                    | Read `package.json` or §A table      | —                               | invent `npm run …`        |
-| Edit vault note (Obsidian up)       | MCP `vault_patch` / `vault_read`     | —                               | rewrite entire note       |
-| Edit code                           | domain agent + StrReplace/Write      | —                               | DevTools for feature code |
+| Goal                                | 1st choice                            | 2nd choice                      | Avoid on Windows          |
+| ----------------------------------- | ------------------------------------- | ------------------------------- | ------------------------- |
+| Search in `src/`                    | `rg "pattern" src/`                   | Cursor Grep / SemanticSearch    | `grep -r`, `find / -name` |
+| Search in `docs/`, Obsidian running | MCP `search_simple` / `search_query`  | `rg -i "kw" docs --glob "*.md"` | MCP path `docs/foo.md`    |
+| Trello boards (MCP connected)       | Trello MCP `list_boards`, `get_lists` | —                               | —                         |
+| Search in `docs/`, no MCP           | `rg -i "kw" docs --glob "*.md"`       | Read known path                 | —                         |
+| Read file at known path             | Cursor **Read** tool                  | `Get-Content path`              | `cat`, `type`             |
+| Find file by name/pattern           | Cursor **Glob**                       | `rg --files -g "*.tsx" src/`    | `find . -name`            |
+| List npm scripts                    | Read `package.json` or §A table       | —                               | invent `npm run …`        |
+| Edit vault note (Obsidian up)       | MCP `vault_patch` / `vault_read`      | —                               | rewrite entire note       |
+| Edit code                           | domain agent + StrReplace/Write       | —                               | DevTools for feature code |
 
 **Path rules**
 

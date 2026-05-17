@@ -74,4 +74,4 @@ Vault notes are **not** auto-loaded; attach explicitly or edit under `docs/` so 
 
 Agents use `.cursor/skills/obsidian-mcp/SKILL.md` for vault tools. Rotate the API key if it was ever committed or shared. Plugin secrets file `data.json` is gitignored.
 
-See also: [[run-locally]], [[_meta/conventions]]
+See also: [[run-locally]], [[trello-mcp]], [[_meta/conventions]]
