@@ -10,6 +10,12 @@ import type {
 } from '../types';
 import { Card, Button, Modal, Input, LoadingSpinner, Icon, AlertModal, ConfirmModal } from './ui';
 import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
+import { ProjectLanguagePairFields } from './Project/ProjectLanguagePairFields';
+import {
+  formatLanguagePairLabel,
+  type ProjectSourceLanguage,
+  PROJECT_SOURCE_LANGUAGES,
+} from '../constants/translationLanguages';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { isChunkError } from '../../shared/chunkErrors';
@@ -65,6 +71,8 @@ export function ProjectInfo({
   const [showTranslatorPicker, setShowTranslatorPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [savingEntities, setSavingEntities] = useState(false);
+  const [sourceLanguageDraft, setSourceLanguageDraft] = useState<ProjectSourceLanguage>('en');
+  const [savingLanguages, setSavingLanguages] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +121,40 @@ export function ProjectInfo({
       clearTimeout(loadTimer);
     };
   }, [project.id]);
+
+  useEffect(() => {
+    const src = project.sourceLanguage;
+    if ((PROJECT_SOURCE_LANGUAGES as readonly string[]).includes(src)) {
+      setSourceLanguageDraft(src as ProjectSourceLanguage);
+    } else {
+      setSourceLanguageDraft('en');
+    }
+  }, [project.sourceLanguage]);
+
+  const languagePairLocked =
+    project.glossary.length > 0 || project.chapters.some((c) => c.status !== 'pending');
+
+  const handleSaveLanguages = async () => {
+    if (languagePairLocked) return;
+    setSavingLanguages(true);
+    try {
+      await api.updateProjectLanguages(
+        project.id,
+        sourceLanguageDraft,
+        project.targetLanguage || 'ru'
+      );
+      invalidateProject(project.id);
+      await onRefreshProject();
+    } catch (error) {
+      console.error('Failed to update project languages:', error);
+      setErrorModal({
+        title: t('common.error'),
+        message: error instanceof ApiError ? error.message : String(error),
+      });
+    } finally {
+      setSavingLanguages(false);
+    }
+  };
 
   // Load entity details when project has entity IDs
   useEffect(() => {
@@ -696,6 +738,43 @@ export function ProjectInfo({
                 </div>
 
                 <div class="metadata-details">
+                  {/* Translation language pair (project settings) */}
+                  <div class="metadata-item metadata-item--language-pair">
+                    <span class="metadata-label">{t('project.languagePair')}</span>
+                    <div class="metadata-value">
+                      {languagePairLocked ? (
+                        <span class="project-language-pair-badge">
+                          {formatLanguagePairLabel(
+                            t,
+                            project.sourceLanguage || 'en',
+                            project.targetLanguage || 'ru'
+                          )}
+                        </span>
+                      ) : (
+                        <>
+                          <ProjectLanguagePairFields
+                            compact
+                            sourceLanguage={sourceLanguageDraft}
+                            onSourceLanguageChange={setSourceLanguageDraft}
+                          />
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            loading={savingLanguages}
+                            disabled={sourceLanguageDraft === (project.sourceLanguage || 'en')}
+                            onClick={handleSaveLanguages}
+                            style={{ marginTop: '0.5rem' }}
+                          >
+                            {t('common.save')}
+                          </Button>
+                        </>
+                      )}
+                      {languagePairLocked && (
+                        <p class="project-language-pair-hint">{t('project.languagePairLocked')}</p>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Title */}
                   {project.metadata.title && project.metadata.title !== project.name && (
                     <div class="metadata-item">
@@ -715,7 +794,7 @@ export function ProjectInfo({
                   {/* Language */}
                   {project.metadata.language && (
                     <div class="metadata-item">
-                      <span class="metadata-label">{t('projectInfo.sourceLanguage')}</span>
+                      <span class="metadata-label">{t('project.metadataFileLanguage')}</span>
                       <span class="metadata-value">{project.metadata.language.toUpperCase()}</span>
                     </div>
                   )}

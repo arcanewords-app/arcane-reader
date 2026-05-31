@@ -12,7 +12,7 @@ import type { AgentContext } from '../types/agent.js';
 import type { Glossary } from '../types/glossary.js';
 import type { StageResult, TranslationDraft, ChunkTranslation } from '../types/pipeline.js';
 import type { TextChunk, TextBlockType } from '../types/common.js';
-import { TRANSLATOR_SYSTEM_PROMPT, createTranslatorPrompt } from '../prompts/system/translator.js';
+import { resolvePrompts } from '../prompts/registry.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
@@ -146,6 +146,8 @@ export class TranslateStage {
           fullGlossary,
           contextText,
           styleGuide,
+          sourceLanguage: options.context.sourceLanguage,
+          targetLanguage: options.context.targetLanguage,
           temperature: options.temperature ?? 0.7,
           includeGlossary,
           textBlockTypes: options.textBlockTypes,
@@ -290,6 +292,8 @@ export class TranslateStage {
       fullGlossary: Glossary;
       contextText: string;
       styleGuide: string;
+      sourceLanguage: import('../types/common.js').Language;
+      targetLanguage: import('../types/common.js').Language;
       temperature: number;
       includeGlossary: boolean;
       textBlockTypes?: TextBlockType[];
@@ -329,6 +333,8 @@ export class TranslateStage {
           opts.fullGlossary,
           opts.contextText,
           opts.styleGuide,
+          opts.sourceLanguage,
+          opts.targetLanguage,
           opts.temperature,
           opts.includeGlossary,
           opts.textBlockTypes,
@@ -385,6 +391,8 @@ export class TranslateStage {
     fullGlossary: Glossary,
     contextText: string,
     styleGuide: string,
+    sourceLanguage: import('../types/common.js').Language,
+    targetLanguage: import('../types/common.js').Language,
     temperature: number = 0.7,
     includeGlossary: boolean = true,
     textBlockTypes?: TextBlockType[],
@@ -413,18 +421,20 @@ export class TranslateStage {
       );
     }
 
+    const translatorPrompts = resolvePrompts('translate', sourceLanguage, targetLanguage);
+
     const messages: Message[] = [
-      { role: 'system', content: TRANSLATOR_SYSTEM_PROMPT },
+      { role: 'system', content: translatorPrompts.systemPrompt },
       {
         role: 'user',
-        content: createTranslatorPrompt(
-          chunk.content,
-          glossaryText,
-          contextText,
+        content: translatorPrompts.createUserPrompt({
+          sourceText: chunk.content,
+          glossary: glossaryText,
+          context: contextText,
           styleGuide,
           textBlockTypes,
-          customInstructions
-        ),
+          customInstructions,
+        }),
       },
     ];
 

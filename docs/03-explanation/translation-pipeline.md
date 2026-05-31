@@ -5,35 +5,30 @@ domain: engine
 stale: false
 canonical: .cursor/rules/engine.mdc
 created: 2026-05-16
-updated: 2026-05-16
+updated: 2026-05-31
 ---
 
-# Translation pipeline
+# Translation pipeline (index)
 
-Derived from [[_canonical/rules/engine]] and `src/engine/`. Do not trust `archive/TRANSLATION_*.md` without verification.
+Arcane Engine runs **Analyze → Translate → Edit**. Canonical agent rule: [[../_canonical/rules/engine]]. Do not trust `archive/TRANSLATION_*.md` without code verification.
 
-## Stages
+## As-is documentation (May 2026)
 
-1. **Analyze** — entities, style, glossary candidates (`src/engine/stages/`)
-2. **Translate** — main translation with glossary injection
-3. **Edit** — polish / chunk alignment
+| Note                            | Contents                                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| [[engine-pipeline]]             | Stages, `TranslationPipeline`, `PipelineOptions`, chunk sizes, Stage 3 limits, public API |
+| [[engine-glossary-and-prompts]] | Glossary filters, declension, prompts, Text Blocks, `--para:` markers                     |
+| [[engine-integration-boundary]] | `performTranslation`, draft save, sync, cancel, worker, Supabase boundary                 |
 
-Each stage returns `StageResult`. Orchestration: `src/engine/pipeline/`.
+## Quick reference
 
-## Text blocks
+- **Stages:** `src/engine/stages/` — each returns `StageResult`
+- **Orchestration:** `src/engine/pipeline/translation-pipeline.ts`
+- **Integration:** `src/services/engine-integration.ts`
+- **Async jobs:** BullMQ — [[../_canonical/rules/routing]] Async Jobs section
+- **Debug:** [[../02-how-to/debug-translation]]
 
-Markers: `{{block:type-id}}text{{/block:type-id}}`. Types: `@src/engine/constants/text-block-presets.ts`. No raw HTML for blocks.
+## Active plans
 
-## Glossary
-
-- `GlossaryManager` CRUD; `filterGlossaryForChunk` for prompts
-- Declension: `declineName`, `declineNameRu`
-- DB columns: snake_case (`gender`, `location_type`, …)
-
-## Prompts
-
-System prompts in `src/engine/prompts/system/`. Use `createAnalyzerPrompt`, `createTranslatorPrompt`, `createEditorPrompt`.
-
-## Async jobs
-
-Batch analyze/translate may use BullMQ (`src/worker.ts`, `REDIS_URL`). See [[_canonical/rules/routing]] — Async Jobs section.
+- [[../05-plans/engine-pipeline-improvements]] — Stage 3 chunk alignment
+- [[../05-plans/engine-refactor]] — cancel/resume by chunk

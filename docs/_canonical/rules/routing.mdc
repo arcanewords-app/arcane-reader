@@ -118,6 +118,7 @@ Most API endpoints validate request body and query parameters using Zod schemas 
 | GET | `/api/projects/:id` | Get project |
 | DELETE | `/api/projects/:id` | Delete project |
 | PUT | `/api/projects/:id/settings` | Update project settings |
+| PUT | `/api/projects/:id/languages` | Update project translation language pair (source/target) |
 | GET | `/api/projects/:id/settings/reader` | Get project reader settings |
 | PUT | `/api/projects/:id/settings/reader` | Update project reader settings |
 | GET | `/api/projects/:id/chapters/summary` | Chapters summary |

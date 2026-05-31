@@ -6,6 +6,9 @@ import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
 import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
 import { Button, Input, Modal, LoadingSpinner, Icon } from '../components/ui';
+import { ProjectLanguagePairFields } from '../components/Project/ProjectLanguagePairFields';
+import type { ProjectSourceLanguage } from '../constants/translationLanguages';
+import { PROJECT_TARGET_LANGUAGE } from '../constants/translationLanguages';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
 import { api } from '../api/client';
 import type { ReaderSettings } from '../types';
@@ -25,6 +28,8 @@ export function CabinetPage() {
   const [filterType, setFilterType] = useState<'all' | 'book' | 'text'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectSourceLanguage, setNewProjectSourceLanguage] =
+    useState<ProjectSourceLanguage>('en');
   const [creating, setCreating] = useState(false);
 
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => ({
@@ -64,9 +69,13 @@ export function CabinetPage() {
 
     setCreating(true);
     try {
-      const project = await api.createProject(newProjectName.trim());
+      const project = await api.createProject(newProjectName.trim(), {
+        sourceLanguage: newProjectSourceLanguage,
+        targetLanguage: PROJECT_TARGET_LANGUAGE,
+      });
       setShowCreateModal(false);
       setNewProjectName('');
+      setNewProjectSourceLanguage('en');
       await loadProjects();
       route(`/projects/${project.id}`);
     } catch (error) {
@@ -228,6 +237,10 @@ export function CabinetPage() {
                 handleCreateProject();
               }
             }}
+          />
+          <ProjectLanguagePairFields
+            sourceLanguage={newProjectSourceLanguage}
+            onSourceLanguageChange={setNewProjectSourceLanguage}
           />
         </Modal>
       )}

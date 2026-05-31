@@ -2,7 +2,19 @@
 stale: true
 status: archived
 domain: meta
+superseded_by:
+  - ../03-explanation/engine-integration-boundary
+  - ../03-explanation/engine-pipeline
+updated: 2026-05-31
 ---
+
+> **Superseded (May 2026).** Use active vault notes — verify every claim against `src/`:
+>
+> - [[../03-explanation/engine-integration-boundary]] — E2E flow, draft, sync, cancel
+> - [[../03-explanation/engine-pipeline]] — stages, chunk sizes
+> - [[../03-explanation/engine-glossary-and-prompts]] — glossary, prompts, markers
+>
+> Legacy body below may have encoding issues and outdated behavior (e.g. no draft save).
 
 # Engine E2E: РїРѕС‚РѕРє РїРµСЂРµРІРѕРґР°, edge cases Рё РЅР°РїСЂР°РІР»РµРЅРёСЏ СѓР»СѓС‡С€РµРЅРёР№
 

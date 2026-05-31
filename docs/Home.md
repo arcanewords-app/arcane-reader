@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-05-16
+updated: 2026-05-31
 ---
 
 # Arcane Reader — Documentation
@@ -45,10 +45,17 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 | [[01-reference/]]   | Short derived summaries (link to rules) |
 | [[02-how-to/]]      | Task guides                             |
 | [[03-explanation/]] | Concepts (verified against code)        |
-| [[04-decisions/]]   | ADRs                                    |
-| [[05-plans/]]       | Active RFCs / plans                     |
-| [[06-runbooks/]]    | Ops / incidents                         |
-| [[archive/]]        | Legacy docs (may be stale)              |
+
+### Engine (as-is, May 2026)
+
+- [[03-explanation/engine-pipeline]]
+- [[03-explanation/engine-glossary-and-prompts]]
+- [[03-explanation/engine-integration-boundary]]
+- Index: [[03-explanation/translation-pipeline]]
+  | [[04-decisions/]] | ADRs |
+  | [[05-plans/]] | Active RFCs / plans |
+  | [[06-runbooks/]] | Ops / incidents |
+  | [[archive/]] | Legacy docs (may be stale) |
 
 ## How-to
 

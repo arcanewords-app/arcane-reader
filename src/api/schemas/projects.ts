@@ -1,9 +1,20 @@
 import { z } from 'zod';
 
+/** MVP translation source languages (engine whitelist). */
+export const supportedSourceLanguageSchema = z.enum(['en', 'ko', 'zh']);
+
+/** MVP translation target languages (engine whitelist). */
+export const supportedTargetLanguageSchema = z.enum(['ru']);
+
 export const projectCreateBodySchema = z.object({
   name: z.string().trim().min(1).max(500),
-  sourceLanguage: z.string().trim().max(20).optional(),
-  targetLanguage: z.string().trim().max(20).optional(),
+  sourceLanguage: supportedSourceLanguageSchema.optional(),
+  targetLanguage: supportedTargetLanguageSchema.optional(),
+});
+
+export const projectLanguagesBodySchema = z.object({
+  sourceLanguage: supportedSourceLanguageSchema,
+  targetLanguage: supportedTargetLanguageSchema,
 });
 
 export const projectSearchQuerySchema = z.object({
@@ -58,6 +69,7 @@ export const exportDownloadQuerySchema = z.object({
 });
 
 export type ProjectCreateBody = z.infer<typeof projectCreateBodySchema>;
+export type ProjectLanguagesBody = z.infer<typeof projectLanguagesBodySchema>;
 export type ProjectSearchQuery = z.infer<typeof projectSearchQuerySchema>;
 export type ProjectSettingsBody = z.infer<typeof projectSettingsBodySchema>;
 export type MetadataUpdateBody = z.infer<typeof metadataUpdateBodySchema>;

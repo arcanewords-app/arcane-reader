@@ -5,6 +5,7 @@
 import type { Glossary, Character, Location, Term, GlossaryUpdate } from '../types/glossary.js';
 import type { Gender, Declensions } from '../types/common.js';
 import { declineName, translateName } from './declension.js';
+import { isLatinScriptName } from '../language.js';
 
 export class GlossaryManager {
   private glossary: Glossary;
@@ -76,10 +77,13 @@ export class GlossaryManager {
 
     if (translatedName) {
       declensions = declineName(translatedName, params.gender);
-    } else {
+    } else if (isLatinScriptName(params.originalName)) {
       const result = translateName(params.originalName, params.gender);
       translatedName = result.translatedName;
       declensions = result.declensions;
+    } else {
+      translatedName = params.originalName;
+      declensions = minimalDeclensions(params.originalName);
     }
 
     const character: Character = {
@@ -335,4 +339,15 @@ export class GlossaryManager {
   get version(): number {
     return this.glossary.version;
   }
+}
+
+function minimalDeclensions(name: string): Declensions {
+  return {
+    nominative: name,
+    genitive: name,
+    dative: name,
+    accusative: name,
+    instrumental: name,
+    prepositional: name,
+  };
 }

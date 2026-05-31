@@ -23,7 +23,8 @@ description: Preact UI patterns for Arcane Reader — components, tokens, i18n, 
 ## Patterns
 
 - Compose from `src/client/components/ui/` (Button, Modal, Input, Badge, Icon)
-- `useTranslation()` for all user-visible strings; update `en`, `ru`, `pl`
+- `useTranslation()` for all user-visible strings; update `en` and `ru` only (app locales)
+- Project translation pair: source `en|ko|zh`, target `ru` — labels via `language.*` i18n keys
 - Gates: `AuthorGate`, `AdminGate` for protected areas
 - Service banner: client reacts to **503** via `ServiceHealthContext`
 - Signals/stores: prefer existing patterns in hooks before new global state

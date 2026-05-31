@@ -12,7 +12,8 @@ Applies when editing `src/client/**`. Global rules: `.cursor/rules/client.mdc`, 
 - Primitives: `src/client/components/ui/` (Button, Modal, Input, Icon, …)
 - Tokens: `src/client/styles/base/variables.css` — no ad-hoc colors
 - Icons: `Icon.tsx` + Material Symbols (`design-system.mdc`)
-- i18n: `useTranslation()`; update `locales/en.json`, `ru.json`, `pl.json`
+- i18n: `useTranslation()`; app locales **en** and **ru** only (`src/client/i18n.ts`)
+- Project translation pair UI: source en|ko|zh → target ru
 
 ## Routes
 

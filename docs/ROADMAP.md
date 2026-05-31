@@ -86,10 +86,10 @@ Details and tech debt: [[project-status]].
 
 ### P0 — Engine quality (core product)
 
-| ID     | Theme                       | Plan                                      | Open work (summary)                                                            |
-| ------ | --------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
-| **E1** | Stage 3 paragraph alignment | [[05-plans/engine-pipeline-improvements]] | `--para:{id}--` markers in editor; chunk/paragraph boundary alignment          |
-| **E2** | Engine hardening            | [[05-plans/engine-refactor]]              | Cancel/resume by chunk; draft saves during long translate; document edge cases |
+| ID     | Theme                       | Plan                                      | Open work (summary)                                                   |
+| ------ | --------------------------- | ----------------------------------------- | --------------------------------------------------------------------- |
+| **E1** | Stage 3 paragraph alignment | [[05-plans/engine-pipeline-improvements]] | Server para markers done; open: Stage 3 chunk boundary alignment      |
+| **E2** | Engine hardening            | [[05-plans/engine-refactor]]              | Cancel/resume by chunk; draft-after-stage-2 done; document edge cases |
 
 ### P1 — UX and reach
 
@@ -159,18 +159,19 @@ Flexible session order for the next 4–6 weeks:
 
 ## Links index
 
-| Entry              | Path                                             |
-| ------------------ | ------------------------------------------------ |
-| Vault home         | [[Home]]                                         |
-| Tactical snapshot  | [[project-status]]                               |
-| This roadmap       | `docs/ROADMAP.md`                                |
-| Conventions        | [[_meta/conventions]]                            |
-| Archive triage     | [[_meta/archive-triage]]                         |
-| Active plans       | [[05-plans/]]                                    |
-| Quick start        | [[00-start/quick-start]]                         |
-| Translation debug  | [[02-how-to/debug-translation]]                  |
-| Pipeline explainer | [[03-explanation/translation-pipeline]]          |
-| Agent rules        | `.cursor/rules/` (also `docs/_canonical/rules/`) |
+| Entry              | Path                                                                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Vault home         | [[Home]]                                                                                                                           |
+| Tactical snapshot  | [[project-status]]                                                                                                                 |
+| This roadmap       | `docs/ROADMAP.md`                                                                                                                  |
+| Conventions        | [[_meta/conventions]]                                                                                                              |
+| Archive triage     | [[_meta/archive-triage]]                                                                                                           |
+| Active plans       | [[05-plans/]]                                                                                                                      |
+| Quick start        | [[00-start/quick-start]]                                                                                                           |
+| Translation debug  | [[02-how-to/debug-translation]]                                                                                                    |
+| Pipeline explainer | [[03-explanation/translation-pipeline]] (index)                                                                                    |
+| Engine as-is       | [[03-explanation/engine-pipeline]], [[03-explanation/engine-glossary-and-prompts]], [[03-explanation/engine-integration-boundary]] |
+| Agent rules        | `.cursor/rules/` (also `docs/_canonical/rules/`)                                                                                   |
 
 ---
 
@@ -178,6 +179,7 @@ Flexible session order for the next 4–6 weeks:
 
 | Date       | Change                                                                         |
 | ---------- | ------------------------------------------------------------------------------ |
+| 2026-05-31 | Engine as-is documentation split (3 explanation notes); plans/archive triage   |
 | 2026-05-16 | Initial roadmap after rules + Obsidian vault + archive triage + 6 active plans |
 
 ---

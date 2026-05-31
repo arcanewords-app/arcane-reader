@@ -543,10 +543,28 @@ export const api = {
     });
   },
 
-  async createProject(name: string): Promise<Project> {
+  async createProject(
+    name: string,
+    options?: { sourceLanguage?: string; targetLanguage?: string }
+  ): Promise<Project> {
     return fetchJson('/api/projects', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({
+        name,
+        sourceLanguage: options?.sourceLanguage,
+        targetLanguage: options?.targetLanguage,
+      }),
+    });
+  },
+
+  async updateProjectLanguages(
+    projectId: string,
+    sourceLanguage: string,
+    targetLanguage: string
+  ): Promise<{ sourceLanguage: string; targetLanguage: string }> {
+    return fetchJson(`/api/projects/${projectId}/languages`, {
+      method: 'PUT',
+      body: JSON.stringify({ sourceLanguage, targetLanguage }),
     });
   },
 

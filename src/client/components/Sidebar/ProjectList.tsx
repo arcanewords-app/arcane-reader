@@ -4,6 +4,9 @@ import { api, ApiError } from '../../api/client';
 import type { ProjectListItem } from '../../types';
 import { projectsCache, loadProjects as loadProjectsStore } from '../../store/projects';
 import { Button, Card, Modal, Input, Icon } from '../ui';
+import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
+import type { ProjectSourceLanguage } from '../../constants/translationLanguages';
+import { PROJECT_TARGET_LANGUAGE } from '../../constants/translationLanguages';
 import { getProjectTypeColor } from '../../utils/project-type';
 import './ProjectList.css';
 
@@ -24,6 +27,8 @@ export function ProjectList({
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectSourceLanguage, setNewProjectSourceLanguage] =
+    useState<ProjectSourceLanguage>('en');
   const [creating, setCreating] = useState(false);
 
   const getProjectTypeMaterialIcon = (projectType: string) => {
@@ -58,9 +63,13 @@ export function ProjectList({
 
     setCreating(true);
     try {
-      const project = await api.createProject(newProjectName.trim());
+      const project = await api.createProject(newProjectName.trim(), {
+        sourceLanguage: newProjectSourceLanguage,
+        targetLanguage: PROJECT_TARGET_LANGUAGE,
+      });
       setShowModal(false);
       setNewProjectName('');
+      setNewProjectSourceLanguage('en');
       await loadProjects();
       onSelect(project.id);
       onProjectCreated?.();
@@ -177,6 +186,10 @@ export function ProjectList({
           value={newProjectName}
           onInput={(e) => setNewProjectName((e.target as HTMLInputElement).value)}
           onKeyDown={handleKeyDown}
+        />
+        <ProjectLanguagePairFields
+          sourceLanguage={newProjectSourceLanguage}
+          onSourceLanguageChange={setNewProjectSourceLanguage}
         />
       </Modal>
     </>

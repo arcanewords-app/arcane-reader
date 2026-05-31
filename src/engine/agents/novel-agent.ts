@@ -101,6 +101,8 @@ export class NovelAgent {
    */
   getContext(): AgentContext {
     return {
+      sourceLanguage: this.state.sourceLanguage,
+      targetLanguage: this.state.targetLanguage,
       glossary: this.state.glossary,
       styleProfile: this.state.styleProfile,
       previousChapters: this.state.translatedChapters.slice(-5), // Last 5 chapters

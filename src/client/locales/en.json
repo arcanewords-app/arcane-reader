@@ -19,7 +19,7 @@
     "newProject": "New project",
     "noProjects": "No projects",
     "welcome": "Welcome to Arcane",
-    "welcomeSubtitle": "Smart novel translator from English to Russian with context and style preservation.",
+    "welcomeSubtitle": "Smart novel translator (English, Korean, Chinese → Russian) with context and style preservation.",
     "createFirstProject": "Create first project",
     "loadingProject": "Loading project...",
     "apiKeyTitle": "API key not configured",
@@ -30,7 +30,12 @@
     "notFound": "Project not found",
     "chapterOne": "chapter",
     "chapterFew": "chapters",
-    "chapterMany": "chapters"
+    "chapterMany": "chapters",
+    "sourceLanguageLabel": "Source language",
+    "targetLanguageLabel": "Target language",
+    "languagePair": "Translation pair",
+    "languagePairLocked": "Language pair is locked after analysis or glossary entries exist.",
+    "metadataFileLanguage": "Original file language (import metadata)"
   },
   "chapter": {
     "deleteConfirmTitle": "Delete chapter?",
@@ -927,6 +932,7 @@
     "es": "Spanish",
     "it": "Italian",
     "ja": "Japanese",
+    "ko": "Korean",
     "zh": "Chinese"
   },
   "status": {

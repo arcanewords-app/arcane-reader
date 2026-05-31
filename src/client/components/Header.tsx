@@ -34,7 +34,6 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
   const localeLabels: Record<AppLocale, string> = {
     ru: t('settings.appLanguageRu'),
     en: t('settings.appLanguageEn'),
-    pl: t('settings.appLanguagePl'),
   };
 
   useEffect(() => {
@@ -248,7 +247,7 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
               </Button>
               {localeOpen && (
                 <div class="header-locale-dropdown" role="menu">
-                  {(['ru', 'en', 'pl'] as AppLocale[]).map((locale) => (
+                  {(['ru', 'en'] as AppLocale[]).map((locale) => (
                     <button
                       key={locale}
                       type="button"

@@ -11,13 +11,17 @@ import type { ILLMProvider, Message } from '../interfaces/llm-provider.js';
 import type { AnalysisResult } from '../types/agent.js';
 import type { StageResult } from '../types/pipeline.js';
 import type { Glossary, Character, Location, Term } from '../types/glossary.js';
-import { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from '../prompts/system/analyzer.js';
+import type { Language } from '../types/common.js';
+import { resolvePrompts } from '../prompts/registry.js';
+import { languageDisplayName } from '../language.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { estimateTokens, splitIntoSections } from '../utils/chunker.js';
 import { log } from '../logger.js';
 
 interface AnalyzeStageOptions {
   chapterNumber: number;
+  sourceLanguage: Language;
+  targetLanguage: Language;
   existingGlossary?: Glossary;
   temperature?: number;
   /** Max tokens per section when chunking long chapters. Default 8000. Set to 0 to disable chunking. */
@@ -224,10 +228,23 @@ export class AnalyzeStage {
     }
 
     const messages: Message[] = [
-      { role: 'system', content: ANALYZER_SYSTEM_PROMPT },
+      {
+        role: 'system',
+        content: resolvePrompts('analyze', options.sourceLanguage, options.targetLanguage)
+          .systemPrompt,
+      },
       {
         role: 'user',
-        content: createAnalyzerPrompt(sectionText, 'English', 'Russian', glossaryText || undefined),
+        content: resolvePrompts(
+          'analyze',
+          options.sourceLanguage,
+          options.targetLanguage
+        ).createUserPrompt({
+          sourceText: sectionText,
+          sourceLanguageLabel: languageDisplayName(options.sourceLanguage),
+          targetLanguageLabel: languageDisplayName(options.targetLanguage),
+          existingGlossary: glossaryText || undefined,
+        }),
       },
     ];
 

@@ -22,8 +22,10 @@ alwaysApply: false
 
 ## i18n
 
-- `react-i18next`. Keys in `src/client/locales/` (en.json, ru.json, pl.json).
-- Use `useTranslation()` hook. Add new keys to all locale files.
+- `react-i18next`. App UI locales: **en.json**, **ru.json** only (`SUPPORTED_LOCALES` in `@src/client/i18n.ts`).
+- Use `useTranslation()` hook. Add new keys to **en** and **ru**.
+- **Translation pair labels** (`language.en`, `language.ko`, …): for project source/target display, not app locale.
+- MVP translation pairs in UI: source `en` | `ko` | `zh`, target `ru`.
 
 ## Routing
 
@@ -35,7 +37,7 @@ alwaysApply: false
 - MUST reuse existing UI primitives before adding new visual patterns.
 - MUST use tokens from `@src/client/styles/base/variables.css` instead of ad-hoc colors/sizing.
 - MUST ensure interactive states exist: hover, focus-visible, disabled, loading (when applicable).
-- MUST keep user-facing UI strings in i18n keys (`en/ru/pl`), not hardcoded literals.
+- MUST keep user-facing UI strings in i18n keys (`en`/`ru`), not hardcoded literals.
 - MUST verify changed UI for mobile/tablet/desktop viewports.
 - MUST preserve minimum 44px touch target for mobile/tablet interactive controls.
 - SHOULD avoid inline styles for reusable visual patterns.

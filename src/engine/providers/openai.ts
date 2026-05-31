@@ -11,6 +11,7 @@ import type {
   CompletionResult,
 } from '../interfaces/llm-provider.js';
 import { log } from '../logger.js';
+import { estimateTokensHeuristic } from '../utils/token-estimate.js';
 
 function isRateLimitError(err: unknown): boolean {
   return (
@@ -184,13 +185,7 @@ export class OpenAIProvider implements ILLMProvider {
   }
 
   estimateTokens(text: string): number {
-    // Rough estimation: ~4 characters per token for English
-    // For CJK languages, roughly 1-2 characters per token
-    const cjkPattern = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g;
-    const cjkMatches = text.match(cjkPattern) ?? [];
-    const nonCjkLength = text.length - cjkMatches.length;
-
-    return Math.ceil(nonCjkLength / 4) + cjkMatches.length;
+    return estimateTokensHeuristic(text);
   }
 
   private mapFinishReason(reason: string | null): CompletionResult['finishReason'] {

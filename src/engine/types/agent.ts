@@ -87,6 +87,8 @@ export interface AnalysisResult {
 }
 
 export interface AgentContext {
+  sourceLanguage: Language;
+  targetLanguage: Language;
   glossary: Glossary;
   styleProfile: StyleProfile;
   previousChapters: ChapterSummary[];

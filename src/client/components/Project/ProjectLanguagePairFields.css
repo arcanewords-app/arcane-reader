@@ -1,0 +1,30 @@
+.project-language-pair-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md, 1rem);
+  margin-top: var(--space-md, 1rem);
+}
+
+.project-language-pair-fields--compact {
+  margin-top: 0;
+}
+
+@media (max-width: 480px) {
+  .project-language-pair-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.project-language-pair-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary);
+}
+
+.project-language-pair-hint {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+}

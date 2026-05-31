@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from './ProjectGrid';
 import { Button, Input, Modal, Icon } from '../ui';
+import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
+import type { ProjectSourceLanguage } from '../../constants/translationLanguages';
+import { PROJECT_TARGET_LANGUAGE } from '../../constants/translationLanguages';
 import { projectsCache, projectsLoading, loadProjects } from '../../store/projects';
 import { api } from '../../api/client';
 import './Dashboard.css';
@@ -13,6 +16,8 @@ export function Dashboard() {
   const [filterType, setFilterType] = useState<'all' | 'book' | 'text'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectSourceLanguage, setNewProjectSourceLanguage] =
+    useState<ProjectSourceLanguage>('en');
   const [creating, setCreating] = useState(false);
 
   // Load projects on mount and when returning to dashboard
@@ -28,9 +33,13 @@ export function Dashboard() {
 
     setCreating(true);
     try {
-      const project = await api.createProject(newProjectName.trim());
+      const project = await api.createProject(newProjectName.trim(), {
+        sourceLanguage: newProjectSourceLanguage,
+        targetLanguage: PROJECT_TARGET_LANGUAGE,
+      });
       setShowCreateModal(false);
       setNewProjectName('');
+      setNewProjectSourceLanguage('en');
 
       // Reload projects
       await loadProjects();
@@ -143,6 +152,10 @@ export function Dashboard() {
               handleCreateProject();
             }
           }}
+        />
+        <ProjectLanguagePairFields
+          sourceLanguage={newProjectSourceLanguage}
+          onSourceLanguageChange={setNewProjectSourceLanguage}
         />
       </Modal>
     </div>

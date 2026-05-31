@@ -8,12 +8,17 @@ import {
   TranslationPipeline,
   OpenAIProvider,
   NovelAgent,
-  TRANSLATOR_SYSTEM_PROMPT,
   createGlossaryPromptSection,
   chunkText,
   translateAndDeclineName,
+  declineName,
+  parseProjectLanguagePair,
+  isLatinScriptName,
+  resolvePrompts,
   type PipelineOptions,
   type Glossary,
+  type Gender,
+  type Declensions,
 } from '../engine/index.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { getCachedAnalysisResult, setCachedAnalysisResult } from './analysisCache.js';
@@ -30,6 +35,45 @@ import { logger } from '../logger.js';
 // Cache for NovelAgents per project
 const agentCache = new Map<string, NovelAgent>();
 
+function minimalDeclensions(name: string): Declensions {
+  return {
+    nominative: name,
+    genitive: name,
+    dative: name,
+    accusative: name,
+    instrumental: name,
+    prepositional: name,
+  };
+}
+
+function loadCharacterFromGlossaryEntry(entry: GlossaryEntry): {
+  translatedName: string;
+  declensions: Declensions;
+  gender: Gender;
+} {
+  const gender = (entry.gender as Gender) || 'unknown';
+  if (entry.translated) {
+    return {
+      translatedName: entry.translated,
+      declensions: entry.declensions ?? declineName(entry.translated, gender),
+      gender,
+    };
+  }
+  if (isLatinScriptName(entry.original)) {
+    const result = translateAndDeclineName(entry.original, gender);
+    return {
+      translatedName: result.translatedName,
+      declensions: result.declensions,
+      gender: result.gender,
+    };
+  }
+  return {
+    translatedName: entry.original,
+    declensions: entry.declensions ?? minimalDeclensions(entry.original),
+    gender,
+  };
+}
+
 /**
  * Get or create NovelAgent for a project
  */
@@ -37,29 +81,31 @@ export function getAgentForProject(project: Project | ProjectWithChapterList): N
   let agent = agentCache.get(project.id);
 
   if (!agent) {
+    const { sourceLanguage, targetLanguage } = parseProjectLanguagePair(
+      project.sourceLanguage,
+      project.targetLanguage
+    );
+
     agent = NovelAgent.create({
       novelId: project.id,
       title: project.name,
-      sourceLanguage: 'en',
-      targetLanguage: 'ru',
+      sourceLanguage,
+      targetLanguage,
     });
 
     // Load existing glossary into agent
     const glossaryManager = agent.glossary as unknown as Glossary;
     for (const entry of project.glossary) {
       if (entry.type === 'character') {
-        const { translatedName, declensions, gender } = translateAndDeclineName(
-          entry.original,
-          entry.gender as 'male' | 'female' | 'neutral' | 'unknown'
-        );
+        const { translatedName, declensions, gender } = loadCharacterFromGlossaryEntry(entry);
 
         glossaryManager.characters.push({
           id: entry.id,
           originalName: entry.original,
-          translatedName: entry.translated || translatedName,
-          declensions: entry.declensions || declensions,
+          translatedName,
+          declensions,
           gender,
-          description: entry.description || '', // Use description field
+          description: entry.description || '',
           aliases: [],
           firstAppearance: entry.firstAppearance || 1,
           isMainCharacter: false,
@@ -1214,8 +1260,10 @@ export async function translateSimple(
 
   const glossarySection = createGlossaryPromptSection(characters, locations, terms);
 
-  // Use engine's system prompt
-  const systemPrompt = TRANSLATOR_SYSTEM_PROMPT + (glossarySection ? `\n\n${glossarySection}` : '');
+  // Use engine translator prompt for en→ru (simple translate has no project context)
+  const systemPrompt =
+    resolvePrompts('translate', 'en', 'ru').systemPrompt +
+    (glossarySection ? `\n\n${glossarySection}` : '');
 
   const response = await client.chat.completions.create({
     model: config.openai.model,

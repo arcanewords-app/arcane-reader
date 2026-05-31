@@ -1,6 +1,6 @@
 /**
  * i18n setup for app UI localization.
- * Default language: English (en). Supported: ru, en, pl.
+ * Default language: English (en). Supported app locales: ru, en.
  */
 
 // eslint-disable-next-line import/no-named-as-default-member -- we use default i18n instance
@@ -8,15 +8,18 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
-import pl from './locales/pl.json';
 
 export const APP_LOCALE_KEY = 'app.locale';
-export type AppLocale = 'ru' | 'en' | 'pl';
-export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en', 'pl'];
+export type AppLocale = 'ru' | 'en';
+export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en'];
 
 function getSavedLocale(): AppLocale {
   if (typeof window === 'undefined') return 'en';
   const saved = localStorage.getItem(APP_LOCALE_KEY);
+  if (saved === 'pl') {
+    localStorage.setItem(APP_LOCALE_KEY, 'en');
+    return 'en';
+  }
   if (saved && SUPPORTED_LOCALES.includes(saved as AppLocale)) {
     return saved as AppLocale;
   }
@@ -39,7 +42,6 @@ i18n.use(initReactI18next).init({
   resources: {
     ru: { translation: ru },
     en: { translation: en },
-    pl: { translation: pl },
   },
   lng: getSavedLocale(),
   fallbackLng: 'en',

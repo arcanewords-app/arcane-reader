@@ -4,7 +4,7 @@ status: active
 domain: engine
 stale: false
 created: 2026-05-16
-updated: 2026-05-16
+updated: 2026-05-31
 canonical: .cursor/rules/engine.mdc
 ---
 
@@ -26,7 +26,8 @@ LOG_LEVEL=debug npm run dev:full
 ```
 
 - Routes: use `req.log` (includes `requestId`)
-- Engine/services: `logger` from `src/logger.ts`
+- Services (no `req`): `logger` from `src/logger.ts`
+- Engine (`src/engine/**`): `log` from `src/engine/logger.js`
 - See [[../_canonical/rules/logging]]
 
 ## Common issues
@@ -55,8 +56,9 @@ LOG_LEVEL=debug npm run dev:full
 
 ## Code map
 
-- Pipeline: `src/engine/pipeline/`, `src/engine/stages/`
-- Integration: `src/services/engine-integration.ts`
+- Pipeline: [[../03-explanation/engine-pipeline]]
+- Integration / E2E: [[../03-explanation/engine-integration-boundary]]
+- Source: `src/engine/pipeline/`, `src/engine/stages/`, `src/services/engine-integration.ts`
 - Queues: `src/services/chapterQueue.ts`
 
 ## Legacy logs

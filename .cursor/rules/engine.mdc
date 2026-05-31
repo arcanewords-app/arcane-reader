@@ -6,24 +6,72 @@ alwaysApply: false
 
 # Engine Rules
 
+## Boundary
+
+- `src/engine/**` — pure library: LLM pipeline, glossary, prompts. **No HTTP, no Supabase.**
+- Persistence, markers, sync: `src/services/engine-integration.ts`, `src/server.ts` (`performTranslation`).
+- Vault as-is docs: `docs/03-explanation/engine-pipeline.md`, `engine-glossary-and-prompts.md`, `engine-integration-boundary.md`.
+
 ## Pipeline
 
 3 stages: Analyze → Translate → Edit. See `@src/engine/index.ts` exports.
 
+- Orchestrator: `TranslationPipeline` in `src/engine/pipeline/translation-pipeline.ts`.
 - Stages in `src/engine/stages/`. Each stage returns `StageResult`.
 - Types: `@src/engine/types/pipeline.ts`, `@src/engine/types/glossary.ts`.
+- API stage names: `analysis` | `translation` | `editing` (server/integration); engine types use `analyze` | `translate` | `edit`.
+
+### Chunk sizes (defaults in pipeline)
+
+| Scenario | Translation | Glossary in translate | Edit | Glossary in edit |
+|----------|-------------|----------------------|------|------------------|
+| Translate only | 2000 | yes | — | — |
+| Full pipeline (+ edit) | 3500 | no | 2000 | yes |
+| `includeGlossaryInTranslation: false` | 3500 | no | — | — |
+| `includeGlossaryInEditing: false` | — | — | 3500 | no |
+
+Override via `PipelineOptions.chunkSize`. Chunker: `neverSplitParagraphs` default true.
+
+### Stage 3 caveat
+
+Edit chunks **translated text only** — boundaries independent of Stage 2. See vault plan `engine-pipeline-improvements`.
+
+## PipelineOptions (summary)
+
+`runStages`, `skipAnalysis`/`skipEditing`, `existingTranslatedTextForEdit`, `isCancelled`, `onProgress`, `parallelChunks`, `neverSplitParagraphs`, `includeGlossaryInAnalysis|Translation|Editing`, `textBlockTypes`, `customInstructions`, `editingStylePreset`, `editingFocus`, `checkQualityForChunked`.
+
+Full list: `@src/engine/types/pipeline.ts`.
 
 ## Glossary
 
-- `GlossaryManager` — CRUD. `filterGlossaryForChunk` — inject into prompts.
+- `GlossaryManager` — CRUD in agent state. `filterGlossaryByChapter`, then `filterGlossaryForChunk` per chunk.
 - Declension: `declineName`, `declineNameRu` from `glossary/declension*.ts`.
 - DB: snake_case (gender, location_type, term_category).
 
+## Translation languages (MVP)
+
+- Supported **source**: `en`, `ko`, `zh`. **Target**: `ru` only.
+- Whitelist: `@src/engine/language.ts` (`parseProjectLanguage`, `SUPPORTED_TRANSLATION_PAIRS`). Fail fast on unknown pairs — no silent fallback to en→ru.
+- **Japanese (`ja`)**: Phase 2 — not in MVP whitelist until a separate plan ships.
+- CJK-origin names: no EN transliteration on glossary reload; use DB `translated` + LLM declension hints.
+
 ## Prompts
 
-- `src/engine/prompts/system/` — analyzer, translator, editor.
-- `createAnalyzerPrompt`, `createTranslatorPrompt`, `createEditorPrompt` — use these, don't inline prompts.
+- **Per language pair:** `src/engine/prompts/pairs/{src}-ru/` (analyzer.ts, translator.ts).
+- **Registry:** `resolvePrompts(stage, source, target)` in `@src/engine/prompts/registry.ts` — stages must not import pair modules directly.
+- **Shared fragments only** when identical across pairs: `src/engine/prompts/shared/`.
+- **Editor:** `@src/engine/prompts/system/editor.ts` while target is ru-only.
+- Language-specific rules → edit the pair module only; add `// prompt-version: N` on major changes.
+- Deprecated aliases: `ANALYZER_SYSTEM_PROMPT` / `TRANSLATOR_SYSTEM_PROMPT` re-export en-ru for one release.
 
 ## Text Blocks
 
 Markers: `{{block:type-id}}text{{/block:type-id}}`. Types in `@src/engine/constants/text-block-presets.ts`. Use markers, not raw HTML.
+
+## Paragraph markers
+
+`--para:{id}--` — prompts in engine; injection/parsing on server. See vault `engine-integration-boundary.md`.
+
+## Logging
+
+Engine: `import { log } from '../logger.js'` (or `./logger.js`) — not `req.log`. Wraps app `logger` from `@src/logger.ts`.

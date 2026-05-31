@@ -200,6 +200,8 @@ export class TranslationPipeline {
       });
       const stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
+        sourceLanguage: context.sourceLanguage,
+        targetLanguage: context.targetLanguage,
         existingGlossary: context.glossary,
         temperature: options.temperatureByStage?.analysis,
         maxSectionTokens: options.analysisMaxSectionTokens,
@@ -277,6 +279,8 @@ export class TranslationPipeline {
       log.info(`Pipeline: Stage 1 analyzing chapter ${chapterNumber}`);
       stage1Result = await this.analyzeStage.execute(sourceText, {
         chapterNumber,
+        sourceLanguage: context.sourceLanguage,
+        targetLanguage: context.targetLanguage,
         existingGlossary:
           options.includeGlossaryInAnalysis !== false ? context.glossary : undefined,
         temperature: options.temperatureByStage?.analysis,
@@ -579,6 +583,8 @@ export class TranslationPipeline {
       async (chapter) => {
         const stageResult = await this.analyzeStage.execute(chapter.text, {
           chapterNumber: chapter.number,
+          sourceLanguage: this.agent.getContext().sourceLanguage,
+          targetLanguage: this.agent.getContext().targetLanguage,
           existingGlossary,
           temperature: options.temperatureByStage?.analysis,
           maxSectionTokens: options.analysisMaxSectionTokens,

@@ -1,7 +1,7 @@
 /**
  * Arcane Engine - AI-powered novel translation engine
  *
- * EN → RU translation focus with 3-stage pipeline:
+ * Multi-source → RU translation with 3-stage pipeline:
  * 1. Analyze: Extract entities, understand style
  * 2. Translate: Accurate translation with glossary
  * 3. Edit: Polish and refine
@@ -81,6 +81,20 @@ export { AnalyzeStage } from './stages/stage-1-analyze.js';
 export { TranslateStage } from './stages/stage-2-translate.js';
 export { EditStage } from './stages/stage-3-edit.js';
 
+// Language pair (MVP)
+export {
+  SUPPORTED_SOURCE_LANGUAGES,
+  SUPPORTED_TARGET_LANGUAGES,
+  SUPPORTED_TRANSLATION_PAIRS,
+  parseProjectLanguage,
+  parseProjectLanguagePair,
+  pairKey,
+  isSupportedPair,
+  assertSupportedPair,
+  languageDisplayName,
+  isLatinScriptName,
+} from './language.js';
+
 // Utils
 export {
   chunkText,
@@ -89,18 +103,24 @@ export {
   splitIntoSections,
   type MergeChunkInput,
 } from './utils/chunker.js';
+export {
+  estimateTokensHeuristic,
+  countCjkCharacters,
+  isCjkCharCode,
+} from './utils/token-estimate.js';
 
 // Error constants
 export { CHUNK_ERROR_PREFIX, formatChunkError, isChunkError } from './constants/errors.js';
 
 // Prompts
-export { ANALYZER_SYSTEM_PROMPT, createAnalyzerPrompt } from './prompts/system/analyzer.js';
-
 export {
+  resolvePrompts,
+  ANALYZER_SYSTEM_PROMPT,
+  createAnalyzerPrompt,
   TRANSLATOR_SYSTEM_PROMPT,
   createTranslatorPrompt,
   createGlossaryPromptSection,
-} from './prompts/system/translator.js';
+} from './prompts/registry.js';
 
 export {
   EDITOR_SYSTEM_PROMPT,

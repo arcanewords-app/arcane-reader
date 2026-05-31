@@ -26,6 +26,7 @@ import {
   publicEntityListQuerySchema,
   publicEntityUpdateSchema,
   projectCreateBodySchema,
+  projectLanguagesBodySchema,
   projectSearchQuerySchema,
   projectSettingsBodySchema,
   metadataUpdateBodySchema,
@@ -1683,6 +1684,61 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Update project translation language pair (requires auth)
+app.put('/api/projects/:id/languages', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const parsed = projectLanguagesBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const token = requireToken(req);
+    const project = await getProject(req.params.id, req.user.id, token);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { sourceLanguage, targetLanguage } = parsed.data;
+    const updatedProject = await updateProject(
+      req.params.id,
+      { sourceLanguage, targetLanguage },
+      req.user.id,
+      token
+    );
+    if (!updatedProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    clearAgentCache(req.params.id);
+    await invalidateUserProjectCaches(req.user.id, req.params.id);
+
+    req.log?.info(
+      {
+        event: 'project.languages.updated',
+        projectId: req.params.id,
+        sourceLanguage,
+        targetLanguage,
+      },
+      'Project language pair updated'
+    );
+
+    res.json({
+      sourceLanguage: updatedProject.sourceLanguage,
+      targetLanguage: updatedProject.targetLanguage,
+    });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    res.status(500).json({ error: 'Failed to update project languages' });
   }
 });
 

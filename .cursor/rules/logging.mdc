@@ -17,7 +17,8 @@ alwaysApply: false
 | Place | Logger | Level |
 |-------|--------|-------|
 | Express route handlers | `req.log` | error / info |
-| Services, engine, helpers (no `req`) | `logger` | error / warn / info / debug |
+| Services, helpers (no `req`) | `logger` from `@src/logger.ts` | error / warn / info / debug |
+| Engine (`src/engine/**`) | `log` from `@src/engine/logger.ts` | same (wraps app `logger`) |
 
 ## Message rules
 
