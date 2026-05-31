@@ -24,6 +24,15 @@ In-memory CRUD on `AgentContext.glossary`:
 
 DB persistence is **outside** engine (server writes via Supabase after pipeline).
 
+### Analyzer prose language (all pairs)
+
+Stage 1 uses `buildGlossaryMetadataLanguageRule` from `src/engine/prompts/shared/glossary-metadata-language.ts` (appended to system prompt in `stage-1-analyze.ts` and in `analyzer-user.ts` Rules). JSON schema labels come from `buildAnalysisJsonOutputFormat(targetLanguageLabel)`.
+
+- **Source script:** `name`, `term`, `originalName`, `originalTerm` — as in the chapter.
+- **Target language:** `description`, `context`, `updated*.description`, `chapterSummary`, `keyEvents`, `mood`, `styleNotes`, and `suggestedTranslation` when the target uses Cyrillic.
+
+MVP target is always `ru`; the rule is parameterized via `languageDisplayName(target)` for future targets.
+
 ### Filtering
 
 | Function                                           | When used                                                                                                   |

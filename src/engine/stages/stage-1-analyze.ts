@@ -13,6 +13,7 @@ import type { StageResult } from '../types/pipeline.js';
 import type { Glossary, Character, Location, Term } from '../types/glossary.js';
 import type { Language } from '../types/common.js';
 import { resolvePrompts } from '../prompts/registry.js';
+import { buildGlossaryMetadataLanguageRule } from '../prompts/shared/glossary-metadata-language.js';
 import { languageDisplayName } from '../language.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { estimateTokens, splitIntoSections } from '../utils/chunker.js';
@@ -227,11 +228,12 @@ export class AnalyzeStage {
       glossaryText = manager.toPromptText();
     }
 
+    const targetLabel = languageDisplayName(options.targetLanguage);
+    const metadataLanguageRule = buildGlossaryMetadataLanguageRule(targetLabel);
     const messages: Message[] = [
       {
         role: 'system',
-        content: resolvePrompts('analyze', options.sourceLanguage, options.targetLanguage)
-          .systemPrompt,
+        content: `${resolvePrompts('analyze', options.sourceLanguage, options.targetLanguage).systemPrompt}\n\n${metadataLanguageRule}`,
       },
       {
         role: 'user',

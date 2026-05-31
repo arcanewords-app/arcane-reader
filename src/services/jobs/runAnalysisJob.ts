@@ -199,6 +199,11 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
                 token,
                 { useServiceRole: true }
               );
+            } else {
+              logger.warn(
+                { projectId, entryId, chapterNum, chapterId: chResult.chapterId },
+                'Glossary entry not found for chapter appearance merge'
+              );
             }
           }
         }

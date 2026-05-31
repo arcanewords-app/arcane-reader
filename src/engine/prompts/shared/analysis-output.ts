@@ -2,67 +2,73 @@
  * Shared JSON output schema for Stage 1 analysis (identical across language pairs).
  */
 
-export const ANALYSIS_JSON_OUTPUT_FORMAT = `## Output Format
+export function buildAnalysisJsonOutputFormat(targetLanguageLabel: string): string {
+  return `## Output Format
 
 \`\`\`json
 {
   "characters": [
     {
       "name": "original name in source language",
-      "suggestedTranslation": "suggested translation/transliteration",
+      "suggestedTranslation": "suggested translation in ${targetLanguageLabel}",
       "gender": "male|female|neutral|unknown",
       "role": "protagonist|antagonist|supporting|minor",
-      "description": "brief description",
-      "context": "first appearance context"
+      "description": "brief description in ${targetLanguageLabel}",
+      "context": "first appearance context in ${targetLanguageLabel}"
     }
   ],
   "locations": [
     {
       "name": "original name",
-      "suggestedTranslation": "suggested translation",
+      "suggestedTranslation": "suggested translation in ${targetLanguageLabel}",
       "type": "city|country|building|region|world|other",
-      "description": "brief description"
+      "description": "brief description in ${targetLanguageLabel}"
     }
   ],
   "terms": [
     {
       "term": "original term",
-      "suggestedTranslation": "suggested translation",
+      "suggestedTranslation": "suggested translation in ${targetLanguageLabel}",
       "category": "skill|magic|item|title|organization|race|other",
-      "description": "meaning and usage"
+      "description": "meaning and usage in ${targetLanguageLabel}"
     }
   ],
   "updatedCharacters": [
     {
       "originalName": "exact original name from existing glossary",
-      "description": "refined or expanded description from this chapter",
+      "description": "refined description in ${targetLanguageLabel}",
       "suggestedTranslation": "refined translation if this chapter suggests a better one"
     }
   ],
   "updatedLocations": [
     {
       "originalName": "exact original name from existing glossary",
-      "description": "refined description",
+      "description": "refined description in ${targetLanguageLabel}",
       "suggestedTranslation": "refined translation"
     }
   ],
   "updatedTerms": [
     {
       "originalTerm": "exact original term from existing glossary",
-      "description": "refined meaning/usage",
+      "description": "refined meaning/usage in ${targetLanguageLabel}",
       "suggestedTranslation": "refined translation",
       "category": "skill|magic|item|title|organization|race|other"
     }
   ],
-  "chapterSummary": "2-3 sentence summary of events",
-  "keyEvents": ["event 1", "event 2"],
-  "mood": "chapter mood/atmosphere",
-  "styleNotes": "notable stylistic elements"
+  "chapterSummary": "2-3 sentence summary in ${targetLanguageLabel}",
+  "keyEvents": ["event in ${targetLanguageLabel}"],
+  "mood": "chapter mood in ${targetLanguageLabel}",
+  "styleNotes": "stylistic notes in ${targetLanguageLabel}"
 }
 \`\`\`
 
 - **characters / locations / terms**: Only NEW entities not already in the existing glossary.
-- **updatedCharacters / updatedLocations / updatedTerms**: Entities that ARE already in the existing glossary and appear in this chapter. Include an entry here only when you have new or improved information (e.g. refined description, better translation from context). Use the exact original name/term as in the glossary to identify the entry. Omit any field you do not want to change.`;
+- **updatedCharacters / updatedLocations / updatedTerms**: Entities that ARE already in the existing glossary and appear in this chapter. Include an entry here only when you have new or improved information (e.g. refined description, better translation from context). Use the exact original name/term as in the glossary to identify the entry. Omit any field you do not want to change.
+- Prose fields (\`description\`, \`context\`, \`chapterSummary\`, \`keyEvents\`, \`mood\`, \`styleNotes\`) must be in **${targetLanguageLabel}**, not the source language.`;
+}
+
+/** @deprecated Use buildAnalysisJsonOutputFormat(targetLanguageLabel) */
+export const ANALYSIS_JSON_OUTPUT_FORMAT = buildAnalysisJsonOutputFormat('Russian');
 
 export const ANALYSIS_EXCLUDE_RULES = `## CRITICAL: What to EXCLUDE
 

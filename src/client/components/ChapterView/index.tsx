@@ -36,6 +36,8 @@ interface ChapterViewProps {
   onSettingsChange?: (settings: ProjectSettings) => void;
   /** Pre-fill and auto-open search (e.g. from ?search= when navigating from ReportsModal). */
   initialSearchQuery?: string;
+  /** Reload project (including glossary) after translation/analysis completes. */
+  onRefreshProject?: () => void | Promise<void>;
 }
 
 const defaultReaderSettings: ReaderSettings = {
@@ -62,6 +64,7 @@ export function ChapterView({
   onEnterReadingMode,
   onSettingsChange,
   initialSearchQuery = '',
+  onRefreshProject,
 }: ChapterViewProps) {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
@@ -241,6 +244,11 @@ export function ChapterView({
           setChunkProgress(null);
           const fullChapter = await api.getChapter(project.id, chapter.id);
           onChapterUpdate(fullChapter);
+          try {
+            await onRefreshProject?.();
+          } catch (refreshErr) {
+            console.error('Failed to refresh project after translation:', refreshErr);
+          }
           setPollingInterval(null);
           return;
         }
@@ -270,7 +278,7 @@ export function ChapterView({
       clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onChapterUpdate from parent; pollingInterval is managed inside
-  }, [chapter?.status, chapter?.id, project.id, onChapterUpdate]);
+  }, [chapter?.status, chapter?.id, project.id, onChapterUpdate, onRefreshProject]);
 
   const handleSelectAllEmpty = () => setSelectedParagraphIds([...emptyParagraphIds]);
   const handleDeselectAll = () => setSelectedParagraphIds([]);

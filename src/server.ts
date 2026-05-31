@@ -3488,25 +3488,13 @@ app.post(
           chaptersWithText.find((c) => c.id === chResult.chapterId)?.number ??
           chResult.chapterNumber;
         if (chResult.glossaryAppearanceEntryIds.length > 0) {
-          for (const entryId of chResult.glossaryAppearanceEntryIds) {
-            const entry = await getGlossaryEntry(projectId, entryId, token, {
-              useServiceRole: true,
-            });
-            if (entry) {
-              const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
-                (a, b) => a - b
-              );
-              await updateGlossaryEntry(
-                projectId,
-                entryId,
-                { mentionedInChapters: merged },
-                token,
-                {
-                  useServiceRole: true,
-                }
-              );
-            }
-          }
+          await mergeGlossaryAppearanceForChapter(
+            projectId,
+            chResult.glossaryAppearanceEntryIds,
+            chapterNum,
+            token,
+            { chapterId: chResult.chapterId }
+          );
         }
         const nowIso = new Date().toISOString();
         const analysisModel =
@@ -4108,6 +4096,34 @@ app.post(
   }
 );
 
+/** Merge chapter number into glossary entries' mentionedInChapters (analysis/translation). */
+async function mergeGlossaryAppearanceForChapter(
+  projectId: string,
+  entryIds: string[],
+  chapterNum: number,
+  token: string,
+  context: { chapterId?: string }
+): Promise<void> {
+  for (const entryId of entryIds) {
+    const entry = await getGlossaryEntry(projectId, entryId, token, {
+      useServiceRole: true,
+    });
+    if (!entry) {
+      logger.warn(
+        { projectId, entryId, chapterNum, chapterId: context.chapterId },
+        'Glossary entry not found for chapter appearance merge'
+      );
+      continue;
+    }
+    const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
+      (a, b) => a - b
+    );
+    await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
+      useServiceRole: true,
+    });
+  }
+}
+
 /**
  * Translation logic - uses arcane-engine.
  * Glossary accumulates per project: new entries from the analysis stage are saved
@@ -4467,20 +4483,13 @@ export async function performTranslation(
         }
       }
       if (result.glossaryAppearanceEntryIds?.length) {
-        const chapterNum = chapter.number;
-        for (const entryId of result.glossaryAppearanceEntryIds) {
-          const entry = await getGlossaryEntry(projectId, entryId, token, {
-            useServiceRole: true,
-          });
-          if (entry) {
-            const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
-              (a, b) => a - b
-            );
-            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
-              useServiceRole: true,
-            });
-          }
-        }
+        await mergeGlossaryAppearanceForChapter(
+          projectId,
+          result.glossaryAppearanceEntryIds,
+          chapter.number,
+          token,
+          { chapterId }
+        );
       }
       await updateChapter(projectId, chapterId, { status: 'pending' }, token, {
         useServiceRole: true,
@@ -4533,20 +4542,13 @@ export async function performTranslation(
         }
       }
       if (result.glossaryAppearanceEntryIds?.length) {
-        const chapterNum = chapter.number;
-        for (const entryId of result.glossaryAppearanceEntryIds) {
-          const entry = await getGlossaryEntry(projectId, entryId, token, {
-            useServiceRole: true,
-          });
-          if (entry) {
-            const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
-              (a, b) => a - b
-            );
-            await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
-              useServiceRole: true,
-            });
-          }
-        }
+        await mergeGlossaryAppearanceForChapter(
+          projectId,
+          result.glossaryAppearanceEntryIds,
+          chapter.number,
+          token,
+          { chapterId }
+        );
       }
       const nowIso = new Date().toISOString();
       // When only analysis ran: always set status to 'analyzed' so UI shows 🔍 (analysis-only),
@@ -5100,20 +5102,13 @@ export async function performTranslation(
       }
     }
     if (result.glossaryAppearanceEntryIds?.length) {
-      const chapterNum = chapter.number;
-      for (const entryId of result.glossaryAppearanceEntryIds) {
-        const entry = await getGlossaryEntry(projectId, entryId, token, {
-          useServiceRole: true,
-        });
-        if (entry) {
-          const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
-            (a, b) => a - b
-          );
-          await updateGlossaryEntry(projectId, entryId, { mentionedInChapters: merged }, token, {
-            useServiceRole: true,
-          });
-        }
-      }
+      await mergeGlossaryAppearanceForChapter(
+        projectId,
+        result.glossaryAppearanceEntryIds,
+        chapter.number,
+        token,
+        { chapterId }
+      );
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

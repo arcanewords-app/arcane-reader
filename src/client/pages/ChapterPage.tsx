@@ -242,6 +242,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           onEnterReadingMode={handleEnterReadingMode}
           onSettingsChange={handleSettingsChange}
           initialSearchQuery={searchFromUrl}
+          onRefreshProject={handleRefreshProject}
         />
       </section>
 

@@ -1,12 +1,13 @@
 /**
  * Analyzer prompts for zh → ru
- * prompt-version: 1
+ * prompt-version: 2
  */
 
 import {
   ANALYSIS_EXCLUDE_RULES,
-  ANALYSIS_JSON_OUTPUT_FORMAT,
+  buildAnalysisJsonOutputFormat,
 } from '../../shared/analysis-output.js';
+import { languageDisplayName } from '../../../language.js';
 import { buildAnalyzerUserPrompt } from '../../shared/analyzer-user.js';
 import type { AnalyzerPromptBundle } from '../../types.js';
 
@@ -20,7 +21,7 @@ Your task is to analyze the provided Chinese chapter/text and extract ONLY uniqu
 
 ${ANALYSIS_EXCLUDE_RULES}
 
-${ANALYSIS_JSON_OUTPUT_FORMAT}
+${buildAnalysisJsonOutputFormat(languageDisplayName('ru'))}
 
 ## Chinese-specific guidelines
 

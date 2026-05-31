@@ -103,9 +103,30 @@ export function GlossaryModal({
     null
   );
   const [showManualMergeModal, setShowManualMergeModal] = useState(false);
+  const [displayEntries, setDisplayEntries] = useState<GlossaryEntry[]>(entries);
+
+  useEffect(() => {
+    setDisplayEntries(entries);
+  }, [entries]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    api
+      .getGlossary(projectId)
+      .then((list) => {
+        if (!cancelled) setDisplayEntries(list);
+      })
+      .catch((err) => {
+        console.error('Failed to load glossary:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, projectId]);
 
   const filteredEntries = useMemo(() => {
-    let list = entries.filter((entry) => {
+    let list = displayEntries.filter((entry) => {
       const matchesFilter =
         filter === 'all'
           ? true
@@ -137,18 +158,19 @@ export function GlossaryModal({
       return 0;
     });
     return list;
-  }, [entries, filter, search, sortBy]);
+  }, [displayEntries, filter, search, sortBy]);
 
   const counts = useMemo(
     () => ({
-      all: entries.length,
-      character: entries.filter((e) => e.type === 'character').length,
-      location: entries.filter((e) => e.type === 'location').length,
-      term: entries.filter((e) => e.type === 'term').length,
-      noDescription: entries.filter((e) => !e.description || e.description.trim() === '').length,
-      autoDetected: entries.filter((e) => e.autoDetected === true).length,
+      all: displayEntries.length,
+      character: displayEntries.filter((e) => e.type === 'character').length,
+      location: displayEntries.filter((e) => e.type === 'location').length,
+      term: displayEntries.filter((e) => e.type === 'term').length,
+      noDescription: displayEntries.filter((e) => !e.description || e.description.trim() === '')
+        .length,
+      autoDetected: displayEntries.filter((e) => e.autoDetected === true).length,
     }),
-    [entries]
+    [displayEntries]
   );
 
   const handleDeleteConfirm = async () => {
@@ -164,7 +186,7 @@ export function GlossaryModal({
   };
 
   const handleSuggestMerges = async () => {
-    if (entries.length < 2) return;
+    if (displayEntries.length < 2) return;
     setLoadingMergeSuggestions(true);
     setMergeSuggestions(null);
     try {
@@ -235,7 +257,7 @@ export function GlossaryModal({
   };
 
   const handleInlineTranslatedSave = async (entryId: string) => {
-    const entry = entries.find((e) => e.id === entryId);
+    const entry = displayEntries.find((e) => e.id === entryId);
     if (!entry || inlineEditingValue.trim() === entry.translated) {
       setInlineEditingId(null);
       return;
@@ -366,15 +388,15 @@ export function GlossaryModal({
                 <Button
                   variant="secondary"
                   onClick={() => setSelectMode(true)}
-                  disabled={entries.length === 0}
+                  disabled={displayEntries.length === 0}
                 >
                   {t('glossary.selectMode')}
                 </Button>
                 <Button
                   variant="secondary"
                   onClick={handleSuggestMerges}
-                  disabled={entries.length < 2 || loadingMergeSuggestions}
-                  title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
+                  disabled={displayEntries.length < 2 || loadingMergeSuggestions}
+                  title={displayEntries.length < 2 ? t('glossary.noSuggestions') : undefined}
                 >
                   {loadingMergeSuggestions
                     ? t('glossary.suggestMergesLoading')
@@ -383,8 +405,8 @@ export function GlossaryModal({
                 <Button
                   variant="secondary"
                   onClick={() => setShowManualMergeModal(true)}
-                  disabled={entries.length < 2}
-                  title={entries.length < 2 ? t('glossary.noSuggestions') : undefined}
+                  disabled={displayEntries.length < 2}
+                  title={displayEntries.length < 2 ? t('glossary.noSuggestions') : undefined}
                 >
                   {t('glossary.manualMerge')}
                 </Button>
@@ -472,7 +494,7 @@ export function GlossaryModal({
           {filteredEntries.length === 0 ? (
             <div class="glossary-empty">
               <div class="glossary-empty-icon">GL</div>
-              <p>{entries.length === 0 ? t('glossary.empty') : t('glossary.noResults')}</p>
+              <p>{displayEntries.length === 0 ? t('glossary.empty') : t('glossary.noResults')}</p>
             </div>
           ) : (
             filteredEntries.map((entry) => {
@@ -729,13 +751,13 @@ export function GlossaryModal({
             <div class="glossary-merge-list">
               {mergeSuggestions.map((suggestion, index) => {
                 const suggestedEntries = suggestion.entryIds
-                  .map((id) => entries.find((x) => x.id === id))
+                  .map((id) => displayEntries.find((x) => x.id === id))
                   .filter(Boolean) as GlossaryEntry[];
                 const keepId =
                   keepEntryIdByIndex[index] ??
                   suggestion.suggestedPrimaryId ??
                   suggestion.entryIds[0];
-                const keepEntry = entries.find((x) => x.id === keepId);
+                const keepEntry = displayEntries.find((x) => x.id === keepId);
                 return (
                   <div key={index} class="glossary-merge-card">
                     <div class="glossary-merge-card-head">
@@ -836,7 +858,7 @@ export function GlossaryModal({
                               onClick={(e) => e.stopPropagation()}
                             >
                               {suggestion.entryIds.map((id) => {
-                                const e = entries.find((x) => x.id === id);
+                                const e = displayEntries.find((x) => x.id === id);
                                 const label = e ? `${e.original} → ${e.translated}` : id;
                                 return (
                                   <option key={id} value={id}>
@@ -871,7 +893,7 @@ export function GlossaryModal({
           isOpen={showManualMergeModal}
           onClose={() => setShowManualMergeModal(false)}
           projectId={projectId}
-          entries={entries}
+          entries={displayEntries}
           typeIcons={typeIcons}
           onSuccess={() => {
             setShowManualMergeModal(false);
@@ -888,7 +910,7 @@ export function GlossaryModal({
           onClose={() => setEditingEntry(null)}
           projectId={projectId}
           entry={editingEntry}
-          entries={entries}
+          entries={displayEntries}
           chapters={chapters}
           typeIcons={typeIcons}
           typeLabels={typeLabels}
