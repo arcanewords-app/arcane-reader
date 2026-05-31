@@ -14,6 +14,7 @@ import { invalidateProjectAndRelatedCaches } from '../cacheInvalidation.js';
 import { createTranslateJobStoreFromEnv } from '../translateJobStore.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
 import { logger } from '../../logger.js';
+import { createTraceId } from '../../debug/context.js';
 import type { Chapter } from '../../storage/database.js';
 import type { TranslateJobPayload } from '../chapterQueue.js';
 
@@ -124,6 +125,8 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
             stages,
             {
               externalIsCancelled: () => cancelledFlag,
+              traceId: createTraceId(),
+              jobId,
               onProgress: (chunksDone, totalChunks) => {
                 translateJobStore
                   .updateJob(jobId, {

@@ -136,7 +136,10 @@ import {
 import { logger } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { isChunkError } from './shared/chunkErrors.js';
-import { getDebugLogEntries, clearDebugLogEntries, type DebugLogEntry } from './debugBuffer.js';
+import { registerDebugRoutes } from './debug/routes.js';
+import { startDebugLogSubscriber } from './debug/redisBridge.js';
+import { addDebugLogEntry } from './debug/buffer.js';
+import { createTraceId, runWithDebugContextAsync } from './debug/context.js';
 
 function escapeHtml(s: string): string {
   return s
@@ -525,11 +528,6 @@ function injectBreadcrumbJsonLd(
   return html.replace('</head>', `    ${jsonLd}\n  </head>`);
 }
 
-function omitKeys(obj: DebugLogEntry, keys: string[]): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const k of Object.keys(obj)) if (!keys.includes(k)) out[k] = obj[k];
-  return out;
-}
 import { requireToken } from './utils/requestHelpers.js';
 import {
   getUserTokenUsage,
@@ -4058,9 +4056,11 @@ app.post(
       );
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
 
+      const traceId = createTraceId();
       req.log?.info(
         {
           event: 'translation.started',
+          traceId,
           projectId: req.params.projectId,
           chapterId: req.params.chapterId,
           chapterTitle: chapterForTranslation.title,
@@ -4085,7 +4085,8 @@ app.post(
         token,
         req.user!.id,
         paragraphIds,
-        stages
+        stages,
+        { traceId }
       );
 
       res.json({ status: 'started', chapterId: chapter.id });
@@ -4146,7 +4147,55 @@ export async function performTranslation(
     externalIsCancelled?: () => boolean;
     /** Called on chunk progress (e.g. for batch job updates) */
     onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
+    traceId?: string;
+    jobId?: string;
   }
+): Promise<void> {
+  const traceId = options?.traceId ?? createTraceId();
+  return runWithDebugContextAsync(
+    {
+      traceId,
+      projectId,
+      chapterId,
+      jobId: options?.jobId,
+    },
+    async () =>
+      performTranslationInner(
+        projectId,
+        chapterId,
+        chapter,
+        project,
+        startTime,
+        translateOnlyEmpty,
+        token,
+        userId,
+        paragraphIds,
+        stages,
+        options,
+        traceId
+      )
+  );
+}
+
+async function performTranslationInner(
+  projectId: string,
+  chapterId: string,
+  chapter: Chapter,
+  project: Project | ProjectWithChapterList,
+  startTime: number,
+  translateOnlyEmpty: boolean,
+  token: string,
+  userId: string,
+  paragraphIds: string[] | undefined,
+  stages: TranslationStages,
+  options:
+    | {
+        externalIsCancelled?: () => boolean;
+        onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
+        jobId?: string;
+      }
+    | undefined,
+  traceId: string
 ): Promise<void> {
   const cancelKey = translationCancelKey(projectId, chapterId);
   const isCancelled = () =>
@@ -4156,6 +4205,8 @@ export async function performTranslation(
   logger.info(
     {
       event: 'translation.perform_start',
+      traceId,
+      jobId: options?.jobId,
       projectId,
       chapterId,
       chapterTitle: chapter.title,
@@ -4255,6 +4306,8 @@ export async function performTranslation(
     logger.info(
       {
         event: 'pipeline.start',
+        traceId,
+        jobId: options?.jobId,
         projectId,
         chapterId,
         analysisModel,
@@ -4510,6 +4563,8 @@ export async function performTranslation(
     logger.info(
       {
         event: 'translation.completed',
+        traceId,
+        jobId: options?.jobId,
         projectId,
         chapterId,
         durationMs: result.duration,
@@ -8196,140 +8251,7 @@ app.get(
 
 // ============ Debug log viewer (dev only) ============
 
-if (process.env.NODE_ENV !== 'production') {
-  app.get('/debug', (_req, res) => {
-    const entries = getDebugLogEntries();
-    const levelColors: Record<string, string> = {
-      fatal: '#ef4444',
-      error: '#ef4444',
-      warn: '#eab308',
-      info: '#22c55e',
-      debug: '#06b6d4',
-      trace: '#6b7280',
-    };
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Debug logs</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: ui-monospace, monospace; font-size: 12px; margin: 0; background: #0f172a; color: #e2e8f0; padding: 12px; }
-    h1 { font-size: 1.25rem; margin: 0 0 12px 0; }
-    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-    .toolbar input, .toolbar select, .toolbar button { padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; }
-    .toolbar button { cursor: pointer; }
-    .toolbar button:hover { background: #334155; }
-    #levelFilter { min-width: 100px; }
-    #search { min-width: 180px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; vertical-align: top; }
-    th { position: sticky; top: 0; background: #1e293b; z-index: 1; }
-    .level { font-weight: 600; }
-    .time { color: #94a3b8; white-space: nowrap; }
-    .msg { max-width: 40em; word-break: break-word; }
-    .json { font-size: 11px; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; }
-    tr:hover { background: #1e293b; }
-    .count { color: #94a3b8; margin-left: 8px; }
-  </style>
-</head>
-<body>
-  <h1>Debug logs <span class="count">(${entries.length} entries)</span></h1>
-  <div class="toolbar">
-    <label>Level <select id="levelFilter"><option value="">all</option><option value="error">error</option><option value="warn">warn</option><option value="info">info</option><option value="debug">debug</option><option value="trace">trace</option></select></label>
-    <label>Search <input type="text" id="search" placeholder="msg, requestId, event..."></label>
-    <label><input type="checkbox" id="autoRefresh"> Auto-refresh</label>
-    <select id="refreshInterval" title="Refresh interval"><option value="2">2s</option><option value="3" selected>3s</option><option value="5">5s</option><option value="10">10s</option></select>
-    <button type="button" id="clearBtn">Clear buffer</button>
-    <button type="button" id="refreshBtn">Refresh</button>
-  </div>
-  <table>
-    <thead><tr><th>Time</th><th>Level</th><th>Message</th><th>Payload</th></tr></thead>
-    <tbody>
-${entries
-  .map(
-    (e) =>
-      `<tr data-level="${e.level}">
-        <td class="time">${escapeHtml(String(e.time ?? ''))}</td>
-        <td class="level" style="color:${levelColors[e.level as keyof typeof levelColors] ?? '#94a3b8'}">${escapeHtml(String(e.level ?? ''))}</td>
-        <td class="msg">${escapeHtml(String(e.msg ?? ''))}</td>
-        <td class="json">${escapeHtml(JSON.stringify(omitKeys(e, ['time', 'level', 'msg'])))}</td>
-      </tr>`
-  )
-  .join('')}
-    </tbody>
-  </table>
-  <script>
-    var levelColors = { fatal: '#ef4444', error: '#ef4444', warn: '#eab308', info: '#22c55e', debug: '#06b6d4', trace: '#6b7280' };
-    function omitKeys(o, keys) { var r = {}; for (var k of Object.keys(o)) if (keys.indexOf(k) === -1) r[k] = o[k]; return r; }
-    function escapeHtml(s) { var div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
-    function renderRow(e) {
-      var level = e.level || '';
-      var color = levelColors[level] || '#94a3b8';
-      var payload = JSON.stringify(omitKeys(e, ['time', 'level', 'msg']));
-      return '<tr data-level="' + escapeHtml(level) + '"><td class="time">' + escapeHtml(String(e.time || '')) + '</td><td class="level" style="color:' + color + '">' + escapeHtml(level) + '</td><td class="msg">' + escapeHtml(String(e.msg || '')) + '</td><td class="json">' + escapeHtml(payload) + '</td></tr>';
-    }
-    function updateTable(entries) {
-      document.querySelector('.count').textContent = '(' + entries.length + ' entries)';
-      document.querySelector('tbody').innerHTML = entries.map(renderRow).join('');
-      applyFilters();
-    }
-    var levelFilter = document.getElementById('levelFilter');
-    var search = document.getElementById('search');
-    function applyFilters() {
-      var level = levelFilter.value;
-      var q = (search.value || '').toLowerCase();
-      var rows = document.querySelectorAll('tbody tr');
-      rows.forEach(function (tr) {
-        var levelOk = !level || tr.dataset.level === level;
-        var text = tr.textContent || '';
-        var searchOk = !q || text.toLowerCase().indexOf(q) !== -1;
-        tr.style.display = levelOk && searchOk ? '' : 'none';
-      });
-    }
-    levelFilter.addEventListener('change', applyFilters);
-    search.addEventListener('input', applyFilters);
-    document.getElementById('clearBtn').addEventListener('click', function () {
-      if (confirm('Clear in-memory log buffer?')) { window.location.href = '/debug/clear'; }
-    });
-    document.getElementById('refreshBtn').addEventListener('click', function () { window.location.reload(); });
-    var autoRefreshTimer = null;
-    document.getElementById('autoRefresh').addEventListener('change', function () {
-      var cb = this;
-      if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
-      if (cb.checked) {
-        var sec = parseInt(document.getElementById('refreshInterval').value, 10) || 3;
-        autoRefreshTimer = setInterval(function () {
-          fetch('/api/debug/logs').then(function (r) { return r.json(); }).then(updateTable);
-        }, sec * 1000);
-      }
-    });
-    document.getElementById('refreshInterval').addEventListener('change', function () {
-      if (autoRefreshTimer && document.getElementById('autoRefresh').checked) {
-        clearInterval(autoRefreshTimer);
-        var sec = parseInt(this.value, 10) || 3;
-        autoRefreshTimer = setInterval(function () {
-          fetch('/api/debug/logs').then(function (r) { return r.json(); }).then(updateTable);
-        }, sec * 1000);
-      }
-    });
-  </script>
-</body>
-</html>`;
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
-  });
-
-  app.get('/api/debug/logs', (_req, res) => {
-    res.json(getDebugLogEntries());
-  });
-
-  app.get('/debug/clear', (_req, res) => {
-    clearDebugLogEntries();
-    res.redirect(302, '/debug');
-  });
-}
+registerDebugRoutes(app);
 
 // ============ SEO: robots.txt & sitemap.xml ============
 // Vercel rewrites /robots.txt → /api/robots, /sitemap.xml → /api/sitemap.
@@ -8589,6 +8511,11 @@ async function startServer(): Promise<void> {
       );
     }
     serviceHealthManager.startPeriodicChecks(30_000);
+    if (process.env.NODE_ENV !== 'production') {
+      void startDebugLogSubscriber((entry) => {
+        addDebugLogEntry(entry);
+      });
+    }
   });
 }
 

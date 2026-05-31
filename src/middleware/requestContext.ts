@@ -37,7 +37,11 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
 
   res.on('finish', () => {
     // Skip logging debug viewer traffic (polling and page) to avoid noise
-    if (req.path === '/api/debug/logs' || req.path === '/debug' || req.path === '/debug/clear') {
+    if (
+      req.path.startsWith('/api/debug') ||
+      req.path === '/debug' ||
+      req.path.startsWith('/debug/')
+    ) {
       return;
     }
     const durationMs = Date.now() - start;

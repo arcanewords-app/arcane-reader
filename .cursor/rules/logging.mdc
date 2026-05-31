@@ -49,4 +49,4 @@ alwaysApply: false
 ## HTTP request logging
 
 - `requestLogging` logs `http.request` with method, path, status, durationMs.
-- Skips `/api/debug/logs`, `/debug` paths to reduce noise.
+- Skips `/api/debug/*`, `/debug`, `/debug/*` paths to reduce noise.

@@ -12,6 +12,7 @@ import type {
 } from '../interfaces/llm-provider.js';
 import { log } from '../logger.js';
 import { estimateTokensHeuristic } from '../utils/token-estimate.js';
+import { captureLlmCall } from '../../debug/promptCapture.js';
 
 function isRateLimitError(err: unknown): boolean {
   return (
@@ -115,9 +116,22 @@ export class OpenAIProvider implements ILLMProvider {
       });
 
       const choice = response.choices[0];
+      const content = choice.message.content ?? '';
+
+      captureLlmCall({
+        model: response.model,
+        method: 'complete',
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        responseContent: content,
+        tokens: {
+          prompt: response.usage?.prompt_tokens ?? 0,
+          completion: response.usage?.completion_tokens ?? 0,
+          total: response.usage?.total_tokens ?? 0,
+        },
+      });
 
       return {
-        content: choice.message.content ?? '',
+        content,
         tokensUsed: {
           prompt: response.usage?.prompt_tokens ?? 0,
           completion: response.usage?.completion_tokens ?? 0,
@@ -152,6 +166,17 @@ export class OpenAIProvider implements ILLMProvider {
 
       try {
         const data = JSON.parse(content) as T;
+        captureLlmCall({
+          model: response.model,
+          method: 'completeJSON',
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          responseContent: content,
+          tokens: {
+            prompt: response.usage?.prompt_tokens ?? 0,
+            completion: response.usage?.completion_tokens ?? 0,
+            total: response.usage?.total_tokens ?? 0,
+          },
+        });
         return {
           data,
           tokensUsed: {

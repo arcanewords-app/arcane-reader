@@ -17,7 +17,7 @@
 
 import { PassThrough } from 'node:stream';
 import pino from 'pino';
-import { addDebugLogEntry } from './debugBuffer.js';
+import { addDebugLogEntry } from './debug/buffer.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const level = (process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')).toLowerCase();

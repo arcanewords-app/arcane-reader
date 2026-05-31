@@ -62,6 +62,7 @@ Without Redis, use sync endpoints only; batch async returns 503.
 
 - Dev UI: Vite proxy or `http://localhost:5173` (see Vite config)
 - API: `http://localhost:3000`
+- Debug logs (dev only): `http://localhost:3000/debug` or `http://localhost:5173/debug` — see [[debug-translation]]
 
 ## Troubleshooting
 

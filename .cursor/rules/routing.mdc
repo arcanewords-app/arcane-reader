@@ -95,6 +95,22 @@ Most API endpoints validate request body and query parameters using Zod schemas 
 | GET | `/api/robots` | - | Robots.txt (Vercel rewrite target) |
 | GET | `/api/sitemap` | - | Sitemap XML (Vercel rewrite target) |
 
+### Debug (dev only, `NODE_ENV !== production`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/debug` | - | In-memory log viewer UI |
+| GET | `/debug/clear` | - | Clear log buffer, redirect to `/debug` |
+| GET | `/debug/clear-prompts` | - | Clear LLM prompt captures |
+| GET | `/api/debug/logs` | - | Log entries JSON (`?newestFirst=1`) |
+| GET | `/api/debug/traces` | - | Trace index for waterfall |
+| GET | `/api/debug/traces/:id` | - | Entries for trace/job/request id |
+| GET | `/api/debug/export` | - | Export markdown/json/cursor (`?traceId=`, `?format=`) |
+| GET | `/api/debug/prompts` | - | Opt-in LLM captures (`DEBUG_CAPTURE_LLM=1`) |
+| POST | `/api/debug/clear` | - | Clear log buffer (JSON) |
+
+Vite dev proxy: `/debug` → API port 3000. See `@docs/02-how-to/debug-translation.md`.
+
 ### User (requireAuth)
 
 | Method | Path | Role | Description |

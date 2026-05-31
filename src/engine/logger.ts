@@ -8,6 +8,7 @@
  */
 
 import { logger as appLogger } from '../logger.js';
+import { mergeDebugContext } from '../debug/context.js';
 
 function errorToObject(err: Error): Record<string, unknown> {
   const obj: Record<string, unknown> = {
@@ -26,12 +27,12 @@ function withData(
   data?: Record<string, unknown> | Error
 ): [Record<string, unknown>, string] {
   if (data instanceof Error) {
-    return [{ ...errorToObject(data) }, msg];
+    return [mergeDebugContext(errorToObject(data)), msg];
   }
   if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-    return [data as Record<string, unknown>, msg];
+    return [mergeDebugContext(data as Record<string, unknown>), msg];
   }
-  return [{}, msg];
+  return [mergeDebugContext({}), msg];
 }
 
 export const log = {

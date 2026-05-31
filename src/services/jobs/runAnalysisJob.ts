@@ -18,6 +18,7 @@ import { invalidateProjectAndRelatedCaches } from '../cacheInvalidation.js';
 import { createAnalysisJobStoreFromEnv } from '../analysisJobStore.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
 import { logger } from '../../logger.js';
+import { runWithDebugContextAsync, createTraceId } from '../../debug/context.js';
 import type { Chapter } from '../../storage/database.js';
 import type { AnalysisJobPayload } from '../chapterQueue.js';
 import type { AnalysisJobChapter } from '../analysisJobStore.js';
@@ -85,70 +86,77 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
 
     try {
       const analysisConcurrency = Math.max(1, config.translation?.analysisConcurrency ?? 4);
-      const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
-        useCache: true,
-        analysisConcurrency,
-        isCancelled: () => cancelledFlag,
-        onProgress: async (chapterId, progResult) => {
-          if (await analysisJobStore.isCancelRequested(jobId)) return;
-          const ch = chapterMap.get(chapterId);
-          if (!ch) return;
-          totalTokensAccum += progResult.tokensUsed;
-          const status: AnalysisJobChapter['status'] = progResult.success ? 'completed' : 'error';
-          const jobNow = await analysisJobStore.getJob(jobId);
-          if (!jobNow) return;
-          const updatedChapters = jobNow.chapters.map((c) =>
-            c.chapterId === chapterId ? { ...c, status, tokensUsed: progResult.tokensUsed } : c
-          );
-          const completedCount = updatedChapters.filter((c) => c.status === 'completed').length;
-          const errorCount = updatedChapters.filter((c) => c.status === 'error').length;
+      const result = await runWithDebugContextAsync(
+        { traceId: createTraceId(), jobId, projectId },
+        async () =>
+          analyzeChaptersBatch(config, project, chaptersWithText, {
+            useCache: true,
+            analysisConcurrency,
+            isCancelled: () => cancelledFlag,
+            onProgress: async (chapterId, progResult) => {
+              if (await analysisJobStore.isCancelRequested(jobId)) return;
+              const ch = chapterMap.get(chapterId);
+              if (!ch) return;
+              totalTokensAccum += progResult.tokensUsed;
+              const status: AnalysisJobChapter['status'] = progResult.success
+                ? 'completed'
+                : 'error';
+              const jobNow = await analysisJobStore.getJob(jobId);
+              if (!jobNow) return;
+              const updatedChapters = jobNow.chapters.map((c) =>
+                c.chapterId === chapterId ? { ...c, status, tokensUsed: progResult.tokensUsed } : c
+              );
+              const completedCount = updatedChapters.filter((c) => c.status === 'completed').length;
+              const errorCount = updatedChapters.filter((c) => c.status === 'error').length;
 
-          if (progResult.success) {
-            const nowIso = new Date().toISOString();
-            const analysisModel =
-              project.settings?.stageModels?.analysis ??
-              project.settings?.model ??
-              config.openai.model;
-            const existingChapter = await getChapter(projectId, chapterId, token, {
-              useServiceRole: true,
-            });
-            const preserveStatus =
-              existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
-            const preservedSource = existingChapter?.translationMeta?.source;
-            await updateChapter(
-              projectId,
-              chapterId,
-              {
-                status: preserveStatus ? existingChapter!.status : 'analyzed',
-                translationMeta: {
-                  ...(existingChapter?.translationMeta || {}),
-                  tokensUsed: progResult.tokensUsed,
-                  tokensByStage: {
-                    ...(existingChapter?.translationMeta?.tokensByStage || {}),
-                    analysis: progResult.tokensUsed,
-                    translation: existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
-                    editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
+              if (progResult.success) {
+                const nowIso = new Date().toISOString();
+                const analysisModel =
+                  project.settings?.stageModels?.analysis ??
+                  project.settings?.model ??
+                  config.openai.model;
+                const existingChapter = await getChapter(projectId, chapterId, token, {
+                  useServiceRole: true,
+                });
+                const preserveStatus =
+                  existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
+                const preservedSource = existingChapter?.translationMeta?.source;
+                await updateChapter(
+                  projectId,
+                  chapterId,
+                  {
+                    status: preserveStatus ? existingChapter!.status : 'analyzed',
+                    translationMeta: {
+                      ...(existingChapter?.translationMeta || {}),
+                      tokensUsed: progResult.tokensUsed,
+                      tokensByStage: {
+                        ...(existingChapter?.translationMeta?.tokensByStage || {}),
+                        analysis: progResult.tokensUsed,
+                        translation:
+                          existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
+                        editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
+                      },
+                      duration: 0,
+                      model: analysisModel,
+                      translatedAt: existingChapter?.translationMeta?.translatedAt ?? nowIso,
+                      lastAnalysisAt: nowIso,
+                      ...(preservedSource ? { source: preservedSource } : {}),
+                    },
                   },
-                  duration: 0,
-                  model: analysisModel,
-                  translatedAt: existingChapter?.translationMeta?.translatedAt ?? nowIso,
-                  lastAnalysisAt: nowIso,
-                  ...(preservedSource ? { source: preservedSource } : {}),
-                },
-              },
-              token,
-              { useServiceRole: true }
-            );
-          }
+                  token,
+                  { useServiceRole: true }
+                );
+              }
 
-          await analysisJobStore.updateJob(jobId, {
-            current: completedCount + errorCount,
-            chapters: updatedChapters,
-            totalTokensUsed: totalTokensAccum,
-            currentChapterTitle: ch.title,
-          });
-        },
-      });
+              await analysisJobStore.updateJob(jobId, {
+                current: completedCount + errorCount,
+                chapters: updatedChapters,
+                totalTokensUsed: totalTokensAccum,
+                currentChapterTitle: ch.title,
+              });
+            },
+          })
+      );
 
       clearInterval(cancelCheckInterval);
       if (await analysisJobStore.isCancelRequested(jobId)) {
