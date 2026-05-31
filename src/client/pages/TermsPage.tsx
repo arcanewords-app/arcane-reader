@@ -34,6 +34,17 @@ export function TermsPage() {
         <section class="info-section">
           <h2>{t('terms.authors')}</h2>
           <p>{t('terms.authorsDesc')}</p>
+          <p>
+            <a
+              href="/account-tiers"
+              onClick={(e) => {
+                e.preventDefault();
+                route('/account-tiers');
+              }}
+            >
+              {t('about.accountTiersLink')}
+            </a>
+          </p>
         </section>
 
         <section class="info-section">

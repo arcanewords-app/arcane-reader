@@ -198,6 +198,17 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                     >
                       {t('info.contact')}
                     </a>
+                    <a
+                      href="/account-tiers"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        route('/account-tiers');
+                        setInfoOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('info.accountTiers')}
+                    </a>
                   </div>
                   <div class="header-info-divider" aria-hidden="true" />
                   <div class="header-info-section">

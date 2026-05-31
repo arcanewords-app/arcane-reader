@@ -34,6 +34,17 @@ export function AboutPage() {
             <li>{t('about.feature5')}</li>
             <li>{t('about.feature6')}</li>
           </ul>
+          <p>
+            <a
+              href="/account-tiers"
+              onClick={(e) => {
+                e.preventDefault();
+                route('/account-tiers');
+              }}
+            >
+              {t('about.accountTiersLink')}
+            </a>
+          </p>
         </section>
 
         <section class="info-section">

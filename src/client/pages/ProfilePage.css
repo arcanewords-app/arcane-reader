@@ -190,6 +190,20 @@
   margin: 0;
 }
 
+.profile-upgrade-block .btn {
+  align-self: flex-start;
+}
+
+.profile-tiers-section {
+  margin-top: 1.5rem;
+  width: 100%;
+  max-width: 56rem;
+}
+
+.profile-section-profile .profile-avatar-section {
+  max-width: 56rem;
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .profile-page {
     padding: var(--main-padding-tablet);

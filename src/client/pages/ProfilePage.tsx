@@ -7,11 +7,13 @@ import { api } from '../api/client';
 import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
 import { Button } from '../components/ui';
+import { RoleComparisonTable } from '../components/AccountTiers';
 import { CONTACT_EMAIL } from '../../shared/contact';
 import type { ReaderSettings } from '../types';
 import type { UserRole } from '../../types/roles';
 import { DEFAULT_READER_SETTINGS, LEGACY_FONT_MAP } from '../types';
 import './ProfilePage.css';
+import '../components/AccountTiers/RoleComparisonTable.css';
 
 type ProfileTab = 'reading' | 'settings' | 'profile';
 
@@ -185,6 +187,14 @@ export function ProfilePage() {
                   >
                     {t('profile.upgradeButton')}
                   </Button>
+                  <Button variant="secondary" size="sm" onClick={() => route('/account-tiers')}>
+                    {t('tiers.viewFullComparison')}
+                  </Button>
+                </div>
+              )}
+              {user && (
+                <div class="profile-tiers-section">
+                  <RoleComparisonTable currentRole={role} compact />
                 </div>
               )}
             </div>

@@ -11,6 +11,21 @@
   text-align: center;
 }
 
+.upgrade-screen__content-wide {
+  max-width: 56rem;
+  width: 100%;
+  text-align: left;
+}
+
+.upgrade-screen__content-wide .upgrade-screen__title,
+.upgrade-screen__content-wide .upgrade-screen__message {
+  text-align: center;
+}
+
+.upgrade-screen__content-wide .upgrade-screen__actions {
+  justify-content: center;
+}
+
 .upgrade-screen__title {
   font-size: 1.5rem;
   font-weight: 600;

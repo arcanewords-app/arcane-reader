@@ -479,11 +479,12 @@
     "consentLabel": "I agree to the <0>Privacy Policy</0> and <1>Terms of Service</1>",
     "consentRequired": "You must accept the terms",
     "upgradeTitle": "Author subscription required",
-    "upgradeMessage": "Access to the cabinet and translation projects requires an author subscription. This feature will be available soon.",
+    "upgradeMessage": "Translation projects, AI pipeline, glossary, and publishing require an Author account. Compare levels below or request an upgrade.",
     "upgradeGoToCatalog": "Go to catalog",
     "upgradeGoToProfile": "Go to profile",
     "requestUpgrade": "Request upgrade",
-    "upgradeMailSubject": "Request for author subscription"
+    "upgradeMailSubject": "Request for author subscription",
+    "upgradeLearnMore": "Full comparison"
   },
   "projectInfo": {
     "delete": "Delete",
@@ -956,11 +957,40 @@
   "info": {
     "menu": "Info",
     "aboutProject": "About",
+    "accountTiers": "Account levels",
     "legal": "Legal",
     "about": "About",
     "contact": "Contact",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service"
+  },
+  "tiers": {
+    "pageTitle": "Account levels",
+    "intro": "Arcane has reader and translator tiers. Higher tiers increase daily AI token limits; some features are planned for future releases.",
+    "tableAria": "Account level comparison",
+    "featureColumn": "Feature",
+    "currentTier": "Your level",
+    "soonBadge": "Soon",
+    "soonTooltip": "In development",
+    "tokenResetNote": "Daily token limits reset at 00:00 UTC.",
+    "requestUpgrade": "Request upgrade",
+    "goToProjects": "My projects",
+    "goToProfile": "Profile",
+    "viewFullComparison": "View full comparison",
+    "columns": {
+      "user": "Reader",
+      "author": "Author",
+      "author_plus": "Author+",
+      "super_author": "Super author"
+    },
+    "features": {
+      "catalogReading": "Catalog and reading",
+      "profileHistory": "Profile and reading history",
+      "translationProjects": "Translation projects and AI pipeline",
+      "glossaryPublishExport": "Glossary, publishing, EPUB/FB2 export",
+      "dailyTokens": "Daily AI tokens",
+      "parallelJobs": "Parallel background jobs"
+    }
   },
   "about": {
     "title": "About Arcane",
@@ -973,6 +1003,7 @@
     "feature4": "Public catalog of translated works",
     "feature5": "Profile and reading history for registered readers",
     "feature6": "Projects dashboard for translators",
+    "accountTiersLink": "Compare account levels and token limits →",
     "mission": "Mission",
     "missionDesc": "Give people faster access to quality translations in their native language — better than raw machine translation.",
     "author": "Author",
@@ -1019,7 +1050,7 @@
     "readers": "For readers",
     "readersDesc": "Catalog and reading are free for everyone. Registered readers get a profile and reading history. Content is created by author-translators.",
     "authors": "For authors",
-    "authorsDesc": "Cabinet, translation, export. Daily token limits by role. You are responsible for your content.",
+    "authorsDesc": "Cabinet, translation, export. Daily token limits by role. See account levels for details. You are responsible for your content.",
     "contentResponsibility": "Content responsibility",
     "contentResponsibilityDesc": "Arcane is a translation tool. You are responsible for what you translate and publish. For copyright-protected works, permission from the rights holder is required. We do not claim rights to translations.",
     "changes": "Changes",

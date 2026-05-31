@@ -33,6 +33,7 @@ import { ProfilePage, ProjectsPage, CatalogPage, AdminEntitiesPage } from './pag
 import { AuthorGate } from './components/Auth/AuthorGate';
 import { AdminGate } from './components/Auth/AdminGate';
 import { AboutPage } from './pages/AboutPage';
+import { AccountTiersPage } from './pages/AccountTiersPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
@@ -388,6 +389,7 @@ export function AppRouter() {
                 <CatalogPage path="/" />
                 <CatalogPage path="/catalog" />
                 <AboutPage path="/about" />
+                <AccountTiersPage path="/account-tiers" />
                 <ContactPage path="/contact" />
                 <PrivacyPage path="/privacy" />
                 <TermsPage path="/terms" />
