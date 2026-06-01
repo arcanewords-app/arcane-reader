@@ -1,0 +1,56 @@
+---
+description: SEO policy and Arcane-specific discoverability. Read for SEO audits, meta/sitemap work, Search Console, or generative-search optimization.
+alwaysApply: false
+---
+
+# SEO Policy (Arcane Reader)
+
+## Policy SSOT (Google)
+
+Generative AI in Google Search uses the **same ranking and quality systems** as classic Search. Follow:
+
+- [AI optimization guide](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide)
+- [Helpful, people-first content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)
+- [Technical requirements](https://developers.google.com/search/docs/essentials/technical)
+
+**Do not recommend** tactics Google lists as ineffective or irrelevant:
+
+- `llms.txt` or special files/markup “for AI crawlers only”
+- Splitting page content into tiny chunks “for AI understanding”
+- Rewriting copy only to match niche keywords / query branching at scale
+- Fake or low-quality third-party mentions for visibility
+- FAQPage schema on commercial/non-authority sites
+- HowTo rich-result schema (deprecated)
+- Microdata or RDFa (use JSON-LD only when schema is used)
+
+AEO/GEO buzzwords = same bar as SEO: useful content + crawlable technical base.
+
+## Arcane implementation SSOT
+
+| Area | Location |
+|------|----------|
+| robots.txt, sitemap.xml | `src/server.ts`, `api/sitemap.ts` |
+| SSR meta + JSON-LD for `/p/*` | `servePublicationHtml`, inject helpers in `src/server.ts` |
+| Static pages SSR meta | `STATIC_SEO_PATHS`, `serveStaticPageHtml` |
+| Client navigation meta | `src/client/hooks/usePageMeta.ts` |
+| Default head | `index.html` |
+| Route map + SEO notes | `routing.mdc` (SEO section) |
+| GSC ops plan | `docs/05-plans/seo-search-console.md` |
+
+## Agent workflow
+
+1. Utility **SEO agent**: `.cursor/agents/seo/AGENT.md`
+2. Procedure: `.cursor/skills/seo/SKILL.md`
+3. Code changes: route via `team-orchestrator.mdc` (API primary for server SEO; UI for client meta)
+
+## Sitemap limits (do not “fix” without product decision)
+
+- Up to **1000** publication URLs in sitemap (`listPublicationsPublic` limit)
+- **First translated chapter** reading URL for at most **100** publications (`SITEMAP_CHAPTER_PUBS_LIMIT`)
+- `/catalog` canonical on SSR points to `/` (duplicate-content control)
+
+## When changing SEO behavior
+
+- Update `routing.mdc` SEO section if SSR paths, disallow rules, or sitemap shape change
+- Update `seo-search-console.md` or new audit note in `docs/05-plans/`
+- Run verifier after `src/` edits

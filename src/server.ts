@@ -159,6 +159,13 @@ function escapeMetaContent(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
+/** Absolute site origin; respects X-Forwarded-* behind Vercel/reverse proxies. */
+function getPublicBaseUrl(req: express.Request): string {
+  const proto = req.get('x-forwarded-proto')?.split(',')[0]?.trim() || req.protocol || 'https';
+  const host = req.get('x-forwarded-host')?.split(',')[0]?.trim() || req.get('host') || 'localhost';
+  return `${proto}://${host}`;
+}
+
 /**
  * Inject publication-specific meta tags into index.html for SEO (Open Graph, Twitter Card).
  * Used for /p/:id and /p/:id/chapters/:cid/reading routes so crawlers get correct previews.
@@ -237,7 +244,7 @@ const STATIC_PAGE_META: Record<string, { title: string; description: string }> =
       'Arcane — библиотека переводов новелл. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.',
   },
   '/catalog': {
-    title: 'Arcane — Переводчик новелл',
+    title: 'Каталог переводов — Arcane',
     description:
       'Каталог переводов новелл. Опубликованные переводы от авторов. Читайте онлайн или скачивайте EPUB, FB2.',
   },
@@ -359,7 +366,7 @@ function injectOrganizationJsonLd(html: string, baseUrl: string): string {
  * Serve index.html with page-specific meta for static routes.
  */
 function serveStaticPageHtml(req: express.Request, res: express.Response, pathname: string): void {
-  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  const base = getPublicBaseUrl(req);
   const pageUrl = base + pathname;
   const meta = STATIC_PAGE_META[pathname];
   if (!meta) {
@@ -8274,7 +8281,7 @@ Sitemap: ${base}/sitemap.xml
 const SITEMAP_CHAPTER_PUBS_LIMIT = 100;
 
 async function sendSitemapXml(req: express.Request, res: express.Response): Promise<void> {
-  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  const base = getPublicBaseUrl(req);
   let pubUrls = '';
   let chapterUrls = '';
   try {
@@ -8356,7 +8363,7 @@ async function servePublicationHtml(
   publicationId: string,
   chapterId?: string
 ): Promise<void> {
-  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
+  const base = getPublicBaseUrl(req);
   const indexPath = fs.existsSync(path.join(clientPath, 'index.html'))
     ? path.join(clientPath, 'index.html')
     : path.join(publicPath, 'index.html');

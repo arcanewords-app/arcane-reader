@@ -265,6 +265,44 @@ Vite dev proxy: `/debug` → API port 3000. See `@docs/02-how-to/debug-translati
 
 ---
 
+## SEO (SSR, sitemap, canonical)
+
+Implemented in [src/server.ts](src/server.ts). Audits: `.cursor/skills/seo/SKILL.md`, `.cursor/rules/seo.mdc`.
+
+### Crawl files
+
+| Path | Notes |
+|------|--------|
+| `/robots.txt`, `/api/robots` | Allow `/`; disallow `/profile`, `/projects`, `/admin`; `Sitemap:` absolute URL |
+| `/sitemap.xml`, `/api/sitemap` | Also [api/sitemap.ts](api/sitemap.ts) on Vercel |
+
+### Sitemap contents and limits
+
+- `/` (priority 1.0) plus static: `/about`, `/contact`, `/privacy`, `/terms`, `/catalog`
+- Each published publication: `/p/{slugOrId}` (up to **1000** from `listPublicationsPublic`)
+- First **translated** chapter reading URL for at most **100** publications (`SITEMAP_CHAPTER_PUBS_LIMIT`)
+
+### SSR HTML (meta for crawlers)
+
+| Path | Behavior |
+|------|----------|
+| `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms` | `serveStaticPageHtml` — title, description, og, canonical |
+| `/catalog` | Canonical URL = site root `/` (avoid duplicate home vs catalog) |
+| `/p/:publicationId` | `servePublicationHtml` — meta, hidden `<main class="publication-page-seo">`, Book + BreadcrumbList JSON-LD |
+| `/p/:publicationId/chapters/:chapterId/reading` | Chapter title/description; chapter breadcrumb |
+
+Client navigation updates head via [usePageMeta.ts](src/client/hooks/usePageMeta.ts); direct loads and bots rely on SSR above.
+
+### Vercel rewrites
+
+In [vercel.json](vercel.json), `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, and `/p/*` route to `api/index` (Express SSR). Other SPA paths fall through to static `index.html`.
+
+### Auth areas
+
+`/projects/*`, `/profile`, `/admin/*` are disallowed in robots and not in sitemap (author workspace, not public SEO targets).
+
+---
+
 ## Navigation Map (Key Flows)
 
 User journey tables (header, catalog, projects, publication): `@docs/_canonical/rules/routing-nav.md`.
