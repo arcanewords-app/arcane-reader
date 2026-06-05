@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient.js';
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { parseRole } from '../types/roles.js';
+import { authErrorFromSupabase } from './authErrors.js';
 
 const DEFAULT_ROLE = 'user' as const;
 
@@ -41,11 +42,11 @@ export const authService = {
     });
 
     if (error) {
-      throw new Error(`Registration failed: ${error.message}`);
+      throw authErrorFromSupabase('register', error);
     }
 
     if (!data.user) {
-      throw new Error('Registration failed: No user data returned');
+      throw authErrorFromSupabase('register', { message: 'No user data returned' });
     }
 
     // Profile will be created automatically by trigger handle_new_user() with role = 'user'
@@ -67,11 +68,11 @@ export const authService = {
     });
 
     if (error) {
-      throw new Error(`Login failed: ${error.message}`);
+      throw authErrorFromSupabase('login', error);
     }
 
     if (!data.user) {
-      throw new Error('Login failed: No user data returned');
+      throw authErrorFromSupabase('login', { message: 'No user data returned' });
     }
 
     const profile = await getProfile(supabase, data.user.id);
@@ -89,7 +90,7 @@ export const authService = {
   async logout(): Promise<void> {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      throw new Error(`Logout failed: ${error.message}`);
+      throw authErrorFromSupabase('logout', error);
     }
   },
 
@@ -164,7 +165,7 @@ export const authService = {
       error,
     } = await supabase.auth.getSession();
     if (error) {
-      throw new Error(`Get session failed: ${error.message}`);
+      throw authErrorFromSupabase('session', error);
     }
     return session;
   },

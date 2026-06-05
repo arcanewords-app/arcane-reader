@@ -18,6 +18,18 @@ alwaysApply: false
 
 See `@env.example.txt` for optional: `ANTHROPIC_API_KEY`, chunking, `PUBLIC_URL`, `VITE_GA_MEASUREMENT_ID`.
 
+## Log shipping (Axiom, production)
+
+| Variable | Purpose |
+|----------|---------|
+| `LOG_SHIPPING` | `1` or `true` — enable async push to Axiom (production only in code) |
+| `AXIOM_TOKEN` | Axiom ingest API token |
+| `AXIOM_DATASET` | Dataset name (`arcane-prod` or `arcane-staging`) |
+| `LOG_LEVEL` | `info` recommended in prod |
+| `ARCANE_ENV` | Optional deploy env label when not on Vercel |
+
+Set on **Vercel** (Production + Preview) and **worker host**. Do not enable locally unless explicitly testing shipping. See `@docs/02-how-to/observability-axiom.md`.
+
 ## Async jobs (production)
 
 | Variable | Purpose |

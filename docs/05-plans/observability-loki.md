@@ -1,15 +1,18 @@
 ---
 type: plan
-status: active
+status: archived
 domain: meta
-stale: false
+stale: true
 created: 2026-06-01
-updated: 2026-06-01
+updated: 2026-06-06
 trello: https://trello.com/b/bJJpiDqs/arcane-reader
 canonical: .cursor/rules/logging.mdc
+superseded_by: docs/04-decisions/adr-observability-axiom.md
 ---
 
 # Observability: Grafana Loki (future)
+
+> **Archived 2026-06-06.** Superseded by [[../04-decisions/adr-observability-axiom]] — production logs ship to Axiom; local `/debug` unchanged. See [[../02-how-to/observability-axiom]].
 
 **Trello board:** [Arcane Reader](https://trello.com/b/bJJpiDqs/arcane-reader) — epic cards in **ToDo** (#55–#64).
 

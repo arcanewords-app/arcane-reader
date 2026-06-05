@@ -1,0 +1,44 @@
+---
+description: Dev-only debug console — module map and conventions
+globs:
+  - src/debug/**
+  - src/debug-app/**
+alwaysApply: false
+---
+
+# Debug Console
+
+Dev-only observability UI and in-memory buffers. **Not available when `NODE_ENV=production`.**
+
+## Module map
+
+| Path | Role |
+|------|------|
+| `src/debug/` | Server: buffers, capture, API routes, Redis bridge |
+| `src/debug/shared/` | Browser-safe types + copy format (shared with debug-app) |
+| `src/debug-app/` | Preact SPA — unified debug console UI |
+
+## Routes
+
+See `@.cursor/rules/routing.mdc` (Debug section). Do not duplicate the full route table here.
+
+## UI conventions
+
+- Separate design system in `src/debug-app/components/ui/` — do **not** import `src/client/components/ui`
+- All tabs use `AppShell` + `PageToolbar` + `DbgTable`
+- Copy actions use `GET /api/debug/export` via `@debug/shared/copyFormat` where possible
+- Clear actions use `POST /api/debug/clear`, `/api/debug/clear-http`, `/api/debug/clear-prompts`
+
+## Dev workflow
+
+```bash
+npm run dev          # API + client + debug app (:5174)
+npm run dev:full     # + worker
+```
+
+- Debug UI: `http://localhost:5174/debug/` or via main client proxy `http://localhost:5173/debug`
+- API: `http://localhost:3000/api/debug/*`
+
+## Future extraction
+
+`src/debug-app/` + `src/debug/shared/` are designed to move to a separate worker/package; contract is HTTP API only.

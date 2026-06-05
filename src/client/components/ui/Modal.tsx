@@ -18,6 +18,8 @@ interface ModalProps {
   /** When 'error', uses error-modal-header/body/footer structure (for confirm dialogs, alerts) */
   variant?: 'default' | 'large' | 'toc' | 'error';
   preventClose?: boolean; // Prevent closing on overlay click or Escape
+  /** When false, backdrop click / Space+Enter on overlay won't close. Escape and × still work unless preventClose is true. */
+  closeOnBackdropClick?: boolean;
   /** Disable the header close button (e.g. while submitting in confirm modal) */
   closeButtonDisabled?: boolean;
 }
@@ -34,6 +36,7 @@ export function Modal({
   overlayClassName = '',
   variant,
   preventClose = false,
+  closeOnBackdropClick = true,
   closeButtonDisabled = false,
 }: ModalProps) {
   const effectiveVariant =
@@ -69,9 +72,11 @@ export function Modal({
     return null;
   }
 
+  const canCloseOnBackdrop = closeOnBackdropClick && !preventClose;
+
   // Handle overlay click
   const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !preventClose) {
+    if (e.target === e.currentTarget && canCloseOnBackdrop) {
       onClose();
     }
   };
@@ -173,7 +178,11 @@ export function Modal({
       onKeyDown={(e) => {
         // Only close on Space/Enter when focus is on the overlay (clicked backdrop), not when
         // focus is inside modal content (e.g. Space in glossary card would close otherwise)
-        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget && !preventClose) {
+        if (
+          (e.key === 'Enter' || e.key === ' ') &&
+          e.target === e.currentTarget &&
+          canCloseOnBackdrop
+        ) {
           e.preventDefault();
           onClose();
         }

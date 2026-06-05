@@ -100,17 +100,21 @@ Most API endpoints validate request body and query parameters using Zod schemas 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/debug` | - | In-memory log viewer UI |
+| GET | `/debug` | - | Debug console UI (redirect to dev app; static from `dist/debug` when built) |
 | GET | `/debug/clear` | - | Clear log buffer, redirect to `/debug` |
-| GET | `/debug/clear-prompts` | - | Clear LLM prompt captures |
+| GET | `/debug/clear-prompts` | - | Clear LLM prompt captures, redirect to `/debug?tab=prompts` |
+| GET | `/debug/clear-http` | - | Clear HTTP captures, redirect to `/debug?tab=http` |
 | GET | `/api/debug/logs` | - | Log entries JSON (`?newestFirst=1`) |
 | GET | `/api/debug/traces` | - | Trace index for waterfall |
-| GET | `/api/debug/traces/:id` | - | Entries for trace/job/request id |
+| GET | `/api/debug/traces/:id` | - | Unified trace detail: entries, summary, LLM + HTTP captures |
 | GET | `/api/debug/export` | - | Export markdown/json/cursor (`?traceId=`, `?format=`) |
 | GET | `/api/debug/prompts` | - | Opt-in LLM captures (`DEBUG_CAPTURE_LLM=1`) |
+| GET | `/api/debug/http` | - | Opt-in HTTP captures (`DEBUG_CAPTURE_HTTP=1`) |
 | POST | `/api/debug/clear` | - | Clear log buffer (JSON) |
+| POST | `/api/debug/clear-http` | - | Clear HTTP captures (JSON) |
+| POST | `/api/debug/clear-prompts` | - | Clear LLM prompt captures (JSON) |
 
-Vite dev proxy: `/debug` → API port 3000. See `@docs/02-how-to/debug-translation.md`.
+Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-translation.md` and `@.cursor/rules/debug.mdc`.
 
 ### User (requireAuth)
 

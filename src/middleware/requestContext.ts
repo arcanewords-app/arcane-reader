@@ -6,6 +6,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { logger, createRequestLogger } from '../logger.js';
+import { getRouteDebugError } from './routeDebugError.js';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -46,16 +47,31 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     }
     const durationMs = Date.now() - start;
     const userId = req.user?.id;
-    log.info(
-      {
-        event: 'http.request',
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        durationMs,
-        ...(userId && { userId }),
-      },
-      `${req.method} ${req.path} ${res.statusCode} ${durationMs}ms`
+    const routeErr = getRouteDebugError(res);
+    const statusCode = res.statusCode;
+    const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
+    const event = routeErr?.event ?? 'http.request';
+
+    const payload: Record<string, unknown> = {
+      event,
+      method: req.method,
+      path: req.path,
+      statusCode,
+      durationMs,
+      ...(userId && { userId }),
+    };
+
+    if (routeErr) {
+      payload.clientMessage = routeErr.clientMessage;
+      if (routeErr.operation) payload.operation = routeErr.operation;
+      if (routeErr.upstreamCode) payload.upstreamCode = routeErr.upstreamCode;
+      if (routeErr.upstreamStatus !== undefined) payload.upstreamStatus = routeErr.upstreamStatus;
+      if (routeErr.upstreamMessage) payload.upstreamMessage = routeErr.upstreamMessage;
+    }
+
+    log[level](
+      payload,
+      routeErr?.clientMessage ?? `${req.method} ${req.path} ${statusCode} ${durationMs}ms`
     );
   });
 

@@ -9,6 +9,7 @@ import { startChapterWorkers } from './services/chapterWorker.js';
 import { logger } from './logger.js';
 
 function main(): void {
+  logger.info({ event: 'worker.started' }, 'BullMQ worker started');
   startChapterWorkers();
 }
 

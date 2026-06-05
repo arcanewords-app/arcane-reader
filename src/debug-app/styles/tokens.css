@@ -1,0 +1,21 @@
+:root {
+  --dbg-bg: #0f172a;
+  --dbg-surface: #1e293b;
+  --dbg-surface-hover: #334155;
+  --dbg-border: #334155;
+  --dbg-text: #e2e8f0;
+  --dbg-muted: #94a3b8;
+  --dbg-accent: #06b6d4;
+  --dbg-accent-dim: #0e7490;
+  --dbg-success: #22c55e;
+  --dbg-warn: #eab308;
+  --dbg-error: #ef4444;
+  --dbg-font: ui-monospace, 'JetBrains Mono', monospace;
+  --dbg-radius: 6px;
+  --dbg-space: 8px;
+  --dbg-space-sm: 4px;
+  --dbg-space-lg: 12px;
+  --dbg-input-sm: 100px;
+  --dbg-input-md: 140px;
+  --dbg-input-lg: 160px;
+}

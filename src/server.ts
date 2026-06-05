@@ -128,6 +128,7 @@ import {
 } from './storage/database.js';
 import { requireAuth, optionalAuth, requireRole } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
+import { respondRouteError } from './middleware/routeDebugError.js';
 import {
   handleServiceError,
   requireHealthySupabase,
@@ -140,6 +141,7 @@ import { registerDebugRoutes } from './debug/routes.js';
 import { startDebugLogSubscriber } from './debug/redisBridge.js';
 import { addDebugLogEntry } from './debug/buffer.js';
 import { createTraceId, runWithDebugContextAsync } from './debug/context.js';
+import { httpCaptureMiddleware, setDebugTraceId } from './debug/httpCaptureMiddleware.js';
 
 function escapeHtml(s: string): string {
   return s
@@ -967,6 +969,7 @@ app.use(cors());
 app.use(express.json());
 app.use(requestContext);
 app.use(requestLogging);
+app.use(httpCaptureMiddleware);
 
 // Circuit breaker: return 503 immediately when Supabase is down (avoids hanging DB calls)
 app.use('/api', requireHealthySupabase);
@@ -998,9 +1001,11 @@ app.post('/api/auth/register', async (req, res) => {
     const user = await authService.register(email, password);
     res.json({ user });
   } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    const message = error instanceof Error ? error.message : 'Registration failed';
-    res.status(400).json({ error: message });
+    respondRouteError(req, res, error, {
+      event: 'auth.register.failed',
+      fallbackMessage: 'Registration failed',
+      statusCode: 400,
+    });
   }
 });
 
@@ -1031,9 +1036,11 @@ app.post('/api/auth/login', async (req, res) => {
         : null,
     });
   } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    const message = error instanceof Error ? error.message : 'Login failed';
-    res.status(401).json({ error: message });
+    respondRouteError(req, res, error, {
+      event: 'auth.login.failed',
+      fallbackMessage: 'Login failed',
+      statusCode: 401,
+    });
   }
 });
 
@@ -1043,9 +1050,11 @@ app.post('/api/auth/logout', async (req, res) => {
     await authService.logout();
     res.json({ success: true });
   } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    const message = error instanceof Error ? error.message : 'Logout failed';
-    res.status(500).json({ error: message });
+    respondRouteError(req, res, error, {
+      event: 'auth.logout.failed',
+      fallbackMessage: 'Logout failed',
+      statusCode: 500,
+    });
   }
 });
 
@@ -1067,9 +1076,11 @@ app.get('/api/auth/me', async (req, res) => {
     }
     res.json({ user });
   } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    const message = error instanceof Error ? error.message : 'Failed to get user';
-    res.status(500).json({ error: message });
+    respondRouteError(req, res, error, {
+      event: 'auth.me.failed',
+      fallbackMessage: 'Failed to get user',
+      statusCode: 500,
+    });
   }
 });
 
@@ -1091,9 +1102,11 @@ app.post('/api/auth/refresh', async (req, res) => {
 
     res.json({ session });
   } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    const message = error instanceof Error ? error.message : 'Refresh failed';
-    res.status(500).json({ error: message });
+    respondRouteError(req, res, error, {
+      event: 'auth.refresh.failed',
+      fallbackMessage: 'Refresh failed',
+      statusCode: 500,
+    });
   }
 });
 
@@ -3469,10 +3482,15 @@ app.post(
       }
 
       const analysisConcurrency = Math.max(1, config.translation?.analysisConcurrency ?? 4);
-      const result = await analyzeChaptersBatch(config, project, chaptersWithText, {
-        useCache: true,
-        analysisConcurrency,
-      });
+      const traceId = createTraceId();
+      const requestId = (req as express.Request & { id: string }).id;
+      setDebugTraceId(res, traceId);
+      const result = await runWithDebugContextAsync({ traceId, requestId, projectId }, async () =>
+        analyzeChaptersBatch(config, project, chaptersWithText, {
+          useCache: true,
+          analysisConcurrency,
+        })
+      );
 
       if (result.glossaryUpdates.length > 0) {
         for (const entry of result.glossaryUpdates) {
@@ -4064,10 +4082,13 @@ app.post(
       await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
 
       const traceId = createTraceId();
+      const requestId = (req as express.Request & { id: string }).id;
+      setDebugTraceId(res, traceId);
       req.log?.info(
         {
           event: 'translation.started',
           traceId,
+          requestId,
           projectId: req.params.projectId,
           chapterId: req.params.chapterId,
           chapterTitle: chapterForTranslation.title,
@@ -4093,10 +4114,10 @@ app.post(
         req.user!.id,
         paragraphIds,
         stages,
-        { traceId }
+        { traceId, requestId }
       );
 
-      res.json({ status: 'started', chapterId: chapter.id });
+      res.json({ status: 'started', chapterId: chapter.id, traceId });
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to start translation' });
@@ -4156,12 +4177,14 @@ export async function performTranslation(
     onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
     traceId?: string;
     jobId?: string;
+    requestId?: string;
   }
 ): Promise<void> {
   const traceId = options?.traceId ?? createTraceId();
   return runWithDebugContextAsync(
     {
       traceId,
+      requestId: options?.requestId,
       projectId,
       chapterId,
       jobId: options?.jobId,

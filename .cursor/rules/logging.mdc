@@ -11,6 +11,20 @@ alwaysApply: false
 - Pino: `@src/logger.ts`
 - Request scope: `@src/middleware/requestContext.ts`, `@src/middleware/requestLogging.ts`
 - `LOG_LEVEL` env (default `info` in production, `debug` in dev)
+- **Dev UI:** `/debug` ring buffer — `@src/debug/`, `@docs/02-how-to/debug-translation.md`
+- **Production shipping:** Axiom via `@axiomhq/pino` when `LOG_SHIPPING=1` — `@docs/02-how-to/observability-axiom.md`
+
+## Base fields (every log line)
+
+Set in `@src/logger.ts` `base` bindings (inherited by `req.log` and engine `log`):
+
+| Field | Values | Notes |
+|-------|--------|-------|
+| `service` | `api` \| `worker` | From `RUN_AS_WORKER` |
+| `env` | `production` \| `preview` \| `development` | `VERCEL_ENV` or `ARCANE_ENV` |
+| `version` | git sha (7 chars) or `local` | `VERCEL_GIT_COMMIT_SHA` |
+
+Correlation fields (log as JSON, not Axiom labels): `requestId`, `traceId`, `jobId`, `chapterId`, `projectId`, `userId`.
 
 ## Where to log
 
@@ -30,8 +44,17 @@ alwaysApply: false
 
 - Secrets (API keys, tokens, passwords).
 - Full request/response bodies or PII dumps.
+- Chapter text, full LLM prompts/responses (dev-only via `DEBUG_CAPTURE_*` in `/debug`).
 - Per-item lines in tight loops (use one summary or `debug`).
 - Redundant "success" if HTTP middleware already logged 200 without extra context.
+
+## Production shipping (Axiom)
+
+- Enabled only when `NODE_ENV=production` **and** `LOG_SHIPPING=1` **and** `AXIOM_TOKEN` + `AXIOM_DATASET`.
+- Stdout remains active (Vercel Logs fallback).
+- If `LOG_SHIPPING=1` but token missing: warn once, stdout only — do not crash.
+- Never enable `DEBUG_CAPTURE_LLM` / `DEBUG_CAPTURE_HTTP` in production.
+- Keep `LOG_LEVEL=info` in prod; use `debug` only temporarily for incidents.
 
 ## Levels
 

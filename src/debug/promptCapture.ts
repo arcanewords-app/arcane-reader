@@ -8,6 +8,7 @@ export interface CapturedLlmCall {
   id: string;
   time: string;
   traceId?: string;
+  requestId?: string;
   projectId?: string;
   chapterId?: string;
   jobId?: string;
@@ -67,6 +68,7 @@ export function captureLlmCall(params: {
     id: `llm-${Date.now()}-${captureIndex++}`,
     time: new Date().toISOString(),
     traceId: ctx?.traceId,
+    requestId: ctx?.requestId,
     projectId: ctx?.projectId,
     chapterId: ctx?.chapterId,
     jobId: ctx?.jobId,
@@ -86,6 +88,10 @@ export function captureLlmCall(params: {
 
 export function getCapturedLlmCalls(): CapturedLlmCall[] {
   return [...buffer].reverse();
+}
+
+export function getCapturedLlmCallsForCorrelation(id: string): CapturedLlmCall[] {
+  return buffer.filter((e) => e.traceId === id || e.jobId === id || e.requestId === id);
 }
 
 export function clearCapturedLlmCalls(): void {

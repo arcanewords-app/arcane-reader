@@ -1,5 +1,5 @@
 /**
- * Structured logger — local first, ready for cloud transport later.
+ * Structured logger — local first, Axiom shipping in production when enabled.
  * All log messages must be in English.
  *
  * Usage:
@@ -10,9 +10,7 @@
  * With request context (use req.log in handlers after requestContext middleware):
  *   req.log.info('Processing chapter');
  *
- * Adding a cloud transport later (without changing call sites):
- * - Use pino.transport({ targets: [{ target: 'pino/file', options: { destination: 1 } }, { target: 'pino-axiom', options: { ... } }] })
- *   or a custom stream that POSTs batches to your log service. Put API keys in env.
+ * Production remote shipping: LOG_SHIPPING=1 + AXIOM_TOKEN + AXIOM_DATASET (see env.example.txt).
  */
 
 import { PassThrough } from 'node:stream';
@@ -21,6 +19,27 @@ import { addDebugLogEntry } from './debug/buffer.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const level = (process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')).toLowerCase();
+
+function isLogShippingEnabled(): boolean {
+  const flag = process.env.LOG_SHIPPING;
+  return flag === '1' || flag === 'true';
+}
+
+function resolveDeployEnv(): string {
+  if (process.env.VERCEL_ENV) return process.env.VERCEL_ENV;
+  if (process.env.ARCANE_ENV) return process.env.ARCANE_ENV;
+  return isProduction ? 'production' : 'development';
+}
+
+function resolveService(): 'api' | 'worker' {
+  return process.env.RUN_AS_WORKER === '1' ? 'worker' : 'api';
+}
+
+function resolveVersion(): string {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (sha && sha.length >= 7) return sha.slice(0, 7);
+  return 'local';
+}
 
 /**
  * Error serializer: in production, omit stack trace to avoid leaking file paths.
@@ -40,7 +59,11 @@ function serializeError(err: unknown): Record<string, unknown> | undefined {
 
 const baseOptions: pino.LoggerOptions = {
   level,
-  base: undefined,
+  base: {
+    service: resolveService(),
+    env: resolveDeployEnv(),
+    version: resolveVersion(),
+  },
   serializers: {
     err: serializeError,
     error: serializeError,
@@ -84,9 +107,34 @@ function createDevStream(): pino.DestinationStream {
   return passThrough;
 }
 
-const base = isProduction
-  ? pino(baseOptions, pino.destination(1))
-  : pino(baseOptions, createDevStream());
+function createProductionLogger(): pino.Logger {
+  const token = process.env.AXIOM_TOKEN?.trim();
+  const dataset = process.env.AXIOM_DATASET?.trim();
+
+  if (isLogShippingEnabled() && !token) {
+    // eslint-disable-next-line no-console -- boot-time config warning before logger is ready
+    console.warn('[logger] LOG_SHIPPING is enabled but AXIOM_TOKEN is missing; using stdout only');
+  }
+
+  if (isProduction && isLogShippingEnabled() && token && dataset) {
+    return pino(
+      baseOptions,
+      pino.transport({
+        targets: [
+          { target: 'pino/file', options: { destination: 1 } },
+          {
+            target: '@axiomhq/pino',
+            options: { dataset, token },
+          },
+        ],
+      })
+    );
+  }
+
+  return pino(baseOptions, pino.destination(1));
+}
+
+const base = isProduction ? createProductionLogger() : pino(baseOptions, createDevStream());
 
 /** Default app logger. Use req.log in request handlers when available. */
 export const logger = base;
@@ -95,7 +143,7 @@ export type AppLogger = pino.Logger;
 
 /**
  * Create a request-scoped child logger (adds requestId, optionally userId to every log).
- * Used by requestContext middleware; later cloud services can filter by requestId.
+ * Used by requestContext middleware; cloud services filter by requestId / traceId fields.
  */
 export function createRequestLogger(bindings: {
   requestId: string;

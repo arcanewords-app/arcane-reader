@@ -2,7 +2,10 @@
  * Dev-only debug log viewer routes.
  */
 
+import path from 'path';
+import { fileURLToPath } from 'url';
 import type { Express, Request, Response } from 'express';
+import express from 'express';
 import {
   getDebugLogEntries,
   getDebugLogEntriesNewestFirst,
@@ -17,14 +20,26 @@ import {
   formatEntriesMarkdown,
   formatEntriesJson,
   formatForCursor,
+  formatTraceForCursor,
+  formatHttpExchangesMarkdown,
 } from './copyFormat.js';
 import {
   getCapturedLlmCalls,
+  getCapturedLlmCallsForCorrelation,
   clearCapturedLlmCalls,
   isLlmCaptureEnabled,
 } from './promptCapture.js';
+import {
+  getCapturedHttpExchanges,
+  getCapturedHttpExchangesForCorrelation,
+  clearCapturedHttpExchanges,
+  isHttpCaptureEnabled,
+} from './httpCapture.js';
+import { buildTraceDetailSummary } from './traceDetail.js';
 import { isDebugRedisBridgeAvailable } from './redisBridge.js';
-import { renderDebugViewerHtml } from './viewer.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEBUG_DIST = path.resolve(__dirname, '../../dist/debug');
 
 function parseBoolQuery(v: unknown): boolean {
   return v === '1' || v === 'true';
@@ -34,9 +49,11 @@ export function registerDebugRoutes(app: Express): void {
   if (process.env.NODE_ENV === 'production') return;
 
   app.get('/debug', (_req, res) => {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(renderDebugViewerHtml());
+    const port = process.env.DEBUG_APP_PORT ?? '5174';
+    res.redirect(302, `http://localhost:${port}/debug/`);
   });
+
+  app.use('/debug', express.static(DEBUG_DIST));
 
   app.get('/api/debug/logs', (req, res) => {
     const newestFirst = parseBoolQuery(req.query.newestFirst);
@@ -48,6 +65,7 @@ export function registerDebugRoutes(app: Express): void {
         events: getDistinctEvents(),
         workerBridge: isDebugRedisBridgeAvailable(),
         llmCapture: isLlmCaptureEnabled(),
+        httpCapture: isHttpCaptureEnabled(),
       },
     });
   });
@@ -57,8 +75,12 @@ export function registerDebugRoutes(app: Express): void {
   });
 
   app.get('/api/debug/traces/:id', (req, res) => {
-    const entries = getEntriesForCorrelation(req.params.id);
-    res.json({ traceId: req.params.id, entries });
+    const id = req.params.id;
+    const entries = getEntriesForCorrelation(id);
+    const llmCaptures = getCapturedLlmCallsForCorrelation(id);
+    const httpExchanges = getCapturedHttpExchangesForCorrelation(id);
+    const summary = buildTraceDetailSummary(entries, llmCaptures, httpExchanges);
+    res.json({ traceId: id, summary, entries, llmCaptures, httpExchanges });
   });
 
   app.get('/api/debug/export', (req, res) => {
@@ -86,6 +108,29 @@ export function registerDebugRoutes(app: Express): void {
       res.type('text/plain').send(formatForCursor(entries));
       return;
     }
+    if (format === 'trace' && traceId) {
+      const traceEntries = getEntriesForCorrelation(traceId);
+      const llmCaptures = getCapturedLlmCallsForCorrelation(traceId);
+      const httpExchanges = getCapturedHttpExchangesForCorrelation(traceId);
+      const summary = buildTraceDetailSummary(traceEntries, llmCaptures, httpExchanges);
+      res
+        .type('text/plain')
+        .send(
+          formatTraceForCursor({
+            traceId,
+            summary,
+            entries: traceEntries,
+            llmCaptures,
+            httpExchanges,
+          })
+        );
+      return;
+    }
+    if (format === 'http') {
+      const captures = getCapturedHttpExchanges();
+      res.type('text/plain').send(formatHttpExchangesMarkdown(captures, 'Arcane HTTP captures'));
+      return;
+    }
     if (format === 'row' && entries.length === 1) {
       res.type('text/plain').send(formatEntryMarkdown(entries[0]));
       return;
@@ -100,6 +145,13 @@ export function registerDebugRoutes(app: Express): void {
     });
   });
 
+  app.get('/api/debug/http', (_req, res) => {
+    res.json({
+      enabled: isHttpCaptureEnabled(),
+      captures: getCapturedHttpExchanges(),
+    });
+  });
+
   app.get('/debug/clear', (_req, res) => {
     clearDebugLogEntries();
     res.redirect(302, '/debug');
@@ -107,11 +159,26 @@ export function registerDebugRoutes(app: Express): void {
 
   app.get('/debug/clear-prompts', (_req, res) => {
     clearCapturedLlmCalls();
-    res.redirect(302, '/debug#prompts');
+    res.redirect(302, '/debug?tab=prompts');
+  });
+
+  app.get('/debug/clear-http', (_req, res) => {
+    clearCapturedHttpExchanges();
+    res.redirect(302, '/debug?tab=http');
   });
 
   app.post('/api/debug/clear', (_req: Request, res: Response) => {
     clearDebugLogEntries();
+    res.json({ ok: true });
+  });
+
+  app.post('/api/debug/clear-http', (_req: Request, res: Response) => {
+    clearCapturedHttpExchanges();
+    res.json({ ok: true });
+  });
+
+  app.post('/api/debug/clear-prompts', (_req: Request, res: Response) => {
+    clearCapturedLlmCalls();
     res.json({ ok: true });
   });
 }

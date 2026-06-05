@@ -14,16 +14,21 @@ canonical: .cursor/rules/engine.mdc
 
 Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 
-| URL                           | Description                                                          |
-| ----------------------------- | -------------------------------------------------------------------- |
-| `http://localhost:3000/debug` | Log viewer (also via Vite proxy: `http://localhost:5173/debug`)      |
-| `GET /api/debug/logs`         | JSON log buffer (`?newestFirst=1`)                                   |
-| `GET /api/debug/traces`       | Trace summaries (`traceId` / `jobId` / `requestId`)                  |
-| `GET /api/debug/traces/:id`   | Entries for one correlation id                                       |
-| `GET /api/debug/export`       | Markdown/JSON export (`?format=cursor\|markdown\|json`, `?traceId=`) |
-| `GET /api/debug/prompts`      | Opt-in LLM captures (`DEBUG_CAPTURE_LLM=1`)                          |
-| `GET /debug/clear`            | Clear log buffer                                                     |
-| `GET /debug/clear-prompts`    | Clear prompt captures                                                |
+| URL                             | Description                                                          |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `http://localhost:5174/debug/`  | Debug console (Preact app, primary dev URL)                          |
+| `http://localhost:5173/debug`   | Same via main Vite proxy → `:5174`                                   |
+| `http://localhost:3000/debug`   | Redirect to debug app (`:5174`)                                      |
+| `GET /api/debug/logs`           | JSON log buffer (`?newestFirst=1`)                                   |
+| `GET /api/debug/traces`         | Trace summaries (`traceId` / `jobId` / `requestId`)                  |
+| `GET /api/debug/traces/:id`     | Entries for one correlation id                                       |
+| `GET /api/debug/export`         | Markdown/JSON export (`?format=cursor\|markdown\|json`, `?traceId=`) |
+| `GET /api/debug/prompts`        | Opt-in LLM captures (`DEBUG_CAPTURE_LLM=1`)                          |
+| `GET /api/debug/http`           | Opt-in HTTP request/response captures (`DEBUG_CAPTURE_HTTP=1`)       |
+| `POST /api/debug/clear`         | Clear log buffer                                                     |
+| `POST /api/debug/clear-prompts` | Clear prompt captures                                                |
+| `POST /api/debug/clear-http`    | Clear HTTP captures                                                  |
+| `GET /debug/clear*`             | Legacy redirects (same clears)                                       |
 
 **Buffer:** default 2000 entries (`DEBUG_LOG_MAX_ENTRIES`). Older entries are overwritten (ring buffer).
 
@@ -33,11 +38,17 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 
 **Copy for Cursor:** use **Copy for Cursor** or **Copy trace** in the UI, or `GET /api/debug/export?format=cursor&traceId=...`.
 
-**Filters:** level, `event`, `process`, `chapterId`, `projectId`, `traceId`, `jobId`, text search, presets. Query params are synced to the URL for bookmarks, e.g. `/debug?chapterId=...&event=pipeline.start`.
+**Filters:** level, `event`, `process`, `chapterId`, `projectId`, `traceId`, `requestId`, `jobId`, text search, presets. Query params are synced to the URL for bookmarks, e.g. `/debug?chapterId=...&event=pipeline.start`.
+
+**HTTP tab:** set `DEBUG_CAPTURE_HTTP=1` in `.env` and restart. Captures truncated JSON request/response for `/api/*` (skips multipart uploads and `/api/debug/*`). Sensitive keys (`password`, `token`, etc.) are redacted. Translate responses include `traceId` for linking to Traces.
 
 **Prompts tab:** set `DEBUG_CAPTURE_LLM=1` in `.env` and restart. Captures truncated system/user/response previews (not full chapter text).
 
-Implementation: `src/debug/` (buffer, routes, viewer, redis bridge).
+**Traces tab:** unified waterfall with payload, per-row copy, **Copy for Cursor** (logs + HTTP + LLM via `?format=trace`), Copy JSON, Filter logs, Expand all.
+
+**HTTP tab:** per-exchange copy (response / request / all / requestId), **Copy visible**, Copy errors (4xx/5xx), presets (errors, slow >2s), auto-refresh, Open trace, Filter logs.
+
+Implementation: `src/debug/` (buffer, routes, capture, redis bridge) + `src/debug-app/` (Preact UI).
 
 ## Sync vs async
 

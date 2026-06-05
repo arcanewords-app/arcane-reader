@@ -41,7 +41,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/debug': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5174',
         changeOrigin: true,
       },
       '/images': {

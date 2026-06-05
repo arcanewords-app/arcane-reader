@@ -50,7 +50,7 @@ export function AuthModal({
       isOpen={isOpen}
       onClose={onClose ?? (() => {})}
       title={mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
-      preventClose={false}
+      closeOnBackdropClick={false}
       className="auth-modal"
     >
       <>
