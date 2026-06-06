@@ -64,6 +64,7 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 - [[02-how-to/add-feature]]
 - [[02-how-to/debug-translation]]
 - [[02-how-to/observability-axiom]]
+- [[02-how-to/axiom-mcp]]
 
 ## Active work
 

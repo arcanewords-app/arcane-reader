@@ -165,6 +165,14 @@ Save these in Axiom Console for incident response:
 
 ---
 
+## Agent debugging (Cursor)
+
+For AI-assisted prod/staging investigation in Cursor, connect the official Axiom MCP Server — see [[axiom-mcp]]. Agents use `@.cursor/skills/axiom-mcp/SKILL.md` with the same correlation fields and APL patterns as §6 above (`traceId`, `jobId`, `requestId`).
+
+Setup: `.cursor/agents/axiom-mcp-setup.md`. Ingest token on Vercel is not sufficient for MCP — use OAuth or a Query-scoped token.
+
+---
+
 ## 7. Monitors (optional v1, your action)
 
 In Axiom → Monitors:
@@ -220,5 +228,6 @@ Do **not** enable in production:
 ## Related
 
 - ADR: [[../04-decisions/adr-observability-axiom]]
+- Agent MCP setup: [[axiom-mcp]]
 - Local debug: [[debug-translation]]
 - Env vars: `env.example.txt`, `.cursor/rules/deployment.mdc`
