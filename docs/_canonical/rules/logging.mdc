@@ -12,7 +12,7 @@ alwaysApply: false
 - Request scope: `@src/middleware/requestContext.ts`, `@src/middleware/requestLogging.ts`
 - `LOG_LEVEL` env (default `info` in production, `debug` in dev)
 - **Dev UI:** `/debug` ring buffer — `@src/debug/`, `@docs/02-how-to/debug-translation.md`
-- **Production shipping:** Axiom via `@axiomhq/pino` when `LOG_SHIPPING=1` — `@docs/02-how-to/observability-axiom.md`
+- **Production shipping:** Axiom via `@axiomhq/js` main-thread multistream when `LOG_SHIPPING=1` — `@docs/02-how-to/observability-axiom.md`
 
 ## Base fields (every log line)
 
@@ -51,8 +51,13 @@ Correlation fields (log as JSON, not Axiom labels): `requestId`, `traceId`, `job
 ## Production shipping (Axiom)
 
 - Enabled only when `NODE_ENV=production` **and** `LOG_SHIPPING=1` **and** `AXIOM_TOKEN` + `AXIOM_DATASET`.
+- Transport: **main-thread** `pino.multistream` (stdout + Axiom writable) — no worker threads (Vercel serverless safe).
+- `flushLogs()` runs on HTTP `finish`/`close` so batches reach Axiom before function freeze.
+- Boot event: `logger.initialized` with `transport`, `logShipping`, `axiomDataset` (no secrets).
+- EU datasets: set `AXIOM_REGION=eu` or `AXIOM_EDGE` / `AXIOM_URL` — US endpoint is the SDK default.
 - Stdout remains active (Vercel Logs fallback).
 - If `LOG_SHIPPING=1` but token or dataset missing: warn once, stdout only — do not crash.
+- Post-deploy check: `GET /api/status` → `logging` block (`shippingEnabled`, `dataset`, `transport`).
 - Never enable `DEBUG_CAPTURE_LLM` / `DEBUG_CAPTURE_HTTP` in production.
 - Keep `LOG_LEVEL=info` in prod; use `debug` only temporarily for incidents.
 

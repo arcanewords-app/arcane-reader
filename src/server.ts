@@ -134,7 +134,7 @@ import {
   requireHealthySupabase,
   serviceUnavailableErrorHandler,
 } from './middleware/serviceHealth.js';
-import { logger } from './logger.js';
+import { logger, getLoggingStatus } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { isChunkError } from './shared/chunkErrors.js';
 import { registerDebugRoutes } from './debug/routes.js';
@@ -1126,6 +1126,7 @@ app.get('/api/status', (_req, res) => {
     },
     storage: 'supabase',
     maxFileSizeBytes: config.upload.maxFileSizeBytes,
+    logging: getLoggingStatus(),
   });
 });
 

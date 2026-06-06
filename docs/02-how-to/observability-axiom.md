@@ -29,6 +29,7 @@ See [[debug-translation]] for local `/debug`. This guide covers Axiom setup and 
    - `arcane-staging` — Vercel Preview deployments
 3. Create an **API token** with **Ingest** permission on both datasets.
 4. Store the token in your password manager — **never commit** to the repo.
+5. Note your org **region** (EU vs US). EU datasets require `AXIOM_REGION=eu` on Vercel (see §2).
 
 ---
 
@@ -36,14 +37,24 @@ See [[debug-translation]] for local `/debug`. This guide covers Axiom setup and 
 
 Project Settings → Environment Variables:
 
-| Variable        | Production    | Preview          | Development |
-| --------------- | ------------- | ---------------- | ----------- |
-| `LOG_SHIPPING`  | `1` or `true` | `1` or `true`    | leave unset |
-| `AXIOM_TOKEN`   | ingest token  | same or separate | leave unset |
-| `AXIOM_DATASET` | `arcane-prod` | `arcane-staging` | leave unset |
-| `LOG_LEVEL`     | `info`        | `info`           | —           |
+| Variable        | Production     | Preview          | Development |
+| --------------- | -------------- | ---------------- | ----------- |
+| `LOG_SHIPPING`  | `1` or `true`  | `1` or `true`    | leave unset |
+| `AXIOM_TOKEN`   | ingest token   | same or separate | leave unset |
+| `AXIOM_DATASET` | `arcane-prod`  | `arcane-staging` | leave unset |
+| `AXIOM_REGION`  | `eu` if EU org | same             | leave unset |
+| `LOG_LEVEL`     | `info`         | `info`           | —           |
+
+Optional overrides (instead of `AXIOM_REGION`):
+
+| Variable     | Example                          |
+| ------------ | -------------------------------- |
+| `AXIOM_URL`  | `https://api.eu.axiom.co`        |
+| `AXIOM_EDGE` | `eu-central-1.aws.edge.axiom.co` |
 
 Both `LOG_SHIPPING=1` and `LOG_SHIPPING=true` are accepted. Redeploy after adding variables.
+
+**Post-deploy check:** `GET /api/status` → `logging.shippingEnabled: true`, `logging.dataset`, `logging.transport: "multistream-main-thread"`.
 
 ---
 
@@ -55,6 +66,7 @@ On Railway / Fly / VPS where `npm run start:worker` runs:
 LOG_SHIPPING=1
 AXIOM_TOKEN=xaat-...
 AXIOM_DATASET=arcane-prod
+AXIOM_REGION=eu          # if datasets are in EU
 LOG_LEVEL=info
 NODE_ENV=production
 ```
@@ -95,19 +107,37 @@ Repeat on production with `arcane-prod` before enabling monitors.
 
 ## 5. Testing shipping locally (optional)
 
-Axiom transport runs **only** when `NODE_ENV=production`. Local `npm run dev` with `LOG_SHIPPING=1` in `.env` does **not** ship to Axiom.
+Axiom shipping runs **only** when `NODE_ENV=production`. Local `npm run dev` with `LOG_SHIPPING=1` in `.env` does **not** ship to Axiom.
 
-To test before deploy:
+**Quick script** (uses `.env` for token):
 
 ```bash
-LOG_SHIPPING=1 AXIOM_TOKEN=... AXIOM_DATASET=arcane-staging NODE_ENV=production npm run start
+AXIOM_REGION=eu npx tsx scripts/smoke-axiom-logger.ts
+```
+
+Then query Axiom for `event == "smoke.test"`.
+
+**Full server:**
+
+```bash
+LOG_SHIPPING=1 AXIOM_TOKEN=... AXIOM_DATASET=arcane-staging AXIOM_REGION=eu NODE_ENV=production npm run start
 ```
 
 Use a staging dataset, not prod. Hit `GET /api/health` and check Axiom Live tail.
 
 ---
 
-## 6. Saved APL queries (your action)
+## 6. Vercel serverless transport
+
+Arcane uses **main-thread** `pino.multistream` + `@axiomhq/js` ingest (not `pino.transport` worker threads). This avoids bundling/resolution failures on Vercel.
+
+- Stdout → Vercel Logs (fallback)
+- Axiom stream → batched ingest; **`flushLogs()`** on each HTTP response (`finish`/`close`) so logs are not lost when the function freezes
+- Boot line: `event=logger.initialized` confirms env + transport mode
+
+---
+
+## 7. Saved APL queries (your action)
 
 Save these in Axiom Console for incident response:
 
@@ -163,17 +193,26 @@ Save these in Axiom Console for incident response:
 | take 100
 ```
 
+**Logger boot / smoke:**
+
+```kusto
+['arcane-prod']
+| where event == "logger.initialized" or event == "http.request"
+| sort by _time desc
+| take 20
+```
+
 ---
 
 ## Agent debugging (Cursor)
 
-For AI-assisted prod/staging investigation in Cursor, connect the official Axiom MCP Server — see [[axiom-mcp]]. Agents use `@.cursor/skills/axiom-mcp/SKILL.md` with the same correlation fields and APL patterns as §6 above (`traceId`, `jobId`, `requestId`).
+For AI-assisted prod/staging investigation in Cursor, connect the official Axiom MCP Server — see [[axiom-mcp]]. Agents use `@.cursor/skills/axiom-mcp/SKILL.md` with the same correlation fields and APL patterns as §7 above (`traceId`, `jobId`, `requestId`).
 
 Setup: `.cursor/agents/axiom-mcp-setup.md`. Ingest token on Vercel is not sufficient for MCP — use OAuth or a Query-scoped token.
 
 ---
 
-## 7. Monitors (optional v1, your action)
+## 8. Monitors (optional v1, your action)
 
 In Axiom → Monitors:
 
@@ -214,14 +253,17 @@ Do **not** enable in production:
 
 ## Troubleshooting
 
-| Symptom                         | Check                                                               |
-| ------------------------------- | ------------------------------------------------------------------- |
-| No logs in Axiom                | `LOG_SHIPPING=1`, token, dataset name; redeploy                     |
-| Only Vercel Logs                | Missing `AXIOM_TOKEN` or `AXIOM_DATASET` — app falls back to stdout |
-| Logs in dev `.env` not in Axiom | Expected: shipping requires `NODE_ENV=production`                   |
-| Preview logs in prod dataset    | Wrong `AXIOM_DATASET` on Preview env                                |
-| Worker missing                  | Worker host env not set; check `service=worker` filter              |
-| Transport error on Vercel       | Ensure `@axiomhq/pino` in dependencies; check build logs            |
+| Symptom                              | Check                                                                                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| No logs in Axiom                     | `LOG_SHIPPING=1`, token, dataset; redeploy; `GET /api/status` → `logging`                                                         |
+| Only Vercel Logs                     | Missing `AXIOM_TOKEN` or `AXIOM_DATASET` — app falls back to stdout                                                               |
+| Region mismatch in Vercel Logs       | `[logger] Axiom ingest error: ingest is only allowed into datasets in the primary region` — add `AXIOM_REGION=eu` or `AXIOM_EDGE` |
+| EU org, US default endpoint          | Set `AXIOM_REGION=eu` on Vercel **and** worker host                                                                               |
+| Logs in dev `.env` not in Axiom      | Expected: shipping requires `NODE_ENV=production`                                                                                 |
+| Preview logs in prod dataset         | Wrong `AXIOM_DATASET` on Preview env                                                                                              |
+| Worker missing                       | Worker host env not set; check `service=worker` filter                                                                            |
+| Transport error on Vercel            | Old `pino.transport` worker threads — use current `multistream-main-thread` build                                                 |
+| Logs after response but not in Axiom | Missing flush before freeze — ensure latest `requestContext` with `flushLogs()`                                                   |
 
 ---
 
@@ -231,3 +273,4 @@ Do **not** enable in production:
 - Agent MCP setup: [[axiom-mcp]]
 - Local debug: [[debug-translation]]
 - Env vars: `env.example.txt`, `.cursor/rules/deployment.mdc`
+- Smoke script: `scripts/smoke-axiom-logger.ts`

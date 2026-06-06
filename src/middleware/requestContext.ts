@@ -5,7 +5,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
-import { logger, createRequestLogger } from '../logger.js';
+import { logger, createRequestLogger, flushLogs } from '../logger.js';
 import { getRouteDebugError } from './routeDebugError.js';
 
 const REQUEST_ID_HEADER = 'x-request-id';
@@ -73,6 +73,13 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
       payload,
       routeErr?.clientMessage ?? `${req.method} ${req.path} ${statusCode} ${durationMs}ms`
     );
+
+    // Serverless: flush Axiom batch before function freeze (never block response)
+    void flushLogs().catch(() => {});
+  });
+
+  res.on('close', () => {
+    void flushLogs().catch(() => {});
   });
 
   next();

@@ -11,18 +11,32 @@
  *   req.log.info('Processing chapter');
  *
  * Production remote shipping: LOG_SHIPPING=1 + AXIOM_TOKEN + AXIOM_DATASET (see env.example.txt).
+ * Uses main-thread multistream (no worker threads) for Vercel serverless compatibility.
  */
 
-import { PassThrough } from 'node:stream';
+import { PassThrough, Writable } from 'node:stream';
+import { Axiom } from '@axiomhq/js';
 import pino from 'pino';
 import { addDebugLogEntry } from './debug/buffer.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const level = (process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')).toLowerCase();
 
-function isLogShippingEnabled(): boolean {
+const axiomToken = process.env.AXIOM_TOKEN?.trim();
+const axiomDataset = process.env.AXIOM_DATASET?.trim();
+const logShippingEnabled =
+  isProduction && isLogShippingFlagSet() && Boolean(axiomToken) && Boolean(axiomDataset);
+
+/** Shared Axiom client for ingest + flush (main thread, serverless-safe). */
+let axiomClient: Axiom | null = null;
+
+function isLogShippingFlagSet(): boolean {
   const flag = process.env.LOG_SHIPPING;
   return flag === '1' || flag === 'true';
+}
+
+function isLogShippingRequested(): boolean {
+  return isLogShippingFlagSet();
 }
 
 function resolveDeployEnv(): string {
@@ -39,6 +53,19 @@ function resolveVersion(): string {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
   if (sha && sha.length >= 7) return sha.slice(0, 7);
   return 'local';
+}
+
+/** Map Pino numeric level to string label (matches @axiomhq/pino). */
+function mapLogLevel(levelValue: string | number): string {
+  if (typeof levelValue === 'string') return levelValue;
+
+  if (levelValue <= 10) return 'trace';
+  if (levelValue <= 20) return 'debug';
+  if (levelValue <= 30) return 'info';
+  if (levelValue <= 40) return 'warn';
+  if (levelValue <= 50) return 'error';
+  if (levelValue <= 60) return 'fatal';
+  return 'silent';
 }
 
 /**
@@ -107,35 +134,79 @@ function createDevStream(): pino.DestinationStream {
   return passThrough;
 }
 
-function createProductionLogger(): pino.Logger {
-  const token = process.env.AXIOM_TOKEN?.trim();
-  const dataset = process.env.AXIOM_DATASET?.trim();
+function resolveAxiomClientOptions(token: string): {
+  token: string;
+  url?: string;
+  edge?: string;
+  onError: (error: Error) => void;
+} {
+  const url = process.env.AXIOM_URL?.trim();
+  const edge = process.env.AXIOM_EDGE?.trim();
+  const region = process.env.AXIOM_REGION?.trim()?.toLowerCase();
 
-  if (isLogShippingEnabled() && !token) {
+  let resolvedUrl = url;
+  let resolvedEdge = edge;
+
+  if (!resolvedUrl && !resolvedEdge && region === 'eu') {
+    resolvedUrl = 'https://api.eu.axiom.co';
+    resolvedEdge = 'eu-central-1.aws.edge.axiom.co';
+  }
+
+  return {
+    token,
+    ...(resolvedUrl ? { url: resolvedUrl } : {}),
+    ...(resolvedEdge ? { edge: resolvedEdge } : {}),
+    onError: (error: Error) => {
+      // eslint-disable-next-line no-console -- ingest failures must surface in Vercel Logs
+      console.error('[logger] Axiom ingest error:', error.message);
+    },
+  };
+}
+
+function createAxiomWritableStream(token: string, dataset: string): Writable {
+  axiomClient = new Axiom(resolveAxiomClientOptions(token));
+
+  return new Writable({
+    write(chunk: Buffer | string, _encoding, callback) {
+      try {
+        const str = typeof chunk === 'string' ? chunk : chunk.toString();
+        for (const line of str.split('\n').filter(Boolean)) {
+          const obj = JSON.parse(line) as Record<string, unknown> & {
+            time?: string | number;
+            level?: string | number;
+          };
+          const { time, level: levelField, ...rest } = obj;
+          axiomClient?.ingest(dataset, {
+            _time: time,
+            level: mapLogLevel(levelField ?? 'info'),
+            ...rest,
+          });
+        }
+        callback();
+      } catch (err) {
+        callback(err instanceof Error ? err : new Error(String(err)));
+      }
+    },
+  });
+}
+
+function createProductionLogger(): pino.Logger {
+  if (isLogShippingRequested() && !axiomToken) {
     // eslint-disable-next-line no-console -- boot-time config warning before logger is ready
     console.warn('[logger] LOG_SHIPPING is enabled but AXIOM_TOKEN is missing; using stdout only');
   }
 
-  if (isLogShippingEnabled() && token && !dataset) {
+  if (isLogShippingRequested() && axiomToken && !axiomDataset) {
     // eslint-disable-next-line no-console -- boot-time config warning before logger is ready
     console.warn(
       '[logger] LOG_SHIPPING is enabled but AXIOM_DATASET is missing; using stdout only'
     );
   }
 
-  if (isProduction && isLogShippingEnabled() && token && dataset) {
-    return pino(
-      baseOptions,
-      pino.transport({
-        targets: [
-          { target: 'pino/file', options: { destination: 1 } },
-          {
-            target: '@axiomhq/pino',
-            options: { dataset, token },
-          },
-        ],
-      })
-    );
+  if (logShippingEnabled && axiomToken && axiomDataset) {
+    const axiomStream = createAxiomWritableStream(axiomToken, axiomDataset);
+    const streams = [{ stream: pino.destination(1) }, { stream: axiomStream }];
+    return pino(baseOptions, pino.multistream(streams));
   }
 
   return pino(baseOptions, pino.destination(1));
@@ -143,10 +214,61 @@ function createProductionLogger(): pino.Logger {
 
 const base = isProduction ? createProductionLogger() : pino(baseOptions, createDevStream());
 
+if (isProduction) {
+  base.info(
+    {
+      event: 'logger.initialized',
+      logShipping: logShippingEnabled,
+      axiomDataset: logShippingEnabled ? axiomDataset : undefined,
+      transport: logShippingEnabled ? 'multistream-main-thread' : 'stdout-only',
+    },
+    'Logger initialized'
+  );
+}
+
 /** Default app logger. Use req.log in request handlers when available. */
 export const logger = base;
 
 export type AppLogger = pino.Logger;
+
+export interface LoggingStatus {
+  shippingEnabled: boolean;
+  axiomConfigured: boolean;
+  dataset: string | null;
+  transport: 'multistream-main-thread' | 'stdout-only';
+  axiomUrlConfigured: boolean;
+  axiomEdgeConfigured: boolean;
+  axiomRegion: string | null;
+}
+
+/** Non-secret logging config for /api/status and ops checks. */
+export function getLoggingStatus(): LoggingStatus {
+  const region = process.env.AXIOM_REGION?.trim()?.toLowerCase() ?? null;
+  return {
+    shippingEnabled: logShippingEnabled,
+    axiomConfigured: logShippingEnabled,
+    dataset: logShippingEnabled ? (axiomDataset ?? null) : null,
+    transport: logShippingEnabled ? 'multistream-main-thread' : 'stdout-only',
+    axiomUrlConfigured: Boolean(process.env.AXIOM_URL?.trim()),
+    axiomEdgeConfigured: Boolean(process.env.AXIOM_EDGE?.trim()),
+    axiomRegion: region,
+  };
+}
+
+/**
+ * Flush buffered Axiom ingest batches. Call after HTTP response on serverless
+ * so logs are not lost when the function freezes.
+ */
+export async function flushLogs(): Promise<void> {
+  if (!axiomClient) return;
+  try {
+    await axiomClient.flush();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console -- flush failures must surface in Vercel Logs
+    console.error('[logger] Axiom flush error:', message);
+  }
+}
 
 /**
  * Create a request-scoped child logger (adds requestId, optionally userId to every log).

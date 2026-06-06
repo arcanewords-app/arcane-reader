@@ -72,7 +72,7 @@ From `@.cursor/rules/logging.mdc` — use in APL `where` clauses:
 2. **Get identifier** — from user, API response (`traceId` in sync JSON, `jobId` in async `202`), or `X-Request-Id`.
 3. **Run `queryApl`** with `| sort by _time asc` for a timeline.
 4. **Async jobs** — query by `jobId`; expect `service=api` (enqueue) and `service=worker` (execution) on the same id.
-5. **Empty results** — widen time range in the tool if supported; verify dataset name; check logs are shipping (`LOG_SHIPPING=1` on deploy).
+5. **Empty results** — widen time range in the tool if supported; verify dataset name; check logs are shipping (`LOG_SHIPPING=1` on deploy); EU orgs need `AXIOM_REGION=eu` on Vercel.
 
 ## Ready-made APL (replace dataset and id)
 

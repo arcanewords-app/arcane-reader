@@ -25,7 +25,7 @@ Accepted (2026-06-06)
 ## Decision
 
 1. **Keep `/debug` unchanged** for local development — not replaced in v1.
-2. **Production/staging log shipping:** [Axiom](https://axiom.co) via `@axiomhq/pino` transport in `src/logger.ts`, gated by `LOG_SHIPPING=1`.
+2. **Production/staging log shipping:** [Axiom](https://axiom.co) via `@axiomhq/js` main-thread multistream in `src/logger.ts`, gated by `LOG_SHIPPING=1`.
 3. **Datasets:** `arcane-prod` (production + worker), `arcane-staging` (Vercel Preview).
 4. **No Vercel Log Drains** — push from application code (works on Hobby plan).
 5. **No self-hosted Loki/Grafana** for v1 — archive prior plan.

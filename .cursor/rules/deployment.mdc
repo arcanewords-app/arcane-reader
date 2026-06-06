@@ -25,6 +25,9 @@ See `@env.example.txt` for optional: `ANTHROPIC_API_KEY`, chunking, `PUBLIC_URL`
 | `LOG_SHIPPING` | `1` or `true` — enable async push to Axiom (production only in code) |
 | `AXIOM_TOKEN` | Axiom ingest API token |
 | `AXIOM_DATASET` | Dataset name (`arcane-prod` or `arcane-staging`) |
+| `AXIOM_REGION` | `eu` — shorthand when datasets are in EU (sets `api.eu.axiom.co` + EU edge) |
+| `AXIOM_URL` | Optional API base URL override (e.g. `https://api.eu.axiom.co`) |
+| `AXIOM_EDGE` | Optional ingest edge domain (e.g. `eu-central-1.aws.edge.axiom.co`) |
 | `LOG_LEVEL` | `info` recommended in prod |
 | `ARCANE_ENV` | Optional deploy env label when not on Vercel |
 
