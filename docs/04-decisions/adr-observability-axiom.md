@@ -18,7 +18,7 @@ Accepted (2026-06-06)
 ## Context
 
 - **Local dev:** `/debug` console (`src/debug/`, `src/debug-app/`) provides translation-specific debugging: trace waterfall, opt-in LLM/HTTP capture, Copy for Cursor. Dev-only, ring buffer, no retention.
-- **Production:** API on Vercel (stdout only, short retention), worker on long-lived host. Need cross-process search by `traceId` / `requestId` / `jobId`, 30-day retention, optional alerts.
+- **Production:** API on Vercel; worker on long-lived host. Logs to stdout (Vercel Logs fallback); optional Axiom when `LOG_SHIPPING=1`. Need cross-process search by `traceId` / `requestId` / `jobId`, 30-day retention, optional alerts.
 - **Prior plan:** Self-hosted Grafana + Loki on VPS ([[05-plans/observability-loki]]) — higher ops cost for a small team.
 - **Stack ready:** Pino JSON logs, `requestContext`, engine `traceId` via `src/debug/context.ts`.
 

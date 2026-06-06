@@ -4,11 +4,22 @@ status: active
 domain: engine
 stale: false
 created: 2026-05-16
-updated: 2026-06-01
+updated: 2026-06-06
 canonical: .cursor/rules/engine.mdc
 ---
 
 # How to debug translation issues
+
+## Local dev vs production
+
+| Environment               | Tool                         | Notes                                                       |
+| ------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| Local dev (`npm run dev`) | `/debug` console             | LLM/HTTP capture, trace waterfall, Copy for Cursor          |
+| Production / staging      | [Axiom](observability-axiom) | Search by `traceId`, `jobId`, `requestId`; 30-day retention |
+
+`/debug` is disabled when `NODE_ENV=production`. For prod incidents use [[observability-axiom]], not Vercel Logs alone.
+
+All log lines (dev and prod) include base fields from `src/logger.ts`: `service` (`api` / `worker`), `env`, `version`. Dev `/debug` logs also show `process: worker` when Redis bridge is active.
 
 ## Debug log viewer (local dev)
 
@@ -106,3 +117,7 @@ LOG_LEVEL=debug npm run dev:full
 ## Legacy logs
 
 `docs/archive/LOG_ANALYSIS_TRANSLATION_FLOW.md` — historical; verify against current code.
+
+## Production incidents
+
+See [[observability-axiom]] — correlate sync runs by `traceId`, async batch jobs by `jobId` (`trl_...`).

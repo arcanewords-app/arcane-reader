@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-05-31
+updated: 2026-06-06
 ---
 
 # Arcane Reader — Documentation
@@ -63,8 +63,9 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 - [[02-how-to/obsidian-vault]]
 - [[02-how-to/add-feature]]
 - [[02-how-to/debug-translation]]
+- [[02-how-to/observability-axiom]]
 
 ## Active work
 
 - Plans: [[05-plans/]] — **Active Plans** base view (6 active)
-- Decisions: [[04-decisions/adr-0000-rules-first-documentation-ssot]]
+- Decisions: [[04-decisions/adr-0000-rules-first-documentation-ssot]], [[04-decisions/adr-observability-axiom]]

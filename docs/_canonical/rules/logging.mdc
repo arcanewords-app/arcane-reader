@@ -52,7 +52,7 @@ Correlation fields (log as JSON, not Axiom labels): `requestId`, `traceId`, `job
 
 - Enabled only when `NODE_ENV=production` **and** `LOG_SHIPPING=1` **and** `AXIOM_TOKEN` + `AXIOM_DATASET`.
 - Stdout remains active (Vercel Logs fallback).
-- If `LOG_SHIPPING=1` but token missing: warn once, stdout only — do not crash.
+- If `LOG_SHIPPING=1` but token or dataset missing: warn once, stdout only — do not crash.
 - Never enable `DEBUG_CAPTURE_LLM` / `DEBUG_CAPTURE_HTTP` in production.
 - Keep `LOG_LEVEL=info` in prod; use `debug` only temporarily for incidents.
 

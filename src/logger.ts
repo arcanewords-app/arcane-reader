@@ -116,6 +116,13 @@ function createProductionLogger(): pino.Logger {
     console.warn('[logger] LOG_SHIPPING is enabled but AXIOM_TOKEN is missing; using stdout only');
   }
 
+  if (isLogShippingEnabled() && token && !dataset) {
+    // eslint-disable-next-line no-console -- boot-time config warning before logger is ready
+    console.warn(
+      '[logger] LOG_SHIPPING is enabled but AXIOM_DATASET is missing; using stdout only'
+    );
+  }
+
   if (isProduction && isLogShippingEnabled() && token && dataset) {
     return pino(
       baseOptions,

@@ -10,6 +10,8 @@ alwaysApply: false
 
 Dev-only observability UI and in-memory buffers. **Not available when `NODE_ENV=production`.**
 
+For production/staging log search, retention, and alerts use **Axiom** (`LOG_SHIPPING=1`) — see `@docs/02-how-to/observability-axiom.md` and `@.cursor/rules/logging.mdc`. Do not enable `DEBUG_CAPTURE_*` or `/debug` in prod.
+
 ## Module map
 
 | Path | Role |

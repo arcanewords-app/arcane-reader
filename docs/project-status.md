@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-05-31
+updated: 2026-06-06
 ---
 
 # Project status
@@ -29,6 +29,7 @@ Update this file when completing plans or shipping major features.
 - UI i18n: ru / en + header locale switcher (pl removed from app locales)
 - Translation pairs: en | ko | zh → ru (project `source_language` / `target_language`; prompts in `src/engine/prompts/pairs/`)
 - Redis cache layer with invalidation contract
+- Structured logging (Pino): dev `/debug` console; prod/staging Axiom when `LOG_SHIPPING=1` — [[02-how-to/observability-axiom]]
 
 ## Active plans (`05-plans/`)
 

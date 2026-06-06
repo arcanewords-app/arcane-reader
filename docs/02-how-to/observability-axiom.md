@@ -38,12 +38,12 @@ Project Settings → Environment Variables:
 
 | Variable        | Production    | Preview          | Development |
 | --------------- | ------------- | ---------------- | ----------- |
-| `LOG_SHIPPING`  | `1`           | `1`              | leave unset |
+| `LOG_SHIPPING`  | `1` or `true` | `1` or `true`    | leave unset |
 | `AXIOM_TOKEN`   | ingest token  | same or separate | leave unset |
 | `AXIOM_DATASET` | `arcane-prod` | `arcane-staging` | leave unset |
 | `LOG_LEVEL`     | `info`        | `info`           | —           |
 
-Redeploy after adding variables.
+Both `LOG_SHIPPING=1` and `LOG_SHIPPING=true` are accepted. Redeploy after adding variables.
 
 ---
 
@@ -69,22 +69,45 @@ After Preview deploy with staging env:
 
 1. Open Axiom → dataset `arcane-staging` → **Live tail**.
 2. Hit `GET https://<preview-url>/api/health` — expect `http.request` with `service=api`, `env=preview`.
-3. Run a translation — copy `traceId` from response or Vercel Logs.
-4. In Axiom Query:
+3. Run a translation and correlate logs:
 
-```kusto
-['arcane-staging']
-| where traceId == "<paste-trace-id>"
-| sort by _time asc
-```
+   **Sync translate** (default single-chapter): response JSON includes `traceId`. Query:
 
-5. If async job + worker: same `traceId` or `jobId` should appear with `service=worker`.
+   ```kusto
+   ['arcane-staging']
+   | where traceId == "<paste-trace-id>"
+   | sort by _time asc
+   ```
+
+   **Async batch** (`?async=1` or `Prefer: respond-async`): `202` response includes **`jobId`** only (e.g. `trl_...`), not `traceId`. Query:
+
+   ```kusto
+   ['arcane-staging']
+   | where jobId == "<paste-job-id>"
+   | sort by _time asc
+   ```
+
+4. If async job + worker: worker lines share the same `jobId` / `traceId` with `service=worker`.
 
 Repeat on production with `arcane-prod` before enabling monitors.
 
 ---
 
-## 5. Saved APL queries (your action)
+## 5. Testing shipping locally (optional)
+
+Axiom transport runs **only** when `NODE_ENV=production`. Local `npm run dev` with `LOG_SHIPPING=1` in `.env` does **not** ship to Axiom.
+
+To test before deploy:
+
+```bash
+LOG_SHIPPING=1 AXIOM_TOKEN=... AXIOM_DATASET=arcane-staging NODE_ENV=production npm run start
+```
+
+Use a staging dataset, not prod. Hit `GET /api/health` and check Axiom Live tail.
+
+---
+
+## 6. Saved APL queries (your action)
 
 Save these in Axiom Console for incident response:
 
@@ -104,11 +127,20 @@ Save these in Axiom Console for incident response:
 | sort by _time asc
 ```
 
-**Translation errors:**
+**By async jobId:**
 
 ```kusto
 ['arcane-prod']
-| where level == "error" and (event startswith "pipeline" or event startswith "translation")
+| where jobId == "<trl_...>"
+| sort by _time asc
+```
+
+**Translation / pipeline errors:**
+
+```kusto
+['arcane-prod']
+| where level == "error"
+| where event startswith "translation" or event startswith "pipeline" or isnotempty(jobId)
 | sort by _time desc
 | take 100
 ```
@@ -133,7 +165,7 @@ Save these in Axiom Console for incident response:
 
 ---
 
-## 6. Monitors (optional v1, your action)
+## 7. Monitors (optional v1, your action)
 
 In Axiom → Monitors:
 
@@ -146,19 +178,19 @@ Start with one monitor; avoid alert fatigue.
 
 ## Log fields reference
 
-Every production log line includes:
+Every log line includes base fields (dev and prod):
 
-| Field                    | Example                 | Notes                             |
-| ------------------------ | ----------------------- | --------------------------------- |
-| `service`                | `api`, `worker`         | Low cardinality                   |
-| `env`                    | `production`, `preview` | From `VERCEL_ENV` or `ARCANE_ENV` |
-| `version`                | `a1b2c3d`               | Git sha on Vercel                 |
-| `requestId`              | UUID                    | HTTP requests                     |
-| `traceId`                | UUID                    | Translation runs                  |
-| `jobId`                  | UUID                    | Async BullMQ jobs                 |
-| `chapterId`, `projectId` | UUID                    | When in context                   |
-| `event`                  | `translation.completed` | Structured events                 |
-| `level`                  | `info`, `error`         | Pino level                        |
+| Field                    | Example                                | Notes                        |
+| ------------------------ | -------------------------------------- | ---------------------------- |
+| `service`                | `api`, `worker`                        | Low cardinality              |
+| `env`                    | `production`, `preview`, `development` | `VERCEL_ENV` or `ARCANE_ENV` |
+| `version`                | `a1b2c3d` or `local`                   | Git sha on Vercel            |
+| `requestId`              | UUID                                   | HTTP requests                |
+| `traceId`                | UUID                                   | Translation runs             |
+| `jobId`                  | `trl_...`                              | Async BullMQ jobs            |
+| `chapterId`, `projectId` | UUID                                   | When in context              |
+| `event`                  | `translation.completed`                | Structured events            |
+| `level`                  | `info`, `error`                        | Pino level                   |
 
 ---
 
@@ -174,13 +206,14 @@ Do **not** enable in production:
 
 ## Troubleshooting
 
-| Symptom                      | Check                                                    |
-| ---------------------------- | -------------------------------------------------------- |
-| No logs in Axiom             | `LOG_SHIPPING=1`, token, dataset name; redeploy          |
-| Only Vercel Logs             | Missing `AXIOM_TOKEN` — app falls back to stdout only    |
-| Preview logs in prod dataset | Wrong `AXIOM_DATASET` on Preview env                     |
-| Worker missing               | Worker host env not set; check `service=worker` filter   |
-| Transport error on Vercel    | Ensure `@axiomhq/pino` in dependencies; check build logs |
+| Symptom                         | Check                                                               |
+| ------------------------------- | ------------------------------------------------------------------- |
+| No logs in Axiom                | `LOG_SHIPPING=1`, token, dataset name; redeploy                     |
+| Only Vercel Logs                | Missing `AXIOM_TOKEN` or `AXIOM_DATASET` — app falls back to stdout |
+| Logs in dev `.env` not in Axiom | Expected: shipping requires `NODE_ENV=production`                   |
+| Preview logs in prod dataset    | Wrong `AXIOM_DATASET` on Preview env                                |
+| Worker missing                  | Worker host env not set; check `service=worker` filter              |
+| Transport error on Vercel       | Ensure `@axiomhq/pino` in dependencies; check build logs            |
 
 ---
 
