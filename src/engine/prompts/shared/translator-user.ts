@@ -1,4 +1,5 @@
 import type { TranslatorUserPromptParams } from '../types.js';
+import { buildTargetLanguageAnchor } from './target-language-anchor.js';
 
 export const TRANSLATOR_JSON_OUTPUT_FORMAT = `## Output Format
 
@@ -35,14 +36,17 @@ When text block types are configured in the user prompt section "Text Block Type
 - If no types are configured, do NOT add any markers`;
 
 export function buildTranslatorUserPrompt(params: TranslatorUserPromptParams): string {
-  let prompt = '';
+  let prompt = `${buildTargetLanguageAnchor(
+    params.sourceLanguageLabel,
+    params.targetLanguageLabel
+  )}\n\n`;
 
   if (params.context) {
     prompt += `## Previous Context\n${params.context}\n\n`;
   }
 
   if (params.glossary && params.glossary.trim()) {
-    prompt += `## Glossary (USE THESE TRANSLATIONS)\n${params.glossary}\n\n`;
+    prompt += `## Glossary (${params.targetLanguageLabel} forms — use exactly)\n${params.glossary}\n\n`;
   }
 
   if (params.styleGuide) {
@@ -69,7 +73,7 @@ export function buildTranslatorUserPrompt(params: TranslatorUserPromptParams): s
   }
 
   prompt += `## Text to Translate\n\n${params.sourceText}\n\n`;
-  prompt += `Translate the above text following all guidelines. Return the result as a JSON object with the structure specified in the output format section.`;
+  prompt += `Translate the above ${params.sourceLanguageLabel} text into **${params.targetLanguageLabel}** following all guidelines. Return the result as a JSON object with the structure specified in the output format section.`;
 
   return prompt;
 }

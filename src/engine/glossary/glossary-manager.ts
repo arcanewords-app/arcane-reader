@@ -269,13 +269,19 @@ export class GlossaryManager {
   /**
    * Options for prompt-friendly glossary text
    * @param compact - When true, omit description and gender; shorten labels (saves tokens)
+   * @param targetLanguageLabel - When set, adds intro line that right-hand forms are canonical for that target
    */
-  toPromptText(options?: { compact?: boolean }): string {
-    const compact = options?.compact ?? true; // Default compact for token savings
+  toPromptText(options?: { compact?: boolean; targetLanguageLabel?: string }): string {
+    const compact = options?.compact ?? true;
+    const targetLanguageLabel = options?.targetLanguageLabel?.trim();
     let text = '';
 
+    if (targetLanguageLabel) {
+      text += `Canonical translations for **${targetLanguageLabel}** — use right-hand forms exactly.\n\n`;
+    }
+
     if (this.glossary.characters.length > 0) {
-      text += '### Персонажи (Characters)\n';
+      text += '### Characters\n';
       for (const char of this.glossary.characters) {
         text += `- ${char.originalName} → ${char.translatedName} [${char.gender}]`;
         if (!compact && char.description) {
@@ -290,7 +296,7 @@ export class GlossaryManager {
     }
 
     if (this.glossary.locations.length > 0) {
-      text += '### Локации (Locations)\n';
+      text += '### Locations\n';
       for (const loc of this.glossary.locations) {
         text += `- ${loc.originalName} → ${loc.translatedName}`;
         if (!compact && loc.description) {
@@ -302,7 +308,7 @@ export class GlossaryManager {
     }
 
     if (this.glossary.terms.length > 0) {
-      text += '### Термины (Terms)\n';
+      text += '### Terms\n';
       for (const term of this.glossary.terms) {
         text += `- ${term.originalTerm} → ${term.translatedTerm}`;
         if (!compact && term.description) {

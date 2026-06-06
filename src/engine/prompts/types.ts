@@ -11,6 +11,8 @@ export interface AnalyzerUserPromptParams {
 
 export interface TranslatorUserPromptParams {
   sourceText: string;
+  sourceLanguageLabel: string;
+  targetLanguageLabel: string;
   glossary: string;
   context: string;
   styleGuide: string;

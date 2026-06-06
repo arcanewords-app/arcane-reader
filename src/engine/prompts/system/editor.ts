@@ -9,6 +9,7 @@
  */
 
 import type { Language } from '../../types/common.js';
+import { buildEditorTargetLanguageAnchor } from '../shared/target-language-anchor.js';
 
 export type EditingStylePreset = 'default' | 'literary' | 'minimal' | 'ai_revivification';
 
@@ -312,12 +313,20 @@ export const createEditorPrompt = (
   translatedText: string,
   glossary: string,
   styleNotes?: string,
-  customInstructions?: string
+  customInstructions?: string,
+  targetLanguageLabel?: string
 ): string => {
   let prompt = '';
 
+  if (targetLanguageLabel) {
+    prompt += `${buildEditorTargetLanguageAnchor(targetLanguageLabel)}\n\n`;
+  }
+
   if (glossary && glossary.trim()) {
-    prompt += `## Reference Glossary (do not change these terms)\n${glossary}\n\n`;
+    const glossaryHeading = targetLanguageLabel
+      ? `## Reference Glossary (${targetLanguageLabel} forms — do not change these terms)`
+      : '## Reference Glossary (do not change these terms)';
+    prompt += `${glossaryHeading}\n${glossary}\n\n`;
   }
 
   if (styleNotes) {
@@ -329,7 +338,10 @@ export const createEditorPrompt = (
   }
 
   prompt += `## Translation to Edit\n${translatedText}\n\n`;
-  prompt += `Edit and polish this translation. Output only the final edited text.`;
+  const editInstruction = targetLanguageLabel
+    ? `Edit and polish this translation in **${targetLanguageLabel}**. Output only the final edited text.`
+    : 'Edit and polish this translation. Output only the final edited text.';
+  prompt += editInstruction;
 
   return prompt;
 };

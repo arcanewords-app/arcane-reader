@@ -1,6 +1,6 @@
 /**
  * Translator prompts for ru → be
- * prompt-version: 1
+ * prompt-version: 2
  */
 
 import {

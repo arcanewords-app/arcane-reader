@@ -256,6 +256,13 @@ export function SettingsModal({
                 onSourceLanguageChange={setSourceLanguageDraft}
                 onTargetLanguageChange={setTargetLanguageDraft}
               />
+              {targetLanguageDraft !== normalizeProjectTargetLanguage(project.targetLanguage) && (
+                <p class="settings-language-pair-hint">
+                  {t('project.languagePairTargetHint', {
+                    targetLanguageLabel: t(`language.${targetLanguageDraft}`),
+                  })}
+                </p>
+              )}
               <Button
                 size="sm"
                 variant="secondary"

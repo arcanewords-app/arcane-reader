@@ -13,6 +13,7 @@ import type { Glossary } from '../types/glossary.js';
 import type { StageResult, TranslationDraft, ChunkTranslation } from '../types/pipeline.js';
 import type { TextChunk, TextBlockType } from '../types/common.js';
 import { resolvePrompts } from '../prompts/registry.js';
+import { languageDisplayName } from '../language.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
@@ -401,7 +402,9 @@ export class TranslateStage {
     // Filter glossary to entries that appear in this chunk (saves tokens)
     const glossaryText =
       includeGlossary && fullGlossary
-        ? new GlossaryManager(filterGlossaryForChunk(chunk.content, fullGlossary)).toPromptText()
+        ? new GlossaryManager(filterGlossaryForChunk(chunk.content, fullGlossary)).toPromptText({
+            targetLanguageLabel: languageDisplayName(targetLanguage),
+          })
         : '';
 
     // Validate provider before use
@@ -429,6 +432,8 @@ export class TranslateStage {
         role: 'user',
         content: translatorPrompts.createUserPrompt({
           sourceText: chunk.content,
+          sourceLanguageLabel: languageDisplayName(sourceLanguage),
+          targetLanguageLabel: languageDisplayName(targetLanguage),
           glossary: glossaryText,
           context: contextText,
           styleGuide,

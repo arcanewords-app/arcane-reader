@@ -22,6 +22,7 @@ import {
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks, type MergeChunkInput } from '../utils/chunker.js';
+import { languageDisplayName } from '../language.js';
 import { log } from '../logger.js';
 
 const DMP_DIFF_DELETE = -1;
@@ -167,11 +168,12 @@ export class EditStage {
       } else {
         log.debug('EditStage: using direct editing', { estimatedTokens });
 
+        const targetLabel = languageDisplayName(options.context.targetLanguage);
         glossaryTextForQuality =
           includeGlossary && fullGlossary
             ? new GlossaryManager(
                 filterGlossaryForChunk(translatedText, fullGlossary)
-              ).toPromptText()
+              ).toPromptText({ targetLanguageLabel: targetLabel })
             : '';
 
         const systemPrompt = getEditorSystemPrompt(
@@ -187,7 +189,8 @@ export class EditStage {
               translatedText,
               glossaryTextForQuality,
               styleNotes,
-              options.customInstructions
+              options.customInstructions,
+              targetLabel
             ),
           },
         ];
@@ -233,7 +236,9 @@ export class EditStage {
               includeGlossary && fullGlossary
                 ? new GlossaryManager(
                     filterGlossaryForChunk(editedText, fullGlossary)
-                  ).toPromptText()
+                  ).toPromptText({
+                    targetLanguageLabel: languageDisplayName(options.context.targetLanguage),
+                  })
                 : '';
             const qualityPromise = this.checkQuality(
               editedText,
@@ -593,11 +598,12 @@ export class EditStage {
     editingFocus: EditingFocus = 'both',
     targetLanguage?: import('../types/common.js').Language
   ): Promise<{ text: string; tokensUsed: number }> {
+    const targetLabel = targetLanguage ? languageDisplayName(targetLanguage) : undefined;
     const glossaryText =
       includeGlossary && fullGlossary
         ? new GlossaryManager(
             filterGlossaryForChunk(translatedChunk.content, fullGlossary)
-          ).toPromptText()
+          ).toPromptText({ targetLanguageLabel: targetLabel })
         : '';
 
     const systemPrompt = getEditorSystemPrompt(editingStylePreset, editingFocus, targetLanguage);
@@ -609,7 +615,8 @@ export class EditStage {
           translatedChunk.content,
           glossaryText,
           styleNotes,
-          customInstructions
+          customInstructions,
+          targetLabel
         ),
       },
     ];

@@ -5,7 +5,7 @@ domain: engine
 stale: false
 canonical: .cursor/rules/engine.mdc
 created: 2026-05-31
-updated: 2026-05-31
+updated: 2026-06-06
 ---
 
 # Engine glossary and prompts (as-is)
@@ -20,7 +20,9 @@ In-memory CRUD on `AgentContext.glossary`:
 
 - `addCharacter`, `addLocation`, `addTerm` — with dedup by original name/term
 - Character declension on add: Latin originals use EN transliteration; CJK uses `translatedName` from analyze/DB (no EN transliteration on reload — see `engine-integration.ts`)
-- `toPromptSection(compact?)` — formats glossary for LLM (compact omits descriptions to save tokens)
+- `toPromptText({ compact?, targetLanguageLabel? })` — formats glossary for LLM (compact omits descriptions; optional intro line names the target language for right-hand forms)
+
+**As-is policy:** one glossary per project in DB. Field `translated` is canonical for the project target language. There are no per-pair glossary variants — the same entries are injected into all 7 pairs; authors maintain forms for the active target. Ephemeral job `languagePair` overrides use the project glossary unchanged (UI warns when override differs from project pair).
 
 DB persistence is **outside** engine (server writes via Supabase after pipeline).
 
@@ -31,7 +33,7 @@ Stage 1 uses `buildGlossaryMetadataLanguageRule` from `src/engine/prompts/shared
 - **Source script:** `name`, `term`, `originalName`, `originalTerm` — as in the chapter.
 - **Target language:** `description`, `context`, `updated*.description`, `chapterSummary`, `keyEvents`, `mood`, `styleNotes`, and `suggestedTranslation` when the target uses Cyrillic.
 
-MVP target is always `ru`; the rule is parameterized via `languageDisplayName(target)` for future targets.
+Rule is parameterized via `languageDisplayName(target)` for `ru` and `be`.
 
 ### Filtering
 
@@ -57,17 +59,29 @@ Stages call **`resolvePrompts(stage, source, target)`** from `registry.ts` — d
 
 ### Per language pair
 
-| Path                                                                  | Role                                          |
-| --------------------------------------------------------------------- | --------------------------------------------- |
-| `pairs/en-ru/analyzer.ts`, `translator.ts`                            | English → Russian                             |
-| `pairs/ko-ru/analyzer.ts`, `translator.ts`                            | Korean → Russian                              |
-| `pairs/zh-ru/analyzer.ts`, `translator.ts`                            | Chinese → Russian                             |
-| `shared/analysis-output.ts`, `analyzer-user.ts`, `translator-user.ts` | Identical JSON schema / user prompt builders  |
-| `system/editor.ts`                                                    | Russian target editor (single target for MVP) |
+| Path                                                                  | Role                                              |
+| --------------------------------------------------------------------- | ------------------------------------------------- |
+| `pairs/en-ru/analyzer.ts`, `translator.ts`                            | English → Russian                                 |
+| `pairs/ko-ru/analyzer.ts`, `translator.ts`                            | Korean → Russian                                  |
+| `pairs/zh-ru/analyzer.ts`, `translator.ts`                            | Chinese → Russian                                 |
+| `pairs/en-be/analyzer.ts`, `translator.ts`                            | English → Belarusian                              |
+| `pairs/ko-be/analyzer.ts`, `translator.ts`                            | Korean → Belarusian                               |
+| `pairs/zh-be/analyzer.ts`, `translator.ts`                            | Chinese → Belarusian                              |
+| `pairs/ru-be/analyzer.ts`, `translator.ts`                            | Russian → Belarusian (localization)               |
+| `shared/analysis-output.ts`, `analyzer-user.ts`, `translator-user.ts` | Identical JSON schema / user prompt builders      |
+| `shared/target-language-anchor.ts`                                    | Mandatory source/target in Stage 2/3 user prompts |
+| `system/editor.ts`                                                    | Editor for `ru` \| `be` target                    |
 
-MVP whitelist: `src/engine/language.ts` (`en` \| `ko` \| `zh` → `ru`). **Japanese (`ja`)** — Phase 2: add `pairs/ja-ru/` + registry entry after ko/zh baseline (see [[../05-plans/engine-cjk-ru-spike]]).
+MVP whitelist: `src/engine/language.ts` — 7 pairs, targets `ru` \| `be`. **Japanese (`ja`)** — Phase 2 (see [[../05-plans/engine-cjk-ru-spike]]).
 
 Legacy exports `ANALYZER_SYSTEM_PROMPT`, `createAnalyzerPrompt`, etc. re-export **en-ru** via `registry.ts`.
+
+### Target language in user prompts
+
+- **Stage 2:** `buildTranslatorUserPrompt` prepends `buildTargetLanguageAnchor(source, target)` and labels glossary section with target language.
+- **Stage 3:** `createEditorPrompt(..., targetLanguageLabel)` prepends `buildEditorTargetLanguageAnchor`.
+
+System prompts per pair still carry source-specific rules (honorifics, xianxia, наркамаўka); user prompts reinforce output language.
 
 ### Editor presets
 
@@ -141,6 +155,7 @@ Stage 3 still chunks **translated text only** without guaranteed marker-safe bou
 - Full glossary on every chunk (always filter)
 - Inlining system prompts in `stages/*.ts`
 - `console.*` in engine (use `log` from `src/engine/logger.js`)
+- Per-pair glossary DB variants (use as-is + author maintenance)
 
 ## Related
 

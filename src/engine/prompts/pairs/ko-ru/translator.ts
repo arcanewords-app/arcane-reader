@@ -1,6 +1,6 @@
 /**
  * Translator prompts for ko → ru
- * prompt-version: 1
+ * prompt-version: 2
  */
 
 import {

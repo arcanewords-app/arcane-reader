@@ -223,12 +223,12 @@ export class AnalyzeStage {
     options: AnalyzeStageOptions
   ): Promise<{ result: AnalysisResult; tokensUsed: number }> {
     let glossaryText = '';
+    const targetLabel = languageDisplayName(options.targetLanguage);
     if (options.existingGlossary) {
       const manager = new GlossaryManager(options.existingGlossary);
-      glossaryText = manager.toPromptText();
+      glossaryText = manager.toPromptText({ targetLanguageLabel: targetLabel });
     }
 
-    const targetLabel = languageDisplayName(options.targetLanguage);
     const metadataLanguageRule = buildGlossaryMetadataLanguageRule(targetLabel);
     const messages: Message[] = [
       {

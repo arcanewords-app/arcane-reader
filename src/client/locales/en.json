@@ -35,7 +35,8 @@
     "targetLanguageLabel": "Target language",
     "languagePair": "Translation pair",
     "languagePairLocked": "Language pair is locked after analysis or glossary entries exist.",
-    "languagePairCreateHint": "You can change the translation pair later in project settings.",
+    "languagePairCreateHint": "You can change the translation pair later in project settings. After analysis starts, changing the target language will require manual glossary review.",
+    "languagePairTargetHint": "Glossary translations will use {{targetLanguageLabel}} forms. Review entries if you change the target language later.",
     "ruSourceHint": "Russian as source: chapter original text should be in Russian.",
     "languagePairEditInSettings": "Change in project settings",
     "metadataFileLanguage": "Original file language (import metadata)"
@@ -651,8 +652,8 @@
     "languagePairLabel": "Translation pair",
     "languagePairDefaultHint": "Using the project default. You can override for this batch only.",
     "useProjectLanguagePair": "Use project settings",
-    "languageOverrideGlossaryWarning": "The glossary was built for a different language pair; new analysis may add incompatible entries.",
-    "languageOverrideTranslationWarning": "Existing translations may not match the selected target language.",
+    "languageOverrideGlossaryWarning": "The glossary was built for a different language pair. Verify that translated forms match {{targetLanguageLabel}}; new analysis may add incompatible entries.",
+    "languageOverrideTranslationWarning": "Existing translations may not match the selected target language ({{targetLanguageLabel}}).",
     "languageOverrideAck": "I understand the risks of using a different language pair for this batch"
   },
   "tokenUsage": {
