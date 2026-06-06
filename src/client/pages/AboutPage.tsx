@@ -25,6 +25,11 @@ export function AboutPage() {
         </section>
 
         <section class="info-section">
+          <h2>{t('about.languagePairs')}</h2>
+          <p>{t('about.languagePairsDesc')}</p>
+        </section>
+
+        <section class="info-section">
           <h2>{t('about.features')}</h2>
           <ul>
             <li>{t('about.feature1')}</li>

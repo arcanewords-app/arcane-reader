@@ -8,7 +8,7 @@ import { useEffect } from 'preact/hooks';
 
 const DEFAULT_TITLE = 'Arcane — Переводчик новелл';
 const DEFAULT_DESCRIPTION =
-  'Arcane — библиотека переводов новелл. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.';
+  'Arcane — библиотека переводов новелл на русский и беларусский. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.';
 
 function setMeta(attr: 'name' | 'property', key: string, content: string): void {
   let el = document.querySelector(`meta[${attr}="${key}"]`);

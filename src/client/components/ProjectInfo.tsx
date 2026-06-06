@@ -490,7 +490,13 @@ export function ProjectInfo({
           <div>
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{project.name}</h2>
             <span style={{ color: 'var(--text-dim)' }}>
-              {isOriginalReadingMode ? t('projectInfo.originalReading') : t('projectInfo.enToRu')}
+              {isOriginalReadingMode
+                ? t('projectInfo.originalReading')
+                : formatLanguagePairLabel(
+                    t,
+                    project.sourceLanguage || 'en',
+                    project.targetLanguage || 'ru'
+                  )}
             </span>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowDeleteModal(true)}>

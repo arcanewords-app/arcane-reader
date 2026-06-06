@@ -267,6 +267,23 @@ Do **not** enable in production:
 
 ---
 
+## Privacy Policy and GDPR disclosure
+
+User-facing **Privacy Policy** (`/privacy`, keys `privacy.operationalLogs*` and `privacy.thirdPartyDesc`) must mention Axiom when `LOG_SHIPPING=1` is enabled in production.
+
+**Disclose to users:**
+
+- Operational logs only (errors, request metadata, correlation IDs including `userId` — not email).
+- No chapter text or full LLM prompts/responses in shipped logs (see [[../04-decisions/adr-observability-axiom]]).
+- Retention ~30 days (Axiom default tier).
+- Vercel stdout as fallback.
+
+**EU Central edge nuance:** With `AXIOM_REGION=eu`, event log ingest, storage, and queries stay in the EU Central edge deployment. Axiom **account management** (authentication, billing, organization settings) may still be processed via US infrastructure — this is documented by Axiom ([edge deployments](https://axiom.co/docs/reference/edge-deployments)). Do not claim “100% EU-only” for all Axiom processing in the Privacy Policy.
+
+When changing log fields or retention, update `src/client/locales/en.json` and `ru.json` (`privacy.*`) in the same task.
+
+---
+
 ## Related
 
 - ADR: [[../04-decisions/adr-observability-axiom]]

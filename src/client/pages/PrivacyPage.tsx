@@ -42,6 +42,11 @@ export function PrivacyPage() {
         </section>
 
         <section class="info-section">
+          <h2>{t('privacy.operationalLogs')}</h2>
+          <p>{t('privacy.operationalLogsDesc')}</p>
+        </section>
+
+        <section class="info-section">
           <h2>{t('privacy.localStorage')}</h2>
           <p>{t('privacy.localStorageDesc')}</p>
         </section>
