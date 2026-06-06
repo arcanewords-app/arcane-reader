@@ -398,6 +398,8 @@ export interface AnalysisJobState {
   errors: string[];
   startedAt: string;
   finishedAt: string | null;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export type TranslateJobStatus = 'queued' | 'processing' | 'completed' | 'error' | 'canceled';
@@ -431,6 +433,8 @@ export interface TranslateJobState {
   errors: string[];
   startedAt: string;
   finishedAt: string | null;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 /** Unified job item from GET /api/projects/:projectId/jobs */
@@ -448,10 +452,17 @@ export type TranslationStageKind = 'analysis' | 'translation' | 'editing';
 /** Stages to run: array (multi-select) or 'all'. */
 export type TranslationStages = TranslationStageKind[] | 'all';
 
+export interface LanguagePairOptions {
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
 export interface ChapterTranslationOptions {
   translateOnlyEmpty?: boolean;
   paragraphIds?: string[];
   stages?: TranslationStages;
+  /** Ephemeral override; omit to use project default. */
+  languagePair?: LanguagePairOptions;
 }
 
 export type MarkTranslatedBatchStatus = 'success' | 'failed' | 'skipped';

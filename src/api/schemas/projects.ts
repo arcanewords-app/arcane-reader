@@ -1,21 +1,45 @@
 import { z } from 'zod';
+import { isSupportedPair } from '../../engine/language.js';
+import type { Language } from '../../engine/types/common.js';
 
 /** MVP translation source languages (engine whitelist). */
-export const supportedSourceLanguageSchema = z.enum(['en', 'ko', 'zh']);
+export const supportedSourceLanguageSchema = z.enum(['en', 'ko', 'zh', 'ru']);
 
 /** MVP translation target languages (engine whitelist). */
-export const supportedTargetLanguageSchema = z.enum(['ru']);
+export const supportedTargetLanguageSchema = z.enum(['ru', 'be']);
 
-export const projectCreateBodySchema = z.object({
-  name: z.string().trim().min(1).max(500),
-  sourceLanguage: supportedSourceLanguageSchema.optional(),
-  targetLanguage: supportedTargetLanguageSchema.optional(),
-});
+type LanguagePairInput = {
+  sourceLanguage: z.infer<typeof supportedSourceLanguageSchema>;
+  targetLanguage: z.infer<typeof supportedTargetLanguageSchema>;
+};
 
-export const projectLanguagesBodySchema = z.object({
-  sourceLanguage: supportedSourceLanguageSchema,
-  targetLanguage: supportedTargetLanguageSchema,
-});
+const languagePairRefine = (data: LanguagePairInput) =>
+  isSupportedPair(data.sourceLanguage as Language, data.targetLanguage as Language);
+
+const languagePairRefineMessage = {
+  message: 'Unsupported translation language pair',
+  path: ['targetLanguage'],
+};
+
+export const projectCreateBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(500),
+    sourceLanguage: supportedSourceLanguageSchema.optional(),
+    targetLanguage: supportedTargetLanguageSchema.optional(),
+  })
+  .refine((data) => {
+    if (data.sourceLanguage == null && data.targetLanguage == null) return true;
+    const source = data.sourceLanguage ?? 'en';
+    const target = data.targetLanguage ?? 'ru';
+    return isSupportedPair(source, target);
+  }, languagePairRefineMessage);
+
+export const projectLanguagesBodySchema = z
+  .object({
+    sourceLanguage: supportedSourceLanguageSchema,
+    targetLanguage: supportedTargetLanguageSchema,
+  })
+  .refine(languagePairRefine, languagePairRefineMessage);
 
 export const projectSearchQuerySchema = z.object({
   q: z.string().optional().default(''),

@@ -27,7 +27,10 @@ const analysisJobStore = createAnalysisJobStoreFromEnv();
 const ANALYSIS_JOB_TTL_SECONDS = parseInt(process.env.ANALYSIS_JOB_TTL_SECONDS ?? '3600', 10);
 
 export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void> {
-  const { jobId, projectId, userId, estimatedTokens, chapterIds } = payload;
+  const { jobId, projectId, userId, estimatedTokens, chapterIds, sourceLanguage, targetLanguage } =
+    payload;
+  const languagePair =
+    sourceLanguage && targetLanguage ? { sourceLanguage, targetLanguage } : undefined;
   const config = loadConfig();
   const token = ''; // Service role used for all DB ops
 
@@ -92,6 +95,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
           analyzeChaptersBatch(config, project, chaptersWithText, {
             useCache: true,
             analysisConcurrency,
+            languagePair,
             isCancelled: () => cancelledFlag,
             onProgress: async (chapterId, progResult) => {
               if (await analysisJobStore.isCancelRequested(jobId)) return;

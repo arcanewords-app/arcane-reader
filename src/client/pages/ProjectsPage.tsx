@@ -4,8 +4,12 @@ import { route } from 'preact-router';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
 import { Button, Input, Modal, Icon } from '../components/ui';
 import { ProjectLanguagePairFields } from '../components/Project/ProjectLanguagePairFields';
-import type { ProjectSourceLanguage } from '../constants/translationLanguages';
-import { PROJECT_TARGET_LANGUAGE } from '../constants/translationLanguages';
+import {
+  PROJECT_DEFAULT_SOURCE_LANGUAGE,
+  PROJECT_DEFAULT_TARGET_LANGUAGE,
+  type ProjectSourceLanguage,
+  type ProjectTargetLanguage,
+} from '../constants/translationLanguages';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
 import { api } from '../api/client';
 import { useUserRole } from '../hooks/useUserRole';
@@ -29,8 +33,12 @@ export function ProjectsPage() {
   const [filterType, setFilterType] = useState<'all' | 'book' | 'text'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectSourceLanguage, setNewProjectSourceLanguage] =
-    useState<ProjectSourceLanguage>('en');
+  const [newProjectSourceLanguage, setNewProjectSourceLanguage] = useState<ProjectSourceLanguage>(
+    PROJECT_DEFAULT_SOURCE_LANGUAGE
+  );
+  const [newProjectTargetLanguage, setNewProjectTargetLanguage] = useState<ProjectTargetLanguage>(
+    PROJECT_DEFAULT_TARGET_LANGUAGE
+  );
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -44,11 +52,12 @@ export function ProjectsPage() {
     try {
       const project = await api.createProject(newProjectName.trim(), {
         sourceLanguage: newProjectSourceLanguage,
-        targetLanguage: PROJECT_TARGET_LANGUAGE,
+        targetLanguage: newProjectTargetLanguage,
       });
       setShowCreateModal(false);
       setNewProjectName('');
-      setNewProjectSourceLanguage('en');
+      setNewProjectSourceLanguage(PROJECT_DEFAULT_SOURCE_LANGUAGE);
+      setNewProjectTargetLanguage(PROJECT_DEFAULT_TARGET_LANGUAGE);
       await loadProjects();
       route(`/projects/${project.id}`);
     } catch (error) {
@@ -155,9 +164,13 @@ export function ProjectsPage() {
           }}
         />
         <ProjectLanguagePairFields
+          idPrefix="create-project"
           sourceLanguage={newProjectSourceLanguage}
+          targetLanguage={newProjectTargetLanguage}
           onSourceLanguageChange={setNewProjectSourceLanguage}
+          onTargetLanguageChange={setNewProjectTargetLanguage}
         />
+        <p class="project-language-pair-create-hint">{t('project.languagePairCreateHint')}</p>
       </Modal>
     </div>
   );

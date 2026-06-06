@@ -50,17 +50,26 @@ Full list: `@src/engine/types/pipeline.ts`.
 
 ## Translation languages (MVP)
 
-- Supported **source**: `en`, `ko`, `zh`. **Target**: `ru` only.
-- Whitelist: `@src/engine/language.ts` (`parseProjectLanguage`, `SUPPORTED_TRANSLATION_PAIRS`). Fail fast on unknown pairs — no silent fallback to en→ru.
+- Supported pairs: `en|ko|zh→ru`, `en|ko|zh|ru→be` (7 pairs). Default project pair: **en→ru**.
+- `ru` as source only when target is `be` (`ru-be`); not valid with target `ru`.
+- Whitelist: `@src/engine/language.ts` (`parseProjectLanguage`, `sourcesForTarget`, `SUPPORTED_TRANSLATION_PAIRS`). Fail fast on unknown pairs.
 - **Japanese (`ja`)**: Phase 2 — not in MVP whitelist until a separate plan ships.
-- CJK-origin names: no EN transliteration on glossary reload; use DB `translated` + LLM declension hints.
+- CJK-origin names: no EN transliteration on glossary reload for `be` target; use DB `translated` + LLM hints. RU declension (Petrovich) only when target is `ru`.
+- Belarusian target uses наркамаўka in `*-be` prompts and `getEditorSystemPrompt(..., 'be')`.
+
+## Language pair at runtime (integration boundary)
+
+- **Project default:** `projects.source_language` / `target_language` via `parseProjectLanguagePair`.
+- **Job override:** optional `languagePair` on batch/single translate APIs — ephemeral; does not update DB. Resolved in `@src/services/engine-integration.ts` via `resolveEffectiveLanguagePair`.
+- **Agent cache:** key `${projectId}:${source}:${target}` in `getAgentForProject` (not project id alone).
+- **Analysis Redis cache:** key includes `sourceLanguage` + `targetLanguage` per chapter (`@src/services/analysisCache.ts`). Invalidated on `PUT /api/projects/:id/languages` via `invalidateAnalysisForProject`.
 
 ## Prompts
 
-- **Per language pair:** `src/engine/prompts/pairs/{src}-ru/` (analyzer.ts, translator.ts).
+- **Per language pair:** `src/engine/prompts/pairs/{src}-{tgt}/` (analyzer.ts, translator.ts) — e.g. `en-ru`, `en-be`, `ru-be`.
 - **Registry:** `resolvePrompts(stage, source, target)` in `@src/engine/prompts/registry.ts` — stages must not import pair modules directly.
 - **Shared fragments only** when identical across pairs: `src/engine/prompts/shared/`.
-- **Editor:** `@src/engine/prompts/system/editor.ts` while target is ru-only.
+- **Editor:** `@src/engine/prompts/system/editor.ts` — `getEditorSystemPrompt(preset, focus, targetLanguage)` for `ru` | `be`.
 - Language-specific rules → edit the pair module only; add `// prompt-version: N` on major changes.
 - Deprecated aliases: `ANALYZER_SYSTEM_PROMPT` / `TRANSLATOR_SYSTEM_PROMPT` re-export en-ru for one release.
 

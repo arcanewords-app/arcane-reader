@@ -79,6 +79,13 @@
   font-weight: var(--fw-medium);
 }
 
+.jobs-panel-item-language-pair {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  margin-bottom: var(--space-xs);
+}
+
 .jobs-panel-item-status {
   font-weight: var(--fw-medium);
 }

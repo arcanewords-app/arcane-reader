@@ -35,6 +35,8 @@ export interface TranslateJobState {
   cancelRequested: boolean;
   /** Reserved tokens for release on completion/error/cancel */
   estimatedTokens?: number;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export interface TranslateJobStore {

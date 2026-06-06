@@ -83,9 +83,12 @@ export { EditStage } from './stages/stage-3-edit.js';
 
 // Language pair (MVP)
 export {
+  PROJECT_DEFAULT_SOURCE_LANGUAGE,
+  PROJECT_DEFAULT_TARGET_LANGUAGE,
   SUPPORTED_SOURCE_LANGUAGES,
   SUPPORTED_TARGET_LANGUAGES,
   SUPPORTED_TRANSLATION_PAIRS,
+  sourcesForTarget,
   parseProjectLanguage,
   parseProjectLanguagePair,
   pairKey,

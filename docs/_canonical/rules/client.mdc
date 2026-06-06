@@ -25,7 +25,9 @@ alwaysApply: false
 - `react-i18next`. App UI locales: **en.json**, **ru.json** only (`SUPPORTED_LOCALES` in `@src/client/i18n.ts`).
 - Use `useTranslation()` hook. Add new keys to **en** and **ru**.
 - **Translation pair labels** (`language.en`, `language.ko`, …): for project source/target display, not app locale.
-- MVP translation pairs in UI: source `en` | `ko` | `zh`, target `ru`.
+- MVP translation pairs in UI: source `en` | `ko` | `zh` (+ `ru` when target `be`), target `ru` | `be` (default en→ru).
+- Project default pair: edit in `SettingsModal` (`PUT /api/projects/:id/languages`). `ProjectInfo` shows read-only badge + link to settings.
+- Bulk processing (`ProcessChapters`): optional ephemeral `languagePair` override per batch (defaults to project pair).
 
 ## Routing
 

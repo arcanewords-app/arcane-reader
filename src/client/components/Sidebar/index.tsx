@@ -31,6 +31,9 @@ interface SidebarProps {
   onSettingsChange?: (settings: ProjectSettings) => void;
   onRefreshProject?: () => Promise<void>;
   isMobileOpen?: boolean;
+  /** Controlled settings modal (optional). */
+  settingsOpen?: boolean;
+  onSettingsOpenChange?: (open: boolean) => void;
 }
 
 export function Sidebar({
@@ -47,9 +50,19 @@ export function Sidebar({
   onRefreshProject,
   onProjectUpdate,
   isMobileOpen = false,
+  settingsOpen: controlledSettingsOpen,
+  onSettingsOpenChange,
 }: SidebarProps) {
   const { t } = useTranslation();
-  const [showSettings, setShowSettings] = useState(false);
+  const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
+  const showSettings = controlledSettingsOpen ?? internalSettingsOpen;
+  const setShowSettings = (open: boolean) => {
+    if (onSettingsOpenChange) {
+      onSettingsOpenChange(open);
+    } else {
+      setInternalSettingsOpen(open);
+    }
+  };
   const [showProjectSearch, setShowProjectSearch] = useState(false);
   const [triggerJobsFetch, setTriggerJobsFetch] = useState(0);
 

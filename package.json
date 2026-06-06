@@ -26,6 +26,7 @@
     "lint:css:fix": "stylelint \"src/**/*.css\" --fix",
     "lint:all": "npm run lint && npm run lint:css && npm run typecheck",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.debug-app.json",
+    "test:language-pair": "tsx scripts/test-language-pair.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:deps": "tsx scripts/gen-dep-graph.ts",

@@ -257,11 +257,7 @@ export function useBatchChapterTranslation(
         cancelledRef.current = false;
         initialGlossaryCountRef.current = project.glossary.length;
 
-        const body: {
-          translateOnlyEmpty?: boolean;
-          paragraphIds?: string[];
-          stages?: ChapterTranslationOptions['stages'];
-        } = {};
+        const body: ChapterTranslationOptions = {};
         if (optionsPerChapter?.paragraphIds?.length) {
           body.paragraphIds = optionsPerChapter.paragraphIds;
         } else if (optionsPerChapter?.translateOnlyEmpty) {
@@ -269,6 +265,9 @@ export function useBatchChapterTranslation(
         }
         if (optionsPerChapter?.stages !== undefined) {
           body.stages = optionsPerChapter.stages;
+        }
+        if (optionsPerChapter?.languagePair) {
+          body.languagePair = optionsPerChapter.languagePair;
         }
 
         const chaptersProgress: BatchChapterProgressItem[] = chapters.map((ch) => ({
@@ -310,7 +309,9 @@ export function useBatchChapterTranslation(
               const res = await api.startAnalyzeBatch(
                 projectId,
                 chapters.map((c) => c.id),
-                undefined
+                {
+                  languagePair: body.languagePair,
+                }
               );
               analysisJobIdRef.current = res.jobId;
               onBatchJobCreated?.();
@@ -324,8 +325,8 @@ export function useBatchChapterTranslation(
                 {
                   translateOnlyEmpty: body.translateOnlyEmpty,
                   stages: body.stages,
-                },
-                undefined
+                  languagePair: body.languagePair,
+                }
               );
               translateJobIdRef.current = res.jobId;
               onBatchJobCreated?.();

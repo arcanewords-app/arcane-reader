@@ -2,7 +2,16 @@ import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Project, ProjectSettings, TextBlockType, CustomInstructions } from '../../types';
 import { Modal, Button, Icon } from '../ui';
+import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
 import { api } from '../../api/client';
+import { invalidateProject } from '../../store/projects';
+import {
+  normalizeProjectSourceLanguage,
+  normalizeProjectTargetLanguage,
+  PROJECT_DEFAULT_TARGET_LANGUAGE,
+  type ProjectSourceLanguage,
+  type ProjectTargetLanguage,
+} from '../../constants/translationLanguages';
 import {
   DEFAULT_TEXT_BLOCK_TYPES,
   LITRPG_PRESET,
@@ -175,16 +184,101 @@ export function SettingsModal({
 
   const [customInstructionsLocal, setCustomInstructionsLocal] = useState<CustomInstructions>({});
   const [showFormatHelp, setShowFormatHelp] = useState(false);
+  const [sourceLanguageDraft, setSourceLanguageDraft] = useState<ProjectSourceLanguage>('en');
+  const [targetLanguageDraft, setTargetLanguageDraft] = useState<ProjectTargetLanguage>(
+    PROJECT_DEFAULT_TARGET_LANGUAGE
+  );
+  const [savingLanguages, setSavingLanguages] = useState(false);
+  const [languageSaveError, setLanguageSaveError] = useState<string | null>(null);
+
+  const glossaryCount = 'glossary' in project ? project.glossary.length : 0;
+  const languagePairLocked =
+    glossaryCount > 0 || project.chapters.some((c) => c.status !== 'pending');
 
   useEffect(() => {
     if (isOpen) {
       setCustomInstructionsLocal({ ...customInstructions });
+      const target = normalizeProjectTargetLanguage(project.targetLanguage);
+      setTargetLanguageDraft(target);
+      setSourceLanguageDraft(normalizeProjectSourceLanguage(project.sourceLanguage, target));
+      setLanguageSaveError(null);
     }
-  }, [isOpen, project.id, customInstructions.translation, customInstructions.editing]);
+  }, [
+    isOpen,
+    project.id,
+    customInstructions.translation,
+    customInstructions.editing,
+    project.sourceLanguage,
+    project.targetLanguage,
+  ]);
+
+  const handleSaveLanguages = async () => {
+    if (languagePairLocked) return;
+    setSavingLanguages(true);
+    setLanguageSaveError(null);
+    try {
+      await api.updateProjectLanguages(project.id, sourceLanguageDraft, targetLanguageDraft);
+      invalidateProject(project.id);
+      if (onRefreshProject) {
+        await onRefreshProject();
+      }
+    } catch (error) {
+      setLanguageSaveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingLanguages(false);
+    }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('settings.title')} size="large">
       <div class="settings-modal">
+        {/* Translation language pair */}
+        <div class="settings-language-pair-section">
+          <h3 class="settings-section-title">{t('settings.languagePairSection')}</h3>
+          {languagePairLocked ? (
+            <>
+              <p class="settings-language-pair-locked">{t('project.languagePairLocked')}</p>
+              <ProjectLanguagePairFields
+                idPrefix="settings-project"
+                sourceLanguage={project.sourceLanguage || 'en'}
+                targetLanguage={project.targetLanguage || PROJECT_DEFAULT_TARGET_LANGUAGE}
+                onSourceLanguageChange={() => {}}
+                sourceDisabled
+                targetDisabled
+              />
+            </>
+          ) : (
+            <>
+              <ProjectLanguagePairFields
+                idPrefix="settings-project"
+                sourceLanguage={sourceLanguageDraft}
+                targetLanguage={targetLanguageDraft}
+                onSourceLanguageChange={setSourceLanguageDraft}
+                onTargetLanguageChange={setTargetLanguageDraft}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={savingLanguages}
+                disabled={
+                  sourceLanguageDraft ===
+                    normalizeProjectSourceLanguage(project.sourceLanguage, targetLanguageDraft) &&
+                  targetLanguageDraft === normalizeProjectTargetLanguage(project.targetLanguage)
+                }
+                onClick={handleSaveLanguages}
+                style={{ marginTop: '0.5rem' }}
+              >
+                {t('settings.saveLanguagePair')}
+              </Button>
+            </>
+          )}
+          {languageSaveError && (
+            <p class="settings-language-pair-error" role="alert">
+              {languageSaveError}
+            </p>
+          )}
+        </div>
+
         {/* Original Reading Mode Toggle */}
         <div
           style={{

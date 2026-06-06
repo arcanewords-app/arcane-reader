@@ -35,6 +35,9 @@
     "targetLanguageLabel": "Target language",
     "languagePair": "Translation pair",
     "languagePairLocked": "Language pair is locked after analysis or glossary entries exist.",
+    "languagePairCreateHint": "You can change the translation pair later in project settings.",
+    "ruSourceHint": "Russian as source: chapter original text should be in Russian.",
+    "languagePairEditInSettings": "Change in project settings",
     "metadataFileLanguage": "Original file language (import metadata)"
   },
   "chapter": {
@@ -225,10 +228,13 @@
     "cancelRequested": "Cancel requested…",
     "startedAgoMinutes": "Started {{count}} min ago",
     "startedAgoHours": "Started {{count}} h ago",
-    "goToChapter": "Go to chapter"
+    "goToChapter": "Go to chapter",
+    "languagePair": "{{source}} → {{target}}"
   },
   "settings": {
     "title": "Project settings",
+    "languagePairSection": "Translation pair",
+    "saveLanguagePair": "Save language pair",
     "appLanguage": "App language",
     "appLanguageRu": "Russian",
     "appLanguageEn": "English",
@@ -641,7 +647,13 @@
     "selectDisplayed": "Select displayed ({{count}})",
     "markEntireProject": "Mark entire project as translated",
     "searchPlaceholder": "Search by number or title",
-    "uploadedTranslationHint": "Uploaded ready-made translation?"
+    "uploadedTranslationHint": "Uploaded ready-made translation?",
+    "languagePairLabel": "Translation pair",
+    "languagePairDefaultHint": "Using the project default. You can override for this batch only.",
+    "useProjectLanguagePair": "Use project settings",
+    "languageOverrideGlossaryWarning": "The glossary was built for a different language pair; new analysis may add incompatible entries.",
+    "languageOverrideTranslationWarning": "Existing translations may not match the selected target language.",
+    "languageOverrideAck": "I understand the risks of using a different language pair for this batch"
   },
   "tokenUsage": {
     "loading": "Loading...",
@@ -926,6 +938,7 @@
   "language": {
     "en": "English",
     "ru": "Russian",
+    "be": "Belarusian",
     "pl": "Polish",
     "uk": "Ukrainian",
     "de": "German",

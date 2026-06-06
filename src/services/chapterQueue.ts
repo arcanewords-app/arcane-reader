@@ -15,6 +15,9 @@ export interface AnalysisJobPayload {
   userId: string;
   estimatedTokens: number;
   chapterIds: string[];
+  /** Ephemeral override; when set, engine uses this pair instead of project default. */
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export interface TranslateJobPayload {
@@ -25,6 +28,8 @@ export interface TranslateJobPayload {
   chapterIds: string[];
   stages: TranslationStages;
   translateOnlyEmpty: boolean;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export interface BullConnectionOptions {

@@ -37,6 +37,50 @@
   color: var(--text-secondary);
 }
 
+.process-chapters-language-pair-block {
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.process-chapters-language-pair-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.process-chapters-language-pair-label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.process-chapters-language-pair-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.process-chapters-language-override-warning {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--warning);
+}
+
+.process-chapters-language-override-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
 .process-chapters-separator {
   color: var(--border);
   margin: 0 0.25rem;

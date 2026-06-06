@@ -139,7 +139,7 @@ Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-tra
 | GET | `/api/projects/:id` | Get project |
 | DELETE | `/api/projects/:id` | Delete project |
 | PUT | `/api/projects/:id/settings` | Update project settings |
-| PUT | `/api/projects/:id/languages` | Update project translation language pair (source/target) |
+| PUT | `/api/projects/:id/languages` | Update project translation language pair (source/target). Returns `409` (`LANGUAGE_PAIR_LOCKED`) if glossary non-empty or any chapter status ≠ `pending`. Clears agent cache + analysis Redis cache for project |
 | GET | `/api/projects/:id/settings/reader` | Get project reader settings |
 | PUT | `/api/projects/:id/settings/reader` | Update project reader settings |
 | GET | `/api/projects/:id/chapters/summary` | Chapters summary |
@@ -155,13 +155,13 @@ Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-tra
 | PUT | `/api/projects/:projectId/chapters/:chapterId/title` | Update chapter title |
 | PUT | `/api/projects/:projectId/chapters/:chapterId/number` | Update chapter number |
 | PUT | `/api/projects/:projectId/chapters/order` | Reorder chapters |
-| POST | `/api/projects/:projectId/chapters/analyze-batch` | Batch analyze chapters (body: `chapterIds[]`). Sync by default; with `Prefer: respond-async` or `?async=1` returns `202` + `jobId` for polling. Async requires REDIS_URL; returns `503` if queue unavailable, `409` if user already has active analysis job |
+| POST | `/api/projects/:projectId/chapters/analyze-batch` | Batch analyze chapters (body: `chapterIds[]`, optional `languagePair: { sourceLanguage, targetLanguage }` — ephemeral override, does not update project). Sync by default; with `Prefer: respond-async` or `?async=1` returns `202` + `jobId` for polling. Async requires REDIS_URL; returns `503` if queue unavailable, `409` if user already has active analysis job |
 | GET | `/api/projects/:projectId/analysis-jobs/:jobId` | Get analysis job status/progress (polling, `compact` query supported) |
 | POST | `/api/projects/:projectId/analysis-jobs/:jobId/cancel` | Request analysis job cancellation |
-| POST | `/api/projects/:projectId/chapters/translate-batch` | Batch translate chapters (body: `chapterIds[]`, `translateOnlyEmpty?`, `stages?`). With `?async=1` or `Prefer: respond-async` returns `202` + `jobId` for polling. Async requires REDIS_URL; returns `503` if queue unavailable, `409` if user already has active translate job |
+| POST | `/api/projects/:projectId/chapters/translate-batch` | Batch translate chapters (body: `chapterIds[]`, `translateOnlyEmpty?`, `stages?`, optional `languagePair`). With `?async=1` or `Prefer: respond-async` returns `202` + `jobId` for polling. Async requires REDIS_URL; returns `503` if queue unavailable, `409` if user already has active translate job |
 | GET | `/api/projects/:projectId/translate-jobs/:jobId` | Get translate job status/progress (polling, `compact` query supported) |
 | POST | `/api/projects/:projectId/translate-jobs/:jobId/cancel` | Request translate job cancellation |
-| POST | `/api/projects/:projectId/chapters/:chapterId/translate` | Translate chapter |
+| POST | `/api/projects/:projectId/chapters/:chapterId/translate` | Translate chapter (body: `translateOnlyEmpty?`, `paragraphIds?`, `stages?`, optional `languagePair`) |
 | POST | `/api/projects/:projectId/chapters/:chapterId/translate/cancel` | Cancel translation |
 | POST | `/api/projects/:projectId/chapters/:chapterId/translate/sync` | Manual sync translated chunks to paragraphs (recovery) |
 | POST | `/api/projects/:projectId/chapters/:chapterId/upload-translation` | Upload ready-made translation text |

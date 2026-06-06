@@ -8,6 +8,17 @@ import type {
   ProjectSettings,
 } from '../../types';
 import { Button, Modal, Icon, Input, AlertModal, LoadingSpinner } from '../ui';
+import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
+import {
+  projectDefaultLanguagePair,
+  type LanguagePairValue,
+  type ProjectSourceLanguage,
+  type ProjectTargetLanguage,
+} from '../../constants/translationLanguages';
+import {
+  getLanguageOverrideWarnings,
+  toLanguagePairOverride,
+} from '../../utils/languagePairOverride';
 import { api } from '../../api/client';
 import { useTokenEstimate } from '../../hooks/useTokenEstimate';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
@@ -104,6 +115,10 @@ export function ProcessChapters({
     'translation',
     'editing',
   ]);
+  const [batchLanguagePair, setBatchLanguagePair] = useState<LanguagePairValue>(() =>
+    projectDefaultLanguagePair(project)
+  );
+  const [batchLanguageOverrideAck, setBatchLanguageOverrideAck] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [summary, setSummary] = useState<ChapterSummary[] | null>(null);
   const [pageSize, setPageSize] = useState(20);
@@ -122,6 +137,8 @@ export function ProcessChapters({
     prevModalOpenRef.current = showTranslateAllModal;
 
     if (showTranslateAllModal && justOpened) {
+      setBatchLanguagePair(projectDefaultLanguagePair(project));
+      setBatchLanguageOverrideAck(false);
       setModalDataRefreshing(true);
       Promise.all([onRefreshProject(), api.getChaptersSummary(project.id).catch(() => null)])
         .then(([, s]) => {
@@ -131,7 +148,13 @@ export function ProcessChapters({
           setModalDataRefreshing(false);
         });
     }
-  }, [showTranslateAllModal, project.id, onRefreshProject]);
+  }, [
+    showTranslateAllModal,
+    project.id,
+    project.sourceLanguage,
+    project.targetLanguage,
+    onRefreshProject,
+  ]);
 
   const estimate = useTokenEstimate();
   const batch = useBatchChapterTranslation(
@@ -330,6 +353,36 @@ export function ProcessChapters({
     [project.id, onSettingsChange, onRefreshProject]
   );
 
+  const projectDefaultPair = useMemo(
+    () => projectDefaultLanguagePair(project),
+    [project.sourceLanguage, project.targetLanguage, project.id]
+  );
+  const hasLanguageOverride = useMemo(
+    () => toLanguagePairOverride(batchLanguagePair, project) !== undefined,
+    [batchLanguagePair, project.sourceLanguage, project.targetLanguage]
+  );
+  const languageOverrideWarnings = useMemo(() => {
+    const hasTranslatedAmongSelected = selectedChaptersForTranslate.some((c) => {
+      const s = c as ChapterSummary;
+      const hasTranslation =
+        'hasTranslation' in s ? s.hasTranslation : s.status === 'completed' || s.status === 'draft';
+      return hasTranslation;
+    });
+    return getLanguageOverrideWarnings({
+      batchLanguagePair,
+      project,
+      selectedStages: batchSelectedStages,
+      hasTranslatedContent: hasTranslatedAmongSelected,
+      t,
+    });
+  }, [batchLanguagePair, project, batchSelectedStages, selectedChaptersForTranslate, t]);
+  const needsLanguageOverrideAck = languageOverrideWarnings.length > 0;
+
+  const batchLanguagePairOverride = useMemo(
+    () => toLanguagePairOverride(batchLanguagePair, project),
+    [batchLanguagePair, project.sourceLanguage, project.targetLanguage]
+  );
+
   const handleTranslateAll = useCallback(() => {
     if (selectedChaptersForTranslate.length === 0) {
       setErrorModal({
@@ -339,10 +392,23 @@ export function ProcessChapters({
       return;
     }
     if (batchSelectedStages.length === 0) return;
+    if (needsLanguageOverrideAck && !batchLanguageOverrideAck) return;
     setShowTranslateAllModal(false);
-    batch.startBatch(selectedChaptersForTranslate, { stages: batchSelectedStages });
+    batch.startBatch(selectedChaptersForTranslate, {
+      stages: batchSelectedStages,
+      languagePair: batchLanguagePairOverride,
+    });
     onBatchStarted?.();
-  }, [selectedChaptersForTranslate, batchSelectedStages, batch, onBatchStarted, t]);
+  }, [
+    selectedChaptersForTranslate,
+    batchSelectedStages,
+    batch,
+    onBatchStarted,
+    t,
+    needsLanguageOverrideAck,
+    batchLanguageOverrideAck,
+    batchLanguagePairOverride,
+  ]);
 
   const handleMarkAsTranslatedBatch = useCallback(() => {
     if (selectedChaptersForTranslate.length === 0) {
@@ -447,7 +513,9 @@ export function ProcessChapters({
               <Button
                 onClick={handleTranslateAll}
                 disabled={
-                  selectedChaptersForTranslate.length === 0 || batchSelectedStages.length === 0
+                  selectedChaptersForTranslate.length === 0 ||
+                  batchSelectedStages.length === 0 ||
+                  (needsLanguageOverrideAck && !batchLanguageOverrideAck)
                 }
                 title={
                   selectedChaptersForTranslate.length === 0
@@ -853,6 +921,61 @@ export function ProcessChapters({
                 </label>
               );
             })
+          )}
+        </div>
+        <div class="process-chapters-language-pair-block">
+          <div class="process-chapters-language-pair-header">
+            <span class="process-chapters-language-pair-label">
+              {t('processChapters.languagePairLabel')}
+            </span>
+            {hasLanguageOverride && (
+              <button
+                type="button"
+                class="process-chapters-link-btn"
+                onClick={() => {
+                  setBatchLanguagePair(projectDefaultPair);
+                  setBatchLanguageOverrideAck(false);
+                }}
+              >
+                {t('processChapters.useProjectLanguagePair')}
+              </button>
+            )}
+          </div>
+          <ProjectLanguagePairFields
+            idPrefix="batch-process"
+            compact
+            sourceLanguage={batchLanguagePair.sourceLanguage}
+            targetLanguage={batchLanguagePair.targetLanguage}
+            onSourceLanguageChange={(value: ProjectSourceLanguage) => {
+              setBatchLanguagePair((prev) => ({ ...prev, sourceLanguage: value }));
+              setBatchLanguageOverrideAck(false);
+            }}
+            onTargetLanguageChange={(value: ProjectTargetLanguage) => {
+              setBatchLanguagePair((prev) => ({ ...prev, targetLanguage: value }));
+              setBatchLanguageOverrideAck(false);
+            }}
+          />
+          {!hasLanguageOverride && (
+            <p class="process-chapters-language-pair-hint">
+              {t('processChapters.languagePairDefaultHint')}
+            </p>
+          )}
+          {languageOverrideWarnings.map((warning) => (
+            <p key={warning} class="process-chapters-language-override-warning" role="alert">
+              {warning}
+            </p>
+          ))}
+          {needsLanguageOverrideAck && (
+            <label class="process-chapters-language-override-ack">
+              <input
+                type="checkbox"
+                checked={batchLanguageOverrideAck}
+                onChange={(e) =>
+                  setBatchLanguageOverrideAck((e.target as HTMLInputElement).checked)
+                }
+              />
+              {t('processChapters.languageOverrideAck')}
+            </label>
           )}
         </div>
         <div style={{ marginBottom: '0.75rem' }}>

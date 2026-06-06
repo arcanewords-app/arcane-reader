@@ -22,8 +22,19 @@ const translateJobStore = createTranslateJobStoreFromEnv();
 const TRANSLATE_JOB_TTL_SECONDS = parseInt(process.env.TRANSLATE_JOB_TTL_SECONDS ?? '3600', 10);
 
 export async function runTranslateJob(payload: TranslateJobPayload): Promise<void> {
-  const { jobId, projectId, userId, estimatedTokens, chapterIds, stages, translateOnlyEmpty } =
-    payload;
+  const {
+    jobId,
+    projectId,
+    userId,
+    estimatedTokens,
+    chapterIds,
+    stages,
+    translateOnlyEmpty,
+    sourceLanguage,
+    targetLanguage,
+  } = payload;
+  const languagePair =
+    sourceLanguage && targetLanguage ? { sourceLanguage, targetLanguage } : undefined;
   const token = ''; // Service role used for all DB ops
 
   try {
@@ -127,6 +138,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
               externalIsCancelled: () => cancelledFlag,
               traceId: createTraceId(),
               jobId,
+              languagePair,
               onProgress: (chunksDone, totalChunks) => {
                 translateJobStore
                   .updateJob(jobId, {

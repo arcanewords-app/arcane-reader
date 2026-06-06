@@ -1,8 +1,18 @@
-import { useState, useMemo, useCallback } from 'preact/hooks';
+import { useState, useMemo, useCallback, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Button, Icon } from '../ui';
+import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
 import { api } from '../../api/client';
 import { trackEvent } from '../../utils/analytics';
+import {
+  projectDefaultLanguagePair,
+  type LanguagePairValue,
+  type ProjectSourceLanguage,
+} from '../../constants/translationLanguages';
+import {
+  getLanguageOverrideWarnings,
+  toLanguagePairOverride,
+} from '../../utils/languagePairOverride';
 import type {
   Chapter,
   Project,
@@ -86,6 +96,46 @@ export function TranslationPanel({
     'translation',
     'editing',
   ]);
+  const [panelLanguagePair, setPanelLanguagePair] = useState<LanguagePairValue>(() =>
+    projectDefaultLanguagePair(project)
+  );
+  const [languageOverrideAck, setLanguageOverrideAck] = useState(false);
+
+  useEffect(() => {
+    setPanelLanguagePair(projectDefaultLanguagePair(project));
+    setLanguageOverrideAck(false);
+  }, [project.id, project.sourceLanguage, project.targetLanguage]);
+
+  const projectDefaultPair = useMemo(
+    () => projectDefaultLanguagePair(project),
+    [project.sourceLanguage, project.targetLanguage, project.id]
+  );
+  const hasTranslatedContent = useMemo(() => {
+    if (chapter.status === 'completed' || chapter.status === 'draft') return true;
+    return (
+      chapter.paragraphs?.some((p) => {
+        const text = p.translatedText?.trim() || '';
+        return text.length > 0 && !text.startsWith('❌') && !isChunkError(text);
+      }) ?? false
+    );
+  }, [chapter.status, chapter.paragraphs]);
+  const languageOverrideWarnings = useMemo(
+    () =>
+      getLanguageOverrideWarnings({
+        batchLanguagePair: panelLanguagePair,
+        project,
+        selectedStages,
+        hasTranslatedContent,
+        t,
+      }),
+    [panelLanguagePair, project, selectedStages, hasTranslatedContent, t]
+  );
+  const needsLanguageOverrideAck = languageOverrideWarnings.length > 0;
+  const panelLanguagePairOverride = useMemo(
+    () => toLanguagePairOverride(panelLanguagePair, project),
+    [panelLanguagePair, project.sourceLanguage, project.targetLanguage]
+  );
+  const hasLanguageOverride = panelLanguagePairOverride !== undefined;
 
   const textLength = useMemo(
     () => getTextLengthForScope(chapter, scope, selectedParagraphIds),
@@ -144,8 +194,12 @@ export function TranslationPanel({
   const buildOptions = (): ChapterTranslationOptions => {
     const opts: ChapterTranslationOptions = { stages: selectedStages };
     if (scope === 'empty') opts.translateOnlyEmpty = true;
-    if (scope === 'selected' && selectedParagraphIds.length)
+    if (scope === 'selected' && selectedParagraphIds.length) {
       opts.paragraphIds = selectedParagraphIds;
+    }
+    if (panelLanguagePairOverride) {
+      opts.languagePair = panelLanguagePairOverride;
+    }
     return opts;
   };
 
@@ -269,6 +323,59 @@ export function TranslationPanel({
         <span class="translation-panel-hint">
           {t('translationPanel.stagesMultiHint', 'Можно выбрать несколько стадий')}
         </span>
+      </div>
+
+      <div class="translation-panel-section translation-panel-language-pair">
+        <div class="translation-panel-language-pair-header">
+          <span class="translation-panel-label">{t('processChapters.languagePairLabel')}</span>
+          {hasLanguageOverride && (
+            <button
+              type="button"
+              class="translation-panel-link"
+              onClick={() => {
+                setPanelLanguagePair(projectDefaultPair);
+                setLanguageOverrideAck(false);
+              }}
+              disabled={translating}
+            >
+              {t('processChapters.useProjectLanguagePair')}
+            </button>
+          )}
+        </div>
+        <ProjectLanguagePairFields
+          idPrefix="chapter-translate"
+          compact
+          sourceDisabled={translating}
+          sourceLanguage={panelLanguagePair.sourceLanguage}
+          targetLanguage={panelLanguagePair.targetLanguage}
+          onSourceLanguageChange={(value: ProjectSourceLanguage) => {
+            setPanelLanguagePair((prev) => ({ ...prev, sourceLanguage: value }));
+            setLanguageOverrideAck(false);
+          }}
+          onTargetLanguageChange={(value) => {
+            setPanelLanguagePair((prev) => ({ ...prev, targetLanguage: value }));
+            setLanguageOverrideAck(false);
+          }}
+        />
+        {!hasLanguageOverride && (
+          <span class="translation-panel-hint">{t('processChapters.languagePairDefaultHint')}</span>
+        )}
+        {languageOverrideWarnings.map((warning) => (
+          <p key={warning} class="translation-panel-language-warning" role="alert">
+            {warning}
+          </p>
+        ))}
+        {needsLanguageOverrideAck && (
+          <label class="translation-panel-language-ack">
+            <input
+              type="checkbox"
+              checked={languageOverrideAck}
+              disabled={translating}
+              onChange={(e) => setLanguageOverrideAck((e.target as HTMLInputElement).checked)}
+            />
+            {t('processChapters.languageOverrideAck')}
+          </label>
+        )}
       </div>
 
       {selectedStages.includes('editing') && (
@@ -409,7 +516,8 @@ export function TranslationPanel({
                 selectedStages.length === 0 ||
                 (scope === 'empty' && emptyCount === 0) ||
                 (scope === 'selected' && selectedParagraphIds.length === 0) ||
-                chapter.status === 'translating'
+                chapter.status === 'translating' ||
+                (needsLanguageOverrideAck && !languageOverrideAck)
               }
             >
               <Icon name="translate" size="sm" /> {t('translationPanel.start', 'Запустить')}

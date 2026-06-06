@@ -10,12 +10,7 @@ import type {
 } from '../types';
 import { Card, Button, Modal, Input, LoadingSpinner, Icon, AlertModal, ConfirmModal } from './ui';
 import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
-import { ProjectLanguagePairFields } from './Project/ProjectLanguagePairFields';
-import {
-  formatLanguagePairLabel,
-  type ProjectSourceLanguage,
-  PROJECT_SOURCE_LANGUAGES,
-} from '../constants/translationLanguages';
+import { formatLanguagePairLabel } from '../constants/translationLanguages';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { isChunkError } from '../../shared/chunkErrors';
@@ -29,6 +24,7 @@ interface ProjectInfoProps {
   onDelete: () => void;
   onRefreshProject: () => Promise<void>;
   onEnterReadingMode: () => void;
+  onOpenSettings?: () => void;
 }
 
 export function ProjectInfo({
@@ -36,6 +32,7 @@ export function ProjectInfo({
   onDelete,
   onRefreshProject,
   onEnterReadingMode,
+  onOpenSettings,
 }: ProjectInfoProps) {
   const { t } = useTranslation();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -71,8 +68,6 @@ export function ProjectInfo({
   const [showTranslatorPicker, setShowTranslatorPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [savingEntities, setSavingEntities] = useState(false);
-  const [sourceLanguageDraft, setSourceLanguageDraft] = useState<ProjectSourceLanguage>('en');
-  const [savingLanguages, setSavingLanguages] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,39 +117,8 @@ export function ProjectInfo({
     };
   }, [project.id]);
 
-  useEffect(() => {
-    const src = project.sourceLanguage;
-    if ((PROJECT_SOURCE_LANGUAGES as readonly string[]).includes(src)) {
-      setSourceLanguageDraft(src as ProjectSourceLanguage);
-    } else {
-      setSourceLanguageDraft('en');
-    }
-  }, [project.sourceLanguage]);
-
   const languagePairLocked =
     project.glossary.length > 0 || project.chapters.some((c) => c.status !== 'pending');
-
-  const handleSaveLanguages = async () => {
-    if (languagePairLocked) return;
-    setSavingLanguages(true);
-    try {
-      await api.updateProjectLanguages(
-        project.id,
-        sourceLanguageDraft,
-        project.targetLanguage || 'ru'
-      );
-      invalidateProject(project.id);
-      await onRefreshProject();
-    } catch (error) {
-      console.error('Failed to update project languages:', error);
-      setErrorModal({
-        title: t('common.error'),
-        message: error instanceof ApiError ? error.message : String(error),
-      });
-    } finally {
-      setSavingLanguages(false);
-    }
-  };
 
   // Load entity details when project has entity IDs
   useEffect(() => {
@@ -742,32 +706,21 @@ export function ProjectInfo({
                   <div class="metadata-item metadata-item--language-pair">
                     <span class="metadata-label">{t('project.languagePair')}</span>
                     <div class="metadata-value">
-                      {languagePairLocked ? (
-                        <span class="project-language-pair-badge">
-                          {formatLanguagePairLabel(
-                            t,
-                            project.sourceLanguage || 'en',
-                            project.targetLanguage || 'ru'
-                          )}
-                        </span>
-                      ) : (
-                        <>
-                          <ProjectLanguagePairFields
-                            compact
-                            sourceLanguage={sourceLanguageDraft}
-                            onSourceLanguageChange={setSourceLanguageDraft}
-                          />
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={savingLanguages}
-                            disabled={sourceLanguageDraft === (project.sourceLanguage || 'en')}
-                            onClick={handleSaveLanguages}
-                            style={{ marginTop: '0.5rem' }}
-                          >
-                            {t('common.save')}
-                          </Button>
-                        </>
+                      <span class="project-language-pair-badge">
+                        {formatLanguagePairLabel(
+                          t,
+                          project.sourceLanguage || 'en',
+                          project.targetLanguage || 'ru'
+                        )}
+                      </span>
+                      {onOpenSettings && !languagePairLocked && (
+                        <button
+                          type="button"
+                          class="project-language-pair-edit-link"
+                          onClick={onOpenSettings}
+                        >
+                          {t('project.languagePairEditInSettings')}
+                        </button>
                       )}
                       {languagePairLocked && (
                         <p class="project-language-pair-hint">{t('project.languagePairLocked')}</p>

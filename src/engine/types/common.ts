@@ -8,6 +8,7 @@ export type Language =
   | 'ko' // Korean
   | 'en' // English
   | 'ru' // Russian
+  | 'be' // Belarusian
   | 'pl'; // Polish
 
 export type Gender = 'male' | 'female' | 'neutral' | 'unknown';

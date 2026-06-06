@@ -5,8 +5,12 @@ import type { ProjectListItem } from '../../types';
 import { projectsCache, loadProjects as loadProjectsStore } from '../../store/projects';
 import { Button, Card, Modal, Input, Icon } from '../ui';
 import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
-import type { ProjectSourceLanguage } from '../../constants/translationLanguages';
-import { PROJECT_TARGET_LANGUAGE } from '../../constants/translationLanguages';
+import {
+  PROJECT_DEFAULT_SOURCE_LANGUAGE,
+  PROJECT_DEFAULT_TARGET_LANGUAGE,
+  type ProjectSourceLanguage,
+  type ProjectTargetLanguage,
+} from '../../constants/translationLanguages';
 import { getProjectTypeColor } from '../../utils/project-type';
 import './ProjectList.css';
 
@@ -27,8 +31,12 @@ export function ProjectList({
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectSourceLanguage, setNewProjectSourceLanguage] =
-    useState<ProjectSourceLanguage>('en');
+  const [newProjectSourceLanguage, setNewProjectSourceLanguage] = useState<ProjectSourceLanguage>(
+    PROJECT_DEFAULT_SOURCE_LANGUAGE
+  );
+  const [newProjectTargetLanguage, setNewProjectTargetLanguage] = useState<ProjectTargetLanguage>(
+    PROJECT_DEFAULT_TARGET_LANGUAGE
+  );
   const [creating, setCreating] = useState(false);
 
   const getProjectTypeMaterialIcon = (projectType: string) => {
@@ -65,11 +73,12 @@ export function ProjectList({
     try {
       const project = await api.createProject(newProjectName.trim(), {
         sourceLanguage: newProjectSourceLanguage,
-        targetLanguage: PROJECT_TARGET_LANGUAGE,
+        targetLanguage: newProjectTargetLanguage,
       });
       setShowModal(false);
       setNewProjectName('');
-      setNewProjectSourceLanguage('en');
+      setNewProjectSourceLanguage(PROJECT_DEFAULT_SOURCE_LANGUAGE);
+      setNewProjectTargetLanguage(PROJECT_DEFAULT_TARGET_LANGUAGE);
       await loadProjects();
       onSelect(project.id);
       onProjectCreated?.();
@@ -188,9 +197,13 @@ export function ProjectList({
           onKeyDown={handleKeyDown}
         />
         <ProjectLanguagePairFields
+          idPrefix="create-project"
           sourceLanguage={newProjectSourceLanguage}
+          targetLanguage={newProjectTargetLanguage}
           onSourceLanguageChange={setNewProjectSourceLanguage}
+          onTargetLanguageChange={setNewProjectTargetLanguage}
         />
+        <p class="project-language-pair-create-hint">{t('project.languagePairCreateHint')}</p>
       </Modal>
     </>
   );

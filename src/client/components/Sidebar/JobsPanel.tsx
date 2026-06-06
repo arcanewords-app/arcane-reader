@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { Button, Icon } from '../ui';
 import { api } from '../../api/client';
+import { formatLanguagePairLabel } from '../../constants/translationLanguages';
 import type { Project, ProjectWithChapterList, ProjectJobItem } from '../../types';
 import './JobsPanel.css';
 
@@ -206,6 +207,11 @@ export function JobsPanel({ project, onRefreshProject, triggerFetch }: JobsPanel
                     {jobStatusLabel(job.status, t)}
                   </span>
                 </div>
+                {job.sourceLanguage && job.targetLanguage && (
+                  <span class="jobs-panel-item-language-pair">
+                    {formatLanguagePairLabel(t, job.sourceLanguage, job.targetLanguage)}
+                  </span>
+                )}
                 {isActive && (
                   <div class="jobs-panel-item-progress-row">
                     <div class="jobs-panel-item-progress-bar">

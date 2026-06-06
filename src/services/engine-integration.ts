@@ -12,13 +12,16 @@ import {
   chunkText,
   translateAndDeclineName,
   declineName,
+  parseProjectLanguage,
   parseProjectLanguagePair,
+  assertSupportedPair,
   isLatinScriptName,
   resolvePrompts,
   type PipelineOptions,
   type Glossary,
   type Gender,
   type Declensions,
+  type Language,
 } from '../engine/index.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { getCachedAnalysisResult, setCachedAnalysisResult } from './analysisCache.js';
@@ -32,8 +35,35 @@ import type {
 } from '../storage/database.js';
 import { logger } from '../logger.js';
 
-// Cache for NovelAgents per project
+// Cache for NovelAgents per project and language pair
 const agentCache = new Map<string, NovelAgent>();
+
+export type LanguagePairOverride = {
+  sourceLanguage: string;
+  targetLanguage: string;
+};
+
+function agentCacheKey(
+  projectId: string,
+  sourceLanguage: Language,
+  targetLanguage: Language
+): string {
+  return `${projectId}:${sourceLanguage}:${targetLanguage}`;
+}
+
+/** Resolve project default or ephemeral job override into a validated language pair. */
+export function resolveEffectiveLanguagePair(
+  project: Project | ProjectWithChapterList,
+  override?: Partial<LanguagePairOverride>
+): { sourceLanguage: Language; targetLanguage: Language } {
+  if (override?.sourceLanguage && override?.targetLanguage) {
+    const sourceLanguage = parseProjectLanguage(override.sourceLanguage, 'source');
+    const targetLanguage = parseProjectLanguage(override.targetLanguage, 'target');
+    assertSupportedPair(sourceLanguage, targetLanguage);
+    return { sourceLanguage, targetLanguage };
+  }
+  return parseProjectLanguagePair(project.sourceLanguage, project.targetLanguage);
+}
 
 function minimalDeclensions(name: string): Declensions {
   return {
@@ -46,20 +76,29 @@ function minimalDeclensions(name: string): Declensions {
   };
 }
 
-function loadCharacterFromGlossaryEntry(entry: GlossaryEntry): {
+function loadCharacterFromGlossaryEntry(
+  entry: GlossaryEntry,
+  targetLanguage: Language
+): {
   translatedName: string;
   declensions: Declensions;
   gender: Gender;
 } {
   const gender = (entry.gender as Gender) || 'unknown';
+  const useRussianDeclension = targetLanguage === 'ru';
+
   if (entry.translated) {
     return {
       translatedName: entry.translated,
-      declensions: entry.declensions ?? declineName(entry.translated, gender),
+      declensions:
+        entry.declensions ??
+        (useRussianDeclension
+          ? declineName(entry.translated, gender)
+          : minimalDeclensions(entry.translated)),
       gender,
     };
   }
-  if (isLatinScriptName(entry.original)) {
+  if (useRussianDeclension && isLatinScriptName(entry.original)) {
     const result = translateAndDeclineName(entry.original, gender);
     return {
       translatedName: result.translatedName,
@@ -75,17 +114,17 @@ function loadCharacterFromGlossaryEntry(entry: GlossaryEntry): {
 }
 
 /**
- * Get or create NovelAgent for a project
+ * Get or create NovelAgent for a project (optionally with ephemeral language pair override).
  */
-export function getAgentForProject(project: Project | ProjectWithChapterList): NovelAgent {
-  let agent = agentCache.get(project.id);
+export function getAgentForProject(
+  project: Project | ProjectWithChapterList,
+  languagePair?: Partial<LanguagePairOverride>
+): NovelAgent {
+  const { sourceLanguage, targetLanguage } = resolveEffectiveLanguagePair(project, languagePair);
+  const cacheKey = agentCacheKey(project.id, sourceLanguage, targetLanguage);
+  let agent = agentCache.get(cacheKey);
 
   if (!agent) {
-    const { sourceLanguage, targetLanguage } = parseProjectLanguagePair(
-      project.sourceLanguage,
-      project.targetLanguage
-    );
-
     agent = NovelAgent.create({
       novelId: project.id,
       title: project.name,
@@ -97,7 +136,10 @@ export function getAgentForProject(project: Project | ProjectWithChapterList): N
     const glossaryManager = agent.glossary as unknown as Glossary;
     for (const entry of project.glossary) {
       if (entry.type === 'character') {
-        const { translatedName, declensions, gender } = loadCharacterFromGlossaryEntry(entry);
+        const { translatedName, declensions, gender } = loadCharacterFromGlossaryEntry(
+          entry,
+          targetLanguage
+        );
 
         glossaryManager.characters.push({
           id: entry.id,
@@ -132,7 +174,7 @@ export function getAgentForProject(project: Project | ProjectWithChapterList): N
       }
     }
 
-    agentCache.set(project.id, agent);
+    agentCache.set(cacheKey, agent);
   }
 
   return agent;
@@ -170,7 +212,8 @@ function modelForChatCompletions(id: string): string {
  */
 export function createPipeline(
   config: AppConfig,
-  project: Project | ProjectWithChapterList
+  project: Project | ProjectWithChapterList,
+  languagePair?: Partial<LanguagePairOverride>
 ): TranslationPipeline {
   // Validate API key
   if (!config.openai.apiKey) {
@@ -298,7 +341,7 @@ export function createPipeline(
     logger.warn('Editing provider missing completeJSON - quality check will be skipped');
   }
 
-  const agent = getAgentForProject(project);
+  const agent = getAgentForProject(project, languagePair);
 
   logger.debug(
     {
@@ -334,6 +377,8 @@ export type TranslatePipelineOptions = PipelineOptions & {
   includeGlossaryInAnalysis?: boolean;
   includeGlossaryInTranslation?: boolean;
   includeGlossaryInEditing?: boolean;
+  /** Ephemeral language pair override for this translation run. */
+  languagePair?: Partial<LanguagePairOverride>;
   /** Called when chunk progress updates (for UI). */
   onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
 };
@@ -373,7 +418,7 @@ export async function translateChapterWithPipeline(
   failedChunkIndex?: number;
 }> {
   try {
-    const pipeline = createPipeline(config, project);
+    const pipeline = createPipeline(config, project, options.languagePair);
     const stages = options.stages ?? 'all';
 
     const fallbackTemp = project.settings.temperature ?? config.translation?.temperature ?? 0.5;
@@ -767,8 +812,11 @@ export async function translateChapterWithPipeline(
       );
     }
 
-    // Update agent cache
-    agentCache.set(project.id, pipeline.getAgent());
+    const { sourceLanguage, targetLanguage } = resolveEffectiveLanguagePair(
+      project,
+      options.languagePair
+    );
+    agentCache.set(agentCacheKey(project.id, sourceLanguage, targetLanguage), pipeline.getAgent());
 
     // Extract tokens by stage (include analysis/editing whenever that stage ran, even if 0)
     const ranAnalysis = Array.isArray(stages) ? stages.includes('analysis') : stages === 'all';
@@ -820,6 +868,7 @@ export async function analyzeChaptersBatch(
   options: {
     useCache?: boolean;
     analysisConcurrency?: number;
+    languagePair?: Partial<LanguagePairOverride>;
     isCancelled?: () => boolean;
     onProgress?: (
       chapterId: string,
@@ -844,8 +893,13 @@ export async function analyzeChaptersBatch(
 }> {
   const useCache = options.useCache ?? true;
   const startTime = Date.now();
-  const pipeline = createPipeline(config, project);
-  const agent = getAgentForProject(project);
+  const pipeline = createPipeline(config, project, options.languagePair);
+  const agent = getAgentForProject(project, options.languagePair);
+  const effectivePair = resolveEffectiveLanguagePair(project, options.languagePair);
+  const analysisCachePair = {
+    sourceLanguage: effectivePair.sourceLanguage,
+    targetLanguage: effectivePair.targetLanguage,
+  };
 
   const byOriginal = (orig: string, type: 'character' | 'location' | 'term') =>
     project.glossary.find(
@@ -862,7 +916,7 @@ export async function analyzeChaptersBatch(
     for (const ch of chapters) {
       const text = (ch.originalText ?? '').trim();
       if (!text) continue;
-      const hit = await getCachedAnalysisResult(project.id, ch.id);
+      const hit = await getCachedAnalysisResult(project.id, ch.id, analysisCachePair);
       if (hit) {
         cached.push({ chapter: ch, data: hit });
       } else {
@@ -911,7 +965,7 @@ export async function analyzeChaptersBatch(
       if (r.success && r.data) {
         const ch = toAnalyze.find((c) => c.number === r.chapterNumber);
         if (ch) {
-          await setCachedAnalysisResult(project.id, ch.id, {
+          await setCachedAnalysisResult(project.id, ch.id, analysisCachePair, {
             chapterNumber: r.chapterNumber,
             data: r.data,
             tokensUsed: r.tokensUsed,
@@ -960,7 +1014,11 @@ export async function analyzeChaptersBatch(
   if (allResults.length > 0) {
     agent.applyBatchAnalysisResults(allResults.map((r) => r.data));
   }
-  agentCache.set(project.id, pipeline.getAgent());
+  const { sourceLanguage, targetLanguage } = resolveEffectiveLanguagePair(
+    project,
+    options.languagePair
+  );
+  agentCache.set(agentCacheKey(project.id, sourceLanguage, targetLanguage), pipeline.getAgent());
 
   const entityChapters = new Map<string, number[]>();
   const addChapterForEntity = (key: string, chNum: number) => {
@@ -1352,13 +1410,19 @@ export function chunkTextForTranslation(
  * Clear agent cache for a project
  */
 export function clearAgentCache(projectId: string): void {
-  agentCache.delete(projectId);
+  for (const key of agentCache.keys()) {
+    if (key === projectId || key.startsWith(`${projectId}:`)) {
+      agentCache.delete(key);
+    }
+  }
 }
 
 /**
  * Get agent state as JSON (for debugging/export)
  */
 export function exportAgentState(projectId: string): string | null {
-  const agent = agentCache.get(projectId);
+  const agent =
+    agentCache.get(projectId) ??
+    [...agentCache.entries()].find(([key]) => key.startsWith(`${projectId}:`))?.[1];
   return agent ? agent.toJSON() : null;
 }

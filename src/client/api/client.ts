@@ -26,6 +26,7 @@ import type {
   Paragraph,
   TranslateResponse,
   ChapterTranslationOptions,
+  LanguagePairOptions,
   ImportJobState,
   AnalysisJobState,
   TranslateJobState,
@@ -848,11 +849,15 @@ export const api = {
   async startAnalyzeBatch(
     projectId: string,
     chapterIds: string[],
-    signal?: AbortSignal
+    options?: { languagePair?: LanguagePairOptions; signal?: AbortSignal }
   ): Promise<{ jobId: string; status: 'queued' }> {
+    const signal = options?.signal;
     return fetchJson(`/api/projects/${projectId}/chapters/analyze-batch?async=1`, {
       method: 'POST',
-      body: JSON.stringify({ chapterIds }),
+      body: JSON.stringify({
+        chapterIds,
+        ...(options?.languagePair ? { languagePair: options.languagePair } : {}),
+      }),
       signal,
       headers: {
         'Content-Type': 'application/json',
@@ -898,7 +903,11 @@ export const api = {
   async startTranslateBatch(
     projectId: string,
     chapterIds: string[],
-    body?: { translateOnlyEmpty?: boolean; stages?: string[] | 'all' },
+    body?: {
+      translateOnlyEmpty?: boolean;
+      stages?: string[] | 'all';
+      languagePair?: LanguagePairOptions;
+    },
     signal?: AbortSignal
   ): Promise<{ jobId: string; status: 'queued' }> {
     return fetchJson(`/api/projects/${projectId}/chapters/translate-batch?async=1`, {
@@ -907,6 +916,7 @@ export const api = {
         chapterIds,
         translateOnlyEmpty: body?.translateOnlyEmpty,
         stages: body?.stages,
+        ...(body?.languagePair ? { languagePair: body.languagePair } : {}),
       }),
       signal,
       headers: {
@@ -951,6 +961,9 @@ export const api = {
     }
     if (options?.stages !== undefined) {
       body.stages = options.stages;
+    }
+    if (options?.languagePair) {
+      body.languagePair = options.languagePair;
     }
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate`, {
       method: 'POST',

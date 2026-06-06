@@ -35,6 +35,9 @@
     "targetLanguageLabel": "Язык перевода",
     "languagePair": "Пара перевода",
     "languagePairLocked": "Пара языков заблокирована после анализа или появления записей в глоссарии.",
+    "languagePairCreateHint": "Пару перевода можно изменить позже в настройках проекта.",
+    "ruSourceHint": "Русский как источник: оригинальный текст глав должен быть на русском.",
+    "languagePairEditInSettings": "Изменить в настройках проекта",
     "metadataFileLanguage": "Язык оригинала (метаданные файла)"
   },
   "chapter": {
@@ -193,7 +196,8 @@
     "cancelRequested": "Отмена запрошена…",
     "startedAgoMinutes": "Запущено {{count}} мин назад",
     "startedAgoHours": "Запущено {{count}} ч назад",
-    "goToChapter": "Перейти к главе"
+    "goToChapter": "Перейти к главе",
+    "languagePair": "{{source}} → {{target}}"
   },
   "sidebar": {
     "projects": "Проекты",
@@ -227,6 +231,8 @@
   },
   "settings": {
     "title": "Настройки проекта",
+    "languagePairSection": "Пара перевода",
+    "saveLanguagePair": "Сохранить пару языков",
     "appLanguage": "Язык приложения",
     "appLanguageRu": "Русский",
     "appLanguageEn": "English",
@@ -639,7 +645,13 @@
     "selectDisplayed": "Выбрать отображаемые ({{count}})",
     "markEntireProject": "Пометить всё произведение как переведённое",
     "searchPlaceholder": "Поиск по номеру или названию",
-    "uploadedTranslationHint": "Загрузили готовый перевод?"
+    "uploadedTranslationHint": "Загрузили готовый перевод?",
+    "languagePairLabel": "Пара перевода",
+    "languagePairDefaultHint": "Используется значение из настроек проекта. Можно изменить только для этой обработки.",
+    "useProjectLanguagePair": "Использовать настройки проекта",
+    "languageOverrideGlossaryWarning": "Глоссарий построен под другую пару; новый анализ может добавить несовместимые записи.",
+    "languageOverrideTranslationWarning": "Существующий перевод может не соответствовать выбранному целевому языку.",
+    "languageOverrideAck": "Я понимаю риски использования другой языковой пары для этой обработки"
   },
   "tokenUsage": {
     "loading": "Загрузка...",
@@ -926,6 +938,7 @@
   "language": {
     "en": "Английский",
     "ru": "Русский",
+    "be": "Беларуская",
     "pl": "Польский",
     "uk": "Украинский",
     "de": "Немецкий",

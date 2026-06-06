@@ -26,6 +26,9 @@ export interface AnalysisJobState {
   cancelRequested: boolean;
   /** Reserved tokens for release on completion/error/cancel */
   estimatedTokens?: number;
+  /** Effective language pair for this job (project default or override). */
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export interface AnalysisJobStore {

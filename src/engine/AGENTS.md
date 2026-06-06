@@ -21,7 +21,7 @@ Applies when editing `src/engine/**`. Global rules: `.cursor/rules/engine.mdc`, 
 
 ## Languages (MVP)
 
-- Sources: `en`, `ko`, `zh`; target: `ru`. Whitelist: `src/engine/language.ts`. `ja` = Phase 2.
+- Pairs: en/ko/zh→ru, en/ko/zh/ru→be (default en→ru). Whitelist: `src/engine/language.ts`. `ja` = Phase 2.
 
 ## Glossary & Text Blocks
 

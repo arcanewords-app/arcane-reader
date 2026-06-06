@@ -17,7 +17,7 @@ import type { EditingFocus, EditingStylePreset } from '../prompts/system/editor.
 import {
   createEditorPrompt,
   getEditorSystemPrompt,
-  QUALITY_CHECK_PROMPT,
+  getQualityCheckPrompt,
 } from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
@@ -158,7 +158,8 @@ export class EditStage {
           retryDelayMs,
           parallelChunks,
           options.isCancelled,
-          options.onProgress
+          options.onProgress,
+          options.context.targetLanguage
         );
 
         editedText = chunkedResult.text;
@@ -175,7 +176,8 @@ export class EditStage {
 
         const systemPrompt = getEditorSystemPrompt(
           options.editingStylePreset ?? 'default',
-          options.editingFocus ?? 'both'
+          options.editingFocus ?? 'both',
+          options.context.targetLanguage
         );
         const messages: Message[] = [
           { role: 'system', content: systemPrompt },
@@ -212,7 +214,8 @@ export class EditStage {
           const qualityResult = await this.checkQuality(
             editedText,
             originalText,
-            glossaryTextForQuality
+            glossaryTextForQuality,
+            options.context.targetLanguage
           );
           totalTokens += qualityResult.tokensUsed;
           qualityScore = qualityResult.score;
@@ -232,7 +235,12 @@ export class EditStage {
                     filterGlossaryForChunk(editedText, fullGlossary)
                   ).toPromptText()
                 : '';
-            const qualityPromise = this.checkQuality(editedText, originalText, glossaryForQuality);
+            const qualityPromise = this.checkQuality(
+              editedText,
+              originalText,
+              glossaryForQuality,
+              options.context.targetLanguage
+            );
             const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('Quality check timeout')), timeoutMs)
             );
@@ -377,7 +385,8 @@ export class EditStage {
     retryDelayMs: number = 1500,
     parallelChunks: number = 1,
     isCancelled?: () => boolean,
-    onProgress?: (chunksDone: number, totalChunks: number) => void
+    onProgress?: (chunksDone: number, totalChunks: number) => void,
+    targetLanguage?: import('../types/common.js').Language
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -411,6 +420,7 @@ export class EditStage {
         retryAttempts,
         retryDelayMs,
         isCancelled,
+        targetLanguage,
       });
     };
 
@@ -482,6 +492,7 @@ export class EditStage {
       retryAttempts: number;
       retryDelayMs: number;
       isCancelled?: () => boolean;
+      targetLanguage?: import('../types/common.js').Language;
     }
   ): Promise<{ result: MergeChunkInput; tokensUsed: number }> {
     let lastError: Error | undefined;
@@ -509,7 +520,8 @@ export class EditStage {
           opts.includeGlossary,
           opts.customInstructions,
           opts.editingStylePreset,
-          opts.editingFocus
+          opts.editingFocus,
+          opts.targetLanguage
         );
 
         if (!editResult.text || editResult.text.trim().length === 0) {
@@ -578,7 +590,8 @@ export class EditStage {
     includeGlossary: boolean = true,
     customInstructions?: string,
     editingStylePreset: EditingStylePreset = 'default',
-    editingFocus: EditingFocus = 'both'
+    editingFocus: EditingFocus = 'both',
+    targetLanguage?: import('../types/common.js').Language
   ): Promise<{ text: string; tokensUsed: number }> {
     const glossaryText =
       includeGlossary && fullGlossary
@@ -587,7 +600,7 @@ export class EditStage {
           ).toPromptText()
         : '';
 
-    const systemPrompt = getEditorSystemPrompt(editingStylePreset, editingFocus);
+    const systemPrompt = getEditorSystemPrompt(editingStylePreset, editingFocus, targetLanguage);
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
       {
@@ -615,10 +628,11 @@ export class EditStage {
   private async checkQuality(
     translatedText: string,
     originalText: string,
-    glossaryText: string
+    glossaryText: string,
+    targetLanguage?: import('../types/common.js').Language
   ): Promise<{ score: number; tokensUsed: number }> {
     const messages: Message[] = [
-      { role: 'system', content: QUALITY_CHECK_PROMPT },
+      { role: 'system', content: getQualityCheckPrompt(targetLanguage) },
       {
         role: 'user',
         content: `## Original\n${originalText}\n\n## Translation\n${translatedText}\n\n## Glossary\n${glossaryText}`,

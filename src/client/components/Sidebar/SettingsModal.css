@@ -415,3 +415,30 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.settings-language-pair-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.settings-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-language-pair-locked {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.settings-language-pair-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--error);
+}

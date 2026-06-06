@@ -33,6 +33,8 @@ import {
   exportDownloadQuerySchema,
   chapterIdsBodySchema,
   translateBatchBodySchema,
+  chapterTranslateBodySchema,
+  type LanguagePairBody,
   chapterTitleBodySchema,
   chapterNumberBodySchema,
   chapterStatusBodySchema,
@@ -552,7 +554,11 @@ import {
   analyzeChaptersBatch,
   getNameDeclensions,
   clearAgentCache,
+  resolveEffectiveLanguagePair,
+  type LanguagePairOverride,
 } from './services/engine-integration.js';
+import { invalidateAnalysisForProject } from './services/analysisCache.js';
+import { isProjectLanguagePairLocked } from './services/projectLanguagePair.js';
 import {
   suggestGlossaryMerges,
   type MergeSuggestion,
@@ -918,6 +924,44 @@ function generateTranslateJobId(): string {
   return `trl_${Date.now().toString(36)}_${Math.round(Math.random() * 1e9).toString(36)}`;
 }
 
+function isLanguagePairOverride(
+  project: Project | ProjectWithChapterList,
+  override?: LanguagePairBody
+): override is LanguagePairBody {
+  if (!override) return false;
+  return (
+    (project.sourceLanguage || 'en') !== override.sourceLanguage ||
+    (project.targetLanguage || 'ru') !== override.targetLanguage
+  );
+}
+
+function effectiveJobLanguageFields(
+  project: Project | ProjectWithChapterList,
+  override?: LanguagePairBody
+): { sourceLanguage: string; targetLanguage: string } {
+  const { sourceLanguage, targetLanguage } = resolveEffectiveLanguagePair(project, override);
+  return { sourceLanguage, targetLanguage };
+}
+
+function warnLanguageOverrideWithGlossary(
+  req: express.Request,
+  project: Project | ProjectWithChapterList,
+  override?: LanguagePairBody
+): void {
+  if (!isLanguagePairOverride(project, override)) return;
+  if (project.glossary.length === 0) return;
+  req.log?.warn(
+    {
+      event: 'translation.language_override_with_glossary',
+      projectId: project.id,
+      override,
+      projectSource: project.sourceLanguage,
+      projectTarget: project.targetLanguage,
+    },
+    'Language pair override with existing glossary'
+  );
+}
+
 function toPublicTranslateJob(
   job: TranslateJobState,
   options?: { compact?: boolean }
@@ -939,6 +983,8 @@ function toPublicTranslateJob(
     errors: job.errors,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
+    sourceLanguage: job.sourceLanguage,
+    targetLanguage: job.targetLanguage,
   };
 }
 
@@ -961,6 +1007,8 @@ function toPublicAnalysisJob(
     errors: job.errors,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
+    sourceLanguage: job.sourceLanguage,
+    targetLanguage: job.targetLanguage,
   };
 }
 
@@ -1728,6 +1776,15 @@ app.put('/api/projects/:id/languages', requireAuth, requireRole('author'), async
     }
 
     const { sourceLanguage, targetLanguage } = parsed.data;
+
+    if (isProjectLanguagePairLocked(project)) {
+      return res.status(409).json({
+        error: 'Language pair locked',
+        message: 'Language pair cannot be changed after analysis or glossary entries exist.',
+        code: 'LANGUAGE_PAIR_LOCKED',
+      });
+    }
+
     const updatedProject = await updateProject(
       req.params.id,
       { sourceLanguage, targetLanguage },
@@ -1739,6 +1796,7 @@ app.put('/api/projects/:id/languages', requireAuth, requireRole('author'), async
     }
 
     clearAgentCache(req.params.id);
+    await invalidateAnalysisForProject(req.params.id);
     await invalidateUserProjectCaches(req.user.id, req.params.id);
 
     req.log?.info(
@@ -3369,7 +3427,9 @@ app.post(
           details: parsed.error.flatten().fieldErrors,
         });
       }
-      const chapterIds = parsed.data.chapterIds;
+      const { chapterIds, languagePair: languagePairOverride } = parsed.data;
+      warnLanguageOverrideWithGlossary(req, project, languagePairOverride);
+      const jobLanguageFields = effectiveJobLanguageFields(project, languagePairOverride);
 
       const chaptersWithText: Array<Chapter & { originalText: string }> = [];
 
@@ -3464,6 +3524,7 @@ app.post(
           finishedAt: null,
           cancelRequested: false,
           estimatedTokens,
+          ...jobLanguageFields,
         };
         await analysisJobStore.createJob(job);
         await analysisJobStore.addToProjectIndex(projectId, jobId);
@@ -3476,6 +3537,7 @@ app.post(
           userId,
           estimatedTokens,
           chapterIds: chaptersWithText.map((c) => c.id),
+          ...jobLanguageFields,
         });
 
         res.status(202).json({ jobId, status: 'queued' as const });
@@ -3490,6 +3552,7 @@ app.post(
         analyzeChaptersBatch(config, project, chaptersWithText, {
           useCache: true,
           analysisConcurrency,
+          languagePair: languagePairOverride,
         })
       );
 
@@ -3708,7 +3771,14 @@ app.post(
           details: parsed.error.flatten().fieldErrors,
         });
       }
-      const { chapterIds, translateOnlyEmpty, stages: stagesRaw } = parsed.data;
+      const {
+        chapterIds,
+        translateOnlyEmpty,
+        stages: stagesRaw,
+        languagePair: languagePairOverride,
+      } = parsed.data;
+      warnLanguageOverrideWithGlossary(req, project, languagePairOverride);
+      const jobLanguageFields = effectiveJobLanguageFields(project, languagePairOverride);
       const validStage = (s: string): s is 'analysis' | 'translation' | 'editing' =>
         s === 'analysis' || s === 'translation' || s === 'editing';
       let stages: TranslationStages = 'all';
@@ -3807,6 +3877,7 @@ app.post(
           finishedAt: null,
           cancelRequested: false,
           estimatedTokens,
+          ...jobLanguageFields,
         };
         await translateJobStore.createJob(job);
         await translateJobStore.addToProjectIndex(projectId, jobId);
@@ -3821,6 +3892,7 @@ app.post(
           chapterIds: chaptersToTranslate.map((c) => c.id),
           stages,
           translateOnlyEmpty: translateOnlyEmpty ?? false,
+          ...jobLanguageFields,
         });
 
         res.status(202).json({ jobId, status: 'queued' as const });
@@ -3969,17 +4041,26 @@ app.post(
       }
       const chapterForTranslation = { ...chapter, originalText: effectiveOriginalText };
 
-      // Parse request body: translateOnlyEmpty, paragraphIds, stages (array or 'all')
-      const body = req.body || {};
-      const translateOnlyEmpty = body.translateOnlyEmpty === true;
-      const paragraphIds = Array.isArray(body.paragraphIds) ? body.paragraphIds : undefined;
-      const stagesRaw = body.stages;
-      const validStage = (s: unknown): s is 'analysis' | 'translation' | 'editing' =>
+      const parsedBody = chapterTranslateBodySchema.safeParse(req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsedBody.error.flatten().fieldErrors,
+        });
+      }
+      const {
+        translateOnlyEmpty = false,
+        paragraphIds,
+        stages: stagesRaw,
+        languagePair: languagePairOverride,
+      } = parsedBody.data;
+      warnLanguageOverrideWithGlossary(req, project, languagePairOverride);
+      const validStage = (s: string): s is 'analysis' | 'translation' | 'editing' =>
         s === 'analysis' || s === 'translation' || s === 'editing';
       let stages: TranslationStages = 'all';
       if (Array.isArray(stagesRaw) && stagesRaw.length > 0) {
         const arr = stagesRaw.filter(validStage);
-        if (arr.length > 0) stages = [...new Set(arr)]; // unique, preserve order
+        if (arr.length > 0) stages = [...new Set(arr)];
       } else if (stagesRaw === 'all') {
         stages = 'all';
       }
@@ -4115,7 +4196,7 @@ app.post(
         req.user!.id,
         paragraphIds,
         stages,
-        { traceId, requestId }
+        { traceId, requestId, languagePair: languagePairOverride }
       );
 
       res.json({ status: 'started', chapterId: chapter.id, traceId });
@@ -4179,6 +4260,8 @@ export async function performTranslation(
     traceId?: string;
     jobId?: string;
     requestId?: string;
+    /** Ephemeral language pair override for this run. */
+    languagePair?: LanguagePairOverride;
   }
 ): Promise<void> {
   const traceId = options?.traceId ?? createTraceId();
@@ -4224,6 +4307,7 @@ async function performTranslationInner(
         externalIsCancelled?: () => boolean;
         onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
         jobId?: string;
+        languagePair?: LanguagePairOverride;
       }
     | undefined,
   traceId: string
@@ -4533,6 +4617,7 @@ async function performTranslationInner(
         includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
         includeGlossaryInTranslation: phase1IncludeGlossaryInTranslation,
         includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
+        languagePair: options?.languagePair,
         onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
           setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
           options?.onProgress?.(chunksDone, totalChunks, stage);
@@ -4940,6 +5025,7 @@ async function performTranslationInner(
           stages: ['editing'],
           existingTranslatedText: buildMarkedTextFromParagraphs(syncedParagraphs),
           isCancelled,
+          languagePair: options?.languagePair,
           onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
             setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
             options?.onProgress?.(chunksDone, totalChunks, stage);

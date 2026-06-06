@@ -25,6 +25,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const [showGlossary, setShowGlossary] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [reportsCount, setReportsCount] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     loadProject();
@@ -172,6 +173,8 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
         onSettingsChange={handleSettingsChange}
         onRefreshProject={handleRefreshProject}
         isMobileOpen={sidebarOpen}
+        settingsOpen={settingsOpen}
+        onSettingsOpenChange={setSettingsOpen}
       />
       <section class="content">
         <ProjectInfo
@@ -180,6 +183,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           onDelete={handleDeleteProject}
           onRefreshProject={handleRefreshProject}
           onEnterReadingMode={handleEnterReadingMode}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
       </section>
 
