@@ -40,7 +40,9 @@ Set on **Vercel** (Production + Preview) and **worker host**. Do not enable loca
 | `REDIS_URL` | BullMQ connection (analysis/translate queues) |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Job state + cancel flags (worker) |
 
-Without Redis: sync translate/analyze still work; async endpoints return **503** per `@.cursor/rules/routing.mdc`.
+Without Redis: sync translate/analyze still work; async batch endpoints return **503** per `@.cursor/rules/routing.mdc`.
+
+Web scraper is **not** part of arcane-reader deployment. See `apps/scraper-console/` (standalone dev tool).
 
 ## Local development
 

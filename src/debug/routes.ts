@@ -37,7 +37,6 @@ import {
 } from './httpCapture.js';
 import { buildTraceDetailSummary } from './traceDetail.js';
 import { isDebugRedisBridgeAvailable } from './redisBridge.js';
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEBUG_DIST = path.resolve(__dirname, '../../dist/debug');
 
@@ -113,17 +112,15 @@ export function registerDebugRoutes(app: Express): void {
       const llmCaptures = getCapturedLlmCallsForCorrelation(traceId);
       const httpExchanges = getCapturedHttpExchangesForCorrelation(traceId);
       const summary = buildTraceDetailSummary(traceEntries, llmCaptures, httpExchanges);
-      res
-        .type('text/plain')
-        .send(
-          formatTraceForCursor({
-            traceId,
-            summary,
-            entries: traceEntries,
-            llmCaptures,
-            httpExchanges,
-          })
-        );
+      res.type('text/plain').send(
+        formatTraceForCursor({
+          traceId,
+          summary,
+          entries: traceEntries,
+          llmCaptures,
+          httpExchanges,
+        })
+      );
       return;
     }
     if (format === 'http') {

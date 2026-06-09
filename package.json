@@ -5,11 +5,13 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:debug\"",
-    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:debug\" \"npm run worker\"",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\"",
+    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\" \"npm run worker\"",
     "dev:server": "tsx watch src/server.ts",
     "dev:client": "vite",
+    "dev:client:wait": "wait-on tcp:127.0.0.1:3000 && vite",
     "dev:debug": "vite --config vite.debug.config.ts",
+    "dev:debug:wait": "wait-on tcp:127.0.0.1:3000 && vite --config vite.debug.config.ts",
     "worker": "tsx watch src/worker.ts",
     "build": "npm run build:client && npm run build:debug && npm run build:server",
     "build:client": "vite build",
@@ -107,6 +109,7 @@
     "stylelint-config-standard": "^36.0.1",
     "tsx": "^4.22.0",
     "typescript": "^5.9.3",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "wait-on": "^8.0.5"
   }
 }

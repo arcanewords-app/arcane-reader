@@ -33,10 +33,14 @@ export function startChapterWorkers(): void {
   }
 
   if (!isJobStoreRedisAvailable()) {
-    logger.error(
+    const msg =
       'KV_REST_API_URL and KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_*) are required for the worker. ' +
-        'Job stores use Redis to share state between server and worker; without it, job cancellation and status will not work.'
-    );
+      'Job stores use Redis to share state between server and worker; without it, job cancellation and status will not work.';
+    if (process.env.NODE_ENV !== 'production') {
+      logger.warn(msg);
+      return;
+    }
+    logger.error(msg);
     process.exit(1);
   }
 

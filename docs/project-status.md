@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-06-06
+updated: 2026-06-08
 ---
 
 # Project status
@@ -33,15 +33,16 @@ Update this file when completing plans or shipping major features.
 
 ## Active plans (`05-plans/`)
 
-| Plan                                      | Domain                                             |
-| ----------------------------------------- | -------------------------------------------------- |
-| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                        |
-| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending |
-| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)           |
-| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                           |
-| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                             |
-| [[05-plans/seo-search-console]]           | GSC submission                                     |
-| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                    |
+| Plan                                      | Domain                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                                |
+| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                         |
+| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                                   |
+| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                                   |
+| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                                     |
+| [[05-plans/seo-search-console]]           | GSC submission                                                                                             |
+| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                            |
+| [[05-plans/web-scraper-research]]         | Web scraper: standalone `apps/scraper-console` + `@arcane/scraper` (monorepo); reader integration deferred |
 
 ## Known tech debt
 

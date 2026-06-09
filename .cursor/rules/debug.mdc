@@ -20,6 +20,8 @@ For production/staging log search, retention, and alerts use **Axiom** (`LOG_SHI
 | `src/debug/shared/` | Browser-safe types + copy format (shared with debug-app) |
 | `src/debug-app/` | Preact SPA — unified debug console UI |
 
+Web scraper experiments live in **`apps/scraper-console`** (monorepo root), not in debug console.
+
 ## Routes
 
 See `@.cursor/rules/routing.mdc` (Debug section). Do not duplicate the full route table here.

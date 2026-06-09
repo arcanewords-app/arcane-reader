@@ -79,21 +79,22 @@ npm run kill-port
 
 ## A. Local dev (npm)
 
-| Task                     | Command              |
-| ------------------------ | -------------------- |
-| Install deps             | `npm install`        |
-| API + Vite UI            | `npm run dev`        |
-| API + UI + BullMQ worker | `npm run dev:full`   |
-| Worker only              | `npm run worker`     |
-| Server only              | `npm run dev:server` |
-| Client only              | `npm run dev:client` |
-| Free port 3000           | `npm run kill-port`  |
-| Force restart API        | `npm run dev:force`  |
-| Lint + typecheck         | `npm run lint:all`   |
-| ESLint                   | `npm run lint`       |
-| Typecheck                | `npm run typecheck`  |
-| Format                   | `npm run format`     |
-| Production build         | `npm run build`      |
+| Task                     | Command                          |
+| ------------------------ | -------------------------------- |
+| Install deps (monorepo)  | `cd f:\arcane && npm install`    |
+| Install deps (reader)    | `npm install` in `arcane-reader` |
+| API + Vite UI            | `npm run dev`                    |
+| API + UI + BullMQ worker | `npm run dev:full`               |
+| Worker only              | `npm run worker`                 |
+| Server only              | `npm run dev:server`             |
+| Client only              | `npm run dev:client`             |
+| Free port 3000           | `npm run kill-port`              |
+| Force restart API        | `npm run dev:force`              |
+| Lint + typecheck         | `npm run lint:all`               |
+| ESLint                   | `npm run lint`                   |
+| Typecheck                | `npm run typecheck`              |
+| Format                   | `npm run format`                 |
+| Production build         | `npm run build`                  |
 
 **Node:** `.nvmrc` pins **22**. On Windows use [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 22`, `nvm use 22`. Restart the terminal after install so `PATH` picks up `C:\nvm4w\nodejs`.
 
@@ -109,7 +110,11 @@ Copy-Item env.example.txt .env
 
 Edit `.env`: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. For async analyze/translate add `REDIS_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`.
 
-**URLs:** UI `http://localhost:5173`, API `http://localhost:3000`.
+For **web scraper experiments**: from monorepo root run `npm run dev:scraper` → `http://localhost:3000/scraper/` (standalone app, no Redis). Use `PORT=3002` in `apps/scraper-console/.env` if arcane-reader already uses port 3000.
+
+**Startup order:** `dev` / `dev:full` start API first; Vite/debug wait on `tcp:127.0.0.1:3000` (`wait-on`) before binding 5173/5174. First API boot via `tsx` can take ~10–30s — look for `[arcane] Starting HTTP server on port 3000…` in the `[0]` process.
+
+**URLs:** UI `http://localhost:5173`, API `http://localhost:3000`. Verify API: `http://localhost:3000/api/health` before debugging UI proxy errors.
 
 ---
 
@@ -205,12 +210,15 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 
 ## F. Troubleshooting quick checks
 
-| Symptom                 | Check                                       |
-| ----------------------- | ------------------------------------------- |
-| Port in use             | `npm run kill-port`                         |
-| 503 on batch translate  | Redis env + `npm run worker` or `dev:full`  |
-| Auth fails locally      | Supabase keys in `.env`, JWT in browser     |
-| API unreachable from UI | API on 3000, Vite proxy in `vite.config.ts` |
+| Symptom                    | Check                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| Port in use                | `npm run kill-port`                                                                  |
+| 503 on batch translate     | Redis env + `npm run worker` or `dev:full`                                           |
+| Auth fails locally         | Supabase keys in `.env`, JWT in browser                                              |
+| API unreachable from UI    | `npm run kill-port`, then `dev:server` alone; wait for port 3000                     |
+| Vite proxy ECONNREFUSED    | API not ready yet or crashed — check `[0]` logs, not only `[1]`                      |
+| Worker exits in dev        | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel |
+| Scraper console EADDRINUSE | Reader on :3000 — set `PORT=3002` in `apps/scraper-console/.env`                     |
 
 ---
 

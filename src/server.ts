@@ -145,6 +145,8 @@ import { addDebugLogEntry } from './debug/buffer.js';
 import { createTraceId, runWithDebugContextAsync } from './debug/context.js';
 import { httpCaptureMiddleware, setDebugTraceId } from './debug/httpCaptureMiddleware.js';
 
+console.log('[arcane] API modules loaded, registering routes…');
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -8594,7 +8596,8 @@ app.get('*', (_req, res) => {
 export default app;
 
 async function startServer(): Promise<void> {
-  app.listen(PORT, () => {
+  console.log(`[arcane] Starting HTTP server on port ${PORT}…`);
+  const httpServer = app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -8638,6 +8641,16 @@ async function startServer(): Promise<void> {
         addDebugLogEntry(entry);
       });
     }
+  });
+
+  httpServer.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `\n[arcane] Port ${PORT} is already in use. Stop the other process or run: npm run kill-port\n`
+      );
+      process.exit(1);
+    }
+    throw err;
   });
 }
 

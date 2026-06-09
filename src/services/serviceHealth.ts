@@ -28,7 +28,21 @@ export interface HealthCheckResult {
 
 type ServiceChecker = () => Promise<void>;
 
-const DEGRADED_THRESHOLD_MS = 5000;
+/** Slow but successful probe → degraded (not down). */
+const DEGRADED_THRESHOLD_MS = 5_000;
+/** PostgREST probe; allows cold start on serverless. */
+const HEALTH_PROBE_SUPABASE_MS = 10_000;
+/** Upstash REST PING; should be sub-second when healthy. */
+const HEALTH_PROBE_REDIS_MS = 3_000;
+
+function withHealthProbeTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Health check timeout')), timeoutMs);
+    }),
+  ]);
+}
 
 class ServiceHealthManagerImpl {
   private services = new Map<string, ServiceHealth>();
@@ -91,9 +105,9 @@ class ServiceHealthManagerImpl {
   }
 
   async checkAll(): Promise<void> {
-    for (const [name, checker] of this.checkers) {
-      await this.checkService(name, checker);
-    }
+    await Promise.all(
+      Array.from(this.checkers.entries()).map(([name, checker]) => this.checkService(name, checker))
+    );
   }
 
   private async checkService(name: string, checker: ServiceChecker): Promise<void> {
@@ -153,22 +167,18 @@ class ServiceHealthManagerImpl {
 
 export const serviceHealthManager = new ServiceHealthManagerImpl();
 
-const HEALTH_CHECK_TIMEOUT_MS = 10_000;
-
 /**
  * Supabase health checker: simple query to verify DB connectivity.
- * Uses Promise.race with timeout to avoid hanging 60+ s when Supabase is unresponsive.
  */
 async function checkSupabase(): Promise<void> {
   const client = createServiceRoleClient();
-  const queryPromise = (async () => {
-    const { error } = await client.from('projects').select('id').limit(1).maybeSingle();
-    if (error) throw new Error(error.message);
-  })();
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Health check timeout')), HEALTH_CHECK_TIMEOUT_MS);
-  });
-  await Promise.race([queryPromise, timeoutPromise]);
+  await withHealthProbeTimeout(
+    (async () => {
+      const { error } = await client.from('projects').select('id').limit(1).maybeSingle();
+      if (error) throw new Error(error.message);
+    })(),
+    HEALTH_PROBE_SUPABASE_MS
+  );
 }
 
 // Register Supabase as the first service
@@ -179,7 +189,7 @@ serviceHealthManager.registerService('supabase', checkSupabase);
  * Only registered when Redis is configured.
  */
 async function checkRedis(): Promise<void> {
-  await redisPing();
+  await withHealthProbeTimeout(redisPing(), HEALTH_PROBE_REDIS_MS);
 }
 
 if (hasRedisCache()) {

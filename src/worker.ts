@@ -5,6 +5,8 @@
  */
 import './worker-env.js';
 import 'dotenv/config';
+
+console.log('[arcane] Loading BullMQ worker…');
 import { startChapterWorkers } from './services/chapterWorker.js';
 import { logger } from './logger.js';
 

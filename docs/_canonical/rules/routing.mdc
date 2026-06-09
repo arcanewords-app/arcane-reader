@@ -322,6 +322,24 @@ Token usage indicator is shown only on paths where it's relevant. See [src/clien
 
 ---
 
+## Monorepo apps (not arcane-reader)
+
+### Scraper console (`@arcane/scraper-console`)
+
+Standalone dev app. **Not registered in `src/server.ts`.** Run: `npm run dev:scraper` from monorepo root.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/scraper/` | - | Preact UI (Vite middleware in dev, static in prod) |
+| GET | `/api/scraper/adapters` | - | List adapters (`id`, `displayName`, `domains`) |
+| POST | `/api/scraper/run` | - | Sync scrape (body: `url`, optional `adapterId`, `chapterRange`, `respectRobots`, `maxChapters`, `contentPreviewChars`). 5 min timeout |
+| GET | `/api/scraper/runs` | - | Recent runs (summary) |
+| GET | `/api/scraper/runs/:id` | - | Full run with stages |
+
+Default `PORT=3000`. See `apps/scraper-console/README.md` and `apps/scraper-console/.cursor/rules/scraper-console.mdc`.
+
+---
+
 ## Async Jobs (BullMQ Worker)
 
 Async analysis and translate jobs require a separate Worker process and Redis (REDIS_URL).

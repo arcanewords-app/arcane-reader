@@ -344,6 +344,8 @@ export function ChapterList({
       });
     };
 
+    const itemLabel = `${t('chapterList.selectedFile') || 'File'}: ${current.file.name}`;
+
     try {
       if (isJobBasedFormat(current.file.name)) {
         const job = await api.startImportJob(
@@ -440,7 +442,7 @@ export function ChapterList({
                   ? {
                       ...it,
                       status: 'error',
-                      error: `${t('chapterList.selectedFile') || 'File'}: ${current.file.name}\n\n${details}`,
+                      error: `${itemLabel}\n\n${details}`,
                       warnings: state.warnings,
                     }
                   : it
@@ -530,7 +532,7 @@ export function ChapterList({
       const parseErrors = errObj.data?.parseErrors;
       const warnings = errObj.data?.warnings;
 
-      let detailsText = `${t('chapterList.selectedFile') || 'File'}: ${current.file.name}`;
+      let detailsText = itemLabel;
       if (errObj.message) detailsText += `\n\n${errObj.message}`;
       if (errorDetails) detailsText += `\n\n${errorDetails}`;
       if (parseErrors && parseErrors.length > 0)
@@ -1529,9 +1531,7 @@ export function ChapterList({
                       item.importTotal !== undefined &&
                       item.importTotal > 0 && (
                         <div class="queue-item-import-meta">
-                          <span>
-                            {item.importCurrent || 0}/{item.importTotal}
-                          </span>
+                          <span>{`${item.importCurrent || 0}/${item.importTotal}`}</span>
                           {item.importCurrentChapterTitle && (
                             <span class="queue-item-import-title">
                               {item.importCurrentChapterTitle}
