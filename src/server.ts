@@ -555,7 +555,11 @@ import {
   releaseTokens,
   getTokenUsageHistory,
 } from './middleware/tokenLimits.js';
-import { estimateTokensForStages, type TranslationStages } from './config/tokenLimits.js';
+import {
+  estimateTokensForStages,
+  estimateTokensForChapterTitles,
+  type TranslationStages,
+} from './config/tokenLimits.js';
 import {
   translateChapterWithPipeline,
   analyzeChaptersBatch,
@@ -564,6 +568,10 @@ import {
   resolveEffectiveLanguagePair,
   type LanguagePairOverride,
 } from './services/engine-integration.js';
+import {
+  applyChapterTitleTranslations,
+  collectTitleTranslationCandidates,
+} from './services/chapterTitleTranslate.js';
 import { invalidateAnalysisForProject } from './services/analysisCache.js';
 import { isProjectLanguagePairLocked } from './services/projectLanguagePair.js';
 import {
@@ -3781,6 +3789,7 @@ app.post(
       const {
         chapterIds,
         translateOnlyEmpty,
+        translateChapterTitles,
         stages: stagesRaw,
         languagePair: languagePairOverride,
       } = parsed.data;
@@ -3822,7 +3831,13 @@ app.post(
         (sum, ch) => sum + (ch.originalText?.length ?? 0),
         0
       );
-      const estimatedTokens = estimateTokensForStages(totalTextLength, stages);
+      const translateTitles = translateChapterTitles !== false;
+      const stagesIncludeTranslation =
+        stages === 'all' || (Array.isArray(stages) && stages.includes('translation'));
+      let estimatedTokens = estimateTokensForStages(totalTextLength, stages);
+      if (translateTitles && stagesIncludeTranslation) {
+        estimatedTokens += estimateTokensForChapterTitles(chaptersToTranslate.length);
+      }
       const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
       if (!limitCheck.allowed) {
         const now = new Date();
@@ -3899,6 +3914,7 @@ app.post(
           chapterIds: chaptersToTranslate.map((c) => c.id),
           stages,
           translateOnlyEmpty: translateOnlyEmpty ?? false,
+          translateChapterTitles: translateTitles,
           ...jobLanguageFields,
         });
 
@@ -4057,6 +4073,7 @@ app.post(
       }
       const {
         translateOnlyEmpty = false,
+        translateChapterTitles,
         paragraphIds,
         stages: stagesRaw,
         languagePair: languagePairOverride,
@@ -4130,7 +4147,13 @@ app.post(
       const editingModel = getStageModel('editing');
 
       // Estimate tokens for the requested stages
-      const estimatedTokens = estimateTokensForStages(textLength, stages);
+      const translateTitles = translateChapterTitles !== false;
+      const stagesIncludeTranslation =
+        stages === 'all' || (Array.isArray(stages) && stages.includes('translation'));
+      let estimatedTokens = estimateTokensForStages(textLength, stages);
+      if (translateTitles && stagesIncludeTranslation) {
+        estimatedTokens += estimateTokensForChapterTitles(1);
+      }
 
       // Check token limit before starting translation (limit depends on user role)
       const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
@@ -4203,7 +4226,12 @@ app.post(
         req.user!.id,
         paragraphIds,
         stages,
-        { traceId, requestId, languagePair: languagePairOverride }
+        {
+          traceId,
+          requestId,
+          languagePair: languagePairOverride,
+          translateChapterTitles: translateTitles,
+        }
       );
 
       res.json({ status: 'started', chapterId: chapter.id, traceId });
@@ -4269,6 +4297,10 @@ export async function performTranslation(
     requestId?: string;
     /** Ephemeral language pair override for this run. */
     languagePair?: LanguagePairOverride;
+    /** When false, skip chapter title translation (default: true). */
+    translateChapterTitles?: boolean;
+    /** When true, skip per-chapter title translation (bulk job runs batch phase 2). */
+    deferChapterTitleTranslation?: boolean;
   }
 ): Promise<void> {
   const traceId = options?.traceId ?? createTraceId();
@@ -4315,6 +4347,8 @@ async function performTranslationInner(
         onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
         jobId?: string;
         languagePair?: LanguagePairOverride;
+        translateChapterTitles?: boolean;
+        deferChapterTitleTranslation?: boolean;
       }
     | undefined,
   traceId: string
@@ -5288,6 +5322,39 @@ async function performTranslationInner(
         token,
         { chapterId }
       );
+    }
+
+    const translateTitles =
+      options?.translateChapterTitles !== false &&
+      !options?.deferChapterTitleTranslation &&
+      (stages === 'all' || (Array.isArray(stages) && stages.includes('translation')));
+    if (translateTitles) {
+      const chapterAfter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
+      const bodyOk =
+        chapterAfter &&
+        (chapterAfter.status === 'completed' || chapterAfter.status === 'draft') &&
+        (!!chapterAfter.translatedText?.trim() ||
+          chapterAfter.paragraphs?.some((p) => p.translatedText?.trim()));
+      if (bodyOk && chapterAfter) {
+        const candidates = collectTitleTranslationCandidates([chapterAfter], {
+          translateChapterTitles: true,
+          translateOnlyEmpty,
+          stages,
+          succeededChapterIds: new Set([chapterId]),
+        });
+        if (candidates.length > 0) {
+          await applyChapterTitleTranslations(config, projectId, project, candidates, {
+            userId,
+            token,
+            languagePair: options?.languagePair,
+            isCancelled,
+          });
+          logger.info(
+            { event: 'chapter.title.translated', projectId, chapterId },
+            'Chapter title translated'
+          );
+        }
+      }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -6922,12 +6989,26 @@ app.put(
       }
       const { title } = parsed.data;
 
+      const existingChapter = await getChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        requireToken(req)
+      );
+      if (!existingChapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      const trimmed = title.trim();
+      const hasTranslation =
+        existingChapter.status === 'completed' ||
+        existingChapter.status === 'draft' ||
+        !!existingChapter.translatedText?.trim() ||
+        existingChapter.paragraphs?.some((p) => p.translatedText?.trim());
+
       const chapter = await updateChapter(
         req.params.projectId,
         req.params.chapterId,
-        {
-          title: title.trim(),
-        },
+        hasTranslation ? { translatedTitle: trimmed } : { title: trimmed },
         requireToken(req)
       );
 

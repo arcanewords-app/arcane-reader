@@ -97,6 +97,8 @@
     "stageEditingHint": "Editing only, polish current translation",
     "stageAllHint": "Analysis → Translation → Editing",
     "estimatedTokens": "~{{tokens}} tokens",
+    "translateChapterTitles": "Translate chapter titles",
+    "translateChapterTitlesHint": "Short translation of the TOC heading (separate from chapter body)",
     "start": "Start",
     "toggle": "Translation panel"
   },

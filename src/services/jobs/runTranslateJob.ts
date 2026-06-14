@@ -15,8 +15,14 @@ import { createTranslateJobStoreFromEnv } from '../translateJobStore.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
 import { logger } from '../../logger.js';
 import { createTraceId } from '../../debug/context.js';
+import { loadConfig } from '../../config.js';
 import type { Chapter } from '../../storage/database.js';
 import type { TranslateJobPayload } from '../chapterQueue.js';
+import {
+  applyChapterTitleTranslations,
+  collectTitleTranslationCandidates,
+} from '../chapterTitleTranslate.js';
+import type { TranslationStages } from '../../config/tokenLimits.js';
 
 const translateJobStore = createTranslateJobStoreFromEnv();
 const TRANSLATE_JOB_TTL_SECONDS = parseInt(process.env.TRANSLATE_JOB_TTL_SECONDS ?? '3600', 10);
@@ -30,9 +36,11 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
     chapterIds,
     stages,
     translateOnlyEmpty,
+    translateChapterTitles,
     sourceLanguage,
     targetLanguage,
   } = payload;
+  const translateTitles = translateChapterTitles !== false;
   const languagePair =
     sourceLanguage && targetLanguage ? { sourceLanguage, targetLanguage } : undefined;
   const token = ''; // Service role used for all DB ops
@@ -91,6 +99,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
     );
     let totalTokensAccum = 0;
     let cancelledFlag = false;
+    const succeededChapterIds = new Set<string>();
     const cancelCheckInterval = setInterval(async () => {
       if (await translateJobStore.isCancelRequested(jobId)) cancelledFlag = true;
     }, 500);
@@ -139,6 +148,8 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
               traceId: createTraceId(),
               jobId,
               languagePair,
+              translateChapterTitles: translateTitles,
+              deferChapterTitleTranslation: true,
               onProgress: (chunksDone, totalChunks) => {
                 translateJobStore
                   .updateJob(jobId, {
@@ -169,6 +180,15 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
         const updatedChapter = await getChapter(projectId, chapter.id, token, {
           useServiceRole: true,
         });
+        const hasBodyTranslation =
+          updatedChapter &&
+          (updatedChapter.status === 'completed' || updatedChapter.status === 'draft') &&
+          (!!updatedChapter.translatedText?.trim() ||
+            updatedChapter.paragraphs?.some((p) => p.translatedText?.trim()));
+        if (hasBodyTranslation) {
+          succeededChapterIds.add(chapter.id);
+        }
+
         const meta = updatedChapter?.translationMeta;
         const tokensUsed = meta?.tokensUsed ?? 0;
         const tokensByStage = meta?.tokensByStage;
@@ -211,6 +231,38 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
           logger.warn({ err: tokenError }, 'Failed to release tokens on cancel (non-critical)');
         }
         return;
+      }
+
+      if (translateTitles && succeededChapterIds.size > 0) {
+        const stagesIncludeTranslation =
+          stages === 'all' || (Array.isArray(stages) && stages.includes('translation'));
+        if (stagesIncludeTranslation) {
+          const chaptersForTitles = sortedChapters.filter((c) => succeededChapterIds.has(c.id));
+          const refreshed = await Promise.all(
+            chaptersForTitles.map((c) =>
+              getChapter(projectId, c.id, token, { useServiceRole: true })
+            )
+          );
+          const validChapters = refreshed.filter((c): c is Chapter => c != null);
+          const candidates = collectTitleTranslationCandidates(validChapters, {
+            translateChapterTitles: true,
+            translateOnlyEmpty,
+            stages: stages as TranslationStages,
+            succeededChapterIds,
+          });
+          if (candidates.length > 0) {
+            logger.info(
+              { jobId, count: candidates.length },
+              'Batch chapter title translation phase started'
+            );
+            await applyChapterTitleTranslations(loadConfig(), projectId, project, candidates, {
+              userId,
+              token,
+              languagePair,
+              isCancelled: () => cancelledFlag,
+            });
+          }
+        }
       }
 
       await invalidateProjectAndRelatedCaches(userId, projectId, token, {

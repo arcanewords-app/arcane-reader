@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Chapter, ChapterListItem } from '../../types';
 import { Button, Modal, Icon, Skeleton } from '../ui';
 import { api } from '../../api/client';
+import { chapterDisplayTitle } from '../../../shared/chapterTitle';
 import '../ui/Input.css';
 import { ChapterStatusSelect } from './ChapterStatusSelect';
 import './ChapterHeader.css';
@@ -49,14 +50,18 @@ export function ChapterHeader({
   const { t } = useTranslation();
   const titleInputRef = useRef<HTMLInputElement>(null);
   const displayChapter = chapter ?? chapterListItem;
-  const title = displayChapter?.title ?? '';
+  const title = displayChapter ? chapterDisplayTitle(displayChapter) : '';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const [savingTitle, setSavingTitle] = useState(false);
 
   useEffect(() => {
-    setEditedTitle(displayChapter?.title ?? '');
-  }, [displayChapter?.title]);
+    if (!displayChapter) {
+      setEditedTitle('');
+      return;
+    }
+    setEditedTitle(chapterDisplayTitle(displayChapter));
+  }, [displayChapter]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {

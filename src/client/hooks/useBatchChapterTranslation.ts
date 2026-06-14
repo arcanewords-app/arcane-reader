@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
 import { useTokenEstimate } from './useTokenEstimate';
+import { estimateTokensForChapterTitles } from '../config/tokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
 import { getProject as getProjectFromStore } from '../store/projects';
 import type { Chapter, ChapterSummary, Project, ProjectWithChapterList } from '../types';
@@ -251,7 +252,14 @@ export function useBatchChapterTranslation(
         return sum + ((ch as ChapterSummary).paragraphCount ?? 0) * 150;
       }, 0);
       const stagesForEstimate = optionsPerChapter?.stages ?? 'all';
-      const estimatedTokens = estimate(totalLength, stagesForEstimate);
+      let estimatedTokens = estimate(totalLength, stagesForEstimate);
+      const translateTitles = optionsPerChapter?.translateChapterTitles !== false;
+      const includesTranslation =
+        stagesForEstimate === 'all' ||
+        (Array.isArray(stagesForEstimate) && stagesForEstimate.includes('translation'));
+      if (translateTitles && includesTranslation) {
+        estimatedTokens += estimateTokensForChapterTitles(chapters.length);
+      }
 
       checkBeforeTranslate(estimatedTokens, () => {
         cancelledRef.current = false;
@@ -268,6 +276,9 @@ export function useBatchChapterTranslation(
         }
         if (optionsPerChapter?.languagePair) {
           body.languagePair = optionsPerChapter.languagePair;
+        }
+        if (optionsPerChapter?.translateChapterTitles !== undefined) {
+          body.translateChapterTitles = optionsPerChapter.translateChapterTitles;
         }
 
         const chaptersProgress: BatchChapterProgressItem[] = chapters.map((ch) => ({
@@ -324,6 +335,7 @@ export function useBatchChapterTranslation(
                 chapters.map((c) => c.id),
                 {
                   translateOnlyEmpty: body.translateOnlyEmpty,
+                  translateChapterTitles: body.translateChapterTitles,
                   stages: body.stages,
                   languagePair: body.languagePair,
                 }

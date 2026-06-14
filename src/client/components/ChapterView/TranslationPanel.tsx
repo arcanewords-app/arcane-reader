@@ -21,6 +21,7 @@ import type {
   TranslationStageKind,
 } from '../../types';
 import { isChunkError } from '../../../shared/chunkErrors';
+import { estimateTokensForChapterTitles } from '../../config/tokenEstimate';
 import './TranslationPanel.css';
 
 type Scope = 'full' | 'empty' | 'selected';
@@ -96,6 +97,7 @@ export function TranslationPanel({
     'translation',
     'editing',
   ]);
+  const [translateChapterTitles, setTranslateChapterTitles] = useState(true);
   const [panelLanguagePair, setPanelLanguagePair] = useState<LanguagePairValue>(() =>
     projectDefaultLanguagePair(project)
   );
@@ -141,10 +143,13 @@ export function TranslationPanel({
     () => getTextLengthForScope(chapter, scope, selectedParagraphIds),
     [chapter, scope, selectedParagraphIds]
   );
-  const estimatedTokens = useMemo(
-    () => estimate(textLength, selectedStages),
-    [estimate, textLength, selectedStages]
-  );
+  const estimatedTokens = useMemo(() => {
+    let tokens = estimate(textLength, selectedStages);
+    if (translateChapterTitles && selectedStages.includes('translation')) {
+      tokens += estimateTokensForChapterTitles(1);
+    }
+    return tokens;
+  }, [estimate, textLength, selectedStages, translateChapterTitles]);
 
   const toggleStage = (stage: TranslationStageKind) => {
     setSelectedStages((prev) =>
@@ -192,7 +197,10 @@ export function TranslationPanel({
   );
 
   const buildOptions = (): ChapterTranslationOptions => {
-    const opts: ChapterTranslationOptions = { stages: selectedStages };
+    const opts: ChapterTranslationOptions = {
+      stages: selectedStages,
+      translateChapterTitles,
+    };
     if (scope === 'empty') opts.translateOnlyEmpty = true;
     if (scope === 'selected' && selectedParagraphIds.length) {
       opts.paragraphIds = selectedParagraphIds;
@@ -323,6 +331,27 @@ export function TranslationPanel({
         <span class="translation-panel-hint">
           {t('translationPanel.stagesMultiHint', 'Можно выбрать несколько стадий')}
         </span>
+        <label
+          class="translation-panel-checkbox-row"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+            marginTop: '0.65rem',
+            cursor:
+              selectedStages.includes('translation') && !translating ? 'pointer' : 'not-allowed',
+            opacity: selectedStages.includes('translation') ? 1 : 0.55,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={translateChapterTitles}
+            disabled={translating || !selectedStages.includes('translation')}
+            onChange={(e) => setTranslateChapterTitles((e.target as HTMLInputElement).checked)}
+            style={{ marginTop: '0.2rem', accentColor: 'var(--accent)' }}
+          />
+          <span>{t('translationPanel.translateChapterTitles', 'Переводить название главы')}</span>
+        </label>
       </div>
 
       <div class="translation-panel-section translation-panel-language-pair">

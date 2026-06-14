@@ -10,6 +10,7 @@ import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../shared/cacheContract.
 import { isChunkError } from '../shared/chunkErrors.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
+import { chapterDisplayTitle } from '../shared/chapterTitle.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 async function ensureUniqueSlug(
@@ -213,6 +214,7 @@ function transformChapterFromDB(
     id: string;
     number: number;
     title: string;
+    translated_title?: string | null;
     original_text?: string;
     translated_text?: string;
     translated_chunks?: unknown;
@@ -223,6 +225,7 @@ function transformChapterFromDB(
     id: r.id,
     number: r.number,
     title: r.title,
+    translatedTitle: r.translated_title?.trim() || undefined,
     originalText: r.original_text ?? '',
     translatedText: r.translated_text || undefined,
     translatedChunks: r.translated_chunks as Chapter['translatedChunks'] | undefined,
@@ -241,6 +244,7 @@ function transformChapterToDB(chapter: Partial<Chapter>): Record<string, unknown
   const result: Record<string, unknown> = {};
   if (chapter.number !== undefined) result.number = chapter.number;
   if (chapter.title !== undefined) result.title = chapter.title;
+  if (chapter.translatedTitle !== undefined) result.translated_title = chapter.translatedTitle;
   if (chapter.originalText !== undefined) result.original_text = chapter.originalText;
   if (chapter.translatedText !== undefined) result.translated_text = chapter.translatedText;
   if (chapter.translatedChunks !== undefined) result.translated_chunks = chapter.translatedChunks;
@@ -654,6 +658,7 @@ export async function getChaptersSummary(
       id: string;
       number: number;
       title: string;
+      translated_title?: string | null;
       status: string;
       translation_meta: unknown;
       paragraph_count: number;
@@ -670,6 +675,7 @@ export async function getChaptersSummary(
         id: ch.id,
         number: ch.number,
         title: ch.title,
+        translatedTitle: ch.translated_title?.trim() || undefined,
         status: ch.status as ChapterStatus,
         hasTranslation,
         hasOriginalText: paragraphCount > 0,
@@ -1204,7 +1210,9 @@ async function loadChaptersForProjectLightweight(
   for (;;) {
     const { data: chapters, error } = await client
       .from('chapters')
-      .select('id, number, title, status, translation_meta, created_at, updated_at')
+      .select(
+        'id, number, title, translated_title, status, translation_meta, created_at, updated_at'
+      )
       .eq('project_id', projectId)
       .order('number', { ascending: true })
       .range(offset, offset + POSTGREST_MAX_ROWS - 1);
@@ -1224,6 +1232,8 @@ async function loadChaptersForProjectLightweight(
         id: ch.id,
         number: ch.number,
         title: ch.title,
+        translatedTitle:
+          (ch as { translated_title?: string | null }).translated_title?.trim() || undefined,
         status: ch.status as ChapterStatus,
         hasTranslation,
         translationMeta: meta,
@@ -3400,7 +3410,12 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
   try {
     const { createServiceRoleClient } = await import('./supabaseClient.js');
     const serviceClient = createServiceRoleClient();
-    const allChapters: Array<{ id: string; number: number; title: string }> = [];
+    const allChapters: Array<{
+      id: string;
+      number: number;
+      title: string;
+      translated_title?: string | null;
+    }> = [];
     const allTranslatedIds = new Set<string>();
 
     // Paginate chapters (ordered by number)
@@ -3408,13 +3423,18 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
     for (;;) {
       const chaptersResult = await serviceClient
         .from('chapters')
-        .select('id, number, title')
+        .select('id, number, title, translated_title')
         .eq('project_id', pub.projectId)
         .order('number', { ascending: true })
         .range(chapterOffset, chapterOffset + POSTGREST_MAX_ROWS - 1);
       const chapters = chaptersResult.data || [];
       for (const c of chapters) {
-        allChapters.push({ id: c.id, number: c.number, title: c.title });
+        allChapters.push({
+          id: c.id,
+          number: c.number,
+          title: c.title,
+          translated_title: (c as { translated_title?: string | null }).translated_title,
+        });
       }
       if (chapters.length < POSTGREST_MAX_ROWS) break;
       chapterOffset += POSTGREST_MAX_ROWS;
@@ -3441,7 +3461,11 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
     list = allChapters.map((c) => ({
       id: c.id,
       number: c.number,
-      title: c.title,
+      title: chapterDisplayTitle({
+        title: c.title,
+        translatedTitle: c.translated_title,
+        number: c.number,
+      }),
       hasTranslation: allTranslatedIds.has(c.id),
     }));
   } catch {
@@ -3475,6 +3499,7 @@ export async function getPublicationChapterContent(
     id: string;
     number: number;
     title: string;
+    translated_title?: string | null;
     translated_text: string | null;
   } | null = null;
   try {
@@ -3482,7 +3507,7 @@ export async function getPublicationChapterContent(
     const serviceClient = createServiceRoleClient();
     const { data, error } = await serviceClient
       .from('chapters')
-      .select('id, number, title, translated_text')
+      .select('id, number, title, translated_title, translated_text')
       .eq('id', chapterId)
       .eq('project_id', pub.projectId)
       .single();
@@ -3496,7 +3521,11 @@ export async function getPublicationChapterContent(
   return {
     id: chapter.id,
     number: chapter.number,
-    title: chapter.title,
+    title: chapterDisplayTitle({
+      title: chapter.title,
+      translatedTitle: chapter.translated_title,
+      number: chapter.number,
+    }),
     translatedText: chapter.translated_text,
   };
 }

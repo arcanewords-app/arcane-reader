@@ -19,6 +19,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { useSystemStatus } from '../../contexts/SystemStatusContext';
+import { chapterDisplayTitle } from '../../../shared/chapterTitle';
 import type {
   Chapter,
   ChapterListItem,
@@ -1191,7 +1192,7 @@ export function ChapterList({
                                   onSelect(chapter.id);
                                 }
                               }}
-                              title={chapter.title}
+                              title={chapterDisplayTitle(chapter)}
                               style={{
                                 height: ITEM_HEIGHT + 'px',
                                 boxSizing: 'border-box',
@@ -1285,7 +1286,9 @@ export function ChapterList({
                                     {chapter.number}
                                   </button>
                                 )}
-                                <span class="chapter-item-title">{chapter.title}</span>
+                                <span class="chapter-item-title">
+                                  {chapterDisplayTitle(chapter)}
+                                </span>
                               </div>
                               {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
                               <div

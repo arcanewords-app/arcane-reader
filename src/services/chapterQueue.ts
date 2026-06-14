@@ -28,6 +28,7 @@ export interface TranslateJobPayload {
   chapterIds: string[];
   stages: TranslationStages;
   translateOnlyEmpty: boolean;
+  translateChapterTitles?: boolean;
   sourceLanguage?: string;
   targetLanguage?: string;
 }

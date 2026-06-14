@@ -21,6 +21,8 @@ import {
 } from '../../utils/languagePairOverride';
 import { api } from '../../api/client';
 import { useTokenEstimate } from '../../hooks/useTokenEstimate';
+import { estimateTokensForChapterTitles } from '../../config/tokenEstimate';
+import { chapterDisplayTitle } from '../../../shared/chapterTitle';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
 import { TokenLimitWarning } from '../TokenUsage';
 import '../ChapterView/ReaderSettings.css';
@@ -119,6 +121,7 @@ export function ProcessChapters({
     projectDefaultLanguagePair(project)
   );
   const [batchLanguageOverrideAck, setBatchLanguageOverrideAck] = useState(false);
+  const [batchTranslateChapterTitles, setBatchTranslateChapterTitles] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [summary, setSummary] = useState<ChapterSummary[] | null>(null);
   const [pageSize, setPageSize] = useState(20);
@@ -275,8 +278,19 @@ export function ProcessChapters({
       (sum, ch) => sum + getChapterTextLength(ch),
       0
     );
-    return estimate(totalLength, batchSelectedStages);
-  }, [selectedChaptersForTranslate, batchSelectedStages, estimate, getChapterTextLength]);
+    let tokens = estimate(totalLength, batchSelectedStages);
+    const includesTranslation = batchSelectedStages.includes('translation');
+    if (batchTranslateChapterTitles && includesTranslation) {
+      tokens += estimateTokensForChapterTitles(selectedChaptersForTranslate.length);
+    }
+    return tokens;
+  }, [
+    selectedChaptersForTranslate,
+    batchSelectedStages,
+    batchTranslateChapterTitles,
+    estimate,
+    getChapterTextLength,
+  ]);
 
   const defaultStatusFilter = useMemo((): StatusFilter => {
     if (stats.error > 0) return 'error';
@@ -397,6 +411,7 @@ export function ProcessChapters({
     batch.startBatch(selectedChaptersForTranslate, {
       stages: batchSelectedStages,
       languagePair: batchLanguagePairOverride,
+      translateChapterTitles: batchTranslateChapterTitles,
     });
     onBatchStarted?.();
   }, [
@@ -408,6 +423,7 @@ export function ProcessChapters({
     needsLanguageOverrideAck,
     batchLanguageOverrideAck,
     batchLanguagePairOverride,
+    batchTranslateChapterTitles,
   ]);
 
   const handleMarkAsTranslatedBatch = useCallback(() => {
@@ -868,7 +884,7 @@ export function ProcessChapters({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {chapter.title}
+                    {chapterDisplayTitle(chapter as ChapterSummary)}
                   </span>
                   {(isEmpty || isError || isCompleted || isDraft || isAnalyzed) && (
                     <span
@@ -1045,6 +1061,34 @@ export function ProcessChapters({
             {t('translationPanel.stagesMultiHint')}
           </span>
         </div>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+            marginBottom: '0.75rem',
+            fontSize: '0.9rem',
+            cursor: batchSelectedStages.includes('translation') ? 'pointer' : 'not-allowed',
+            opacity: batchSelectedStages.includes('translation') ? 1 : 0.55,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={batchTranslateChapterTitles}
+            disabled={!batchSelectedStages.includes('translation')}
+            onChange={(e) => setBatchTranslateChapterTitles((e.target as HTMLInputElement).checked)}
+            style={{ marginTop: '0.2rem', accentColor: 'var(--accent)' }}
+          />
+          <span>
+            {t('translationPanel.translateChapterTitles', 'Переводить названия глав')}
+            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              {t(
+                'translationPanel.translateChapterTitlesHint',
+                'Короткий перевод заголовка из оглавления (отдельно от текста главы)'
+              )}
+            </span>
+          </span>
+        </label>
         {batchSelectedStages.includes('editing') && (
           <div
             style={{

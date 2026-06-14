@@ -72,6 +72,7 @@ export interface ChapterSummary {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
   status: ChapterStatus;
   hasTranslation: boolean;
   hasOriginalText: boolean;
@@ -108,6 +109,7 @@ export interface ChapterListItem {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
   status: ChapterStatus;
   hasTranslation: boolean;
   translationMeta?: Chapter['translationMeta'];
@@ -117,6 +119,7 @@ export interface Chapter {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
   // Raw text (kept for compatibility and full-text operations)
   originalText: string;
   translatedText?: string;

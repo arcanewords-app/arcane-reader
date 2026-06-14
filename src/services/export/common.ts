@@ -6,6 +6,7 @@
 import type { Project, Chapter } from '../../storage/database.js';
 import type { TextBlockType } from '../../engine/types/common.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
+import { chapterDisplayTitle } from '../../shared/chapterTitle.js';
 import {
   convertMarkersToHtml,
   mergeSegmentsWithUnclosedBlocks,
@@ -163,15 +164,16 @@ export function prepareProjectForExport(
 
   // Prepare chapters for export
   const exportChapters: ExportChapter[] = completedChapters.map((chapter) => {
+    const displayTitle = chapterDisplayTitle(chapter);
     const translatedText = getTranslatedText(chapter);
     const htmlContent =
       blockTypes.length > 0
-        ? textToHtmlWithBlocks(translatedText, blockTypes, includeChapterTitleInHtml, chapter.title)
-        : textToHtml(translatedText, includeChapterTitleInHtml, chapter.title);
+        ? textToHtmlWithBlocks(translatedText, blockTypes, includeChapterTitleInHtml, displayTitle)
+        : textToHtml(translatedText, includeChapterTitleInHtml, displayTitle);
     const textContent = translatedText;
 
     return {
-      title: chapter.title,
+      title: displayTitle,
       number: chapter.number,
       htmlContent,
       textContent,

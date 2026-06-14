@@ -40,6 +40,9 @@ export const TOKEN_LIMITS = {
   /** Reset time (UTC) */
   RESET_TIME: '00:00:00',
   RESET_TIMEZONE: 'UTC',
+  /** Estimate tokens for chapter title translation batches (~500 per batch of 25). */
+  TOKENS_PER_TITLE_BATCH: 500,
+  TITLE_BATCH_SIZE: 25,
 } as const;
 
 /**
@@ -85,6 +88,13 @@ export function estimateTokensForStages(
   if (stages.includes('translation')) sum += translation;
   if (stages.includes('editing')) sum += editing;
   return Math.ceil(sum * charsIn10K);
+}
+
+/** Estimate tokens for batch chapter title translation. */
+export function estimateTokensForChapterTitles(chapterCount: number): number {
+  if (chapterCount <= 0) return 0;
+  const batches = Math.ceil(chapterCount / TOKEN_LIMITS.TITLE_BATCH_SIZE);
+  return batches * TOKEN_LIMITS.TOKENS_PER_TITLE_BATCH;
 }
 
 /**

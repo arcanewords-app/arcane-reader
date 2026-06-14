@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Modal, Button, Icon } from './ui';
+import { chapterDisplayTitle } from '../../shared/chapterTitle';
 import './ChapterTocModal.css';
 
 export interface ChapterTocItem {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
 }
 
 interface ChapterTocModalProps {
@@ -200,7 +202,7 @@ export function ChapterTocModal({
                 >
                   <span class="reading-toc-number">{chapter.number}</span>
                   <span class="reading-toc-title">
-                    {chapter.title ||
+                    {chapterDisplayTitle(chapter) ||
                       t('chapterList.defaultChapterTitle', { number: chapter.number })}
                   </span>
                   {isRead && (

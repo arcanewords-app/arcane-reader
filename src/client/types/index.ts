@@ -103,6 +103,7 @@ export interface Chapter {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
   originalText: string;
   translatedText?: string;
   translatedChunks?: string[]; // Parsed translation chunks for later sync with paragraphs
@@ -118,6 +119,7 @@ export interface ChapterListItem {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
   status: ChapterStatus;
   hasTranslation: boolean;
   translationMeta?: TranslationMeta;
@@ -128,6 +130,7 @@ export interface ChapterSummary {
   id: string;
   number: number;
   title: string;
+  translatedTitle?: string;
   status: ChapterStatus;
   hasTranslation: boolean;
   hasOriginalText: boolean;
@@ -459,6 +462,7 @@ export interface LanguagePairOptions {
 
 export interface ChapterTranslationOptions {
   translateOnlyEmpty?: boolean;
+  translateChapterTitles?: boolean;
   paragraphIds?: string[];
   stages?: TranslationStages;
   /** Ephemeral override; omit to use project default. */

@@ -9,6 +9,9 @@ export const TOKENS_PER_10K_CHARS = {
   editing: 13000,
 } as const;
 
+export const TOKENS_PER_TITLE_BATCH = 500;
+export const TITLE_BATCH_SIZE = 25;
+
 export const WARNING_THRESHOLD = 0.8; // 80%
 
 export type TranslationStageKind = 'analysis' | 'translation' | 'editing';
@@ -37,6 +40,13 @@ export function estimateTokensForStages(
   if (stages.includes('translation')) sum += translation;
   if (stages.includes('editing')) sum += editing;
   return Math.ceil(sum * charsIn10K);
+}
+
+/** Estimate tokens for batch chapter title translation. */
+export function estimateTokensForChapterTitles(chapterCount: number): number {
+  if (chapterCount <= 0) return 0;
+  const batches = Math.ceil(chapterCount / TITLE_BATCH_SIZE);
+  return batches * TOKENS_PER_TITLE_BATCH;
 }
 
 /**

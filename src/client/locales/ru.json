@@ -97,6 +97,8 @@
     "stageEditingHint": "Только редактура текущего перевода",
     "stageAllHint": "Анализ → Перевод → Редактура",
     "estimatedTokens": "~{{tokens}} токенов",
+    "translateChapterTitles": "Переводить названия глав",
+    "translateChapterTitlesHint": "Короткий перевод заголовка из оглавления (отдельно от текста главы)",
     "start": "Запустить",
     "toggle": "Панель перевода"
   },

@@ -905,6 +905,7 @@ export const api = {
     chapterIds: string[],
     body?: {
       translateOnlyEmpty?: boolean;
+      translateChapterTitles?: boolean;
       stages?: string[] | 'all';
       languagePair?: LanguagePairOptions;
     },
@@ -915,6 +916,7 @@ export const api = {
       body: JSON.stringify({
         chapterIds,
         translateOnlyEmpty: body?.translateOnlyEmpty,
+        translateChapterTitles: body?.translateChapterTitles,
         stages: body?.stages,
         ...(body?.languagePair ? { languagePair: body.languagePair } : {}),
       }),
@@ -955,6 +957,9 @@ export const api = {
     const body: ChapterTranslationOptions = {};
     if (options?.translateOnlyEmpty !== undefined) {
       body.translateOnlyEmpty = options.translateOnlyEmpty;
+    }
+    if (options?.translateChapterTitles !== undefined) {
+      body.translateChapterTitles = options.translateChapterTitles;
     }
     if (options?.paragraphIds?.length) {
       body.paragraphIds = options.paragraphIds;
