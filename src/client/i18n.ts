@@ -1,6 +1,7 @@
 /**
  * i18n setup for app UI localization.
- * Default language: English (en). Supported app locales: ru, en.
+ * Default language: Russian (ru). Supported app locales: ru, en.
+ * Resolution order: localStorage (explicit choice) → browser languages → ru.
  */
 
 // eslint-disable-next-line import/no-named-as-default-member -- we use default i18n instance
@@ -13,8 +14,27 @@ export const APP_LOCALE_KEY = 'app.locale';
 export type AppLocale = 'ru' | 'en';
 export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en'];
 
-function getSavedLocale(): AppLocale {
-  if (typeof window === 'undefined') return 'en';
+function syncHtmlLang(locale: AppLocale): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = locale;
+}
+
+function resolveBrowserLocale(): AppLocale {
+  if (typeof navigator === 'undefined') return 'ru';
+  const codes =
+    navigator.languages && navigator.languages.length > 0
+      ? navigator.languages
+      : [navigator.language];
+  for (const raw of codes) {
+    if (!raw) continue;
+    const base = raw.split('-')[0].toLowerCase();
+    if (base === 'ru' || base === 'en') return base;
+  }
+  return 'ru';
+}
+
+function getInitialLocale(): AppLocale {
+  if (typeof window === 'undefined') return 'ru';
   const saved = localStorage.getItem(APP_LOCALE_KEY);
   if (saved === 'pl') {
     localStorage.setItem(APP_LOCALE_KEY, 'en');
@@ -23,19 +43,23 @@ function getSavedLocale(): AppLocale {
   if (saved && SUPPORTED_LOCALES.includes(saved as AppLocale)) {
     return saved as AppLocale;
   }
-  return 'en';
+  return resolveBrowserLocale();
 }
 
 export function setSavedLocale(locale: AppLocale): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(APP_LOCALE_KEY, locale);
+  syncHtmlLang(locale);
   // eslint-disable-next-line import/no-named-as-default-member -- default instance is intended
   i18n.changeLanguage(locale);
 }
 
 export function getSavedLocaleSync(): AppLocale {
-  return getSavedLocale();
+  return getInitialLocale();
 }
+
+const initialLocale = getInitialLocale();
+syncHtmlLang(initialLocale);
 
 // eslint-disable-next-line import/no-named-as-default-member -- i18n.use() is the intended API
 i18n.use(initReactI18next).init({
@@ -43,8 +67,8 @@ i18n.use(initReactI18next).init({
     ru: { translation: ru },
     en: { translation: en },
   },
-  lng: getSavedLocale(),
-  fallbackLng: 'en',
+  lng: initialLocale,
+  fallbackLng: 'ru',
   supportedLngs: SUPPORTED_LOCALES,
   interpolation: {
     escapeValue: false,

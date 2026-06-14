@@ -110,7 +110,7 @@ Copy-Item env.example.txt .env
 
 Edit `.env`: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. For async analyze/translate add `REDIS_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`.
 
-For **web scraper experiments**: from monorepo root run `npm run dev:scraper` → `http://localhost:3000/scraper/` (standalone app, no Redis). Use `PORT=3002` in `apps/scraper-console/.env` if arcane-reader already uses port 3000.
+**Web scraper** lives in the separate [arcane-scraper](https://github.com/arcane-scraper) repo (`npm run dev` there). Not part of arcane-reader.
 
 **Startup order:** `dev` / `dev:full` start API first; Vite/debug wait on `tcp:127.0.0.1:3000` (`wait-on`) before binding 5173/5174. First API boot via `tsx` can take ~10–30s — look for `[arcane] Starting HTTP server on port 3000…` in the `[0]` process.
 
@@ -210,15 +210,14 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 
 ## F. Troubleshooting quick checks
 
-| Symptom                    | Check                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------ |
-| Port in use                | `npm run kill-port`                                                                  |
-| 503 on batch translate     | Redis env + `npm run worker` or `dev:full`                                           |
-| Auth fails locally         | Supabase keys in `.env`, JWT in browser                                              |
-| API unreachable from UI    | `npm run kill-port`, then `dev:server` alone; wait for port 3000                     |
-| Vite proxy ECONNREFUSED    | API not ready yet or crashed — check `[0]` logs, not only `[1]`                      |
-| Worker exits in dev        | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel |
-| Scraper console EADDRINUSE | Reader on :3000 — set `PORT=3002` in `apps/scraper-console/.env`                     |
+| Symptom                 | Check                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| Port in use             | `npm run kill-port`                                                                  |
+| 503 on batch translate  | Redis env + `npm run worker` or `dev:full`                                           |
+| Auth fails locally      | Supabase keys in `.env`, JWT in browser                                              |
+| API unreachable from UI | `npm run kill-port`, then `dev:server` alone; wait for port 3000                     |
+| Vite proxy ECONNREFUSED | API not ready yet or crashed — check `[0]` logs, not only `[1]`                      |
+| Worker exits in dev     | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel |
 
 ---
 

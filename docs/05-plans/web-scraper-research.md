@@ -15,13 +15,13 @@ Research document for an independent web parsing module to collect novels and li
 
 ## Current state (2026)
 
-| Component                  | Location                            | How to run                                                                  |
-| -------------------------- | ----------------------------------- | --------------------------------------------------------------------------- |
-| `@arcane/scraper` library  | `packages/scraper/` (monorepo root) | `npm run test:scraper`, `npm run build:scraper`                             |
-| Scraper console (UI + API) | `apps/scraper-console/`             | `npm run dev:scraper` from monorepo root → `http://localhost:PORT/scraper/` |
-| arcane-reader              | No scraper dependency               | File import only (`epub`, `fb2`, `csv`)                                     |
+| Component                  | Location                                                                    | How to run                                                    |
+| -------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `@arcane/scraper` library  | [arcane-scraper](https://github.com/arcane-scraper) `packages/scraper/`     | `npm run test`, `npm run build:scraper` in that repo          |
+| Scraper console (UI + API) | [arcane-scraper](https://github.com/arcane-scraper) `apps/scraper-console/` | `npm run dev` in that repo → `http://localhost:PORT/scraper/` |
+| arcane-reader              | No scraper dependency                                                       | File import only (`epub`, `fb2`, `csv`)                       |
 
-**Related code (current):** `packages/scraper/`, `apps/scraper-console/src/`, `apps/scraper-console/ui/`.
+**Related code (current):** external repo [arcane-scraper](https://github.com/arcane-scraper) — migrated from Arcane monorepo on 2026-06-10.
 
 **Removed from arcane-reader:** `POST …/chapters/scrape`, `runScrapeImportJob`, scrape worker queue, debug Scraper tab, `@arcane/scraper` dependency.
 
@@ -692,11 +692,12 @@ Assumptions: 500 chapters × 2 requests (TOC amortized) ≈ 1000 HTTP fetches pe
 - [Novel-Grabber](https://github.com/Flameish/Novel-Grabber)
 - [wn-dl / webnovel-scraper](https://github.com/wongpinter/webnovel-scraper)
 
-### Arcane monorepo (scraper — current)
+### arcane-scraper repo (current)
 
+- Repo: [arcane-scraper](https://github.com/arcane-scraper)
 - Library: `packages/scraper/` (`@arcane/scraper`)
 - Console app: `apps/scraper-console/` (`src/server.ts`, `src/routes.ts`, `ui/App.tsx`)
-- Root scripts: `npm run dev:scraper`, `npm run test:scraper`, `npm run build:scraper`
+- Root scripts: `npm run dev`, `npm run test`, `npm run build`
 
 ### Arcane Reader code (file import only)
 
