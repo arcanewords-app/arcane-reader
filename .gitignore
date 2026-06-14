@@ -38,7 +38,7 @@ npm-debug.log*
 *.tsbuildinfo
 
 supabase/migrations/
-
+docs/supabase-migrations/
 scripts/input-files/
 scripts/output/
 
