@@ -10,6 +10,27 @@
 
 import type { Glossary, Character, Location, Term } from '../types/glossary.js';
 
+const DEFAULT_CHAPTER_CAST_CAP = 25;
+
+/**
+ * Characters for chapter cast injection (gender tags). Characters only — not locations/terms.
+ * Prioritizes main characters, then earlier firstAppearance. Capped to limit tokens.
+ */
+export function getChapterCastCharacters(
+  glossary: Glossary,
+  chapterNumber: number,
+  cap = DEFAULT_CHAPTER_CAST_CAP
+): Character[] {
+  const chapterChars = filterGlossaryByChapter(glossary, chapterNumber).characters;
+  const sorted = [...chapterChars].sort((a, b) => {
+    if (a.isMainCharacter !== b.isMainCharacter) {
+      return a.isMainCharacter ? -1 : 1;
+    }
+    return a.firstAppearance - b.firstAppearance;
+  });
+  return sorted.slice(0, cap);
+}
+
 /**
  * Filter glossary to entries that were extracted in the given chapter (or have no chapter data).
  * Used as primary filter before filterGlossaryForChunk when translating/editing chapter N.

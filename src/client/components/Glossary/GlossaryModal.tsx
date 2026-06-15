@@ -33,6 +33,119 @@ const typeIcons: Record<GlossaryEntryType, string> = {
   term: 'menu_book',
 };
 
+type ImportPreviewRow = { type: GlossaryEntryType; original: string };
+
+function glossaryDupKey(type: GlossaryEntryType, original: string): string {
+  return `${type}:${original.trim()}`;
+}
+
+function parseCsvLineSimple(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseImportPreviewText(
+  text: string,
+  filename: string
+): { rows: ImportPreviewRow[]; parseError?: string } {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.json')) {
+    try {
+      const raw = JSON.parse(text) as unknown;
+      const arr = Array.isArray(raw) ? raw : (raw as { entries?: unknown })?.entries;
+      if (!Array.isArray(arr)) {
+        return { rows: [], parseError: 'Invalid JSON structure' };
+      }
+      const rows: ImportPreviewRow[] = [];
+      for (const item of arr) {
+        if (!item || typeof item !== 'object') continue;
+        const o = item as Record<string, unknown>;
+        const original = String(o.original ?? '').trim();
+        if (!original) continue;
+        const typeRaw = String(o.type ?? 'term');
+        const type = (
+          ['character', 'location', 'term'].includes(typeRaw) ? typeRaw : 'term'
+        ) as GlossaryEntryType;
+        rows.push({ type, original });
+      }
+      return { rows };
+    } catch {
+      return { rows: [], parseError: 'Invalid JSON' };
+    }
+  }
+  if (lower.endsWith('.csv')) {
+    const lines = text
+      .replace(/^\uFEFF/, '')
+      .split(/\r?\n/)
+      .filter((l) => l.trim());
+    if (lines.length === 0) {
+      return { rows: [], parseError: 'Empty CSV' };
+    }
+    const header = lines[0].toLowerCase();
+    const startIdx = header.includes('original') ? 1 : 0;
+    const rows: ImportPreviewRow[] = [];
+    for (let i = startIdx; i < lines.length; i++) {
+      const cols = parseCsvLineSimple(lines[i]);
+      const original = (cols[0] ?? '').trim();
+      if (!original) continue;
+      const typeRaw = (cols[2] ?? 'term').trim();
+      const type = (
+        ['character', 'location', 'term'].includes(typeRaw) ? typeRaw : 'term'
+      ) as GlossaryEntryType;
+      rows.push({ type, original });
+    }
+    return { rows };
+  }
+  return { rows: [], parseError: 'Unsupported file type' };
+}
+
+function countNewImportRows(
+  rows: ImportPreviewRow[],
+  existing: GlossaryEntry[]
+): { total: number; newCount: number; skipped: number } {
+  const existingKeys = new Set(existing.map((e) => glossaryDupKey(e.type, e.original)));
+  const seen = new Set<string>();
+  let newCount = 0;
+  let skipped = 0;
+  for (const row of rows) {
+    const key = glossaryDupKey(row.type, row.original);
+    if (seen.has(key)) {
+      skipped++;
+      continue;
+    }
+    seen.add(key);
+    if (existingKeys.has(key)) {
+      skipped++;
+    } else {
+      newCount++;
+    }
+  }
+  return { total: rows.length, newCount, skipped };
+}
+
 export function GlossaryModal({
   isOpen,
   onClose,
@@ -104,6 +217,24 @@ export function GlossaryModal({
   );
   const [showManualMergeModal, setShowManualMergeModal] = useState(false);
   const [displayEntries, setDisplayEntries] = useState<GlossaryEntry[]>(entries);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    total: number;
+    newCount: number;
+    skipped: number;
+    parseError?: string;
+  } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    added: number;
+    skipped: number;
+    errorCount: number;
+  } | null>(null);
+  const [showFileActionsMenu, setShowFileActionsMenu] = useState(false);
+  const fileActionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setDisplayEntries(entries);
@@ -182,6 +313,78 @@ export function GlossaryModal({
       onUpdate();
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleExportGlossary = async (format: 'json' | 'csv') => {
+    setShowFileActionsMenu(false);
+    setExporting(true);
+    try {
+      await api.exportGlossary(projectId, format);
+    } catch (error) {
+      console.error('Failed to export glossary:', error);
+      setMergeErrorModal({
+        title: t('glossary.exportError'),
+        message: error instanceof Error ? error.message : t('glossary.exportError'),
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportFileSelect = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const { rows, parseError } = parseImportPreviewText(text, file.name);
+      if (parseError && rows.length === 0) {
+        setMergeErrorModal({
+          title: t('glossary.importError'),
+          message: parseError,
+        });
+        return;
+      }
+      const counts = countNewImportRows(rows, displayEntries);
+      setPendingImportFile(file);
+      setImportPreview({ ...counts, parseError });
+      setShowImportConfirm(true);
+    } catch (error) {
+      console.error('Failed to read import file:', error);
+      setMergeErrorModal({
+        title: t('glossary.importError'),
+        message: error instanceof Error ? error.message : t('glossary.importError'),
+      });
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!pendingImportFile) return;
+    setImporting(true);
+    try {
+      const result = await api.importGlossary(projectId, pendingImportFile);
+      const list = await api.getGlossary(projectId);
+      setDisplayEntries(list);
+      onUpdate();
+      setImportResult({
+        added: result.added,
+        skipped: result.skipped,
+        errorCount: result.errors.length,
+      });
+    } catch (error) {
+      console.error('Failed to import glossary:', error);
+      setMergeErrorModal({
+        title: t('glossary.importError'),
+        message: error instanceof Error ? error.message : t('glossary.importError'),
+      });
+    } finally {
+      setImporting(false);
+      setShowImportConfirm(false);
+      setPendingImportFile(null);
+      setImportPreview(null);
     }
   };
 
@@ -289,6 +492,23 @@ export function GlossaryModal({
     }
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (!showFileActionsMenu) return;
+    const closeMenu = (e: MouseEvent) => {
+      if (fileActionsRef.current && !fileActionsRef.current.contains(e.target as Node)) {
+        setShowFileActionsMenu(false);
+      }
+    };
+    document.addEventListener('click', closeMenu);
+    return () => document.removeEventListener('click', closeMenu);
+  }, [showFileActionsMenu]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShowFileActionsMenu(false);
+    }
+  }, [isOpen]);
+
   const handleBulkMarkReviewed = async () => {
     if (selectedIds.size === 0) return;
     setBulkMarking(true);
@@ -342,6 +562,64 @@ export function GlossaryModal({
         onClose={onClose}
         title={t('glossary.title')}
         size="large"
+        headerActions={
+          !selectMode ? (
+            <div class="glossary-file-actions" ref={fileActionsRef}>
+              <button
+                type="button"
+                class="glossary-file-actions-trigger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFileActionsMenu((open) => !open);
+                }}
+                aria-label={t('glossary.fileActions')}
+                aria-expanded={showFileActionsMenu}
+                aria-haspopup="menu"
+                title={t('glossary.fileActions')}
+                disabled={exporting || importing}
+              >
+                <Icon name="more_vert" size="sm" />
+              </button>
+              {showFileActionsMenu && (
+                <div class="glossary-file-actions-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="glossary-file-actions-menu-item"
+                    disabled={exporting}
+                    onClick={() => void handleExportGlossary('json')}
+                  >
+                    <Icon name="download" size="sm" />
+                    {t('glossary.exportJson')}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="glossary-file-actions-menu-item"
+                    disabled={exporting}
+                    onClick={() => void handleExportGlossary('csv')}
+                  >
+                    <Icon name="download" size="sm" />
+                    {t('glossary.exportCsv')}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="glossary-file-actions-menu-item"
+                    disabled={importing}
+                    onClick={() => {
+                      setShowFileActionsMenu(false);
+                      importFileRef.current?.click();
+                    }}
+                  >
+                    <Icon name="upload_file" size="sm" />
+                    {t('glossary.import')}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : undefined
+        }
         footer={
           <>
             {selectMode ? (
@@ -418,6 +696,13 @@ export function GlossaryModal({
           </>
         }
       >
+        <input
+          ref={importFileRef}
+          type="file"
+          accept=".json,.csv,application/json,text/csv"
+          style="display: none"
+          onChange={handleImportFileSelect}
+        />
         <div class="glossary-toolbar">
           <div class="glossary-search">
             <input
@@ -1030,6 +1315,44 @@ export function GlossaryModal({
         confirmLabel={t('common.delete')}
         variant="danger"
         loading={bulkDeleting}
+      />
+
+      <ConfirmModal
+        isOpen={showImportConfirm}
+        onClose={() => {
+          if (importing) return;
+          setShowImportConfirm(false);
+          setPendingImportFile(null);
+          setImportPreview(null);
+        }}
+        onConfirm={handleConfirmImport}
+        title={t('glossary.importConfirmTitle')}
+        message={
+          importPreview
+            ? t('glossary.importConfirmMessage', {
+                total: importPreview.total,
+                newCount: importPreview.newCount,
+                skipped: importPreview.skipped,
+              })
+            : ''
+        }
+        confirmLabel={t('glossary.importConfirmButton')}
+        loading={importing}
+      />
+
+      <AlertModal
+        isOpen={!!importResult}
+        onClose={() => setImportResult(null)}
+        title={t('glossary.importResultTitle')}
+        message={
+          importResult
+            ? t('glossary.importResultMessage', {
+                added: importResult.added,
+                skipped: importResult.skipped,
+                errorCount: importResult.errorCount,
+              })
+            : ''
+        }
       />
 
       <AlertModal

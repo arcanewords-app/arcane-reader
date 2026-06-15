@@ -23,6 +23,7 @@ import type {
   ChapterStats,
   ProjectSearchMatch,
   GlossaryEntry,
+  GlossaryImportResult,
   Paragraph,
   TranslateResponse,
   ChapterTranslationOptions,
@@ -1079,6 +1080,46 @@ export const api = {
     return fetchJson(url, {
       method: 'DELETE',
     });
+  },
+
+  /** Download glossary as JSON or CSV */
+  async exportGlossary(projectId: string, format: 'json' | 'csv'): Promise<{ filename: string }> {
+    const url = `/api/projects/${projectId}/glossary/export?format=${format}`;
+    const token = authService.getToken();
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new ApiError(
+        (errData as { error?: string })?.error || res.statusText || 'Export failed',
+        res.status,
+        errData
+      );
+    }
+    const blob = await res.blob();
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const match = contentDisposition?.match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] || `glossary-${projectId}.${format}`;
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+    return { filename };
+  },
+
+  /** Import glossary from JSON or CSV file (append, skip duplicates) */
+  async importGlossary(projectId: string, file: File): Promise<GlossaryImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchFormData<GlossaryImportResult>(
+      `/api/projects/${projectId}/glossary/import`,
+      formData
+    );
   },
 
   // === Project Cover Image ===

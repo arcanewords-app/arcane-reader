@@ -253,6 +253,7 @@ export class TranslationPipeline {
         onProgress: options.onProgress
           ? (d, t) => options.onProgress?.(d, t, 'editing')
           : undefined,
+        chapterNumber,
       });
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
@@ -359,6 +360,7 @@ export class TranslationPipeline {
           onProgress: options.onProgress
             ? (d, t) => options.onProgress?.(d, t, 'editing')
             : undefined,
+          chapterNumber,
         });
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
@@ -420,6 +422,7 @@ export class TranslationPipeline {
       onProgress: options.onProgress
         ? (d, t) => options.onProgress?.(d, t, 'translation')
         : undefined,
+      chapterNumber,
     });
     totalTokens += stage2Result.tokensUsed;
 
@@ -468,6 +471,7 @@ export class TranslationPipeline {
         onProgress: options.onProgress
           ? (d, t) => options.onProgress?.(d, t, 'editing')
           : undefined,
+        chapterNumber,
       });
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {

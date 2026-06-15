@@ -48,6 +48,7 @@ Full list: `@src/engine/types/pipeline.ts`.
 - **As-is policy:** one glossary per project; DB `translated` is canonical for the project target language. No per-pair glossary variants — prompts pass entries unchanged via `toPromptText({ targetLanguageLabel })`.
 - Declension: `declineName`, `declineNameRu` from `glossary/declension*.ts`.
 - DB: snake_case (gender, location_type, term_category).
+- **Gender SSOT:** `characters[].gender` in glossary. Compact cast `[m/f/n/?]` via `GlossaryManager.toCastPromptText` + `getChapterCastCharacters`; injected on Translate context and every Edit user prompt. Shared rules: `prompts/shared/gender-agreement-*.ts` appended to Stage 2/3 system prompts.
 
 ## Translation languages (MVP)
 
@@ -71,7 +72,8 @@ Full list: `@src/engine/types/pipeline.ts`.
 - **Registry:** `resolvePrompts(stage, source, target)` in `@src/engine/prompts/registry.ts` — stages must not import pair modules directly.
 - **Shared fragments only** when identical across pairs: `src/engine/prompts/shared/`.
 - **Target language anchors:** `buildTargetLanguageAnchor` / `buildEditorTargetLanguageAnchor` in `@src/engine/prompts/shared/target-language-anchor.ts` — mandatory source/target in Stage 2/3 user prompts.
-- **Editor:** `@src/engine/prompts/system/editor.ts` — `getEditorSystemPrompt(preset, focus, targetLanguage)` for `ru` | `be`.
+- **Editor:** `@src/engine/prompts/system/editor.ts` — `getEditorSystemPrompt(preset, focus, targetLanguage)` for `ru` | `be`; gender agreement appended via `appendGenderAgreement`.
+- **Gender (all ru/be pairs):** `appendGenderAgreement()` in Stage 2 `translateChunk` — no per-pair translator file edits needed for gender rules.
 - Language-specific rules → edit the pair module only; add `// prompt-version: N` on major changes.
 - Deprecated aliases: `ANALYZER_SYSTEM_PROMPT` / `TRANSLATOR_SYSTEM_PROMPT` re-export en-ru for one release.
 

@@ -46,6 +46,7 @@ import {
   glossaryUpdateBodySchema,
   glossaryMergeBodySchema,
   glossaryBulkDeleteBodySchema,
+  glossaryExportQuerySchema,
   publicationsListQuerySchema,
   reportBodySchema,
   readingPositionBodySchema,
@@ -116,6 +117,7 @@ import {
   getPublicEntityById,
   type MarkTranslatedBatchResult,
   deleteGlossaryEntriesBulk,
+  importGlossaryEntriesBatch,
 } from './services/supabaseDatabase.js';
 // Types and utilities from database.ts (still used for compatibility)
 import {
@@ -578,6 +580,14 @@ import {
   suggestGlossaryMerges,
   type MergeSuggestion,
 } from './services/glossaryMergeSuggestions.js';
+import {
+  buildGlossaryCsvExport,
+  buildGlossaryJsonExport,
+  filterNewGlossaryEntries,
+  GLOSSARY_IMPORT_MAX_ENTRIES,
+  parseGlossaryImportFile,
+  prepareGlossaryEntryForInsert,
+} from './services/glossaryImportExport.js';
 import { exportProject } from './services/export/index.js';
 import { authService } from './services/authService.js';
 import {
@@ -677,6 +687,24 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error('Поддерживаемые форматы: .txt, .epub, .fb2, .csv'));
+    }
+  },
+});
+
+// Storage for glossary import files (.json / .csv)
+const uploadGlossaryFile = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const filename = decodeMultipartFilename(file.originalname).toLowerCase();
+    const allowedExtensions = ['.json', '.csv'];
+    const allowedMimes = ['application/json', 'text/json', 'text/csv', 'application/csv'];
+    const hasValidExtension = allowedExtensions.some((ext) => filename.endsWith(ext));
+    const hasValidMime = allowedMimes.includes(file.mimetype);
+    if (hasValidExtension || hasValidMime) {
+      cb(null, true);
+    } else {
+      cb(new Error('Supported formats: .json, .csv'));
     }
   },
 });
@@ -6139,6 +6167,133 @@ app.get('/api/projects/:id/glossary', requireAuth, requireRole('author'), async 
   }
 });
 
+app.get(
+  '/api/projects/:id/glossary/export',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parsed = glossaryExportQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.id, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const { format } = parsed.data;
+      const filename = `glossary-${req.params.id}.${format}`;
+
+      if (format === 'csv') {
+        const buffer = buildGlossaryCsvExport(project.glossary);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        return res.send(buffer);
+      }
+
+      const json = buildGlossaryJsonExport(project.glossary);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(json);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      res.status(500).json({ error: 'Failed to export glossary' });
+    }
+  }
+);
+
+app.post(
+  '/api/projects/:id/glossary/import',
+  requireAuth,
+  requireRole('author'),
+  uploadGlossaryFile.single('file'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.id, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const filename = decodeMultipartFilename(req.file.originalname);
+      const { entries: parsedEntries, errors: parseErrors } = parseGlossaryImportFile(
+        req.file.buffer,
+        filename
+      );
+
+      if (parsedEntries.length === 0 && parseErrors.length > 0) {
+        return res.status(400).json({
+          error: 'Failed to parse glossary file',
+          added: 0,
+          skipped: 0,
+          errors: parseErrors,
+        });
+      }
+
+      if (parsedEntries.length > GLOSSARY_IMPORT_MAX_ENTRIES) {
+        return res.status(400).json({
+          error: `Too many entries (max ${GLOSSARY_IMPORT_MAX_ENTRIES})`,
+          added: 0,
+          skipped: 0,
+          errors: parseErrors,
+        });
+      }
+
+      const { toInsert, skipped } = filterNewGlossaryEntries(parsedEntries, project.glossary);
+
+      const prepared = toInsert.map((entry) => prepareGlossaryEntryForInsert(entry));
+      const inserted = await importGlossaryEntriesBatch(req.params.id, prepared, token);
+
+      clearAgentCache(req.params.id);
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.id, token);
+
+      req.log?.info(
+        {
+          event: 'glossary.imported',
+          projectId: req.params.id,
+          added: inserted.length,
+          skipped,
+          errorCount: parseErrors.length,
+        },
+        'Glossary import completed'
+      );
+
+      res.json({
+        added: inserted.length,
+        skipped,
+        errors: parseErrors,
+      });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      if (error instanceof multer.MulterError) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error instanceof Error && error.message.includes('Supported formats')) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Failed to import glossary' });
+    }
+  }
+);
+
 app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async (req, res) => {
   try {
     if (!req.user) {
@@ -6159,34 +6314,10 @@ app.post('/api/projects/:id/glossary', requireAuth, requireRole('author'), async
         details: parsed.error.flatten().fieldErrors,
       });
     }
-    const { declensions: declensionsIn, translated: translatedIn, ...rest } = parsed.data;
-    let declensions = declensionsIn;
-    let translated = translatedIn;
 
-    // Auto-generate declensions for characters using arcane-engine
-    if (rest.type === 'character' && rest.original && !declensions) {
-      const result = getNameDeclensions(rest.original, rest.gender || 'unknown');
+    const prepared = prepareGlossaryEntryForInsert(parsed.data);
 
-      // Use auto-generated translation if not provided
-      if (!translated) {
-        translated = result.translatedName;
-      }
-
-      // Generate declensions for the translated name
-      declensions = result.declensions;
-
-      req.log?.debug({ original: rest.original, declensions }, 'Auto-declension result');
-    }
-
-    const entry = await addGlossaryEntry(
-      req.params.id,
-      {
-        ...rest,
-        translated: translated ?? rest.original,
-        declensions,
-      },
-      requireToken(req)
-    );
+    const entry = await addGlossaryEntry(req.params.id, prepared, requireToken(req));
 
     // Clear agent cache to reload glossary
     clearAgentCache(req.params.id);

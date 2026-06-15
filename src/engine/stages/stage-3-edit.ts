@@ -20,7 +20,7 @@ import {
   getQualityCheckPrompt,
 } from '../prompts/system/editor.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
-import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
+import { filterGlossaryForChunk, getChapterCastCharacters } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks, type MergeChunkInput } from '../utils/chunker.js';
 import { languageDisplayName } from '../language.js';
 import { log } from '../logger.js';
@@ -55,6 +55,8 @@ interface EditStageOptions {
   onProgress?: (chunksDone: number, totalChunks: number) => void;
   /** Max chunks to process in parallel (default 1). Use 2-3 for faster editing; respect API rate limits. */
   parallelChunks?: number;
+  /** Current chapter number — injects full chapter cast even when chunk filter omits a character. */
+  chapterNumber?: number;
 }
 
 interface QualityCheckResponse {
@@ -118,6 +120,12 @@ export class EditStage {
     try {
       const includeGlossary = options.includeGlossary !== false;
       const fullGlossary = options.context.glossary;
+      const chapterCastText =
+        options.chapterNumber !== undefined
+          ? GlossaryManager.toCastPromptText(
+              getChapterCastCharacters(fullGlossary, options.chapterNumber)
+            )
+          : '';
 
       // Prepare style notes
       const styleNotes = this.buildStyleNotes(options.context);
@@ -160,7 +168,8 @@ export class EditStage {
           parallelChunks,
           options.isCancelled,
           options.onProgress,
-          options.context.targetLanguage
+          options.context.targetLanguage,
+          chapterCastText
         );
 
         editedText = chunkedResult.text;
@@ -190,7 +199,8 @@ export class EditStage {
               glossaryTextForQuality,
               styleNotes,
               options.customInstructions,
-              targetLabel
+              targetLabel,
+              chapterCastText
             ),
           },
         ];
@@ -391,7 +401,8 @@ export class EditStage {
     parallelChunks: number = 1,
     isCancelled?: () => boolean,
     onProgress?: (chunksDone: number, totalChunks: number) => void,
-    targetLanguage?: import('../types/common.js').Language
+    targetLanguage?: import('../types/common.js').Language,
+    chapterCastText?: string
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -426,6 +437,7 @@ export class EditStage {
         retryDelayMs,
         isCancelled,
         targetLanguage,
+        chapterCastText,
       });
     };
 
@@ -498,6 +510,7 @@ export class EditStage {
       retryDelayMs: number;
       isCancelled?: () => boolean;
       targetLanguage?: import('../types/common.js').Language;
+      chapterCastText?: string;
     }
   ): Promise<{ result: MergeChunkInput; tokensUsed: number }> {
     let lastError: Error | undefined;
@@ -526,7 +539,8 @@ export class EditStage {
           opts.customInstructions,
           opts.editingStylePreset,
           opts.editingFocus,
-          opts.targetLanguage
+          opts.targetLanguage,
+          opts.chapterCastText
         );
 
         if (!editResult.text || editResult.text.trim().length === 0) {
@@ -596,7 +610,8 @@ export class EditStage {
     customInstructions?: string,
     editingStylePreset: EditingStylePreset = 'default',
     editingFocus: EditingFocus = 'both',
-    targetLanguage?: import('../types/common.js').Language
+    targetLanguage?: import('../types/common.js').Language,
+    chapterCastText?: string
   ): Promise<{ text: string; tokensUsed: number }> {
     const targetLabel = targetLanguage ? languageDisplayName(targetLanguage) : undefined;
     const glossaryText =
@@ -616,7 +631,8 @@ export class EditStage {
           glossaryText,
           styleNotes,
           customInstructions,
-          targetLabel
+          targetLabel,
+          chapterCastText
         ),
       },
     ];

@@ -413,7 +413,18 @@
     "contextDelete": "Удалить",
     "contextMarkReviewed": "Пометить проверенной",
     "viewCards": "Карточки",
-    "viewList": "Список"
+    "viewList": "Список",
+    "fileActions": "Импорт и экспорт",
+    "exportJson": "Экспорт JSON",
+    "exportCsv": "Экспорт CSV",
+    "exportError": "Не удалось экспортировать глоссарий",
+    "import": "Импорт",
+    "importError": "Не удалось импортировать глоссарий",
+    "importConfirmTitle": "Импорт глоссария",
+    "importConfirmMessage": "В файле {{total}} записей. Будет добавлено: {{newCount}}. Пропущено (дубликаты): {{skipped}}.",
+    "importConfirmButton": "Импортировать",
+    "importResultTitle": "Импорт завершён",
+    "importResultMessage": "Добавлено: {{added}}. Пропущено: {{skipped}}. Ошибок валидации: {{errorCount}}."
   },
   "reader": {
     "font": "Шрифт",

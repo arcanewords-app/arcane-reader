@@ -2565,6 +2565,77 @@ export async function addGlossaryEntry(
   return transformGlossaryEntryFromDB(newEntry);
 }
 
+const GLOSSARY_BATCH_INSERT_SIZE = 100;
+
+/**
+ * Batch insert glossary entries (import).
+ */
+export async function importGlossaryEntriesBatch(
+  projectId: string,
+  entries: Omit<GlossaryEntry, 'id'>[],
+  token: string
+): Promise<GlossaryEntry[]> {
+  validateToken(token);
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+
+  const client = createClientWithToken(token);
+
+  const { data: project, error: projectError } = await client
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .single();
+
+  if (projectError || !project) {
+    return [];
+  }
+
+  const inserted: GlossaryEntry[] = [];
+
+  for (let offset = 0; offset < entries.length; offset += GLOSSARY_BATCH_INSERT_SIZE) {
+    const chunk = entries.slice(offset, offset + GLOSSARY_BATCH_INSERT_SIZE);
+    const rows = chunk.map((entry) => {
+      const entryData: Record<string, unknown> = {
+        project_id: projectId,
+        type: normalizeGlossaryTypeForDB(entry.type),
+        original: entry.original,
+        translated: entry.translated,
+        gender: normalizeGenderForDB(entry.gender),
+        declensions: entry.declensions || null,
+        description: entry.description || null,
+        notes: entry.notes || null,
+        first_appearance: entry.firstAppearance || null,
+        mentioned_in_chapters: entry.mentionedInChapters ?? null,
+        image_urls: entry.imageUrls || [],
+        auto_detected: entry.autoDetected || false,
+      };
+      if (entry.relatedEntryIds?.length) {
+        entryData.related_entry_ids = entry.relatedEntryIds;
+      }
+      if (entry.primaryLocationId) {
+        entryData.primary_location_id = entry.primaryLocationId;
+      }
+      return entryData;
+    });
+
+    const { data: newEntries, error } = await client.from('glossary_entries').insert(rows).select();
+
+    if (error) {
+      throw new Error(`Failed to import glossary batch: ${error.message}`);
+    }
+
+    if (newEntries?.length) {
+      inserted.push(...newEntries.map(transformGlossaryEntryFromDB));
+    }
+  }
+
+  await client.from('projects').update({}).eq('id', projectId);
+
+  return inserted;
+}
+
 /**
  * Update a glossary entry
  * @param options.useServiceRole - Use service role client (for long-running ops when JWT may expire)

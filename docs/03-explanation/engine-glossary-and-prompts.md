@@ -5,7 +5,7 @@ domain: engine
 stale: false
 canonical: .cursor/rules/engine.mdc
 created: 2026-05-31
-updated: 2026-06-06
+updated: 2026-06-16
 ---
 
 # Engine glossary and prompts (as-is)
@@ -89,6 +89,31 @@ System prompts per pair still carry source-specific rules (honorifics, xianxia, 
 - **`editingFocus`:** `fix_problems` \| `style_only` \| `both`.
 
 Passed through `PipelineOptions` from project settings (`engine-integration.ts`).
+
+#### Editing combos: «Исправление»
+
+Two independent settings combine at runtime:
+
+| UI (ru)         | Key                  | «Исправление» value                                                  |
+| --------------- | -------------------- | -------------------------------------------------------------------- |
+| Стиль редактуры | `editingStylePreset` | `ai_revivification` — post-edit AI translation (ВЫ/ТЫ, канцеляризмы) |
+| Фокус редактуры | `editingFocus`       | `fix_problems` — errors only, minimal rephrasing                     |
+
+`getEditorSystemPrompt(preset, focus, target)` prepends the focus overlay, then appends the style block, then **gender agreement** (see below). User prompt: glossary (chunk-filtered) + **chapter cast** (always, all chapter characters) + style notes + translated text (no original).
+
+**Re-edit workflow:** run `stages: ['editing']` on an existing translation with `editingFocus: 'fix_problems'` (optionally `editingStylePreset: 'minimal'`) — only Stage 3 tokens, no re-translate. Compare prompt combos: `npm run test:editing-prompts`.
+
+### Gender agreement
+
+**SSOT:** `glossary_entries.gender` on characters. Prompts do not override manual gender.
+
+| Mechanism    | Where                                                                                                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared rules | `prompts/shared/gender-agreement-ru.ts`, `gender-agreement-be.ts` — appended once to translator (Stage 2) and editor (Stage 3) system prompts via `appendGenderAgreement()`                        |
+| Chapter cast | `getChapterCastCharacters()` + `GlossaryManager.toCastPromptText()` — compact `orig → tr [m/f/n/?]` in Translate context and **every** Edit user prompt (even if chunk glossary omits a character) |
+| Active scene | `buildContextText` labels active characters with `[m/f]` when found in glossary                                                                                                                    |
+
+Token budget: cast capped at 25 characters per chapter; no full declensions in cast lines. See archived `docs/archive/GLOSSARY_TOKEN_OPTIMIZATION.md` for chunk glossary policy.
 
 ### Custom instructions
 

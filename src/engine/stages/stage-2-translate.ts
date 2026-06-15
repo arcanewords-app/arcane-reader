@@ -13,9 +13,10 @@ import type { Glossary } from '../types/glossary.js';
 import type { StageResult, TranslationDraft, ChunkTranslation } from '../types/pipeline.js';
 import type { TextChunk, TextBlockType } from '../types/common.js';
 import { resolvePrompts } from '../prompts/registry.js';
+import { appendGenderAgreement } from '../prompts/shared/gender-agreement.js';
 import { languageDisplayName } from '../language.js';
-import { GlossaryManager } from '../glossary/glossary-manager.js';
-import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
+import { GlossaryManager, formatGenderCompactTag } from '../glossary/glossary-manager.js';
+import { filterGlossaryForChunk, getChapterCastCharacters } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
 import { formatChunkError } from '../constants/errors.js';
 import { log } from '../logger.js';
@@ -42,6 +43,8 @@ interface TranslateStageOptions {
   parallelChunks?: number;
   /** Called when chunk progress updates (chunksDone, totalChunks). Used for UI progress display. */
   onProgress?: (chunksDone: number, totalChunks: number) => void;
+  /** Current chapter number — used for chapter cast and gender context injection. */
+  chapterNumber?: number;
 }
 
 const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
@@ -104,7 +107,7 @@ export class TranslateStage {
       const fullGlossary = options.context.glossary;
 
       // Prepare context text
-      const contextText = this.buildContextText(options.context);
+      const contextText = this.buildContextText(options.context, options.chapterNumber);
 
       // Prepare style guide
       const styleGuide = this.buildStyleGuide(options.context);
@@ -425,9 +428,10 @@ export class TranslateStage {
     }
 
     const translatorPrompts = resolvePrompts('translate', sourceLanguage, targetLanguage);
+    const systemPrompt = appendGenderAgreement(translatorPrompts.systemPrompt, targetLanguage);
 
     const messages: Message[] = [
-      { role: 'system', content: translatorPrompts.systemPrompt },
+      { role: 'system', content: systemPrompt },
       {
         role: 'user',
         content: translatorPrompts.createUserPrompt({
@@ -535,8 +539,16 @@ export class TranslateStage {
     };
   }
 
-  private buildContextText(context: AgentContext): string {
+  private buildContextText(context: AgentContext, chapterNumber?: number): string {
     const parts: string[] = [];
+
+    if (chapterNumber !== undefined) {
+      const castChars = getChapterCastCharacters(context.glossary, chapterNumber);
+      const castText = GlossaryManager.toCastPromptText(castChars);
+      if (castText) {
+        parts.push(castText);
+      }
+    }
 
     // Recent events
     if (context.currentContext.lastEvents.length > 0) {
@@ -544,10 +556,17 @@ export class TranslateStage {
       parts.push(context.currentContext.lastEvents.map((e) => `- ${e}`).join('\n'));
     }
 
-    // Active characters
+    // Active characters (with gender tags when known in glossary)
     if (context.currentContext.activeCharacters.length > 0) {
       parts.push('\n### Активные персонажи в сцене:');
-      parts.push(context.currentContext.activeCharacters.join(', '));
+      const labeled = context.currentContext.activeCharacters.map((name) => {
+        const char = GlossaryManager.findCharacterByName(context.glossary, name);
+        if (char) {
+          return `${char.translatedName} [${formatGenderCompactTag(char.gender)}]`;
+        }
+        return name;
+      });
+      parts.push(labeled.join(', '));
     }
 
     // Current location

@@ -41,6 +41,18 @@ export interface GlossaryEntry {
   imageUrl?: string;
 }
 
+export interface GlossaryImportError {
+  row: number;
+  original?: string;
+  message: string;
+}
+
+export interface GlossaryImportResult {
+  added: number;
+  skipped: number;
+  errors: GlossaryImportError[];
+}
+
 export type PublicEntityKind = 'tag' | 'author' | 'translator';
 
 export interface PublicEntity {

@@ -176,6 +176,8 @@ Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-tra
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/projects/:id/glossary` | List glossary |
+| GET | `/api/projects/:id/glossary/export` | Export glossary file (query: `format=json\|csv`) |
+| POST | `/api/projects/:id/glossary/import` | Import glossary file (multipart: `file` — `.json`/`.csv`; append, skip duplicates) |
 | POST | `/api/projects/:id/glossary` | Add glossary entry |
 | PUT | `/api/projects/:projectId/glossary/:entryId` | Update glossary entry |
 | DELETE | `/api/projects/:projectId/glossary/:entryId` | Delete glossary entry |

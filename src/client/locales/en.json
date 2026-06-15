@@ -415,7 +415,18 @@
     "contextDelete": "Delete",
     "contextMarkReviewed": "Mark as reviewed",
     "viewCards": "Cards",
-    "viewList": "List"
+    "viewList": "List",
+    "fileActions": "Import and export",
+    "exportJson": "Export JSON",
+    "exportCsv": "Export CSV",
+    "exportError": "Failed to export glossary",
+    "import": "Import",
+    "importError": "Failed to import glossary",
+    "importConfirmTitle": "Import glossary",
+    "importConfirmMessage": "File has {{total}} entries. Will add: {{newCount}}. Skipped (duplicates): {{skipped}}.",
+    "importConfirmButton": "Import",
+    "importResultTitle": "Import complete",
+    "importResultMessage": "Added: {{added}}. Skipped: {{skipped}}. Validation errors: {{errorCount}}."
   },
   "reader": {
     "font": "Font",

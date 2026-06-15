@@ -10,6 +10,7 @@
 
 import type { Language } from '../../types/common.js';
 import { buildEditorTargetLanguageAnchor } from '../shared/target-language-anchor.js';
+import { appendGenderAgreement } from '../shared/gender-agreement.js';
 
 export type EditingStylePreset = 'default' | 'literary' | 'minimal' | 'ai_revivification';
 
@@ -306,7 +307,8 @@ export function getEditorSystemPrompt(
   const prompts = target === 'be' ? EDITOR_SYSTEM_PROMPTS_BE : EDITOR_SYSTEM_PROMPTS;
   const stylePrompt = prompts[preset];
   const focusOverlay = FOCUS_OVERLAYS[focus];
-  return focusOverlay ? focusOverlay.trim() + '\n\n' + stylePrompt : stylePrompt;
+  const base = focusOverlay ? focusOverlay.trim() + '\n\n' + stylePrompt : stylePrompt;
+  return appendGenderAgreement(base, targetLanguage);
 }
 
 export const createEditorPrompt = (
@@ -314,12 +316,17 @@ export const createEditorPrompt = (
   glossary: string,
   styleNotes?: string,
   customInstructions?: string,
-  targetLanguageLabel?: string
+  targetLanguageLabel?: string,
+  chapterCast?: string
 ): string => {
   let prompt = '';
 
   if (targetLanguageLabel) {
     prompt += `${buildEditorTargetLanguageAnchor(targetLanguageLabel)}\n\n`;
+  }
+
+  if (chapterCast?.trim()) {
+    prompt += `${chapterCast.trim()}\n\n`;
   }
 
   if (glossary && glossary.trim()) {

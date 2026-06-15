@@ -48,7 +48,24 @@ export const glossaryBulkDeleteBodySchema = z.object({
   entryIds: z.array(z.string().min(1)).min(1),
 });
 
+/** Portable glossary row for import (no project-specific ids). */
+export const glossaryImportEntrySchema = z.object({
+  original: z.string().trim().min(1),
+  translated: z.string().optional(),
+  type: glossaryTypeSchema.optional().default('term'),
+  gender: genderSchema.optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  declensions: declensionsSchema.optional(),
+});
+
+export const glossaryExportQuerySchema = z.object({
+  format: z.enum(['json', 'csv']).default('json'),
+});
+
 export type GlossaryCreateBody = z.infer<typeof glossaryCreateBodySchema>;
 export type GlossaryBulkDeleteBody = z.infer<typeof glossaryBulkDeleteBodySchema>;
 export type GlossaryUpdateBody = z.infer<typeof glossaryUpdateBodySchema>;
 export type GlossaryMergeBody = z.infer<typeof glossaryMergeBodySchema>;
+export type GlossaryImportEntry = z.infer<typeof glossaryImportEntrySchema>;
+export type GlossaryExportQuery = z.infer<typeof glossaryExportQuerySchema>;

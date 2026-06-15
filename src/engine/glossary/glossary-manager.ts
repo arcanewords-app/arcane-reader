@@ -6,6 +6,21 @@ import type { Glossary, Character, Location, Term, GlossaryUpdate } from '../typ
 import type { Gender, Declensions } from '../types/common.js';
 import { declineName, translateName } from './declension.js';
 import { isLatinScriptName } from '../language.js';
+import { GENDER_CAST_LEGEND } from '../prompts/shared/gender-cast-legend.js';
+
+/** Compact gender tag for cast lines: [m], [f], [n], [?] */
+export function formatGenderCompactTag(gender: Gender): string {
+  switch (gender) {
+    case 'male':
+      return 'm';
+    case 'female':
+      return 'f';
+    case 'neutral':
+      return 'n';
+    default:
+      return '?';
+  }
+}
 
 export class GlossaryManager {
   private glossary: Glossary;
@@ -319,6 +334,30 @@ export class GlossaryManager {
     }
 
     return text;
+  }
+
+  /**
+   * Compact chapter cast for gender agreement (characters only, no descriptions).
+   */
+  static toCastPromptText(characters: Character[]): string {
+    if (characters.length === 0) return '';
+    let text = GENDER_CAST_LEGEND + '\n';
+    for (const char of characters) {
+      text += `- ${char.originalName} → ${char.translatedName} [${formatGenderCompactTag(char.gender)}]\n`;
+    }
+    return text.trimEnd();
+  }
+
+  /** Resolve character by original or translated name (case-insensitive). */
+  static findCharacterByName(glossary: Glossary, name: string): Character | undefined {
+    const n = name.trim().toLowerCase();
+    if (!n) return undefined;
+    return glossary.characters.find(
+      (c) =>
+        c.originalName.trim().toLowerCase() === n ||
+        c.translatedName.trim().toLowerCase() === n ||
+        (c.aliases ?? []).some((a) => a.trim().toLowerCase() === n)
+    );
   }
 
   // ============ Utility ============
