@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import type { LabStage, LabText } from '../api/client';
 import { deleteText, fetchTexts } from '../api/client';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { PlChip } from '../components/PlChip';
+import { langPairLabel } from '../utils/visualTokens';
 
 interface Props {
   active: boolean;
@@ -87,11 +89,15 @@ export function TextsPanel({ active, onLoad }: Props) {
                   onClick={() => setSelected(t)}
                 >
                   <strong>{t.title}</strong>
-                  <span class="pl-muted">
-                    {' '}
-                    {t.sourceLanguage}→{t.targetLanguage}
-                    {t.stageHint ? ` (${t.stageHint})` : ''}
-                  </span>
+                  <div class="pl-chip-row" style={{ marginTop: '4px' }}>
+                    <PlChip
+                      variant="lang"
+                      label={langPairLabel(t.sourceLanguage, t.targetLanguage)}
+                    />
+                    {t.stageHint ? (
+                      <PlChip variant="stage" stage={t.stageHint as LabStage} label={t.stageHint} />
+                    ) : null}
+                  </div>
                   <div class="pl-muted">{t.content.slice(0, 120)}…</div>
                 </button>
               </li>

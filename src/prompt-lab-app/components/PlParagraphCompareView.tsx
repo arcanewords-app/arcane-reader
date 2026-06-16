@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { alignParagraphRows, textToDisplayParagraphs } from '../utils/paragraphs.js';
 
 interface Props {
@@ -5,6 +6,8 @@ interface Props {
   rightText: string;
   leftLabel?: string;
   rightLabel?: string;
+  leftSubtitle?: ComponentChildren;
+  rightSubtitle?: ComponentChildren;
 }
 
 export function PlParagraphCompareView({
@@ -12,6 +15,8 @@ export function PlParagraphCompareView({
   rightText,
   leftLabel = 'Left',
   rightLabel = 'Right',
+  leftSubtitle,
+  rightSubtitle,
 }: Props) {
   const leftParas = textToDisplayParagraphs(leftText);
   const rightParas = textToDisplayParagraphs(rightText);
@@ -29,8 +34,14 @@ export function PlParagraphCompareView({
         </div>
       ) : null}
       <div class="pl-compare-headers">
-        <div class="pl-compare-header">{leftLabel}</div>
-        <div class="pl-compare-header">{rightLabel}</div>
+        <div class="pl-compare-header">
+          <div>{leftLabel}</div>
+          {leftSubtitle ? <div class="pl-compare-header-sub">{leftSubtitle}</div> : null}
+        </div>
+        <div class="pl-compare-header">
+          <div>{rightLabel}</div>
+          {rightSubtitle ? <div class="pl-compare-header-sub">{rightSubtitle}</div> : null}
+        </div>
       </div>
       <div class="pl-compare-scroll">
         {left.map((lp, i) => (

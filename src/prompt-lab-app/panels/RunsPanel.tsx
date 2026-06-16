@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import type { LabRun } from '../api/client';
 import { deleteRun, fetchRuns, formatRunDisplayName } from '../api/client';
 import { AnalysisResultView } from '../components/AnalysisResultView';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { PlCollapsible } from '../components/PlCollapsible';
+import { RunMetaBadges } from '../components/RunMetaBadges';
+import {
+  DEFAULT_RUN_FILTERS,
+  filterAndSortRuns,
+  hasActiveRunFilters,
+  uniqueRunLangPairs,
+  uniqueRunModels,
+  type RunListFilters,
+} from '../utils/runFilters';
+import { formatDurationMs, formatTokenCount, STAGE_STRIPE_CLASS } from '../utils/visualTokens';
 
 interface Props {
   active: boolean;
@@ -14,10 +25,11 @@ export function RunsPanel({ active, onReplay }: Props) {
   const [selected, setSelected] = useState<LabRun | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<RunListFilters>(DEFAULT_RUN_FILTERS);
 
   const load = useCallback(async () => {
     try {
-      const { runs: rows } = await fetchRuns();
+      const { runs: rows } = await fetchRuns(200);
       setRuns(rows);
       setError(null);
     } catch (e) {
@@ -29,6 +41,16 @@ export function RunsPanel({ active, onReplay }: Props) {
     if (active) void load();
   }, [active, load]);
 
+  const modelOptions = useMemo(() => uniqueRunModels(runs), [runs]);
+  const langPairOptions = useMemo(() => uniqueRunLangPairs(runs), [runs]);
+  const filtered = useMemo(() => filterAndSortRuns(runs, filters), [runs, filters]);
+
+  const setFilter = <K extends keyof RunListFilters>(key: K, value: RunListFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => setFilters(DEFAULT_RUN_FILTERS);
+
   const handleDelete = async () => {
     if (!deleteId) return;
     await deleteRun(deleteId);
@@ -37,46 +59,123 @@ export function RunsPanel({ active, onReplay }: Props) {
     await load();
   };
 
-  const formatRunSummary = (r: LabRun) => {
-    const model = typeof r.params.model === 'string' ? r.params.model : 'default';
-    const temp = typeof r.params.temperature === 'number' ? r.params.temperature : '—';
-    return `${r.params.sourceLanguage as string}→${r.params.targetLanguage as string} · ${model} · temp ${temp}`;
-  };
-
   return (
     <>
       <div class="pl-split">
         <div class="pl-pane">
-          <div class="pl-toolbar">
+          <div class="pl-filter-bar">
+            <input
+              class="pl-input pl-search-input"
+              type="search"
+              placeholder="Search runs…"
+              value={filters.search}
+              onInput={(e) => setFilter('search', e.currentTarget.value)}
+            />
+            <select
+              class="pl-select"
+              value={filters.stage}
+              onChange={(e) => setFilter('stage', e.currentTarget.value as RunListFilters['stage'])}
+            >
+              <option value="">All stages</option>
+              <option value="analyze">analyze</option>
+              <option value="translate">translate</option>
+              <option value="edit">edit</option>
+            </select>
+            <select
+              class="pl-select"
+              value={filters.model}
+              onChange={(e) => setFilter('model', e.currentTarget.value)}
+            >
+              <option value="">All models</option>
+              {modelOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <select
+              class="pl-select"
+              value={filters.langPair}
+              onChange={(e) => setFilter('langPair', e.currentTarget.value)}
+            >
+              <option value="">All pairs</option>
+              {langPairOptions.map((pair) => (
+                <option key={pair} value={pair}>
+                  {pair}
+                </option>
+              ))}
+            </select>
+            <select
+              class="pl-select"
+              value={filters.status}
+              onChange={(e) =>
+                setFilter('status', e.currentTarget.value as RunListFilters['status'])
+              }
+            >
+              <option value="">All status</option>
+              <option value="success">success</option>
+              <option value="failed">failed</option>
+            </select>
+            <select
+              class="pl-select"
+              value={filters.sort}
+              onChange={(e) => setFilter('sort', e.currentTarget.value as RunListFilters['sort'])}
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="tokens">Most tokens</option>
+              <option value="duration">Longest</option>
+            </select>
             <button type="button" class="pl-btn secondary" onClick={() => void load()}>
               Refresh
             </button>
           </div>
+          <p class="pl-filter-count">
+            {filtered.length} shown · {runs.length} total
+          </p>
           {error ? <p class="pl-error">{error}</p> : null}
           <ul class="pl-list">
-            {runs.map((r) => (
+            {filtered.map((r) => (
               <li key={r.id}>
                 <button
                   type="button"
-                  class={`pl-list-btn${selected?.id === r.id ? ' selected' : ''}`}
+                  class={`pl-list-btn pl-run-card ${STAGE_STRIPE_CLASS[r.stage]}${selected?.id === r.id ? ' selected' : ''}`}
                   onClick={() => setSelected(r)}
                 >
-                  <strong>{formatRunDisplayName(r)}</strong>
-                  <span class="pl-muted"> · {r.stage}</span>
-                  <div class="pl-muted">{formatRunSummary(r)}</div>
-                  <div class="pl-muted">
-                    {new Date(r.createdAt).toLocaleString()} — {r.tokensUsed} tok · {r.durationMs}{' '}
-                    ms
+                  <strong class="pl-run-card__title">{formatRunDisplayName(r)}</strong>
+                  <RunMetaBadges run={r} />
+                  <div class="pl-run-card__meta">
+                    {new Date(r.createdAt).toLocaleString()} · {formatTokenCount(r.tokensUsed)} tok
+                    · {formatDurationMs(r.durationMs)}
                   </div>
                 </button>
               </li>
             ))}
           </ul>
+          {!filtered.length && !error && runs.length > 0 && hasActiveRunFilters(filters) ? (
+            <div class="pl-filter-empty">
+              <p>No runs match filters.</p>
+              <button type="button" class="pl-btn secondary" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
+          ) : null}
           {!runs.length && !error ? <p class="pl-muted">No runs yet.</p> : null}
         </div>
         <div class="pl-pane">
           {selected ? (
             <>
+              <RunMetaBadges run={selected} />
+              <div class="pl-run-meta">
+                {new Date(selected.createdAt).toLocaleString()} ·{' '}
+                {formatTokenCount(selected.tokensUsed)} tok ·{' '}
+                {formatDurationMs(selected.durationMs)}
+              </div>
+              {!selected.output.success && selected.output.error ? (
+                <div class="pl-banner error" role="alert">
+                  {selected.output.error}
+                </div>
+              ) : null}
               <div class="pl-row">
                 <button type="button" class="pl-btn" onClick={() => onReplay(selected)}>
                   Replay in workbench
@@ -96,9 +195,11 @@ export function RunsPanel({ active, onReplay }: Props) {
                   Delete
                 </button>
               </div>
-              <pre style={{ overflow: 'auto', fontSize: '12px' }}>
-                {JSON.stringify(selected.params, null, 2)}
-              </pre>
+              <PlCollapsible title="Raw params">
+                <pre style={{ overflow: 'auto', fontSize: '12px', margin: 0 }}>
+                  {JSON.stringify(selected.params, null, 2)}
+                </pre>
+              </PlCollapsible>
               {selected.output.stage === 'analyze' && selected.output.analysis ? (
                 <AnalysisResultView analysis={selected.output.analysis} />
               ) : (

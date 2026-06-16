@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
-import type { LabPrompt } from '../api/client';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import type { LabPrompt, LabStage } from '../api/client';
 import { deletePrompt, fetchCurrentPrompt, fetchPrompts, updatePrompt } from '../api/client';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PlDiffView } from '../components/PlDiffView';
 import { PlModal } from '../components/PlModal';
+import { PromptMetaBadges } from '../components/PromptMetaBadges';
+import {
+  DEFAULT_PROMPT_FILTERS,
+  filterPrompts,
+  hasActivePromptFilters,
+  uniquePromptLangPairs,
+  type PromptListFilters,
+} from '../utils/runFilters';
 
 interface Props {
   active: boolean;
@@ -22,6 +30,7 @@ export function PromptsPanel({ active, onLoad }: Props) {
   const [baselineSystem, setBaselineSystem] = useState('');
   const [showDiff, setShowDiff] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [filters, setFilters] = useState<PromptListFilters>(DEFAULT_PROMPT_FILTERS);
 
   const load = useCallback(async () => {
     try {
@@ -36,6 +45,15 @@ export function PromptsPanel({ active, onLoad }: Props) {
   useEffect(() => {
     if (active) void load();
   }, [active, load]);
+
+  const langPairOptions = useMemo(() => uniquePromptLangPairs(prompts), [prompts]);
+  const filtered = useMemo(() => filterPrompts(prompts, filters), [prompts, filters]);
+
+  const setFilter = <K extends keyof PromptListFilters>(key: K, value: PromptListFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => setFilters(DEFAULT_PROMPT_FILTERS);
 
   const selectPrompt = async (p: LabPrompt) => {
     setSelected(p);
@@ -89,35 +107,77 @@ export function PromptsPanel({ active, onLoad }: Props) {
     <>
       <div class="pl-split">
         <div class="pl-pane">
-          <div class="pl-toolbar">
+          <div class="pl-filter-bar">
+            <input
+              class="pl-input pl-search-input"
+              type="search"
+              placeholder="Search prompts…"
+              value={filters.search}
+              onInput={(e) => setFilter('search', e.currentTarget.value)}
+            />
+            <select
+              class="pl-select"
+              value={filters.stage}
+              onChange={(e) => setFilter('stage', e.currentTarget.value as LabStage | '')}
+            >
+              <option value="">All stages</option>
+              <option value="analyze">analyze</option>
+              <option value="translate">translate</option>
+              <option value="edit">edit</option>
+            </select>
+            <select
+              class="pl-select"
+              value={filters.langPair}
+              onChange={(e) => setFilter('langPair', e.currentTarget.value)}
+            >
+              <option value="">All pairs</option>
+              {langPairOptions.map((pair) => (
+                <option key={pair} value={pair}>
+                  {pair}
+                </option>
+              ))}
+            </select>
             <button type="button" class="pl-btn secondary" onClick={() => void load()}>
               Refresh
             </button>
           </div>
+          <p class="pl-filter-count">
+            {filtered.length} shown · {prompts.length} total
+          </p>
           {error ? <p class="pl-error">{error}</p> : null}
           <ul class="pl-list">
-            {prompts.map((p) => (
+            {filtered.map((p) => (
               <li key={p.id}>
                 <button
                   type="button"
-                  class={`pl-list-btn${selected?.id === p.id ? ' selected' : ''}`}
+                  class={`pl-list-btn pl-run-card${selected?.id === p.id ? ' selected' : ''}`}
+                  style={{ borderLeftColor: 'var(--pl-accent)' }}
                   onClick={() => void selectPrompt(p)}
                 >
-                  <strong>{p.name}</strong>
-                  <span class="pl-muted">
-                    {' '}
-                    {p.stage} {p.sourceLanguage}→{p.targetLanguage}
-                  </span>
-                  <div class="pl-muted">{p.origin}</div>
+                  <strong class="pl-run-card__title">{p.name}</strong>
+                  <PromptMetaBadges prompt={p} />
+                  <div class="pl-run-card__meta">
+                    Updated {new Date(p.updatedAt).toLocaleString()}
+                  </div>
                 </button>
               </li>
             ))}
           </ul>
+          {!filtered.length && !error && prompts.length > 0 && hasActivePromptFilters(filters) ? (
+            <div class="pl-filter-empty">
+              <p>No prompts match filters.</p>
+              <button type="button" class="pl-btn secondary" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
+          ) : null}
           {!prompts.length && !error ? <p class="pl-muted">No saved prompt versions yet.</p> : null}
         </div>
         <div class="pl-pane">
           {selected ? (
             <>
+              <PromptMetaBadges prompt={selected} />
+              <div class="pl-run-meta">Updated {new Date(selected.updatedAt).toLocaleString()}</div>
               <div class="pl-row">
                 <button type="button" class="pl-btn" onClick={() => onLoad(selected)}>
                   Load in workbench

@@ -3,7 +3,9 @@ import type { LabEvaluation, LabMeta, LabRun } from '../api/client.js';
 import { evaluateRuns, fetchEvaluations, fetchRuns, formatRunDisplayName } from '../api/client.js';
 import { EvaluationResultView } from '../components/EvaluationResultView.js';
 import { PlParagraphCompareView } from '../components/PlParagraphCompareView.js';
+import { PlChip } from '../components/PlChip.js';
 import { PlSelect } from '../components/PlSelect.js';
+import { RunMetaBadges } from '../components/RunMetaBadges.js';
 import { resolveRunContent } from '../utils/paragraphs.js';
 
 type CompareMode = 'source' | 'output';
@@ -122,6 +124,7 @@ export function ReviewPanel({ active, meta }: Props) {
                 { value: 'output', label: 'Output' },
               ]}
             />
+            {leftRun ? <RunMetaBadges run={leftRun} hideStatus /> : null}
           </div>
           <div class="pl-review-picker">
             <PlSelect
@@ -139,6 +142,7 @@ export function ReviewPanel({ active, meta }: Props) {
                 { value: 'output', label: 'Output' },
               ]}
             />
+            {rightRun ? <RunMetaBadges run={rightRun} hideStatus /> : null}
           </div>
         </div>
         <div class="pl-row">
@@ -169,8 +173,24 @@ export function ReviewPanel({ active, meta }: Props) {
       <PlParagraphCompareView
         leftText={leftText}
         rightText={rightText}
-        leftLabel={leftRun ? `${formatRunDisplayName(leftRun)} · ${leftMode}` : 'Left'}
-        rightLabel={rightRun ? `${formatRunDisplayName(rightRun)} · ${rightMode}` : 'Right'}
+        leftLabel={leftRun ? formatRunDisplayName(leftRun) : 'Left'}
+        rightLabel={rightRun ? formatRunDisplayName(rightRun) : 'Right'}
+        leftSubtitle={
+          leftRun ? (
+            <>
+              <RunMetaBadges run={leftRun} hideStatus />
+              <PlChip variant="neutral" label={leftMode} />
+            </>
+          ) : undefined
+        }
+        rightSubtitle={
+          rightRun ? (
+            <>
+              <RunMetaBadges run={rightRun} hideStatus />
+              <PlChip variant="neutral" label={rightMode} />
+            </>
+          ) : undefined
+        }
       />
 
       <section class="pl-section">
