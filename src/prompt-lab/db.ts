@@ -203,3 +203,8 @@ export async function insertPromptLabEvaluation(
   if (error) throw new Error(error.message);
   return data as PromptLabEvaluationRow;
 }
+
+export async function deletePromptLabEvaluation(id: string): Promise<void> {
+  const { error } = await db().from('prompt_lab_evaluations').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}

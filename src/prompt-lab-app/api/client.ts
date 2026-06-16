@@ -294,6 +294,10 @@ export function fetchEvaluations(runId?: string): Promise<{ evaluations: LabEval
   return apiFetch(`/api/prompt-lab/evaluations${q}`);
 }
 
+export function deleteEvaluation(id: string): Promise<void> {
+  return apiFetch(`/api/prompt-lab/evaluations/${id}`, { method: 'DELETE' });
+}
+
 export function evaluateRuns(body: {
   leftRunId: string;
   rightRunId: string;
@@ -303,6 +307,31 @@ export function evaluateRuns(body: {
   model?: string;
 }): Promise<LabEvaluation> {
   return apiFetch('/api/prompt-lab/evaluate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface LabEvaluationPreview {
+  systemPrompt: string;
+  userPrompt: string;
+  compareMode: 'review' | 'compare_outputs';
+  stats: {
+    sourceChars: number;
+    leftChars: number;
+    rightChars: number;
+    glossaryChars: number;
+  };
+}
+
+export function previewEvaluation(body: {
+  leftRunId: string;
+  rightRunId: string;
+  leftMode?: CompareMode;
+  rightMode?: CompareMode;
+  referenceRunId?: string;
+}): Promise<LabEvaluationPreview> {
+  return apiFetch('/api/prompt-lab/evaluate/preview', {
     method: 'POST',
     body: JSON.stringify(body),
   });

@@ -28,6 +28,7 @@ Score dimensions (1-10 each):
 - glossary: consistent use of provided terms/names
 - style: tone, register, and narrative voice match
 
+When the text has multiple paragraphs, review it paragraph-by-paragraph and reference paragraph indices in issues.
 When comparing two translation variants, judge which better serves the reader while staying faithful to the source.
 
 Output JSON only:

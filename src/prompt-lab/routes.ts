@@ -30,6 +30,7 @@ import {
   deletePromptLabPrompt,
   deletePromptLabRun,
   deletePromptLabText,
+  deletePromptLabEvaluation,
   getPromptLabEvaluation,
   getPromptLabPrompt,
   getPromptLabRun,
@@ -45,7 +46,7 @@ import {
   updatePromptLabRun,
   updatePromptLabText,
 } from './db.js';
-import { runPromptLabEvaluation } from './evaluator.js';
+import { buildEvaluationPrompts, runPromptLabEvaluation } from './evaluator.js';
 import { buildRunDisplayName } from './runNaming.js';
 import { buildInputSnapshot, previewUserPrompt, runPromptLabStage } from './runner.js';
 import {
@@ -354,6 +355,54 @@ export function registerPromptLabRoutes(app: Express): void {
       res.json(rowToPromptLabEvaluation(row));
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to get evaluation' });
+    }
+  });
+
+  app.delete('/api/prompt-lab/evaluations/:id', async (req, res) => {
+    try {
+      await deletePromptLabEvaluation(req.params.id);
+      res.json({ ok: true });
+    } catch (e) {
+      res
+        .status(500)
+        .json({ error: e instanceof Error ? e.message : 'Failed to delete evaluation' });
+    }
+  });
+
+  app.post('/api/prompt-lab/evaluate/preview', async (req, res) => {
+    const parsed = promptLabEvaluateBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      sendZodError(res, parsed.error);
+      return;
+    }
+    try {
+      const leftRun = await getPromptLabRun(parsed.data.leftRunId);
+      const rightRun = await getPromptLabRun(parsed.data.rightRunId);
+      if (!leftRun || !rightRun) {
+        res.status(404).json({ error: 'Run not found' });
+        return;
+      }
+      const referenceRun = parsed.data.referenceRunId
+        ? await getPromptLabRun(parsed.data.referenceRunId)
+        : null;
+
+      const prompts = buildEvaluationPrompts({
+        leftRun,
+        rightRun,
+        leftMode: parsed.data.leftMode,
+        rightMode: parsed.data.rightMode,
+        referenceRun,
+        glossarySnapshot: parsed.data.glossarySnapshot,
+      });
+
+      res.json({
+        systemPrompt: prompts.systemPrompt,
+        userPrompt: prompts.userPrompt,
+        compareMode: prompts.compareMode,
+        stats: prompts.stats,
+      });
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Preview failed' });
     }
   });
 

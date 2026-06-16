@@ -40,16 +40,20 @@ function runMetaLabel(run: PromptLabRunRow): string {
   return `${name} (${run.stage}, ${model})`;
 }
 
-export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise<{
-  result: PromptLabEvaluationResult;
-  tokensUsed: number;
-  durationMs: number;
-  model: string;
-}> {
-  const appConfig = loadConfig();
-  const model = input.model?.trim() || appConfig.openai.model;
-  const provider = new OpenAIProvider({ apiKey: appConfig.openai.apiKey, model });
+export interface EvaluationPrompts {
+  systemPrompt: string;
+  userPrompt: string;
+  compareMode: 'review' | 'compare_outputs';
+  targetLanguage: Language;
+  stats: {
+    sourceChars: number;
+    leftChars: number;
+    rightChars: number;
+    glossaryChars: number;
+  };
+}
 
+export function buildEvaluationPrompts(input: RunEvaluationInput): EvaluationPrompts {
   const reference = input.referenceRun ?? input.leftRun;
   const originalSource = reference.input_snapshot.sourceText ?? '';
   const leftText = resolveRunText(input.leftRun, input.leftMode);
@@ -86,13 +90,39 @@ export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise
     compareMode,
   });
 
+  return {
+    systemPrompt,
+    userPrompt,
+    compareMode,
+    targetLanguage,
+    stats: {
+      sourceChars: originalSource.length,
+      leftChars: leftText.length,
+      rightChars: rightText.length,
+      glossaryChars: glossaryText.length,
+    },
+  };
+}
+
+export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise<{
+  result: PromptLabEvaluationResult;
+  tokensUsed: number;
+  durationMs: number;
+  model: string;
+}> {
+  const appConfig = loadConfig();
+  const model = input.model?.trim() || appConfig.openai.model;
+  const provider = new OpenAIProvider({ apiKey: appConfig.openai.apiKey, model });
+
+  const { systemPrompt, userPrompt } = buildEvaluationPrompts(input);
+
   const started = Date.now();
   const response = await provider.completeJSON<PromptLabEvaluationResult>(
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    { temperature: 0.3, maxTokens: 2048 }
+    { temperature: 0.3, maxTokens: 4096 }
   );
 
   const result: PromptLabEvaluationResult = {

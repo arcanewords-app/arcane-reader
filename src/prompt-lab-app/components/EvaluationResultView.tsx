@@ -4,10 +4,19 @@ interface Props {
   evaluation: LabEvaluation | null;
   loading?: boolean;
   error?: string | null;
+  model?: string;
+  elapsedMs?: number;
 }
 
-export function EvaluationResultView({ evaluation, loading, error }: Props) {
-  if (loading) return <p class="pl-muted">Evaluating…</p>;
+export function EvaluationResultView({ evaluation, loading, error, model, elapsedMs }: Props) {
+  if (loading) {
+    const seconds = elapsedMs != null ? Math.floor(elapsedMs / 1000) : null;
+    return (
+      <p class="pl-muted">
+        Evaluating{model ? ` with ${model}` : ''}…{seconds != null ? ` (${seconds}s)` : ''}
+      </p>
+    );
+  }
   if (error) return <p class="pl-error">{error}</p>;
   if (!evaluation) return <p class="pl-muted">Run evaluation to see score.</p>;
 

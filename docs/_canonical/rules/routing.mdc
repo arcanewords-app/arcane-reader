@@ -131,7 +131,9 @@ Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-tra
 | PATCH | `/api/prompt-lab/runs/:id` | - | Update run `displayName` |
 | GET | `/api/prompt-lab/evaluations` | - | Evaluation history (`?runId=`) |
 | GET | `/api/prompt-lab/evaluations/:id` | - | Evaluation detail |
+| DELETE | `/api/prompt-lab/evaluations/:id` | - | Delete saved evaluation |
 | POST | `/api/prompt-lab/evaluate` | - | LLM translation review (saves to `prompt_lab_evaluations`) |
+| POST | `/api/prompt-lab/evaluate/preview` | - | Build evaluation system/user prompt (no LLM call) |
 | POST | `/api/prompt-lab/glossary/import` | - | Parse glossary JSON/CSV for snapshot |
 | POST | `/api/prompt-lab/run` | - | Ephemeral single-stage run (optional `saveRun`, `injectMarkers`, `runLabel`) |
 

@@ -48,7 +48,9 @@ Header button **Review** opens the evaluation workspace:
 1. Pick **left** and **right** runs from history (translate/edit with text output).
 2. Choose **Source** or **Output** for each side (compare translate vs edit, or source vs translation).
 3. Side-by-side paragraph view with marker stripping.
-4. **Evaluate** — LLM score (1–10), dimensions, issues; saved to `prompt_lab_evaluations`.
+4. Pick an **Evaluation model** (defaults to the configured model; persisted per session). Reasoning models may be slower but more thorough.
+5. **Evaluation prompt** — preview the exact system/user prompt sent to the model (inline snippet + full modal, `POST /api/prompt-lab/evaluate/preview`, no LLM call).
+6. **Evaluate** — LLM score (1–10), dimensions, issues; saved to `prompt_lab_evaluations`. It runs as a single request, so it finishes in seconds (translation/edit run the full pipeline and take longer).
 
 Workbench **Advanced**: optional **Run label** suffix; **Inject paragraph markers** for translate (default on).
 
