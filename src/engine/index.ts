@@ -35,6 +35,7 @@ export type {
   EditedTranslation,
   PipelineResult,
   PipelineOptions,
+  StagePromptOverrides,
 } from './types/pipeline.js';
 
 // Interfaces
@@ -57,6 +58,7 @@ export { GlossaryManager } from './glossary/glossary-manager.js';
 export {
   filterGlossaryForChunk,
   filterGlossaryByChapter,
+  getChapterCastCharacters,
   type GlossaryChunkMatchMode,
 } from './glossary/glossary-filter.js';
 export {
@@ -138,3 +140,9 @@ export {
   type EditingFocus,
   type EditingStylePreset,
 } from './prompts/system/editor.js';
+
+export {
+  getEffectiveStagePrompts,
+  type EffectiveStagePromptOptions,
+  type EffectiveStagePrompts,
+} from './prompts/effective-prompts.js';

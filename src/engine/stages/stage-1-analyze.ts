@@ -27,6 +27,8 @@ interface AnalyzeStageOptions {
   temperature?: number;
   /** Max tokens per section when chunking long chapters. Default 8000. Set to 0 to disable chunking. */
   maxSectionTokens?: number;
+  systemPromptOverride?: string;
+  userPromptOverride?: string;
 }
 
 /** Allowed gender values (DB constraint). LLM may return "masculine", "f", etc. */
@@ -230,23 +232,26 @@ export class AnalyzeStage {
     }
 
     const metadataLanguageRule = buildGlossaryMetadataLanguageRule(targetLabel);
+    const analyzerPrompts = resolvePrompts(
+      'analyze',
+      options.sourceLanguage,
+      options.targetLanguage
+    );
+    const defaultSystem = `${analyzerPrompts.systemPrompt}\n\n${metadataLanguageRule}`;
+    const defaultUser = analyzerPrompts.createUserPrompt({
+      sourceText: sectionText,
+      sourceLanguageLabel: languageDisplayName(options.sourceLanguage),
+      targetLanguageLabel: languageDisplayName(options.targetLanguage),
+      existingGlossary: glossaryText || undefined,
+    });
     const messages: Message[] = [
       {
         role: 'system',
-        content: `${resolvePrompts('analyze', options.sourceLanguage, options.targetLanguage).systemPrompt}\n\n${metadataLanguageRule}`,
+        content: options.systemPromptOverride ?? defaultSystem,
       },
       {
         role: 'user',
-        content: resolvePrompts(
-          'analyze',
-          options.sourceLanguage,
-          options.targetLanguage
-        ).createUserPrompt({
-          sourceText: sectionText,
-          sourceLanguageLabel: languageDisplayName(options.sourceLanguage),
-          targetLanguageLabel: languageDisplayName(options.targetLanguage),
-          existingGlossary: glossaryText || undefined,
-        }),
+        content: options.userPromptOverride ?? defaultUser,
       },
     ];
 

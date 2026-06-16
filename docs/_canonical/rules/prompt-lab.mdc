@@ -1,0 +1,53 @@
+# Prompt Lab
+
+Dev-only sub-application for testing translation prompts in isolation. **Not available when `NODE_ENV=production`.**
+
+## Module map
+
+| Path | Role |
+|------|------|
+| `src/prompt-lab/` | Server: ephemeral runner, Supabase CRUD, API routes |
+| `src/prompt-lab-app/` | Preact SPA — workbench UI (`components/`, `panels/`, `styles/`) |
+| `src/shared/llmModels.ts` | Shared model list (main app settings + Prompt Lab meta) |
+| `docs/migrations/prompt_lab_tables.sql` | Supabase tables (`prompt_lab_*`) |
+
+## UI components (prompt-lab-app)
+
+| Component | Role |
+|-----------|------|
+| `PlModal`, `PlSelect`, `PlCollapsible`, `PlDiffView` | Design-system primitives (do not import `src/client/components/ui`) |
+| `PromptEditorModal` | Fullscreen system/user prompt editing, diff, save version |
+| `WorkbenchPanel` | 3-column workbench (config / prompts / input+result) |
+
+## Meta API shape
+
+`GET /api/prompt-lab/meta` (dev-only): `pairs[]` with `{ source, target, label }`, `models`, `defaultModel`, `analysisExcludedModels`, `stages`, `presets`, `focusOptions`.
+
+## Boundary
+
+- Does **not** write to `chapters`, `glossary_entries`, or production prompt modules.
+- Baseline prompts always loaded from `src/engine/` via `getEffectiveStagePrompts`.
+- Saved prompt versions live in `prompt_lab_prompts` only.
+- Separate design system in `src/prompt-lab-app/` — do **not** import `src/client/components/ui`.
+
+## Dev workflow
+
+```bash
+npm run dev          # API + client + debug + prompt-lab (:5175)
+npm run dev:full     # + worker
+```
+
+- UI: `http://localhost:5175/prompt-lab/` or via main client proxy `http://localhost:5173/prompt-lab`
+- API: `http://localhost:3000/api/prompt-lab/*`
+
+## Supabase
+
+Apply `docs/migrations/prompt_lab_tables.sql` before using save texts/runs/prompts features.
+
+Uses `SUPABASE_SERVICE_ROLE_KEY` server-side (dev-only routes).
+
+## Engine hooks
+
+Stages accept optional `systemPromptOverride` / `userPromptOverride` in options (Prompt Lab only by default).
+
+See `@src/engine/prompts/effective-prompts.ts` for baseline system prompt composition.

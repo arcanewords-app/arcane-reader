@@ -19,23 +19,17 @@ import {
   BLOCK_PREVIEW_SAMPLES,
   getCustomBlockPreview,
 } from '../../constants/text-block-presets';
+import {
+  ANALYSIS_RECOMMENDED_MODELS,
+  DEFAULT_LLM_MODEL,
+  isModelInList,
+  isReasoningModel,
+  LLM_MODELS,
+  modelUsesDefaultTemperature,
+} from '../../../shared/llmModels.js';
 import './SettingsModal.css';
 
-/**
- * Promo models (2.5M tokens/day) that support Chat Completions API.
- * Excludes responses-only models (gpt-5.1-codex-mini, codex-mini-latest).
- * Descriptions from i18n settings.modelDesc.<value>.
- */
-const MODELS: { value: string; label: string }[] = [
-  { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
-  { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-  { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { value: 'o1-mini', label: 'O1 Mini' },
-  { value: 'o3-mini', label: 'O3 Mini' },
-  { value: 'o4-mini', label: 'O4 Mini' },
-];
+const MODELS = LLM_MODELS;
 
 interface SettingsModalProps {
   project: Project;
@@ -62,32 +56,20 @@ export function SettingsModal({
       const current = settings.stageModels[stage];
       if (current && typeof current === 'string') return current;
     }
-    return settings.model || 'gpt-4.1-mini';
+    return settings.model || DEFAULT_LLM_MODEL;
   };
 
-  const isModelInList = (modelId: string) => MODELS.some((m) => m.value === modelId);
-
-  /** Models that only support default temperature (gpt-5*, o1-, o3-, o4-). Match backend provider. */
-  const modelUsesDefaultTemperature = (modelId: string) => {
-    const m = (modelId || '').toLowerCase();
-    return (
-      m.startsWith('o1-') || m.startsWith('o3-') || m.startsWith('o4-') || m.startsWith('gpt-5')
-    );
-  };
-
-  /** Reasoning/long-thinking models: not allowed for analysis (too slow, 1–5 min per request). */
-  const isReasoningModel = (modelId: string) => modelUsesDefaultTemperature(modelId);
   const ANALYSIS_ALLOWED_MODELS = MODELS.filter((m) => !isReasoningModel(m.value));
-  const ANALYSIS_RECOMMENDED = ['gpt-4.1-mini', 'gpt-4o-mini'];
+  const ANALYSIS_RECOMMENDED = [...ANALYSIS_RECOMMENDED_MODELS];
 
   const handleStageModelChange = async (
     stage: 'analysis' | 'translation' | 'editing',
     model: string
   ) => {
     const currentStageModels = settings.stageModels || {
-      analysis: settings.model || 'gpt-4.1-mini',
-      translation: settings.model || 'gpt-4.1-mini',
-      editing: settings.model || 'gpt-4.1-mini',
+      analysis: settings.model || DEFAULT_LLM_MODEL,
+      translation: settings.model || DEFAULT_LLM_MODEL,
+      editing: settings.model || DEFAULT_LLM_MODEL,
     };
 
     const updated = await api.updateSettings(project.id, {

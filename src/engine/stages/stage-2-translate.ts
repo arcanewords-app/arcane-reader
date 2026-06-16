@@ -45,6 +45,8 @@ interface TranslateStageOptions {
   onProgress?: (chunksDone: number, totalChunks: number) => void;
   /** Current chapter number — used for chapter cast and gender context injection. */
   chapterNumber?: number;
+  systemPromptOverride?: string;
+  userPromptOverride?: string;
 }
 
 const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
@@ -159,6 +161,8 @@ export class TranslateStage {
           retryAttempts,
           retryDelayMs,
           isCancelled: options.isCancelled,
+          systemPromptOverride: options.systemPromptOverride,
+          userPromptOverride: options.userPromptOverride,
         });
       };
 
@@ -305,6 +309,8 @@ export class TranslateStage {
       retryAttempts: number;
       retryDelayMs: number;
       isCancelled?: () => boolean;
+      systemPromptOverride?: string;
+      userPromptOverride?: string;
     }
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     const chunkStartTime = Date.now();
@@ -342,7 +348,9 @@ export class TranslateStage {
           opts.temperature,
           opts.includeGlossary,
           opts.textBlockTypes,
-          opts.customInstructions
+          opts.customInstructions,
+          opts.systemPromptOverride,
+          opts.userPromptOverride
         );
 
         const chunkDurationMs = Date.now() - chunkStartTime;
@@ -400,7 +408,9 @@ export class TranslateStage {
     temperature: number = 0.7,
     includeGlossary: boolean = true,
     textBlockTypes?: TextBlockType[],
-    customInstructions?: string
+    customInstructions?: string,
+    systemPromptOverride?: string,
+    userPromptOverride?: string
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     // Filter glossary to entries that appear in this chunk (saves tokens)
     const glossaryText =
@@ -428,22 +438,24 @@ export class TranslateStage {
     }
 
     const translatorPrompts = resolvePrompts('translate', sourceLanguage, targetLanguage);
-    const systemPrompt = appendGenderAgreement(translatorPrompts.systemPrompt, targetLanguage);
+    const defaultSystem = appendGenderAgreement(translatorPrompts.systemPrompt, targetLanguage);
+    const systemPrompt = systemPromptOverride ?? defaultSystem;
+    const defaultUser = translatorPrompts.createUserPrompt({
+      sourceText: chunk.content,
+      sourceLanguageLabel: languageDisplayName(sourceLanguage),
+      targetLanguageLabel: languageDisplayName(targetLanguage),
+      glossary: glossaryText,
+      context: contextText,
+      styleGuide,
+      textBlockTypes,
+      customInstructions,
+    });
 
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: translatorPrompts.createUserPrompt({
-          sourceText: chunk.content,
-          sourceLanguageLabel: languageDisplayName(sourceLanguage),
-          targetLanguageLabel: languageDisplayName(targetLanguage),
-          glossary: glossaryText,
-          context: contextText,
-          styleGuide,
-          textBlockTypes,
-          customInstructions,
-        }),
+        content: userPromptOverride ?? defaultUser,
       },
     ];
 

@@ -116,6 +116,23 @@ Most API endpoints validate request body and query parameters using Zod schemas 
 
 Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-translation.md` and `@.cursor/rules/debug.mdc`.
 
+### Prompt Lab (dev only, `NODE_ENV !== production`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/prompt-lab` | - | Prompt Lab UI (redirect to dev app; static from `dist/prompt-lab` when built) |
+| GET | `/api/prompt-lab/meta` | - | Supported pairs, stages, presets |
+| GET | `/api/prompt-lab/prompts/current` | - | Baseline system prompt from engine code |
+| POST | `/api/prompt-lab/prompts/preview-user` | - | Build user prompt preview |
+| GET/POST/PUT/DELETE | `/api/prompt-lab/prompts` | - | Saved prompt versions CRUD |
+| GET/POST/PUT/DELETE | `/api/prompt-lab/texts` | - | Saved test texts CRUD |
+| GET/DELETE | `/api/prompt-lab/runs` | - | Run history |
+| GET | `/api/prompt-lab/runs/:id/export` | - | Export run JSON |
+| POST | `/api/prompt-lab/glossary/import` | - | Parse glossary JSON/CSV for snapshot |
+| POST | `/api/prompt-lab/run` | - | Ephemeral single-stage run (optional `saveRun`) |
+
+Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md` and `@.cursor/rules/prompt-lab.mdc`.
+
 ### User (requireAuth)
 
 | Method | Path | Role | Description |

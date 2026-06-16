@@ -15,5 +15,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "public", "src/client", "src/debug-app"]
+  "exclude": ["node_modules", "dist", "public", "src/client", "src/debug-app", "src/prompt-lab-app"]
 }

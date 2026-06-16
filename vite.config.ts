@@ -44,6 +44,10 @@ export default defineConfig({
         target: 'http://localhost:5174',
         changeOrigin: true,
       },
+      '/prompt-lab': {
+        target: 'http://localhost:5175',
+        changeOrigin: true,
+      },
       '/images': {
         target: 'http://localhost:3000',
         changeOrigin: true,

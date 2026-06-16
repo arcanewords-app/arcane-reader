@@ -142,6 +142,7 @@ import { logger, getLoggingStatus } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { isChunkError } from './shared/chunkErrors.js';
 import { registerDebugRoutes } from './debug/routes.js';
+import { registerPromptLabRoutes } from './prompt-lab/routes.js';
 import { startDebugLogSubscriber } from './debug/redisBridge.js';
 import { addDebugLogEntry } from './debug/buffer.js';
 import { createTraceId, runWithDebugContextAsync } from './debug/context.js';
@@ -8588,6 +8589,7 @@ app.get(
 // ============ Debug log viewer (dev only) ============
 
 registerDebugRoutes(app);
+registerPromptLabRoutes(app);
 
 // ============ SEO: robots.txt & sitemap.xml ============
 // Vercel rewrites /robots.txt → /api/robots, /sitemap.xml → /api/sitemap.

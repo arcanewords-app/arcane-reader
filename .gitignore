@@ -39,6 +39,7 @@ npm-debug.log*
 
 supabase/migrations/
 docs/supabase-migrations/
+docs/migrations
 scripts/input-files/
 scripts/output/
 

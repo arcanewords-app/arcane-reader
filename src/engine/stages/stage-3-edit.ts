@@ -57,6 +57,8 @@ interface EditStageOptions {
   parallelChunks?: number;
   /** Current chapter number — injects full chapter cast even when chunk filter omits a character. */
   chapterNumber?: number;
+  systemPromptOverride?: string;
+  userPromptOverride?: string;
 }
 
 interface QualityCheckResponse {
@@ -169,7 +171,9 @@ export class EditStage {
           options.isCancelled,
           options.onProgress,
           options.context.targetLanguage,
-          chapterCastText
+          chapterCastText,
+          options.systemPromptOverride,
+          options.userPromptOverride
         );
 
         editedText = chunkedResult.text;
@@ -185,23 +189,26 @@ export class EditStage {
               ).toEditPromptText({ targetLanguageLabel: targetLabel })
             : '';
 
-        const systemPrompt = getEditorSystemPrompt(
-          options.editingStylePreset ?? 'default',
-          options.editingFocus ?? 'both',
-          options.context.targetLanguage
+        const systemPrompt =
+          options.systemPromptOverride ??
+          getEditorSystemPrompt(
+            options.editingStylePreset ?? 'default',
+            options.editingFocus ?? 'both',
+            options.context.targetLanguage
+          );
+        const defaultUser = createEditorPrompt(
+          translatedText,
+          glossaryTextForQuality,
+          styleNotes,
+          options.customInstructions,
+          targetLabel,
+          chapterCastText
         );
         const messages: Message[] = [
           { role: 'system', content: systemPrompt },
           {
             role: 'user',
-            content: createEditorPrompt(
-              translatedText,
-              glossaryTextForQuality,
-              styleNotes,
-              options.customInstructions,
-              targetLabel,
-              chapterCastText
-            ),
+            content: options.userPromptOverride ?? defaultUser,
           },
         ];
 
@@ -402,7 +409,9 @@ export class EditStage {
     isCancelled?: () => boolean,
     onProgress?: (chunksDone: number, totalChunks: number) => void,
     targetLanguage?: import('../types/common.js').Language,
-    chapterCastText?: string
+    chapterCastText?: string,
+    systemPromptOverride?: string,
+    userPromptOverride?: string
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -438,6 +447,8 @@ export class EditStage {
         isCancelled,
         targetLanguage,
         chapterCastText,
+        systemPromptOverride,
+        userPromptOverride,
       });
     };
 
@@ -511,6 +522,8 @@ export class EditStage {
       isCancelled?: () => boolean;
       targetLanguage?: import('../types/common.js').Language;
       chapterCastText?: string;
+      systemPromptOverride?: string;
+      userPromptOverride?: string;
     }
   ): Promise<{ result: MergeChunkInput; tokensUsed: number }> {
     let lastError: Error | undefined;
@@ -540,7 +553,9 @@ export class EditStage {
           opts.editingStylePreset,
           opts.editingFocus,
           opts.targetLanguage,
-          opts.chapterCastText
+          opts.chapterCastText,
+          opts.systemPromptOverride,
+          opts.userPromptOverride
         );
 
         if (!editResult.text || editResult.text.trim().length === 0) {
@@ -611,7 +626,9 @@ export class EditStage {
     editingStylePreset: EditingStylePreset = 'default',
     editingFocus: EditingFocus = 'both',
     targetLanguage?: import('../types/common.js').Language,
-    chapterCastText?: string
+    chapterCastText?: string,
+    systemPromptOverride?: string,
+    userPromptOverride?: string
   ): Promise<{ text: string; tokensUsed: number }> {
     const targetLabel = targetLanguage ? languageDisplayName(targetLanguage) : undefined;
     const glossaryText =
@@ -621,19 +638,22 @@ export class EditStage {
           ).toEditPromptText({ targetLanguageLabel: targetLabel })
         : '';
 
-    const systemPrompt = getEditorSystemPrompt(editingStylePreset, editingFocus, targetLanguage);
+    const systemPrompt =
+      systemPromptOverride ??
+      getEditorSystemPrompt(editingStylePreset, editingFocus, targetLanguage);
+    const defaultUser = createEditorPrompt(
+      translatedChunk.content,
+      glossaryText,
+      styleNotes,
+      customInstructions,
+      targetLabel,
+      chapterCastText
+    );
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: createEditorPrompt(
-          translatedChunk.content,
-          glossaryText,
-          styleNotes,
-          customInstructions,
-          targetLabel,
-          chapterCastText
-        ),
+        content: userPromptOverride ?? defaultUser,
       },
     ];
 

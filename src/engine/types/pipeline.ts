@@ -6,6 +6,12 @@ import type { AnalysisResult, AgentContext } from './agent.js';
 
 export type StageType = 'analyze' | 'translate' | 'edit';
 
+/** Optional prompt overrides for dev tools (Prompt Lab). Production pipeline ignores unless set. */
+export interface StagePromptOverrides {
+  systemPromptOverride?: string;
+  userPromptOverride?: string;
+}
+
 export interface StageResult<T> {
   stage: StageType;
   success: boolean;
