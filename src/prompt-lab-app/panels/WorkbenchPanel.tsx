@@ -91,6 +91,8 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LabRunOutput | null>(null);
   const [saveRun, setSaveRun] = useState(true);
+  const [injectMarkers, setInjectMarkers] = useState(true);
+  const [runLabel, setRunLabel] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [saveTextOpen, setSaveTextOpen] = useState(false);
   const [showDiffInline, setShowDiffInline] = useState(false);
@@ -381,6 +383,8 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
         systemPromptOverride: systemPrompt,
         userPromptOverride: useUserOverride ? userPromptOverride : undefined,
         saveRun,
+        injectMarkers: stage === 'translate' ? injectMarkers : undefined,
+        runLabel: runLabel.trim() || undefined,
         promptId: promptVersion !== 'current' ? promptVersion : null,
       });
       setResult(output);
@@ -609,6 +613,26 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
                   onInput={(e) => setCustomInstructions(e.currentTarget.value)}
                 />
               </label>
+              <label class="pl-field">
+                <span class="pl-label">Run label (optional suffix)</span>
+                <input
+                  class="pl-input"
+                  type="text"
+                  value={runLabel}
+                  onInput={(e) => setRunLabel(e.currentTarget.value)}
+                  placeholder="e.g. v2, literary-test"
+                />
+              </label>
+              {stage === 'translate' ? (
+                <label class="pl-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={injectMarkers}
+                    onChange={(e) => setInjectMarkers(e.currentTarget.checked)}
+                  />
+                  Inject paragraph markers (--para:id--)
+                </label>
+              ) : null}
               <label class="pl-checkbox-label">
                 <input
                   type="checkbox"

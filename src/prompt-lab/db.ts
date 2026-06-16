@@ -3,7 +3,12 @@
  */
 
 import { createServiceRoleClient } from '../services/supabaseClient.js';
-import type { PromptLabPromptRow, PromptLabRunRow, PromptLabTextRow } from './types.js';
+import type {
+  PromptLabPromptRow,
+  PromptLabRunRow,
+  PromptLabTextRow,
+  PromptLabEvaluationRow,
+} from './types.js';
 
 function db() {
   return createServiceRoleClient();
@@ -140,7 +145,61 @@ export async function insertPromptLabRun(
   return data as PromptLabRunRow;
 }
 
+export async function updatePromptLabRun(
+  id: string,
+  patch: Partial<Pick<PromptLabRunRow, 'display_name'>>
+): Promise<PromptLabRunRow> {
+  const { data, error } = await db()
+    .from('prompt_lab_runs')
+    .update(patch)
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw new Error(error.message);
+  return data as PromptLabRunRow;
+}
+
 export async function deletePromptLabRun(id: string): Promise<void> {
   const { error } = await db().from('prompt_lab_runs').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+export async function listPromptLabEvaluations(filters?: {
+  runId?: string;
+  limit?: number;
+}): Promise<PromptLabEvaluationRow[]> {
+  const limit = filters?.limit ?? 50;
+  let q = db()
+    .from('prompt_lab_evaluations')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (filters?.runId) {
+    q = q.or(`left_run_id.eq.${filters.runId},right_run_id.eq.${filters.runId}`);
+  }
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PromptLabEvaluationRow[];
+}
+
+export async function getPromptLabEvaluation(id: string): Promise<PromptLabEvaluationRow | null> {
+  const { data, error } = await db()
+    .from('prompt_lab_evaluations')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as PromptLabEvaluationRow | null) ?? null;
+}
+
+export async function insertPromptLabEvaluation(
+  row: Omit<PromptLabEvaluationRow, 'id' | 'created_at'>
+): Promise<PromptLabEvaluationRow> {
+  const { data, error } = await db()
+    .from('prompt_lab_evaluations')
+    .insert(row)
+    .select('*')
+    .single();
+  if (error) throw new Error(error.message);
+  return data as PromptLabEvaluationRow;
 }

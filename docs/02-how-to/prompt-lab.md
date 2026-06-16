@@ -14,6 +14,7 @@ Isolated tool for testing Analyze / Translate / Edit prompts without affecting p
 1. Local dev: `npm run dev` or `npm run dev:full`
 2. `OPENAI_API_KEY` in `.env`
 3. Apply SQL migration: [[../migrations/prompt_lab_tables]] in Supabase
+4. For **Review** (compare + LLM score): [[../migrations/prompt_lab_review]]
 
 ## Open the UI
 
@@ -36,9 +37,20 @@ Steps:
 4. Optionally import **glossary** (JSON/CSV) under Advanced options.
 5. Edit prompts via **Edit** in the Prompts column (or override user prompt in the modal).
 6. Click **Run stage** — result appears on the right.
-7. Enable **Save run** (Advanced) to persist in `prompt_lab_runs`.
+7. Enable **Save run** (Advanced) to persist in `prompt_lab_runs` (auto `display_name`: `stage_model_prompt_label`).
 
 Model list matches main app settings (`src/shared/llmModels.ts`). Reasoning models are hidden for the analyze stage.
+
+## Review
+
+Header button **Review** opens the evaluation workspace:
+
+1. Pick **left** and **right** runs from history (translate/edit with text output).
+2. Choose **Source** or **Output** for each side (compare translate vs edit, or source vs translation).
+3. Side-by-side paragraph view with marker stripping.
+4. **Evaluate** — LLM score (1–10), dimensions, issues; saved to `prompt_lab_evaluations`.
+
+Workbench **Advanced**: optional **Run label** suffix; **Inject paragraph markers** for translate (default on).
 
 ## Meta API
 
@@ -46,11 +58,12 @@ Model list matches main app settings (`src/shared/llmModels.ts`). Reasoning mode
 
 ## Saved data
 
-| Tab             | Table                |
-| --------------- | -------------------- |
-| Saved texts     | `prompt_lab_texts`   |
-| Prompt versions | `prompt_lab_prompts` |
-| Run history     | `prompt_lab_runs`    |
+| Tab             | Table                    |
+| --------------- | ------------------------ |
+| Saved texts     | `prompt_lab_texts`       |
+| Prompt versions | `prompt_lab_prompts`     |
+| Run history     | `prompt_lab_runs`        |
+| Review          | `prompt_lab_evaluations` |
 
 ## Related
 

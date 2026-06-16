@@ -10,14 +10,18 @@ Dev-only sub-application for testing translation prompts in isolation. **Not ava
 | `src/prompt-lab-app/` | Preact SPA — workbench UI (`components/`, `panels/`, `styles/`) |
 | `src/shared/llmModels.ts` | Shared model list (main app settings + Prompt Lab meta) |
 | `docs/migrations/prompt_lab_tables.sql` | Supabase tables (`prompt_lab_*`) |
+| `docs/migrations/prompt_lab_review.sql` | `display_name` on runs + `prompt_lab_evaluations` |
 
 ## UI components (prompt-lab-app)
 
 | Component | Role |
 |-----------|------|
 | `PlModal`, `PlSelect`, `PlCollapsible`, `PlDiffView` | Design-system primitives (do not import `src/client/components/ui`) |
+| `PlParagraphCompareView` | Side-by-side paragraph compare (Review) |
+| `EvaluationResultView` | LLM evaluation score and issues |
 | `PromptEditorModal` | Fullscreen system/user prompt editing, diff, save version |
 | `WorkbenchPanel` | 3-column workbench (config / prompts / input+result) |
+| `ReviewPanel` | Run pickers, compare view, evaluate (header **Review** tab) |
 
 ## Meta API shape
 
@@ -43,6 +47,7 @@ npm run dev:full     # + worker
 ## Supabase
 
 Apply `docs/migrations/prompt_lab_tables.sql` before using save texts/runs/prompts features.
+Apply `docs/migrations/prompt_lab_review.sql` for Review tab (run names + evaluations).
 
 Uses `SUPABASE_SERVICE_ROLE_KEY` server-side (dev-only routes).
 

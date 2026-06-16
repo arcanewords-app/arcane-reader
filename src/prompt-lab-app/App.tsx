@@ -12,8 +12,9 @@ import { WorkbenchPanel } from './panels/WorkbenchPanel.js';
 import { TextsPanel } from './panels/TextsPanel.js';
 import { RunsPanel } from './panels/RunsPanel.js';
 import { PromptsPanel } from './panels/PromptsPanel.js';
+import { ReviewPanel } from './panels/ReviewPanel.js';
 
-type Tab = 'workbench' | 'texts' | 'runs' | 'prompts';
+type Tab = 'workbench' | 'texts' | 'runs' | 'prompts' | 'review';
 
 export function App() {
   const [tab, setTab] = useState<Tab>('workbench');
@@ -102,6 +103,15 @@ export function App() {
       <header class="pl-app-header">
         <h1>Arcane Prompt Lab</h1>
         <span class="pl-muted">dev-only — isolated from production prompts</span>
+        <div class="pl-header-actions">
+          <button
+            type="button"
+            class={`pl-btn${tab === 'review' ? '' : ' secondary'}`}
+            onClick={() => setTab('review')}
+          >
+            Review
+          </button>
+        </div>
       </header>
 
       {metaError ? (
@@ -146,6 +156,9 @@ export function App() {
       </div>
       <div class={`pl-panel${tab === 'prompts' ? ' active' : ''}`}>
         <PromptsPanel active={tab === 'prompts'} onLoad={onPromptLoad} />
+      </div>
+      <div class={`pl-panel${tab === 'review' ? ' active' : ''}`}>
+        <ReviewPanel active={tab === 'review'} meta={meta} />
       </div>
     </>
   );

@@ -101,6 +101,35 @@ export interface AnalysisOutput {
   styleNotes?: string;
 }
 
+export type CompareMode = 'source' | 'output';
+
+export interface LabEvaluationResult {
+  score: number;
+  dimensions?: {
+    accuracy?: number;
+    fluency?: number;
+    glossary?: number;
+    style?: number;
+  };
+  issues?: Array<{ paragraphIndex?: number; severity?: string; text: string }>;
+  suggestions?: string[];
+  summary?: string;
+}
+
+export interface LabEvaluation {
+  id: string;
+  leftRunId: string | null;
+  rightRunId: string | null;
+  leftMode: CompareMode;
+  rightMode: CompareMode;
+  score: number | null;
+  result: LabEvaluationResult;
+  model: string | null;
+  tokensUsed: number;
+  durationMs: number;
+  createdAt: string;
+}
+
 export interface LabRunOutput {
   stage: LabStage;
   success: boolean;
@@ -118,6 +147,7 @@ export interface LabRun {
   textId: string | null;
   promptId: string | null;
   stage: LabStage;
+  displayName: string | null;
   params: Record<string, unknown>;
   inputSnapshot: {
     sourceText: string;
@@ -129,6 +159,13 @@ export interface LabRun {
   tokensUsed: number;
   durationMs: number;
   createdAt: string;
+}
+
+export function formatRunDisplayName(run: LabRun): string {
+  if (run.displayName?.trim()) return run.displayName;
+  const model = typeof run.params.model === 'string' ? run.params.model : 'default';
+  const temp = typeof run.params.temperature === 'number' ? run.params.temperature : '—';
+  return `${run.stage} · ${run.params.sourceLanguage as string}→${run.params.targetLanguage as string} · ${model} · temp ${temp}`;
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -243,6 +280,32 @@ export function fetchRuns(limit = 50): Promise<{ runs: LabRun[] }> {
 
 export function deleteRun(id: string): Promise<void> {
   return apiFetch(`/api/prompt-lab/runs/${id}`, { method: 'DELETE' });
+}
+
+export function patchRun(id: string, body: { displayName: string }): Promise<LabRun> {
+  return apiFetch(`/api/prompt-lab/runs/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchEvaluations(runId?: string): Promise<{ evaluations: LabEvaluation[] }> {
+  const q = runId ? `?runId=${encodeURIComponent(runId)}` : '';
+  return apiFetch(`/api/prompt-lab/evaluations${q}`);
+}
+
+export function evaluateRuns(body: {
+  leftRunId: string;
+  rightRunId: string;
+  leftMode?: CompareMode;
+  rightMode?: CompareMode;
+  referenceRunId?: string;
+  model?: string;
+}): Promise<LabEvaluation> {
+  return apiFetch('/api/prompt-lab/evaluate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function runStage(body: Record<string, unknown>): Promise<LabRunOutput> {

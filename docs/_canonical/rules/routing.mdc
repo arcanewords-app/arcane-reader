@@ -128,8 +128,12 @@ Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-tra
 | GET/POST/PUT/DELETE | `/api/prompt-lab/texts` | - | Saved test texts CRUD |
 | GET/DELETE | `/api/prompt-lab/runs` | - | Run history |
 | GET | `/api/prompt-lab/runs/:id/export` | - | Export run JSON |
+| PATCH | `/api/prompt-lab/runs/:id` | - | Update run `displayName` |
+| GET | `/api/prompt-lab/evaluations` | - | Evaluation history (`?runId=`) |
+| GET | `/api/prompt-lab/evaluations/:id` | - | Evaluation detail |
+| POST | `/api/prompt-lab/evaluate` | - | LLM translation review (saves to `prompt_lab_evaluations`) |
 | POST | `/api/prompt-lab/glossary/import` | - | Parse glossary JSON/CSV for snapshot |
-| POST | `/api/prompt-lab/run` | - | Ephemeral single-stage run (optional `saveRun`) |
+| POST | `/api/prompt-lab/run` | - | Ephemeral single-stage run (optional `saveRun`, `injectMarkers`, `runLabel`) |
 
 Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md` and `@.cursor/rules/prompt-lab.mdc`.
 

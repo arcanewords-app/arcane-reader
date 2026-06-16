@@ -146,3 +146,14 @@ export {
   type EffectiveStagePromptOptions,
   type EffectiveStagePrompts,
 } from './prompts/effective-prompts.js';
+
+export {
+  injectParagraphMarkers,
+  parseParagraphMarkers,
+  stripParagraphMarkers,
+  textToDisplayParagraphs,
+  textHasParagraphMarkers,
+  normalizeParagraphId,
+  PARA_MARKER_PREFIX,
+  PARA_MARKER_SUFFIX,
+} from './utils/para-markers.js';

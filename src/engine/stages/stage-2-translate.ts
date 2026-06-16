@@ -20,6 +20,10 @@ import { filterGlossaryForChunk, getChapterCastCharacters } from '../glossary/gl
 import { chunkText, mergeChunks } from '../utils/chunker.js';
 import { formatChunkError } from '../constants/errors.js';
 import { log } from '../logger.js';
+import {
+  jsonParagraphsHaveMarkers,
+  mergeJsonParagraphsToMarkedText,
+} from '../utils/para-markers.js';
 
 interface TranslateStageOptions {
   context: AgentContext;
@@ -475,24 +479,11 @@ export class TranslateStage {
         // Extract translations from JSON structure
         if (response.data && response.data.paragraphs && Array.isArray(response.data.paragraphs)) {
           const paras = response.data.paragraphs;
-          const hasMarkers = paras.some(
-            (p) => p.id && typeof p.id === 'string' && /^--para:[^-]+--$/.test(p.id.trim())
-          );
-          if (hasMarkers) {
-            // Preserve paragraph markers for server-side sync by id
-            translatedText = paras
-              .filter((p) => p.translated && p.translated.trim().length > 0)
-              .map((p) =>
-                p.id ? `${p.id}${(p.translated || '').trim()}` : (p.translated || '').trim()
-              )
-              .join('\n\n');
-          } else if (paras.length === 1) {
-            translatedText = paras[0].translated || '';
-          } else {
-            translatedText = paras
-              .map((p) => p.translated)
-              .filter((t) => t && t.trim().length > 0)
-              .join('\n\n');
+          translatedText = mergeJsonParagraphsToMarkedText(paras);
+          if (jsonParagraphsHaveMarkers(paras)) {
+            log.debug(`TranslateStage: chunk ${chunk.id} preserved paragraph markers via JSON`, {
+              paragraphCount: paras.length,
+            });
           }
 
           tokensUsed = response.tokensUsed?.total || 0;

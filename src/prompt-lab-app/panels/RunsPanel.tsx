@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { LabRun } from '../api/client';
-import { deleteRun, fetchRuns } from '../api/client';
+import { deleteRun, fetchRuns, formatRunDisplayName } from '../api/client';
 import { AnalysisResultView } from '../components/AnalysisResultView';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -61,8 +61,9 @@ export function RunsPanel({ active, onReplay }: Props) {
                   class={`pl-list-btn${selected?.id === r.id ? ' selected' : ''}`}
                   onClick={() => setSelected(r)}
                 >
-                  <strong>{r.stage}</strong>
-                  <span class="pl-muted"> {formatRunSummary(r)}</span>
+                  <strong>{formatRunDisplayName(r)}</strong>
+                  <span class="pl-muted"> · {r.stage}</span>
+                  <div class="pl-muted">{formatRunSummary(r)}</div>
                   <div class="pl-muted">
                     {new Date(r.createdAt).toLocaleString()} — {r.tokensUsed} tok · {r.durationMs}{' '}
                     ms

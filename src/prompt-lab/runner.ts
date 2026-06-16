@@ -17,6 +17,7 @@ import {
   createEditorPrompt,
   languageDisplayName,
   assertSupportedPair,
+  injectParagraphMarkers,
   type Language,
   type StageType,
 } from '../engine/index.js';
@@ -46,6 +47,8 @@ export interface RunStageInput extends PreviewUserPromptInput {
   userPromptOverride?: string;
   chunkSize?: number;
   analysisMaxSectionTokens?: number;
+  /** Inject --para:{id}-- markers before translate when absent (default true). */
+  injectMarkers?: boolean;
 }
 
 const LAB_CHUNK_SIZE = 100_000;
@@ -169,7 +172,12 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
   if (input.stage === 'translate') {
     const ctx = createLabAgentContext(input.sourceLanguage, input.targetLanguage, glossary);
     const stage = new TranslateStage(provider);
-    const result = await stage.execute(input.sourceText, {
+    const injectMarkers = input.injectMarkers !== false;
+    const sourceText =
+      injectMarkers && input.sourceText.trim()
+        ? injectParagraphMarkers(input.sourceText)
+        : input.sourceText;
+    const result = await stage.execute(sourceText, {
       context: ctx,
       chunkSize: input.chunkSize ?? LAB_CHUNK_SIZE,
       temperature: input.temperature ?? 0.7,

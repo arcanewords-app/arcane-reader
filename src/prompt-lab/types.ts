@@ -50,6 +50,9 @@ export interface PromptLabRunParams {
   chapterNumber?: number;
   chunkSize?: number;
   analysisMaxSectionTokens?: number;
+  injectMarkers?: boolean;
+  runLabel?: string;
+  userPromptOverride?: boolean;
 }
 
 export interface PromptLabRunInputSnapshot {
@@ -76,9 +79,37 @@ export interface PromptLabRunRow {
   text_id: string | null;
   prompt_id: string | null;
   stage: PromptLabStage;
+  display_name: string | null;
   params: PromptLabRunParams;
   input_snapshot: PromptLabRunInputSnapshot;
   output: PromptLabRunOutput;
+  tokens_used: number;
+  duration_ms: number;
+  created_at: string;
+}
+
+export interface PromptLabEvaluationResult {
+  score: number;
+  dimensions?: {
+    accuracy?: number;
+    fluency?: number;
+    glossary?: number;
+    style?: number;
+  };
+  issues?: Array<{ paragraphIndex?: number; severity?: string; text: string }>;
+  suggestions?: string[];
+  summary?: string;
+}
+
+export interface PromptLabEvaluationRow {
+  id: string;
+  left_run_id: string | null;
+  right_run_id: string | null;
+  left_mode: 'source' | 'output';
+  right_mode: 'source' | 'output';
+  score: number | null;
+  result: PromptLabEvaluationResult;
+  model: string | null;
   tokens_used: number;
   duration_ms: number;
   created_at: string;
@@ -122,9 +153,26 @@ export function rowToPromptLabRun(row: PromptLabRunRow) {
     textId: row.text_id,
     promptId: row.prompt_id,
     stage: row.stage,
+    displayName: row.display_name,
     params: row.params,
     inputSnapshot: row.input_snapshot,
     output: row.output,
+    tokensUsed: row.tokens_used,
+    durationMs: row.duration_ms,
+    createdAt: row.created_at,
+  };
+}
+
+export function rowToPromptLabEvaluation(row: PromptLabEvaluationRow) {
+  return {
+    id: row.id,
+    leftRunId: row.left_run_id,
+    rightRunId: row.right_run_id,
+    leftMode: row.left_mode,
+    rightMode: row.right_mode,
+    score: row.score,
+    result: row.result,
+    model: row.model,
     tokensUsed: row.tokens_used,
     durationMs: row.duration_ms,
     createdAt: row.created_at,

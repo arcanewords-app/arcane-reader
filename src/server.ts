@@ -143,6 +143,11 @@ import { serviceHealthManager } from './services/serviceHealth.js';
 import { isChunkError } from './shared/chunkErrors.js';
 import { registerDebugRoutes } from './debug/routes.js';
 import { registerPromptLabRoutes } from './prompt-lab/routes.js';
+import {
+  parseParagraphMarkers,
+  PARA_MARKER_PREFIX,
+  PARA_MARKER_SUFFIX,
+} from './engine/utils/para-markers.js';
 import { startDebugLogSubscriber } from './debug/redisBridge.js';
 import { addDebugLogEntry } from './debug/buffer.js';
 import { createTraceId, runWithDebugContextAsync } from './debug/context.js';
@@ -5623,12 +5628,10 @@ function syncTranslationToParagraphs(
 }
 
 /** Paragraph marker format used for editing stage: --para:{id}-- */
-const PARA_MARKER_PREFIX = '--para:';
-const PARA_MARKER_SUFFIX = '--';
 
 /**
  * Build a single text with paragraph markers for the editing stage.
- * Each paragraph becomes "--para:{id}--{text}". After editing, parse with parseEditedTextByMarkers.
+ * Each paragraph becomes "--para:{id}--{text}". After editing, parse with parseParagraphMarkers.
  */
 function buildMarkedTextFromParagraphs(paragraphs: Paragraph[]): string {
   if (!paragraphs?.length) return '';
@@ -5641,26 +5644,9 @@ function buildMarkedTextFromParagraphs(paragraphs: Paragraph[]): string {
     .join('\n\n');
 }
 
-/**
- * Parse edited text that contains --para:{id}-- markers into a list of { id, text }.
- * Used after the editing stage to restore 1:1 mapping to paragraphs.
- */
+/** @deprecated Use parseParagraphMarkers from engine/utils/para-markers */
 function parseEditedTextByMarkers(text: string): Array<{ id: string; text: string }> {
-  const results: Array<{ id: string; text: string }> = [];
-  const re = /--para:([^\n]*?)--/g;
-  let match: RegExpExecArray | null;
-  let lastEnd = 0;
-  while ((match = re.exec(text)) !== null) {
-    if (results.length > 0) {
-      results[results.length - 1].text = text.slice(lastEnd, match.index).trim();
-    }
-    results.push({ id: match[1].trim(), text: '' });
-    lastEnd = match.index + match[0].length;
-  }
-  if (results.length > 0) {
-    results[results.length - 1].text = text.slice(lastEnd).trim();
-  }
-  return results;
+  return parseParagraphMarkers(text);
 }
 
 /**

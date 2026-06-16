@@ -13,6 +13,8 @@ import {
   promptLabRunBodySchema,
   promptLabTextBodySchema,
   promptLabPromptBodySchema,
+  promptLabRunPatchSchema,
+  promptLabEvaluateBodySchema,
 } from '../api/schemas/prompt-lab.js';
 import { loadConfig } from '../config.js';
 import {
@@ -28,19 +30,26 @@ import {
   deletePromptLabPrompt,
   deletePromptLabRun,
   deletePromptLabText,
+  getPromptLabEvaluation,
   getPromptLabPrompt,
   getPromptLabRun,
+  insertPromptLabEvaluation,
   insertPromptLabPrompt,
   insertPromptLabRun,
   insertPromptLabText,
+  listPromptLabEvaluations,
   listPromptLabPrompts,
   listPromptLabRuns,
   listPromptLabTexts,
   updatePromptLabPrompt,
+  updatePromptLabRun,
   updatePromptLabText,
 } from './db.js';
+import { runPromptLabEvaluation } from './evaluator.js';
+import { buildRunDisplayName } from './runNaming.js';
 import { buildInputSnapshot, previewUserPrompt, runPromptLabStage } from './runner.js';
 import {
+  rowToPromptLabEvaluation,
   rowToPromptLabPrompt,
   rowToPromptLabRun,
   rowToPromptLabText,
@@ -306,6 +315,93 @@ export function registerPromptLabRoutes(app: Express): void {
     }
   });
 
+  app.patch('/api/prompt-lab/runs/:id', async (req, res) => {
+    const parsed = promptLabRunPatchSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      sendZodError(res, parsed.error);
+      return;
+    }
+    try {
+      const row = await updatePromptLabRun(req.params.id, {
+        display_name: parsed.data.displayName,
+      });
+      res.json(rowToPromptLabRun(row));
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to update run' });
+    }
+  });
+
+  app.get('/api/prompt-lab/evaluations', async (req, res) => {
+    try {
+      const runId = typeof req.query.runId === 'string' ? req.query.runId : undefined;
+      const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+      const rows = await listPromptLabEvaluations({ runId, limit });
+      res.json({ evaluations: rows.map(rowToPromptLabEvaluation) });
+    } catch (e) {
+      res
+        .status(500)
+        .json({ error: e instanceof Error ? e.message : 'Failed to list evaluations' });
+    }
+  });
+
+  app.get('/api/prompt-lab/evaluations/:id', async (req, res) => {
+    try {
+      const row = await getPromptLabEvaluation(req.params.id);
+      if (!row) {
+        res.status(404).json({ error: 'Evaluation not found' });
+        return;
+      }
+      res.json(rowToPromptLabEvaluation(row));
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to get evaluation' });
+    }
+  });
+
+  app.post('/api/prompt-lab/evaluate', async (req, res) => {
+    const parsed = promptLabEvaluateBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      sendZodError(res, parsed.error);
+      return;
+    }
+    try {
+      const leftRun = await getPromptLabRun(parsed.data.leftRunId);
+      const rightRun = await getPromptLabRun(parsed.data.rightRunId);
+      if (!leftRun || !rightRun) {
+        res.status(404).json({ error: 'Run not found' });
+        return;
+      }
+      const referenceRun = parsed.data.referenceRunId
+        ? await getPromptLabRun(parsed.data.referenceRunId)
+        : null;
+
+      const evalResult = await runPromptLabEvaluation({
+        leftRun,
+        rightRun,
+        leftMode: parsed.data.leftMode,
+        rightMode: parsed.data.rightMode,
+        referenceRun,
+        model: parsed.data.model,
+        glossarySnapshot: parsed.data.glossarySnapshot,
+      });
+
+      const row = await insertPromptLabEvaluation({
+        left_run_id: leftRun.id,
+        right_run_id: rightRun.id,
+        left_mode: parsed.data.leftMode,
+        right_mode: parsed.data.rightMode,
+        score: evalResult.result.score,
+        result: evalResult.result,
+        model: evalResult.model,
+        tokens_used: evalResult.tokensUsed,
+        duration_ms: evalResult.durationMs,
+      });
+
+      res.status(201).json(rowToPromptLabEvaluation(row));
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Evaluation failed' });
+    }
+  });
+
   app.post('/api/prompt-lab/glossary/import', upload.single('file'), async (req, res) => {
     try {
       let buffer: Buffer;
@@ -358,6 +454,11 @@ export function registerPromptLabRoutes(app: Express): void {
 
       let runId: string | undefined;
       if (data.saveRun) {
+        let promptName: string | null = null;
+        if (data.promptId) {
+          const savedPrompt = await getPromptLabPrompt(data.promptId);
+          promptName = savedPrompt?.name ?? null;
+        }
         const params: PromptLabRunParams = {
           model: data.model,
           temperature: data.temperature,
@@ -370,11 +471,21 @@ export function registerPromptLabRoutes(app: Express): void {
           chapterNumber: data.chapterNumber,
           chunkSize: data.chunkSize,
           analysisMaxSectionTokens: data.analysisMaxSectionTokens,
+          injectMarkers: data.injectMarkers,
+          runLabel: data.runLabel,
+          userPromptOverride: Boolean(data.userPromptOverride),
         };
+        const displayName = buildRunDisplayName({
+          stage: data.stage,
+          model: data.model,
+          promptName,
+          userLabel: data.runLabel,
+        });
         const row = await insertPromptLabRun({
           text_id: data.textId ?? null,
           prompt_id: data.promptId ?? null,
           stage: data.stage,
+          display_name: displayName,
           params,
           input_snapshot: buildInputSnapshot(data, output.prompts),
           output,

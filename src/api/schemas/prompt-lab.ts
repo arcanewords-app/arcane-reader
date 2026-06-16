@@ -57,9 +57,27 @@ export const promptLabRunBodySchema = promptLabPreviewBodySchema.extend({
   userPromptOverride: z.string().optional(),
   chunkSize: z.number().int().positive().optional(),
   analysisMaxSectionTokens: z.number().int().min(0).optional(),
+  injectMarkers: z.boolean().optional(),
+  runLabel: z.string().trim().max(80).optional(),
   saveRun: z.boolean().optional(),
   textId: z.string().uuid().optional(),
   promptId: z.string().uuid().optional().nullable(),
+});
+
+export const promptLabRunPatchSchema = z.object({
+  displayName: z.string().trim().min(1).max(200),
+});
+
+const compareModeSchema = z.enum(['source', 'output']);
+
+export const promptLabEvaluateBodySchema = z.object({
+  leftRunId: z.string().uuid(),
+  rightRunId: z.string().uuid(),
+  leftMode: compareModeSchema.default('source'),
+  rightMode: compareModeSchema.default('output'),
+  referenceRunId: z.string().uuid().optional(),
+  model: z.string().trim().max(200).optional(),
+  glossarySnapshot: glossarySnapshotSchema,
 });
 
 export const promptLabTextBodySchema = z.object({
