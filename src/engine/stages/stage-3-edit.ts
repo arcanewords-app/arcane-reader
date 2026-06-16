@@ -122,7 +122,7 @@ export class EditStage {
       const fullGlossary = options.context.glossary;
       const chapterCastText =
         options.chapterNumber !== undefined
-          ? GlossaryManager.toCastPromptText(
+          ? GlossaryManager.toEditCastPromptText(
               getChapterCastCharacters(fullGlossary, options.chapterNumber)
             )
           : '';
@@ -181,8 +181,8 @@ export class EditStage {
         glossaryTextForQuality =
           includeGlossary && fullGlossary
             ? new GlossaryManager(
-                filterGlossaryForChunk(translatedText, fullGlossary)
-              ).toPromptText({ targetLanguageLabel: targetLabel })
+                filterGlossaryForChunk(translatedText, fullGlossary, 'target')
+              ).toEditPromptText({ targetLanguageLabel: targetLabel })
             : '';
 
         const systemPrompt = getEditorSystemPrompt(
@@ -245,8 +245,8 @@ export class EditStage {
             const glossaryForQuality =
               includeGlossary && fullGlossary
                 ? new GlossaryManager(
-                    filterGlossaryForChunk(editedText, fullGlossary)
-                  ).toPromptText({
+                    filterGlossaryForChunk(editedText, fullGlossary, 'target')
+                  ).toEditPromptText({
                     targetLanguageLabel: languageDisplayName(options.context.targetLanguage),
                   })
                 : '';
@@ -617,8 +617,8 @@ export class EditStage {
     const glossaryText =
       includeGlossary && fullGlossary
         ? new GlossaryManager(
-            filterGlossaryForChunk(translatedChunk.content, fullGlossary)
-          ).toPromptText({ targetLanguageLabel: targetLabel })
+            filterGlossaryForChunk(translatedChunk.content, fullGlossary, 'target')
+          ).toEditPromptText({ targetLanguageLabel: targetLabel })
         : '';
 
     const systemPrompt = getEditorSystemPrompt(editingStylePreset, editingFocus, targetLanguage);

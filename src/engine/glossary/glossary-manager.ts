@@ -337,6 +337,48 @@ export class GlossaryManager {
   }
 
   /**
+   * Glossary text for Stage 3 Edit — target-language forms only (no source script).
+   */
+  toEditPromptText(options?: { targetLanguageLabel?: string }): string {
+    const targetLanguageLabel = options?.targetLanguageLabel?.trim();
+    let text = '';
+
+    if (targetLanguageLabel) {
+      text += `Canonical **${targetLanguageLabel}** forms — use exactly.\n\n`;
+    }
+
+    if (this.glossary.characters.length > 0) {
+      text += '### Characters\n';
+      for (const char of this.glossary.characters) {
+        const declensionsSuffix = formatDeclensionsCompact(char.declensions, char.translatedName);
+        text += `- ${char.translatedName} [${char.gender}]`;
+        if (declensionsSuffix) {
+          text += ` (${declensionsSuffix})`;
+        }
+        text += '\n';
+      }
+      text += '\n';
+    }
+
+    if (this.glossary.locations.length > 0) {
+      text += '### Locations\n';
+      for (const loc of this.glossary.locations) {
+        text += `- ${loc.translatedName}\n`;
+      }
+      text += '\n';
+    }
+
+    if (this.glossary.terms.length > 0) {
+      text += '### Terms\n';
+      for (const term of this.glossary.terms) {
+        text += `- ${term.translatedTerm}\n`;
+      }
+    }
+
+    return text;
+  }
+
+  /**
    * Compact chapter cast for gender agreement (characters only, no descriptions).
    */
   static toCastPromptText(characters: Character[]): string {
@@ -344,6 +386,18 @@ export class GlossaryManager {
     let text = GENDER_CAST_LEGEND + '\n';
     for (const char of characters) {
       text += `- ${char.originalName} → ${char.translatedName} [${formatGenderCompactTag(char.gender)}]\n`;
+    }
+    return text.trimEnd();
+  }
+
+  /**
+   * Chapter cast for Stage 3 Edit — target names only (no source script).
+   */
+  static toEditCastPromptText(characters: Character[]): string {
+    if (characters.length === 0) return '';
+    let text = GENDER_CAST_LEGEND + '\n';
+    for (const char of characters) {
+      text += `- ${char.translatedName} [${formatGenderCompactTag(char.gender)}]\n`;
     }
     return text.trimEnd();
   }
@@ -395,4 +449,26 @@ function minimalDeclensions(name: string): Declensions {
     instrumental: name,
     prepositional: name,
   };
+}
+
+/** Compact declension list for edit prompts; only forms that differ from nominative. */
+function formatDeclensionsCompact(declensions: Declensions, nominative: string): string {
+  const base = nominative.trim();
+  if (!base) return '';
+
+  const parts: string[] = [];
+  const addIfDistinct = (label: string, form: string) => {
+    const value = form.trim();
+    if (value && value.toLowerCase() !== base.toLowerCase()) {
+      parts.push(`${label}: ${value}`);
+    }
+  };
+
+  addIfDistinct('род.', declensions.genitive);
+  addIfDistinct('дат.', declensions.dative);
+  addIfDistinct('вин.', declensions.accusative);
+  addIfDistinct('тв.', declensions.instrumental);
+  addIfDistinct('пред.', declensions.prepositional);
+
+  return parts.join(', ');
 }

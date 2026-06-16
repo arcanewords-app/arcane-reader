@@ -45,10 +45,10 @@ Full list: `@src/engine/types/pipeline.ts`.
 ## Glossary
 
 - `GlossaryManager` — CRUD in agent state. `filterGlossaryByChapter`, then `filterGlossaryForChunk` per chunk.
-- **As-is policy:** one glossary per project; DB `translated` is canonical for the project target language. No per-pair glossary variants — prompts pass entries unchanged via `toPromptText({ targetLanguageLabel })`.
+- **As-is policy:** one glossary per project; DB `translated` is canonical for the project target language. No per-pair glossary variants — Analyze/Translate use `toPromptText({ targetLanguageLabel })` (bilingual); Edit uses `toEditPromptText` / `toEditCastPromptText` (target forms only).
 - Declension: `declineName`, `declineNameRu` from `glossary/declension*.ts`.
 - DB: snake_case (gender, location_type, term_category).
-- **Gender SSOT:** `characters[].gender` in glossary. Compact cast `[m/f/n/?]` via `GlossaryManager.toCastPromptText` + `getChapterCastCharacters`; injected on Translate context and every Edit user prompt. Shared rules: `prompts/shared/gender-agreement-*.ts` appended to Stage 2/3 system prompts.
+- **Gender SSOT:** `characters[].gender` in glossary. Compact cast `[m/f/n/?]` via `getChapterCastCharacters`: Translate uses `toCastPromptText` (bilingual); Edit uses `toEditCastPromptText` (target names only). Shared rules: `prompts/shared/gender-agreement-*.ts` appended to Stage 2/3 system prompts.
 
 ## Translation languages (MVP)
 

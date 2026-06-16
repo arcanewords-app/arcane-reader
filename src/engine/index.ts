@@ -54,7 +54,11 @@ export { NovelAgent } from './agents/novel-agent.js';
 
 // Glossary
 export { GlossaryManager } from './glossary/glossary-manager.js';
-export { filterGlossaryForChunk, filterGlossaryByChapter } from './glossary/glossary-filter.js';
+export {
+  filterGlossaryForChunk,
+  filterGlossaryByChapter,
+  type GlossaryChunkMatchMode,
+} from './glossary/glossary-filter.js';
 export {
   declineName,
   translateName,

@@ -10,7 +10,7 @@ updated: 2026-06-16
 
 # Engine glossary and prompts (as-is)
 
-Glossary management, prompt factories, Text Blocks, and paragraph markers inside `src/engine/`. Pipeline orchestration: [[engine-pipeline]]. Server-side marker injection and sync: [[engine-integration-boundary]].
+Glossary management, prompt factories, Text Blocks, and paragraph markers inside `src/engine/`. Pipeline orchestration: [[engine-pipeline]] (stage inputs matrix: [[engine-pipeline#Stage inputs and prompts (as-is)]]). Server-side marker injection and sync: [[engine-integration-boundary]].
 
 ## Glossary
 
@@ -37,12 +37,37 @@ Rule is parameterized via `languageDisplayName(target)` for `ru` and `be`.
 
 ### Filtering
 
-| Function                                           | When used                                                                                                   |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `filterGlossaryByChapter(glossary, chapterNumber)` | Before translate/edit — entries with `mentionedInChapters` including chapter, or empty (legacy include-all) |
-| `filterGlossaryForChunk(glossary, chunkText)`      | Per chunk — whole-word match on original names/terms (+ character aliases)                                  |
+| Function                                             | When used                                                                                                   |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `filterGlossaryByChapter(glossary, chapterNumber)`   | Before translate/edit — entries with `mentionedInChapters` including chapter, or empty (legacy include-all) |
+| `filterGlossaryForChunk(text, glossary, matchMode?)` | Per chunk — script-aware match (see below)                                                                  |
 
 Pipeline applies chapter filter first, then chunk filter in Stage 2 and Stage 3.
+
+#### Chunk match modes (`GlossaryChunkMatchMode`)
+
+| Mode               | Stage               | Text scanned         | Fields matched                                               |
+| ------------------ | ------------------- | -------------------- | ------------------------------------------------------------ |
+| `source` (default) | Translate (Stage 2) | Source chapter chunk | `originalName` / `originalTerm`, character `aliases`         |
+| `target`           | Edit (Stage 3)      | Translated chunk     | `translatedName` / `translatedTerm`, character `declensions` |
+
+#### Script-aware matching (`glossary-filter.ts`)
+
+- **Latin references** (`isLatinScriptName`): whole-word regex `\b…\b` (case-insensitive), plus first-word fallback for multi-word names (e.g. "Harry" matches "Harry Potter").
+- **Non-Latin** (CJK, Hangul, Cyrillic, etc.): case-insensitive substring match; references shorter than 2 characters are skipped to reduce false positives.
+
+**Limitations:** substring mode can match inside longer words (e.g. short CJK term as substring). Locations/terms on Edit do not use declension variants — only the canonical `translated` form. Chapter cast (`getChapterCastCharacters`) still injects up to 25 characters per chapter regardless of chunk filter.
+
+#### Prompt text formats (`GlossaryManager`)
+
+| Method                                      | Stages                         | Format                                                                        |
+| ------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| `toPromptText({ targetLanguageLabel })`     | Analyze, Translate             | Bilingual: `original → translated`                                            |
+| `toCastPromptText(characters)`              | Translate (`Previous Context`) | Bilingual cast: `original → translated [m/f/n/?]`                             |
+| `toEditPromptText({ targetLanguageLabel })` | Edit                           | Target only: `Сан Фэнцзы [male] (род.: …)`; locations/terms = translated form |
+| `toEditCastPromptText(characters)`          | Edit                           | Target only: `Ли Мин [f]`                                                     |
+
+Edit methods omit source-script names to save tokens; the model edits translated text only.
 
 ### Declension
 
@@ -99,7 +124,7 @@ Two independent settings combine at runtime:
 | Стиль редактуры | `editingStylePreset` | `ai_revivification` — post-edit AI translation (ВЫ/ТЫ, канцеляризмы) |
 | Фокус редактуры | `editingFocus`       | `fix_problems` — errors only, minimal rephrasing                     |
 
-`getEditorSystemPrompt(preset, focus, target)` prepends the focus overlay, then appends the style block, then **gender agreement** (see below). User prompt: glossary (chunk-filtered) + **chapter cast** (always, all chapter characters) + style notes + translated text (no original).
+`getEditorSystemPrompt(preset, focus, target)` prepends the focus overlay, then appends the style block, then **gender agreement** (see below). User prompt: chunk-filtered `toEditPromptText` (target forms only) + `toEditCastPromptText` (always, up to 25 chapter characters) + style notes + translated text (no source).
 
 **Re-edit workflow:** run `stages: ['editing']` on an existing translation with `editingFocus: 'fix_problems'` (optionally `editingStylePreset: 'minimal'`) — only Stage 3 tokens, no re-translate. Compare prompt combos: `npm run test:editing-prompts`.
 
@@ -107,11 +132,12 @@ Two independent settings combine at runtime:
 
 **SSOT:** `glossary_entries.gender` on characters. Prompts do not override manual gender.
 
-| Mechanism    | Where                                                                                                                                                                                              |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared rules | `prompts/shared/gender-agreement-ru.ts`, `gender-agreement-be.ts` — appended once to translator (Stage 2) and editor (Stage 3) system prompts via `appendGenderAgreement()`                        |
-| Chapter cast | `getChapterCastCharacters()` + `GlossaryManager.toCastPromptText()` — compact `orig → tr [m/f/n/?]` in Translate context and **every** Edit user prompt (even if chunk glossary omits a character) |
-| Active scene | `buildContextText` labels active characters with `[m/f]` when found in glossary                                                                                                                    |
+| Mechanism                | Where                                                                                                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared rules             | `prompts/shared/gender-agreement-ru.ts`, `gender-agreement-be.ts` — appended once to translator (Stage 2) and editor (Stage 3) system prompts via `appendGenderAgreement()` |
+| Chapter cast (Translate) | `getChapterCastCharacters()` + `GlossaryManager.toCastPromptText()` — bilingual `orig → tr [m/f/n/?]` in Translate `Previous Context`                                       |
+| Chapter cast (Edit)      | `getChapterCastCharacters()` + `GlossaryManager.toEditCastPromptText()` — target-only `tr [m/f/n/?]` in every Edit user prompt (even if chunk glossary omits a character)   |
+| Active scene             | `buildContextText` (Translate only) labels active characters with `[m/f]` when found in glossary                                                                            |
 
 Token budget: cast capped at 25 characters per chapter; no full declensions in cast lines. See archived `docs/archive/GLOSSARY_TOKEN_OPTIMIZATION.md` for chunk glossary policy.
 

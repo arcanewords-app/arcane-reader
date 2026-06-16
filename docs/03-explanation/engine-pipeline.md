@@ -5,7 +5,7 @@ domain: engine
 stale: false
 canonical: .cursor/rules/engine.mdc
 created: 2026-05-31
-updated: 2026-05-31
+updated: 2026-06-16
 ---
 
 # Engine pipeline (as-is)
@@ -69,12 +69,80 @@ flowchart LR
 
 ### Stage 3 — Edit
 
-- **Input:** `stage2.translatedText` + original `sourceText` (original used for context in prompts, not sent as chunk pairs).
+- **Input:** `stage2.translatedText`; `sourceText` is passed to `EditStage.execute` for `detectChanges` and optional quality check only — **not** included in the main edit user prompt.
 - **Chunking:** `chunkText(translatedText only)` — **independent** boundaries from Stage 2.
-- **Glossary:** optional per-chunk via `filterGlossaryForChunk`.
-- **Quality check:** optional `completeJSON` after chunked edit (`checkQualityForChunked`, default false).
+- **Glossary:** chapter-scoped (`filterGlossaryByChapter`), then per-chunk via `filterGlossaryForChunk(..., 'target')`; formatted with `toEditPromptText` / `toEditCastPromptText` (target-language forms only). See [[#Stage inputs and prompts (as-is)]].
+- **Quality check:** optional `completeJSON` after chunked edit (`checkQualityForChunked`, default false); when run, sends **both** original and translation plus target-only glossary.
 - **On failure:** pipeline uses raw Stage 2 translation as `finalTranslation`.
 - **Known limitation:** Stage 3 chunk boundaries are not aligned with Stage 2 chunk boundaries. Open work: [[05-plans/engine-pipeline-improvements]].
+
+## Stage inputs and prompts (as-is)
+
+Before Stage 2 and Stage 3, `TranslationPipeline` applies `filterGlossaryByChapter(glossary, chapterNumber)` via `ctxForTranslateEdit()` in `translation-pipeline.ts`.
+
+Glossary chunk filtering, script-aware matching, and prompt format helpers: [[engine-glossary-and-prompts#Filtering]].
+
+### Summary matrix
+
+|                            | **Stage 1 Analyze**                                   | **Stage 2 Translate**                                      | **Stage 3 Edit**                                                |
+| -------------------------- | ----------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| **Text in user prompt**    | Source (`sourceText` / section)                       | Source (chunk)                                             | **Translated text only** (chunk)                                |
+| **System prompt**          | `pairs/{src}-{tgt}/analyzer` + metadata language rule | `pairs/{src}-{tgt}/translator` + `appendGenderAgreement`   | `getEditorSystemPrompt(preset, focus, tgt)` + gender            |
+| **Glossary scope**         | **Full** glossary (if `includeGlossaryInAnalysis`)    | Chapter-scoped → per-chunk filter                          | Chapter-scoped → per-chunk filter                               |
+| **Chunk filter**           | —                                                     | `matchMode: source` (original in source chunk)             | `matchMode: target` (translated forms in edit chunk)            |
+| **Glossary format**        | `toPromptText` — `orig → tr`                          | `toPromptText` — `orig → tr`                               | `toEditPromptText` — target only (+ declensions for characters) |
+| **Chapter cast**           | —                                                     | `toCastPromptText` — `orig → tr [m/f]` in Previous Context | `toEditCastPromptText` — `tr [m/f]`                             |
+| **Chunk glossary default** | —                                                     | **off** in full pipeline; **on** in translate-only         | **on** (2000 tok)                                               |
+| **Source in LLM prompt**   | yes                                                   | yes                                                        | **no** (except optional quality check)                          |
+
+### User prompt section order
+
+**Analyze** (`buildAnalyzerUserPrompt`):
+
+1. Intro (source → target)
+2. `## Existing Glossary` — full bilingual `toPromptText` (optional)
+3. Metadata language rules
+4. `## Source Text`
+
+**Translate** (`buildTranslatorUserPrompt`):
+
+1. Target language anchor
+2. `## Previous Context` — chapter cast (`toCastPromptText`), events, active characters, prior summaries
+3. `## Glossary` — chunk-filtered bilingual `toPromptText` (when `includeGlossaryInTranslation`)
+4. `## Style Guide`
+5. Text block types (if configured)
+6. Custom instructions
+7. `## Text to Translate` — source chunk
+
+**Edit** (`createEditorPrompt`):
+
+1. Editor target language anchor
+2. Chapter cast — `toEditCastPromptText` (target names + `[m/f/n/?]`)
+3. `## Reference Glossary` — chunk-filtered `toEditPromptText` (when `includeGlossaryInEditing`)
+4. `## Style Notes`
+5. Custom instructions
+6. `## Translation to Edit` — translated chunk only
+
+### By source language (en / ko / zh / ru)
+
+Whitelist: `src/engine/language.ts` — 7 pairs (`en|ko|zh→ru`, `en|ko|zh|ru→be`).
+
+| Aspect                  | en                                       | ko / zh                                                          | ru (only `ru→be`)           |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------------------------- | --------------------------- |
+| Pair prompts            | `en-ru`, `en-be`                         | `ko-ru`, `zh-ru`, `ko-be`, `zh-be`                               | `ru-be`                     |
+| Analyze JSON names      | Latin, capitalized                       | CJK in `originalName`; Cyrillic `suggestedTranslation` for ru/be | Cyrillic → Belarusian forms |
+| Chunk match (Translate) | `\b` word boundaries                     | substring (≥2 chars)                                             | substring                   |
+| Chunk match (Edit)      | `translated` + declensions               | same                                                             | same                        |
+| DB reload               | EN translit + Petrovich when target `ru` | `translated` from DB; no EN translit                             | `translated` as-is          |
+
+### Manual verification (zh→ru)
+
+1. **Analyze** — prompt has `Existing Glossary` with `张三丰 → …` and full source text.
+2. **Full pipeline Translate** — no per-chunk glossary section; bilingual cast in Previous Context.
+3. **Edit** — cast `Ли Мин [f]` without Han characters; Reference Glossary target-only; no Chinese source section.
+4. **Translate-only** — per-chunk bilingual glossary matched on source script.
+
+Automated flow checks: `npm run test:stage-prompt-flow`.
 
 ## TranslationPipeline API
 

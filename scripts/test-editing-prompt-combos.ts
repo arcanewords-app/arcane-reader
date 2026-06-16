@@ -107,16 +107,23 @@ function printCombo(label: string, system: string, user: string): void {
   };
 
   const castChars = getChapterCastCharacters(glossary, 1);
-  const castText = GlossaryManager.toCastPromptText(castChars);
+  const castText = GlossaryManager.toEditCastPromptText(castChars);
   assert.equal(castChars.length, 2);
-  assert.ok(castText.includes('李明 → Ли Мин [f]'));
-  assert.ok(castText.includes('张伟 → Чжан Вэй [m]'));
+  assert.ok(castText.includes('Ли Мин [f]'));
+  assert.ok(castText.includes('Чжан Вэй [m]'));
+  assert.ok(!castText.includes('李明 →'));
   assert.equal(formatGenderCompactTag('unknown'), '?');
+
+  const editGlossaryText = new GlossaryManager(glossary).toEditPromptText({
+    targetLanguageLabel: 'Russian',
+  });
+  assert.ok(!editGlossaryText.includes('李明'));
+  assert.ok(editGlossaryText.includes('Ли Мин'));
 
   const sampleTranslation = 'Она встала и посмотрела на него.';
   const userAi = createEditorPrompt(
     sampleTranslation,
-    '',
+    editGlossaryText,
     undefined,
     undefined,
     'Russian',
@@ -124,7 +131,7 @@ function printCombo(label: string, system: string, user: string): void {
   );
   const userMinimal = createEditorPrompt(
     sampleTranslation,
-    '',
+    editGlossaryText,
     undefined,
     undefined,
     'Russian',
@@ -133,6 +140,8 @@ function printCombo(label: string, system: string, user: string): void {
 
   assert.ok(userAi.includes('Chapter cast (gender tags)'));
   assert.ok(userAi.includes('[f]'));
+  assert.ok(userAi.includes('Reference Glossary'));
+  assert.ok(userAi.includes('Ли Мин [female]'));
   assert.equal(
     userAi,
     userMinimal,

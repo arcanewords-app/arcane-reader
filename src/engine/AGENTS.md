@@ -4,7 +4,7 @@ Applies when editing `src/engine/**`. Global rules: `.cursor/rules/engine.mdc`, 
 
 ## As-is docs (vault)
 
-- [`docs/03-explanation/engine-pipeline.md`](../../docs/03-explanation/engine-pipeline.md)
+- [`docs/03-explanation/engine-pipeline.md`](../../docs/03-explanation/engine-pipeline.md) — stage inputs matrix: [Stage inputs and prompts](../../docs/03-explanation/engine-pipeline.md#stage-inputs-and-prompts-as-is)
 - [`docs/03-explanation/engine-glossary-and-prompts.md`](../../docs/03-explanation/engine-glossary-and-prompts.md)
 - [`docs/03-explanation/engine-integration-boundary.md`](../../docs/03-explanation/engine-integration-boundary.md)
 
@@ -25,7 +25,10 @@ Applies when editing `src/engine/**`. Global rules: `.cursor/rules/engine.mdc`, 
 
 ## Glossary & Text Blocks
 
-- Inject glossary via `filterGlossaryByChapter` + `filterGlossaryForChunk` where applicable
+- **Chapter filter:** `filterGlossaryByChapter` before Translate/Edit (`translation-pipeline.ts`)
+- **Analyze:** full `toPromptText` (bilingual) in analyzer user prompt
+- **Translate:** `filterGlossaryForChunk(chunk, glossary, 'source')` + `toPromptText`; cast via `toCastPromptText` in `Previous Context`
+- **Edit:** `filterGlossaryForChunk(chunk, glossary, 'target')` + `toEditPromptText`; cast via `toEditCastPromptText`
 - **Text Blocks:** `{{block:type-id}}content{{/block:type-id}}` — types in `src/engine/constants/text-block-presets.ts`
 - Declension: Petrovich via `src/engine/glossary/declension-ru.ts`
 
