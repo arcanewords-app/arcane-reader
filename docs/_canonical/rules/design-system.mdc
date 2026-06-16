@@ -118,7 +118,7 @@ alwaysApply: false
 ## i18n UI Copy
 
 - MUST avoid hardcoded UI strings in client components; use `useTranslation()` and locale keys.
-- MUST add new keys to app locale files: `src/client/locales/en.json`, `src/client/locales/ru.json`.
+- MUST add new keys to app locale files: `src/client/locales/en.json`, `src/client/locales/ru.json`, `src/client/locales/be.json`.
 - SHOULD keep CTA labels short and action-oriented.
 
 ## Implementation Checklist For UI Changes

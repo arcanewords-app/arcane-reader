@@ -1,6 +1,6 @@
 /**
  * i18n setup for app UI localization.
- * Default language: Russian (ru). Supported app locales: ru, en.
+ * Default language: Russian (ru). Supported app locales: ru, en, be.
  * Resolution order: localStorage (explicit choice) → browser languages → ru.
  */
 
@@ -9,10 +9,11 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
+import be from './locales/be.json';
 
 export const APP_LOCALE_KEY = 'app.locale';
-export type AppLocale = 'ru' | 'en';
-export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en'];
+export type AppLocale = 'ru' | 'en' | 'be';
+export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en', 'be'];
 
 function syncHtmlLang(locale: AppLocale): void {
   if (typeof document === 'undefined') return;
@@ -28,7 +29,7 @@ function resolveBrowserLocale(): AppLocale {
   for (const raw of codes) {
     if (!raw) continue;
     const base = raw.split('-')[0].toLowerCase();
-    if (base === 'ru' || base === 'en') return base;
+    if (base === 'ru' || base === 'en' || base === 'be') return base;
   }
   return 'ru';
 }
@@ -66,6 +67,7 @@ i18n.use(initReactI18next).init({
   resources: {
     ru: { translation: ru },
     en: { translation: en },
+    be: { translation: be },
   },
   lng: initialLocale,
   fallbackLng: 'ru',
