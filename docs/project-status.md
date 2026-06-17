@@ -31,6 +31,8 @@ Update this file when completing plans or shipping major features.
 - Redis cache layer with invalidation contract
 - Structured logging (Pino): dev `/debug` console; prod/staging Axiom when `LOG_SHIPPING=1` — [[02-how-to/observability-axiom]]
 
+- News feed (`/news`) + announcement banner; admin at `/admin/news`; GA4 announcement events; migration `20250618_news_and_announcements`
+
 ## Active plans (`05-plans/`)
 
 | Plan                                      | Domain                                                                                             |

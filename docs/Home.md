@@ -57,6 +57,10 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
   | [[06-runbooks/]] | Ops / incidents |
   | [[archive/]] | Legacy docs (may be stale) |
 
+### Product
+
+- [[03-explanation/news-and-announcements]]
+
 ## How-to
 
 - [[02-how-to/run-locally]]
@@ -65,6 +69,8 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 - [[02-how-to/debug-translation]]
 - [[02-how-to/observability-axiom]]
 - [[02-how-to/axiom-mcp]]
+
+- [[02-how-to/manage-news-announcements]]
 
 ## Active work
 
