@@ -191,6 +191,61 @@ export interface PublicEntity {
   updatedAt: string;
 }
 
+export type NewsCategory = 'feature' | 'discount' | 'update' | 'other';
+export type NewsStatus = 'draft' | 'published' | 'archived';
+export type AnnouncementVariant = 'info' | 'promo' | 'neutral';
+export type AnnouncementMinRole =
+  | 'guest'
+  | 'user'
+  | 'author'
+  | 'author_plus'
+  | 'super_author'
+  | 'admin';
+
+export interface NewsPost {
+  id: string;
+  slug: string | null;
+  title: string;
+  summary: string;
+  body: string;
+  category: NewsCategory;
+  status: NewsStatus;
+  primaryLocale: string;
+  translations: Record<string, unknown>;
+  publishedAt: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnnouncementAlert {
+  id: string;
+  newsPostId: string | null;
+  message: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  variant: AnnouncementVariant;
+  minRole: AnnouncementMinRole;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+  priority: number;
+  contentVersion: number;
+  dismissible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActiveAnnouncement {
+  id: string;
+  message: string;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  variant: AnnouncementVariant;
+  contentVersion: number;
+  dismissible: boolean;
+}
+
 /** Font family options for reader */
 export type FontFamily =
   | 'default'

@@ -40,6 +40,13 @@ import type {
   PublicationWithChapters,
   PublicEntity,
   PublicEntityKind,
+  NewsPost,
+  NewsCategory,
+  NewsStatus,
+  AnnouncementAlert,
+  AnnouncementVariant,
+  AnnouncementMinRole,
+  ActiveAnnouncement,
 } from '../types';
 
 // === API Error ===
@@ -1562,6 +1569,152 @@ export const api = {
 
   async getEntityUsage(id: string): Promise<{ usageCount: number }> {
     return fetchJson<{ usageCount: number }>(`/api/admin/entities/${id}/usage`);
+  },
+
+  // === News & Announcements ===
+
+  async getNewsPosts(params?: {
+    limit?: number;
+    offset?: number;
+    category?: NewsCategory;
+  }): Promise<NewsPost[]> {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set('limit', String(params.limit));
+    if (params?.offset != null) q.set('offset', String(params.offset));
+    if (params?.category) q.set('category', params.category);
+    const qs = q.toString();
+    return fetchJsonDeduped<NewsPost[]>(`/api/news${qs ? `?${qs}` : ''}`);
+  },
+
+  async getNewsPost(idOrSlug: string): Promise<NewsPost> {
+    return fetchJsonDeduped<NewsPost>(`/api/news/${encodeURIComponent(idOrSlug)}`);
+  },
+
+  async getActiveAnnouncement(): Promise<ActiveAnnouncement | null> {
+    return fetchJsonDeduped<ActiveAnnouncement | null>('/api/announcements/active');
+  },
+
+  async dismissAnnouncement(id: string, contentVersion: number): Promise<void> {
+    await fetchJson(`/api/announcements/${id}/dismiss`, {
+      method: 'POST',
+      body: JSON.stringify({ contentVersion }),
+    });
+  },
+
+  async getAdminNewsPosts(): Promise<NewsPost[]> {
+    return fetchJson<NewsPost[]>('/api/admin/news');
+  },
+
+  async createNewsPost(data: {
+    title: string;
+    summary: string;
+    body?: string;
+    category?: NewsCategory;
+    slug?: string | null;
+  }): Promise<NewsPost> {
+    return fetchJson<NewsPost>('/api/admin/news', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateNewsPost(
+    id: string,
+    data: Partial<{
+      title: string;
+      summary: string;
+      body: string;
+      category: NewsCategory;
+      status: NewsStatus;
+      slug: string | null;
+    }>
+  ): Promise<NewsPost> {
+    return fetchJson<NewsPost>(`/api/admin/news/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async publishNewsPost(id: string): Promise<NewsPost> {
+    return fetchJson<NewsPost>(`/api/admin/news/${id}/publish`, { method: 'POST' });
+  },
+
+  async deleteNewsPost(id: string): Promise<void> {
+    await fetchJson(`/api/admin/news/${id}`, { method: 'DELETE' });
+  },
+
+  async translateNewsPost(id: string): Promise<never> {
+    return fetchJson(`/api/admin/news/${id}/translate`, { method: 'POST' });
+  },
+
+  async getAdminAnnouncements(): Promise<AnnouncementAlert[]> {
+    return fetchJson<AnnouncementAlert[]>('/api/admin/announcements');
+  },
+
+  async createAnnouncement(data: {
+    newsPostId?: string | null;
+    message?: string | null;
+    ctaLabel?: string | null;
+    ctaUrl?: string | null;
+    variant?: AnnouncementVariant;
+    minRole?: AnnouncementMinRole;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    isActive?: boolean;
+    priority?: number;
+    dismissible?: boolean;
+  }): Promise<AnnouncementAlert> {
+    return fetchJson<AnnouncementAlert>('/api/admin/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async createAnnouncementFromNews(
+    newsId: string,
+    data: {
+      message?: string | null;
+      ctaLabel?: string | null;
+      ctaUrl?: string | null;
+      variant?: AnnouncementVariant;
+      minRole?: AnnouncementMinRole;
+      startsAt?: string | null;
+      endsAt?: string | null;
+      isActive?: boolean;
+      priority?: number;
+      dismissible?: boolean;
+    }
+  ): Promise<AnnouncementAlert> {
+    return fetchJson<AnnouncementAlert>(`/api/admin/announcements/from-news/${newsId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateAnnouncement(
+    id: string,
+    data: Partial<{
+      message: string | null;
+      ctaLabel: string | null;
+      ctaUrl: string | null;
+      variant: AnnouncementVariant;
+      minRole: AnnouncementMinRole;
+      startsAt: string | null;
+      endsAt: string | null;
+      isActive: boolean;
+      priority: number;
+      contentVersion: number;
+      dismissible: boolean;
+    }>
+  ): Promise<AnnouncementAlert> {
+    return fetchJson<AnnouncementAlert>(`/api/admin/announcements/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAnnouncement(id: string): Promise<void> {
+    await fetchJson(`/api/admin/announcements/${id}`, { method: 'DELETE' });
   },
 
   // === Token Usage ===

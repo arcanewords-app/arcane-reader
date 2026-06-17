@@ -54,6 +54,13 @@ import {
   buildExportsBodySchema,
   publicationDownloadQuerySchema,
   publicationDisplaySettingsBodySchema,
+  newsListQuerySchema,
+  newsCreateSchema,
+  newsUpdateSchema,
+  announcementCreateSchema,
+  announcementUpdateSchema,
+  announcementFromNewsSchema,
+  announcementDismissSchema,
 } from './api/schemas/index.js';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
@@ -115,6 +122,21 @@ import {
   countPublicationsUsingEntity,
   listPublicEntities,
   getPublicEntityById,
+  listPublishedNewsPosts,
+  getPublishedNewsPostByIdOrSlug,
+  listNewsPostsAdmin,
+  getNewsPostByIdAdmin,
+  createNewsPost,
+  updateNewsPost,
+  publishNewsPost,
+  deleteNewsPost,
+  listAnnouncementAlertsAdmin,
+  createAnnouncementAlert,
+  createAnnouncementFromNews,
+  updateAnnouncementAlert,
+  deleteAnnouncementAlert,
+  getActiveAnnouncementForUser,
+  dismissAnnouncement,
   type MarkTranslatedBatchResult,
   deleteGlossaryEntriesBulk,
   importGlossaryEntriesBatch,
@@ -130,6 +152,7 @@ import {
   type Paragraph,
   type PublicEntityKind,
 } from './storage/database.js';
+import type { UserRole } from './types/roles.js';
 import { requireAuth, optionalAuth, requireRole } from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
 import { respondRouteError } from './middleware/routeDebugError.js';
@@ -286,6 +309,10 @@ const STATIC_PAGE_META: Record<string, { title: string; description: string }> =
     title: 'Уровни аккаунта — Arcane',
     description:
       'Сравнение уровней аккаунта Arcane: читатель и автор. Лимиты AI-токенов, проекты перевода, глоссарий, публикация.',
+  },
+  '/news': {
+    title: 'Новости — Arcane',
+    description: 'Новости и обновления Arcane: новые функции, скидки и важные объявления.',
   },
 };
 
@@ -851,6 +878,23 @@ function publicEntityCacheKey(id: string): string {
   return buildRedisKey(CACHE_PREFIX.publicEntity, id);
 }
 
+function newsListCacheKey(options: { limit: number; offset: number; category?: string }): string {
+  return buildRedisKey(
+    CACHE_PREFIX.newsList,
+    options.limit,
+    options.offset,
+    options.category ?? 'all'
+  );
+}
+
+function newsPostCacheKey(idOrSlug: string): string {
+  return buildRedisKey(CACHE_PREFIX.newsPost, idOrSlug);
+}
+
+function announcementsActiveCacheKey(userRole: string, userId?: string): string {
+  return buildRedisKey(CACHE_PREFIX.announcementsActive, userRole, userId ?? 'guest');
+}
+
 function tokenUsageCacheKey(userId: string, date: string): string {
   return buildRedisKey(CACHE_PREFIX.userTokenUsage, userId, date);
 }
@@ -907,6 +951,22 @@ function invalidatePublicEntitiesCaches(entityId?: string): Promise<void> {
     keys.push(publicEntityCacheKey(entityId));
   }
   return redisDelMany(keys);
+}
+
+async function invalidateNewsCaches(postIdOrSlug?: string): Promise<void> {
+  const keys: string[] = [];
+  if (postIdOrSlug) {
+    keys.push(newsPostCacheKey(postIdOrSlug));
+  }
+  await redisDelByPattern(`${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.newsList}:*`);
+  await redisDelByPattern(`${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.announcementsActive}:*`);
+  if (keys.length > 0) {
+    await redisDelMany(keys);
+  }
+}
+
+async function invalidateAnnouncementCaches(): Promise<void> {
+  await redisDelByPattern(`${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.announcementsActive}:*`);
 }
 
 async function invalidateProjectAndRelatedCaches(
@@ -8140,6 +8200,345 @@ app.get('/api/admin/entities/:id/usage', requireAuth, requireRole('admin'), asyn
   }
 });
 
+// ============ News & Announcements ============
+
+app.get('/api/news', async (req, res) => {
+  try {
+    const parseResult = newsListQuerySchema.safeParse(req.query);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const limit = parseResult.data.limit ?? 50;
+    const offset = parseResult.data.offset ?? 0;
+    const category = parseResult.data.category;
+    const cacheKey = newsListCacheKey({ limit, offset, category });
+
+    const list = await withRedisCache(cacheKey, CACHE_TTL.redisNewsListSec, () =>
+      listPublishedNewsPosts({ limit, offset, category })
+    );
+
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list news posts');
+    res.status(500).json({ error: 'Failed to list news posts' });
+  }
+});
+
+app.get('/api/news/:idOrSlug', async (req, res) => {
+  try {
+    const idOrSlug = req.params.idOrSlug;
+    const post = await withRedisCache(newsPostCacheKey(idOrSlug), CACHE_TTL.redisNewsPostSec, () =>
+      getPublishedNewsPostByIdOrSlug(idOrSlug)
+    );
+    if (!post) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+    res.json(post);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to get news post');
+    res.status(500).json({ error: 'Failed to get news post' });
+  }
+});
+
+app.get('/api/announcements/active', optionalAuth, async (req, res) => {
+  try {
+    const userRole: UserRole = req.user?.role ?? 'guest';
+    const userId = req.user?.id;
+    const cacheKey = announcementsActiveCacheKey(userRole, userId);
+
+    const alert = await withRedisCache(cacheKey, CACHE_TTL.redisAnnouncementsActiveSec, () =>
+      getActiveAnnouncementForUser({ userRole, userId })
+    );
+
+    res.json(alert);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to get active announcement');
+    res.status(500).json({ error: 'Failed to get active announcement' });
+  }
+});
+
+app.post('/api/announcements/:id/dismiss', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const parseResult = announcementDismissSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const token = requireToken(req);
+    await dismissAnnouncement(req.user.id, req.params.id, parseResult.data.contentVersion, token);
+    await invalidateAnnouncementCaches();
+    res.status(204).send();
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to dismiss announcement');
+    res.status(500).json({ error: 'Failed to dismiss announcement' });
+  }
+});
+
+app.get('/api/admin/news', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const list = await listNewsPostsAdmin({ limit: 100 });
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list admin news');
+    res.status(500).json({ error: 'Failed to list news posts' });
+  }
+});
+
+app.post('/api/admin/news', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const parseResult = newsCreateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const token = requireToken(req);
+    const post = await createNewsPost({ ...parseResult.data, createdBy: req.user.id }, token);
+    await invalidateNewsCaches();
+    res.status(201).json(post);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to create news post');
+    res.status(500).json({ error: 'Failed to create news post' });
+  }
+});
+
+app.get('/api/admin/news/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const post = await getNewsPostByIdAdmin(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+    res.json(post);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to get admin news post');
+    res.status(500).json({ error: 'Failed to get news post' });
+  }
+});
+
+app.patch('/api/admin/news/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const parseResult = newsUpdateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const existing = await getNewsPostByIdAdmin(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+
+    const post = await updateNewsPost(req.params.id, parseResult.data);
+    await invalidateNewsCaches(existing.slug ?? existing.id);
+    if (post.slug && post.slug !== existing.slug) {
+      await invalidateNewsCaches(post.slug);
+    }
+    res.json(post);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to update news post');
+    res.status(500).json({ error: 'Failed to update news post' });
+  }
+});
+
+app.delete('/api/admin/news/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const existing = await getNewsPostByIdAdmin(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+
+    await deleteNewsPost(req.params.id);
+    await invalidateNewsCaches(existing.slug ?? existing.id);
+    res.status(204).send();
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const code = (error as Error & { code?: string }).code;
+    if (code === 'NEWS_HAS_ACTIVE_ALERTS') {
+      return res.status(409).json({
+        error: 'Cannot delete news post with active announcement alerts',
+      });
+    }
+    req.log?.error({ err: error }, 'Failed to delete news post');
+    res.status(500).json({ error: 'Failed to delete news post' });
+  }
+});
+
+app.post('/api/admin/news/:id/publish', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const post = await publishNewsPost(req.params.id);
+    await invalidateNewsCaches(post.slug ?? post.id);
+    res.json(post);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('not found') || message.includes('not a draft')) {
+      return res.status(400).json({ error: message });
+    }
+    req.log?.error({ err: error }, 'Failed to publish news post');
+    res.status(500).json({ error: 'Failed to publish news post' });
+  }
+});
+
+app.post('/api/admin/news/:id/translate', requireAuth, requireRole('admin'), (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+
+app.get('/api/admin/announcements', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const list = await listAnnouncementAlertsAdmin();
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list announcement alerts');
+    res.status(500).json({ error: 'Failed to list announcement alerts' });
+  }
+});
+
+app.post('/api/admin/announcements', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const parseResult = announcementCreateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const { newsPostId, ctaLabel, ctaUrl, startsAt, endsAt, ...rest } = parseResult.data;
+    const alert = await createAnnouncementAlert({
+      newsPostId: newsPostId ?? null,
+      ctaLabel: ctaLabel ?? null,
+      ctaUrl: ctaUrl ?? null,
+      startsAt: startsAt ?? null,
+      endsAt: endsAt ?? null,
+      ...rest,
+    });
+    await invalidateAnnouncementCaches();
+    res.status(201).json(alert);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const code = (error as Error & { code?: string }).code;
+    if (code === 'NEWS_NOT_PUBLISHED') {
+      return res.status(400).json({ error: 'Cannot create alert from unpublished news post' });
+    }
+    req.log?.error({ err: error }, 'Failed to create announcement alert');
+    res.status(500).json({ error: 'Failed to create announcement alert' });
+  }
+});
+
+app.post(
+  '/api/admin/announcements/from-news/:newsId',
+  requireAuth,
+  requireRole('admin'),
+  async (req, res) => {
+    try {
+      const parseResult = announcementFromNewsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const { ctaLabel, ctaUrl, startsAt, endsAt, ...rest } = parseResult.data;
+      const alert = await createAnnouncementFromNews(req.params.newsId, {
+        ctaLabel: ctaLabel ?? null,
+        ctaUrl: ctaUrl ?? null,
+        startsAt: startsAt ?? null,
+        endsAt: endsAt ?? null,
+        ...rest,
+      });
+      await invalidateAnnouncementCaches();
+      res.status(201).json(alert);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      const code = (error as Error & { code?: string }).code;
+      if (code === 'NEWS_NOT_PUBLISHED') {
+        return res.status(400).json({ error: 'Cannot create alert from unpublished news post' });
+      }
+      if (error instanceof Error && error.message.includes('not found')) {
+        return res.status(404).json({ error: 'News post not found' });
+      }
+      req.log?.error({ err: error }, 'Failed to create announcement from news');
+      res.status(500).json({ error: 'Failed to create announcement alert' });
+    }
+  }
+);
+
+app.patch('/api/admin/announcements/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const parseResult = announcementUpdateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const { ctaLabel, ctaUrl, startsAt, endsAt, newsPostId, contentVersion, ...rest } =
+      parseResult.data;
+
+    const alert = await updateAnnouncementAlert(req.params.id, {
+      ctaLabel,
+      ctaUrl,
+      startsAt,
+      endsAt,
+      newsPostId,
+      contentVersion,
+      ...rest,
+    });
+    await invalidateAnnouncementCaches();
+    res.json(alert);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('not found')) {
+      return res.status(404).json({ error: 'Announcement alert not found' });
+    }
+    req.log?.error({ err: error }, 'Failed to update announcement alert');
+    res.status(500).json({ error: 'Failed to update announcement alert' });
+  }
+});
+
+app.delete('/api/admin/announcements/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    await deleteAnnouncementAlert(req.params.id);
+    await invalidateAnnouncementCaches();
+    res.status(204).send();
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to delete announcement alert');
+    res.status(500).json({ error: 'Failed to delete announcement alert' });
+  }
+});
+
 // List published publications (public, no auth)
 app.get('/api/publications', async (req, res) => {
   try {
@@ -8641,7 +9040,7 @@ async function sendSitemapXml(req: express.Request, res: express.Response): Prom
   } catch (err) {
     logger.warn({ err }, 'Failed to load publications for sitemap');
   }
-  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog']
+  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog', '/news']
     .map(
       (p) => `  <url>
     <loc>${escapeHtml(base + p)}</loc>
@@ -8773,7 +9172,7 @@ app.use(serviceUnavailableErrorHandler);
 // ============ SEO: Static pages with dynamic meta ============
 // Serve /, /catalog, /about, /contact, /privacy, /terms with unique title, description, canonical
 
-const STATIC_SEO_PATHS = ['/', '/catalog', '/about', '/contact', '/privacy', '/terms'];
+const STATIC_SEO_PATHS = ['/', '/catalog', '/about', '/contact', '/privacy', '/terms', '/news'];
 
 for (const p of STATIC_SEO_PATHS) {
   app.get(p, (req, res) => {

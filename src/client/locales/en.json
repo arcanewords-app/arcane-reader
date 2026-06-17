@@ -824,8 +824,13 @@
     "confirm": "Confirm"
   },
   "admin": {
-    "title": "Admin entities",
+    "title": "Admin",
     "subtitle": "Create global public tags, authors, and translators.",
+    "tabs": {
+      "aria": "Admin sections",
+      "entities": "Entities",
+      "news": "News"
+    },
     "deniedTitle": "Admin access required",
     "deniedMessage": "You do not have enough permissions to open this section.",
     "filter": {
@@ -875,6 +880,75 @@
     },
     "usage": {
       "publicationsCount": "Used in {{count}} publication(s)"
+    },
+    "news": {
+      "subtitle": "News feed and short banner announcements for users.",
+      "createTitle": "New post",
+      "listTitle": "News feed",
+      "alertsTitle": "Active announcements",
+      "empty": "No posts yet.",
+      "alertsEmpty": "No announcements yet.",
+      "created": "News post created.",
+      "updated": "News post updated.",
+      "published": "News post published.",
+      "deleted": "News post deleted.",
+      "createFailed": "Failed to create news post.",
+      "updateFailed": "Failed to update news post.",
+      "publishFailed": "Failed to publish news post.",
+      "deleteFailed": "Failed to delete news post.",
+      "deleteBlocked": "Deactivate linked announcements before deleting this post.",
+      "deleteTitle": "Delete news post",
+      "deleteMessage": "Delete \"{{title}}\"?",
+      "publish": "Publish",
+      "createAlert": "Create announcement",
+      "alertCreated": "Announcement created.",
+      "alertCreateFailed": "Failed to create announcement.",
+      "alertUpdateFailed": "Failed to update announcement.",
+      "alertDeleteFailed": "Failed to delete announcement.",
+      "alertModalTitle": "Announcement from news",
+      "alertMessage": "Short banner text",
+      "alertVariant": "Style",
+      "alertMinRole": "Minimum role",
+      "alertPriority": "Priority",
+      "alertActive": "Active",
+      "alertInactive": "Inactive",
+      "alertUsesSummary": "Uses news summary",
+      "alertVersion": "Version {{version}}",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "bumpVersion": "Show again",
+      "bumpVersionTitle": "Show again",
+      "bumpVersionMessage": "Bump announcement version? Users who dismissed the banner will see it again.",
+      "alertVersionBumped": "Announcement version bumped.",
+      "editTitle": "Edit news post",
+      "translateSoon": "Translate (coming soon)",
+      "form": {
+        "title": "Title",
+        "summary": "Summary",
+        "body": "Body (Markdown)",
+        "category": "Category",
+        "slug": "Slug (URL)",
+        "slugPlaceholder": "e.g. new-feature",
+        "create": "Create post"
+      },
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "variant": {
+        "info": "Info",
+        "promo": "Promo",
+        "neutral": "Neutral"
+      },
+      "minRole": {
+        "guest": "Everyone (including guests)",
+        "user": "Readers",
+        "author": "Authors",
+        "author_plus": "Author+",
+        "super_author": "Super Author",
+        "admin": "Admins"
+      }
     }
   },
   "cabinet": {
@@ -988,7 +1062,26 @@
     "about": "About",
     "contact": "Contact",
     "privacy": "Privacy Policy",
-    "terms": "Terms of Service"
+    "terms": "Terms of Service",
+    "news": "News"
+  },
+  "news": {
+    "title": "News",
+    "intro": "What's new in Arcane: features, updates, and announcements.",
+    "empty": "No published news yet.",
+    "loadError": "Failed to load news.",
+    "notFound": "News post not found.",
+    "backToList": "Back to news",
+    "category": {
+      "feature": "Feature",
+      "discount": "Discount",
+      "update": "Update",
+      "other": "Other"
+    }
+  },
+  "announcement": {
+    "dismiss": "Dismiss announcement",
+    "ctaDefault": "Learn more"
   },
   "tiers": {
     "pageTitle": "Account levels",

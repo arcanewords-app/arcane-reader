@@ -823,8 +823,13 @@
     "confirm": "Готово"
   },
   "admin": {
-    "title": "Админ-сущности",
+    "title": "Админка",
     "subtitle": "Создание общедоступных тегов, авторов и переводчиков.",
+    "tabs": {
+      "aria": "Разделы админки",
+      "entities": "Сущности",
+      "news": "Новости"
+    },
     "deniedTitle": "Требуется доступ администратора",
     "deniedMessage": "У вас недостаточно прав для открытия этого раздела.",
     "filter": {
@@ -874,6 +879,75 @@
     },
     "usage": {
       "publicationsCount": "Используется в {{count}} публикации(ях)"
+    },
+    "news": {
+      "subtitle": "Новостная лента и короткие баннер-оповещения для пользователей.",
+      "createTitle": "Новая запись",
+      "listTitle": "Новостная лента",
+      "alertsTitle": "Активные оповещения",
+      "empty": "Записей пока нет.",
+      "alertsEmpty": "Оповещений пока нет.",
+      "created": "Новость создана.",
+      "updated": "Новость обновлена.",
+      "published": "Новость опубликована.",
+      "deleted": "Новость удалена.",
+      "createFailed": "Не удалось создать новость.",
+      "updateFailed": "Не удалось обновить новость.",
+      "publishFailed": "Не удалось опубликовать новость.",
+      "deleteFailed": "Не удалось удалить новость.",
+      "deleteBlocked": "Сначала деактивируйте оповещения, связанные с этой новостью.",
+      "deleteTitle": "Удалить новость",
+      "deleteMessage": "Удалить «{{title}}»?",
+      "publish": "Опубликовать",
+      "createAlert": "Создать оповещение",
+      "alertCreated": "Оповещение создано.",
+      "alertCreateFailed": "Не удалось создать оповещение.",
+      "alertUpdateFailed": "Не удалось обновить оповещение.",
+      "alertDeleteFailed": "Не удалось удалить оповещение.",
+      "alertModalTitle": "Оповещение из новости",
+      "alertMessage": "Короткий текст баннера",
+      "alertVariant": "Стиль",
+      "alertMinRole": "Минимальная роль",
+      "alertPriority": "Приоритет",
+      "alertActive": "Активно",
+      "alertInactive": "Неактивно",
+      "alertUsesSummary": "Используется summary новости",
+      "alertVersion": "Версия {{version}}",
+      "activate": "Включить",
+      "deactivate": "Выключить",
+      "bumpVersion": "Показать снова",
+      "bumpVersionTitle": "Повторный показ",
+      "bumpVersionMessage": "Увеличить версию оповещения? Пользователи, закрывшие баннер, увидят его снова.",
+      "alertVersionBumped": "Версия оповещения увеличена.",
+      "editTitle": "Редактировать новость",
+      "translateSoon": "Перевести (скоро)",
+      "form": {
+        "title": "Заголовок",
+        "summary": "Краткое описание",
+        "body": "Текст (Markdown)",
+        "category": "Категория",
+        "slug": "Slug (URL)",
+        "slugPlaceholder": "naprimer-novaya-funkciya",
+        "create": "Создать новость"
+      },
+      "status": {
+        "draft": "Черновик",
+        "published": "Опубликовано",
+        "archived": "В архиве"
+      },
+      "variant": {
+        "info": "Инфо",
+        "promo": "Промо",
+        "neutral": "Нейтральный"
+      },
+      "minRole": {
+        "guest": "Все (включая гостей)",
+        "user": "Читатели",
+        "author": "Авторы",
+        "author_plus": "Author+",
+        "super_author": "Super Author",
+        "admin": "Админы"
+      }
     }
   },
   "cabinet": {
@@ -988,7 +1062,26 @@
     "about": "О проекте",
     "contact": "Контакты",
     "privacy": "Политика конфиденциальности",
-    "terms": "Условия использования"
+    "terms": "Условия использования",
+    "news": "Новости"
+  },
+  "news": {
+    "title": "Новости",
+    "intro": "Что нового в Arcane: функции, обновления и объявления.",
+    "empty": "Пока нет опубликованных новостей.",
+    "loadError": "Не удалось загрузить новости.",
+    "notFound": "Новость не найдена.",
+    "backToList": "К списку новостей",
+    "category": {
+      "feature": "Функция",
+      "discount": "Скидка",
+      "update": "Обновление",
+      "other": "Другое"
+    }
+  },
+  "announcement": {
+    "dismiss": "Закрыть оповещение",
+    "ctaDefault": "Подробнее"
   },
   "tiers": {
     "pageTitle": "Уровни аккаунта",

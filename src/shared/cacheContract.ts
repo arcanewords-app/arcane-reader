@@ -33,6 +33,9 @@ export const CACHE_TTL = {
   redisPublicationGlossarySec: 600,
   redisPublicEntitiesSec: 600,
   redisPublicEntitySec: 600, // single entity by id
+  redisNewsListSec: 60,
+  redisNewsPostSec: 120,
+  redisAnnouncementsActiveSec: 60,
 
   // Server-side — user-scoped (fresher for editing)
   redisProjectListSec: 60,
@@ -56,6 +59,9 @@ export const CACHE_PREFIX = {
   publicationGlossary: 'pub:glossary',
   publicEntities: 'public:entities',
   publicEntity: 'public:entity',
+  newsList: 'public:news:list',
+  newsPost: 'public:news:post',
+  announcementsActive: 'public:announcements:active',
   userProjects: 'user:projects:light',
   userProject: 'user:project:light',
   userTokenUsage: 'user:token-usage',

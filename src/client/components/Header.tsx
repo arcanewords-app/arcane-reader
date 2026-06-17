@@ -189,6 +189,17 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                       {t('info.about')}
                     </a>
                     <a
+                      href="/news"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        route('/news');
+                        setInfoOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('info.news')}
+                    </a>
+                    <a
                       href="/contact"
                       onClick={(e) => {
                         e.preventDefault();

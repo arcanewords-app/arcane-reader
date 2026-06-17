@@ -1,0 +1,52 @@
+.admin-layout {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.admin-layout-header h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.admin-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-weight: 550;
+  transition:
+    color var(--duration-normal) var(--ease-standard),
+    background var(--duration-normal) var(--ease-standard);
+}
+
+.admin-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.admin-tab.active {
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.admin-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.admin-layout-content {
+  min-width: 0;
+}

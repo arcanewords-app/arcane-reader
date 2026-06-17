@@ -37,9 +37,12 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/contact` | guest+ | ContactPage | Contact info |
 | `/privacy` | guest+ | PrivacyPage | Privacy policy |
 | `/terms` | guest+ | TermsPage | Terms of service |
+| `/news` | guest+ | NewsPage | News feed list |
+| `/news/:slugOrId` | guest+ | NewsDetailPage | Single news post |
 | `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar |
 | `/projects` | author+ | ProjectsPage | Projects grid (AuthorGate) |
 | `/admin/entities` | admin+ | AdminEntitiesPage | Admin panel for global entities (AdminGate) |
+| `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
 | `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` - pre-fill and auto-open find-in-chapter (e.g. from ReportsModal) |
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate) |
@@ -219,11 +222,28 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | PATCH | `/api/admin/entities/:id` | Update global public entity (name, description, photo) |
 | DELETE | `/api/admin/entities/:id` | Delete global public entity (409 if used by publications) |
 | GET | `/api/admin/entities/:id/usage` | Get entity usage count (publications referencing it) |
+| GET/POST | `/api/admin/news` | List all news posts / create draft |
+| GET/PATCH/DELETE | `/api/admin/news/:id` | News CRUD |
+| POST | `/api/admin/news/:id/publish` | Publish draft |
+| POST | `/api/admin/news/:id/translate` | Stub 501 (future AI translation) |
+| GET/POST | `/api/admin/announcements` | List / create announcement alert |
+| PATCH/DELETE | `/api/admin/announcements/:id` | Update / delete alert |
+| POST | `/api/admin/announcements/from-news/:newsId` | Create alert prefilled from news |
+
+### News & announcements (public)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/news` | - | Published news list. Query: `limit`, `offset`, `category` |
+| GET | `/api/news/:idOrSlug` | - | Single published news post |
+| GET | `/api/announcements/active` | optionalAuth | Active banner for user role (null if none) |
+| POST | `/api/announcements/:id/dismiss` | user+ | Record dismiss `{ contentVersion }` |
 
 ### Cache invalidation notes
 
-- Mutation endpoints in `projects`, `chapters`, `glossary`, `cover/metadata`, and `publish` flows invalidate Redis-backed caches for:
+- Mutation endpoints in `projects`, `chapters`, `glossary`, `cover/metadata`, `publish`, and `admin/news` flows invalidate Redis-backed caches for:
   - public metadata entities (`/api/public/entities`) after admin create,
+  - news list/post and active announcements after admin news/alert mutations,
   - user project views (`/api/projects`, `/api/projects/:id`, summaries),
   - publication pages (`/api/publications/*`) when relevant,
   - user reading/token aggregates where relevant.
@@ -307,7 +327,7 @@ Implemented in [src/server.ts](src/server.ts). Audits: `.cursor/skills/seo/SKILL
 
 ### Sitemap contents and limits
 
-- `/` (priority 1.0) plus static: `/about`, `/contact`, `/privacy`, `/terms`, `/catalog`
+- `/` (priority 1.0) plus static: `/about`, `/contact`, `/privacy`, `/terms`, `/catalog`, `/news`
 - Each published publication: `/p/{slugOrId}` (up to **1000** from `listPublicationsPublic`)
 - First **translated** chapter reading URL for at most **100** publications (`SITEMAP_CHAPTER_PUBS_LIMIT`)
 
@@ -315,7 +335,7 @@ Implemented in [src/server.ts](src/server.ts). Audits: `.cursor/skills/seo/SKILL
 
 | Path | Behavior |
 |------|----------|
-| `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms` | `serveStaticPageHtml` — title, description, og, canonical |
+| `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news` | `serveStaticPageHtml` — title, description, og, canonical |
 | `/catalog` | Canonical URL = site root `/` (avoid duplicate home vs catalog) |
 | `/p/:publicationId` | `servePublicationHtml` — meta, hidden `<main class="publication-page-seo">`, Book + BreadcrumbList JSON-LD |
 | `/p/:publicationId/chapters/:chapterId/reading` | Chapter title/description; chapter breadcrumb |
@@ -324,7 +344,7 @@ Client navigation updates head via [usePageMeta.ts](src/client/hooks/usePageMeta
 
 ### Vercel rewrites
 
-In [vercel.json](vercel.json), `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, and `/p/*` route to `api/index` (Express SSR). Other SPA paths fall through to static `index.html`.
+In [vercel.json](vercel.json), `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, and `/p/*` route to `api/index` (Express SSR). Other SPA paths fall through to static `index.html`.
 
 ### Auth areas
 

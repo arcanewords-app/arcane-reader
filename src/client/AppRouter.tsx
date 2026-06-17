@@ -23,9 +23,11 @@ import type { SystemStatus, AuthUser } from './types';
 import { AUTH_CHANGED_EVENT, authService } from './services/authService';
 import { TokenUsageProvider } from './contexts/TokenUsageContext';
 import { ServiceHealthProvider } from './contexts/ServiceHealthContext';
+import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import { SystemStatusProvider } from './contexts/SystemStatusContext';
 import { Header } from './components/Header';
 import { ServiceStatusBanner } from './components/ServiceStatusBanner';
+import { AnnouncementBanner } from './components/AnnouncementBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { LoadingSpinner } from './components/ui';
 import { api } from './api/client';
@@ -33,6 +35,9 @@ import { ProfilePage, ProjectsPage, CatalogPage, AdminEntitiesPage } from './pag
 import { AuthorGate } from './components/Auth/AuthorGate';
 import { AdminGate } from './components/Auth/AdminGate';
 import { AboutPage } from './pages/AboutPage';
+import { NewsPage } from './pages/NewsPage';
+import { NewsDetailPage } from './pages/NewsDetailPage';
+import { AdminNewsPage } from './pages/AdminNewsPage';
 import { AccountTiersPage } from './pages/AccountTiersPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -327,93 +332,100 @@ export function AppRouter() {
   return (
     <TokenUsageProvider>
       <ServiceHealthProvider>
-        <SystemStatusProvider value={systemStatus}>
-          <div class="app">
-            <AuthModal
-              isOpen={showAuthModal}
-              initialMode={authModalMode}
-              onSuccess={handleLogin}
-              onClose={() => setShowAuthModal(false)}
-              onEmailNotConfirmed={handleEmailNotConfirmed}
-            />
-            {showEmailConfirmation && (
-              <EmailConfirmationModal
-                isOpen={showEmailConfirmation}
-                email={emailForConfirmation}
-                onClose={() => setShowEmailConfirmation(false)}
+        <AnnouncementProvider>
+          <SystemStatusProvider value={systemStatus}>
+            <div class="app">
+              <AuthModal
+                isOpen={showAuthModal}
+                initialMode={authModalMode}
+                onSuccess={handleLogin}
+                onClose={() => setShowAuthModal(false)}
+                onEmailNotConfirmed={handleEmailNotConfirmed}
               />
-            )}
+              {showEmailConfirmation && (
+                <EmailConfirmationModal
+                  isOpen={showEmailConfirmation}
+                  email={emailForConfirmation}
+                  onClose={() => setShowEmailConfirmation(false)}
+                />
+              )}
 
-            <Header
-              user={authUser}
-              onLogout={handleLogout}
-              onMenuToggle={handleMenuToggle}
-              onOpenLogin={handleOpenLogin}
-              onOpenRegister={handleOpenRegister}
-            />
-
-            <ServiceStatusBanner />
-
-            <CookieBanner />
-
-            {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
-            {hasSidebar && (
-              <div
-                class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-label="Close sidebar"
-                onClick={handleSidebarClose}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSidebarClose();
-                  }
-                }}
+              <Header
+                user={authUser}
+                onLogout={handleLogout}
+                onMenuToggle={handleMenuToggle}
+                onOpenLogin={handleOpenLogin}
+                onOpenRegister={handleOpenRegister}
               />
-            )}
 
-            <main>
-              <Router
-                onChange={(e: { url: string }) => {
-                  if (e.url === '/cabinet' || e.url.startsWith('/cabinet/')) {
-                    route('/projects');
-                    window.history.replaceState({}, '', '/projects');
-                    return;
-                  }
-                  window.dispatchEvent(
-                    new CustomEvent('arcane:route-change', { detail: { url: e.url } })
-                  );
-                }}
-              >
-                <CatalogPage path="/" />
-                <CatalogPage path="/catalog" />
-                <AboutPage path="/about" />
-                <AccountTiersPage path="/account-tiers" />
-                <ContactPage path="/contact" />
-                <PrivacyPage path="/privacy" />
-                <TermsPage path="/terms" />
-                <ProfilePage path="/profile" />
-                <CabinetRedirect path="/cabinet" />
-                <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
-                <PublicationPage path="/p/:publicationId" />
-                <AdminGate path="/admin/entities" component={AdminEntitiesPage} />
-                {/* More specific /projects/* routes first — preact-router uses first-match */}
-                <AuthorGate
-                  path="/projects/:projectId/chapters/:chapterId/reading"
-                  component={ReadingModePage}
+              <ServiceStatusBanner />
+
+              <AnnouncementBanner />
+
+              <CookieBanner />
+
+              {/* Sidebar overlay for mobile — только на страницах с сайдбаром (/projects/*) */}
+              {hasSidebar && (
+                <div
+                  class={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Close sidebar"
+                  onClick={handleSidebarClose}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSidebarClose();
+                    }
+                  }}
                 />
-                <AuthorGate
-                  path="/projects/:projectId/chapters/:chapterId"
-                  component={ChapterPage}
-                />
-                <AuthorGate path="/projects/:projectId/reading" component={ReadingModePage} />
-                <AuthorGate path="/projects/:projectId" component={ProjectPage} />
-                <AuthorGate path="/projects" component={ProjectsPage} />
-              </Router>
-            </main>
-          </div>
-        </SystemStatusProvider>
+              )}
+
+              <main>
+                <Router
+                  onChange={(e: { url: string }) => {
+                    if (e.url === '/cabinet' || e.url.startsWith('/cabinet/')) {
+                      route('/projects');
+                      window.history.replaceState({}, '', '/projects');
+                      return;
+                    }
+                    window.dispatchEvent(
+                      new CustomEvent('arcane:route-change', { detail: { url: e.url } })
+                    );
+                  }}
+                >
+                  <CatalogPage path="/" />
+                  <CatalogPage path="/catalog" />
+                  <AboutPage path="/about" />
+                  <NewsPage path="/news" />
+                  <NewsDetailPage path="/news/:slugOrId" />
+                  <AccountTiersPage path="/account-tiers" />
+                  <ContactPage path="/contact" />
+                  <PrivacyPage path="/privacy" />
+                  <TermsPage path="/terms" />
+                  <ProfilePage path="/profile" />
+                  <CabinetRedirect path="/cabinet" />
+                  <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
+                  <PublicationPage path="/p/:publicationId" />
+                  <AdminGate path="/admin/entities" component={AdminEntitiesPage} />
+                  <AdminGate path="/admin/news" component={AdminNewsPage} />
+                  {/* More specific /projects/* routes first — preact-router uses first-match */}
+                  <AuthorGate
+                    path="/projects/:projectId/chapters/:chapterId/reading"
+                    component={ReadingModePage}
+                  />
+                  <AuthorGate
+                    path="/projects/:projectId/chapters/:chapterId"
+                    component={ChapterPage}
+                  />
+                  <AuthorGate path="/projects/:projectId/reading" component={ReadingModePage} />
+                  <AuthorGate path="/projects/:projectId" component={ProjectPage} />
+                  <AuthorGate path="/projects" component={ProjectsPage} />
+                </Router>
+              </main>
+            </div>
+          </SystemStatusProvider>
+        </AnnouncementProvider>
       </ServiceHealthProvider>
     </TokenUsageProvider>
   );

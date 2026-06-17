@@ -6,3 +6,4 @@ export * from './chapters.js';
 export * from './glossary.js';
 export * from './publications.js';
 export * from './admin.js';
+export * from './news.js';

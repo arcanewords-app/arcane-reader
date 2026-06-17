@@ -67,6 +67,44 @@ export function trackEvent(name: string, params?: Record<string, unknown>): void
   window.gtag('event', name, params);
 }
 
+export function trackAnnouncementView(alert: {
+  id: string;
+  variant: string;
+  contentVersion: number;
+}): void {
+  trackEvent('announcement_view', {
+    announcement_id: alert.id,
+    variant: alert.variant,
+    content_version: alert.contentVersion,
+  });
+}
+
+export function trackAnnouncementCtaClick(alert: {
+  id: string;
+  variant: string;
+  contentVersion: number;
+  ctaUrl: string;
+}): void {
+  trackEvent('announcement_cta_click', {
+    announcement_id: alert.id,
+    variant: alert.variant,
+    content_version: alert.contentVersion,
+    cta_url: alert.ctaUrl,
+  });
+}
+
+export function trackAnnouncementDismiss(alert: {
+  id: string;
+  variant: string;
+  contentVersion: number;
+}): void {
+  trackEvent('announcement_dismiss', {
+    announcement_id: alert.id,
+    variant: alert.variant,
+    content_version: alert.contentVersion,
+  });
+}
+
 export function setupRouteChangeListener(): () => void {
   const handler = (e: Event) => {
     const customEvent = e as CustomEvent<{ url: string }>;

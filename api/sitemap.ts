@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     /* return partial sitemap */
   }
 
-  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog']
+  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog', '/news']
     .map(
       (p) => `  <url>
     <loc>${escapeHtml(base + p)}</loc>

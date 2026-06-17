@@ -1,0 +1,136 @@
+.news-page-loading {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.news-page-error,
+.news-page-empty {
+  color: var(--text-secondary);
+  margin: 1rem 0;
+}
+
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.news-list-item {
+  margin: 0;
+}
+
+.news-list-link {
+  display: block;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard);
+}
+
+.news-list-link:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.news-list-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.news-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: 0.5rem;
+}
+
+.news-category {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.news-category--feature {
+  color: var(--accent);
+}
+
+.news-category--discount {
+  color: #a855f7;
+}
+
+.news-category--update {
+  color: var(--success);
+}
+
+.news-list-date {
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+.news-list-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.125rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.news-list-summary {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.news-article-summary {
+  margin: 0 0 1.25rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.news-article-body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.news-article-body h2 {
+  font-size: 1.125rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.news-article-body h3 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.news-article-body p {
+  margin: 0 0 0.75rem;
+}
+
+.news-article-body ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.news-article-body a {
+  color: var(--accent);
+}
+
+.news-article-body a:hover {
+  text-decoration: underline;
+}

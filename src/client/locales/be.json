@@ -823,8 +823,13 @@
     "confirm": "Гатова"
   },
   "admin": {
-    "title": "Адмін-сутнасці",
+    "title": "Адмінка",
     "subtitle": "Стварэнне агульнадаступных тэгаў, аўтараў і перакладчыкаў.",
+    "tabs": {
+      "aria": "Раздзелы адмінкі",
+      "entities": "Сутнасці",
+      "news": "Навіны"
+    },
     "deniedTitle": "Патрабуецца доступ адміністратара",
     "deniedMessage": "У вас недастаткова правоў для адкрыцця гэтага раздзела.",
     "filter": {
@@ -874,6 +879,75 @@
     },
     "usage": {
       "publicationsCount": "Выкарыстоўваецца ў {{count}} публікацыі(ях)"
+    },
+    "news": {
+      "subtitle": "Навінная стужка і кароткія банер-апавяшчэнні для карыстальнікаў.",
+      "createTitle": "Новая запіс",
+      "listTitle": "Навінная стужка",
+      "alertsTitle": "Актыўныя апавяшчэнні",
+      "empty": "Запісаў пакуль няма.",
+      "alertsEmpty": "Апавяшчэнняў пакуль няма.",
+      "created": "Навіна створана.",
+      "updated": "Навіна абноўлена.",
+      "published": "Навіна апублікавана.",
+      "deleted": "Навіна выдалена.",
+      "createFailed": "Не ўдалося стварыць навіну.",
+      "updateFailed": "Не ўдалося абнавіць навіну.",
+      "publishFailed": "Не ўдалося апублікаваць навіну.",
+      "deleteFailed": "Не ўдалося выдаліць навіну.",
+      "deleteBlocked": "Спачатку дэактывуйце апавяшчэнні, звязаныя з гэтай навінай.",
+      "deleteTitle": "Выдаліць навіну",
+      "deleteMessage": "Выдаліць «{{title}}»?",
+      "publish": "Апублікаваць",
+      "createAlert": "Стварыць апавяшчэнне",
+      "alertCreated": "Апавяшчэнне створана.",
+      "alertCreateFailed": "Не ўдалося стварыць апавяшчэнне.",
+      "alertUpdateFailed": "Не ўдалося абнавіць апавяшчэнне.",
+      "alertDeleteFailed": "Не ўдалося выдаліць апавяшчэнне.",
+      "alertModalTitle": "Апавяшчэнне з навіны",
+      "alertMessage": "Кароткі тэкст банера",
+      "alertVariant": "Стыль",
+      "alertMinRole": "Мінімальная роля",
+      "alertPriority": "Прыярытэт",
+      "alertActive": "Актыўна",
+      "alertInactive": "Неактыўна",
+      "alertUsesSummary": "Выкарыстоўваецца summary навіны",
+      "alertVersion": "Версія {{version}}",
+      "activate": "Уключыць",
+      "deactivate": "Выключыць",
+      "bumpVersion": "Паказаць зноў",
+      "bumpVersionTitle": "Паўторны паказ",
+      "bumpVersionMessage": "Павялічыць версію апавяшчэння? Карыстальнікі, якія закрылі банер, убачаць яго зноў.",
+      "alertVersionBumped": "Версія апавяшчэння павялічана.",
+      "editTitle": "Рэдагаваць навіну",
+      "translateSoon": "Перакласці (хутка)",
+      "form": {
+        "title": "Загаловак",
+        "summary": "Кароткае апісанне",
+        "body": "Тэкст (Markdown)",
+        "category": "Катэгорыя",
+        "slug": "Slug (URL)",
+        "slugPlaceholder": "naprklad-novaja-funkcija",
+        "create": "Стварыць навіну"
+      },
+      "status": {
+        "draft": "Чарнавік",
+        "published": "Апублікавана",
+        "archived": "У архіве"
+      },
+      "variant": {
+        "info": "Інфа",
+        "promo": "Прома",
+        "neutral": "Нейтральны"
+      },
+      "minRole": {
+        "guest": "Усе (уключаючы гасцей)",
+        "user": "Чытачы",
+        "author": "Аўтары",
+        "author_plus": "Author+",
+        "super_author": "Super Author",
+        "admin": "Адміны"
+      }
     }
   },
   "cabinet": {
@@ -988,7 +1062,26 @@
     "about": "Пра праект",
     "contact": "Кантакты",
     "privacy": "Палітыка канфідэнцыяльнасці",
-    "terms": "Умовы выкарыстання"
+    "terms": "Умовы выкарыстання",
+    "news": "Навіны"
+  },
+  "news": {
+    "title": "Навіны",
+    "intro": "Што новага ў Arcane: функцыі, абнаўленні і аб'явы.",
+    "empty": "Пакуль няма апублікаваных навін.",
+    "loadError": "Не ўдалося загрузіць навіны.",
+    "notFound": "Навіна не знойдзена.",
+    "backToList": "Да спісу навін",
+    "category": {
+      "feature": "Функцыя",
+      "discount": "Зніжка",
+      "update": "Абнаўленне",
+      "other": "Іншае"
+    }
+  },
+  "announcement": {
+    "dismiss": "Закрыць апавяшчэнне",
+    "ctaDefault": "Падрабязней"
   },
   "tiers": {
     "pageTitle": "Узроўні акаўнта",
