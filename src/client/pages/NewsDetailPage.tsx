@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
+import { useAnnouncement } from '../contexts/AnnouncementContext';
 import type { NewsPost, NewsCategory } from '../types';
+import { trackAnnouncementDismiss } from '../utils/analytics';
 import { LoadingSpinner } from '../components/ui';
 import { renderSimpleMarkdown } from '../utils/simpleMarkdown';
 import './InfoPages.css';
@@ -30,9 +32,11 @@ function formatDate(iso: string | null): string {
 
 export function NewsDetailPage({ slugOrId }: NewsDetailPageProps) {
   const { t } = useTranslation();
+  const { alert, dismiss } = useAnnouncement();
   const [post, setPost] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const dismissedForPostRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!slugOrId) {
@@ -54,6 +58,15 @@ export function NewsDetailPage({ slugOrId }: NewsDetailPageProps) {
       })
       .finally(() => setLoading(false));
   }, [slugOrId]);
+
+  useEffect(() => {
+    if (!post || !alert?.newsPostId || post.id !== alert.newsPostId) return;
+    const dismissKey = `${alert.id}:${alert.contentVersion}:${post.id}`;
+    if (dismissedForPostRef.current === dismissKey) return;
+    dismissedForPostRef.current = dismissKey;
+    trackAnnouncementDismiss(alert);
+    dismiss();
+  }, [post, alert, dismiss]);
 
   return (
     <div class="info-page news-page">

@@ -116,6 +116,7 @@ export interface ActiveAnnouncement {
   message: string;
   ctaLabel: string | null;
   ctaUrl: string | null;
+  newsPostId: string | null;
   variant: AnnouncementVariant;
   contentVersion: number;
   dismissible: boolean;

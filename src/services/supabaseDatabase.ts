@@ -4995,6 +4995,7 @@ export async function getActiveAnnouncementForUser(options: {
       message,
       ctaLabel: row.cta_label,
       ctaUrl,
+      newsPostId: row.news_post_id,
       variant: row.variant,
       contentVersion: row.content_version,
       dismissible: row.dismissible,

@@ -53,7 +53,7 @@ export function AnnouncementBanner() {
 
   const isExternalCta = Boolean(alert.ctaUrl?.startsWith('http'));
 
-  const handleCta = (e: Event) => {
+  const handleCta = async (e: Event) => {
     e.preventDefault();
     if (!alert.ctaUrl) return;
     trackAnnouncementCtaClick({
@@ -62,8 +62,10 @@ export function AnnouncementBanner() {
       contentVersion: alert.contentVersion,
       ctaUrl: alert.ctaUrl,
     });
+    trackAnnouncementDismiss(alert);
+    await dismiss();
     if (isExternalCta) {
-      window.open(alert.ctaUrl!, '_blank', 'noopener,noreferrer');
+      window.open(alert.ctaUrl, '_blank', 'noopener,noreferrer');
       return;
     }
     route(alert.ctaUrl);
