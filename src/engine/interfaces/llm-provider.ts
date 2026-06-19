@@ -45,6 +45,16 @@ export interface ILLMProvider {
   ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }>;
 
   /**
+   * Structured Outputs (json_schema strict). Optional — OpenAI provider only.
+   */
+  completeStructuredJSON?<T>(
+    messages: Message[],
+    schema: Record<string, unknown>,
+    schemaName: string,
+    options?: CompletionOptions
+  ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }>;
+
+  /**
    * Check if the provider is available and configured
    */
   isAvailable(): Promise<boolean>;

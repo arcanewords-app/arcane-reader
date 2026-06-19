@@ -641,6 +641,9 @@ h3 {
 }
 
 .pl-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pl-space-sm);
   margin-left: auto;
 }
 
@@ -815,8 +818,61 @@ h3 {
   color: var(--pl-error);
 }
 
+.pl-badge.CRITICAL {
+  color: var(--pl-error);
+  font-weight: 700;
+}
+
 .pl-badge.minor {
   color: var(--pl-muted);
+}
+
+.pl-evaluation-verdict {
+  margin-bottom: var(--pl-space-md);
+}
+
+.pl-verdict-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--pl-radius);
+  font-weight: 700;
+  font-size: var(--pl-text-sm);
+  margin-bottom: var(--pl-space-sm);
+}
+
+.pl-verdict-badge--a {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.pl-verdict-badge--b {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.pl-verdict-badge--tie {
+  background: var(--pl-surface);
+  color: var(--pl-muted);
+}
+
+.pl-evaluation-strengths {
+  margin: 0 0 var(--pl-space-sm);
+}
+
+.pl-evaluation-polished-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pl-space-sm);
+  margin-bottom: var(--pl-space-xs);
+}
+
+.pl-evaluation-scratchpad {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: var(--pl-text-sm);
+  color: var(--pl-muted);
+  font-family: var(--pl-font-mono, monospace);
 }
 
 /* Chips (stage, model, lang, status) */
@@ -984,4 +1040,47 @@ h3 {
     border-right: none;
     border-bottom: 1px solid var(--pl-border);
   }
+}
+
+.pl-glossary-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pl-space-sm);
+}
+
+.pl-glossary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pl-space-xs);
+  font-size: var(--pl-text-sm);
+}
+
+.pl-glossary-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pl-space-xs);
+  align-items: baseline;
+  padding: var(--pl-space-xs) 0;
+  border-bottom: 1px solid var(--pl-border);
+}
+
+.pl-glossary-list__type {
+  color: var(--pl-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.pl-glossary-list__original {
+  font-weight: 500;
+}
+
+.pl-glossary-list__arrow {
+  color: var(--pl-muted);
+}
+
+.pl-glossary-list__translated {
+  color: var(--pl-accent);
 }

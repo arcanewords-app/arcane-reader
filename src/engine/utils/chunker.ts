@@ -120,31 +120,36 @@ function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
 
   const chunks: TextChunk[] = [];
   let currentChunk = '';
-  let lastSeparator = '\n\n'; // default between chunks
+  let lastSeparator = '\n\n';
   let chunkIndex = 0;
+  let chunkStartParaIdx: number | undefined;
+  let chunkEndParaIdx: number | undefined;
+
+  const flushChunk = (separatorAfter?: string) => {
+    if (!currentChunk.trim()) return;
+    chunks.push(
+      createChunk(currentChunk, chunkIndex++, separatorAfter, chunkStartParaIdx, chunkEndParaIdx)
+    );
+    currentChunk = '';
+    chunkStartParaIdx = undefined;
+    chunkEndParaIdx = undefined;
+  };
 
   for (let i = 0; i < parts.length; i++) {
     const { content: paragraph, separatorAfter } = parts[i];
     const paragraphTokens = estimateTokens(paragraph);
     const currentTokens = estimateTokens(currentChunk);
 
-    // If single paragraph exceeds limit: either keep as one chunk or split by sentences
     if (paragraphTokens > opts.maxTokens) {
-      // Save current chunk if not empty
-      if (currentChunk.trim()) {
-        chunks.push(createChunk(currentChunk, chunkIndex++, lastSeparator));
-        currentChunk = '';
-      }
+      flushChunk(lastSeparator);
 
       if (opts.neverSplitParagraphs !== false) {
-        // Keep paragraph whole to preserve structure and reduce sync errors (1:1 mapping)
         log.warn(
           'Chunker: paragraph exceeds maxTokens; keeping as single chunk (neverSplitParagraphs)',
           { paragraphTokens, maxTokens: opts.maxTokens }
         );
-        chunks.push(createChunk(paragraph, chunkIndex++, separatorAfter));
+        chunks.push(createChunk(paragraph, chunkIndex++, separatorAfter, i, i));
       } else {
-        // Legacy: split large paragraph into sentence-based chunks (no separator preservation)
         const sentenceChunks = chunkBySentences(paragraph, opts);
         for (let j = 0; j < sentenceChunks.length; j++) {
           const sep = j < sentenceChunks.length - 1 ? '\n\n' : separatorAfter;
@@ -155,21 +160,23 @@ function chunkByParagraphs(text: string, opts: ChunkerOptions): TextChunk[] {
       continue;
     }
 
-    // If adding paragraph exceeds limit, start new chunk
     if (currentTokens + paragraphTokens > opts.maxTokens && currentChunk.trim()) {
-      chunks.push(createChunk(currentChunk, chunkIndex++, lastSeparator));
+      flushChunk(lastSeparator);
       currentChunk = paragraph;
+      chunkStartParaIdx = i;
+      chunkEndParaIdx = i;
       lastSeparator = separatorAfter || '\n\n';
     } else {
+      if (!currentChunk.trim()) {
+        chunkStartParaIdx = i;
+      }
+      chunkEndParaIdx = i;
       currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
       lastSeparator = separatorAfter || '\n\n';
     }
   }
 
-  // Don't forget the last chunk
-  if (currentChunk.trim()) {
-    chunks.push(createChunk(currentChunk, chunkIndex, lastSeparator));
-  }
+  flushChunk(lastSeparator);
 
   return chunks;
 }
@@ -211,13 +218,21 @@ function chunkBySentences(text: string, opts: ChunkerOptions): TextChunk[] {
   return chunks;
 }
 
-function createChunk(content: string, index: number, separatorAfter?: string): TextChunk {
+function createChunk(
+  content: string,
+  index: number,
+  separatorAfter?: string,
+  startParagraphIndex?: number,
+  endParagraphIndex?: number
+): TextChunk {
   return {
     id: `chunk_${index}`,
     content: content.trim(),
     index,
     tokenCount: estimateTokens(content),
     ...(separatorAfter !== undefined && separatorAfter !== '' && { separatorAfter }),
+    ...(startParagraphIndex !== undefined && { startParagraphIndex }),
+    ...(endParagraphIndex !== undefined && { endParagraphIndex }),
   };
 }
 

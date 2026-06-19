@@ -8,7 +8,7 @@ import type {
   WorkbenchLoadState,
 } from './api/client.js';
 import { fetchMeta } from './api/client.js';
-import { WorkbenchPanel } from './panels/WorkbenchPanel.js';
+import { WorkbenchPanel, type WorkbenchRunControl } from './panels/WorkbenchPanel.js';
 import { TextsPanel } from './panels/TextsPanel.js';
 import { RunsPanel } from './panels/RunsPanel.js';
 import { PromptsPanel } from './panels/PromptsPanel.js';
@@ -21,8 +21,18 @@ export function App() {
   const [meta, setMeta] = useState<LabMeta | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [runsKey, setRunsKey] = useState(0);
+  const runControlRef = useRef<WorkbenchRunControl | null>(null);
+  const [workbenchRunning, setWorkbenchRunning] = useState(false);
   const loadRef = useRef<WorkbenchLoadState | null>(null);
   const [loadTick, setLoadTick] = useState(0);
+
+  const onRunControl = useCallback((control: WorkbenchRunControl | null) => {
+    runControlRef.current = control;
+    setWorkbenchRunning((prev) => {
+      const next = control?.running ?? false;
+      return prev === next ? prev : next;
+    });
+  }, []);
 
   useEffect(() => {
     void fetchMeta()
@@ -64,6 +74,7 @@ export function App() {
         targetLanguage: params.targetLanguage as WorkbenchLoadState['targetLanguage'],
         sourceText: run.inputSnapshot.sourceText,
         translatedText: run.inputSnapshot.translatedText ?? '',
+        glossarySnapshot: run.inputSnapshot.glossarySnapshot ?? undefined,
         systemPrompt: run.inputSnapshot.systemPrompt,
         userPromptOverride: run.inputSnapshot.userPrompt,
         useUserOverride: Boolean(params.userPromptOverride),
@@ -76,6 +87,16 @@ export function App() {
           typeof params.customInstructions === 'string' ? params.customInstructions : undefined,
         chapterNumber: typeof params.chapterNumber === 'number' ? params.chapterNumber : undefined,
         includeGlossary: params.includeGlossary !== false,
+        chunkSize: typeof params.chunkSize === 'number' ? params.chunkSize : undefined,
+        enableTranslateFewShot: params.enableTranslateFewShot === true,
+        enableTranslateCoT: params.enableTranslateCoT === true,
+        translateLeadingContextParagraphs:
+          typeof params.translateLeadingContextParagraphs === 'number'
+            ? params.translateLeadingContextParagraphs
+            : undefined,
+        miniModelTranslationProfile: params.miniModelTranslationProfile === true,
+        injectMarkers: params.injectMarkers !== false,
+        runLabel: typeof params.runLabel === 'string' ? params.runLabel : undefined,
       });
     },
     [pushWorkbenchLoad]
@@ -111,6 +132,16 @@ export function App() {
           >
             Review
           </button>
+          {tab === 'workbench' ? (
+            <button
+              type="button"
+              class="pl-btn"
+              disabled={workbenchRunning}
+              onClick={() => runControlRef.current?.run()}
+            >
+              {workbenchRunning ? 'Running…' : 'Run stage'}
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -146,6 +177,7 @@ export function App() {
           meta={meta}
           initialLoad={loadRef.current}
           onRunSaved={() => setRunsKey((n) => n + 1)}
+          onRunControl={onRunControl}
         />
       </div>
       <div class={`pl-panel${tab === 'texts' ? ' active' : ''}`}>

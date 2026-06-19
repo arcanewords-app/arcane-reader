@@ -29,6 +29,10 @@ export interface TextChunk {
   tokenCount?: number;
   /** Separator that followed this chunk in the original text (e.g. '\n\n' or '\n\n\n'). Used when merging. */
   separatorAfter?: string;
+  /** Index of the first source paragraph in this chunk (paragraph splitting). */
+  startParagraphIndex?: number;
+  /** Index of the last source paragraph in this chunk (inclusive). */
+  endParagraphIndex?: number;
 }
 
 export interface TranslationConfig {

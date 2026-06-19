@@ -67,6 +67,8 @@ Workbench **Advanced**: optional **Run label** suffix; **Inject paragraph marker
 | Run history     | `prompt_lab_runs`        |
 | Review          | `prompt_lab_evaluations` |
 
+**Save text** normalizes source (and translated text when present): splits on blank lines, drops separator-only paragraphs (`***`, `---`), and injects `--para:auto_N--` markers so Run, Review, and saved content stay aligned.
+
 ## Related
 
 - [[debug-translation]] — production pipeline debug capture

@@ -1,17 +1,17 @@
 import type { Language } from '../../types/common.js';
 import { GENDER_AGREEMENT_BE } from './gender-agreement-be.js';
 import { GENDER_AGREEMENT_RU } from './gender-agreement-ru.js';
+import {
+  resolveGenderAgreementTarget,
+  type GenderAgreementTarget,
+} from './gender-agreement-target.js';
+import { appendTranslationExamples } from './translation-examples.js';
 
-/** Target languages that require gender agreement rules in prompts. */
-export type GenderAgreementTarget = 'ru' | 'be';
+export type { GenderAgreementTarget };
+export { resolveGenderAgreementTarget };
 
-export function resolveGenderAgreementTarget(
-  targetLanguage?: Language
-): GenderAgreementTarget | null {
-  if (targetLanguage === 'ru' || targetLanguage === 'be') {
-    return targetLanguage;
-  }
-  return null;
+export interface BuildTranslateSystemPromptOptions {
+  enableFewShot?: boolean;
 }
 
 export function getGenderAgreementFragment(targetLanguage?: Language): string {
@@ -25,4 +25,17 @@ export function appendGenderAgreement(systemPrompt: string, targetLanguage?: Lan
   const fragment = getGenderAgreementFragment(targetLanguage);
   if (!fragment.trim()) return systemPrompt;
   return systemPrompt.trimEnd() + '\n' + fragment;
+}
+
+/** System prompt for Stage 2: optional few-shot examples, then gender rules. */
+export function buildTranslateSystemPrompt(
+  baseSystemPrompt: string,
+  targetLanguage?: Language,
+  options?: BuildTranslateSystemPromptOptions
+): string {
+  let prompt = baseSystemPrompt;
+  if (options?.enableFewShot) {
+    prompt = appendTranslationExamples(prompt, targetLanguage);
+  }
+  return appendGenderAgreement(prompt, targetLanguage);
 }

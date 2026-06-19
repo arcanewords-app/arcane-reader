@@ -42,11 +42,24 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+function formatEvalHistoryLabel(ev: LabEvaluation): string {
+  const verdict = ev.result.verdict?.preferred_variant;
+  if (verdict) {
+    const label = verdict === 'TIE' ? 'TIE' : `Variant ${verdict}`;
+    const justification = ev.result.verdict?.justification;
+    return justification ? `${label} — ${truncate(justification, 80)}` : label;
+  }
+  if (ev.score != null || ev.result.score != null) {
+    return `${ev.score ?? ev.result.score}/10`;
+  }
+  return 'Evaluation';
+}
+
 export function ReviewPanel({ active, meta }: Props) {
   const [runs, setRuns] = useState<LabRun[]>([]);
   const [leftRunId, setLeftRunId] = useState('');
   const [rightRunId, setRightRunId] = useState('');
-  const [leftMode, setLeftMode] = useState<CompareMode>('source');
+  const [leftMode, setLeftMode] = useState<CompareMode>('output');
   const [rightMode, setRightMode] = useState<CompareMode>('output');
   const [sameSourceOnly, setSameSourceOnly] = useState(false);
   const [evalModel, setEvalModel] = useState('');
@@ -107,6 +120,16 @@ export function ReviewPanel({ active, meta }: Props) {
 
   const leftText = leftRun ? resolveRunContent(leftRun, leftMode) : '';
   const rightText = rightRun ? resolveRunContent(rightRun, rightMode) : '';
+
+  const handleLeftRunChange = (runId: string) => {
+    setLeftRunId(runId);
+    if (runId) setLeftMode('output');
+  };
+
+  const handleRightRunChange = (runId: string) => {
+    setRightRunId(runId);
+    if (runId) setRightMode('output');
+  };
 
   const loadHistory = useCallback(async () => {
     if (!rightRunId && !leftRunId) {
@@ -210,6 +233,7 @@ export function ReviewPanel({ active, meta }: Props) {
 
   const modelOptions = evalModels.map((m) => ({ value: m.value, label: m.label }));
   const pairReady = Boolean(leftRun && rightRun);
+  const evalReady = pairReady && leftMode === 'output' && rightMode === 'output';
   const inlinePreviewText =
     previewTab === 'system' ? (preview?.systemPrompt ?? '') : (preview?.userPrompt ?? '');
 
@@ -221,7 +245,7 @@ export function ReviewPanel({ active, meta }: Props) {
             <PlSelect
               label="Left run"
               value={leftRunId}
-              onChange={(v) => setLeftRunId(v)}
+              onChange={handleLeftRunChange}
               options={[{ value: '', label: '— select —' }, ...runOptions]}
             />
             <PlSelect
@@ -239,7 +263,7 @@ export function ReviewPanel({ active, meta }: Props) {
             <PlSelect
               label="Right run"
               value={rightRunId}
-              onChange={(v) => setRightRunId(v)}
+              onChange={handleRightRunChange}
               options={[{ value: '', label: '— select —' }, ...runOptions]}
             />
             <PlSelect
@@ -278,7 +302,7 @@ export function ReviewPanel({ active, meta }: Props) {
             <button
               type="button"
               class="pl-btn secondary"
-              disabled={!pairReady}
+              disabled={!evalReady}
               onClick={() => void handleShowPrompt()}
             >
               Evaluation prompt
@@ -286,12 +310,17 @@ export function ReviewPanel({ active, meta }: Props) {
             <button
               type="button"
               class="pl-btn"
-              disabled={!pairReady || evaluating}
+              disabled={!evalReady || evaluating}
               onClick={() => void handleEvaluate()}
             >
               {evaluating ? 'Evaluating…' : 'Evaluate'}
             </button>
           </div>
+          {!evalReady && pairReady ? (
+            <p class="pl-muted pl-eval-hint">
+              Evaluation compares two translations (Output + Output) against the original source.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -301,6 +330,7 @@ export function ReviewPanel({ active, meta }: Props) {
             <button
               type="button"
               class="pl-btn secondary pl-btn--sm"
+              disabled={!evalReady}
               onClick={() => void loadPreview()}
             >
               {previewLoading ? 'Loading…' : preview ? 'Refresh preview' : 'Load preview'}
@@ -314,12 +344,7 @@ export function ReviewPanel({ active, meta }: Props) {
                 View full prompt
               </button>
             ) : null}
-            {preview ? (
-              <PlChip
-                variant={preview.compareMode === 'compare_outputs' ? 'model' : 'neutral'}
-                label={preview.compareMode}
-              />
-            ) : null}
+            {preview ? <PlChip variant="model" label={preview.compareMode} /> : null}
           </div>
           {previewError ? <p class="pl-error">{previewError}</p> : null}
           {preview ? (
@@ -403,13 +428,13 @@ export function ReviewPanel({ active, meta }: Props) {
                   class={`pl-list-btn${latestEval?.id === ev.id ? ' selected' : ''}`}
                   onClick={() => setLatestEval(ev)}
                 >
-                  <strong>{ev.score ?? ev.result.score}/10</strong>
+                  <strong>{formatEvalHistoryLabel(ev)}</strong>
                   <span class="pl-muted">
                     {' '}
                     · {ev.model ?? 'model'} · {ev.tokensUsed} tok · {ev.durationMs} ms ·{' '}
                     {new Date(ev.createdAt).toLocaleString()}
                   </span>
-                  {ev.result.summary ? (
+                  {ev.result.verdict ? null : ev.result.summary ? (
                     <div class="pl-muted">{truncate(ev.result.summary, 120)}</div>
                   ) : null}
                 </button>

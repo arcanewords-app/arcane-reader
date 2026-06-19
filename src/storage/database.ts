@@ -368,6 +368,16 @@ export interface ProjectSettings {
   editingFocus?: 'fix_problems' | 'style_only' | 'both';
   /** When true, allow reasoning models (o1, gpt-5, etc.) for analysis. Warning: 1–5 min per request. Default false. */
   allowReasoningModelsForAnalysis?: boolean;
+  /** Append few-shot BAD/GOOD examples to translate system prompt. */
+  enableTranslateFewShot?: boolean;
+  /** Require CoT analysis field in translate JSON response. */
+  enableTranslateCoT?: boolean;
+  /** Use strict json_schema for CoT translate responses. */
+  enableTranslateStructuredCoT?: boolean;
+  /** Preceding source paragraphs per translate chunk (0 = off). */
+  translateLeadingContextParagraphs?: number;
+  /** Preset: chunk 1200 + leading 2 + few-shot for mini models. */
+  miniModelTranslationProfile?: boolean;
 }
 
 export interface DatabaseSchema {

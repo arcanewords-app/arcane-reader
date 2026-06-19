@@ -15,8 +15,17 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@engine/*": ["src/engine/*"],
+      "@shared/*": ["src/shared/*"]
+    }
   },
-  "include": ["src/prompt-lab-app/**/*", "src/shared/llmModels.ts"],
+  "include": [
+    "src/prompt-lab-app/**/*",
+    "src/shared/llmModels.ts",
+    "src/engine/utils/para-markers.ts"
+  ],
   "exclude": ["node_modules"]
 }

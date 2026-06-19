@@ -199,6 +199,68 @@ export class OpenAIProvider implements ILLMProvider {
     }
   }
 
+  async completeStructuredJSON<T>(
+    messages: Message[],
+    schema: Record<string, unknown>,
+    schemaName: string,
+    options?: CompletionOptions
+  ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        ...temperatureParam(this.model, options?.temperature, 0.3),
+        ...this.maxTokensParam(options),
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: schemaName,
+            strict: true,
+            schema,
+          },
+        },
+      });
+
+      const content = response.choices[0].message.content ?? '{}';
+
+      try {
+        const data = JSON.parse(content) as T;
+        captureLlmCall({
+          model: response.model,
+          method: 'completeStructuredJSON',
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          responseContent: content,
+          tokens: {
+            prompt: response.usage?.prompt_tokens ?? 0,
+            completion: response.usage?.completion_tokens ?? 0,
+            total: response.usage?.total_tokens ?? 0,
+          },
+        });
+        return {
+          data,
+          tokensUsed: {
+            prompt: response.usage?.prompt_tokens ?? 0,
+            completion: response.usage?.completion_tokens ?? 0,
+            total: response.usage?.total_tokens ?? 0,
+          },
+        };
+      } catch (parseErr) {
+        const preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
+        log.error('OpenAI provider: failed to parse structured JSON response', {
+          err: parseErr,
+          contentPreview: preview,
+        });
+        throw new Error(`Failed to parse structured JSON response: ${content}`);
+      }
+    } catch (err) {
+      logIfRateLimit(err, 'completeStructuredJSON');
+      throw err;
+    }
+  }
+
   async isAvailable(): Promise<boolean> {
     try {
       await this.client.models.list();

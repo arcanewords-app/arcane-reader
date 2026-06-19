@@ -1,6 +1,12 @@
 import type { LabLanguage, LabRun } from '../api/client';
 import { PlChip } from './PlChip';
 import { langPairLabel, modelChipStyle, modelLabel } from '../utils/visualTokens';
+import {
+  glossaryRunLabel,
+  glossaryRunStatus,
+  glossaryRunTitle,
+  glossarySnapshotCount,
+} from '../utils/glossaryRunStatus';
 
 interface RunMetaBadgesProps {
   run: LabRun;
@@ -30,6 +36,8 @@ export function RunMetaBadges({ run, hideStatus }: RunMetaBadgesProps) {
   const preset = run.params.preset;
   const focus = run.params.focus;
   const label = runLabel(run);
+  const glossaryStatus = glossaryRunStatus(run);
+  const glossaryCount = glossarySnapshotCount(run);
 
   return (
     <div class="pl-chip-row">
@@ -49,6 +57,29 @@ export function RunMetaBadges({ run, hideStatus }: RunMetaBadgesProps) {
         <PlChip variant="preset" label={focus} />
       ) : null}
       {label ? <PlChip variant="neutral" label={label} title="Run label" /> : null}
+      <PlChip
+        variant={glossaryStatus === 'off' || glossaryStatus === 'empty' ? 'preset' : 'neutral'}
+        label={glossaryRunLabel(glossaryStatus, glossaryCount)}
+        title={glossaryRunTitle(glossaryStatus)}
+      />
+      {run.stage === 'translate' && typeof run.params.chunkSize === 'number' ? (
+        <PlChip variant="neutral" label={`chunk ${run.params.chunkSize}`} />
+      ) : null}
+      {run.stage === 'translate' && run.params.enableTranslateFewShot === true ? (
+        <PlChip variant="neutral" label="few-shot" />
+      ) : null}
+      {run.stage === 'translate' && run.params.enableTranslateCoT === true ? (
+        <PlChip variant="neutral" label="CoT" />
+      ) : null}
+      {run.stage === 'translate' &&
+      typeof run.params.translateLeadingContextParagraphs === 'number' &&
+      run.params.translateLeadingContextParagraphs > 0 ? (
+        <PlChip
+          variant="neutral"
+          label={`ctx ${run.params.translateLeadingContextParagraphs}`}
+          title="Leading context paragraphs"
+        />
+      ) : null}
       {!hideStatus ? (
         <PlChip
           variant={run.output.success ? 'status-ok' : 'status-fail'}

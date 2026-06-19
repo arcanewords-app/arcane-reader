@@ -13,11 +13,25 @@ import type { Glossary } from '../types/glossary.js';
 import type { StageResult, TranslationDraft, ChunkTranslation } from '../types/pipeline.js';
 import type { TextChunk, TextBlockType } from '../types/common.js';
 import { resolvePrompts } from '../prompts/registry.js';
-import { appendGenderAgreement } from '../prompts/shared/gender-agreement.js';
+import { buildTranslateSystemPrompt } from '../prompts/shared/gender-agreement.js';
+import {
+  buildTranslatorJsonOutputFormat,
+  TRANSLATOR_JSON_OUTPUT_FORMAT,
+} from '../prompts/shared/translator-user.js';
+import {
+  TRANSLATE_COT_JSON_SCHEMA,
+  type TranslateCoTResponse,
+} from '../prompts/shared/translate-cot.js';
 import { languageDisplayName } from '../language.js';
 import { GlossaryManager, formatGenderCompactTag } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk, getChapterCastCharacters } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks } from '../utils/chunker.js';
+import { getLeadingParagraphsForChunk, splitSourceParagraphs } from '../utils/leading-context.js';
+import {
+  resolveTranslateChunkSize,
+  resolveTranslateOptimizationFlags,
+  type TranslateOptimizationFlags,
+} from '../translate-optimization.js';
 import { formatChunkError } from '../constants/errors.js';
 import { log } from '../logger.js';
 import {
@@ -51,6 +65,22 @@ interface TranslateStageOptions {
   chapterNumber?: number;
   systemPromptOverride?: string;
   userPromptOverride?: string;
+  enableTranslateFewShot?: boolean;
+  enableTranslateCoT?: boolean;
+  enableTranslateStructuredCoT?: boolean;
+  translateLeadingContextParagraphs?: number;
+  miniModelTranslationProfile?: boolean;
+}
+
+function applyCoTToSystemPrompt(systemPrompt: string, enableCoT: boolean): string {
+  if (!enableCoT) return systemPrompt;
+  if (systemPrompt.includes(TRANSLATOR_JSON_OUTPUT_FORMAT)) {
+    return systemPrompt.replace(
+      TRANSLATOR_JSON_OUTPUT_FORMAT,
+      buildTranslatorJsonOutputFormat(true)
+    );
+  }
+  return `${systemPrompt.trimEnd()}\n${buildTranslatorJsonOutputFormat(true)}`;
 }
 
 const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
@@ -118,10 +148,30 @@ export class TranslateStage {
       // Prepare style guide
       const styleGuide = this.buildStyleGuide(options.context);
 
+      const optimization = resolveTranslateOptimizationFlags({
+        enableTranslateFewShot: options.enableTranslateFewShot,
+        enableTranslateCoT: options.enableTranslateCoT,
+        enableTranslateStructuredCoT: options.enableTranslateStructuredCoT,
+        translateLeadingContextParagraphs: options.translateLeadingContextParagraphs,
+        miniModelProfile: options.miniModelTranslationProfile,
+        modelId: this.provider.model,
+        chunkSizeOverride: options.chunkSize,
+        includeGlossaryInTranslation: includeGlossary,
+      });
+
+      const effectiveChunkSize = resolveTranslateChunkSize({
+        chunkSizeOverride: options.chunkSize,
+        miniModelProfile: options.miniModelTranslationProfile,
+        modelId: this.provider.model,
+        includeGlossaryInTranslation: includeGlossary,
+      });
+
+      const sourceParagraphs = splitSourceParagraphs(sourceText);
+
       // Chunk the text — each chunk is one API request, so long chapters don't need one huge
       // timeout; slow models only need to finish one chunk per request (OPENAI_TIMEOUT_MS).
       const chunks = chunkText(sourceText, {
-        maxTokens: options.chunkSize ?? 2000,
+        maxTokens: effectiveChunkSize,
         preserveParagraphs: true,
         neverSplitParagraphs: options.neverSplitParagraphs,
       });
@@ -141,8 +191,11 @@ export class TranslateStage {
         retryAttempts,
         retryDelayMs,
         parallelChunks,
-        chunkSize: options.chunkSize,
+        chunkSize: effectiveChunkSize,
         includeGlossary,
+        enableFewShot: optimization.enableFewShot,
+        enableCoT: optimization.enableCoT,
+        leadingContextParagraphs: optimization.leadingContextParagraphs,
       });
 
       // Translate chunks (sequentially or in parallel batches)
@@ -167,6 +220,8 @@ export class TranslateStage {
           isCancelled: options.isCancelled,
           systemPromptOverride: options.systemPromptOverride,
           userPromptOverride: options.userPromptOverride,
+          optimization,
+          sourceParagraphs,
         });
       };
 
@@ -315,6 +370,8 @@ export class TranslateStage {
       isCancelled?: () => boolean;
       systemPromptOverride?: string;
       userPromptOverride?: string;
+      optimization: TranslateOptimizationFlags;
+      sourceParagraphs: string[];
     }
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     const chunkStartTime = Date.now();
@@ -354,7 +411,9 @@ export class TranslateStage {
           opts.textBlockTypes,
           opts.customInstructions,
           opts.systemPromptOverride,
-          opts.userPromptOverride
+          opts.userPromptOverride,
+          opts.optimization,
+          opts.sourceParagraphs
         );
 
         const chunkDurationMs = Date.now() - chunkStartTime;
@@ -414,8 +473,16 @@ export class TranslateStage {
     textBlockTypes?: TextBlockType[],
     customInstructions?: string,
     systemPromptOverride?: string,
-    userPromptOverride?: string
+    userPromptOverride?: string,
+    optimization?: TranslateOptimizationFlags,
+    sourceParagraphs: string[] = []
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
+    const flags = optimization ?? {
+      enableFewShot: false,
+      enableCoT: false,
+      enableStructuredCoT: false,
+      leadingContextParagraphs: 0,
+    };
     // Filter glossary to entries that appear in this chunk (saves tokens)
     const glossaryText =
       includeGlossary && fullGlossary
@@ -442,17 +509,34 @@ export class TranslateStage {
     }
 
     const translatorPrompts = resolvePrompts('translate', sourceLanguage, targetLanguage);
-    const defaultSystem = appendGenderAgreement(translatorPrompts.systemPrompt, targetLanguage);
+    const defaultSystem = applyCoTToSystemPrompt(
+      buildTranslateSystemPrompt(translatorPrompts.systemPrompt, targetLanguage, {
+        enableFewShot: flags.enableFewShot,
+      }),
+      flags.enableCoT
+    );
     const systemPrompt = systemPromptOverride ?? defaultSystem;
+
+    const leadingContext =
+      flags.leadingContextParagraphs > 0
+        ? getLeadingParagraphsForChunk(
+            sourceParagraphs,
+            chunk,
+            flags.leadingContextParagraphs
+          ).join('\n\n')
+        : undefined;
+
     const defaultUser = translatorPrompts.createUserPrompt({
       sourceText: chunk.content,
       sourceLanguageLabel: languageDisplayName(sourceLanguage),
       targetLanguageLabel: languageDisplayName(targetLanguage),
       glossary: glossaryText,
       context: contextText,
+      leadingContext,
       styleGuide,
       textBlockTypes,
       customInstructions,
+      enableCoT: flags.enableCoT,
     });
 
     const messages: Message[] = [
@@ -469,12 +553,34 @@ export class TranslateStage {
     // Primary path: JSON (model returns paragraphs array; we merge with \n\n)
     if (supportsJSON) {
       try {
-        const response = await this.provider.completeJSON<{
-          paragraphs: Array<{ id: string; translated: string }>;
-        }>(messages, {
-          temperature,
-          maxTokens: 8192,
-        });
+        const jsonOptions = { temperature, maxTokens: 8192 };
+        let response: { data: TranslateCoTResponse; tokensUsed: { total: number } };
+
+        if (
+          flags.enableCoT &&
+          flags.enableStructuredCoT &&
+          typeof this.provider.completeStructuredJSON === 'function'
+        ) {
+          response = await this.provider.completeStructuredJSON<TranslateCoTResponse>(
+            messages,
+            TRANSLATE_COT_JSON_SCHEMA as unknown as Record<string, unknown>,
+            'translate_cot_response',
+            jsonOptions
+          );
+        } else {
+          const plain = await this.provider.completeJSON<TranslateCoTResponse>(
+            messages,
+            jsonOptions
+          );
+          response = plain;
+        }
+
+        if (flags.enableCoT && response.data?.analysis) {
+          log.debug(`TranslateStage: chunk ${chunk.id} CoT analysis`, {
+            notes: response.data.analysis.notes,
+            glossaryCount: response.data.analysis.glossaryTermsInChunk?.length ?? 0,
+          });
+        }
 
         // Extract translations from JSON structure
         if (response.data && response.data.paragraphs && Array.isArray(response.data.paragraphs)) {

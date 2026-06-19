@@ -1,21 +1,15 @@
 /**
  * Shared gender agreement rules for Belarusian target (наркамаўka).
+ * See translation-examples.ts for BAD/GOOD patterns.
  */
 
 export const GENDER_AGREEMENT_BE = `
 ## Gender agreement (Belarusian)
 
-The source language may lack grammatical gender. Use glossary gender tags as SSOT for each character.
+Use glossary gender tags [m]/[f] as SSOT. See **Translation Examples** above for ambiguous pronouns.
 
 ### Rules
-1. **Glossary wins**: When a character has [m] or [f] in the cast/glossary, agree verbs, short adjectives, and pronouns (ён/яна, устаў/устала) with that gender — even when the source is ambiguous (他/她, 그, they).
-2. **Past-tense verbs** about a named character must match gender.
-3. **Dialogue attribution** (сказаў/сказала, спытаў/спытала) must match the speaker's gender.
-4. **Do not flip gender** mid-scene unless the plot requires it.
-5. When gender is [?], infer only if unambiguous; otherwise use neutral phrasing or repeat the name.
-6. Maintain official Belarusian orthography (і, ў, ё).
-
-### What to fix (editing)
-- ён/яна mismatches for characters with known glossary gender
-- verb/adjective agreement errors tied to a character
-- Russian-only forms where Belarusian gender agreement differs`;
+1. **Glossary wins**: Agree verbs, short adjectives, and pronouns (ён/яна, устаў/устала) with glossary gender — even when the source is ambiguous.
+2. **Dialogue attribution** (сказаў/сказала) must match the speaker's gender.
+3. Maintain official Belarusian orthography (і, ў, ё).
+4. When gender is [?], infer only if unambiguous; otherwise repeat the name or use neutral phrasing.`;

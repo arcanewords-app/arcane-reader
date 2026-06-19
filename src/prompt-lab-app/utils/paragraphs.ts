@@ -1,44 +1,8 @@
 /** Client-side paragraph helpers for Review compare view. */
 
-const PARA_MARKER_RE = /--para:[^\n]*?--/g;
+export { stripParagraphMarkers, textToDisplayParagraphs } from '@engine/utils/para-markers.js';
 
-export function stripParagraphMarkers(text: string): string {
-  return text.replace(PARA_MARKER_RE, '').trim();
-}
-
-export interface DisplayParagraph {
-  id?: string;
-  text: string;
-}
-
-export function textToDisplayParagraphs(text: string): DisplayParagraph[] {
-  if (!text.trim()) return [];
-
-  const hasMarkers = /--para:[^\n]*?--/.test(text);
-  if (hasMarkers) {
-    const results: DisplayParagraph[] = [];
-    const re = /--para:([^\n]*?)--/g;
-    let match: RegExpExecArray | null;
-    let lastEnd = 0;
-    while ((match = re.exec(text)) !== null) {
-      if (results.length > 0) {
-        results[results.length - 1].text = text.slice(lastEnd, match.index).trim();
-      }
-      results.push({ id: match[1].trim(), text: '' });
-      lastEnd = match.index + match[0].length;
-    }
-    if (results.length > 0) {
-      results[results.length - 1].text = text.slice(lastEnd).trim();
-    }
-    if (results.length > 0) return results;
-  }
-
-  return text
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p, i) => ({ id: `auto_${i}`, text: stripParagraphMarkers(p) }));
-}
+export type DisplayParagraph = { id?: string; text: string };
 
 export function alignParagraphRows(
   left: DisplayParagraph[],

@@ -42,6 +42,13 @@ export interface WorkbenchLoadState {
   customInstructions?: string;
   chapterNumber?: number;
   includeGlossary?: boolean;
+  chunkSize?: number;
+  enableTranslateFewShot?: boolean;
+  enableTranslateCoT?: boolean;
+  translateLeadingContextParagraphs?: number;
+  miniModelTranslationProfile?: boolean;
+  injectMarkers?: boolean;
+  runLabel?: string;
 }
 
 export interface GlossarySnapshotEntry {
@@ -103,8 +110,29 @@ export interface AnalysisOutput {
 
 export type CompareMode = 'source' | 'output';
 
+export interface EvaluationIssue {
+  paragraphIndex: number;
+  dimension: 'accuracy' | 'fluency' | 'glossary' | 'style';
+  severity: 'CRITICAL' | 'MAJOR' | 'MINOR';
+  description: string;
+}
+
+export interface VariantEvaluation {
+  issues: EvaluationIssue[];
+  strengths: string;
+}
+
 export interface LabEvaluationResult {
-  score: number;
+  analysis_scratchpad?: string;
+  variant_A?: VariantEvaluation;
+  variant_B?: VariantEvaluation;
+  verdict?: {
+    preferred_variant: 'A' | 'B' | 'TIE';
+    justification: string;
+    final_polished_version: string;
+  };
+  /** @deprecated Legacy format */
+  score?: number;
   dimensions?: {
     accuracy?: number;
     fluency?: number;
@@ -152,6 +180,7 @@ export interface LabRun {
   inputSnapshot: {
     sourceText: string;
     translatedText?: string;
+    glossarySnapshot?: GlossarySnapshotEntry[];
     systemPrompt: string;
     userPrompt: string;
   };
@@ -315,7 +344,7 @@ export function evaluateRuns(body: {
 export interface LabEvaluationPreview {
   systemPrompt: string;
   userPrompt: string;
-  compareMode: 'review' | 'compare_outputs';
+  compareMode: 'compare_outputs';
   stats: {
     sourceChars: number;
     leftChars: number;

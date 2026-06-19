@@ -1,5 +1,6 @@
 import type { LabLanguage, LabPrompt, LabRun, LabStage } from '../api/client';
 import { formatRunDisplayName } from '../api/client';
+import { glossaryRunLabel, glossaryRunStatus, type GlossaryRunFilter } from './glossaryRunStatus';
 import { langPairKey } from './visualTokens';
 
 export type RunSortKey = 'newest' | 'oldest' | 'tokens' | 'duration';
@@ -11,6 +12,7 @@ export interface RunListFilters {
   model: string;
   langPair: string;
   status: RunStatusFilter;
+  glossary: GlossaryRunFilter;
   sort: RunSortKey;
 }
 
@@ -20,6 +22,7 @@ export const DEFAULT_RUN_FILTERS: RunListFilters = {
   model: '',
   langPair: '',
   status: '',
+  glossary: '',
   sort: 'newest',
 };
 
@@ -51,6 +54,7 @@ function runSearchHaystack(run: LabRun): string {
     runModelId(run),
     runLangPairKey(run),
     typeof run.params.runLabel === 'string' ? run.params.runLabel : '',
+    glossaryRunLabel(glossaryRunStatus(run), run.inputSnapshot.glossarySnapshot?.length ?? 0),
     run.inputSnapshot.sourceText.slice(0, 80),
   ];
   return parts.join(' ').toLowerCase();
@@ -64,6 +68,7 @@ export function filterAndSortRuns(runs: LabRun[], filters: RunListFilters): LabR
     if (filters.langPair && runLangPairKey(run) !== filters.langPair) return false;
     if (filters.status === 'success' && !run.output.success) return false;
     if (filters.status === 'failed' && run.output.success) return false;
+    if (filters.glossary && glossaryRunStatus(run) !== filters.glossary) return false;
     if (q && !runSearchHaystack(run).includes(q)) return false;
     return true;
   });
@@ -136,6 +141,7 @@ export function hasActiveRunFilters(filters: RunListFilters): boolean {
     filters.model !== '' ||
     filters.langPair !== '' ||
     filters.status !== '' ||
+    filters.glossary !== '' ||
     filters.sort !== 'newest'
   );
 }

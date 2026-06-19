@@ -14,7 +14,7 @@ export interface CapturedLlmCall {
   jobId?: string;
   stage?: string;
   model: string;
-  method: 'complete' | 'completeJSON';
+  method: 'complete' | 'completeJSON' | 'completeStructuredJSON';
   systemPreview: string;
   userPreview: string;
   responsePreview: string;
@@ -51,7 +51,7 @@ function truncate(s: string, limit: number): string {
 
 export function captureLlmCall(params: {
   model: string;
-  method: 'complete' | 'completeJSON';
+  method: 'complete' | 'completeJSON' | 'completeStructuredJSON';
   messages: Array<{ role: string; content: string }>;
   responseContent: string;
   tokens?: { prompt: number; completion: number; total: number };

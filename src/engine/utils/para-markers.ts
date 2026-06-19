@@ -34,6 +34,31 @@ export function splitIntoParagraphs(text: string): string[] {
     .filter((p) => p.length > 0);
 }
 
+/** Separator-only paragraphs (e.g. ***, ---) — aligned with production parseTextToParagraphs. */
+export function isSeparatorParagraph(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return false;
+  return /^[\s*\-_=~#]+$/.test(trimmed);
+}
+
+/**
+ * Canonical Lab source text: normalize line endings, split paragraphs, drop separators,
+ * inject --para:auto_N-- markers when absent.
+ */
+export function normalizeLabSourceText(text: string): string {
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return text;
+
+  if (textHasParagraphMarkers(normalized)) {
+    return normalized;
+  }
+
+  const paragraphs = splitIntoParagraphs(normalized).filter((p) => !isSeparatorParagraph(p));
+  if (paragraphs.length === 0) return normalized;
+
+  return injectParagraphMarkers(paragraphs.join('\n\n'));
+}
+
 /**
  * Inject --para:{id}-- markers when absent. Skips paragraphs that already start with a marker.
  */

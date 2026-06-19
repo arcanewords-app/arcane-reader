@@ -112,6 +112,16 @@ export interface PipelineOptions {
   checkQualityForChunked?: boolean;
   /** Timeout in ms for quality check when chunked. Default 30000. */
   qualityCheckTimeoutMs?: number;
+  /** Append few-shot BAD/GOOD examples to translate system prompt. Default false. */
+  enableTranslateFewShot?: boolean;
+  /** Require CoT `analysis` field before `paragraphs` in translate JSON. Default false. */
+  enableTranslateCoT?: boolean;
+  /** Use OpenAI Structured Outputs (strict json_schema) when CoT is enabled. Default true when CoT on. */
+  enableTranslateStructuredCoT?: boolean;
+  /** Preceding source paragraphs per chunk (0 = off, 2 = recommended). Default 0. */
+  translateLeadingContextParagraphs?: number;
+  /** Preset: mini-model chunk 1200 + leading 2 + few-shot. Overrides individual flags when true. */
+  miniModelTranslationProfile?: boolean;
   /** Called when chunk progress updates (chunksDone, totalChunks, stage). Used for UI progress display. */
   onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
 }

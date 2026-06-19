@@ -1,5 +1,6 @@
 import type { TranslatorUserPromptParams } from '../types.js';
 import { buildTargetLanguageAnchor } from './target-language-anchor.js';
+import { TRANSLATE_COT_JSON_FORMAT_APPENDIX } from './translate-cot.js';
 
 export const TRANSLATOR_JSON_OUTPUT_FORMAT = `## Output Format
 
@@ -35,6 +36,11 @@ When text block types are configured in the user prompt section "Text Block Type
 - ONLY use the types listed in the user prompt section "Text Block Types"
 - If no types are configured, do NOT add any markers`;
 
+export function buildTranslatorJsonOutputFormat(enableCoT?: boolean): string {
+  if (!enableCoT) return TRANSLATOR_JSON_OUTPUT_FORMAT;
+  return `${TRANSLATOR_JSON_OUTPUT_FORMAT}\n${TRANSLATE_COT_JSON_FORMAT_APPENDIX}`;
+}
+
 export function buildTranslatorUserPrompt(params: TranslatorUserPromptParams): string {
   let prompt = `${buildTargetLanguageAnchor(
     params.sourceLanguageLabel,
@@ -42,7 +48,11 @@ export function buildTranslatorUserPrompt(params: TranslatorUserPromptParams): s
   )}\n\n`;
 
   if (params.context) {
-    prompt += `## Previous Context\n${params.context}\n\n`;
+    prompt += `## Chapter Context (reference only — do NOT translate)\n${params.context}\n\n`;
+  }
+
+  if (params.leadingContext?.trim()) {
+    prompt += `## Previous Context (read-only — do NOT translate)\n\n${params.leadingContext.trim()}\n\n`;
   }
 
   if (params.glossary && params.glossary.trim()) {
@@ -73,7 +83,8 @@ export function buildTranslatorUserPrompt(params: TranslatorUserPromptParams): s
   }
 
   prompt += `## Text to Translate\n\n${params.sourceText}\n\n`;
-  prompt += `Translate the above ${params.sourceLanguageLabel} text into **${params.targetLanguageLabel}** following all guidelines. Return the result as a JSON object with the structure specified in the output format section.`;
+  const cotHint = params.enableCoT ? ' Fill the `analysis` object first, then `paragraphs`.' : '';
+  prompt += `Translate the above ${params.sourceLanguageLabel} text into **${params.targetLanguageLabel}** following all guidelines. Return the result as a JSON object with the structure specified in the output format section.${cotHint}`;
 
   return prompt;
 }

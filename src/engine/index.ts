@@ -149,6 +149,8 @@ export {
 
 export {
   injectParagraphMarkers,
+  isSeparatorParagraph,
+  normalizeLabSourceText,
   parseParagraphMarkers,
   stripParagraphMarkers,
   textToDisplayParagraphs,

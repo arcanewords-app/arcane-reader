@@ -442,6 +442,11 @@ export async function translateChapterWithPipeline(
         true,
       includeGlossaryInEditing:
         options.includeGlossaryInEditing ?? project.settings?.includeGlossaryInEditing ?? true,
+      enableTranslateFewShot: project.settings?.enableTranslateFewShot,
+      enableTranslateCoT: project.settings?.enableTranslateCoT,
+      enableTranslateStructuredCoT: project.settings?.enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs: project.settings?.translateLeadingContextParagraphs,
+      miniModelTranslationProfile: project.settings?.miniModelTranslationProfile,
       ...(options.isCancelled && { isCancelled: options.isCancelled }),
       ...(project.settings?.textBlockTypes?.length && {
         textBlockTypes: project.settings.textBlockTypes.filter((bt) => bt.enabled),

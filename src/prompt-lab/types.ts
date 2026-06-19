@@ -51,6 +51,11 @@ export interface PromptLabRunParams {
   chunkSize?: number;
   analysisMaxSectionTokens?: number;
   injectMarkers?: boolean;
+  enableTranslateFewShot?: boolean;
+  enableTranslateCoT?: boolean;
+  enableTranslateStructuredCoT?: boolean;
+  translateLeadingContextParagraphs?: number;
+  miniModelTranslationProfile?: boolean;
   runLabel?: string;
   userPromptOverride?: boolean;
 }
@@ -88,8 +93,29 @@ export interface PromptLabRunRow {
   created_at: string;
 }
 
+export interface EvaluationIssue {
+  paragraphIndex: number;
+  dimension: 'accuracy' | 'fluency' | 'glossary' | 'style';
+  severity: 'CRITICAL' | 'MAJOR' | 'MINOR';
+  description: string;
+}
+
+export interface VariantEvaluation {
+  issues: EvaluationIssue[];
+  strengths: string;
+}
+
 export interface PromptLabEvaluationResult {
-  score: number;
+  analysis_scratchpad?: string;
+  variant_A?: VariantEvaluation;
+  variant_B?: VariantEvaluation;
+  verdict?: {
+    preferred_variant: 'A' | 'B' | 'TIE';
+    justification: string;
+    final_polished_version: string;
+  };
+  /** @deprecated Legacy format — kept for old saved evaluations */
+  score?: number;
   dimensions?: {
     accuracy?: number;
     fluency?: number;

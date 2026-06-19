@@ -34,6 +34,8 @@ import {
   sourcesForTarget,
 } from '../constants/languages';
 import { modelUsesDefaultTemperature, modelsForStage } from '../../shared/llmModels.js';
+import { normalizeLabSourceText } from '@engine/utils/para-markers.js';
+import { TRANSLATION_CHUNK_PRESETS } from '../../shared/translationChunkPresets.js';
 import {
   buildStageDraftKey,
   defaultTemperatureForStage,
@@ -44,13 +46,19 @@ const STAGES: LabStage[] = ['analyze', 'translate', 'edit'];
 const PRESETS: EditingPreset[] = ['default', 'literary', 'minimal', 'ai_revivification'];
 const FOCUSES: EditingFocus[] = ['fix_problems', 'style_only', 'both'];
 
+export interface WorkbenchRunControl {
+  running: boolean;
+  run: () => void;
+}
+
 interface WorkbenchProps {
   meta: LabMeta | null;
   initialLoad?: WorkbenchLoadState | null;
   onRunSaved?: () => void;
+  onRunControl?: (control: WorkbenchRunControl | null) => void;
 }
 
-export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps) {
+export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: WorkbenchProps) {
   const [stage, setStage] = useState<LabStage>(initialLoad?.stage ?? 'translate');
   const [sourceLanguage, setSourceLanguage] = useState<LabLanguage>(
     initialLoad?.sourceLanguage ?? 'en'
@@ -91,8 +99,15 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LabRunOutput | null>(null);
   const [saveRun, setSaveRun] = useState(true);
-  const [injectMarkers, setInjectMarkers] = useState(true);
-  const [runLabel, setRunLabel] = useState('');
+  const [injectMarkers, setInjectMarkers] = useState(initialLoad?.injectMarkers ?? true);
+  const [chunkSize, setChunkSize] = useState<string>(initialLoad?.chunkSize?.toString() ?? '');
+  const [enableFewShot, setEnableFewShot] = useState(initialLoad?.enableTranslateFewShot ?? false);
+  const [enableCoT, setEnableCoT] = useState(initialLoad?.enableTranslateCoT ?? false);
+  const [leadingContext, setLeadingContext] = useState(
+    String(initialLoad?.translateLeadingContextParagraphs ?? 0)
+  );
+  const [miniProfile, setMiniProfile] = useState(initialLoad?.miniModelTranslationProfile ?? false);
+  const [runLabel, setRunLabel] = useState(initialLoad?.runLabel ?? '');
   const [editorOpen, setEditorOpen] = useState(false);
   const [saveTextOpen, setSaveTextOpen] = useState(false);
   const [showDiffInline, setShowDiffInline] = useState(false);
@@ -230,6 +245,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
         customInstructions: customInstructions || undefined,
         preset: stage === 'edit' ? preset : undefined,
         focus: stage === 'edit' ? focus : undefined,
+        injectMarkers: stage === 'translate' ? injectMarkers : undefined,
       });
       setUserPreview(userPrompt);
       if (!useUserOverride) {
@@ -251,6 +267,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
     preset,
     focus,
     useUserOverride,
+    injectMarkers,
   ]);
 
   useEffect(() => {
@@ -277,16 +294,50 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
   }, [promptVersion, savedPrompts]);
 
   useEffect(() => {
-    if (initialLoad?.systemPrompt) {
+    if (!initialLoad) return;
+    if (initialLoad.systemPrompt) {
       setSystemPrompt(initialLoad.systemPrompt);
       dirtyRef.current = true;
     }
-    if (initialLoad?.userPromptOverride) {
+    if (initialLoad.userPromptOverride) {
       setUserPromptOverride(initialLoad.userPromptOverride);
       setUseUserOverride(true);
     }
-    if (initialLoad?.model) setModel(initialLoad.model);
-    if (initialLoad?.temperature != null) setTemperature(String(initialLoad.temperature));
+    if (initialLoad.model) setModel(initialLoad.model);
+    if (initialLoad.temperature != null) setTemperature(String(initialLoad.temperature));
+    if (initialLoad.glossarySnapshot != null) {
+      setGlossary(initialLoad.glossarySnapshot);
+    }
+    if (initialLoad.customInstructions != null) {
+      setCustomInstructions(initialLoad.customInstructions);
+    }
+    if (initialLoad.chapterNumber != null) {
+      setChapterNumber(String(initialLoad.chapterNumber));
+    }
+    if (initialLoad.includeGlossary != null) {
+      setIncludeGlossary(initialLoad.includeGlossary);
+    }
+    if (initialLoad.chunkSize != null) {
+      setChunkSize(String(initialLoad.chunkSize));
+    }
+    if (initialLoad.enableTranslateFewShot != null) {
+      setEnableFewShot(initialLoad.enableTranslateFewShot);
+    }
+    if (initialLoad.enableTranslateCoT != null) {
+      setEnableCoT(initialLoad.enableTranslateCoT);
+    }
+    if (initialLoad.translateLeadingContextParagraphs != null) {
+      setLeadingContext(String(initialLoad.translateLeadingContextParagraphs));
+    }
+    if (initialLoad.miniModelTranslationProfile != null) {
+      setMiniProfile(initialLoad.miniModelTranslationProfile);
+    }
+    if (initialLoad.injectMarkers != null) {
+      setInjectMarkers(initialLoad.injectMarkers);
+    }
+    if (initialLoad.runLabel != null) {
+      setRunLabel(initialLoad.runLabel);
+    }
   }, [initialLoad]);
 
   const navigateWorkbenchContext = useCallback(
@@ -362,7 +413,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
     navigateWorkbenchContext({ focus: next });
   };
 
-  const handleRun = async () => {
+  const handleRun = useCallback(async () => {
     setRunning(true);
     setError(null);
     try {
@@ -386,6 +437,16 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
         injectMarkers: stage === 'translate' ? injectMarkers : undefined,
         runLabel: runLabel.trim() || undefined,
         promptId: promptVersion !== 'current' ? promptVersion : null,
+        ...(stage === 'translate'
+          ? {
+              chunkSize: chunkSize ? parseInt(chunkSize, 10) : undefined,
+              enableTranslateFewShot: enableFewShot || undefined,
+              enableTranslateCoT: enableCoT || undefined,
+              enableTranslateStructuredCoT: enableCoT || undefined,
+              translateLeadingContextParagraphs: parseInt(leadingContext, 10) || undefined,
+              miniModelTranslationProfile: miniProfile || undefined,
+            }
+          : {}),
       });
       setResult(output);
       dirtyRef.current = false;
@@ -395,7 +456,53 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
     } finally {
       setRunning(false);
     }
-  };
+  }, [
+    stage,
+    sourceLanguage,
+    targetLanguage,
+    sourceText,
+    translatedText,
+    glossary,
+    chapterNumber,
+    includeGlossary,
+    customInstructions,
+    preset,
+    focus,
+    model,
+    temperature,
+    systemPrompt,
+    useUserOverride,
+    userPromptOverride,
+    saveRun,
+    injectMarkers,
+    runLabel,
+    promptVersion,
+    chunkSize,
+    enableFewShot,
+    enableCoT,
+    leadingContext,
+    miniProfile,
+    onRunSaved,
+  ]);
+
+  const handleRunRef = useRef(handleRun);
+  useEffect(() => {
+    handleRunRef.current = handleRun;
+  }, [handleRun]);
+
+  useEffect(() => {
+    if (!onRunControl) return;
+    onRunControl({
+      running,
+      run: () => {
+        void handleRunRef.current();
+      },
+    });
+  }, [running, onRunControl]);
+
+  useEffect(() => {
+    return () => onRunControl?.(null);
+  }, [onRunControl]);
 
   const handleSavePromptVersion = async (name: string) => {
     await savePrompt({
@@ -413,12 +520,20 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
   };
 
   const handleSaveText = async (title: string) => {
+    const normalizedSource = normalizeLabSourceText(sourceText);
+    const normalizedTranslated = translatedText.trim()
+      ? normalizeLabSourceText(translatedText)
+      : undefined;
+    setSourceText(normalizedSource);
+    if (normalizedTranslated !== undefined) {
+      setTranslatedText(normalizedTranslated);
+    }
     await saveText({
       title,
       sourceLanguage,
       targetLanguage,
-      content: sourceText,
-      translatedText: translatedText || undefined,
+      content: normalizedSource,
+      translatedText: normalizedTranslated,
       glossarySnapshot: glossary.length ? glossary : undefined,
       stageHint: stage,
     });
@@ -566,15 +681,6 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
               }}
             />
 
-            <button
-              type="button"
-              class="pl-btn pl-btn--block"
-              disabled={running}
-              onClick={() => void handleRun()}
-            >
-              {running ? 'Running…' : 'Run stage'}
-            </button>
-
             <PlCollapsible title="Advanced options">
               <label class="pl-field">
                 <span class="pl-label">Chapter #</span>
@@ -624,14 +730,62 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved }: WorkbenchProps
                 />
               </label>
               {stage === 'translate' ? (
-                <label class="pl-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={injectMarkers}
-                    onChange={(e) => setInjectMarkers(e.currentTarget.checked)}
+                <>
+                  <PlSelect
+                    label="Chunk size (tokens)"
+                    value={chunkSize || 'auto'}
+                    options={[
+                      { value: 'auto', label: 'Auto (model-aware)' },
+                      ...TRANSLATION_CHUNK_PRESETS.map((p) => ({
+                        value: String(p.value),
+                        label: p.label,
+                      })),
+                    ]}
+                    onChange={(v) => setChunkSize(v === 'auto' ? '' : v)}
                   />
-                  Inject paragraph markers (--para:id--)
-                </label>
+                  <label class="pl-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={miniProfile}
+                      onChange={(e) => setMiniProfile(e.currentTarget.checked)}
+                    />
+                    Mini model profile (chunk 1200 + leading 2 + few-shot)
+                  </label>
+                  <label class="pl-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={enableFewShot}
+                      onChange={(e) => setEnableFewShot(e.currentTarget.checked)}
+                    />
+                    Few-shot examples (BAD/GOOD)
+                  </label>
+                  <label class="pl-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={enableCoT}
+                      onChange={(e) => setEnableCoT(e.currentTarget.checked)}
+                    />
+                    CoT analysis field in JSON
+                  </label>
+                  <PlSelect
+                    label="Leading context (prev paragraphs)"
+                    value={leadingContext}
+                    options={[
+                      { value: '0', label: '0 (off)' },
+                      { value: '1', label: '1 paragraph' },
+                      { value: '2', label: '2 paragraphs (recommended)' },
+                    ]}
+                    onChange={setLeadingContext}
+                  />
+                  <label class="pl-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={injectMarkers}
+                      onChange={(e) => setInjectMarkers(e.currentTarget.checked)}
+                    />
+                    Inject paragraph markers (--para:id--)
+                  </label>
+                </>
               ) : null}
               <label class="pl-checkbox-label">
                 <input

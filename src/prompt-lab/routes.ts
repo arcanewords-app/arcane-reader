@@ -21,6 +21,7 @@ import {
   assertSupportedPair,
   getEffectiveStagePrompts,
   languageDisplayName,
+  normalizeLabSourceText,
   parseProjectLanguage,
   SUPPORTED_TRANSLATION_PAIRS,
 } from '../engine/index.js';
@@ -46,7 +47,11 @@ import {
   updatePromptLabRun,
   updatePromptLabText,
 } from './db.js';
-import { buildEvaluationPrompts, runPromptLabEvaluation } from './evaluator.js';
+import {
+  buildEvaluationPrompts,
+  EvaluationModeError,
+  runPromptLabEvaluation,
+} from './evaluator.js';
 import { buildRunDisplayName } from './runNaming.js';
 import { buildInputSnapshot, previewUserPrompt, runPromptLabStage } from './runner.js';
 import {
@@ -220,8 +225,10 @@ export function registerPromptLabRoutes(app: Express): void {
         source_language: parsed.data.sourceLanguage,
         target_language: parsed.data.targetLanguage,
         stage_hint: parsed.data.stageHint ?? null,
-        content: parsed.data.content,
-        translated_text: parsed.data.translatedText ?? null,
+        content: normalizeLabSourceText(parsed.data.content),
+        translated_text: parsed.data.translatedText
+          ? normalizeLabSourceText(parsed.data.translatedText)
+          : null,
         glossary_snapshot: parsed.data.glossarySnapshot ?? null,
       });
       res.status(201).json(rowToPromptLabText(row));
@@ -375,6 +382,10 @@ export function registerPromptLabRoutes(app: Express): void {
       sendZodError(res, parsed.error);
       return;
     }
+    if (parsed.data.leftMode === 'source' || parsed.data.rightMode === 'source') {
+      res.status(400).json({ error: 'Both panels must use Output mode for A/B evaluation' });
+      return;
+    }
     try {
       const leftRun = await getPromptLabRun(parsed.data.leftRunId);
       const rightRun = await getPromptLabRun(parsed.data.rightRunId);
@@ -402,6 +413,10 @@ export function registerPromptLabRoutes(app: Express): void {
         stats: prompts.stats,
       });
     } catch (e) {
+      if (e instanceof EvaluationModeError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
       res.status(500).json({ error: e instanceof Error ? e.message : 'Preview failed' });
     }
   });
@@ -410,6 +425,10 @@ export function registerPromptLabRoutes(app: Express): void {
     const parsed = promptLabEvaluateBodySchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       sendZodError(res, parsed.error);
+      return;
+    }
+    if (parsed.data.leftMode === 'source' || parsed.data.rightMode === 'source') {
+      res.status(400).json({ error: 'Both panels must use Output mode for A/B evaluation' });
       return;
     }
     try {
@@ -438,7 +457,7 @@ export function registerPromptLabRoutes(app: Express): void {
         right_run_id: rightRun.id,
         left_mode: parsed.data.leftMode,
         right_mode: parsed.data.rightMode,
-        score: evalResult.result.score,
+        score: null,
         result: evalResult.result,
         model: evalResult.model,
         tokens_used: evalResult.tokensUsed,
@@ -447,6 +466,10 @@ export function registerPromptLabRoutes(app: Express): void {
 
       res.status(201).json(rowToPromptLabEvaluation(row));
     } catch (e) {
+      if (e instanceof EvaluationModeError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
       res.status(500).json({ error: e instanceof Error ? e.message : 'Evaluation failed' });
     }
   });
@@ -521,6 +544,11 @@ export function registerPromptLabRoutes(app: Express): void {
           chunkSize: data.chunkSize,
           analysisMaxSectionTokens: data.analysisMaxSectionTokens,
           injectMarkers: data.injectMarkers,
+          enableTranslateFewShot: data.enableTranslateFewShot,
+          enableTranslateCoT: data.enableTranslateCoT,
+          enableTranslateStructuredCoT: data.enableTranslateStructuredCoT,
+          translateLeadingContextParagraphs: data.translateLeadingContextParagraphs,
+          miniModelTranslationProfile: data.miniModelTranslationProfile,
           runLabel: data.runLabel,
           userPromptOverride: Boolean(data.userPromptOverride),
         };

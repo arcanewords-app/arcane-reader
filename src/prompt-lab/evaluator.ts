@@ -15,7 +15,12 @@ import {
   buildPromptLabEvaluatorUserPrompt,
   getPromptLabEvaluatorSystemPrompt,
 } from './prompts/evaluator.js';
-import type { PromptLabEvaluationResult, PromptLabRunRow } from './types.js';
+import type {
+  EvaluationIssue,
+  PromptLabEvaluationResult,
+  PromptLabRunRow,
+  VariantEvaluation,
+} from './types.js';
 
 export interface RunEvaluationInput {
   leftRun: PromptLabRunRow;
@@ -27,6 +32,15 @@ export interface RunEvaluationInput {
   glossarySnapshot?: GlossaryImportEntry[];
 }
 
+const EVALUATION_OUTPUT_MODE_ERROR = 'Both panels must use Output mode for A/B evaluation';
+
+export class EvaluationModeError extends Error {
+  constructor(message = EVALUATION_OUTPUT_MODE_ERROR) {
+    super(message);
+    this.name = 'EvaluationModeError';
+  }
+}
+
 function resolveRunText(run: PromptLabRunRow, mode: 'source' | 'output'): string {
   if (mode === 'source') {
     return run.input_snapshot.sourceText ?? '';
@@ -34,16 +48,76 @@ function resolveRunText(run: PromptLabRunRow, mode: 'source' | 'output'): string
   return run.output.text ?? run.input_snapshot.translatedText ?? '';
 }
 
-function runMetaLabel(run: PromptLabRunRow): string {
-  const model = run.params.model ?? 'default';
-  const name = run.display_name ?? run.stage;
-  return `${name} (${run.stage}, ${model})`;
+function assertOutputMode(leftMode: 'source' | 'output', rightMode: 'source' | 'output'): void {
+  if (leftMode === 'source' || rightMode === 'source') {
+    throw new EvaluationModeError();
+  }
+}
+
+const VALID_DIMENSIONS = new Set(['accuracy', 'fluency', 'glossary', 'style']);
+const VALID_SEVERITIES = new Set(['CRITICAL', 'MAJOR', 'MINOR']);
+
+function normalizeSeverity(value: unknown): EvaluationIssue['severity'] {
+  const upper = String(value ?? 'MINOR').toUpperCase();
+  if (VALID_SEVERITIES.has(upper)) return upper as EvaluationIssue['severity'];
+  return 'MINOR';
+}
+
+function normalizeDimension(value: unknown): EvaluationIssue['dimension'] {
+  const lower = String(value ?? 'accuracy').toLowerCase();
+  if (VALID_DIMENSIONS.has(lower)) return lower as EvaluationIssue['dimension'];
+  return 'accuracy';
+}
+
+function normalizeIssues(raw: unknown): EvaluationIssue[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const row = item as Record<string, unknown>;
+    return {
+      paragraphIndex: typeof row.paragraphIndex === 'number' ? row.paragraphIndex : 0,
+      dimension: normalizeDimension(row.dimension),
+      severity: normalizeSeverity(row.severity),
+      description: String(row.description ?? row.text ?? ''),
+    };
+  });
+}
+
+function normalizeVariant(raw: unknown): VariantEvaluation {
+  const row = (raw ?? {}) as Record<string, unknown>;
+  return {
+    issues: normalizeIssues(row.issues),
+    strengths: String(row.strengths ?? ''),
+  };
+}
+
+function normalizePreferredVariant(value: unknown): 'A' | 'B' | 'TIE' {
+  const upper = String(value ?? 'TIE').toUpperCase();
+  if (upper === 'A' || upper === 'B' || upper === 'TIE') return upper;
+  return 'TIE';
+}
+
+function normalizeEvaluationResult(data: PromptLabEvaluationResult): PromptLabEvaluationResult {
+  if (!data.verdict && data.score != null) {
+    return data;
+  }
+
+  const verdictRaw = (data.verdict ?? {}) as Record<string, unknown>;
+  return {
+    analysis_scratchpad: data.analysis_scratchpad ?? '',
+    variant_A: normalizeVariant(data.variant_A),
+    variant_B: normalizeVariant(data.variant_B),
+    verdict: {
+      preferred_variant: normalizePreferredVariant(verdictRaw.preferred_variant),
+      justification: String(verdictRaw.justification ?? ''),
+      final_polished_version: String(verdictRaw.final_polished_version ?? ''),
+    },
+  };
 }
 
 export interface EvaluationPrompts {
   systemPrompt: string;
   userPrompt: string;
-  compareMode: 'review' | 'compare_outputs';
+  compareMode: 'compare_outputs';
   targetLanguage: Language;
   stats: {
     sourceChars: number;
@@ -54,15 +128,13 @@ export interface EvaluationPrompts {
 }
 
 export function buildEvaluationPrompts(input: RunEvaluationInput): EvaluationPrompts {
+  assertOutputMode(input.leftMode, input.rightMode);
+
   const reference = input.referenceRun ?? input.leftRun;
   const originalSource = reference.input_snapshot.sourceText ?? '';
   const leftText = resolveRunText(input.leftRun, input.leftMode);
   const rightText = resolveRunText(input.rightRun, input.rightMode);
   const targetLanguage = input.rightRun.params.targetLanguage as Language;
-
-  const leftIsSource = input.leftMode === 'source';
-  const rightIsSource = input.rightMode === 'source';
-  const compareMode = !leftIsSource && !rightIsSource ? 'compare_outputs' : 'review';
 
   let glossaryText = '';
   if (input.glossarySnapshot?.length) {
@@ -79,21 +151,16 @@ export function buildEvaluationPrompts(input: RunEvaluationInput): EvaluationPro
 
   const systemPrompt = getPromptLabEvaluatorSystemPrompt(targetLanguage);
   const userPrompt = buildPromptLabEvaluatorUserPrompt({
-    sourceLanguage: input.rightRun.params.sourceLanguage as Language,
-    targetLanguage,
     originalSource,
     leftText,
     rightText,
-    leftLabel: runMetaLabel(input.leftRun),
-    rightLabel: runMetaLabel(input.rightRun),
     glossaryText,
-    compareMode,
   });
 
   return {
     systemPrompt,
     userPrompt,
-    compareMode,
+    compareMode: 'compare_outputs',
     targetLanguage,
     stats: {
       sourceChars: originalSource.length,
@@ -122,16 +189,10 @@ export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    { temperature: 0.3, maxTokens: 4096 }
+    { temperature: 0.3, maxTokens: 8192 }
   );
 
-  const result: PromptLabEvaluationResult = {
-    score: response.data.score ?? 7,
-    dimensions: response.data.dimensions,
-    issues: response.data.issues ?? [],
-    suggestions: response.data.suggestions ?? [],
-    summary: response.data.summary ?? '',
-  };
+  const result = normalizeEvaluationResult(response.data);
 
   return {
     result,

@@ -14,10 +14,15 @@ export interface TranslatorUserPromptParams {
   sourceLanguageLabel: string;
   targetLanguageLabel: string;
   glossary: string;
+  /** Chapter-level context (cast, summaries) — not for translation. */
   context: string;
+  /** 1–2 preceding paragraphs from this chapter (read-only). */
+  leadingContext?: string;
   styleGuide: string;
   textBlockTypes?: TextBlockType[];
   customInstructions?: string;
+  /** Include CoT analysis field in JSON output instructions. */
+  enableCoT?: boolean;
 }
 
 export interface StagePromptBundle<TUserParams> {

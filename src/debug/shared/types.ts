@@ -61,7 +61,7 @@ export interface CapturedLlmCall {
   jobId?: string;
   stage?: string;
   model: string;
-  method: 'complete' | 'completeJSON';
+  method: 'complete' | 'completeJSON' | 'completeStructuredJSON';
   systemPreview: string;
   userPreview: string;
   responsePreview: string;

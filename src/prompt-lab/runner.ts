@@ -17,7 +17,7 @@ import {
   createEditorPrompt,
   languageDisplayName,
   assertSupportedPair,
-  injectParagraphMarkers,
+  normalizeLabSourceText,
   type Language,
   type StageType,
 } from '../engine/index.js';
@@ -38,6 +38,8 @@ export interface PreviewUserPromptInput {
   customInstructions?: string;
   preset?: EditingStylePreset;
   focus?: EditingFocus;
+  /** When true (default), normalize source with paragraph markers for translate preview. */
+  injectMarkers?: boolean;
 }
 
 export interface RunStageInput extends PreviewUserPromptInput {
@@ -45,13 +47,20 @@ export interface RunStageInput extends PreviewUserPromptInput {
   temperature?: number;
   systemPromptOverride?: string;
   userPromptOverride?: string;
+  /** Max tokens per translate chunk (default: engine resolves from model). */
   chunkSize?: number;
   analysisMaxSectionTokens?: number;
   /** Inject --para:{id}-- markers before translate when absent (default true). */
   injectMarkers?: boolean;
+  enableTranslateFewShot?: boolean;
+  enableTranslateCoT?: boolean;
+  enableTranslateStructuredCoT?: boolean;
+  translateLeadingContextParagraphs?: number;
+  miniModelTranslationProfile?: boolean;
 }
 
-const LAB_CHUNK_SIZE = 100_000;
+/** Engine default chunk size when Lab does not override (matches prod mini-aware resolver). */
+export const PROMPT_LAB_DEFAULT_CHUNK_SIZE = 2000;
 
 export function previewUserPrompt(input: PreviewUserPromptInput): string {
   assertSupportedPair(input.sourceLanguage, input.targetLanguage);
@@ -76,12 +85,17 @@ export function previewUserPrompt(input: PreviewUserPromptInput): string {
   }
 
   if (input.stage === 'translate') {
+    const injectMarkers = input.injectMarkers !== false;
+    const effectiveSourceText =
+      injectMarkers && input.sourceText.trim()
+        ? normalizeLabSourceText(input.sourceText)
+        : input.sourceText;
     const ctx = createLabAgentContext(input.sourceLanguage, input.targetLanguage, glossary);
     const chapterGlossary = filterGlossaryByChapter(ctx.glossary, chapterNumber);
     const glossaryText =
       includeGlossary && chapterGlossary
         ? new GlossaryManager(
-            filterGlossaryForChunk(input.sourceText, chapterGlossary, 'source')
+            filterGlossaryForChunk(effectiveSourceText, chapterGlossary, 'source')
           ).toPromptText({ targetLanguageLabel: targetLabel })
         : '';
     const cast = GlossaryManager.toCastPromptText(
@@ -91,7 +105,7 @@ export function previewUserPrompt(input: PreviewUserPromptInput): string {
     if (cast) contextParts.push(cast);
     return resolvePrompts('translate', input.sourceLanguage, input.targetLanguage).createUserPrompt(
       {
-        sourceText: input.sourceText,
+        sourceText: effectiveSourceText,
         sourceLanguageLabel: languageDisplayName(input.sourceLanguage),
         targetLanguageLabel: targetLabel,
         glossary: glossaryText,
@@ -175,11 +189,11 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
     const injectMarkers = input.injectMarkers !== false;
     const sourceText =
       injectMarkers && input.sourceText.trim()
-        ? injectParagraphMarkers(input.sourceText)
+        ? normalizeLabSourceText(input.sourceText)
         : input.sourceText;
     const result = await stage.execute(sourceText, {
       context: ctx,
-      chunkSize: input.chunkSize ?? LAB_CHUNK_SIZE,
+      chunkSize: input.chunkSize,
       temperature: input.temperature ?? 0.7,
       includeGlossary: input.includeGlossary !== false,
       customInstructions: input.customInstructions,
@@ -187,6 +201,11 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
       systemPromptOverride: systemPrompt,
       userPromptOverride: userPrompt,
       neverSplitParagraphs: true,
+      enableTranslateFewShot: input.enableTranslateFewShot,
+      enableTranslateCoT: input.enableTranslateCoT,
+      enableTranslateStructuredCoT: input.enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs: input.translateLeadingContextParagraphs,
+      miniModelTranslationProfile: input.miniModelTranslationProfile,
     });
     return {
       stage: 'translate',

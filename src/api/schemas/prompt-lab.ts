@@ -48,6 +48,7 @@ export const promptLabPreviewBodySchema = z.object({
   customInstructions: z.string().optional(),
   preset: presetSchema.optional(),
   focus: focusSchema.optional(),
+  injectMarkers: z.boolean().optional(),
 });
 
 export const promptLabRunBodySchema = promptLabPreviewBodySchema.extend({
@@ -58,6 +59,11 @@ export const promptLabRunBodySchema = promptLabPreviewBodySchema.extend({
   chunkSize: z.number().int().positive().optional(),
   analysisMaxSectionTokens: z.number().int().min(0).optional(),
   injectMarkers: z.boolean().optional(),
+  enableTranslateFewShot: z.boolean().optional(),
+  enableTranslateCoT: z.boolean().optional(),
+  enableTranslateStructuredCoT: z.boolean().optional(),
+  translateLeadingContextParagraphs: z.number().int().min(0).max(4).optional(),
+  miniModelTranslationProfile: z.boolean().optional(),
   runLabel: z.string().trim().max(80).optional(),
   saveRun: z.boolean().optional(),
   textId: z.string().uuid().optional(),
@@ -73,7 +79,7 @@ const compareModeSchema = z.enum(['source', 'output']);
 export const promptLabEvaluateBodySchema = z.object({
   leftRunId: z.string().uuid(),
   rightRunId: z.string().uuid(),
-  leftMode: compareModeSchema.default('source'),
+  leftMode: compareModeSchema.default('output'),
   rightMode: compareModeSchema.default('output'),
   referenceRunId: z.string().uuid().optional(),
   model: z.string().trim().max(200).optional(),

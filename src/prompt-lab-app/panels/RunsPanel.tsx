@@ -4,6 +4,7 @@ import { deleteRun, fetchRuns, formatRunDisplayName } from '../api/client';
 import { AnalysisResultView } from '../components/AnalysisResultView';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PlCollapsible } from '../components/PlCollapsible';
+import { RunGlossarySection } from '../components/RunGlossarySection';
 import { RunMetaBadges } from '../components/RunMetaBadges';
 import {
   DEFAULT_RUN_FILTERS,
@@ -13,6 +14,7 @@ import {
   uniqueRunModels,
   type RunListFilters,
 } from '../utils/runFilters';
+import { glossaryEntries } from '../utils/glossaryRunStatus';
 import { formatDurationMs, formatTokenCount, STAGE_STRIPE_CLASS } from '../utils/visualTokens';
 
 interface Props {
@@ -118,6 +120,19 @@ export function RunsPanel({ active, onReplay }: Props) {
             </select>
             <select
               class="pl-select"
+              value={filters.glossary}
+              onChange={(e) =>
+                setFilter('glossary', e.currentTarget.value as RunListFilters['glossary'])
+              }
+            >
+              <option value="">All glossary</option>
+              <option value="on">with glossary</option>
+              <option value="empty">glossary on (0)</option>
+              <option value="off">glossary off</option>
+              <option value="none">no glossary</option>
+            </select>
+            <select
+              class="pl-select"
               value={filters.sort}
               onChange={(e) => setFilter('sort', e.currentTarget.value as RunListFilters['sort'])}
             >
@@ -199,6 +214,12 @@ export function RunsPanel({ active, onReplay }: Props) {
                 <pre style={{ overflow: 'auto', fontSize: '12px', margin: 0 }}>
                   {JSON.stringify(selected.params, null, 2)}
                 </pre>
+              </PlCollapsible>
+              <PlCollapsible title="Glossary">
+                <RunGlossarySection
+                  entries={glossaryEntries(selected)}
+                  includeGlossary={selected.params.includeGlossary !== false}
+                />
               </PlCollapsible>
               {selected.output.stage === 'analyze' && selected.output.analysis ? (
                 <AnalysisResultView analysis={selected.output.analysis} />

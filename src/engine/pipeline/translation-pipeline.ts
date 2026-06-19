@@ -17,14 +17,12 @@ import { formatChunkError } from '../constants/errors.js';
 import { filterGlossaryByChapter } from '../glossary/glossary-filter.js';
 import { log } from '../logger.js';
 import { runWithConcurrencyResilient } from '../utils/concurrency.js';
+import { resolveTranslationChunkSize } from '../../shared/translationChunkPresets.js';
 
 /** Default concurrency for parallel analysis. */
 const DEFAULT_ANALYSIS_CONCURRENCY = 4;
 
 /** When editing runs after translation, we omit glossary from Stage 2 and use larger chunks. */
-const TRANSLATION_CHUNK_SIZE_WHEN_EDITING = 3500;
-const DEFAULT_TRANSLATION_CHUNK_SIZE = 2000;
-/** When editing runs without glossary in prompt, use larger chunks. */
 const EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY = 3500;
 const DEFAULT_EDIT_CHUNK_SIZE = 2000;
 
@@ -397,15 +395,20 @@ export class TranslationPipeline {
         : options.includeGlossaryInTranslation === true
           ? true
           : !willRunEditing;
-    const translationChunkSize =
-      options.chunkSize ??
-      (includeGlossaryInTranslation
-        ? DEFAULT_TRANSLATION_CHUNK_SIZE
-        : TRANSLATION_CHUNK_SIZE_WHEN_EDITING);
+    const translationChunkSize = resolveTranslationChunkSize({
+      override: options.chunkSize,
+      modelId: this.providers.translation.model,
+      includeGlossaryInTranslation,
+      miniModelProfile: options.miniModelTranslationProfile,
+    });
     log.info('Pipeline: Stage 2 translating', {
       chapterNumber,
       includeGlossary: includeGlossaryInTranslation,
       chunkSize: translationChunkSize,
+      miniModelProfile: options.miniModelTranslationProfile,
+      enableTranslateFewShot: options.enableTranslateFewShot,
+      enableTranslateCoT: options.enableTranslateCoT,
+      leadingContext: options.translateLeadingContextParagraphs,
     });
     const stage2Result = await this.translateStage.execute(sourceText, {
       context: ctxForTranslateEdit(),
@@ -423,6 +426,11 @@ export class TranslationPipeline {
         ? (d, t) => options.onProgress?.(d, t, 'translation')
         : undefined,
       chapterNumber,
+      enableTranslateFewShot: options.enableTranslateFewShot,
+      enableTranslateCoT: options.enableTranslateCoT,
+      enableTranslateStructuredCoT: options.enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs: options.translateLeadingContextParagraphs,
+      miniModelTranslationProfile: options.miniModelTranslationProfile,
     });
     totalTokens += stage2Result.tokensUsed;
 

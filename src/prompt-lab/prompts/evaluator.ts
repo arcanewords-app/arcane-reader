@@ -1,73 +1,75 @@
 /**
  * Prompt Lab translation evaluator prompts (dev-only).
+ * MQM A vs B comparison format.
  */
 
 import type { Language } from '../../engine/types/common.js';
 import { languageDisplayName } from '../../engine/language.js';
 
 export interface EvaluatorUserPromptParams {
-  sourceLanguage: Language;
-  targetLanguage: Language;
   originalSource: string;
   leftText: string;
   rightText: string;
-  leftLabel: string;
-  rightLabel: string;
   glossaryText?: string;
-  compareMode: 'review' | 'compare_outputs';
 }
 
 export function getPromptLabEvaluatorSystemPrompt(targetLanguage: Language): string {
   const lang = languageDisplayName(targetLanguage);
-  return `You are a senior literary translation reviewer for Prompt Lab (dev tool).
-Evaluate translation quality for ${lang} target text.
+  return `You are an Expert Literary Translation Reviewer and Quality Assurance Judge.
+Your task is to evaluate and compare two ${lang} translation variants (Variant A and Variant B) against the original source text.
 
-Score dimensions (1-10 each):
-- accuracy: meaning fidelity to the original
-- fluency: natural ${lang} prose
-- glossary: consistent use of provided terms/names
-- style: tone, register, and narrative voice match
+You must evaluate the texts using a simplified MQM (Multidimensional Quality Metrics) framework.
 
-When the text has multiple paragraphs, review it paragraph-by-paragraph and reference paragraph indices in issues.
-When comparing two translation variants, judge which better serves the reader while staying faithful to the source.
+## Evaluation Dimensions
+1. **Accuracy (Meaning):** Does the translation perfectly transfer the original meaning? Look for mistranslations, omissions, or unwanted additions.
+2. **Fluency (Naturalness):** Does it read like natural, native ${lang} literature? Look for clunky phrasing, grammar errors, or anglicisms.
+3. **Glossary & Consistency:** Are specific terms, names, and character genders handled correctly and consistently?
+4. **Style & Tone:** Does it preserve the author's narrative voice and register?
 
-Output JSON only:
+## Error Severity Levels
+When logging issues, use these exact severity tags:
+- **CRITICAL:** Completely changes the meaning of the sentence, severely breaks character context (e.g., wrong gender), or violates a mandatory glossary term.
+- **MAJOR:** The meaning is understandable but noticeably distorted, or there is a glaring stylistic/grammatical error that disrupts the reading flow.
+- **MINOR:** Slight awkwardness, suboptimal word choice, or minor punctuation issues. The core meaning is intact.
+
+## Output Format
+You must output ONLY a valid JSON object matching the exact structure below. Do not include markdown formatting or extra text outside the JSON.
+
 {
-  "score": 8,
-  "dimensions": { "accuracy": 8, "fluency": 9, "glossary": 7, "style": 8 },
-  "issues": [{ "paragraphIndex": 0, "severity": "major|minor", "text": "description" }],
-  "suggestions": ["actionable suggestion"],
-  "summary": "2-3 sentence overall assessment"
+  "analysis_scratchpad": "STEP 1: Briefly analyze the source text complexity. STEP 2: Compare Variant A and Variant B paragraph-by-paragraph. Identify specific CRITICAL, MAJOR, and MINOR errors in each. STEP 3: Weigh the errors to determine the winner.",
+  "variant_A": {
+    "issues": [
+      { "paragraphIndex": 0, "dimension": "accuracy|fluency|glossary|style", "severity": "CRITICAL|MAJOR|MINOR", "description": "Describe the specific error and quote the problematic phrase." }
+    ],
+    "strengths": "1-2 sentences on what this variant did well."
+  },
+  "variant_B": {
+    "issues": [
+      { "paragraphIndex": 0, "dimension": "accuracy|fluency|glossary|style", "severity": "CRITICAL|MAJOR|MINOR", "description": "Describe the specific error and quote the problematic phrase." }
+    ],
+    "strengths": "1-2 sentences on what this variant did well."
+  },
+  "verdict": {
+    "preferred_variant": "A|B|TIE",
+    "justification": "Explain concisely why the preferred variant is better based on the severity of issues found.",
+    "final_polished_version": "Provide the ultimate, corrected ${lang} translation by taking the winning variant and fixing its remaining issues."
+  }
 }`;
 }
 
 export function buildPromptLabEvaluatorUserPrompt(params: EvaluatorUserPromptParams): string {
-  const targetLabel = languageDisplayName(params.targetLanguage);
-  const sourceLabel = languageDisplayName(params.sourceLanguage);
+  const prompt = `## Glossary
+${params.glossaryText?.trim() || '(none)'}
 
-  let prompt = `## Task
-Review ${targetLabel} translation quality for Prompt Lab.
-
-## Original (${sourceLabel})
+## Original Text (Source)
 ${params.originalSource}
 
-## Left panel — ${params.leftLabel}
+## Variant A
 ${params.leftText}
 
-## Right panel — ${params.rightLabel}
+## Variant B
 ${params.rightText}
-`;
 
-  if (params.glossaryText?.trim()) {
-    prompt += `\n## Reference Glossary\n${params.glossaryText.trim()}\n`;
-  }
-
-  if (params.compareMode === 'compare_outputs') {
-    prompt += `\nBoth panels contain translation variants (not the original). Compare them against the original source above. Score reflects the **right panel** variant; mention where the left panel is stronger or weaker.\n`;
-  } else {
-    prompt += `\nLeft panel is the original source; right panel is the candidate translation. Score the **right panel** translation.\n`;
-  }
-
-  prompt += `\nReturn JSON as specified in the system prompt.`;
+Evaluate the variants and return the JSON.`;
   return prompt;
 }
