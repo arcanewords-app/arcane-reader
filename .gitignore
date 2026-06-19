@@ -44,6 +44,7 @@ scripts/input-files/
 scripts/output/
 
 # Obsidian (vault lives in docs/)
+docs/05-plans/news-drafts/
 docs/.obsidian/workspace.json
 docs/.obsidian/workspace-mobile.json
 docs/.obsidian/graph.json
