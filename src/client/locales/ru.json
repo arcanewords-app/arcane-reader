@@ -1081,7 +1081,8 @@
   },
   "announcement": {
     "dismiss": "Закрыть оповещение",
-    "ctaDefault": "Подробнее"
+    "ctaDefault": "Подробнее",
+    "openNews": "Читать новость"
   },
   "tiers": {
     "pageTitle": "Уровни аккаунта",

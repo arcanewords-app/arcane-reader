@@ -4942,7 +4942,7 @@ export async function getActiveAnnouncementForUser(options: {
   const now = new Date();
   const { data, error } = await supabase
     .from('announcement_alerts')
-    .select('*, news_posts(summary)')
+    .select('*, news_posts(summary, slug)')
     .eq('is_active', true)
     .order('priority', { ascending: false })
     .order('starts_at', { ascending: false, nullsFirst: false });
@@ -4953,7 +4953,7 @@ export async function getActiveAnnouncementForUser(options: {
 
   const { isAtLeastRole } = await import('../types/roles.js');
   const rows = (data || []) as Array<
-    AnnouncementAlertRow & { news_posts: { summary: string } | null }
+    AnnouncementAlertRow & { news_posts: { summary: string; slug: string | null } | null }
   >;
 
   let dismissals = new Map<string, number>();
@@ -4984,11 +4984,17 @@ export async function getActiveAnnouncementForUser(options: {
     const message = resolveAlertMessage(row, newsSummary);
     if (!message) continue;
 
+    const newsSlug = row.news_posts?.slug ?? null;
+    const ctaUrl =
+      row.cta_url?.trim() ||
+      (row.news_post_id && newsSlug ? `/news/${newsSlug}` : null) ||
+      (row.news_post_id ? `/news/${row.news_post_id}` : null);
+
     return {
       id: row.id,
       message,
       ctaLabel: row.cta_label,
-      ctaUrl: row.cta_url,
+      ctaUrl,
       variant: row.variant,
       contentVersion: row.content_version,
       dismissible: row.dismissible,

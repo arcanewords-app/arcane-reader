@@ -8,7 +8,7 @@ import {
   trackAnnouncementDismiss,
   trackAnnouncementView,
 } from '../utils/analytics';
-import { Button, Icon } from './ui';
+import { Icon } from './ui';
 import './AnnouncementBanner.css';
 
 export function AnnouncementBanner() {
@@ -17,11 +17,15 @@ export function AnnouncementBanner() {
   const { alert, dismiss } = useAnnouncement();
   const viewedKeyRef = useRef<string | null>(null);
 
-  const handleDismiss = useCallback(() => {
-    if (!alert) return;
-    trackAnnouncementDismiss(alert);
-    dismiss();
-  }, [alert, dismiss]);
+  const handleDismiss = useCallback(
+    (e: Event) => {
+      e.stopPropagation();
+      if (!alert) return;
+      trackAnnouncementDismiss(alert);
+      dismiss();
+    },
+    [alert, dismiss]
+  );
 
   useEffect(() => {
     if (healthState || !alert) return;
@@ -38,7 +42,7 @@ export function AnnouncementBanner() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        handleDismiss();
+        handleDismiss(e);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -46,6 +50,8 @@ export function AnnouncementBanner() {
   }, [alert?.dismissible, handleDismiss]);
 
   if (healthState || !alert) return null;
+
+  const isExternalCta = Boolean(alert.ctaUrl?.startsWith('http'));
 
   const handleCta = (e: Event) => {
     e.preventDefault();
@@ -56,8 +62,8 @@ export function AnnouncementBanner() {
       contentVersion: alert.contentVersion,
       ctaUrl: alert.ctaUrl,
     });
-    if (alert.ctaUrl.startsWith('http')) {
-      window.open(alert.ctaUrl, '_blank', 'noopener,noreferrer');
+    if (isExternalCta) {
+      window.open(alert.ctaUrl!, '_blank', 'noopener,noreferrer');
       return;
     }
     route(alert.ctaUrl);
@@ -70,15 +76,25 @@ export function AnnouncementBanner() {
       aria-labelledby="announcement-banner-message"
     >
       <div class="announcement-banner__content">
-        <span id="announcement-banner-message" class="announcement-banner__message">
-          {alert.message}
-        </span>
+        {alert.ctaUrl ? (
+          <a
+            href={alert.ctaUrl}
+            class="announcement-banner__link"
+            onClick={handleCta}
+            aria-label={t('announcement.openNews')}
+            {...(isExternalCta ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+          >
+            <span id="announcement-banner-message" class="announcement-banner__message">
+              {alert.message}
+            </span>
+            <Icon name="chevron_right" size="sm" className="announcement-banner__arrow" />
+          </a>
+        ) : (
+          <span id="announcement-banner-message" class="announcement-banner__message">
+            {alert.message}
+          </span>
+        )}
         <div class="announcement-banner__actions">
-          {alert.ctaLabel && alert.ctaUrl && (
-            <Button variant="secondary" size="sm" onClick={handleCta}>
-              {alert.ctaLabel}
-            </Button>
-          )}
           {alert.dismissible && (
             <button
               type="button"

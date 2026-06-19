@@ -1081,7 +1081,8 @@
   },
   "announcement": {
     "dismiss": "Закрыць апавяшчэнне",
-    "ctaDefault": "Падрабязней"
+    "ctaDefault": "Падрабязней",
+    "openNews": "Чытаць навіну"
   },
   "tiers": {
     "pageTitle": "Узроўні акаўнта",

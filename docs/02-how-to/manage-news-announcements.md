@@ -23,13 +23,30 @@ Audience: **admin** users. For architecture see [[03-explanation/news-and-announ
 2. In **New post**, fill in:
    - **Title** — headline on `/news`.
    - **Summary** — short blurb (list + default banner text).
-   - **Body** — markdown (`##` headings, `-` lists, `**bold**`, `[links](url)`).
+   - **Body** — markdown (see supported syntax below).
    - **Category** — feature, discount, update, or other.
    - **Slug** (optional) — lowercase-with-hyphens for `/news/your-slug`.
 3. Click **Create post** — status is **Draft**.
 4. On the post card, click **Publish**. `published_at` is set; post appears on public `/news`.
 
 Draft posts are **not** visible on the public feed.
+
+### Supported markdown in Body
+
+Rendered by `renderSimpleMarkdown` on `/news/:slug` ([`src/client/utils/simpleMarkdown.ts`](../../src/client/utils/simpleMarkdown.ts)):
+
+| Syntax                | Example                                    |
+| --------------------- | ------------------------------------------ |
+| `##` / `###` headings | `## Section`, `### Subsection`             |
+| Paragraphs            | blank line between blocks                  |
+| Bold / italic         | `**bold**`, `*italic*`                     |
+| Links                 | `[label](/path)` or `[label](https://...)` |
+| Bullet list           | `- item`                                   |
+| Numbered list         | `1. step`                                  |
+| GFM table             | `\| col \| col \|` + separator `\|---\|`   |
+| Code block            | ` ``` ` fenced (e.g. CSV sample)           |
+
+Not supported: `#` h1 (title is separate), images, blockquotes, HTML tags.
 
 ## Create an announcement banner from a post
 

@@ -1081,7 +1081,8 @@
   },
   "announcement": {
     "dismiss": "Dismiss announcement",
-    "ctaDefault": "Learn more"
+    "ctaDefault": "Learn more",
+    "openNews": "Read news"
   },
   "tiers": {
     "pageTitle": "Account levels",

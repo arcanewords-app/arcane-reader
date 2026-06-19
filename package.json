@@ -37,6 +37,8 @@
     "test:glossary-filter": "node --import tsx --test src/engine/glossary/glossary-filter.test.ts",
     "test:glossary-manager": "node --import tsx --test src/engine/glossary/glossary-manager.test.ts",
     "test:stage-prompt-flow": "node --import tsx --test src/engine/pipeline/stage-prompt-flow.test.ts",
+    "seed:news": "tsx scripts/seed-news-from-drafts.ts",
+    "test:simple-markdown": "node --import tsx --test src/client/utils/simpleMarkdown.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:deps": "tsx scripts/gen-dep-graph.ts",
