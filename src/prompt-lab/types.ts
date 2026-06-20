@@ -50,12 +50,15 @@ export interface PromptLabRunParams {
   chapterNumber?: number;
   chunkSize?: number;
   analysisMaxSectionTokens?: number;
-  injectMarkers?: boolean;
   enableTranslateFewShot?: boolean;
   enableTranslateCoT?: boolean;
   enableTranslateStructuredCoT?: boolean;
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
+  forceChunked?: boolean;
+  translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
+  editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+  reasoningEffort?: 'low' | 'medium' | 'high';
   runLabel?: string;
   userPromptOverride?: boolean;
 }
@@ -77,6 +80,47 @@ export interface PromptLabRunOutput {
   tokensUsed: number;
   durationMs: number;
   prompts: { system: string; user: string };
+  apiRequestParams?: Record<string, unknown>;
+  translateDebug?: {
+    translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    resolvedFlags: {
+      enableFewShot: boolean;
+      enableCoT: boolean;
+      enableStructuredCoT: boolean;
+      leadingContextParagraphs: number;
+    };
+    llmDefaults: {
+      maxTokens: number;
+      defaultReasoningEffort?: 'low' | 'medium' | 'high';
+      preferJsonObjectOverStructuredSchema: boolean;
+    };
+    effectiveChunkSize: number;
+    chunkingMode?: 'single_shot' | 'chunked';
+    chunkingReason?: string;
+    estimatedInputTokens?: number;
+    estimatedOutputTokens?: number;
+    effectiveMaxTokens?: number;
+    chunkSummaries?: Array<{
+      chunkId: string;
+      completionPath?: 'structured' | 'json_object' | 'text';
+      finishReason?: string;
+      error?: string;
+    }>;
+  };
+  editDebug?: {
+    editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    editingStylePreset: EditingStylePreset;
+    editingFocus: EditingFocus;
+    chunkingMode: 'single_shot' | 'chunked';
+    chunkingReason: string;
+    effectiveChunkSize: number;
+    estimatedChunks: number;
+    estimatedInputTokens: number;
+    estimatedOutputTokens: number;
+    effectiveMaxTokens: number;
+    draftLength: number;
+    outputLength?: number;
+  };
 }
 
 export interface PromptLabRunRow {

@@ -623,6 +623,19 @@ h3 {
   border-radius: var(--pl-radius);
 }
 
+.pl-api-params {
+  margin: var(--pl-space-sm) 0 0;
+  padding: var(--pl-space-sm) var(--pl-space-md);
+  font-size: var(--pl-text-xs);
+  color: var(--pl-muted);
+  background: var(--pl-bg);
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .pl-temp-slider {
   width: 100%;
   accent-color: var(--pl-accent);
@@ -765,6 +778,49 @@ h3 {
 
 .pl-compare-cell:first-child {
   border-right: 1px solid var(--pl-border);
+}
+
+.pl-para-preview {
+  margin-top: var(--pl-space-sm);
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius-sm);
+  background: var(--pl-bg-subtle);
+}
+
+.pl-para-preview-header {
+  padding: var(--pl-space-sm) var(--pl-space-md);
+  border-bottom: 1px solid var(--pl-border);
+}
+
+.pl-para-preview-scroll {
+  max-height: 280px;
+}
+
+.pl-para-preview-row {
+  align-items: stretch;
+}
+
+.pl-para-preview-index {
+  flex: 0 0 2.5rem;
+  padding: var(--pl-space-md) var(--pl-space-sm);
+  text-align: right;
+  font-size: var(--pl-text-xs);
+  color: var(--pl-text-muted);
+  border-right: 1px solid var(--pl-border);
+}
+
+.pl-para-preview-cell {
+  border-right: none;
+}
+
+.pl-para-preview-id {
+  display: block;
+  font-size: var(--pl-text-xs);
+  margin-bottom: var(--pl-space-xs);
+}
+
+.pl-para-preview-text {
+  white-space: pre-wrap;
 }
 
 .pl-evaluation-score {
@@ -1083,4 +1139,39 @@ h3 {
 
 .pl-glossary-list__translated {
   color: var(--pl-accent);
+}
+
+.pl-exec-preview {
+  margin: var(--pl-space-sm) 0;
+  padding: var(--pl-space-sm) var(--pl-space-md);
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius-sm);
+  background: var(--pl-surface-2, rgba(0, 0, 0, 0.03));
+}
+
+.pl-exec-preview__title {
+  margin: 0 0 var(--pl-space-xs);
+  font-size: var(--pl-text-sm);
+  font-weight: 600;
+}
+
+.pl-exec-preview__dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--pl-space-xs) var(--pl-space-md);
+  font-size: var(--pl-text-sm);
+}
+
+.pl-exec-preview__dl dt {
+  margin: 0;
+  color: var(--pl-muted);
+}
+
+.pl-exec-preview__dl dd {
+  margin: 0;
+}
+
+.pl-translate-summary {
+  margin-bottom: var(--pl-space-md);
 }

@@ -1,7 +1,7 @@
 export type LabStage = 'analyze' | 'translate' | 'edit';
 export type LabLanguage = 'en' | 'ko' | 'zh' | 'ru' | 'be';
 export type EditingPreset = 'default' | 'literary' | 'minimal' | 'ai_revivification';
-export type EditingFocus = 'fix_problems' | 'style_only' | 'both';
+export type EditingFocus = 'fix_only' | 'polish' | 'elevate';
 
 export interface LabMetaPair {
   source: LabLanguage;
@@ -12,6 +12,11 @@ export interface LabMetaPair {
 export interface LabMetaModel {
   value: string;
   label: string;
+  family?: string;
+  supportsCustomTemperature?: boolean;
+  supportsReasoningEffort?: boolean;
+  promoFreeTier?: boolean;
+  isReasoningModel?: boolean;
 }
 
 export interface LabMeta {
@@ -21,6 +26,7 @@ export interface LabMeta {
   focusOptions: EditingFocus[];
   defaultModel: string;
   models: LabMetaModel[];
+  modelCapabilities?: LabMetaModel[];
   analysisExcludedModels: string[];
 }
 
@@ -45,9 +51,13 @@ export interface WorkbenchLoadState {
   chunkSize?: number;
   enableTranslateFewShot?: boolean;
   enableTranslateCoT?: boolean;
+  enableTranslateStructuredCoT?: boolean;
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
-  injectMarkers?: boolean;
+  forceChunked?: boolean;
+  translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
+  editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+  reasoningEffort?: 'low' | 'medium' | 'high';
   runLabel?: string;
 }
 
@@ -167,6 +177,47 @@ export interface LabRunOutput {
   tokensUsed: number;
   durationMs: number;
   prompts: { system: string; user: string };
+  apiRequestParams?: Record<string, unknown>;
+  translateDebug?: {
+    translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    resolvedFlags: {
+      enableFewShot: boolean;
+      enableCoT: boolean;
+      enableStructuredCoT: boolean;
+      leadingContextParagraphs: number;
+    };
+    llmDefaults: {
+      maxTokens: number;
+      defaultReasoningEffort?: 'low' | 'medium' | 'high';
+      preferJsonObjectOverStructuredSchema: boolean;
+    };
+    effectiveChunkSize: number;
+    chunkingMode?: 'single_shot' | 'chunked';
+    chunkingReason?: string;
+    estimatedInputTokens?: number;
+    estimatedOutputTokens?: number;
+    effectiveMaxTokens?: number;
+    chunkSummaries?: Array<{
+      chunkId: string;
+      completionPath?: 'structured' | 'json_object' | 'text';
+      finishReason?: string;
+      error?: string;
+    }>;
+  };
+  editDebug?: {
+    editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    editingStylePreset: EditingPreset;
+    editingFocus: EditingFocus;
+    chunkingMode: 'single_shot' | 'chunked';
+    chunkingReason: string;
+    effectiveChunkSize: number;
+    estimatedChunks: number;
+    estimatedInputTokens: number;
+    estimatedOutputTokens: number;
+    effectiveMaxTokens: number;
+    draftLength: number;
+    outputLength?: number;
+  };
   runId?: string;
 }
 

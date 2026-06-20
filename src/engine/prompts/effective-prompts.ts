@@ -10,6 +10,7 @@ import { buildGlossaryMetadataLanguageRule } from './shared/glossary-metadata-la
 import { appendGenderAgreement } from './shared/gender-agreement.js';
 import {
   getEditorSystemPrompt,
+  normalizeEditingFocus,
   type EditingFocus,
   type EditingStylePreset,
 } from './system/editor.js';
@@ -61,7 +62,7 @@ export function getEffectiveStagePrompts(
   }
 
   const preset = opts?.preset ?? 'default';
-  const focus = opts?.focus ?? 'both';
+  const focus = normalizeEditingFocus(opts?.focus);
   return {
     stage,
     sourceLanguage: source,

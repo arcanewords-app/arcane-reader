@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [preact()],
   root: path.resolve(__dirname, 'src/debug-app'),
   base: '/debug/',
+  cacheDir: path.resolve(__dirname, 'node_modules/.vite-debug'),
   build: {
     outDir: path.resolve(__dirname, 'dist/debug'),
     emptyOutDir: true,

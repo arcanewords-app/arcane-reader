@@ -25,7 +25,7 @@ import {
 import { languageDisplayName } from '../language.js';
 import { GlossaryManager, formatGenderCompactTag } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk, getChapterCastCharacters } from '../glossary/glossary-filter.js';
-import { chunkText, mergeChunks } from '../utils/chunker.js';
+import { chunkText, mergeChunks, estimateTokens } from '../utils/chunker.js';
 import { getLeadingParagraphsForChunk, splitSourceParagraphs } from '../utils/leading-context.js';
 import {
   resolveTranslateChunkSize,
@@ -37,12 +37,16 @@ import { log } from '../logger.js';
 import {
   jsonParagraphsHaveMarkers,
   mergeJsonParagraphsToMarkedText,
+  filterJsonParagraphsToChunk,
 } from '../utils/para-markers.js';
+import { resolveTranslateLlmDefaults } from '../../shared/openaiModelAdapter.js';
+import { resolveTranslateChunkingMode } from '../translate-chunking-policy.js';
 
 interface TranslateStageOptions {
   context: AgentContext;
   chunkSize?: number;
   temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   /** When false, do not include glossary in prompt (saves tokens; use when Stage 3 editing will run and will apply glossary). Default true. */
   includeGlossary?: boolean;
   /** Check before each retry; when true, throw to cancel. */
@@ -70,6 +74,8 @@ interface TranslateStageOptions {
   enableTranslateStructuredCoT?: boolean;
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
+  /** Force token chunking even when single-shot would be selected for CoT/leading. */
+  forceChunked?: boolean;
 }
 
 function applyCoTToSystemPrompt(systemPrompt: string, enableCoT: boolean): string {
@@ -159,6 +165,25 @@ export class TranslateStage {
         includeGlossaryInTranslation: includeGlossary,
       });
 
+      const sourceParagraphs = splitSourceParagraphs(sourceText);
+
+      const glossaryPreviewText =
+        includeGlossary && fullGlossary
+          ? new GlossaryManager(fullGlossary).toPromptText({
+              targetLanguageLabel: languageDisplayName(options.context.targetLanguage),
+            })
+          : '';
+
+      const chunkingResolution = resolveTranslateChunkingMode({
+        sourceText,
+        modelId: this.provider.model,
+        optimization,
+        targetLanguage: options.context.targetLanguage,
+        glossaryText: glossaryPreviewText,
+        contextText,
+        forceChunked: options.forceChunked,
+      });
+
       const effectiveChunkSize = resolveTranslateChunkSize({
         chunkSizeOverride: options.chunkSize,
         miniModelProfile: options.miniModelTranslationProfile,
@@ -166,27 +191,50 @@ export class TranslateStage {
         includeGlossaryInTranslation: includeGlossary,
       });
 
-      const sourceParagraphs = splitSourceParagraphs(sourceText);
-
-      // Chunk the text — each chunk is one API request, so long chapters don't need one huge
-      // timeout; slow models only need to finish one chunk per request (OPENAI_TIMEOUT_MS).
-      const chunks = chunkText(sourceText, {
-        maxTokens: effectiveChunkSize,
-        preserveParagraphs: true,
-        neverSplitParagraphs: options.neverSplitParagraphs,
-      });
+      const chunks =
+        chunkingResolution.mode === 'single_shot'
+          ? [
+              {
+                id: 'chunk_0',
+                content: sourceText,
+                index: 0,
+                tokenCount: estimateTokens(sourceText),
+                separatorAfter: '',
+                startParagraphIndex: 0,
+                endParagraphIndex: Math.max(0, sourceParagraphs.length - 1),
+              },
+            ]
+          : chunkText(sourceText, {
+              maxTokens: effectiveChunkSize,
+              preserveParagraphs: true,
+              neverSplitParagraphs: options.neverSplitParagraphs,
+            });
 
       const retryAttempts = options.chunkRetryAttempts ?? DEFAULT_CHUNK_RETRY_ATTEMPTS;
       const retryDelayMs = options.chunkRetryDelayMs ?? DEFAULT_CHUNK_RETRY_DELAY_MS;
 
-      const parallelChunks = Math.max(1, options.parallelChunks ?? 1);
+      const contextualChunking =
+        optimization.enableCoT || optimization.leadingContextParagraphs > 0;
+      let parallelChunks = Math.max(1, options.parallelChunks ?? 1);
+      if (contextualChunking && chunkingResolution.mode === 'chunked' && parallelChunks > 1) {
+        log.info('TranslateStage: forcing sequential chunks for CoT/leading context', {
+          requestedParallel: parallelChunks,
+        });
+        parallelChunks = 1;
+      }
+
       const onProgress = options.onProgress;
 
       if (onProgress) {
         onProgress(0, chunks.length);
       }
 
-      log.info('TranslateStage: starting chunked translation', {
+      log.info('TranslateStage: starting translation', {
+        chunkingMode: chunkingResolution.mode,
+        chunkingReason: chunkingResolution.reason,
+        estimatedInputTokens: chunkingResolution.estimatedInputTokens,
+        estimatedOutputTokens: chunkingResolution.estimatedOutputTokens,
+        effectiveMaxTokens: chunkingResolution.effectiveMaxTokens,
         chunksCount: chunks.length,
         retryAttempts,
         retryDelayMs,
@@ -195,6 +243,7 @@ export class TranslateStage {
         includeGlossary,
         enableFewShot: optimization.enableFewShot,
         enableCoT: optimization.enableCoT,
+        enableStructuredCoT: optimization.enableStructuredCoT,
         leadingContextParagraphs: optimization.leadingContextParagraphs,
       });
 
@@ -212,6 +261,7 @@ export class TranslateStage {
           sourceLanguage: options.context.sourceLanguage,
           targetLanguage: options.context.targetLanguage,
           temperature: options.temperature ?? 0.7,
+          reasoningEffort: options.reasoningEffort,
           includeGlossary,
           textBlockTypes: options.textBlockTypes,
           customInstructions: options.customInstructions,
@@ -222,6 +272,7 @@ export class TranslateStage {
           userPromptOverride: options.userPromptOverride,
           optimization,
           sourceParagraphs,
+          effectiveMaxTokens: chunkingResolution.effectiveMaxTokens,
         });
       };
 
@@ -331,6 +382,13 @@ export class TranslateStage {
           originalText: sourceText,
           translatedText,
           chunkResults,
+          translateChunking: {
+            mode: chunkingResolution.mode,
+            reason: chunkingResolution.reason,
+            estimatedInputTokens: chunkingResolution.estimatedInputTokens,
+            estimatedOutputTokens: chunkingResolution.estimatedOutputTokens,
+            effectiveMaxTokens: chunkingResolution.effectiveMaxTokens,
+          },
         },
         tokensUsed: totalTokens,
         duration: Date.now() - startTime,
@@ -362,6 +420,7 @@ export class TranslateStage {
       sourceLanguage: import('../types/common.js').Language;
       targetLanguage: import('../types/common.js').Language;
       temperature: number;
+      reasoningEffort?: 'low' | 'medium' | 'high';
       includeGlossary: boolean;
       textBlockTypes?: TextBlockType[];
       customInstructions?: string;
@@ -372,6 +431,7 @@ export class TranslateStage {
       userPromptOverride?: string;
       optimization: TranslateOptimizationFlags;
       sourceParagraphs: string[];
+      effectiveMaxTokens: number;
     }
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     const chunkStartTime = Date.now();
@@ -413,14 +473,14 @@ export class TranslateStage {
           opts.systemPromptOverride,
           opts.userPromptOverride,
           opts.optimization,
-          opts.sourceParagraphs
+          opts.sourceParagraphs,
+          opts.reasoningEffort,
+          opts.effectiveMaxTokens
         );
 
         const chunkDurationMs = Date.now() - chunkStartTime;
         if (!result.translation.translated || result.translation.translated.trim().length === 0) {
-          log.warn(`TranslateStage: chunk ${chunkIndex + 1} returned empty translation`, {
-            chunkId: chunk.id,
-          });
+          throw new Error('Empty translation from provider');
         }
         log.info('TranslateStage: chunk done', {
           chunkIndex: chunkIndex + 1,
@@ -428,6 +488,7 @@ export class TranslateStage {
           tokens: result.tokensUsed,
           durationMs: chunkDurationMs,
           success: true,
+          completionPath: result.translation.completionPath,
         });
         return result;
       } catch (error) {
@@ -475,7 +536,9 @@ export class TranslateStage {
     systemPromptOverride?: string,
     userPromptOverride?: string,
     optimization?: TranslateOptimizationFlags,
-    sourceParagraphs: string[] = []
+    sourceParagraphs: string[] = [],
+    reasoningEffort?: 'low' | 'medium' | 'high',
+    effectiveMaxTokens?: number
   ): Promise<{ translation: ChunkTranslation; tokensUsed: number }> {
     const flags = optimization ?? {
       enableFewShot: false,
@@ -549,100 +612,169 @@ export class TranslateStage {
 
     let translatedText = '';
     let tokensUsed = 0;
+    let completionPath: ChunkTranslation['completionPath'];
+    let finishReason: ChunkTranslation['finishReason'];
 
-    // Primary path: JSON (model returns paragraphs array; we merge with \n\n)
+    const llmDefaults = resolveTranslateLlmDefaults(this.provider.model, flags.enableStructuredCoT);
+    const effectiveReasoningEffort = reasoningEffort ?? llmDefaults.defaultReasoningEffort;
+    const completionOptions = {
+      temperature,
+      maxTokens: effectiveMaxTokens ?? llmDefaults.maxTokens,
+      reasoningEffort: effectiveReasoningEffort,
+    };
+
+    const extractTranslatedFromJson = (
+      data: TranslateCoTResponse,
+      path: 'structured' | 'json_object'
+    ): string => {
+      if (!data?.paragraphs || !Array.isArray(data.paragraphs)) {
+        throw new Error(`Invalid JSON structure (${path}): missing paragraphs array`);
+      }
+      const totalParagraphs = data.paragraphs.length;
+      const filtered = filterJsonParagraphsToChunk(data.paragraphs, chunk.content);
+      const dropped = totalParagraphs - filtered.length;
+      if (dropped > 0) {
+        log.warn(`TranslateStage: chunk ${chunk.id} filtered extra JSON paragraphs`, {
+          totalParagraphs,
+          kept: filtered.length,
+          dropped,
+          path,
+        });
+      }
+      if (filtered.length === 0) {
+        throw new Error(
+          `No paragraphs matched chunk after filter (${path}): expected chunk markers only`
+        );
+      }
+      const merged = mergeJsonParagraphsToMarkedText(filtered);
+      if (!merged || merged.trim().length === 0) {
+        throw new Error(`Empty translation paragraphs (${path})`);
+      }
+      if (jsonParagraphsHaveMarkers(filtered)) {
+        log.debug(`TranslateStage: chunk ${chunk.id} preserved paragraph markers via JSON`, {
+          paragraphCount: filtered.length,
+          path,
+        });
+      }
+      return merged;
+    };
+
+    const logCoTAnalysis = (data: TranslateCoTResponse) => {
+      if (flags.enableCoT && data?.analysis) {
+        log.debug(`TranslateStage: chunk ${chunk.id} CoT analysis`, {
+          notes: data.analysis.notes,
+          glossaryCount: data.analysis.glossaryTermsInChunk?.length ?? 0,
+        });
+      }
+    };
+
+    // Primary path: JSON (structured schema → json_object → plain text)
     if (supportsJSON) {
-      try {
-        const jsonOptions = { temperature, maxTokens: 8192 };
-        let response: { data: TranslateCoTResponse; tokensUsed: { total: number } };
+      const useStructured =
+        flags.enableCoT &&
+        flags.enableStructuredCoT &&
+        typeof this.provider.completeStructuredJSON === 'function';
 
-        if (
-          flags.enableCoT &&
-          flags.enableStructuredCoT &&
-          typeof this.provider.completeStructuredJSON === 'function'
-        ) {
-          response = await this.provider.completeStructuredJSON<TranslateCoTResponse>(
+      if (useStructured) {
+        try {
+          const response = await this.provider.completeStructuredJSON!<TranslateCoTResponse>(
             messages,
             TRANSLATE_COT_JSON_SCHEMA as unknown as Record<string, unknown>,
             'translate_cot_response',
-            jsonOptions
+            completionOptions
           );
-        } else {
-          const plain = await this.provider.completeJSON<TranslateCoTResponse>(
+          logCoTAnalysis(response.data);
+          translatedText = extractTranslatedFromJson(response.data, 'structured');
+          tokensUsed = response.tokensUsed?.total || 0;
+          completionPath = 'structured';
+          log.debug(`TranslateStage: chunk ${chunk.id} translated via structured JSON`, {
+            length: translatedText.length,
+            completionPath,
+          });
+        } catch (structuredError) {
+          const structuredErr =
+            structuredError instanceof Error ? structuredError : new Error(String(structuredError));
+          log.warn(
+            `TranslateStage: structured JSON failed for chunk ${chunk.id}, trying json_object`,
+            {
+              err: structuredErr,
+              errMessage: structuredErr.message,
+              failedPath: 'structured',
+            }
+          );
+        }
+      }
+
+      if (!translatedText) {
+        try {
+          const response = await this.provider.completeJSON<TranslateCoTResponse>(
             messages,
-            jsonOptions
+            completionOptions
           );
-          response = plain;
-        }
-
-        if (flags.enableCoT && response.data?.analysis) {
-          log.debug(`TranslateStage: chunk ${chunk.id} CoT analysis`, {
-            notes: response.data.analysis.notes,
-            glossaryCount: response.data.analysis.glossaryTermsInChunk?.length ?? 0,
-          });
-        }
-
-        // Extract translations from JSON structure
-        if (response.data && response.data.paragraphs && Array.isArray(response.data.paragraphs)) {
-          const paras = response.data.paragraphs;
-          translatedText = mergeJsonParagraphsToMarkedText(paras);
-          if (jsonParagraphsHaveMarkers(paras)) {
-            log.debug(`TranslateStage: chunk ${chunk.id} preserved paragraph markers via JSON`, {
-              paragraphCount: paras.length,
-            });
-          }
-
+          logCoTAnalysis(response.data);
+          translatedText = extractTranslatedFromJson(response.data, 'json_object');
           tokensUsed = response.tokensUsed?.total || 0;
-
-          // Store JSON data in translation for later parsing
-          // We'll need to modify ChunkTranslation type to store this
-          if (translatedText && translatedText.trim().length > 0) {
-            log.debug(`TranslateStage: chunk ${chunk.id} translated via JSON`, {
-              length: translatedText.length,
-            });
-          }
-        } else {
-          throw new Error('Invalid JSON structure: missing paragraphs array');
-        }
-      } catch (jsonError) {
-        log.warn(
-          `TranslateStage: JSON translation failed for chunk ${chunk.id}, using text fallback`,
-          jsonError instanceof Error ? jsonError : undefined
-        );
-
-        // Fallback: plain text (paragraphs separated by \n\n on server sync)
-        if (typeof this.provider.complete === 'function') {
-          const response = await this.provider.complete(messages, {
-            temperature,
-            maxTokens: 8192,
+          completionPath = 'json_object';
+          log.debug(`TranslateStage: chunk ${chunk.id} translated via json_object`, {
+            length: translatedText.length,
+            completionPath,
           });
-          translatedText = response.content ? response.content.trim() : '';
-          tokensUsed = response.tokensUsed?.total || 0;
-        } else {
-          throw new Error('JSON translation failed and text fallback not available');
+        } catch (jsonError) {
+          const jsonErr = jsonError instanceof Error ? jsonError : new Error(String(jsonError));
+          log.warn(
+            `TranslateStage: json_object failed for chunk ${chunk.id}, using text fallback`,
+            {
+              err: jsonErr,
+              errMessage: jsonErr.message,
+              failedPath: 'json_object',
+            }
+          );
+
+          if (typeof this.provider.complete === 'function') {
+            const response = await this.provider.complete(messages, completionOptions);
+            translatedText = response.content ? response.content.trim() : '';
+            tokensUsed = response.tokensUsed?.total || 0;
+            completionPath = 'text';
+            finishReason = response.finishReason;
+            if (!translatedText) {
+              log.error(`TranslateStage: text fallback empty for chunk ${chunk.id}`, {
+                failedPath: 'text',
+                finishReason: response.finishReason,
+              });
+            }
+          } else {
+            throw new Error('JSON translation failed and text fallback not available');
+          }
         }
       }
     } else {
-      // Use text format if JSON not supported
-      const response = await this.provider.complete(messages, {
-        temperature,
-        maxTokens: 8192,
-      });
+      const response = await this.provider.complete(messages, completionOptions);
       translatedText = response.content ? response.content.trim() : '';
       tokensUsed = response.tokensUsed?.total || 0;
+      completionPath = 'text';
+      finishReason = response.finishReason;
     }
 
     if (!translatedText || translatedText.length === 0) {
       log.error(`TranslateStage: chunk ${chunk.id} returned empty response from provider`, {
         chunkId: chunk.id,
       });
+      throw new Error('Empty translation from provider');
     }
+
+    log.info(`TranslateStage: chunk ${chunk.id} translation complete`, {
+      chunkId: chunk.id,
+      completionPath,
+      length: translatedText.length,
+    });
 
     return {
       translation: {
         chunkId: chunk.id,
         original: chunk.content,
         translated: translatedText,
+        completionPath,
+        finishReason,
       },
       tokensUsed,
     };

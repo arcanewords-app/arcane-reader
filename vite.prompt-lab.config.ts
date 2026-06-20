@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [preact()],
   root: path.resolve(__dirname, 'src/prompt-lab-app'),
   base: '/prompt-lab/',
+  cacheDir: path.resolve(__dirname, 'node_modules/.vite-prompt-lab'),
   build: {
     outDir: path.resolve(__dirname, 'dist/prompt-lab'),
     emptyOutDir: true,

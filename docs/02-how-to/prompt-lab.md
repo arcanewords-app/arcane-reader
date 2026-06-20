@@ -33,7 +33,7 @@ Steps:
 
 1. Choose **stage**, **language** (pair or target per stage), **model**, and **prompt version** (current from code or saved).
 2. For **edit**: set preset and focus; only **target language** affects the editor system prompt.
-3. Paste **source text** (and translated text for edit).
+3. Paste **source text** (and translated text for edit), or use **Import scraper chapter** (see below).
 4. Optionally import **glossary** (JSON/CSV) under Advanced options.
 5. Edit prompts via **Edit** in the Prompts column (or override user prompt in the modal).
 6. Click **Run stage** — result appears on the right.
@@ -52,7 +52,9 @@ Header button **Review** opens the evaluation workspace:
 5. **Evaluation prompt** — preview the exact system/user prompt sent to the model (inline snippet + full modal, `POST /api/prompt-lab/evaluate/preview`, no LLM call).
 6. **Evaluate** — LLM score (1–10), dimensions, issues; saved to `prompt_lab_evaluations`. It runs as a single request, so it finishes in seconds (translation/edit run the full pipeline and take longer).
 
-Workbench **Advanced**: optional **Run label** suffix; **Inject paragraph markers** for translate (default on).
+Workbench **Advanced**: optional **Run label** suffix.
+
+Translate always uses `--para:auto_N--` paragraph markers (Reader uses UUIDs from the chapter DB). Source text is normalized on save, scraper import, load, and run — same blank-line split as chapter import in Reader.
 
 ## Meta API
 
@@ -67,7 +69,15 @@ Workbench **Advanced**: optional **Run label** suffix; **Inject paragraph marker
 | Run history     | `prompt_lab_runs`        |
 | Review          | `prompt_lab_evaluations` |
 
-**Save text** normalizes source (and translated text when present): splits on blank lines, drops separator-only paragraphs (`***`, `---`), and injects `--para:auto_N--` markers so Run, Review, and saved content stay aligned.
+**Save text** and **Load in workbench** normalize source (and translated text when present): strip any existing markers, split on blank lines (same as chapter import in Reader), drop separator-only paragraphs (`***`, `---`), and inject fresh `--para:auto_N--` markers. Partial marker coverage (e.g. one marker on a whole chapter) is always re-split. Workbench and Saved texts show a paragraph preview list aligned with Reader's paragraph view.
+
+### Import scraper chapter
+
+Alternative to pasting source text: **Import scraper chapter** in the Input column loads a chapter JSON from [arcane-scraper](https://github.com/arcane-scraper) scraper-console data, e.g. `apps/scraper-console/data/scraper-projects/{projectId}/chapters/1036.json`.
+
+Expected shape (`ProjectChapterFull`): `number`, `title`, `content` (plain text with `\n\n` paragraph breaks), optional `sourceUrl`, `sourceAdapterId`, `scrapedAt`. Raw BQG API dumps with a `txt` field are rejected — use the saved chapter file from scraper-console.
+
+Flow: pick `.json` → source text and chapter number are filled → **Save text** modal opens with title prefilled as `{number} — {title}` → confirm to store in `prompt_lab_texts`.
 
 ## Related
 

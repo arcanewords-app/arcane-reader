@@ -1,16 +1,23 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { PlModal } from './PlModal';
 
 interface SaveTextModalProps {
   open: boolean;
+  defaultTitle?: string;
   onClose: () => void;
   onSave: (title: string) => Promise<void>;
 }
 
-export function SaveTextModal({ open, onClose, onSave }: SaveTextModalProps) {
+export function SaveTextModal({ open, defaultTitle, onClose, onSave }: SaveTextModalProps) {
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle(defaultTitle?.trim() ?? '');
+    setError(null);
+  }, [open, defaultTitle]);
 
   const handleSave = async () => {
     const trimmed = title.trim();

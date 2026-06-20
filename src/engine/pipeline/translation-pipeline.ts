@@ -431,6 +431,7 @@ export class TranslationPipeline {
       enableTranslateStructuredCoT: options.enableTranslateStructuredCoT,
       translateLeadingContextParagraphs: options.translateLeadingContextParagraphs,
       miniModelTranslationProfile: options.miniModelTranslationProfile,
+      forceChunked: options.forceChunked,
     });
     totalTokens += stage2Result.tokensUsed;
 

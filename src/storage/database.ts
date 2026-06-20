@@ -364,8 +364,8 @@ export interface ProjectSettings {
   customInstructions?: CustomInstructions;
   /** Editing style preset: default, literary, minimal, ai_revivification */
   editingStylePreset?: 'default' | 'literary' | 'minimal' | 'ai_revivification';
-  /** Editing focus: fix_problems, style_only, both */
-  editingFocus?: 'fix_problems' | 'style_only' | 'both';
+  /** Editing focus: fix_only, polish, elevate */
+  editingFocus?: 'fix_only' | 'polish' | 'elevate';
   /** When true, allow reasoning models (o1, gpt-5, etc.) for analysis. Warning: 1–5 min per request. Default false. */
   allowReasoningModelsForAnalysis?: boolean;
   /** Append few-shot BAD/GOOD examples to translate system prompt. */
@@ -463,6 +463,8 @@ function migrateProjectSettings(settings: ProjectSettings): ProjectSettings {
   // Migrate from legacy model field (free-tier models only)
   const legacyModel = settings.model || 'gpt-4.1-mini';
   const freeModels = [
+    'gpt-5.4-mini',
+    'gpt-5.4-nano',
     'gpt-5.1-codex-mini',
     'gpt-5-mini',
     'gpt-5-nano',

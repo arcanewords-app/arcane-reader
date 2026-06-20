@@ -18,6 +18,7 @@ export default defineConfig({
 
   root: '.', // Project root
   publicDir: 'public', // Static assets
+  cacheDir: path.resolve(__dirname, 'node_modules/.vite-client'),
 
   build: {
     outDir: 'dist/client',

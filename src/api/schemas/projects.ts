@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isSupportedPair } from '../../engine/language.js';
+import { normalizeEditingFocus } from '../../shared/editing-focus.js';
 import type { Language } from '../../engine/types/common.js';
 
 /** MVP translation source languages (engine whitelist). */
@@ -79,7 +80,10 @@ export const projectSettingsBodySchema = z
       })
       .optional(),
     editingStylePreset: z.enum(['default', 'literary', 'minimal', 'ai_revivification']).optional(),
-    editingFocus: z.enum(['fix_problems', 'style_only', 'both']).optional(),
+    editingFocus: z
+      .enum(['fix_only', 'polish', 'elevate', 'fix_problems', 'style_only', 'both'])
+      .optional()
+      .transform((v) => (v === undefined ? v : normalizeEditingFocus(v))),
     allowReasoningModelsForAnalysis: z.boolean().optional(),
   })
   .passthrough();

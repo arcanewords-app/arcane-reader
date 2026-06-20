@@ -41,34 +41,75 @@ export function isSeparatorParagraph(text: string): boolean {
   return /^[\s*\-_=~#]+$/.test(trimmed);
 }
 
-/**
- * Canonical Lab source text: normalize line endings, split paragraphs, drop separators,
- * inject --para:auto_N-- markers when absent.
- */
-export function normalizeLabSourceText(text: string): string {
-  const normalized = text.replace(/\r\n/g, '\n').trim();
-  if (!normalized) return text;
-
-  if (textHasParagraphMarkers(normalized)) {
-    return normalized;
-  }
-
-  const paragraphs = splitIntoParagraphs(normalized).filter((p) => !isSeparatorParagraph(p));
-  if (paragraphs.length === 0) return normalized;
-
-  return injectParagraphMarkers(paragraphs.join('\n\n'));
+export function stripParagraphMarkers(text: string): string {
+  return text.replace(/--para:[^\n]*?--/g, '').trim();
 }
 
 /**
- * Inject --para:{id}-- markers when absent. Skips paragraphs that already start with a marker.
+ * Split text into paragraph bodies (production parseTextToParagraphs logic).
+ * Strips existing markers first so partial marker coverage still re-splits correctly.
+ */
+export function splitTextToParagraphContents(text: string): string[] {
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+  const plain = textHasParagraphMarkers(normalized)
+    ? stripParagraphMarkers(normalized)
+    : normalized;
+  return splitIntoParagraphs(plain).filter((p) => !isSeparatorParagraph(p));
+}
+
+function buildAutoMarkedParagraphs(paragraphs: string[]): string {
+  return markParagraphContentsForTranslation(paragraphs);
+}
+
+/** Mark paragraph bodies for translation pipeline (Lab: auto_N ids; prod may pass UUIDs). */
+export function markParagraphContentsForTranslation(paragraphs: string[], ids?: string[]): string {
+  if (paragraphs.length === 0) return '';
+  return paragraphs
+    .map((para, i) => {
+      const id = ids?.[i] ?? `auto_${i}`;
+      return `${PARA_MARKER_PREFIX}${id}${PARA_MARKER_SUFFIX}${para}`;
+    })
+    .join('\n\n');
+}
+
+/**
+ * Canonical Lab source text: always re-parse from plain text (strip markers, split, re-inject).
+ */
+export function normalizeLabSourceText(text: string): string {
+  if (!text.trim()) return text;
+  const paragraphs = splitTextToParagraphContents(text);
+  if (paragraphs.length === 0) return text.replace(/\r\n/g, '\n').trim() || text;
+  return buildAutoMarkedParagraphs(paragraphs);
+}
+
+/** SSOT for translate stage source — same as normalizeLabSourceText (Reader always marks before translate). */
+export const prepareTranslateSourceText = normalizeLabSourceText;
+
+/**
+ * Inject --para:{id}-- markers when absent. Re-normalizes partial marker coverage.
  */
 export function injectParagraphMarkers(text: string, ids?: string[]): string {
   if (!text.trim()) return text;
   if (textHasParagraphMarkers(text)) {
-    return text;
+    const parsed = parseParagraphMarkers(text);
+    const contents = splitTextToParagraphContents(text);
+    if (parsed.length > 1 && parsed.length === contents.length) {
+      return text;
+    }
+    if (contents.length === 0) return text;
+    if (ids?.length) {
+      return contents
+        .map((para, i) => {
+          const id = ids[i] ?? `auto_${i}`;
+          return `${PARA_MARKER_PREFIX}${id}${PARA_MARKER_SUFFIX}${para}`;
+        })
+        .join('\n\n');
+    }
+    return buildAutoMarkedParagraphs(contents);
   }
 
-  const paragraphs = splitIntoParagraphs(text);
+  const paragraphs = splitTextToParagraphContents(text);
   if (paragraphs.length === 0) return text;
 
   return paragraphs
@@ -78,10 +119,6 @@ export function injectParagraphMarkers(text: string, ids?: string[]): string {
       return `${PARA_MARKER_PREFIX}${id}${PARA_MARKER_SUFFIX}${para}`;
     })
     .join('\n\n');
-}
-
-export function stripParagraphMarkers(text: string): string {
-  return text.replace(/--para:[^\n]*?--/g, '').trim();
 }
 
 export interface ParsedParagraphMarker {
@@ -111,19 +148,22 @@ export function parseParagraphMarkers(text: string): ParsedParagraphMarker[] {
 }
 
 /**
- * Split text into display paragraphs: use marker ids when present, else split by blank lines.
+ * Split text into display paragraphs: blank-line split (production logic), marker ids when aligned.
  */
 export function textToDisplayParagraphs(text: string): { id?: string; text: string }[] {
   if (!text.trim()) return [];
 
+  const contents = splitTextToParagraphContents(text);
+  if (contents.length === 0) return [];
+
   if (textHasParagraphMarkers(text)) {
     const parsed = parseParagraphMarkers(text);
-    if (parsed.length > 0) {
-      return parsed.map((p) => ({ id: p.id, text: p.text }));
+    if (parsed.length === contents.length && parsed.length > 0) {
+      return contents.map((body, i) => ({ id: parsed[i]?.id ?? `auto_${i}`, text: body }));
     }
   }
 
-  return splitIntoParagraphs(text).map((p, i) => ({ id: `auto_${i}`, text: p }));
+  return contents.map((p, i) => ({ id: `auto_${i}`, text: p }));
 }
 
 export interface JsonParagraphRow {
@@ -170,4 +210,48 @@ export function jsonParagraphsHaveMarkers(paras: JsonParagraphRow[]): boolean {
     const t = (p.translated ?? '').trim();
     return t.startsWith(PARA_MARKER_PREFIX);
   });
+}
+
+/**
+ * Normalized --para:…-- ids present in chunk source text (SSOT for expected JSON rows).
+ */
+export function collectExpectedParagraphMarkerIds(chunkContent: string): Set<string> {
+  const parsed = parseParagraphMarkers(chunkContent);
+  const ids = new Set<string>();
+  for (const p of parsed) {
+    const norm = normalizeParagraphId(p.id);
+    if (norm) {
+      ids.add(norm);
+    } else if (p.id) {
+      ids.add(`${PARA_MARKER_PREFIX}${p.id}${PARA_MARKER_SUFFIX}`);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Keep only JSON paragraph rows that belong to the current chunk.
+ * When chunk has no markers, cap to expected paragraph count from content split.
+ */
+export function filterJsonParagraphsToChunk(
+  paras: JsonParagraphRow[],
+  chunkContent: string
+): JsonParagraphRow[] {
+  const expectedIds = collectExpectedParagraphMarkerIds(chunkContent);
+
+  if (expectedIds.size > 0) {
+    return paras.filter((p) => {
+      const id = normalizeParagraphId(p.id);
+      if (id && expectedIds.has(id)) return true;
+      const translated = (p.translated ?? '').trim();
+      const markerMatch = /^(--para:[^\n]*?--)/.exec(translated);
+      return markerMatch !== null && expectedIds.has(markerMatch[1]);
+    });
+  }
+
+  const expectedCount = splitTextToParagraphContents(chunkContent).length;
+  if (expectedCount > 0 && paras.length > expectedCount) {
+    return paras.slice(0, expectedCount);
+  }
+  return paras;
 }

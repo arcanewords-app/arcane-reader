@@ -25,6 +25,7 @@
   "include": [
     "src/prompt-lab-app/**/*",
     "src/shared/llmModels.ts",
+    "src/shared/scraperChapter.ts",
     "src/engine/utils/para-markers.ts"
   ],
   "exclude": ["node_modules"]

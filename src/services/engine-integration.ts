@@ -22,7 +22,9 @@ import {
   type Gender,
   type Declensions,
   type Language,
+  normalizeEditingFocus,
 } from '../engine/index.js';
+import { isReasoningModel } from '../shared/openaiModelAdapter.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { getCachedAnalysisResult, setCachedAnalysisResult } from './analysisCache.js';
 
@@ -223,7 +225,6 @@ export function createPipeline(
   const rawAnalysisModel = modelForChatCompletions(
     getStageModel(project, 'analysis', 'gpt-4.1-mini')
   );
-  const isReasoningModel = (m: string) => /^gpt-5|^o1-|^o3-|^o4-/i.test(m);
   const allowReasoning = project.settings?.allowReasoningModelsForAnalysis === true;
   const analysisModel =
     isReasoningModel(rawAnalysisModel) && !allowReasoning ? 'gpt-4.1-mini' : rawAnalysisModel;
@@ -455,7 +456,7 @@ export async function translateChapterWithPipeline(
         customInstructions: project.settings.customInstructions,
       }),
       editingStylePreset: project.settings.editingStylePreset ?? 'default',
-      editingFocus: project.settings.editingFocus ?? 'both',
+      editingFocus: normalizeEditingFocus(project.settings.editingFocus),
       ...(options.onProgress && { onProgress: options.onProgress }),
     };
     if (Array.isArray(stages)) {

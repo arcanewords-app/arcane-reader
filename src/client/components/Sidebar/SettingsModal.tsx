@@ -12,6 +12,7 @@ import {
   type ProjectSourceLanguage,
   type ProjectTargetLanguage,
 } from '../../constants/translationLanguages';
+import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
 import {
   DEFAULT_TEXT_BLOCK_TYPES,
   LITRPG_PRESET,
@@ -552,12 +553,9 @@ export function SettingsModal({
               </label>
               <select
                 class="setting-select"
-                value={settings.editingFocus ?? 'both'}
+                value={normalizeEditingFocus(settings.editingFocus)}
                 onChange={async (e) => {
-                  const value = (e.target as HTMLSelectElement).value as
-                    | 'fix_problems'
-                    | 'style_only'
-                    | 'both';
+                  const value = (e.target as HTMLSelectElement).value as EditingFocus;
                   const updated = await api.updateSettings(project.id, {
                     editingFocus: value,
                   });
@@ -574,9 +572,9 @@ export function SettingsModal({
                   marginBottom: '0.5rem',
                 }}
               >
-                <option value="fix_problems">{t('settings.editingFocus.fix_problems')}</option>
-                <option value="style_only">{t('settings.editingFocus.style_only')}</option>
-                <option value="both">{t('settings.editingFocus.both')}</option>
+                <option value="fix_only">{t('settings.editingFocus.fix_only')}</option>
+                <option value="polish">{t('settings.editingFocus.polish')}</option>
+                <option value="elevate">{t('settings.editingFocus.elevate')}</option>
               </select>
             </div>
             <div style={{ marginTop: '0.75rem' }}>

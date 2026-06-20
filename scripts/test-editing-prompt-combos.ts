@@ -1,6 +1,6 @@
 /**
  * A/B comparison of editing prompt combinations (run: npm run test:editing-prompts).
- * Verifies system/user prompt structure for ai_revivification+fix_problems vs minimal+fix_problems.
+ * Verifies system/user prompt structure for ai_revivification+fix_only vs minimal+fix_only.
  */
 import assert from 'node:assert/strict';
 import { getEditorSystemPrompt, createEditorPrompt } from '../src/engine/prompts/system/editor.js';
@@ -23,19 +23,13 @@ function printCombo(label: string, system: string, user: string): void {
   console.log(`System starts with: ${system.slice(0, 80).replace(/\n/g, ' ')}...`);
 }
 
-// --- System prompt combos (fix_problems focus) ---
+// --- System prompt combos (fix_only focus) ---
 {
-  const aiFix = getEditorSystemPrompt('ai_revivification', 'fix_problems', 'ru');
-  const minimalFix = getEditorSystemPrompt('minimal', 'fix_problems', 'ru');
+  const aiFix = getEditorSystemPrompt('ai_revivification', 'fix_only', 'ru');
+  const minimalFix = getEditorSystemPrompt('minimal', 'fix_only', 'ru');
 
-  assert.ok(
-    aiFix.startsWith('## Priority: Fix Problems Only'),
-    'fix_problems overlay must be first'
-  );
-  assert.ok(
-    minimalFix.startsWith('## Priority: Fix Problems Only'),
-    'fix_problems overlay must be first'
-  );
+  assert.ok(aiFix.startsWith('## Priority: Fix Only'), 'fix_only overlay must be first');
+  assert.ok(minimalFix.startsWith('## Priority: Fix Only'), 'fix_only overlay must be first');
   assert.ok(aiFix.includes('Revivification'), 'ai_revivification style block present');
   assert.ok(aiFix.includes('канцеляризмы'), 'ai_revivification Russian cues present');
   assert.ok(minimalFix.includes('minimal, essential edits'), 'minimal style block present');
@@ -49,11 +43,11 @@ function printCombo(label: string, system: string, user: string): void {
   // ai_revivification is longer (more stylistic instructions despite fix overlay)
   assert.ok(
     approxTokens(aiFix) > approxTokens(minimalFix),
-    'ai_revivification+fix_problems system prompt should be longer than minimal+fix_problems'
+    'ai_revivification+fix_only system prompt should be longer than minimal+fix_only'
   );
 
-  printCombo('ai_revivification + fix_problems (system)', aiFix, '');
-  printCombo('minimal + fix_problems (system)', minimalFix, '');
+  printCombo('ai_revivification + fix_only (system)', aiFix, '');
+  printCombo('minimal + fix_only (system)', minimalFix, '');
 }
 
 // --- User prompt: chapter cast always injected on edit ---

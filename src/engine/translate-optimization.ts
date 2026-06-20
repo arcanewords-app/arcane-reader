@@ -7,6 +7,7 @@ import {
   resolveTranslationChunkSize,
   MINI_MODEL_TRANSLATION_CHUNK_SIZE,
 } from '../shared/translationChunkPresets.js';
+import { isReasoningModel } from '../shared/openaiModelAdapter.js';
 
 export interface TranslateOptimizationFlags {
   enableFewShot: boolean;
@@ -38,10 +39,14 @@ export function resolveTranslateOptimizationFlags(
 
   const enableCoT = input.enableTranslateCoT ?? input.pipelineOptions?.enableTranslateCoT ?? false;
 
-  const enableStructuredCoT =
-    input.enableTranslateStructuredCoT ??
-    input.pipelineOptions?.enableTranslateStructuredCoT ??
-    enableCoT;
+  const explicitStructured =
+    input.enableTranslateStructuredCoT ?? input.pipelineOptions?.enableTranslateStructuredCoT;
+
+  // Structured json_schema is opt-in only — never inherit from enableCoT.
+  let enableStructuredCoT = explicitStructured === true;
+  if (explicitStructured === undefined && input.modelId && isReasoningModel(input.modelId)) {
+    enableStructuredCoT = false;
+  }
 
   let leadingContextParagraphs =
     input.translateLeadingContextParagraphs ??

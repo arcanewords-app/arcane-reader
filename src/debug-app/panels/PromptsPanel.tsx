@@ -41,6 +41,21 @@ export function PromptsPanel({ active, onOpenTrace }: PromptsPanelProps) {
       render: (c) => c.method,
     },
     {
+      key: 'finishReason',
+      header: 'Finish',
+      render: (c) => c.finishReason ?? '—',
+    },
+    {
+      key: 'reasoningTokens',
+      header: 'Reasoning',
+      render: (c) => (c.reasoningTokens != null ? String(c.reasoningTokens) : '—'),
+    },
+    {
+      key: 'attempt',
+      header: 'Attempt',
+      render: (c) => (c.attempt != null ? String(c.attempt) : '—'),
+    },
+    {
       key: 'stage',
       header: 'Stage',
       render: (c) => c.stage ?? '—',

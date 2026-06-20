@@ -21,6 +21,7 @@ import type {
   TranslationStageKind,
 } from '../../types';
 import { isChunkError } from '../../../shared/chunkErrors';
+import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
 import { estimateTokensForChapterTitles } from '../../config/tokenEstimate';
 import './TranslationPanel.css';
 
@@ -161,7 +162,7 @@ export function TranslationPanel({
 
   const includeGlossaryInEditing = project.settings?.includeGlossaryInEditing ?? true;
   const editingStylePreset = project.settings?.editingStylePreset ?? 'default';
-  const editingFocus = project.settings?.editingFocus ?? 'both';
+  const editingFocus = normalizeEditingFocus(project.settings?.editingFocus);
 
   const handleToggleIncludeGlossaryInEditing = useCallback(async () => {
     const updated = await api.updateSettings(project.id, {
@@ -187,7 +188,7 @@ export function TranslationPanel({
 
   const handleEditingFocusChange = useCallback(
     async (e: Event) => {
-      const value = (e.target as HTMLSelectElement).value as 'fix_problems' | 'style_only' | 'both';
+      const value = (e.target as HTMLSelectElement).value as EditingFocus;
       const updated = await api.updateSettings(project.id, {
         editingFocus: value,
       });
@@ -471,9 +472,9 @@ export function TranslationPanel({
                 marginBottom: '0.5rem',
               }}
             >
-              <option value="fix_problems">{t('settings.editingFocus.fix_problems')}</option>
-              <option value="style_only">{t('settings.editingFocus.style_only')}</option>
-              <option value="both">{t('settings.editingFocus.both')}</option>
+              <option value="fix_only">{t('settings.editingFocus.fix_only')}</option>
+              <option value="polish">{t('settings.editingFocus.polish')}</option>
+              <option value="elevate">{t('settings.editingFocus.elevate')}</option>
             </select>
           </div>
           <div>

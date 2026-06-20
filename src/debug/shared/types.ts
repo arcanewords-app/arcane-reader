@@ -66,6 +66,11 @@ export interface CapturedLlmCall {
   userPreview: string;
   responsePreview: string;
   tokens?: { prompt: number; completion: number; total: number };
+  finishReason?: string | null;
+  reasoningTokens?: number | null;
+  contentLength?: number;
+  attempt?: number;
+  schemaName?: string;
 }
 
 export interface TraceDetailSummary {

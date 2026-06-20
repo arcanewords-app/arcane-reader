@@ -8,6 +8,7 @@ import type {
   WorkbenchLoadState,
 } from './api/client.js';
 import { fetchMeta } from './api/client.js';
+import { normalizeLabSourceText } from '@engine/utils/para-markers.js';
 import { WorkbenchPanel, type WorkbenchRunControl } from './panels/WorkbenchPanel.js';
 import { TextsPanel } from './panels/TextsPanel.js';
 import { RunsPanel } from './panels/RunsPanel.js';
@@ -56,8 +57,10 @@ export function App() {
       pushWorkbenchLoad({
         sourceLanguage: text.sourceLanguage,
         targetLanguage: text.targetLanguage,
-        sourceText: text.content,
-        translatedText: text.translatedText ?? '',
+        sourceText: normalizeLabSourceText(text.content),
+        translatedText: text.translatedText?.trim()
+          ? normalizeLabSourceText(text.translatedText)
+          : '',
         glossarySnapshot: text.glossarySnapshot,
         stage: (text.stageHint as LabStage) ?? undefined,
       });
@@ -72,8 +75,10 @@ export function App() {
         stage: run.stage,
         sourceLanguage: params.sourceLanguage as WorkbenchLoadState['sourceLanguage'],
         targetLanguage: params.targetLanguage as WorkbenchLoadState['targetLanguage'],
-        sourceText: run.inputSnapshot.sourceText,
-        translatedText: run.inputSnapshot.translatedText ?? '',
+        sourceText: normalizeLabSourceText(run.inputSnapshot.sourceText),
+        translatedText: run.inputSnapshot.translatedText?.trim()
+          ? normalizeLabSourceText(run.inputSnapshot.translatedText)
+          : '',
         glossarySnapshot: run.inputSnapshot.glossarySnapshot ?? undefined,
         systemPrompt: run.inputSnapshot.systemPrompt,
         userPromptOverride: run.inputSnapshot.userPrompt,
@@ -90,12 +95,25 @@ export function App() {
         chunkSize: typeof params.chunkSize === 'number' ? params.chunkSize : undefined,
         enableTranslateFewShot: params.enableTranslateFewShot === true,
         enableTranslateCoT: params.enableTranslateCoT === true,
+        enableTranslateStructuredCoT: params.enableTranslateStructuredCoT === true,
         translateLeadingContextParagraphs:
           typeof params.translateLeadingContextParagraphs === 'number'
             ? params.translateLeadingContextParagraphs
             : undefined,
         miniModelTranslationProfile: params.miniModelTranslationProfile === true,
-        injectMarkers: params.injectMarkers !== false,
+        forceChunked: params.forceChunked === true,
+        translateQualityPreset:
+          params.translateQualityPreset === 'fast' ||
+          params.translateQualityPreset === 'standard' ||
+          params.translateQualityPreset === 'enhanced'
+            ? params.translateQualityPreset
+            : undefined,
+        editQualityPreset:
+          params.editQualityPreset === 'fast' ||
+          params.editQualityPreset === 'standard' ||
+          params.editQualityPreset === 'enhanced'
+            ? params.editQualityPreset
+            : undefined,
         runLabel: typeof params.runLabel === 'string' ? params.runLabel : undefined,
       });
     },

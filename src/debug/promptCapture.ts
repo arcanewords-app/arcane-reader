@@ -19,6 +19,11 @@ export interface CapturedLlmCall {
   userPreview: string;
   responsePreview: string;
   tokens?: { prompt: number; completion: number; total: number };
+  finishReason?: string | null;
+  reasoningTokens?: number | null;
+  contentLength?: number;
+  attempt?: number;
+  schemaName?: string;
 }
 
 const MAX_CAPTURES = 20;
@@ -56,6 +61,11 @@ export function captureLlmCall(params: {
   responseContent: string;
   tokens?: { prompt: number; completion: number; total: number };
   stage?: string;
+  finishReason?: string | null;
+  reasoningTokens?: number | null;
+  contentLength?: number;
+  attempt?: number;
+  schemaName?: string;
 }): void {
   if (!isLlmCaptureEnabled()) return;
 
@@ -79,6 +89,11 @@ export function captureLlmCall(params: {
     userPreview: truncate(userParts.join('\n\n---\n\n') || '(no user)', limit),
     responsePreview: truncate(params.responseContent || '(empty)', limit),
     tokens: params.tokens,
+    finishReason: params.finishReason,
+    reasoningTokens: params.reasoningTokens,
+    contentLength: params.contentLength ?? params.responseContent?.length ?? 0,
+    attempt: params.attempt,
+    schemaName: params.schemaName,
   };
 
   const max = maxCaptures();

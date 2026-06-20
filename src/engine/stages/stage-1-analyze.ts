@@ -18,6 +18,7 @@ import { languageDisplayName } from '../language.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { estimateTokens, splitIntoSections } from '../utils/chunker.js';
 import { log } from '../logger.js';
+import { isReasoningModel } from '../../shared/openaiModelAdapter.js';
 
 interface AnalyzeStageOptions {
   chapterNumber: number;
@@ -25,6 +26,7 @@ interface AnalyzeStageOptions {
   targetLanguage: Language;
   existingGlossary?: Glossary;
   temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   /** Max tokens per section when chunking long chapters. Default 8000. Set to 0 to disable chunking. */
   maxSectionTokens?: number;
   systemPromptOverride?: string;
@@ -257,13 +259,13 @@ export class AnalyzeStage {
 
     const temperature = options.temperature ?? 0.3;
     const model = (this.provider as { model?: string })?.model ?? '';
-    const isReasoningModel = /^gpt-5|^o1-|^o3-|^o4-/i.test(model);
-    if (isReasoningModel) {
+    if (isReasoningModel(model)) {
       log.info('AnalyzeStage: reasoning model in use, first response may take 1–5 minutes');
     }
     const response = await this.provider.completeJSON<RawAnalysisResponse>(messages, {
       temperature,
       maxTokens: 4096,
+      reasoningEffort: options.reasoningEffort,
     });
     const tokensUsed = response.tokensUsed?.total ?? 0;
     const result = this.parseResponse(response.data, options);

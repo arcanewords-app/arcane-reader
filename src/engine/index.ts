@@ -136,8 +136,11 @@ export {
   EDITOR_SYSTEM_PROMPTS,
   createEditorPrompt,
   getEditorSystemPrompt,
+  normalizeEditingFocus,
+  DEFAULT_EDITING_FOCUS,
   QUALITY_CHECK_PROMPT,
   type EditingFocus,
+  type LegacyEditingFocus,
   type EditingStylePreset,
 } from './prompts/system/editor.js';
 
@@ -150,7 +153,9 @@ export {
 export {
   injectParagraphMarkers,
   isSeparatorParagraph,
+  markParagraphContentsForTranslation,
   normalizeLabSourceText,
+  prepareTranslateSourceText,
   parseParagraphMarkers,
   stripParagraphMarkers,
   textToDisplayParagraphs,

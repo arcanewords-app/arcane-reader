@@ -14,7 +14,7 @@ import type { AgentContext } from '../types/agent.js';
 import type { StageResult, EditedTranslation, EditChange } from '../types/pipeline.js';
 import type { TextChunk } from '../types/common.js';
 import type { EditingFocus, EditingStylePreset } from '../prompts/system/editor.js';
-import {
+import { DEFAULT_EDITING_FOCUS, normalizeEditingFocus ,
   createEditorPrompt,
   getEditorSystemPrompt,
   getQualityCheckPrompt,
@@ -35,11 +35,12 @@ interface EditStageOptions {
   /** When false, do not include glossary in prompt (saves tokens; use larger chunks). Default true. */
   includeGlossary?: boolean;
   temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   /** Custom instructions for editor */
   customInstructions?: string;
   /** Editing style preset: default, literary, minimal, ai_revivification */
   editingStylePreset?: EditingStylePreset;
-  /** Editing focus: fix_problems, style_only, both */
+  /** Editing focus: fix_only, polish, elevate (legacy values normalized at runtime) */
   editingFocus?: EditingFocus;
   /** Number of retries for a failed chunk (default 2 = up to 3 attempts total). */
   chunkRetryAttempts?: number;
@@ -59,6 +60,10 @@ interface EditStageOptions {
   chapterNumber?: number;
   systemPromptOverride?: string;
   userPromptOverride?: string;
+  /** Force token chunking even for short drafts (Lab fast preset / A/B). */
+  forceChunked?: boolean;
+  /** Skip auto-chunk threshold; one API request when draft fits (Lab enhanced). */
+  forceSingleShot?: boolean;
 }
 
 interface QualityCheckResponse {
@@ -138,7 +143,9 @@ export class EditStage {
 
       // Chunked or single-request editing (glossary + style only; no original text in prompt)
       const estimatedTokens = Math.ceil(translatedText.length / 4);
-      const useChunkedEditing = options.chunkSize !== undefined || estimatedTokens > 3000;
+      const useChunkedEditing =
+        options.forceChunked === true ||
+        (!options.forceSingleShot && (options.chunkSize !== undefined || estimatedTokens > 3000));
 
       if (useChunkedEditing) {
         usedChunkedOrPairs = true;
@@ -151,7 +158,7 @@ export class EditStage {
 
         const editTemp = options.temperature ?? 0.5;
         const preset = options.editingStylePreset ?? 'default';
-        const focus = options.editingFocus ?? 'both';
+        const focus = normalizeEditingFocus(options.editingFocus);
         const retryAttempts = options.chunkRetryAttempts ?? 2;
         const retryDelayMs = options.chunkRetryDelayMs ?? 1500;
         const parallelChunks = Math.max(1, options.parallelChunks ?? 1);
@@ -173,7 +180,8 @@ export class EditStage {
           options.context.targetLanguage,
           chapterCastText,
           options.systemPromptOverride,
-          options.userPromptOverride
+          options.userPromptOverride,
+          options.reasoningEffort
         );
 
         editedText = chunkedResult.text;
@@ -193,7 +201,7 @@ export class EditStage {
           options.systemPromptOverride ??
           getEditorSystemPrompt(
             options.editingStylePreset ?? 'default',
-            options.editingFocus ?? 'both',
+            normalizeEditingFocus(options.editingFocus),
             options.context.targetLanguage
           );
         const defaultUser = createEditorPrompt(
@@ -216,6 +224,7 @@ export class EditStage {
         const editResponse = await this.provider.complete(messages, {
           temperature: editTemp,
           maxTokens: 8192,
+          reasoningEffort: options.reasoningEffort,
         });
 
         totalTokens += editResponse.tokensUsed.total;
@@ -402,7 +411,7 @@ export class EditStage {
     includeGlossary: boolean = true,
     customInstructions?: string,
     editingStylePreset: EditingStylePreset = 'default',
-    editingFocus: EditingFocus = 'both',
+    editingFocus: EditingFocus = DEFAULT_EDITING_FOCUS,
     retryAttempts: number = 2,
     retryDelayMs: number = 1500,
     parallelChunks: number = 1,
@@ -411,7 +420,8 @@ export class EditStage {
     targetLanguage?: import('../types/common.js').Language,
     chapterCastText?: string,
     systemPromptOverride?: string,
-    userPromptOverride?: string
+    userPromptOverride?: string,
+    reasoningEffort?: 'low' | 'medium' | 'high'
   ): Promise<{ text: string; tokensUsed: number }> {
     const translatedChunks = chunkText(translatedText, {
       maxTokens: chunkSize,
@@ -438,6 +448,7 @@ export class EditStage {
         fullGlossary,
         styleNotes,
         temperature,
+        reasoningEffort,
         includeGlossary,
         customInstructions,
         editingStylePreset,
@@ -513,6 +524,7 @@ export class EditStage {
       fullGlossary: import('../types/agent.js').AgentContext['glossary'];
       styleNotes: string;
       temperature: number;
+      reasoningEffort?: 'low' | 'medium' | 'high';
       includeGlossary: boolean;
       customInstructions?: string;
       editingStylePreset: EditingStylePreset;
@@ -555,7 +567,8 @@ export class EditStage {
           opts.targetLanguage,
           opts.chapterCastText,
           opts.systemPromptOverride,
-          opts.userPromptOverride
+          opts.userPromptOverride,
+          opts.reasoningEffort
         );
 
         if (!editResult.text || editResult.text.trim().length === 0) {
@@ -624,11 +637,12 @@ export class EditStage {
     includeGlossary: boolean = true,
     customInstructions?: string,
     editingStylePreset: EditingStylePreset = 'default',
-    editingFocus: EditingFocus = 'both',
+    editingFocus: EditingFocus = DEFAULT_EDITING_FOCUS,
     targetLanguage?: import('../types/common.js').Language,
     chapterCastText?: string,
     systemPromptOverride?: string,
-    userPromptOverride?: string
+    userPromptOverride?: string,
+    reasoningEffort?: 'low' | 'medium' | 'high'
   ): Promise<{ text: string; tokensUsed: number }> {
     const targetLabel = targetLanguage ? languageDisplayName(targetLanguage) : undefined;
     const glossaryText =
@@ -660,6 +674,7 @@ export class EditStage {
     const editResponse = await this.provider.complete(messages, {
       temperature,
       maxTokens: 8192,
+      reasoningEffort,
     });
 
     return {

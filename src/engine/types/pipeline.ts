@@ -25,6 +25,13 @@ export interface TranslationDraft {
   originalText: string;
   translatedText: string;
   chunkResults: ChunkTranslation[];
+  translateChunking?: {
+    mode: 'single_shot' | 'chunked';
+    reason: string;
+    estimatedInputTokens: number;
+    estimatedOutputTokens: number;
+    effectiveMaxTokens: number;
+  };
 }
 
 export interface ChunkTranslation {
@@ -34,6 +41,10 @@ export interface ChunkTranslation {
   notes?: string;
   /** Present when chunk failed after retries; translated contains formatChunkError(msg). */
   error?: string;
+  /** Which LLM completion path produced the translation. */
+  completionPath?: 'structured' | 'json_object' | 'text';
+  /** finish_reason from the successful provider call (text path only). */
+  finishReason?: 'stop' | 'length' | 'content_filter' | 'error';
 }
 
 export interface EditedTranslation {
@@ -92,6 +103,8 @@ export interface PipelineOptions {
   parallelChunks?: number;
   /** When true, never split a single paragraph into smaller chunks (chunker). Default true. */
   neverSplitParagraphs?: boolean;
+  /** Force token chunking even when CoT/leading context would prefer single-shot. */
+  forceChunked?: boolean;
   /** When false, analysis stage does not receive existing glossary (saves tokens). Default true. */
   includeGlossaryInAnalysis?: boolean;
   /** Max tokens per section for chunked analysis of long chapters. Default 8000. Set 0 to disable. */
@@ -106,7 +119,7 @@ export interface PipelineOptions {
   customInstructions?: { translation?: string; editing?: string };
   /** Editing style preset: default, literary, minimal, ai_revivification */
   editingStylePreset?: import('../prompts/system/editor.js').EditingStylePreset;
-  /** Editing focus: fix_problems, style_only, both */
+  /** Editing focus: fix_only, polish, elevate */
   editingFocus?: import('../prompts/system/editor.js').EditingFocus;
   /** When true, run quality check after chunked editing. Default false. */
   checkQualityForChunked?: boolean;

@@ -14,7 +14,22 @@ import { appendGenderAgreement } from '../shared/gender-agreement.js';
 
 export type EditingStylePreset = 'default' | 'literary' | 'minimal' | 'ai_revivification';
 
-export type EditingFocus = 'fix_problems' | 'style_only' | 'both';
+export type EditingFocus = 'fix_only' | 'polish' | 'elevate';
+
+/** @deprecated Legacy values stored in DB / old runs — normalize via {@link normalizeEditingFocus}. */
+export type LegacyEditingFocus = 'fix_problems' | 'style_only' | 'both';
+
+export const DEFAULT_EDITING_FOCUS: EditingFocus = 'polish';
+
+export function normalizeEditingFocus(
+  focus?: EditingFocus | LegacyEditingFocus | string | null
+): EditingFocus {
+  if (focus === 'fix_only' || focus === 'polish' || focus === 'elevate') return focus;
+  if (focus === 'fix_problems') return 'fix_only';
+  if (focus === 'style_only') return 'elevate';
+  if (focus === 'both') return 'polish';
+  return DEFAULT_EDITING_FOCUS;
+}
 
 export type EditorTargetLanguage = 'ru' | 'be';
 
@@ -170,19 +185,29 @@ Your task:
 - Over-localize cultural elements
 ${EDITOR_COMMON_RULES}`;
 
-/** Focus overlays: short instructions prepended to system prompt when editing focus is set */
+/** Focus overlays: short instructions prepended to system prompt */
 const FOCUS_OVERLAYS: Record<EditingFocus, string> = {
-  fix_problems: `
-## Priority: Fix Problems Only
+  fix_only: `
+## Priority: Fix Only
 
-Focus only on fixing errors (grammar, ВЫ/ТЫ, context, declension). Preserve style and structure. Do not rephrase for stylistic effect.
+Fix errors only: grammar, punctuation, ВЫ/ТЫ, declension endings, glossary consistency, paragraph/block markers.
+Preserve sentence structure and wording. Do not rephrase for stylistic effect.
 `,
-  style_only: `
-## Priority: Style Improvement
+  polish: `
+## Priority: Polish (Light Pass)
 
-Focus on improving style and tone. Make minimal error corrections. Prioritize expressiveness and natural flow.
+The draft translation is already good. Polish for natural Russian/Belarusian without heavy rewriting.
+- Fix clear errors, lexical repetition (within paragraphs), and unnatural collocations
+- Smooth calques and awkward micro-phrasing **within the existing sentence structure**
+- Do not restructure sentences unless required for grammar
+- Do not add literary embellishment beyond the text
 `,
-  both: '',
+  elevate: `
+## Priority: Literary Elevation
+
+Improve rhythm, flow, and expressiveness. You may rephrase and restructure sentences for a more engaging read.
+Fix errors along the way. Preserve meaning, glossary terms, character voices, and all markers.
+`,
 };
 
 const EDITOR_DEFAULT_BE = `You are an expert literary editor specializing in translated fiction into Belarusian (наркамаўka).
@@ -300,14 +325,15 @@ function resolveEditorTargetLanguage(targetLanguage?: Language): EditorTargetLan
 
 export function getEditorSystemPrompt(
   preset: EditingStylePreset = 'default',
-  focus: EditingFocus = 'both',
+  focus: EditingFocus | LegacyEditingFocus = DEFAULT_EDITING_FOCUS,
   targetLanguage?: Language
 ): string {
   const target = resolveEditorTargetLanguage(targetLanguage);
   const prompts = target === 'be' ? EDITOR_SYSTEM_PROMPTS_BE : EDITOR_SYSTEM_PROMPTS;
   const stylePrompt = prompts[preset];
-  const focusOverlay = FOCUS_OVERLAYS[focus];
-  const base = focusOverlay ? focusOverlay.trim() + '\n\n' + stylePrompt : stylePrompt;
+  const normalizedFocus = normalizeEditingFocus(focus);
+  const focusOverlay = FOCUS_OVERLAYS[normalizedFocus];
+  const base = focusOverlay.trim() + '\n\n' + stylePrompt;
   return appendGenderAgreement(base, targetLanguage);
 }
 

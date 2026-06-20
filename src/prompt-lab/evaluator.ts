@@ -29,6 +29,7 @@ export interface RunEvaluationInput {
   rightMode: 'source' | 'output';
   referenceRun?: PromptLabRunRow | null;
   model?: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   glossarySnapshot?: GlossaryImportEntry[];
 }
 
@@ -189,7 +190,7 @@ export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    { temperature: 0.3, maxTokens: 8192 }
+    { temperature: 0.3, maxTokens: 8192, reasoningEffort: input.reasoningEffort }
   );
 
   const result = normalizeEvaluationResult(response.data);

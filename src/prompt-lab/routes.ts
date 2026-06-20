@@ -25,7 +25,15 @@ import {
   parseProjectLanguage,
   SUPPORTED_TRANSLATION_PAIRS,
 } from '../engine/index.js';
-import { analysisExcludedModelIds, DEFAULT_LLM_MODEL, LLM_MODELS } from '../shared/llmModels.js';
+import {
+  analysisExcludedModelIds,
+  DEFAULT_LLM_MODEL,
+  modelsForPromptLabStage,
+  promptLabModelCapabilitiesForUi,
+  PROMPT_LAB_ANALYZE_MODELS,
+  PROMPT_LAB_EDIT_MODELS,
+  PROMPT_LAB_TRANSLATE_MODELS,
+} from '../shared/llmModels.js';
 import { parseGlossaryImportFile } from '../services/glossaryImportExport.js';
 import {
   deletePromptLabPrompt,
@@ -97,10 +105,17 @@ export function registerPromptLabRoutes(app: Express): void {
       pairs,
       stages: ['analyze', 'translate', 'edit'],
       presets: ['default', 'literary', 'minimal', 'ai_revivification'],
-      focusOptions: ['fix_problems', 'style_only', 'both'],
+      focusOptions: ['fix_only', 'polish', 'elevate'],
+      editQualityPresets: ['fast', 'standard', 'enhanced'],
       defaultModel,
-      models: LLM_MODELS,
+      models: modelsForPromptLabStage('translate'),
+      modelCapabilities: promptLabModelCapabilitiesForUi(),
       analysisExcludedModels: analysisExcludedModelIds(),
+      promptLabModelsByStage: {
+        analyze: PROMPT_LAB_ANALYZE_MODELS,
+        translate: PROMPT_LAB_TRANSLATE_MODELS,
+        edit: PROMPT_LAB_EDIT_MODELS,
+      },
     });
   });
 
@@ -449,6 +464,7 @@ export function registerPromptLabRoutes(app: Express): void {
         rightMode: parsed.data.rightMode,
         referenceRun,
         model: parsed.data.model,
+        reasoningEffort: parsed.data.reasoningEffort,
         glossarySnapshot: parsed.data.glossarySnapshot,
       });
 
@@ -534,6 +550,7 @@ export function registerPromptLabRoutes(app: Express): void {
         const params: PromptLabRunParams = {
           model: data.model,
           temperature: data.temperature,
+          reasoningEffort: data.reasoningEffort,
           sourceLanguage: data.sourceLanguage,
           targetLanguage: data.targetLanguage,
           preset: data.preset,
@@ -543,12 +560,14 @@ export function registerPromptLabRoutes(app: Express): void {
           chapterNumber: data.chapterNumber,
           chunkSize: data.chunkSize,
           analysisMaxSectionTokens: data.analysisMaxSectionTokens,
-          injectMarkers: data.injectMarkers,
           enableTranslateFewShot: data.enableTranslateFewShot,
           enableTranslateCoT: data.enableTranslateCoT,
           enableTranslateStructuredCoT: data.enableTranslateStructuredCoT,
           translateLeadingContextParagraphs: data.translateLeadingContextParagraphs,
           miniModelTranslationProfile: data.miniModelTranslationProfile,
+          forceChunked: data.forceChunked,
+          translateQualityPreset: data.translateQualityPreset,
+          editQualityPreset: data.editQualityPreset,
           runLabel: data.runLabel,
           userPromptOverride: Boolean(data.userPromptOverride),
         };

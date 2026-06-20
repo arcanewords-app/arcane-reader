@@ -138,7 +138,7 @@ Vite dev proxy: `/debug` → debug app port 5174. See `@docs/02-how-to/debug-tra
 | POST | `/api/prompt-lab/evaluate` | - | LLM translation review (saves to `prompt_lab_evaluations`) |
 | POST | `/api/prompt-lab/evaluate/preview` | - | Build evaluation system/user prompt (no LLM call) |
 | POST | `/api/prompt-lab/glossary/import` | - | Parse glossary JSON/CSV for snapshot |
-| POST | `/api/prompt-lab/run` | - | Ephemeral single-stage run (optional `saveRun`, `injectMarkers`, `runLabel`) |
+| POST | `/api/prompt-lab/run` | - | Ephemeral single-stage run (optional `saveRun`, `runLabel`) |
 
 Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md` and `@.cursor/rules/prompt-lab.mdc`.
 

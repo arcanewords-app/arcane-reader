@@ -1,9 +1,18 @@
 import { z } from 'zod';
+import { normalizeEditingFocus } from '../../shared/editing-focus.js';
 
 const languageSchema = z.enum(['en', 'ko', 'zh', 'ru', 'be']);
 const stageSchema = z.enum(['analyze', 'translate', 'edit']);
 const presetSchema = z.enum(['default', 'literary', 'minimal', 'ai_revivification']);
-const focusSchema = z.enum(['fix_problems', 'style_only', 'both']);
+const focusInputSchema = z.enum([
+  'fix_only',
+  'polish',
+  'elevate',
+  'fix_problems',
+  'style_only',
+  'both',
+]);
+const focusSchema = focusInputSchema.transform((v) => normalizeEditingFocus(v));
 
 const glossarySnapshotSchema = z
   .array(
@@ -48,22 +57,26 @@ export const promptLabPreviewBodySchema = z.object({
   customInstructions: z.string().optional(),
   preset: presetSchema.optional(),
   focus: focusSchema.optional(),
-  injectMarkers: z.boolean().optional(),
 });
+
+const reasoningEffortSchema = z.enum(['low', 'medium', 'high']);
 
 export const promptLabRunBodySchema = promptLabPreviewBodySchema.extend({
   model: z.string().trim().max(200).optional(),
   temperature: z.number().min(0).max(2).optional(),
+  reasoningEffort: reasoningEffortSchema.optional(),
   systemPromptOverride: z.string().optional(),
   userPromptOverride: z.string().optional(),
   chunkSize: z.number().int().positive().optional(),
   analysisMaxSectionTokens: z.number().int().min(0).optional(),
-  injectMarkers: z.boolean().optional(),
   enableTranslateFewShot: z.boolean().optional(),
   enableTranslateCoT: z.boolean().optional(),
   enableTranslateStructuredCoT: z.boolean().optional(),
   translateLeadingContextParagraphs: z.number().int().min(0).max(4).optional(),
   miniModelTranslationProfile: z.boolean().optional(),
+  forceChunked: z.boolean().optional(),
+  translateQualityPreset: z.enum(['fast', 'standard', 'enhanced']).optional(),
+  editQualityPreset: z.enum(['fast', 'standard', 'enhanced']).optional(),
   runLabel: z.string().trim().max(80).optional(),
   saveRun: z.boolean().optional(),
   textId: z.string().uuid().optional(),
@@ -83,6 +96,7 @@ export const promptLabEvaluateBodySchema = z.object({
   rightMode: compareModeSchema.default('output'),
   referenceRunId: z.string().uuid().optional(),
   model: z.string().trim().max(200).optional(),
+  reasoningEffort: reasoningEffortSchema.optional(),
   glossarySnapshot: glossarySnapshotSchema,
 });
 

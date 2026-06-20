@@ -3,6 +3,8 @@ import type { LabStage, LabText } from '../api/client';
 import { deleteText, fetchTexts } from '../api/client';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PlChip } from '../components/PlChip';
+import { PlCollapsible } from '../components/PlCollapsible';
+import { PlParagraphPreview } from '../components/PlParagraphPreview';
 import { langPairLabel } from '../utils/visualTokens';
 
 interface Props {
@@ -124,20 +126,27 @@ export function TextsPanel({ active, onLoad }: Props) {
                 {selected.sourceLanguage}→{selected.targetLanguage}
                 {selected.stageHint ? ` · ${selected.stageHint}` : ''}
               </p>
-              <span class="pl-label">Source</span>
-              <textarea
-                class="pl-textarea pl-textarea--compact"
-                readOnly
-                value={selected.content}
-              />
+              <PlParagraphPreview text={selected.content} label="Source paragraphs" />
+              <PlCollapsible title="Raw source">
+                <textarea
+                  class="pl-textarea pl-textarea--compact"
+                  readOnly
+                  value={selected.content}
+                />
+              </PlCollapsible>
               {selected.translatedText ? (
                 <>
-                  <span class="pl-label">Translated</span>
-                  <textarea
-                    class="pl-textarea pl-textarea--compact"
-                    readOnly
-                    value={selected.translatedText}
+                  <PlParagraphPreview
+                    text={selected.translatedText}
+                    label="Translated paragraphs"
                   />
+                  <PlCollapsible title="Raw translated">
+                    <textarea
+                      class="pl-textarea pl-textarea--compact"
+                      readOnly
+                      value={selected.translatedText}
+                    />
+                  </PlCollapsible>
                 </>
               ) : null}
             </>

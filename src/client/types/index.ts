@@ -333,8 +333,8 @@ export interface ProjectSettings {
   customInstructions?: CustomInstructions;
   /** Editing style preset: default, literary, minimal, ai_revivification */
   editingStylePreset?: 'default' | 'literary' | 'minimal' | 'ai_revivification';
-  /** Editing focus: fix_problems, style_only, both */
-  editingFocus?: 'fix_problems' | 'style_only' | 'both';
+  /** Editing focus: fix_only, polish, elevate */
+  editingFocus?: 'fix_only' | 'polish' | 'elevate';
 }
 
 // === Project Metadata ===

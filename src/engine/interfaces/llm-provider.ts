@@ -14,6 +14,8 @@ export interface CompletionOptions {
   frequencyPenalty?: number;
   presencePenalty?: number;
   stop?: string[];
+  /** Reasoning models only (gpt-5*, o-series). Omitted when unsupported. */
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export interface CompletionResult {
