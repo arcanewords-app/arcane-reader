@@ -56,6 +56,7 @@ import {
   resolvePresetToEditOptions,
   type EditQualityPreset,
 } from '../../shared/edit-quality-presets.js';
+import { EDIT_FOCUS_LABELS, EDIT_STYLE_LABELS } from '../../shared/editing-labels.js';
 import { buildTranslateExecutionPreview } from '@engine/translate-execution-preview.js';
 import { buildEditExecutionPreview } from '@engine/edit-execution-preview.js';
 import { normalizeLabSourceText, prepareTranslateSourceText } from '@engine/utils/para-markers.js';
@@ -109,11 +110,6 @@ function resolveInitialEditPreset(load?: WorkbenchLoadState | null): EditQuality
 const STAGES: LabStage[] = ['analyze', 'translate', 'edit'];
 const PRESETS: EditingPreset[] = ['default', 'literary', 'minimal', 'ai_revivification'];
 const FOCUSES: EditingFocus[] = ['fix_only', 'polish', 'elevate'];
-const EDIT_FOCUS_LABELS: Record<EditingFocus, string> = {
-  fix_only: 'Fix only',
-  polish: 'Polish',
-  elevate: 'Literary elevation',
-};
 
 export interface WorkbenchRunControl {
   running: boolean;
@@ -886,6 +882,18 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
                   }))}
                   onChange={(v) => handleEditQualityPresetChange(v as EditQualityPreset)}
                 />
+                <PlSelect
+                  label="Editing style"
+                  value={preset}
+                  options={PRESETS.map((p) => ({ value: p, label: EDIT_STYLE_LABELS[p] }))}
+                  onChange={(v) => handlePresetChange(v as EditingPreset)}
+                />
+                <PlSelect
+                  label="Editing focus"
+                  value={focus}
+                  options={FOCUSES.map((f) => ({ value: f, label: EDIT_FOCUS_LABELS[f] }))}
+                  onChange={(v) => handleFocusChange(v as EditingFocus)}
+                />
                 <EditExecutionPreviewCard preview={editExecutionPreview} />
               </>
             ) : null}
@@ -1042,18 +1050,6 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
               ) : null}
               {stage === 'edit' ? (
                 <PlCollapsible title="Edit debug overrides">
-                  <PlSelect
-                    label="Style preset override"
-                    value={preset}
-                    options={PRESETS.map((p) => ({ value: p, label: p }))}
-                    onChange={(v) => handlePresetChange(v as EditingPreset)}
-                  />
-                  <PlSelect
-                    label="Focus override"
-                    value={focus}
-                    options={FOCUSES.map((f) => ({ value: f, label: EDIT_FOCUS_LABELS[f] }))}
-                    onChange={(v) => handleFocusChange(v as EditingFocus)}
-                  />
                   {editExecutionPreview?.chunkingMode === 'chunked' ? (
                     <PlSelect
                       label="Chunk size override (tokens)"

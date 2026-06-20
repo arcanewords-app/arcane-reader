@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import type { LabRunOutput } from '../api/client';
 import { editPresetLabel } from '../../shared/edit-quality-presets.js';
+import { EDIT_FOCUS_LABELS, EDIT_STYLE_LABELS } from '../../shared/editing-labels.js';
 
 interface EditRunSummaryProps {
   result: LabRunOutput;
@@ -28,7 +29,8 @@ export function EditRunSummary({ result, draftLength }: EditRunSummaryProps) {
         ) : null}
         <dt>Style / Focus</dt>
         <dd>
-          {debug.editingStylePreset} / {debug.editingFocus}
+          {EDIT_STYLE_LABELS[debug.editingStylePreset] ?? debug.editingStylePreset} /{' '}
+          {EDIT_FOCUS_LABELS[debug.editingFocus] ?? debug.editingFocus}
         </dd>
         <dt>Chunking</dt>
         <dd>

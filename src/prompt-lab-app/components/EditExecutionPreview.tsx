@@ -1,5 +1,6 @@
 import type { EditExecutionPreview } from '@engine/edit-execution-preview.js';
 import { EDIT_QUALITY_PRESETS } from '../../shared/edit-quality-presets.js';
+import { EDIT_FOCUS_LABELS, EDIT_STYLE_LABELS } from '../../shared/editing-labels.js';
 
 interface EditExecutionPreviewCardProps {
   preview: EditExecutionPreview | null;
@@ -7,14 +8,19 @@ interface EditExecutionPreviewCardProps {
 
 export function EditExecutionPreviewCard({ preview }: EditExecutionPreviewCardProps) {
   if (!preview) {
-    return <p class="pl-muted">Add draft text to see execution plan.</p>;
+    return null;
   }
 
   const presetMeta = EDIT_QUALITY_PRESETS.find((p) => p.value === preview.preset);
   const modeLabel =
     preview.chunkingMode === 'single_shot'
       ? 'Single request (1 API call)'
-      : `~${preview.estimatedChunks} chunks (parallel)`;
+      : preview.hasDraftText
+        ? `~${preview.estimatedChunks} chunks (parallel)`
+        : 'Chunked (parallel)';
+
+  const styleLabel = EDIT_STYLE_LABELS[preview.editingStylePreset] ?? preview.editingStylePreset;
+  const focusLabel = EDIT_FOCUS_LABELS[preview.editingFocus] ?? preview.editingFocus;
 
   return (
     <div class="pl-exec-preview">
@@ -28,7 +34,7 @@ export function EditExecutionPreviewCard({ preview }: EditExecutionPreviewCardPr
         </dd>
         <dt>Style / Focus</dt>
         <dd>
-          {preview.editingStylePreset} / {preview.editingFocus}
+          {styleLabel} / {focusLabel}
         </dd>
         {preview.chunkingMode === 'chunked' ? (
           <>
@@ -38,9 +44,15 @@ export function EditExecutionPreviewCard({ preview }: EditExecutionPreviewCardPr
         ) : null}
         <dt>Est. tokens</dt>
         <dd>
-          ~{preview.estimatedInputTokens.toLocaleString()} in / ~
-          {preview.estimatedOutputTokens.toLocaleString()} out · max output{' '}
-          {preview.effectiveMaxTokens.toLocaleString()}
+          {preview.hasDraftText ? (
+            <>
+              ~{preview.estimatedInputTokens.toLocaleString()} in / ~
+              {preview.estimatedOutputTokens.toLocaleString()} out · max output{' '}
+              {preview.effectiveMaxTokens.toLocaleString()}
+            </>
+          ) : (
+            'Add draft for estimates'
+          )}
         </dd>
       </dl>
       {preview.hints.map((hint) => (

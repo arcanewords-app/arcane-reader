@@ -36,6 +36,7 @@ export interface EditExecutionPreview {
   effectiveMaxTokens: number;
   editingStylePreset: EditingStylePreset;
   editingFocus: EditingFocus;
+  hasDraftText: boolean;
   hints: string[];
 }
 
@@ -45,10 +46,8 @@ function estimateChunkCountHeuristic(text: string, chunkSize: number): number {
   return Math.max(1, Math.ceil(tokens / chunkSize));
 }
 
-export function buildEditExecutionPreview(
-  input: EditExecutionPreviewInput
-): EditExecutionPreview | null {
-  if (!input.translatedText.trim()) return null;
+export function buildEditExecutionPreview(input: EditExecutionPreviewInput): EditExecutionPreview {
+  const hasDraftText = input.translatedText.trim().length > 0;
 
   const presetOpts = resolvePresetToEditOptions(input.preset);
   const editingStylePreset = input.stylePresetOverride ?? presetOpts.editingStylePreset;
@@ -69,18 +68,29 @@ export function buildEditExecutionPreview(
   const estimatedChunks =
     chunking.mode === 'single_shot'
       ? 1
-      : estimateChunkCountHeuristic(input.translatedText, chunking.effectiveChunkSize);
+      : hasDraftText
+        ? estimateChunkCountHeuristic(input.translatedText, chunking.effectiveChunkSize)
+        : 0;
 
   const hints: string[] = [];
+  if (!hasDraftText) {
+    hints.push('Add draft text for chunk and token estimates');
+  }
   const draftChars = input.translatedText.length;
   const is41 = input.modelId.toLowerCase().includes('gpt-4.1-mini');
 
-  if (input.preset === 'enhanced' && is41 && chunking.mode === 'chunked' && draftChars >= 12_000) {
+  if (
+    hasDraftText &&
+    input.preset === 'enhanced' &&
+    is41 &&
+    chunking.mode === 'chunked' &&
+    draftChars >= 12_000
+  ) {
     hints.push(
       'Draft is long for gpt-4.1-mini Enhanced. Try gpt-5.4-mini for single-shot on longer chapters.'
     );
   }
-  if (input.preset === 'enhanced' && chunking.mode === 'single_shot') {
+  if (hasDraftText && input.preset === 'enhanced' && chunking.mode === 'single_shot') {
     hints.push('Full draft in one API request.');
   }
   if (input.preset === 'fast') {
@@ -99,6 +109,7 @@ export function buildEditExecutionPreview(
     effectiveMaxTokens: chunking.effectiveMaxTokens,
     editingStylePreset,
     editingFocus,
+    hasDraftText,
     hints,
   };
 }

@@ -18,8 +18,8 @@ describe('buildEditExecutionPreview', () => {
         translatedText: draft,
       });
       assert.ok(preview);
-      assert.equal(preview!.chunkingMode, 'single_shot', modelId);
-      assert.equal(preview!.estimatedChunks, 1, modelId);
+      assert.equal(preview.chunkingMode, 'single_shot', modelId);
+      assert.equal(preview.estimatedChunks, 1, modelId);
     }
   });
 
@@ -30,9 +30,9 @@ describe('buildEditExecutionPreview', () => {
       translatedText: repeatChar('a', 2000),
     });
     assert.ok(preview);
-    assert.equal(preview!.chunkingMode, 'chunked');
-    assert.equal(preview!.effectiveChunkSize, 1200);
-    assert.ok(preview!.estimatedChunks >= 1);
+    assert.equal(preview.chunkingMode, 'chunked');
+    assert.equal(preview.effectiveChunkSize, 1200);
+    assert.ok(preview.estimatedChunks >= 1);
   });
 
   it('standard short draft → single_shot direct', () => {
@@ -42,8 +42,8 @@ describe('buildEditExecutionPreview', () => {
       translatedText: repeatChar('a', 2000),
     });
     assert.ok(preview);
-    assert.equal(preview!.chunkingMode, 'single_shot');
-    assert.equal(preview!.chunkingReason, 'short_draft_direct');
+    assert.equal(preview.chunkingMode, 'single_shot');
+    assert.equal(preview.chunkingReason, 'short_draft_direct');
   });
 
   it('forceChunked overrides enhanced single_shot', () => {
@@ -54,18 +54,33 @@ describe('buildEditExecutionPreview', () => {
       forceChunked: true,
     });
     assert.ok(preview);
-    assert.equal(preview!.chunkingMode, 'chunked');
-    assert.ok(preview!.estimatedChunks > 1);
+    assert.equal(preview.chunkingMode, 'chunked');
+    assert.ok(preview.estimatedChunks > 1);
   });
 
-  it('returns null for empty draft', () => {
-    assert.equal(
-      buildEditExecutionPreview({
-        preset: 'standard',
-        modelId: 'gpt-4.1-mini',
-        translatedText: '',
-      }),
-      null
-    );
+  it('returns config-only preview for empty draft', () => {
+    const preview = buildEditExecutionPreview({
+      preset: 'standard',
+      modelId: 'gpt-4.1-mini',
+      translatedText: '',
+    });
+    assert.equal(preview.hasDraftText, false);
+    assert.equal(preview.preset, 'standard');
+    assert.equal(preview.editingStylePreset, 'default');
+    assert.equal(preview.editingFocus, 'polish');
+    assert.equal(preview.chunkingMode, 'single_shot');
+    assert.equal(preview.estimatedChunks, 1);
+    assert.ok(preview.hints.some((h) => h.includes('Add draft text')));
+  });
+
+  it('fast empty draft → chunked with zero estimated chunks', () => {
+    const preview = buildEditExecutionPreview({
+      preset: 'fast',
+      modelId: 'gpt-4.1-mini',
+      translatedText: '',
+    });
+    assert.equal(preview.hasDraftText, false);
+    assert.equal(preview.chunkingMode, 'chunked');
+    assert.equal(preview.estimatedChunks, 0);
   });
 });
