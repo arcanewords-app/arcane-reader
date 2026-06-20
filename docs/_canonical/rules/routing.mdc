@@ -93,7 +93,12 @@ Most API endpoints validate request body and query parameters using Zod schemas 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/status` | - | System status (AI readiness, storage) |
-| GET | `/api/health` | - | Health check |
+| GET | `/api/health` | - | Health check (shared Redis snapshot + recovery probe when Supabase down) |
+
+**Circuit breaker (503):** `requireHealthySupabase` blocks mutating and private routes when **Supabase** is `down` (Redis cache outages do not trip the breaker). Shared health is stored in Redis (`system:health`, 60s TTL) so warm serverless instances agree. **Exempt:** `/api/status`, `/api/health`, and public read-only GET: `/api/news`, `/api/news/*`, `/api/announcements/active`, `/api/publications`, `/api/publications/*`, `/api/public/entities`, `/api/public/entities/*`.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
 | GET | `/robots.txt` | - | Robots.txt |
 | GET | `/sitemap.xml` | - | Sitemap |
 | GET | `/api/robots` | - | Robots.txt (Vercel rewrite target) |

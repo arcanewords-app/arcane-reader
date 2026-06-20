@@ -7,6 +7,7 @@
 
 import { createServiceRoleClient } from './supabaseClient.js';
 import { hasRedisCache, redisPing } from './redisCache.js';
+import { writeSharedHealth } from './healthSnapshotStore.js';
 import { logger } from '../logger.js';
 
 export type ServiceStatus = 'healthy' | 'degraded' | 'down';
@@ -74,6 +75,36 @@ class ServiceHealthManagerImpl {
     return 'healthy';
   }
 
+  /** Circuit breaker uses Supabase only (Redis is cache, not read SSOT). */
+  getSupabaseStatus(): ServiceStatus {
+    return this.services.get('supabase')?.status ?? 'healthy';
+  }
+
+  applySharedHealth(result: HealthCheckResult): void {
+    for (const [name, health] of Object.entries(result.services)) {
+      const existing = this.services.get(name);
+      if (!existing) continue;
+      const lastCheck =
+        health.lastCheck instanceof Date
+          ? health.lastCheck
+          : new Date(health.lastCheck as unknown as string);
+      const lastHealthy = health.lastHealthy
+        ? health.lastHealthy instanceof Date
+          ? health.lastHealthy
+          : new Date(health.lastHealthy as unknown as string)
+        : null;
+      this.services.set(name, {
+        ...existing,
+        name,
+        status: health.status,
+        lastCheck,
+        lastHealthy,
+        error: health.error,
+        responseTimeMs: health.responseTimeMs,
+      });
+    }
+  }
+
   getHealthResult(): HealthCheckResult {
     const services: Record<string, Omit<ServiceHealth, 'name'> & { name?: string }> = {};
     for (const [name, health] of this.services) {
@@ -102,12 +133,14 @@ class ServiceHealthManagerImpl {
     };
     this.services.set(serviceName, updated);
     logger.warn({ service: serviceName, error }, 'Service health: reported error');
+    void writeSharedHealth(this.getHealthResult());
   }
 
   async checkAll(): Promise<void> {
     await Promise.all(
       Array.from(this.checkers.entries()).map(([name, checker]) => this.checkService(name, checker))
     );
+    await writeSharedHealth(this.getHealthResult());
   }
 
   private async checkService(name: string, checker: ServiceChecker): Promise<void> {

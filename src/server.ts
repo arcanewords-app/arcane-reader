@@ -163,6 +163,7 @@ import {
 } from './middleware/serviceHealth.js';
 import { logger, getLoggingStatus } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
+import { readSharedHealth, shouldAwaitRecoveryProbe } from './services/healthSnapshotStore.js';
 import { isChunkError } from './shared/chunkErrors.js';
 import { registerDebugRoutes } from './debug/routes.js';
 import { registerPromptLabRoutes } from './prompt-lab/routes.js';
@@ -1128,8 +1129,10 @@ app.use(requestContext);
 app.use(requestLogging);
 app.use(httpCaptureMiddleware);
 
-// Circuit breaker: return 503 immediately when Supabase is down (avoids hanging DB calls)
-app.use('/api', requireHealthySupabase);
+// Circuit breaker: return 503 when shared/in-memory Supabase health is down
+app.use('/api', (req, res, next) => {
+  void requireHealthySupabase(req, res, next).catch(next);
+});
 
 // Serve static files - prefer dist/client if exists (production), fallback to public (legacy)
 const distClientPath = path.join(__dirname, '../dist/client');
@@ -1291,35 +1294,48 @@ app.get('/api/status', (_req, res) => {
 // Uses a simple projects select(id) query; actual API handlers (e.g. GET /api/projects)
 // do many more queries (chapters, glossary, etc.) and may fail independently.
 // Returns cached result immediately; refreshes in background when stale (non-blocking).
+// When Supabase is down and snapshot is stale, awaits a live probe (recovery path).
 app.get('/api/health', async (_req, res) => {
   try {
     const now = Date.now();
-    const isStale = !healthSnapshot || now - healthSnapshot.ts > CACHE_TTL.healthSnapshotMs;
 
-    if (isStale) {
-      const lastStatus = healthSnapshot?.data?.status ?? serviceHealthManager.getOverallStatus();
-      const skipBackgroundCheck = lastStatus === 'down';
-
-      if (!skipBackgroundCheck && !healthCheckInProgress) {
-        healthCheckInProgress = serviceHealthManager
-          .checkAll()
-          .then(() => {
-            healthSnapshot = {
-              ts: Date.now(),
-              data: serviceHealthManager.getHealthResult(),
-            };
-          })
-          .catch((err) => {
-            logger.error({ err }, 'Health check background refresh failed');
-            healthSnapshot = {
-              ts: Date.now(),
-              data: serviceHealthManager.getHealthResult(),
-            };
-          })
-          .finally(() => {
-            healthCheckInProgress = null;
-          });
+    if (!healthSnapshot) {
+      const shared = await readSharedHealth();
+      if (shared) {
+        serviceHealthManager.applySharedHealth(shared);
+        healthSnapshot = { ts: now, data: shared };
       }
+    }
+
+    const isStale = !healthSnapshot || now - healthSnapshot.ts > CACHE_TTL.healthSnapshotMs;
+    const supabaseStatus =
+      healthSnapshot?.data.services.supabase?.status ?? serviceHealthManager.getSupabaseStatus();
+
+    if (shouldAwaitRecoveryProbe(isStale, supabaseStatus)) {
+      await serviceHealthManager.checkAll();
+      healthSnapshot = {
+        ts: Date.now(),
+        data: serviceHealthManager.getHealthResult(),
+      };
+    } else if (isStale && !healthCheckInProgress) {
+      healthCheckInProgress = serviceHealthManager
+        .checkAll()
+        .then(() => {
+          healthSnapshot = {
+            ts: Date.now(),
+            data: serviceHealthManager.getHealthResult(),
+          };
+        })
+        .catch((err) => {
+          logger.error({ err }, 'Health check background refresh failed');
+          healthSnapshot = {
+            ts: Date.now(),
+            data: serviceHealthManager.getHealthResult(),
+          };
+        })
+        .finally(() => {
+          healthCheckInProgress = null;
+        });
     }
 
     const result = healthSnapshot ? healthSnapshot.data : serviceHealthManager.getHealthResult();

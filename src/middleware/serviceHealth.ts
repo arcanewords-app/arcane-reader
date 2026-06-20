@@ -3,10 +3,18 @@
  *
  * Catches Supabase and other infrastructure errors, returns 503 Service Unavailable
  * with a structured response, and reports to ServiceHealthManager.
+ *
+ * Circuit breaker: Supabase-only (Redis is cache). Shared health in Redis aligns
+ * warm serverless instances. Public GET catalog/news routes bypass the breaker.
  */
 
 import type { Request, Response, NextFunction } from 'express';
 import { serviceHealthManager } from '../services/serviceHealth.js';
+import {
+  isHealthExemptPath,
+  isPublicReadRoute,
+  resolveSupabaseStatusForBreaker as resolveSupabaseStatus,
+} from '../services/healthCircuitBreaker.js';
 import { logger } from '../logger.js';
 
 /** Node.js error codes for network/connection failures */
@@ -82,12 +90,21 @@ export function sendServiceUnavailable(res: Response, service: string, errorMess
 
 /**
  * Circuit breaker: when Supabase is known down, return 503 immediately without hitting DB.
- * Excludes /api/status and /api/health so they can return cached/static data.
+ * Excludes /api/status, /api/health, and public read-only GET routes.
  */
-export function requireHealthySupabase(req: Request, res: Response, next: NextFunction): void {
+export async function requireHealthySupabase(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const path = req.path;
-  if (path === '/status' || path === '/health') return next();
-  if (serviceHealthManager.getOverallStatus() === 'down') {
+  if (isHealthExemptPath(path) || isPublicReadRoute(req.method, path)) {
+    return next();
+  }
+  const supabaseStatus = await resolveSupabaseStatus(() =>
+    serviceHealthManager.getSupabaseStatus()
+  );
+  if (supabaseStatus === 'down') {
     res.status(503).json({
       error: 'Service temporarily unavailable',
       code: 'SERVICE_UNAVAILABLE',

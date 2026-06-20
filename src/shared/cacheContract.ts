@@ -48,6 +48,8 @@ export const CACHE_TTL = {
   /** Project reports count (translation complaints). */
   redisProjectReportsCountSec: 120,
   healthSnapshotMs: 30_000,
+  /** Shared service health snapshot across serverless instances. */
+  redisServiceHealthSec: 60,
 } as const;
 
 export const CACHE_PREFIX = {
@@ -72,6 +74,7 @@ export const CACHE_PREFIX = {
   analysisResult: 'analysis:result',
   analysisBatchProgress: 'analysis:batch:progress',
   projectReportsCount: 'user:project:reports-count',
+  serviceHealth: 'system:health',
 } as const;
 
 export function cacheVersionedKey(parts: Array<string | number | boolean>): string {

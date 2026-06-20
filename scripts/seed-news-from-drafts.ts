@@ -24,11 +24,13 @@ const PUBLISH_ORDER = [
   'new-language-pairs',
   'glossary-from-external-sources',
   'belarusian',
+  'engine-gpt-54-mini',
 ] as const;
 
 const BANNER_PRIORITY: Record<string, number> = {
   'new-language-pairs': 10,
   belarusian: 20,
+  'engine-gpt-54-mini': 30,
 };
 
 type NewsCategory = 'feature' | 'discount' | 'update' | 'other';
