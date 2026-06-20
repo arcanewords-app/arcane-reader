@@ -595,7 +595,7 @@ export const api = {
 
   async updateSettings(
     projectId: string,
-    settings: Partial<ProjectSettings>
+    settings: Partial<ProjectSettings> | Record<string, unknown>
   ): Promise<ProjectSettings> {
     return fetchJson(`/api/projects/${projectId}/settings`, {
       method: 'PUT',

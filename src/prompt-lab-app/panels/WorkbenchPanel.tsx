@@ -44,22 +44,28 @@ import {
   modelsForPromptLabStage,
 } from '../../shared/llmModels.js';
 import {
-  defaultPresetForModel,
-  inferPresetFromLegacyParams,
-  TRANSLATE_QUALITY_PRESETS,
-  type TranslateQualityPreset,
-} from '../../shared/translate-quality-presets.js';
+  defaultExecutionModeForModel,
+  inferExecutionModeFromLegacyParams,
+  normalizeTranslateExecutionMode,
+  TRANSLATE_EXECUTION_MODES,
+  type TranslateExecutionMode,
+} from '../../shared/translate-execution-modes.js';
 import {
-  defaultEditPresetForModel,
-  inferEditPresetFromLegacyParams,
-  EDIT_QUALITY_PRESETS,
-  resolvePresetToEditOptions,
-  type EditQualityPreset,
-} from '../../shared/edit-quality-presets.js';
+  defaultEditExecutionModeForModel,
+  inferEditExecutionModeFromLegacyParams,
+  normalizeEditExecutionMode,
+  EDIT_EXECUTION_MODES,
+  resolveExecutionModeToEditOptions,
+  type EditExecutionMode,
+} from '../../shared/edit-execution-modes.js';
 import { EDIT_FOCUS_LABELS, EDIT_STYLE_LABELS } from '../../shared/editing-labels.js';
 import { buildTranslateExecutionPreview } from '@engine/translate-execution-preview.js';
 import { buildEditExecutionPreview } from '@engine/edit-execution-preview.js';
-import { normalizeLabSourceText, prepareTranslateSourceText } from '@engine/utils/para-markers.js';
+import {
+  normalizeLabSourceText,
+  normalizeLabTranslatedText,
+  prepareTranslateSourceText,
+} from '@engine/utils/para-markers.js';
 import { formatScraperChapterSaveTitle, readScraperChapterFile } from '@shared/scraperChapter.js';
 import { TRANSLATION_CHUNK_PRESETS } from '../../shared/translationChunkPresets.js';
 import {
@@ -68,43 +74,37 @@ import {
   type StageDraft,
 } from '../utils/stageDraft';
 
-const LAB_CHUNK_OVERRIDE_PRESETS = TRANSLATION_CHUNK_PRESETS.filter((p) => p.value <= 2000);
+const LAB_CHUNK_OVERRIDE_PRESETS = TRANSLATION_CHUNK_PRESETS.filter((p) => p.value <= 4500);
 
-function resolveInitialTranslatePreset(load?: WorkbenchLoadState | null): TranslateQualityPreset {
-  if (
-    load?.translateQualityPreset === 'fast' ||
-    load?.translateQualityPreset === 'standard' ||
-    load?.translateQualityPreset === 'enhanced'
-  ) {
-    return load.translateQualityPreset;
+function resolveInitialTranslateMode(load?: WorkbenchLoadState | null): TranslateExecutionMode {
+  const fromLoad = load?.translateExecutionMode ?? load?.translateQualityPreset;
+  if (typeof fromLoad === 'string') {
+    return normalizeTranslateExecutionMode(fromLoad);
   }
   if (
     load?.enableTranslateCoT ||
     load?.miniModelTranslationProfile ||
     load?.enableTranslateFewShot
   ) {
-    return inferPresetFromLegacyParams({
+    return inferExecutionModeFromLegacyParams({
       enableTranslateCoT: load.enableTranslateCoT,
       enableTranslateFewShot: load.enableTranslateFewShot,
       miniModelTranslationProfile: load.miniModelTranslationProfile,
       translateLeadingContextParagraphs: load.translateLeadingContextParagraphs,
     });
   }
-  return defaultPresetForModel(load?.model ?? 'gpt-4.1-mini');
+  return defaultExecutionModeForModel(load?.model ?? 'gpt-4.1-mini');
 }
 
-function resolveInitialEditPreset(load?: WorkbenchLoadState | null): EditQualityPreset {
-  if (
-    load?.editQualityPreset === 'fast' ||
-    load?.editQualityPreset === 'standard' ||
-    load?.editQualityPreset === 'enhanced'
-  ) {
-    return load.editQualityPreset;
+function resolveInitialEditMode(load?: WorkbenchLoadState | null): EditExecutionMode {
+  const fromLoad = load?.editExecutionMode ?? load?.editQualityPreset;
+  if (typeof fromLoad === 'string') {
+    return normalizeEditExecutionMode(fromLoad);
   }
   if (load?.preset || load?.focus) {
-    return inferEditPresetFromLegacyParams({ preset: load.preset, focus: load.focus });
+    return inferEditExecutionModeFromLegacyParams({ preset: load.preset, focus: load.focus });
   }
-  return defaultEditPresetForModel(load?.model ?? 'gpt-4.1-mini');
+  return defaultEditExecutionModeForModel(load?.model ?? 'gpt-4.1-mini');
 }
 
 const STAGES: LabStage[] = ['analyze', 'translate', 'edit'];
@@ -131,8 +131,8 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   const [targetLanguage, setTargetLanguage] = useState<LabLanguage>(
     initialLoad?.targetLanguage ?? 'ru'
   );
-  const initialEditPreset = resolveInitialEditPreset(initialLoad);
-  const initialEditOpts = resolvePresetToEditOptions(initialEditPreset);
+  const initialEditMode = resolveInitialEditMode(initialLoad);
+  const initialEditOpts = resolveExecutionModeToEditOptions(initialEditMode);
   const [preset, setPreset] = useState<EditingPreset>(
     initialLoad?.preset ?? initialEditOpts.editingStylePreset
   );
@@ -186,11 +186,11 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LabRunOutput | null>(null);
   const [saveRun, setSaveRun] = useState(true);
-  const [translateQualityPreset, setTranslateQualityPreset] = useState<TranslateQualityPreset>(
-    resolveInitialTranslatePreset(initialLoad)
+  const [translateExecutionMode, setTranslateExecutionMode] = useState<TranslateExecutionMode>(
+    resolveInitialTranslateMode(initialLoad)
   );
-  const [editQualityPreset, setEditQualityPreset] = useState<EditQualityPreset>(
-    resolveInitialEditPreset(initialLoad)
+  const [editExecutionMode, setEditExecutionMode] = useState<EditExecutionMode>(
+    resolveInitialEditMode(initialLoad)
   );
   const [chunkSize, setChunkSize] = useState<string>(initialLoad?.chunkSize?.toString() ?? '');
   const [enableStructuredCoT, setEnableStructuredCoT] = useState(
@@ -220,7 +220,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
     const raw = debouncedSourceText.trim();
     const text = raw ? prepareTranslateSourceText(debouncedSourceText) : debouncedSourceText;
     return buildTranslateExecutionPreview({
-      preset: translateQualityPreset,
+      executionMode: translateExecutionMode,
       modelId: effectiveModel,
       sourceText: text,
       targetLanguage,
@@ -232,7 +232,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   }, [
     stage,
     debouncedSourceText,
-    translateQualityPreset,
+    translateExecutionMode,
     effectiveModel,
     targetLanguage,
     includeGlossary,
@@ -244,7 +244,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   const editExecutionPreview = useMemo(() => {
     if (stage !== 'edit') return null;
     return buildEditExecutionPreview({
-      preset: editQualityPreset,
+      executionMode: editExecutionMode,
       modelId: effectiveModel,
       translatedText: debouncedTranslatedText,
       includeGlossary,
@@ -256,7 +256,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   }, [
     stage,
     debouncedTranslatedText,
-    editQualityPreset,
+    editExecutionMode,
     effectiveModel,
     includeGlossary,
     chunkSize,
@@ -462,19 +462,17 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
     if (initialLoad.chunkSize != null) {
       setChunkSize(String(initialLoad.chunkSize));
     }
-    if (
-      initialLoad.translateQualityPreset === 'fast' ||
-      initialLoad.translateQualityPreset === 'standard' ||
-      initialLoad.translateQualityPreset === 'enhanced'
-    ) {
-      setTranslateQualityPreset(initialLoad.translateQualityPreset);
+    const translateFromLoad =
+      initialLoad.translateExecutionMode ?? initialLoad.translateQualityPreset;
+    if (typeof translateFromLoad === 'string') {
+      setTranslateExecutionMode(normalizeTranslateExecutionMode(translateFromLoad));
     } else if (
       initialLoad.enableTranslateCoT ||
       initialLoad.miniModelTranslationProfile ||
       initialLoad.enableTranslateFewShot
     ) {
-      setTranslateQualityPreset(
-        inferPresetFromLegacyParams({
+      setTranslateExecutionMode(
+        inferExecutionModeFromLegacyParams({
           enableTranslateCoT: initialLoad.enableTranslateCoT,
           enableTranslateFewShot: initialLoad.enableTranslateFewShot,
           miniModelTranslationProfile: initialLoad.miniModelTranslationProfile,
@@ -482,15 +480,12 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
         })
       );
     }
-    if (
-      initialLoad.editQualityPreset === 'fast' ||
-      initialLoad.editQualityPreset === 'standard' ||
-      initialLoad.editQualityPreset === 'enhanced'
-    ) {
-      setEditQualityPreset(initialLoad.editQualityPreset);
+    const editFromLoad = initialLoad.editExecutionMode ?? initialLoad.editQualityPreset;
+    if (typeof editFromLoad === 'string') {
+      setEditExecutionMode(normalizeEditExecutionMode(editFromLoad));
     } else if (initialLoad.preset || initialLoad.focus) {
-      setEditQualityPreset(
-        inferEditPresetFromLegacyParams({
+      setEditExecutionMode(
+        inferEditExecutionModeFromLegacyParams({
           preset: initialLoad.preset,
           focus: initialLoad.focus,
         })
@@ -580,9 +575,9 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
     navigateWorkbenchContext({ focus: next });
   };
 
-  const handleEditQualityPresetChange = (next: EditQualityPreset) => {
-    setEditQualityPreset(next);
-    const opts = resolvePresetToEditOptions(next);
+  const handleEditExecutionModeChange = (next: EditExecutionMode) => {
+    setEditExecutionMode(next);
+    const opts = resolveExecutionModeToEditOptions(next);
     setPreset(opts.editingStylePreset);
     setFocus(opts.editingFocus);
   };
@@ -590,7 +585,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   const handleUseInEdit = () => {
     if (!result?.text?.trim()) return;
     setStage('edit');
-    setTranslatedText(normalizeLabSourceText(result.text));
+    setTranslatedText(normalizeLabTranslatedText(result.text));
   };
 
   const handleRun = useCallback(async () => {
@@ -629,7 +624,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
         promptId: promptVersion !== 'current' ? promptVersion : null,
         ...(stage === 'translate'
           ? {
-              translateQualityPreset,
+              translateExecutionMode,
               chunkSize: chunkSize ? parseInt(chunkSize, 10) : undefined,
               enableTranslateStructuredCoT: enableStructuredCoT || undefined,
               forceChunked: forceChunked || undefined,
@@ -637,7 +632,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
           : {}),
         ...(stage === 'edit'
           ? {
-              editQualityPreset,
+              editExecutionMode,
               preset,
               focus,
               chunkSize: chunkSize ? parseInt(chunkSize, 10) : undefined,
@@ -676,8 +671,8 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
     runLabel,
     promptVersion,
     chunkSize,
-    translateQualityPreset,
-    editQualityPreset,
+    translateExecutionMode,
+    editExecutionMode,
     enableStructuredCoT,
     forceChunked,
     running,
@@ -721,7 +716,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
   const handleSaveText = async (title: string) => {
     const normalizedSource = normalizeLabSourceText(sourceText);
     const normalizedTranslated = translatedText.trim()
-      ? normalizeLabSourceText(translatedText)
+      ? normalizeLabTranslatedText(translatedText)
       : undefined;
     setSourceText(normalizedSource);
     if (normalizedTranslated !== undefined) {
@@ -844,11 +839,11 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
                 const next = v === defaultModel ? '' : v;
                 setModel(next);
                 if (stage === 'translate') {
-                  setTranslateQualityPreset(defaultPresetForModel(next || defaultModel));
+                  setTranslateExecutionMode(defaultExecutionModeForModel(next || defaultModel));
                 } else if (stage === 'edit') {
-                  const nextPreset = defaultEditPresetForModel(next || defaultModel);
-                  setEditQualityPreset(nextPreset);
-                  const opts = resolvePresetToEditOptions(nextPreset);
+                  const nextMode = defaultEditExecutionModeForModel(next || defaultModel);
+                  setEditExecutionMode(nextMode);
+                  const opts = resolveExecutionModeToEditOptions(nextMode);
                   setPreset(opts.editingStylePreset);
                   setFocus(opts.editingFocus);
                 }
@@ -859,28 +854,31 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
             {stage === 'translate' ? (
               <>
                 <PlSelect
-                  label="Translation quality"
-                  value={translateQualityPreset}
-                  options={TRANSLATE_QUALITY_PRESETS.map((p) => ({
+                  label="Execution mode"
+                  value={translateExecutionMode}
+                  options={TRANSLATE_EXECUTION_MODES.map((p) => ({
                     value: p.value,
                     label: `${p.label} — ${p.description}`,
                   }))}
-                  onChange={(v) => setTranslateQualityPreset(v as TranslateQualityPreset)}
+                  onChange={(v) => setTranslateExecutionMode(v as TranslateExecutionMode)}
                 />
-                <TranslateExecutionPreviewCard preview={translateExecutionPreview} />
+                <TranslateExecutionPreviewCard
+                  preview={translateExecutionPreview}
+                  actualChunks={result?.translateDebug?.actualChunks}
+                />
               </>
             ) : null}
 
             {stage === 'edit' ? (
               <>
                 <PlSelect
-                  label="Editing quality"
-                  value={editQualityPreset}
-                  options={EDIT_QUALITY_PRESETS.map((p) => ({
+                  label="Execution mode"
+                  value={editExecutionMode}
+                  options={EDIT_EXECUTION_MODES.map((p) => ({
                     value: p.value,
                     label: `${p.label} — ${p.description}`,
                   }))}
-                  onChange={(v) => handleEditQualityPresetChange(v as EditQualityPreset)}
+                  onChange={(v) => handleEditExecutionModeChange(v as EditExecutionMode)}
                 />
                 <PlSelect
                   label="Editing style"
@@ -1028,7 +1026,7 @@ export function WorkbenchPanel({ meta, initialLoad, onRunSaved, onRunControl }: 
                       onChange={(v) => setReasoningEffort(v as 'low' | 'medium' | 'high')}
                     />
                   ) : null}
-                  {translateQualityPreset === 'enhanced' && effectiveModelCaps.isReasoningModel ? (
+                  {translateExecutionMode === 'one_shot' && effectiveModelCaps.isReasoningModel ? (
                     <label class="pl-checkbox-label">
                       <input
                         type="checkbox"

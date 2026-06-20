@@ -23,6 +23,9 @@ import {
   type Declensions,
   type Language,
   normalizeEditingFocus,
+  executionSourceFromProjectSettings,
+  resolveTranslatePipelineOptions,
+  resolveEditExecutionMode,
 } from '../engine/index.js';
 import { isReasoningModel } from '../shared/openaiModelAdapter.js';
 import { isChunkError } from '../shared/chunkErrors.js';
@@ -185,7 +188,7 @@ export function getAgentForProject(
 /**
  * Get model for a specific stage, with fallbacks
  */
-function getStageModel(
+export function getStageModel(
   project: Project | ProjectWithChapterList,
   stage: 'analysis' | 'translation' | 'editing',
   defaultModel: string
@@ -423,8 +426,18 @@ export async function translateChapterWithPipeline(
     const stages = options.stages ?? 'all';
 
     const fallbackTemp = project.settings.temperature ?? config.translation?.temperature ?? 0.5;
+    const translationModel = getStageModel(
+      project,
+      'translation',
+      config.openai.model || 'gpt-4.1-mini'
+    );
+    const editingModel = getStageModel(project, 'editing', 'gpt-4.1-mini');
+    const executionSource = executionSourceFromProjectSettings(project.settings);
+    const translateOpts = resolveTranslatePipelineOptions(executionSource, translationModel);
+    const editExecutionMode = resolveEditExecutionMode(executionSource, editingModel);
+
     const pipelineOpts: PipelineOptions = {
-      chunkSize: config.translation.maxTokensPerChunk,
+      ...(translateOpts.chunkSize != null ? { chunkSize: translateOpts.chunkSize } : {}),
       temperatureByStage: {
         analysis: project.settings.temperatureByStage?.analysis ?? fallbackTemp,
         translation: project.settings.temperatureByStage?.translation ?? fallbackTemp,
@@ -443,11 +456,14 @@ export async function translateChapterWithPipeline(
         true,
       includeGlossaryInEditing:
         options.includeGlossaryInEditing ?? project.settings?.includeGlossaryInEditing ?? true,
-      enableTranslateFewShot: project.settings?.enableTranslateFewShot,
-      enableTranslateCoT: project.settings?.enableTranslateCoT,
-      enableTranslateStructuredCoT: project.settings?.enableTranslateStructuredCoT,
-      translateLeadingContextParagraphs: project.settings?.translateLeadingContextParagraphs,
-      miniModelTranslationProfile: project.settings?.miniModelTranslationProfile,
+      translateExecutionMode: translateOpts.translateExecutionMode,
+      editExecutionMode,
+      enableTranslateFewShot: translateOpts.enableTranslateFewShot,
+      enableTranslateCoT: translateOpts.enableTranslateCoT,
+      enableTranslateStructuredCoT: translateOpts.enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs: translateOpts.translateLeadingContextParagraphs,
+      miniModelTranslationProfile: translateOpts.miniModelTranslationProfile,
+      forceChunked: translateOpts.forceChunked,
       ...(options.isCancelled && { isCancelled: options.isCancelled }),
       ...(project.settings?.textBlockTypes?.length && {
         textBlockTypes: project.settings.textBlockTypes.filter((bt) => bt.enabled),

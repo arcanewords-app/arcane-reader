@@ -4,12 +4,14 @@ import {
   injectParagraphMarkers,
   isSeparatorParagraph,
   normalizeLabSourceText,
+  normalizeLabTranslatedText,
   prepareTranslateSourceText,
   splitTextToParagraphContents,
   textHasParagraphMarkers,
   textToDisplayParagraphs,
   collectExpectedParagraphMarkerIds,
   filterJsonParagraphsToChunk,
+  tryParseTranslationParagraphsJson,
 } from './para-markers.js';
 
 describe('isSeparatorParagraph', () => {
@@ -86,6 +88,69 @@ describe('splitTextToParagraphContents', () => {
   it('strips markers before splitting', () => {
     const contents = splitTextToParagraphContents('--para:auto_0--A\n\nB');
     assert.deepEqual(contents, ['A', 'B']);
+  });
+});
+
+describe('tryParseTranslationParagraphsJson', () => {
+  it('unwraps translate JSON with paragraph markers', () => {
+    const json = JSON.stringify({
+      paragraphs: [
+        { id: '--para:auto_0--', translated: 'Chapter title' },
+        { id: '--para:auto_1--', translated: 'Second paragraph.' },
+      ],
+    });
+    const out = tryParseTranslationParagraphsJson(json);
+    assert.ok(out);
+    assert.match(out!, /--para:auto_0--Chapter title/);
+    assert.match(out!, /--para:auto_1--Second paragraph\./);
+    assert.doesNotMatch(out!, /"paragraphs"/);
+  });
+
+  it('filters rows to chunk marker ids when chunkContent provided', () => {
+    const chunk = '--para:auto_0--Source one.\n\n--para:auto_1--Source two.';
+    const json = JSON.stringify({
+      paragraphs: [
+        { id: '--para:auto_0--', translated: 'One.' },
+        { id: '--para:auto_1--', translated: 'Two.' },
+        { id: '--para:auto_2--', translated: 'Extra.' },
+      ],
+    });
+    const out = tryParseTranslationParagraphsJson(json, chunk);
+    assert.ok(out);
+    assert.equal(out!.split('--para:').length - 1, 2);
+    assert.doesNotMatch(out!, /Extra\./);
+  });
+
+  it('returns null for plain text', () => {
+    assert.equal(tryParseTranslationParagraphsJson('Hello.\n\nWorld.'), null);
+  });
+
+  it('unwraps many paragraphs (regression: long chapter JSON blob)', () => {
+    const paras = Array.from({ length: 106 }, (_, i) => ({
+      id: `--para:auto_${i}--`,
+      translated: `Paragraph ${i}.`,
+    }));
+    const json = JSON.stringify({ paragraphs: paras });
+    const out = tryParseTranslationParagraphsJson(json);
+    assert.ok(out);
+    assert.equal(out!.split('--para:').length - 1, 106);
+    assert.match(out!, /--para:auto_105--Paragraph 105\./);
+  });
+});
+
+describe('normalizeLabTranslatedText', () => {
+  it('unwraps JSON before marker normalization', () => {
+    const json = JSON.stringify({
+      paragraphs: [{ id: '--para:auto_0--', translated: 'Draft line.' }],
+    });
+    const out = normalizeLabTranslatedText(json);
+    assert.equal(out, '--para:auto_0--Draft line.');
+  });
+
+  it('falls back to normalizeLabSourceText for plain draft', () => {
+    const out = normalizeLabTranslatedText('Alpha.\n\nBeta.');
+    assert.match(out, /--para:auto_0--Alpha\./);
+    assert.match(out, /--para:auto_1--Beta\./);
   });
 });
 

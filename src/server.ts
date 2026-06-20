@@ -1779,6 +1779,15 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
       editingStylePreset,
       editingFocus,
       allowReasoningModelsForAnalysis,
+      translateExecutionMode,
+      editExecutionMode,
+      enableTranslateFewShot,
+      enableTranslateCoT,
+      enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs,
+      miniModelTranslationProfile,
+      forceChunked,
+      chunkSize,
     } = body;
 
     // Preserve existing reader settings
@@ -1834,6 +1843,27 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
     }
     if (allowReasoningModelsForAnalysis !== undefined) {
       updatedSettings.allowReasoningModelsForAnalysis = allowReasoningModelsForAnalysis;
+    }
+
+    const clearableEngineKeys = {
+      translateExecutionMode,
+      editExecutionMode,
+      chunkSize,
+      enableTranslateFewShot,
+      enableTranslateCoT,
+      enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs,
+      miniModelTranslationProfile,
+    } as const;
+    for (const [key, value] of Object.entries(clearableEngineKeys)) {
+      if (value === null) {
+        delete (updatedSettings as unknown as Record<string, unknown>)[key];
+      } else if (value !== undefined) {
+        (updatedSettings as unknown as Record<string, unknown>)[key] = value;
+      }
+    }
+    if (forceChunked !== undefined) {
+      updatedSettings.forceChunked = forceChunked;
     }
 
     await updateProject(req.params.id, { settings: updatedSettings }, req.user.id, token);

@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { LabRunOutput } from '../api/client';
-import { presetLabel } from '../../shared/translate-quality-presets.js';
+import { executionModeLabel } from '../../shared/translate-execution-modes.js';
 
 interface TranslateRunSummaryProps {
   result: LabRunOutput;
@@ -14,17 +14,29 @@ export function TranslateRunSummary({ result, sourceLength }: TranslateRunSummar
 
   const outputLength = result.text?.length ?? 0;
   const ratio = sourceLength > 0 ? outputLength / sourceLength : 0;
-  const chunkCount = debug.chunkSummaries?.length ?? 0;
-  const displayPreset = debug.translateQualityPreset;
+  const chunkCount = debug.actualChunks ?? debug.chunkSummaries?.length ?? 0;
+  const displayMode = debug.translateExecutionMode;
+  const usedTextFallback = debug.chunkSummaries?.some((c) => c.completionPath === 'text');
 
   return (
     <div class="pl-translate-summary">
       <p class="pl-label">Translate summary</p>
+      {usedTextFallback ? (
+        <p class="pl-banner warn" role="status">
+          Output recovered from text fallback — check paragraph alignment.
+        </p>
+      ) : null}
       <dl class="pl-exec-preview__dl">
-        {displayPreset ? (
+        {displayMode ? (
           <>
-            <dt>Preset</dt>
-            <dd>{presetLabel(displayPreset)}</dd>
+            <dt>Execution</dt>
+            <dd>{executionModeLabel(displayMode)}</dd>
+          </>
+        ) : null}
+        {debug.chunkSizeTier ? (
+          <>
+            <dt>Tier</dt>
+            <dd>{debug.chunkSizeTier}</dd>
           </>
         ) : null}
         {debug.chunkingMode ? (
@@ -50,21 +62,10 @@ export function TranslateRunSummary({ result, sourceLength }: TranslateRunSummar
           {ratio > 0 ? ` (${ratio.toFixed(2)}×)` : ''}
         </dd>
       </dl>
-      {ratio > 2.5 ? (
-        <p class="pl-error pl-hint--block">
-          Output is {ratio.toFixed(1)}× longer than source — check for merge bloat or retry with
-          Enhanced single-shot.
-        </p>
-      ) : null}
-      <label class="pl-checkbox-label">
-        <input
-          type="checkbox"
-          checked={showRaw}
-          onChange={(e) => setShowRaw(e.currentTarget.checked)}
-        />
-        Show raw debug JSON
-      </label>
-      {showRaw ? <pre class="pl-api-params">{JSON.stringify(debug, null, 2)}</pre> : null}
+      <button type="button" class="pl-btn pl-btn--ghost" onClick={() => setShowRaw((v) => !v)}>
+        {showRaw ? 'Hide' : 'Show'} translate debug
+      </button>
+      {showRaw ? <pre class="pl-pre pl-pre--compact">{JSON.stringify(debug, null, 2)}</pre> : null}
     </div>
   );
 }

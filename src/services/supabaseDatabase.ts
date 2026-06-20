@@ -343,10 +343,12 @@ function getDefaultProjectSettings(): ProjectSettings {
   return {
     stageModels: {
       analysis: 'gpt-4.1-mini',
-      translation: 'gpt-4.1-mini',
-      editing: 'gpt-4.1-mini',
+      translation: 'gpt-5.4-mini',
+      editing: 'gpt-5.4-mini',
     },
-    temperature: 0.5,
+    translateExecutionMode: 'one_shot',
+    editExecutionMode: 'one_shot',
+    temperature: 0.7,
     enableAnalysis: true,
     enableTranslation: true,
     enableEditing: true,

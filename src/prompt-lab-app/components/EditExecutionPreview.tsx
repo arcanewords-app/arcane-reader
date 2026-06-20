@@ -1,5 +1,5 @@
 import type { EditExecutionPreview } from '@engine/edit-execution-preview.js';
-import { EDIT_QUALITY_PRESETS } from '../../shared/edit-quality-presets.js';
+import { EDIT_EXECUTION_MODES } from '../../shared/edit-execution-modes.js';
 import { EDIT_FOCUS_LABELS, EDIT_STYLE_LABELS } from '../../shared/editing-labels.js';
 
 interface EditExecutionPreviewCardProps {
@@ -11,13 +11,13 @@ export function EditExecutionPreviewCard({ preview }: EditExecutionPreviewCardPr
     return null;
   }
 
-  const presetMeta = EDIT_QUALITY_PRESETS.find((p) => p.value === preview.preset);
+  const modeMeta = EDIT_EXECUTION_MODES.find((p) => p.value === preview.executionMode);
   const modeLabel =
     preview.chunkingMode === 'single_shot'
       ? 'Single request (1 API call)'
       : preview.hasDraftText
-        ? `~${preview.estimatedChunks} chunks (parallel)`
-        : 'Chunked (parallel)';
+        ? `~${preview.estimatedChunks} chunks (${preview.effectiveChunkSize} tok, sequential)`
+        : `Chunked (${preview.effectiveChunkSize} tok, sequential)`;
 
   const styleLabel = EDIT_STYLE_LABELS[preview.editingStylePreset] ?? preview.editingStylePreset;
   const focusLabel = EDIT_FOCUS_LABELS[preview.editingFocus] ?? preview.editingFocus;
@@ -28,10 +28,12 @@ export function EditExecutionPreviewCard({ preview }: EditExecutionPreviewCardPr
       <dl class="pl-exec-preview__dl">
         <dt>Mode</dt>
         <dd>{modeLabel}</dd>
-        <dt>Preset</dt>
+        <dt>Execution</dt>
         <dd>
-          {presetMeta?.label ?? preview.preset} — {presetMeta?.description}
+          {modeMeta?.label ?? preview.executionMode} — {modeMeta?.description}
         </dd>
+        <dt>Tier</dt>
+        <dd>{preview.chunkSizeTier}</dd>
         <dt>Style / Focus</dt>
         <dd>
           {styleLabel} / {focusLabel}
@@ -51,7 +53,7 @@ export function EditExecutionPreviewCard({ preview }: EditExecutionPreviewCardPr
               {preview.effectiveMaxTokens.toLocaleString()}
             </>
           ) : (
-            'Add draft for estimates'
+            '—'
           )}
         </dd>
       </dl>

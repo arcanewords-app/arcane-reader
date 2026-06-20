@@ -1,0 +1,83 @@
+---
+description: Plain-language copy for prod client UI — no LLM jargon in settings and workflows
+globs: src/client/**
+alwaysApply: false
+---
+
+# Plain-Language UI (prod)
+
+Audience: novel translators and authors who do **not** know LLM internals, tokenization, or prompt engineering.
+
+**Scope:** production client UI (`src/client/**`). **Out of scope:** Prompt Lab Advanced, `/debug`, engine SSOT in `src/shared/`, docs, logs.
+
+## Two layers of copy
+
+| Layer | Role | Example |
+|-------|------|---------|
+| **Label** | What the control does | «Глоссарий при переводе» |
+| **Hint** | Why change it + trade-off | «Экономит лимит, если глоссарий большой» |
+
+Hints MUST answer: *«Зачем мне это менять?»* — quality, speed, AI daily limit, when to turn off.
+
+## Forbidden in prod labels and hints
+
+Do **not** use in user-facing settings, toggles, option subtitles, or workflow hints:
+
+- chunk / чанк, one-shot, CoT, reasoning, tier, prompt / промпт, JSON, schema
+- tok, token counts (except quota/stat screens: `tokenUsage`, `tokenLimit`, `projectInfo.approxTokens`)
+- Legacy (use «сохранённая модель» / saved model)
+- English jargon in ru/be UI (except model product names: GPT, o4-mini)
+
+Technical marker syntax (`{{block:…}}`) is allowed only in **format integration** help, not in general settings hints.
+
+## Replacement vocabulary
+
+| Avoid | Use (RU orient; localize en/be/pl) |
+|-------|--------------------------------------|
+| чанк / chunk | часть главы / по частям |
+| one-shot | целиком за один проход |
+| CoT / reasoning | тщательнее прорабатывает текст (no technique name) |
+| N tok / 3000 / 4500 | omit numbers in hints; «короткими порциями» / «крупными частями» if needed |
+| меньше токенов | меньше расходует лимит AI |
+| в промпте | в инструкции для AI, or omit |
+| Режим исполнения | Как обрабатывать текст |
+
+## Standard / Advanced presets
+
+Describe **effect**, not engine mechanics:
+
+- **Standard:** chapter processed in parts — stable default for most chapters.
+- **Advanced:** tries whole chapter in one pass — faster on short chapters; long ones still split into parts.
+
+RU labels: «Стандарт» / «Расширенный» (not English «Advanced»).
+
+## Glossary toggles
+
+Focus on name consistency and limit, not chunk sizes:
+
+- **Off (translation):** names aligned at editing; saves AI limit when glossary is large.
+- **On:** uses glossary names immediately — more accurate, uses more of today’s AI limit.
+
+## Model descriptions (prod pickers)
+
+Short, outcome-focused `settings.modelDesc.*` for the 3 translate/edit models:
+
+- `gpt-5.4-mini` — best quality, recommended
+- `o4-mini` — complex chapters, slower
+- `gpt-4.1-mini` — budget option, processes in parts
+
+No one-shot / chunked / reasoning in user-facing model lines.
+
+## Merge checklist
+
+- [ ] No hardcoded UI strings in components
+- [ ] Every new hint passes the «зачем мне это?» test
+- [ ] No token/chunk numbers in `settings.*` hints
+- [ ] ru/be hints free of English jargon (except model names)
+- [ ] «Токен» only on quota/stat screens
+
+## References
+
+- i18n files: `src/client/locales/{ru,en,be,pl}.json`
+- Settings UI: `@src/client/components/Sidebar/SettingsModal.tsx`
+- Linked from `@.cursor/rules/client.mdc` and `@.cursor/rules/design-system.mdc`

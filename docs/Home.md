@@ -51,6 +51,7 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 - [[03-explanation/engine-pipeline]]
 - [[03-explanation/engine-glossary-and-prompts]]
 - [[03-explanation/engine-integration-boundary]]
+- [[03-explanation/prompt-lab-engine-config]] — execution modes, tiered chunking, Lab vs prod
 - Index: [[03-explanation/translation-pipeline]]
   | [[04-decisions/]] | ADRs |
   | [[05-plans/]] | Active RFCs / plans |
@@ -67,6 +68,7 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 - [[02-how-to/obsidian-vault]]
 - [[02-how-to/add-feature]]
 - [[02-how-to/debug-translation]]
+- [[02-how-to/prompt-lab]]
 - [[02-how-to/observability-axiom]]
 - [[02-how-to/axiom-mcp]]
 

@@ -17,14 +17,14 @@ import { formatChunkError } from '../constants/errors.js';
 import { filterGlossaryByChapter } from '../glossary/glossary-filter.js';
 import { log } from '../logger.js';
 import { runWithConcurrencyResilient } from '../utils/concurrency.js';
-import { resolveTranslationChunkSize } from '../../shared/translationChunkPresets.js';
+import {
+  buildEditGlossaryAndCastFromContext,
+  executionSourceFromPipelineOptions,
+  resolveEditPipelineOptions,
+} from './resolve-execution-options.js';
 
 /** Default concurrency for parallel analysis. */
 const DEFAULT_ANALYSIS_CONCURRENCY = 4;
-
-/** When editing runs after translation, we omit glossary from Stage 2 and use larger chunks. */
-const EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY = 3500;
-const DEFAULT_EDIT_CHUNK_SIZE = 2000;
 
 export interface PipelineConfig {
   // Support both single provider (legacy) and per-stage providers
@@ -230,29 +230,17 @@ export class TranslationPipeline {
       const existingText = options.existingTranslatedTextForEdit ?? '';
       log.info(`Pipeline: run only editing (chapter ${chapterNumber})`);
       const onlyEditIncludeGlossary = options.includeGlossaryInEditing !== false;
-      const onlyEditChunkSize =
-        options.chunkSize ??
-        (onlyEditIncludeGlossary ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
-      const stage3Result = await this.editStage.execute(existingText, sourceText, {
-        context: ctxForTranslateEdit(),
-        checkQuality: true,
-        chunkSize: onlyEditChunkSize,
-        includeGlossary: onlyEditIncludeGlossary,
-        temperature: options.temperatureByStage?.editing,
-        customInstructions: options.customInstructions?.editing,
-        editingStylePreset: options.editingStylePreset,
-        editingFocus: options.editingFocus,
-        chunkRetryAttempts: options.retryAttempts ?? 2,
-        chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
-        parallelChunks: options.parallelChunks,
-        isCancelled: options.isCancelled,
-        checkQualityForChunked: options.checkQualityForChunked,
-        qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
-        onProgress: options.onProgress
-          ? (d, t) => options.onProgress?.(d, t, 'editing')
-          : undefined,
-        chapterNumber,
-      });
+      const stage3Result = await this.editStage.execute(
+        existingText,
+        sourceText,
+        this.buildEditStageArgs(
+          existingText,
+          chapterNumber,
+          options,
+          ctxForTranslateEdit(),
+          onlyEditIncludeGlossary
+        )
+      );
       totalTokens += stage3Result.tokensUsed;
       const finalTranslation =
         stage3Result.success && stage3Result.data ? stage3Result.data.finalText : existingText;
@@ -338,28 +326,17 @@ export class TranslationPipeline {
           );
         }
         const editOnlyIncludeGlossary = options.includeGlossaryInEditing !== false;
-        const editOnlyChunkSize =
-          options.chunkSize ??
-          (editOnlyIncludeGlossary ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
-        const stage3Result = await this.editStage.execute(existing, sourceText, {
-          context: ctxForTranslateEdit(),
-          checkQuality: true,
-          chunkSize: editOnlyChunkSize,
-          includeGlossary: editOnlyIncludeGlossary,
-          customInstructions: options.customInstructions?.editing,
-          editingStylePreset: options.editingStylePreset,
-          editingFocus: options.editingFocus,
-          chunkRetryAttempts: options.retryAttempts ?? 2,
-          chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
-          parallelChunks: options.parallelChunks,
-          isCancelled: options.isCancelled,
-          checkQualityForChunked: options.checkQualityForChunked,
-          qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
-          onProgress: options.onProgress
-            ? (d, t) => options.onProgress?.(d, t, 'editing')
-            : undefined,
-          chapterNumber,
-        });
+        const stage3Result = await this.editStage.execute(
+          existing,
+          sourceText,
+          this.buildEditStageArgs(
+            existing,
+            chapterNumber,
+            options,
+            ctxForTranslateEdit(),
+            editOnlyIncludeGlossary
+          )
+        );
         totalTokens += stage3Result.tokensUsed;
         const finalTranslation =
           stage3Result.success && stage3Result.data ? stage3Result.data.finalText : existing;
@@ -395,24 +372,21 @@ export class TranslationPipeline {
         : options.includeGlossaryInTranslation === true
           ? true
           : !willRunEditing;
-    const translationChunkSize = resolveTranslationChunkSize({
-      override: options.chunkSize,
-      modelId: this.providers.translation.model,
-      includeGlossaryInTranslation,
-      miniModelProfile: options.miniModelTranslationProfile,
-    });
     log.info('Pipeline: Stage 2 translating', {
       chapterNumber,
       includeGlossary: includeGlossaryInTranslation,
-      chunkSize: translationChunkSize,
+      translateExecutionMode: options.translateExecutionMode,
       miniModelProfile: options.miniModelTranslationProfile,
       enableTranslateFewShot: options.enableTranslateFewShot,
       enableTranslateCoT: options.enableTranslateCoT,
       leadingContext: options.translateLeadingContextParagraphs,
+      chunkSizeOverride: options.chunkSize,
     });
     const stage2Result = await this.translateStage.execute(sourceText, {
       context: ctxForTranslateEdit(),
-      chunkSize: translationChunkSize,
+      ...(options.chunkSize != null && options.chunkSize > 0
+        ? { chunkSize: options.chunkSize }
+        : {}),
       includeGlossary: includeGlossaryInTranslation,
       temperature: options.temperatureByStage?.translation,
       isCancelled: options.isCancelled,
@@ -426,6 +400,7 @@ export class TranslationPipeline {
         ? (d, t) => options.onProgress?.(d, t, 'translation')
         : undefined,
       chapterNumber,
+      translateExecutionMode: options.translateExecutionMode,
       enableTranslateFewShot: options.enableTranslateFewShot,
       enableTranslateCoT: options.enableTranslateCoT,
       enableTranslateStructuredCoT: options.enableTranslateStructuredCoT,
@@ -455,33 +430,17 @@ export class TranslationPipeline {
     let finalTranslation: string;
     if (willRunEditing) {
       const includeGlossaryInEditing = options.includeGlossaryInEditing !== false;
-      const editChunkSize =
-        options.chunkSize ??
-        (includeGlossaryInEditing ? DEFAULT_EDIT_CHUNK_SIZE : EDIT_CHUNK_SIZE_WITHOUT_GLOSSARY);
-      log.info('Pipeline: Stage 3 editing', {
-        includeGlossary: includeGlossaryInEditing,
-        chunkSize: editChunkSize,
-      });
-      stage3Result = await this.editStage.execute(stage2Result.data.translatedText, sourceText, {
-        context: ctxForTranslateEdit(),
-        checkQuality: true,
-        chunkSize: editChunkSize,
-        includeGlossary: includeGlossaryInEditing,
-        temperature: options.temperatureByStage?.editing,
-        customInstructions: options.customInstructions?.editing,
-        editingStylePreset: options.editingStylePreset,
-        editingFocus: options.editingFocus,
-        chunkRetryAttempts: options.retryAttempts ?? 2,
-        chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
-        parallelChunks: options.parallelChunks,
-        isCancelled: options.isCancelled,
-        checkQualityForChunked: options.checkQualityForChunked,
-        qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
-        onProgress: options.onProgress
-          ? (d, t) => options.onProgress?.(d, t, 'editing')
-          : undefined,
-        chapterNumber,
-      });
+      stage3Result = await this.editStage.execute(
+        stage2Result.data.translatedText,
+        sourceText,
+        this.buildEditStageArgs(
+          stage2Result.data.translatedText,
+          chapterNumber,
+          options,
+          ctxForTranslateEdit(),
+          includeGlossaryInEditing
+        )
+      );
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {
         finalTranslation = stage3Result.data.finalText;
@@ -688,6 +647,59 @@ export class TranslationPipeline {
    */
   getAgent(): NovelAgent {
     return this.agent;
+  }
+
+  private buildEditStageArgs(
+    translatedText: string,
+    chapterNumber: number,
+    options: PipelineOptions,
+    context: AgentContext,
+    includeGlossary: boolean
+  ) {
+    const executionSource = executionSourceFromPipelineOptions(options);
+    const { glossaryText, castText } = buildEditGlossaryAndCastFromContext(
+      context,
+      translatedText,
+      chapterNumber,
+      includeGlossary
+    );
+    const editOpts = resolveEditPipelineOptions(
+      executionSource,
+      this.providers.editing.model,
+      translatedText,
+      glossaryText,
+      castText,
+      includeGlossary
+    );
+    log.info('Pipeline: resolved edit execution', {
+      chapterNumber,
+      editExecutionMode: editOpts.editExecutionMode,
+      forceSingleShot: editOpts.forceSingleShot,
+      chunkSize: editOpts.chunkSize,
+      editingStylePreset: editOpts.editingStylePreset,
+    });
+    return {
+      context,
+      checkQuality: true as const,
+      chunkSize: editOpts.chunkSize,
+      includeGlossary,
+      temperature: options.temperatureByStage?.editing,
+      customInstructions: options.customInstructions?.editing,
+      editingStylePreset: editOpts.editingStylePreset,
+      editingFocus: editOpts.editingFocus,
+      forceChunked: editOpts.forceChunked,
+      forceSingleShot: editOpts.forceSingleShot,
+      chunkRetryAttempts: options.retryAttempts ?? 2,
+      chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
+      parallelChunks: options.parallelChunks,
+      isCancelled: options.isCancelled,
+      checkQualityForChunked: options.checkQualityForChunked,
+      qualityCheckTimeoutMs: options.qualityCheckTimeoutMs,
+      onProgress: options.onProgress
+        ? (d: number, t: number) => options.onProgress?.(d, t, 'editing')
+        : undefined,
+      chapterNumber,
+    };
   }
 
   /**

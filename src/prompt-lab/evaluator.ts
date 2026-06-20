@@ -10,6 +10,13 @@ import {
   type Language,
 } from '../engine/index.js';
 import type { GlossaryImportEntry } from '../api/schemas/glossary.js';
+import { resolveTranslateLlmDefaults } from '../shared/openaiModelAdapter.js';
+import {
+  buildEvaluationInputStats,
+  EVALUATION_MAX_INPUT_CHARS,
+  evaluationInputTooLargeMessage,
+  type EvaluationInputStats,
+} from './evaluation-limits.js';
 import { portableEntriesToGlossary } from './glossary.js';
 import {
   buildPromptLabEvaluatorUserPrompt,
@@ -33,12 +40,42 @@ export interface RunEvaluationInput {
   glossarySnapshot?: GlossaryImportEntry[];
 }
 
+export {
+  EVALUATION_MAX_INPUT_CHARS,
+  EVALUATION_LONG_CHAPTER_CHARS,
+  buildEvaluationInputStats,
+  type EvaluationInputStats,
+} from './evaluation-limits.js';
+
 const EVALUATION_OUTPUT_MODE_ERROR = 'Both panels must use Output mode for A/B evaluation';
 
 export class EvaluationModeError extends Error {
   constructor(message = EVALUATION_OUTPUT_MODE_ERROR) {
     super(message);
     this.name = 'EvaluationModeError';
+  }
+}
+
+export class EvaluationInputTooLargeError extends Error {
+  readonly totalChars: number;
+  readonly maxChars: number;
+
+  constructor(totalChars: number, maxChars = EVALUATION_MAX_INPUT_CHARS) {
+    super(
+      evaluationInputTooLargeMessage({
+        sourceChars: 0,
+        leftChars: 0,
+        rightChars: 0,
+        glossaryChars: 0,
+        totalChars,
+        maxInputChars: maxChars,
+        tooLarge: true,
+        compactOutput: false,
+      })
+    );
+    this.name = 'EvaluationInputTooLargeError';
+    this.totalChars = totalChars;
+    this.maxChars = maxChars;
   }
 }
 
@@ -52,6 +89,12 @@ function resolveRunText(run: PromptLabRunRow, mode: 'source' | 'output'): string
 function assertOutputMode(leftMode: 'source' | 'output', rightMode: 'source' | 'output'): void {
   if (leftMode === 'source' || rightMode === 'source') {
     throw new EvaluationModeError();
+  }
+}
+
+export function assertEvaluationInputSize(stats: EvaluationInputStats): void {
+  if (stats.tooLarge) {
+    throw new EvaluationInputTooLargeError(stats.totalChars, stats.maxInputChars);
   }
 }
 
@@ -103,6 +146,8 @@ function normalizeEvaluationResult(data: PromptLabEvaluationResult): PromptLabEv
   }
 
   const verdictRaw = (data.verdict ?? {}) as Record<string, unknown>;
+  const polishedExcerpt = String(verdictRaw.final_polished_excerpt ?? '');
+  const polishedVersion = String(verdictRaw.final_polished_version ?? '');
   return {
     analysis_scratchpad: data.analysis_scratchpad ?? '',
     variant_A: normalizeVariant(data.variant_A),
@@ -110,7 +155,8 @@ function normalizeEvaluationResult(data: PromptLabEvaluationResult): PromptLabEv
     verdict: {
       preferred_variant: normalizePreferredVariant(verdictRaw.preferred_variant),
       justification: String(verdictRaw.justification ?? ''),
-      final_polished_version: String(verdictRaw.final_polished_version ?? ''),
+      final_polished_version: polishedVersion || polishedExcerpt,
+      final_polished_excerpt: polishedExcerpt || undefined,
     },
   };
 }
@@ -120,12 +166,35 @@ export interface EvaluationPrompts {
   userPrompt: string;
   compareMode: 'compare_outputs';
   targetLanguage: Language;
-  stats: {
-    sourceChars: number;
-    leftChars: number;
-    rightChars: number;
-    glossaryChars: number;
-  };
+  stats: EvaluationInputStats;
+}
+
+export function computeEvaluationInputStats(input: RunEvaluationInput): EvaluationInputStats {
+  const reference = input.referenceRun ?? input.leftRun;
+  const originalSource = reference.input_snapshot.sourceText ?? '';
+  const leftText = resolveRunText(input.leftRun, input.leftMode);
+  const rightText = resolveRunText(input.rightRun, input.rightMode);
+  const targetLanguage = input.rightRun.params.targetLanguage as Language;
+
+  let glossaryText = '';
+  if (input.glossarySnapshot?.length) {
+    const glossary = portableEntriesToGlossary(input.glossarySnapshot);
+    glossaryText = new GlossaryManager(glossary).toPromptText({
+      targetLanguageLabel: languageDisplayName(targetLanguage),
+    });
+  } else if (input.rightRun.input_snapshot.glossarySnapshot?.length) {
+    const glossary = portableEntriesToGlossary(input.rightRun.input_snapshot.glossarySnapshot);
+    glossaryText = new GlossaryManager(glossary).toPromptText({
+      targetLanguageLabel: languageDisplayName(targetLanguage),
+    });
+  }
+
+  return buildEvaluationInputStats({
+    sourceChars: originalSource.length,
+    leftChars: leftText.length,
+    rightChars: rightText.length,
+    glossaryChars: glossaryText.length,
+  });
 }
 
 export function buildEvaluationPrompts(input: RunEvaluationInput): EvaluationPrompts {
@@ -150,7 +219,17 @@ export function buildEvaluationPrompts(input: RunEvaluationInput): EvaluationPro
     });
   }
 
-  const systemPrompt = getPromptLabEvaluatorSystemPrompt(targetLanguage);
+  const stats = buildEvaluationInputStats({
+    sourceChars: originalSource.length,
+    leftChars: leftText.length,
+    rightChars: rightText.length,
+    glossaryChars: glossaryText.length,
+  });
+  assertEvaluationInputSize(stats);
+
+  const systemPrompt = getPromptLabEvaluatorSystemPrompt(targetLanguage, {
+    compactOutput: stats.compactOutput,
+  });
   const userPrompt = buildPromptLabEvaluatorUserPrompt({
     originalSource,
     leftText,
@@ -163,12 +242,7 @@ export function buildEvaluationPrompts(input: RunEvaluationInput): EvaluationPro
     userPrompt,
     compareMode: 'compare_outputs',
     targetLanguage,
-    stats: {
-      sourceChars: originalSource.length,
-      leftChars: leftText.length,
-      rightChars: rightText.length,
-      glossaryChars: glossaryText.length,
-    },
+    stats,
   };
 }
 
@@ -183,6 +257,7 @@ export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise
   const provider = new OpenAIProvider({ apiKey: appConfig.openai.apiKey, model });
 
   const { systemPrompt, userPrompt } = buildEvaluationPrompts(input);
+  const llmDefaults = resolveTranslateLlmDefaults(model, false);
 
   const started = Date.now();
   const response = await provider.completeJSON<PromptLabEvaluationResult>(
@@ -190,7 +265,11 @@ export async function runPromptLabEvaluation(input: RunEvaluationInput): Promise
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    { temperature: 0.3, maxTokens: 8192, reasoningEffort: input.reasoningEffort }
+    {
+      temperature: 0.3,
+      maxTokens: llmDefaults.maxTokens,
+      reasoningEffort: input.reasoningEffort ?? llmDefaults.defaultReasoningEffort,
+    }
   );
 
   const result = normalizeEvaluationResult(response.data);

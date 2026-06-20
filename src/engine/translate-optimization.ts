@@ -7,6 +7,8 @@ import {
   resolveTranslationChunkSize,
   MINI_MODEL_TRANSLATION_CHUNK_SIZE,
 } from '../shared/translationChunkPresets.js';
+import type { TranslateExecutionMode } from '../shared/translate-execution-modes.js';
+import type { TranslateChunkingMode } from './translate-chunking-policy.js';
 import { isReasoningModel } from '../shared/openaiModelAdapter.js';
 
 export interface TranslateOptimizationFlags {
@@ -26,6 +28,8 @@ export interface ResolveTranslateOptimizationInput {
   modelId?: string;
   chunkSizeOverride?: number;
   includeGlossaryInTranslation?: boolean;
+  executionMode?: TranslateExecutionMode;
+  chunkingMode?: TranslateChunkingMode;
 }
 
 export function resolveTranslateOptimizationFlags(
@@ -42,7 +46,6 @@ export function resolveTranslateOptimizationFlags(
   const explicitStructured =
     input.enableTranslateStructuredCoT ?? input.pipelineOptions?.enableTranslateStructuredCoT;
 
-  // Structured json_schema is opt-in only — never inherit from enableCoT.
   let enableStructuredCoT = explicitStructured === true;
   if (explicitStructured === undefined && input.modelId && isReasoningModel(input.modelId)) {
     enableStructuredCoT = false;
@@ -75,5 +78,7 @@ export function resolveTranslateChunkSize(input: ResolveTranslateOptimizationInp
     modelId: input.modelId,
     includeGlossaryInTranslation: input.includeGlossaryInTranslation,
     miniModelProfile: profile,
+    executionMode: input.executionMode,
+    chunkingMode: input.chunkingMode,
   });
 }

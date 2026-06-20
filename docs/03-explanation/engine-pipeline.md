@@ -10,7 +10,7 @@ updated: 2026-06-16
 
 # Engine pipeline (as-is)
 
-Arcane Engine orchestrates a **3-stage** translation pipeline inside `src/engine/`. This note describes current behavior before refactor. For glossary/prompts see [[engine-glossary-and-prompts]]; for server persistence and E2E see [[engine-integration-boundary]].
+Arcane Engine orchestrates a **3-stage** translation pipeline inside `src/engine/`. This note describes current behavior before refactor. For glossary/prompts see [[engine-glossary-and-prompts]]; for server persistence and E2E see [[engine-integration-boundary]]. For **execution modes** (Lab and future prod settings) see [[prompt-lab-engine-config]].
 
 **Do not trust** `docs/archive/TRANSLATION_*.md` or `ENGINE_E2E.md` without verifying against `src/`.
 
@@ -92,7 +92,7 @@ Glossary chunk filtering, script-aware matching, and prompt format helpers: [[en
 | **Chunk filter**           | —                                                     | `matchMode: source` (original in source chunk)             | `matchMode: target` (translated forms in edit chunk)            |
 | **Glossary format**        | `toPromptText` — `orig → tr`                          | `toPromptText` — `orig → tr`                               | `toEditPromptText` — target only (+ declensions for characters) |
 | **Chapter cast**           | —                                                     | `toCastPromptText` — `orig → tr [m/f]` in Previous Context | `toEditCastPromptText` — `tr [m/f]`                             |
-| **Chunk glossary default** | —                                                     | **off** in full pipeline; **on** in translate-only         | **on** (2000 tok)                                               |
+| **Chunk glossary default** | —                                                     | **off** in full pipeline; **on** in translate-only         | **on** (3000 tok)                                               |
 | **Source in LLM prompt**   | yes                                                   | yes                                                        | **no** (except optional quality check)                          |
 
 ### User prompt section order

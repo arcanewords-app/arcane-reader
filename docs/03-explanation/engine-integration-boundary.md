@@ -59,7 +59,11 @@ Maps API `stages` to `PipelineOptions.runStages`:
 | `['editing']`               | editing only; needs `existingTranslatedText`                  |
 | `['translation','editing']` | both without re-analysis                                      |
 
-Passes app config: `maxTokensPerChunk`, `neverSplitParagraphs`, retry/parallel settings, glossary flags from project settings, `textBlockTypes`, `customInstructions`, editing preset/focus.
+Passes app config: retry/parallel settings, glossary flags from project settings, `textBlockTypes`, `customInstructions`, editing preset/focus.
+
+**Execution modes (prod):** `resolveTranslatePipelineOptions` / `resolveEditPipelineOptions` in `@src/engine/pipeline/resolve-execution-options.ts` — wired from `project.settings` in `engine-integration.ts`. Default mode from model (`gpt-5.4-mini` → `one_shot`, `gpt-4.1-mini` → `chunked`). Chunk size tier resolved inside stages; `settings.chunkSize` is an explicit override only.
+
+**Project settings (engine-related):** `translateExecutionMode`, `editExecutionMode`, `forceChunked`, `chunkSize`, `miniModelTranslationProfile`, `enableTranslateStructuredCoT` (optional Advanced overrides).
 
 **Returns:** `translatedText`, token breakdown, glossary updates, `cancelled?`, chunk metadata — server persists.
 

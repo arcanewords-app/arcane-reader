@@ -63,11 +63,42 @@ function isEmptyContent(content: string | null | undefined): boolean {
   return !content || content.trim().length === 0;
 }
 
-function shouldRetryStructuredCompletion(
+function shouldRetryJsonCompletion(
   content: string | null | undefined,
   finishReason: string | null | undefined
 ): boolean {
   return isEmptyContent(content) || finishReason === 'length';
+}
+
+function formatJsonParseError(
+  content: string,
+  finishReason: string | null | undefined,
+  maxTokens?: number
+): Error {
+  if (finishReason === 'length') {
+    return new Error(
+      `Response truncated at max_tokens${maxTokens != null ? ` (${maxTokens})` : ''}`
+    );
+  }
+  const preview = content.length > 200 ? `${content.slice(0, 200)}...` : content;
+  return new Error(`Failed to parse JSON response (preview: ${preview})`);
+}
+
+function buildJsonRetryAttempts(
+  options?: CompletionOptions
+): Array<{ options: CompletionOptions | undefined; attempt: number }> {
+  const firstMax = options?.maxTokens ?? 4096;
+  return [
+    { options, attempt: 1 },
+    {
+      attempt: 2,
+      options: {
+        ...options,
+        maxTokens: Math.min(firstMax * 2, STRUCTURED_JSON_RETRY_MAX_TOKENS),
+        reasoningEffort: 'low',
+      },
+    },
+  ];
 }
 
 function captureParamsFromResponse(
@@ -176,65 +207,90 @@ export class OpenAIProvider implements ILLMProvider {
     messages: Message[],
     options?: CompletionOptions
   ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }> {
-    try {
-      const response = await this.client.chat.completions.create(
-        buildChatCompletionParams({
-          model: this.model,
-          messages,
-          options,
-          defaultTemperature: 0.3,
-          responseFormat: 'json_object',
-        }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
-      );
+    const attempts = buildJsonRetryAttempts(options);
+    let lastError: Error | undefined;
 
-      const choice = response.choices[0];
-      const content = choice.message.content ?? '{}';
-
-      if (isEmptyContent(content)) {
-        log.error(
-          'OpenAI provider: empty JSON completion',
-          describeCompletionChoice(response, {
-            method: 'completeJSON',
-          })
-        );
-        throw new Error('Empty JSON response from provider');
-      }
-
+    for (const { options: attemptOptions, attempt } of attempts) {
       try {
-        const data = JSON.parse(content) as T;
-        captureLlmCall(
-          captureParamsFromResponse(response, {
-            method: 'completeJSON',
+        const response = await this.client.chat.completions.create(
+          buildChatCompletionParams({
+            model: this.model,
             messages,
-            responseContent: content,
-            tokens: {
+            options: attemptOptions,
+            defaultTemperature: 0.3,
+            responseFormat: 'json_object',
+          }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+        );
+
+        const choice = response.choices[0];
+        const content = choice.message.content ?? '';
+        const finishReason = choice.finish_reason;
+        const maxTokens = attemptOptions?.maxTokens ?? options?.maxTokens;
+
+        if (shouldRetryJsonCompletion(content, finishReason)) {
+          log.warn('OpenAI provider: JSON empty or truncated, will retry if attempts remain', {
+            ...describeCompletionChoice(response, {
+              method: 'completeJSON',
+              attempt,
+            }),
+          });
+          if (attempt < attempts.length) continue;
+          throw new Error(
+            finishReason === 'length'
+              ? `Response truncated at max_tokens${maxTokens != null ? ` (${maxTokens})` : ''}`
+              : 'Empty JSON response from provider'
+          );
+        }
+
+        try {
+          const data = JSON.parse(content) as T;
+          captureLlmCall(
+            captureParamsFromResponse(response, {
+              method: 'completeJSON',
+              messages,
+              responseContent: content,
+              tokens: {
+                prompt: response.usage?.prompt_tokens ?? 0,
+                completion: response.usage?.completion_tokens ?? 0,
+                total: response.usage?.total_tokens ?? 0,
+              },
+              attempt,
+            })
+          );
+          return {
+            data,
+            tokensUsed: {
               prompt: response.usage?.prompt_tokens ?? 0,
               completion: response.usage?.completion_tokens ?? 0,
               total: response.usage?.total_tokens ?? 0,
             },
-          })
-        );
-        return {
-          data,
-          tokensUsed: {
-            prompt: response.usage?.prompt_tokens ?? 0,
-            completion: response.usage?.completion_tokens ?? 0,
-            total: response.usage?.total_tokens ?? 0,
-          },
-        };
-      } catch (parseErr) {
-        const preview = content.length > 200 ? content.slice(0, 200) + '...' : content;
-        log.error('OpenAI provider: failed to parse JSON response', {
-          err: parseErr,
-          contentPreview: preview,
-          ...describeCompletionChoice(response, { method: 'completeJSON' }),
-        });
-        throw new Error(`Failed to parse JSON response: ${content}`);
+          };
+        } catch (parseErr) {
+          const preview = content.length > 200 ? `${content.slice(0, 200)}...` : content;
+          log.error('OpenAI provider: failed to parse JSON response', {
+            err: parseErr,
+            contentPreview: preview,
+            ...describeCompletionChoice(response, { method: 'completeJSON', attempt }),
+          });
+          lastError = formatJsonParseError(content, finishReason, maxTokens);
+          if (attempt < attempts.length) continue;
+          throw lastError;
+        }
+      } catch (err) {
+        logIfRateLimit(err, 'completeJSON');
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < attempts.length) {
+          log.info('OpenAI provider: JSON attempt failed, retrying', {
+            attempt,
+            errMessage: lastError.message,
+          });
+          continue;
+        }
+        throw lastError;
       }
-    } catch (err) {
-      logIfRateLimit(err, 'completeJSON');
-      throw err;
     }
+
+    throw lastError ?? new Error('JSON completion failed');
   }
 
   async completeStructuredJSON<T>(
@@ -243,18 +299,7 @@ export class OpenAIProvider implements ILLMProvider {
     schemaName: string,
     options?: CompletionOptions
   ): Promise<{ data: T; tokensUsed: CompletionResult['tokensUsed'] }> {
-    const attempts: Array<{ options: CompletionOptions | undefined; attempt: number }> = [
-      { options, attempt: 1 },
-    ];
-    const firstMax = options?.maxTokens ?? 4096;
-    attempts.push({
-      attempt: 2,
-      options: {
-        ...options,
-        maxTokens: Math.min(firstMax * 2, STRUCTURED_JSON_RETRY_MAX_TOKENS),
-        reasoningEffort: 'low',
-      },
-    });
+    const attempts = buildJsonRetryAttempts(options);
 
     let lastError: Error | undefined;
 
@@ -281,7 +326,7 @@ export class OpenAIProvider implements ILLMProvider {
         const content = choice.message.content ?? '';
         const finishReason = choice.finish_reason;
 
-        if (shouldRetryStructuredCompletion(content, finishReason)) {
+        if (shouldRetryJsonCompletion(content, finishReason)) {
           log.warn(
             'OpenAI provider: structured JSON empty or truncated, will retry if attempts remain',
             {
@@ -333,7 +378,7 @@ export class OpenAIProvider implements ILLMProvider {
               attempt,
             }),
           });
-          lastError = new Error(`Failed to parse structured JSON response: ${content}`);
+          lastError = formatJsonParseError(content, finishReason, attemptOptions?.maxTokens);
           if (attempt < attempts.length) continue;
           throw lastError;
         }

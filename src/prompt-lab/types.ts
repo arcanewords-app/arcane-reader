@@ -56,8 +56,12 @@ export interface PromptLabRunParams {
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
   forceChunked?: boolean;
-  translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
-  editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+  translateExecutionMode?: 'one_shot' | 'chunked';
+  editExecutionMode?: 'one_shot' | 'chunked';
+  /** @deprecated */
+  translateQualityPreset?: 'one_shot' | 'chunked' | 'fast' | 'standard' | 'enhanced';
+  /** @deprecated */
+  editQualityPreset?: 'one_shot' | 'chunked' | 'fast' | 'standard' | 'enhanced';
   reasoningEffort?: 'low' | 'medium' | 'high';
   runLabel?: string;
   userPromptOverride?: boolean;
@@ -82,7 +86,7 @@ export interface PromptLabRunOutput {
   prompts: { system: string; user: string };
   apiRequestParams?: Record<string, unknown>;
   translateDebug?: {
-    translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    translateExecutionMode?: 'one_shot' | 'chunked';
     resolvedFlags: {
       enableFewShot: boolean;
       enableCoT: boolean;
@@ -97,6 +101,8 @@ export interface PromptLabRunOutput {
     effectiveChunkSize: number;
     chunkingMode?: 'single_shot' | 'chunked';
     chunkingReason?: string;
+    chunkSizeTier?: 'single' | 'large' | 'standard';
+    actualChunks?: number;
     estimatedInputTokens?: number;
     estimatedOutputTokens?: number;
     effectiveMaxTokens?: number;
@@ -108,13 +114,15 @@ export interface PromptLabRunOutput {
     }>;
   };
   editDebug?: {
-    editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    editExecutionMode?: 'one_shot' | 'chunked';
     editingStylePreset: EditingStylePreset;
     editingFocus: EditingFocus;
     chunkingMode: 'single_shot' | 'chunked';
     chunkingReason: string;
+    chunkSizeTier?: 'single' | 'large' | 'standard';
     effectiveChunkSize: number;
     estimatedChunks: number;
+    actualChunks?: number;
     estimatedInputTokens: number;
     estimatedOutputTokens: number;
     effectiveMaxTokens: number;
@@ -157,6 +165,8 @@ export interface PromptLabEvaluationResult {
     preferred_variant: 'A' | 'B' | 'TIE';
     justification: string;
     final_polished_version: string;
+    /** Present when compact evaluator output was used (long chapters). */
+    final_polished_excerpt?: string;
   };
   /** @deprecated Legacy format — kept for old saved evaluations */
   score?: number;

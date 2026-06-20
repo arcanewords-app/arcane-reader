@@ -1,3 +1,5 @@
+import { normalizeLabTranslatedText } from '@engine/utils/para-markers.js';
+
 /** Client-side paragraph helpers for Review compare view. */
 
 export { stripParagraphMarkers, textToDisplayParagraphs } from '@engine/utils/para-markers.js';
@@ -29,5 +31,6 @@ export function resolveRunContent(
   mode: 'source' | 'output'
 ): string {
   if (mode === 'source') return run.inputSnapshot.sourceText ?? '';
-  return run.output.text ?? run.inputSnapshot.translatedText ?? '';
+  const raw = run.output.text ?? run.inputSnapshot.translatedText ?? '';
+  return normalizeLabTranslatedText(raw);
 }

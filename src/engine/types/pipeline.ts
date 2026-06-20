@@ -31,6 +31,8 @@ export interface TranslationDraft {
     estimatedInputTokens: number;
     estimatedOutputTokens: number;
     effectiveMaxTokens: number;
+    effectiveChunkSize?: number;
+    chunkSizeTier?: 'single' | 'large' | 'standard';
   };
 }
 
@@ -135,6 +137,12 @@ export interface PipelineOptions {
   translateLeadingContextParagraphs?: number;
   /** Preset: mini-model chunk 1200 + leading 2 + few-shot. Overrides individual flags when true. */
   miniModelTranslationProfile?: boolean;
+  /** User-facing translate execution mode (one_shot | chunked). Resolved from model when unset. */
+  translateExecutionMode?: import('../../shared/translate-execution-modes.js').TranslateExecutionMode;
+  /** User-facing edit execution mode (one_shot | chunked). Resolved from model when unset. */
+  editExecutionMode?: import('../../shared/edit-execution-modes.js').EditExecutionMode;
+  /** Edit: single API call when draft fits budget (from edit chunking policy). */
+  forceSingleShot?: boolean;
   /** Called when chunk progress updates (chunksDone, totalChunks, stage). Used for UI progress display. */
   onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
 }

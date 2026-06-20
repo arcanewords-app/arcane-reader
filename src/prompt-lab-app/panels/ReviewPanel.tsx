@@ -20,6 +20,10 @@ import { PlCollapsible } from '../components/PlCollapsible.js';
 import { PlSelect } from '../components/PlSelect.js';
 import { RunMetaBadges } from '../components/RunMetaBadges.js';
 import { modelsForStage } from '../../shared/llmModels.js';
+import {
+  buildEvaluationInputStats,
+  evaluationInputTooLargeMessage,
+} from '../../prompt-lab/evaluation-limits.js';
 import { resolveRunContent } from '../utils/paragraphs.js';
 
 type CompareMode = 'source' | 'output';
@@ -120,6 +124,18 @@ export function ReviewPanel({ active, meta }: Props) {
 
   const leftText = leftRun ? resolveRunContent(leftRun, leftMode) : '';
   const rightText = rightRun ? resolveRunContent(rightRun, rightMode) : '';
+
+  const evalInputStats = useMemo(() => {
+    if (!leftRun || !rightRun || leftMode !== 'output' || rightMode !== 'output') return null;
+    const sourceChars = (leftRun.inputSnapshot.sourceText ?? '').length;
+    const glossaryChars = (rightRun.inputSnapshot.glossarySnapshot?.length ?? 0) * 80;
+    return buildEvaluationInputStats({
+      sourceChars,
+      leftChars: leftText.length,
+      rightChars: rightText.length,
+      glossaryChars,
+    });
+  }, [leftRun, rightRun, leftMode, rightMode, leftText, rightText]);
 
   const handleLeftRunChange = (runId: string) => {
     setLeftRunId(runId);
@@ -234,6 +250,7 @@ export function ReviewPanel({ active, meta }: Props) {
   const modelOptions = evalModels.map((m) => ({ value: m.value, label: m.label }));
   const pairReady = Boolean(leftRun && rightRun);
   const evalReady = pairReady && leftMode === 'output' && rightMode === 'output';
+  const evalTooLarge = Boolean(evalInputStats?.tooLarge);
   const inlinePreviewText =
     previewTab === 'system' ? (preview?.systemPrompt ?? '') : (preview?.userPrompt ?? '');
 
@@ -310,12 +327,15 @@ export function ReviewPanel({ active, meta }: Props) {
             <button
               type="button"
               class="pl-btn"
-              disabled={!evalReady || evaluating}
+              disabled={!evalReady || evaluating || evalTooLarge}
               onClick={() => void handleEvaluate()}
             >
               {evaluating ? 'Evaluating…' : 'Evaluate'}
             </button>
           </div>
+          {evalTooLarge && evalInputStats ? (
+            <p class="pl-error pl-eval-hint">{evaluationInputTooLargeMessage(evalInputStats)}</p>
+          ) : null}
           {!evalReady && pairReady ? (
             <p class="pl-muted pl-eval-hint">
               Evaluation compares two translations (Output + Output) against the original source.
@@ -345,6 +365,7 @@ export function ReviewPanel({ active, meta }: Props) {
               </button>
             ) : null}
             {preview ? <PlChip variant="model" label={preview.compareMode} /> : null}
+            {preview?.stats.tooLarge ? <PlChip variant="neutral" label="input too large" /> : null}
           </div>
           {previewError ? <p class="pl-error">{previewError}</p> : null}
           {preview ? (

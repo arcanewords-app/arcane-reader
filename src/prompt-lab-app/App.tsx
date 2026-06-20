@@ -8,7 +8,9 @@ import type {
   WorkbenchLoadState,
 } from './api/client.js';
 import { fetchMeta } from './api/client.js';
-import { normalizeLabSourceText } from '@engine/utils/para-markers.js';
+import { normalizeTranslateExecutionMode } from '../shared/translate-execution-modes.js';
+import { normalizeEditExecutionMode } from '../shared/edit-execution-modes.js';
+import { normalizeLabSourceText, normalizeLabTranslatedText } from '@engine/utils/para-markers.js';
 import { WorkbenchPanel, type WorkbenchRunControl } from './panels/WorkbenchPanel.js';
 import { TextsPanel } from './panels/TextsPanel.js';
 import { RunsPanel } from './panels/RunsPanel.js';
@@ -59,7 +61,7 @@ export function App() {
         targetLanguage: text.targetLanguage,
         sourceText: normalizeLabSourceText(text.content),
         translatedText: text.translatedText?.trim()
-          ? normalizeLabSourceText(text.translatedText)
+          ? normalizeLabTranslatedText(text.translatedText)
           : '',
         glossarySnapshot: text.glossarySnapshot,
         stage: (text.stageHint as LabStage) ?? undefined,
@@ -77,7 +79,7 @@ export function App() {
         targetLanguage: params.targetLanguage as WorkbenchLoadState['targetLanguage'],
         sourceText: normalizeLabSourceText(run.inputSnapshot.sourceText),
         translatedText: run.inputSnapshot.translatedText?.trim()
-          ? normalizeLabSourceText(run.inputSnapshot.translatedText)
+          ? normalizeLabTranslatedText(run.inputSnapshot.translatedText)
           : '',
         glossarySnapshot: run.inputSnapshot.glossarySnapshot ?? undefined,
         systemPrompt: run.inputSnapshot.systemPrompt,
@@ -102,18 +104,18 @@ export function App() {
             : undefined,
         miniModelTranslationProfile: params.miniModelTranslationProfile === true,
         forceChunked: params.forceChunked === true,
-        translateQualityPreset:
-          params.translateQualityPreset === 'fast' ||
-          params.translateQualityPreset === 'standard' ||
-          params.translateQualityPreset === 'enhanced'
-            ? params.translateQualityPreset
-            : undefined,
-        editQualityPreset:
-          params.editQualityPreset === 'fast' ||
-          params.editQualityPreset === 'standard' ||
-          params.editQualityPreset === 'enhanced'
-            ? params.editQualityPreset
-            : undefined,
+        translateExecutionMode:
+          typeof params.translateExecutionMode === 'string'
+            ? normalizeTranslateExecutionMode(params.translateExecutionMode)
+            : typeof params.translateQualityPreset === 'string'
+              ? normalizeTranslateExecutionMode(params.translateQualityPreset)
+              : undefined,
+        editExecutionMode:
+          typeof params.editExecutionMode === 'string'
+            ? normalizeEditExecutionMode(params.editExecutionMode)
+            : typeof params.editQualityPreset === 'string'
+              ? normalizeEditExecutionMode(params.editQualityPreset)
+              : undefined,
         runLabel: typeof params.runLabel === 'string' ? params.runLabel : undefined,
       });
     },

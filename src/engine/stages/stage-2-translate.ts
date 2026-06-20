@@ -38,9 +38,12 @@ import {
   jsonParagraphsHaveMarkers,
   mergeJsonParagraphsToMarkedText,
   filterJsonParagraphsToChunk,
+  tryParseTranslationParagraphsJson,
 } from '../utils/para-markers.js';
 import { resolveTranslateLlmDefaults } from '../../shared/openaiModelAdapter.js';
 import { resolveTranslateChunkingMode } from '../translate-chunking-policy.js';
+import type { TranslateExecutionMode } from '../../shared/translate-execution-modes.js';
+import { resolveChunkSizeTier } from '../../shared/translationChunkPresets.js';
 
 interface TranslateStageOptions {
   context: AgentContext;
@@ -74,6 +77,8 @@ interface TranslateStageOptions {
   enableTranslateStructuredCoT?: boolean;
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
+  /** Lab/prod execution mode: one_shot vs chunked. Default chunked (prod). */
+  translateExecutionMode?: TranslateExecutionMode;
   /** Force token chunking even when single-shot would be selected for CoT/leading. */
   forceChunked?: boolean;
 }
@@ -154,6 +159,8 @@ export class TranslateStage {
       // Prepare style guide
       const styleGuide = this.buildStyleGuide(options.context);
 
+      const executionMode = options.translateExecutionMode ?? 'chunked';
+
       const optimization = resolveTranslateOptimizationFlags({
         enableTranslateFewShot: options.enableTranslateFewShot,
         enableTranslateCoT: options.enableTranslateCoT,
@@ -178,6 +185,7 @@ export class TranslateStage {
         sourceText,
         modelId: this.provider.model,
         optimization,
+        executionMode,
         targetLanguage: options.context.targetLanguage,
         glossaryText: glossaryPreviewText,
         contextText,
@@ -189,6 +197,8 @@ export class TranslateStage {
         miniModelProfile: options.miniModelTranslationProfile,
         modelId: this.provider.model,
         includeGlossaryInTranslation: includeGlossary,
+        executionMode,
+        chunkingMode: chunkingResolution.mode,
       });
 
       const chunks =
@@ -230,6 +240,8 @@ export class TranslateStage {
       }
 
       log.info('TranslateStage: starting translation', {
+        executionMode,
+        chunkSizeTier: resolveChunkSizeTier(executionMode, chunkingResolution.mode),
         chunkingMode: chunkingResolution.mode,
         chunkingReason: chunkingResolution.reason,
         estimatedInputTokens: chunkingResolution.estimatedInputTokens,
@@ -388,6 +400,9 @@ export class TranslateStage {
             estimatedInputTokens: chunkingResolution.estimatedInputTokens,
             estimatedOutputTokens: chunkingResolution.estimatedOutputTokens,
             effectiveMaxTokens: chunkingResolution.effectiveMaxTokens,
+            effectiveChunkSize:
+              chunkingResolution.mode === 'single_shot' ? undefined : effectiveChunkSize,
+            chunkSizeTier: resolveChunkSizeTier(executionMode, chunkingResolution.mode),
           },
         },
         tokensUsed: totalTokens,
@@ -760,6 +775,17 @@ export class TranslateStage {
         chunkId: chunk.id,
       });
       throw new Error('Empty translation from provider');
+    }
+
+    const fromJson = tryParseTranslationParagraphsJson(translatedText, chunk.content);
+    if (fromJson) {
+      if (completionPath === 'text') {
+        log.debug(`TranslateStage: chunk ${chunk.id} unwrapped JSON from text fallback`, {
+          chunkId: chunk.id,
+          completionPath,
+        });
+      }
+      translatedText = fromJson;
     }
 
     log.info(`TranslateStage: chunk ${chunk.id} translation complete`, {

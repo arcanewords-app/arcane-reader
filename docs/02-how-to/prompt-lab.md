@@ -32,7 +32,7 @@ Three-column layout:
 Steps:
 
 1. Choose **stage**, **language** (pair or target per stage), **model**, and **prompt version** (current from code or saved).
-2. For **edit**: set preset and focus; only **target language** affects the editor system prompt.
+2. For **edit**: set execution mode and focus; only **target language** affects the editor system prompt.
 3. Paste **source text** (and translated text for edit), or use **Import scraper chapter** (see below).
 4. Optionally import **glossary** (JSON/CSV) under Advanced options.
 5. Edit prompts via **Edit** in the Prompts column (or override user prompt in the modal).
@@ -56,9 +56,17 @@ Workbench **Advanced**: optional **Run label** suffix.
 
 Translate always uses `--para:auto_N--` paragraph markers (Reader uses UUIDs from the chapter DB). Source text is normalized on save, scraper import, load, and run — same blank-line split as chapter import in Reader.
 
+**Translate output / edit draft:** the model returns JSON on the wire (`{ paragraphs: [...] }`); the engine and Lab unwrap it to marked plain text via `normalizeLabTranslatedText` / `tryParseTranslationParagraphsJson` (save text, **Use in Edit**, Review compare). If translate debug shows `completionPath: text`, check paragraph alignment in the summary warning.
+
 ## Meta API
 
-`GET /api/prompt-lab/meta` returns `pairs` (with `label`), `models`, `defaultModel`, `analysisExcludedModels`, stages, presets, focus options.
+`GET /api/prompt-lab/meta` returns `pairs` (with `label`), `models`, `defaultModel`, `analysisExcludedModels`, stages, `executionModes`, `defaultChunkSize`, focus options.
+
+## Execution modes (translate & edit)
+
+Workbench exposes **One-shot** (`one_shot`) and **Chunked** (`chunked`) for translate and edit. Defaults follow the selected model; the **Execution plan** panel shows tier and estimated chunk count before you run.
+
+Full architecture, SSOT modules, tier resolution, and **Lab vs production migration** reference: [[../03-explanation/prompt-lab-engine-config]].
 
 ## Saved data
 
@@ -69,7 +77,7 @@ Translate always uses `--para:auto_N--` paragraph markers (Reader uses UUIDs fro
 | Run history     | `prompt_lab_runs`        |
 | Review          | `prompt_lab_evaluations` |
 
-**Save text** and **Load in workbench** normalize source (and translated text when present): strip any existing markers, split on blank lines (same as chapter import in Reader), drop separator-only paragraphs (`***`, `---`), and inject fresh `--para:auto_N--` markers. Partial marker coverage (e.g. one marker on a whole chapter) is always re-split. Workbench and Saved texts show a paragraph preview list aligned with Reader's paragraph view.
+**Save text** and **Load in workbench** normalize source (and translated text when present): strip any existing markers, split on blank lines (same as chapter import in Reader), drop separator-only paragraphs (`***`, `---`), and inject fresh `--para:auto_N--` markers. Partial marker coverage (e.g. one marker on a whole chapter) is always re-split. **Translated/draft text** also unwraps translate JSON blobs when present (`normalizeLabTranslatedText`). Workbench and Saved texts show a paragraph preview list aligned with Reader's paragraph view.
 
 ### Import scraper chapter
 
@@ -81,6 +89,7 @@ Flow: pick `.json` → source text and chapter number are filled → **Save text
 
 ## Related
 
+- [[../03-explanation/prompt-lab-engine-config]] — execution modes, tiered chunking, Lab vs prod migration
 - [[debug-translation]] — production pipeline debug capture
 - [[../03-explanation/engine-pipeline]] — stage inputs matrix
 - Rule: [[../_canonical/rules/prompt-lab]]

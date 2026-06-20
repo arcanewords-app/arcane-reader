@@ -25,7 +25,9 @@ Dev-only sub-application for testing translation prompts in isolation. **Not ava
 
 ## Meta API shape
 
-`GET /api/prompt-lab/meta` (dev-only): `pairs[]` with `{ source, target, label }`, `models`, `defaultModel`, `analysisExcludedModels`, `stages`, `presets`, `focusOptions`.
+`GET /api/prompt-lab/meta` (dev-only): `pairs[]` with `{ source, target, label }`, `models`, `defaultModel`, `analysisExcludedModels`, `stages`, `executionModes` (translate + edit), `defaultChunkSize`, `focusOptions`.
+
+Execution mode architecture and Lab vs prod migration: `docs/03-explanation/prompt-lab-engine-config.md`.
 
 ## Boundary
 

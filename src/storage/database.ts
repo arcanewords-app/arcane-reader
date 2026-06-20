@@ -378,6 +378,14 @@ export interface ProjectSettings {
   translateLeadingContextParagraphs?: number;
   /** Preset: chunk 1200 + leading 2 + few-shot for mini models. */
   miniModelTranslationProfile?: boolean;
+  /** Translate execution mode override (undefined = auto from model). */
+  translateExecutionMode?: 'one_shot' | 'chunked';
+  /** Edit execution mode override (undefined = auto from model). */
+  editExecutionMode?: 'one_shot' | 'chunked';
+  /** Force token chunking even when single-shot would fit. */
+  forceChunked?: boolean;
+  /** Override default chunk size tier (800–4500). */
+  chunkSize?: number;
 }
 
 export interface DatabaseSchema {
@@ -601,10 +609,12 @@ export async function createProject(data: {
     settings: {
       // Default models: optimized for cost/quality using promotional models
       stageModels: {
-        analysis: 'gpt-4.1-mini', // Price/quality balance, analysis and editing
-        translation: 'gpt-4.1-mini', // Price/quality balance for all stages
-        editing: 'gpt-4.1-mini', // Price/quality balance for polishing
+        analysis: 'gpt-4.1-mini',
+        translation: 'gpt-5.4-mini',
+        editing: 'gpt-5.4-mini',
       },
+      translateExecutionMode: 'one_shot',
+      editExecutionMode: 'one_shot',
       temperature: 0.7,
       enableAnalysis: true,
       enableTranslation: true,

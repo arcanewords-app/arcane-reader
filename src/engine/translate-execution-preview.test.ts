@@ -6,14 +6,18 @@ function repeatChar(char: string, count: number): string {
   return char.repeat(count);
 }
 
+function repeatParagraphs(char: string, paragraphs: number, charsPerParagraph: number): string {
+  return Array.from({ length: paragraphs }, () => char.repeat(charsPerParagraph)).join('\n\n');
+}
+
 const MODELS = ['gpt-4.1-mini', 'gpt-5.4-mini', 'o4-mini'] as const;
 
 describe('buildTranslateExecutionPreview', () => {
-  it('enhanced + 5k chars → single_shot for all three models', () => {
+  it('one_shot + 5k chars → single_shot for all three models', () => {
     const source = repeatChar('a', 5000);
     for (const modelId of MODELS) {
       const preview = buildTranslateExecutionPreview({
-        preset: 'enhanced',
+        executionMode: 'one_shot',
         modelId,
         sourceText: source,
         targetLanguage: 'ru',
@@ -23,21 +27,23 @@ describe('buildTranslateExecutionPreview', () => {
     }
   });
 
-  it('enhanced + 15k + gpt-4.1-mini → chunked', () => {
+  it('one_shot + 15k + gpt-4.1-mini → large chunks', () => {
+    // CJK ~1 tok/char in tiktoken; Latin repeats compress and under-count chunks.
     const preview = buildTranslateExecutionPreview({
-      preset: 'enhanced',
+      executionMode: 'one_shot',
       modelId: 'gpt-4.1-mini',
-      sourceText: repeatChar('a', 16_000),
+      sourceText: repeatParagraphs('中', 20, 600),
       targetLanguage: 'ru',
     });
     assert.equal(preview.chunkingMode, 'chunked');
+    assert.equal(preview.chunkSizeTier, 'large');
     assert.ok(preview.estimatedChunks > 1);
     assert.ok(preview.hints.some((h) => h.includes('gpt-5.4-mini')));
   });
 
-  it('enhanced + 15k + gpt-5.4-mini → single_shot', () => {
+  it('one_shot + 15k + gpt-5.4-mini → single_shot', () => {
     const preview = buildTranslateExecutionPreview({
-      preset: 'enhanced',
+      executionMode: 'one_shot',
       modelId: 'gpt-5.4-mini',
       sourceText: repeatChar('a', 15_000),
       targetLanguage: 'ru',
@@ -46,9 +52,9 @@ describe('buildTranslateExecutionPreview', () => {
     assert.equal(preview.estimatedChunks, 1);
   });
 
-  it('fast always chunked without CoT flags', () => {
+  it('chunked always chunked without CoT flags', () => {
     const preview = buildTranslateExecutionPreview({
-      preset: 'fast',
+      executionMode: 'chunked',
       modelId: 'gpt-4.1-mini',
       sourceText: repeatChar('a', 5000),
       targetLanguage: 'ru',
@@ -58,15 +64,15 @@ describe('buildTranslateExecutionPreview', () => {
     assert.ok(preview.estimatedChunks >= 1);
   });
 
-  it('forceChunked overrides enhanced single_shot', () => {
+  it('forceChunked overrides one_shot single', () => {
     const preview = buildTranslateExecutionPreview({
-      preset: 'enhanced',
+      executionMode: 'one_shot',
       modelId: 'gpt-5.4-mini',
       sourceText: repeatChar('a', 5000),
       targetLanguage: 'ru',
       forceChunked: true,
     });
     assert.equal(preview.chunkingMode, 'chunked');
-    assert.ok(preview.estimatedChunks > 1);
+    assert.equal(preview.estimatedChunks, 1);
   });
 });

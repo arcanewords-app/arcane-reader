@@ -55,8 +55,12 @@ export interface WorkbenchLoadState {
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
   forceChunked?: boolean;
-  translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
-  editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+  translateExecutionMode?: 'one_shot' | 'chunked';
+  editExecutionMode?: 'one_shot' | 'chunked';
+  /** @deprecated */
+  translateQualityPreset?: 'one_shot' | 'chunked' | 'fast' | 'standard' | 'enhanced';
+  /** @deprecated */
+  editQualityPreset?: 'one_shot' | 'chunked' | 'fast' | 'standard' | 'enhanced';
   reasoningEffort?: 'low' | 'medium' | 'high';
   runLabel?: string;
 }
@@ -140,6 +144,7 @@ export interface LabEvaluationResult {
     preferred_variant: 'A' | 'B' | 'TIE';
     justification: string;
     final_polished_version: string;
+    final_polished_excerpt?: string;
   };
   /** @deprecated Legacy format */
   score?: number;
@@ -179,7 +184,7 @@ export interface LabRunOutput {
   prompts: { system: string; user: string };
   apiRequestParams?: Record<string, unknown>;
   translateDebug?: {
-    translateQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    translateExecutionMode?: 'one_shot' | 'chunked';
     resolvedFlags: {
       enableFewShot: boolean;
       enableCoT: boolean;
@@ -194,6 +199,8 @@ export interface LabRunOutput {
     effectiveChunkSize: number;
     chunkingMode?: 'single_shot' | 'chunked';
     chunkingReason?: string;
+    chunkSizeTier?: 'single' | 'large' | 'standard';
+    actualChunks?: number;
     estimatedInputTokens?: number;
     estimatedOutputTokens?: number;
     effectiveMaxTokens?: number;
@@ -205,13 +212,15 @@ export interface LabRunOutput {
     }>;
   };
   editDebug?: {
-    editQualityPreset?: 'fast' | 'standard' | 'enhanced';
+    editExecutionMode?: 'one_shot' | 'chunked';
     editingStylePreset: EditingPreset;
     editingFocus: EditingFocus;
     chunkingMode: 'single_shot' | 'chunked';
     chunkingReason: string;
+    chunkSizeTier?: 'single' | 'large' | 'standard';
     effectiveChunkSize: number;
     estimatedChunks: number;
+    actualChunks?: number;
     estimatedInputTokens: number;
     estimatedOutputTokens: number;
     effectiveMaxTokens: number;
@@ -401,6 +410,10 @@ export interface LabEvaluationPreview {
     leftChars: number;
     rightChars: number;
     glossaryChars: number;
+    totalChars: number;
+    maxInputChars: number;
+    tooLarge: boolean;
+    compactOutput: boolean;
   };
 }
 

@@ -70,7 +70,7 @@ export function loadConfig(): AppConfig {
     },
 
     translation: {
-      maxTokensPerChunk: parseInt(process.env.MAX_TOKENS_PER_CHUNK ?? '2000', 10),
+      maxTokensPerChunk: parseInt(process.env.MAX_TOKENS_PER_CHUNK ?? '3000', 10),
       temperature: parseFloat(process.env.TRANSLATION_TEMPERATURE ?? '0.7'),
       skipEditing: process.env.SKIP_EDITING === 'true',
       neverSplitParagraphs: process.env.NEVER_SPLIT_PARAGRAPHS !== 'false',

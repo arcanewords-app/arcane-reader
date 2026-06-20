@@ -155,7 +155,9 @@ export {
   isSeparatorParagraph,
   markParagraphContentsForTranslation,
   normalizeLabSourceText,
+  normalizeLabTranslatedText,
   prepareTranslateSourceText,
+  tryParseTranslationParagraphsJson,
   parseParagraphMarkers,
   stripParagraphMarkers,
   textToDisplayParagraphs,
@@ -164,3 +166,16 @@ export {
   PARA_MARKER_PREFIX,
   PARA_MARKER_SUFFIX,
 } from './utils/para-markers.js';
+
+export {
+  resolveTranslateExecutionMode,
+  resolveEditExecutionMode,
+  resolveTranslatePipelineOptions,
+  resolveEditPipelineOptions,
+  buildEditGlossaryAndCastFromContext,
+  executionSourceFromProjectSettings,
+  executionSourceFromPipelineOptions,
+  type ExecutionOptionsSource,
+  type ResolvedTranslatePipelineOptions,
+  type ResolvedEditPipelineOptions,
+} from './pipeline/resolve-execution-options.js';

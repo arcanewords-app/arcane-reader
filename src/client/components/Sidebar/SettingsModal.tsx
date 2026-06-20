@@ -21,16 +21,26 @@ import {
   getCustomBlockPreview,
 } from '../../constants/text-block-presets';
 import {
-  ANALYSIS_RECOMMENDED_MODELS,
   DEFAULT_LLM_MODEL,
-  isModelInList,
-  isReasoningModel,
-  LLM_MODELS,
+  isModelInProdSettingsList,
   modelUsesDefaultTemperature,
+  modelsForProdSettings,
 } from '../../../shared/llmModels.js';
+import {
+  defaultExecutionModeForModel,
+  TRANSLATE_EXECUTION_MODES,
+  type TranslateExecutionMode,
+} from '../../../shared/translate-execution-modes.js';
+import {
+  defaultEditExecutionModeForModel,
+  EDIT_EXECUTION_MODES,
+  type EditExecutionMode,
+} from '../../../shared/edit-execution-modes.js';
+import {
+  executionPresetI18nKey,
+  executionPresetHintI18nKey,
+} from '../../../shared/execution-presets-ui.js';
 import './SettingsModal.css';
-
-const MODELS = LLM_MODELS;
 
 interface SettingsModalProps {
   project: Project;
@@ -60,8 +70,30 @@ export function SettingsModal({
     return settings.model || DEFAULT_LLM_MODEL;
   };
 
-  const ANALYSIS_ALLOWED_MODELS = MODELS.filter((m) => !isReasoningModel(m.value));
-  const ANALYSIS_RECOMMENDED = [...ANALYSIS_RECOMMENDED_MODELS];
+  const effectiveTranslateMode: TranslateExecutionMode =
+    settings.translateExecutionMode ?? defaultExecutionModeForModel(getStageModel('translation'));
+  const effectiveEditMode: EditExecutionMode =
+    settings.editExecutionMode ?? defaultEditExecutionModeForModel(getStageModel('editing'));
+
+  const renderProdModelOptions = (stage: 'analysis' | 'translation' | 'editing') => {
+    const current = getStageModel(stage);
+    const options = modelsForProdSettings(stage);
+    const inList = isModelInProdSettingsList(stage, current);
+    return (
+      <>
+        {!inList && (
+          <option value={current}>
+            {current} ({t('settings.savedModel')})
+          </option>
+        )}
+        {options.map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label}
+          </option>
+        ))}
+      </>
+    );
+  };
 
   const handleStageModelChange = async (
     stage: 'analysis' | 'translation' | 'editing',
@@ -73,12 +105,29 @@ export function SettingsModal({
       editing: settings.model || DEFAULT_LLM_MODEL,
     };
 
-    const updated = await api.updateSettings(project.id, {
+    const patch: Record<string, unknown> = {
       stageModels: {
         ...currentStageModels,
         [stage]: model,
       },
-    });
+    };
+
+    if (stage === 'translation') {
+      patch.translateExecutionMode = defaultExecutionModeForModel(model);
+    }
+    if (stage === 'editing') {
+      patch.editExecutionMode = defaultEditExecutionModeForModel(model);
+    }
+
+    const updated = await api.updateSettings(project.id, patch);
+    onSettingsChange(updated);
+  };
+
+  const handleExecutionModeChange = async (
+    field: 'translateExecutionMode' | 'editExecutionMode',
+    value: TranslateExecutionMode | EditExecutionMode
+  ) => {
+    const updated = await api.updateSettings(project.id, { [field]: value });
     onSettingsChange(updated);
   };
 
@@ -399,28 +448,29 @@ export function SettingsModal({
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
-              Text Blocks & Custom Instructions
+              {t('settings.textBlocksTitle')}
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.75rem' }}>
-              Special formatting (system messages, notes, letters) and extra rules for
-              translator/editor.
+              {t('settings.textBlocksDesc')}
             </div>
             <div style={{ marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Presets:</span>{' '}
+              <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                {t('settings.textBlocksPresets')}
+              </span>{' '}
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
                 onClick={() => handleLoadPreset(LITRPG_PRESET)}
                 style={{ marginRight: '0.5rem' }}
               >
-                LitRPG
+                {t('settings.textBlocksPresetLitRpg')}
               </button>
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
                 onClick={() => handleLoadPreset(EPISTOLARY_PRESET)}
               >
-                Epistolary
+                {t('settings.textBlocksPresetEpistolary')}
               </button>
             </div>
             <div class="text-blocks-list">
@@ -469,7 +519,9 @@ export function SettingsModal({
                       </label>
                     </div>
                     <div class="text-block-preview">
-                      <span class="text-block-preview-label">Пример:</span>
+                      <span class="text-block-preview-label">
+                        {t('settings.textBlocksPreviewLabel')}
+                      </span>
                       <div
                         class="text-block-preview-content"
                         dangerouslySetInnerHTML={{ __html: previewHtml }}
@@ -480,8 +532,7 @@ export function SettingsModal({
               })}
             </div>
             <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-              Для кастомных типов: при создании выберите пресет стиля (system-message, note, skill и
-              т.д.) — он задаст внешний вид.
+              {t('settings.textBlocksCustomTypesHint')}
             </div>
             <div class="text-blocks-format-help">
               <button
@@ -490,26 +541,22 @@ export function SettingsModal({
                 onClick={() => setShowFormatHelp(!showFormatHelp)}
                 style={{ marginTop: '0.75rem' }}
               >
-                {showFormatHelp ? t('common.close') : t('chapterList.viewQueue', 'View')} Формат для
-                интеграции
+                {showFormatHelp ? t('common.close') : t('settings.textBlocksFormatHelp')}
               </button>
               {showFormatHelp && (
                 <div class="text-blocks-format-content">
-                  <p style={{ marginBottom: '0.5rem' }}>
-                    Если перевод уже содержит выделения, используйте маркеры (не HTML):
-                  </p>
+                  <p style={{ marginBottom: '0.5rem' }}>{t('settings.textBlocksFormatIntro')}</p>
                   <code class="text-blocks-format-code">
                     {'{{block:тип-id}}'}текст{'{{/block:тип-id}}'}
                   </code>
-                  <p style={{ marginTop: '0.75rem', marginBottom: '0.35rem' }}>Примеры:</p>
+                  <p style={{ marginTop: '0.75rem', marginBottom: '0.35rem' }}>
+                    {t('settings.textBlocksFormatExamples')}
+                  </p>
                   <pre class="text-blocks-format-pre">
-                    {`{{block:system-message}}Level Up! Сила +5{{/block:system-message}}
-{{block:note}}Дорогой друг, надеюсь это письмо...{{/block:note}}
-Маг призвал {{block:skill}}Огненный шар{{/block:skill}} к врагу.`}
+                    {t('settings.textBlocksFormatPreExample')}
                   </pre>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
-                    Типы: system-message, note, notification, skill, inner-voice. HTML не
-                    поддерживается.
+                    {t('settings.textBlocksFormatTypes')}
                   </p>
                 </div>
               )}
@@ -519,7 +566,7 @@ export function SettingsModal({
                 htmlFor="settings-custom-instructions-translation"
                 style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}
               >
-                Custom instructions for translator
+                {t('settings.customInstructionsTranslation')}
               </label>
               <textarea
                 id="settings-custom-instructions-translation"
@@ -534,7 +581,7 @@ export function SettingsModal({
                   const v = (e.target as HTMLTextAreaElement).value;
                   setCustomInstructionsLocal((p) => ({ ...p, translation: v }));
                 }}
-                placeholder="e.g. Wrap system messages in {{block:system-message}}..."
+                placeholder={t('settings.customInstructionsTranslationPlaceholder')}
                 rows={2}
                 style={{
                   width: '100%',
@@ -618,7 +665,7 @@ export function SettingsModal({
                 htmlFor="settings-custom-instructions-editing"
                 style={{ display: 'block', fontWeight: 500, marginBottom: '0.35rem' }}
               >
-                Custom instructions for editor
+                {t('settings.customInstructionsEditing')}
               </label>
               <textarea
                 id="settings-custom-instructions-editing"
@@ -630,7 +677,7 @@ export function SettingsModal({
                   const v = (e.target as HTMLTextAreaElement).value;
                   setCustomInstructionsLocal((p) => ({ ...p, editing: v }));
                 }}
-                placeholder="e.g. Preserve all {{block:...}} markers exactly."
+                placeholder={t('settings.customInstructionsEditingPlaceholder')}
                 rows={2}
                 style={{
                   width: '100%',
@@ -663,33 +710,7 @@ export function SettingsModal({
                     handleStageModelChange('analysis', (e.target as HTMLSelectElement).value)
                   }
                 >
-                  {isReasoningModel(getStageModel('analysis')) && (
-                    <option value={getStageModel('analysis')}>
-                      {getStageModel('analysis')} — {t('settings.notRecommendedForAnalysis')}
-                    </option>
-                  )}
-                  {!isModelInList(getStageModel('analysis')) &&
-                    !isReasoningModel(getStageModel('analysis')) && (
-                      <option value={getStageModel('analysis')}>{getStageModel('analysis')}</option>
-                    )}
-                  <optgroup label={`⭐ ${t('settings.recommendedForAnalysis')}`}>
-                    {ANALYSIS_ALLOWED_MODELS.filter((m) =>
-                      ANALYSIS_RECOMMENDED.includes(m.value)
-                    ).map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label} — {t(`settings.modelDesc.${m.value}`)}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label={t('settings.otherModels')}>
-                    {ANALYSIS_ALLOWED_MODELS.filter(
-                      (m) => !ANALYSIS_RECOMMENDED.includes(m.value)
-                    ).map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label} — {t(`settings.modelDesc.${m.value}`)}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {renderProdModelOptions('analysis')}
                 </select>
                 <div
                   class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('analysis')) ? ' slider-disabled' : ''}`}
@@ -728,30 +749,7 @@ export function SettingsModal({
                         handleStageModelChange('translation', (e.target as HTMLSelectElement).value)
                       }
                     >
-                      {!isModelInList(getStageModel('translation')) && (
-                        <option value={getStageModel('translation')}>
-                          {getStageModel('translation')}
-                        </option>
-                      )}
-                      <optgroup label={`⭐ ${t('settings.recommendedForTranslation')}`}>
-                        {MODELS.filter((m) =>
-                          ['gpt-5-mini', 'gpt-4.1-mini', 'o3-mini', 'o4-mini'].includes(m.value)
-                        ).map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label={t('settings.otherModels')}>
-                        {MODELS.filter(
-                          (m) =>
-                            !['gpt-5-mini', 'gpt-4.1-mini', 'o3-mini', 'o4-mini'].includes(m.value)
-                        ).map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
-                          </option>
-                        ))}
-                      </optgroup>
+                      {renderProdModelOptions('translation')}
                     </select>
                     <div
                       class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('translation')) ? ' slider-disabled' : ''}`}
@@ -789,32 +787,7 @@ export function SettingsModal({
                         handleStageModelChange('editing', (e.target as HTMLSelectElement).value)
                       }
                     >
-                      {!isModelInList(getStageModel('editing')) && (
-                        <option value={getStageModel('editing')}>{getStageModel('editing')}</option>
-                      )}
-                      <optgroup label={`⭐ ${t('settings.recommendedForEditing')}`}>
-                        {MODELS.filter((m) =>
-                          ['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5-nano'].includes(
-                            m.value
-                          )
-                        ).map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label={t('settings.otherModels')}>
-                        {MODELS.filter(
-                          (m) =>
-                            !['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1-nano', 'gpt-5-nano'].includes(
-                              m.value
-                            )
-                        ).map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label} — {t(`settings.modelDesc.${m.value}`)}
-                          </option>
-                        ))}
-                      </optgroup>
+                      {renderProdModelOptions('editing')}
                     </select>
                     <div
                       class={`slider-container stage-row-slider${modelUsesDefaultTemperature(getStageModel('editing')) ? ' slider-disabled' : ''}`}
@@ -844,6 +817,61 @@ export function SettingsModal({
                 </>
               )}
             </div>
+            {!isOriginalReadingMode && (
+              <div class="settings-engine-execution">
+                <label class="setting-label">{t('settings.engineExecutionTitle')}</label>
+                <div class="setting-row">
+                  <label class="setting-label setting-label-inline">
+                    {t('settings.translateExecutionMode')}
+                  </label>
+                  <select
+                    class="setting-select"
+                    value={effectiveTranslateMode}
+                    onChange={(e) =>
+                      void handleExecutionModeChange(
+                        'translateExecutionMode',
+                        (e.target as HTMLSelectElement).value as TranslateExecutionMode
+                      )
+                    }
+                  >
+                    {TRANSLATE_EXECUTION_MODES.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {t(`settings.executionPreset.${executionPresetI18nKey(m.value)}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <span class="setting-hint">
+                    {t(
+                      `settings.executionPreset.${executionPresetHintI18nKey(effectiveTranslateMode)}`
+                    )}
+                  </span>
+                </div>
+                <div class="setting-row">
+                  <label class="setting-label setting-label-inline">
+                    {t('settings.editExecutionMode')}
+                  </label>
+                  <select
+                    class="setting-select"
+                    value={effectiveEditMode}
+                    onChange={(e) =>
+                      void handleExecutionModeChange(
+                        'editExecutionMode',
+                        (e.target as HTMLSelectElement).value as EditExecutionMode
+                      )
+                    }
+                  >
+                    {EDIT_EXECUTION_MODES.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {t(`settings.executionPreset.${executionPresetI18nKey(m.value)}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <span class="setting-hint">
+                    {t(`settings.executionPreset.${executionPresetHintI18nKey(effectiveEditMode)}`)}
+                  </span>
+                </div>
+              </div>
+            )}
             <span class="setting-hint">{t('settings.temperatureHint')}</span>
             {!isOriginalReadingMode && (
               <span class="setting-hint" style={{ marginTop: '0.25rem', display: 'block' }}>

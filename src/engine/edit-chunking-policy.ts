@@ -6,11 +6,12 @@ import { resolveModelMaxOutputTokens } from './translate-chunking-policy.js';
 import { estimateTokensHeuristic } from './utils/token-estimate.js';
 import {
   EDIT_AUTO_CHUNK_TOKEN_THRESHOLD,
-  EDIT_FAST_CHUNK_SIZE,
+  EDIT_MINIMAL_CHUNK_SIZE,
   EDIT_STANDARD_CHUNK_SIZE,
-  resolvePresetToEditOptions,
-  type EditQualityPreset,
-} from '../shared/edit-quality-presets.js';
+  ONE_SHOT_EDIT_FALLBACK_CHUNK_SIZE,
+  resolveExecutionModeToEditOptions,
+  type EditExecutionMode,
+} from '../shared/edit-execution-modes.js';
 
 export type EditChunkingMode = 'single_shot' | 'chunked';
 
@@ -21,6 +22,7 @@ export interface EditChunkingResolution {
   estimatedOutputTokens: number;
   effectiveMaxTokens: number;
   effectiveChunkSize: number;
+  chunkSizeTier: 'single' | 'large' | 'standard';
 }
 
 const PROMPT_OVERHEAD_TOKENS = 2500;
@@ -32,6 +34,15 @@ export const LAB_EDIT_MAX_OUTPUT_TOKENS = 8192;
 
 function estimateTokens(text: string): number {
   return estimateTokensHeuristic(text);
+}
+
+function resolveEditChunkSizeTier(
+  executionMode: EditExecutionMode,
+  chunkingMode: EditChunkingMode
+): 'single' | 'large' | 'standard' {
+  if (chunkingMode === 'single_shot') return 'single';
+  if (executionMode === 'one_shot') return 'large';
+  return 'standard';
 }
 
 export function estimateEditTokenBudgets(input: {
@@ -52,18 +63,22 @@ export function estimateEditTokenBudgets(input: {
 
 export function resolveEditChunkSize(input: {
   chunkSizeOverride?: number;
-  preset: EditQualityPreset;
+  executionMode: EditExecutionMode;
+  chunkingMode: EditChunkingMode;
   includeGlossary?: boolean;
+  minimalChunkOverride?: boolean;
 }): number {
   if (input.chunkSizeOverride !== undefined && input.chunkSizeOverride > 0) {
     return input.chunkSizeOverride;
   }
-  const presetOpts = resolvePresetToEditOptions(input.preset);
-  if (presetOpts.forceChunked && presetOpts.defaultChunkSize === EDIT_FAST_CHUNK_SIZE) {
-    return EDIT_FAST_CHUNK_SIZE;
+  if (input.minimalChunkOverride) {
+    return EDIT_MINIMAL_CHUNK_SIZE;
+  }
+  if (input.executionMode === 'one_shot' && input.chunkingMode === 'chunked') {
+    return ONE_SHOT_EDIT_FALLBACK_CHUNK_SIZE;
   }
   if (input.includeGlossary === false) {
-    return 3500;
+    return ONE_SHOT_EDIT_FALLBACK_CHUNK_SIZE;
   }
   return EDIT_STANDARD_CHUNK_SIZE;
 }
@@ -86,13 +101,14 @@ export function canSingleShotEdit(input: {
 export interface ResolveEditChunkingModeInput {
   translatedText: string;
   modelId: string;
-  preset: EditQualityPreset;
+  executionMode: EditExecutionMode;
   glossaryText?: string;
   castText?: string;
   forceChunked?: boolean;
   forceSingleShot?: boolean;
   chunkSizeOverride?: number;
   includeGlossary?: boolean;
+  minimalChunkOverride?: boolean;
 }
 
 export function resolveEditChunkingMode(
@@ -104,12 +120,9 @@ export function resolveEditChunkingMode(
     castText: input.castText,
   });
 
-  const presetOpts = resolvePresetToEditOptions(input.preset);
-  const effectiveChunkSize = resolveEditChunkSize({
-    chunkSizeOverride: input.chunkSizeOverride,
-    preset: input.preset,
-    includeGlossary: input.includeGlossary,
-  });
+  const presetOpts = resolveExecutionModeToEditOptions(input.executionMode);
+  const forceChunked = input.forceChunked === true;
+  const wantsSingleShot = input.forceSingleShot ?? presetOpts.forceSingleShot;
 
   const modelMax = resolveModelMaxOutputTokens(input.modelId);
   const effectiveMaxTokens = Math.min(
@@ -118,59 +131,49 @@ export function resolveEditChunkingMode(
     Math.max(LAB_EDIT_MAX_OUTPUT_TOKENS, Math.ceil(outputTokens * 1.1))
   );
 
-  const forceChunked = input.forceChunked === true || presetOpts.forceChunked;
-  const wantsSingleShot = input.forceSingleShot ?? presetOpts.forceSingleShot;
+  let mode: EditChunkingMode;
+  let reason: string;
 
   if (forceChunked) {
-    return {
-      mode: 'chunked',
-      reason: input.forceChunked ? 'force_chunked' : 'preset_fast',
-      estimatedInputTokens: inputTokens,
-      estimatedOutputTokens: outputTokens,
-      effectiveMaxTokens: LAB_EDIT_MAX_OUTPUT_TOKENS,
-      effectiveChunkSize,
-    };
+    mode = 'chunked';
+    reason = 'force_chunked';
+  } else if (input.executionMode === 'chunked') {
+    if (draftTokens > EDIT_AUTO_CHUNK_TOKEN_THRESHOLD) {
+      mode = 'chunked';
+      reason = 'chunked_standard';
+    } else {
+      mode = 'single_shot';
+      reason = 'short_draft_direct';
+    }
+  } else if (wantsSingleShot && canSingleShotEdit(input)) {
+    mode = 'single_shot';
+    reason = 'one_shot_fits_budget';
+  } else if (wantsSingleShot && !canSingleShotEdit(input)) {
+    mode = 'chunked';
+    reason = 'one_shot_large_chunks';
+  } else if (draftTokens > EDIT_AUTO_CHUNK_TOKEN_THRESHOLD) {
+    mode = 'chunked';
+    reason = 'chunked_standard';
+  } else {
+    mode = 'single_shot';
+    reason = 'short_draft_direct';
   }
 
-  if (wantsSingleShot && canSingleShotEdit(input)) {
-    return {
-      mode: 'single_shot',
-      reason: 'draft_fits_budget',
-      estimatedInputTokens: inputTokens,
-      estimatedOutputTokens: outputTokens,
-      effectiveMaxTokens,
-      effectiveChunkSize,
-    };
-  }
-
-  if (wantsSingleShot && !canSingleShotEdit(input)) {
-    return {
-      mode: 'chunked',
-      reason: 'draft_exceeds_output_budget',
-      estimatedInputTokens: inputTokens,
-      estimatedOutputTokens: outputTokens,
-      effectiveMaxTokens: LAB_EDIT_MAX_OUTPUT_TOKENS,
-      effectiveChunkSize,
-    };
-  }
-
-  if (draftTokens > EDIT_AUTO_CHUNK_TOKEN_THRESHOLD) {
-    return {
-      mode: 'chunked',
-      reason: 'draft_exceeds_auto_threshold',
-      estimatedInputTokens: inputTokens,
-      estimatedOutputTokens: outputTokens,
-      effectiveMaxTokens: LAB_EDIT_MAX_OUTPUT_TOKENS,
-      effectiveChunkSize,
-    };
-  }
+  const effectiveChunkSize = resolveEditChunkSize({
+    chunkSizeOverride: input.chunkSizeOverride,
+    executionMode: input.executionMode,
+    chunkingMode: mode,
+    includeGlossary: input.includeGlossary,
+    minimalChunkOverride: input.minimalChunkOverride,
+  });
 
   return {
-    mode: 'single_shot',
-    reason: 'short_draft_direct',
+    mode,
+    reason,
     estimatedInputTokens: inputTokens,
     estimatedOutputTokens: outputTokens,
-    effectiveMaxTokens,
+    effectiveMaxTokens: mode === 'single_shot' ? effectiveMaxTokens : LAB_EDIT_MAX_OUTPUT_TOKENS,
     effectiveChunkSize,
+    chunkSizeTier: resolveEditChunkSizeTier(input.executionMode, mode),
   };
 }

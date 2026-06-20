@@ -1,31 +1,51 @@
 import type { TranslateExecutionPreview } from '@engine/translate-execution-preview.js';
-import { TRANSLATE_QUALITY_PRESETS } from '../../shared/translate-quality-presets.js';
+import { TRANSLATE_EXECUTION_MODES } from '../../shared/translate-execution-modes.js';
 
 interface TranslateExecutionPreviewCardProps {
   preview: TranslateExecutionPreview | null;
+  actualChunks?: number;
 }
 
-export function TranslateExecutionPreviewCard({ preview }: TranslateExecutionPreviewCardProps) {
+function modeLabel(preview: TranslateExecutionPreview): string {
+  if (preview.chunkingMode === 'single_shot') {
+    return 'Single request (1 API call)';
+  }
+  const tierPrefix =
+    preview.chunkSizeTier === 'large' ? 'large' : preview.chunkSizeTier === 'standard' ? '' : '';
+  const sizeNote = tierPrefix ? `${tierPrefix} ` : '';
+  return `~${preview.estimatedChunks} ${sizeNote}chunks (${preview.effectiveChunkSize} tok, sequential)`;
+}
+
+export function TranslateExecutionPreviewCard({
+  preview,
+  actualChunks,
+}: TranslateExecutionPreviewCardProps) {
   if (!preview) {
     return <p class="pl-muted">Add source text to see execution plan.</p>;
   }
 
-  const presetMeta = TRANSLATE_QUALITY_PRESETS.find((p) => p.value === preview.preset);
-  const modeLabel =
-    preview.chunkingMode === 'single_shot'
-      ? 'Single request (1 API call)'
-      : `~${preview.estimatedChunks} chunks (sequential)`;
+  const modeMeta = TRANSLATE_EXECUTION_MODES.find((p) => p.value === preview.executionMode);
+  const plannedLabel = modeLabel(preview);
+  const showActualMismatch =
+    actualChunks != null && actualChunks > 0 && actualChunks !== preview.estimatedChunks;
 
   return (
     <div class="pl-exec-preview">
       <p class="pl-exec-preview__title">Execution plan</p>
       <dl class="pl-exec-preview__dl">
         <dt>Mode</dt>
-        <dd>{modeLabel}</dd>
-        <dt>Preset</dt>
         <dd>
-          {presetMeta?.label ?? preview.preset} — {presetMeta?.description}
+          {plannedLabel}
+          {showActualMismatch ? (
+            <span class="pl-muted"> (actual: {actualChunks} chunks)</span>
+          ) : null}
         </dd>
+        <dt>Execution</dt>
+        <dd>
+          {modeMeta?.label ?? preview.executionMode} — {modeMeta?.description}
+        </dd>
+        <dt>Tier</dt>
+        <dd>{preview.chunkSizeTier}</dd>
         {preview.chunkingMode === 'chunked' ? (
           <>
             <dt>Chunk size</dt>

@@ -6,81 +6,60 @@ function repeatChar(char: string, count: number): string {
   return char.repeat(count);
 }
 
-const MODELS = ['gpt-4.1-mini', 'gpt-5.4-mini', 'o4-mini'] as const;
+function repeatParagraphs(char: string, paragraphs: number, charsPerParagraph: number): string {
+  return Array.from({ length: paragraphs }, () => char.repeat(charsPerParagraph)).join('\n\n');
+}
 
 describe('buildEditExecutionPreview', () => {
-  it('enhanced + 5k chars → single_shot for all three models', () => {
-    const draft = repeatChar('a', 5000);
-    for (const modelId of MODELS) {
+  it('one_shot + 5k chars → single_shot for all three models', () => {
+    for (const modelId of ['gpt-4.1-mini', 'gpt-5.4-mini', 'o4-mini'] as const) {
       const preview = buildEditExecutionPreview({
-        preset: 'enhanced',
+        executionMode: 'one_shot',
         modelId,
-        translatedText: draft,
+        translatedText: repeatChar('a', 5000),
       });
-      assert.ok(preview);
       assert.equal(preview.chunkingMode, 'single_shot', modelId);
       assert.equal(preview.estimatedChunks, 1, modelId);
     }
   });
 
-  it('fast always chunked', () => {
+  it('chunked mode chunks long draft', () => {
     const preview = buildEditExecutionPreview({
-      preset: 'fast',
+      executionMode: 'chunked',
       modelId: 'gpt-4.1-mini',
-      translatedText: repeatChar('a', 2000),
+      translatedText: repeatParagraphs('中', 10, 500),
     });
-    assert.ok(preview);
-    assert.equal(preview.chunkingMode, 'chunked');
-    assert.equal(preview.effectiveChunkSize, 1200);
-    assert.ok(preview.estimatedChunks >= 1);
-  });
-
-  it('standard short draft → single_shot direct', () => {
-    const preview = buildEditExecutionPreview({
-      preset: 'standard',
-      modelId: 'gpt-4.1-mini',
-      translatedText: repeatChar('a', 2000),
-    });
-    assert.ok(preview);
-    assert.equal(preview.chunkingMode, 'single_shot');
-    assert.equal(preview.chunkingReason, 'short_draft_direct');
-  });
-
-  it('forceChunked overrides enhanced single_shot', () => {
-    const preview = buildEditExecutionPreview({
-      preset: 'enhanced',
-      modelId: 'gpt-5.4-mini',
-      translatedText: repeatChar('a', 12_000),
-      forceChunked: true,
-    });
-    assert.ok(preview);
     assert.equal(preview.chunkingMode, 'chunked');
     assert.ok(preview.estimatedChunks > 1);
   });
 
-  it('returns config-only preview for empty draft', () => {
+  it('chunked short draft → single_shot direct', () => {
     const preview = buildEditExecutionPreview({
-      preset: 'standard',
+      executionMode: 'chunked',
       modelId: 'gpt-4.1-mini',
-      translatedText: '',
+      translatedText: repeatChar('a', 2000),
     });
-    assert.equal(preview.hasDraftText, false);
-    assert.equal(preview.preset, 'standard');
-    assert.equal(preview.editingStylePreset, 'default');
-    assert.equal(preview.editingFocus, 'polish');
     assert.equal(preview.chunkingMode, 'single_shot');
-    assert.equal(preview.estimatedChunks, 1);
-    assert.ok(preview.hints.some((h) => h.includes('Add draft text')));
+    assert.equal(preview.chunkingReason, 'short_draft_direct');
   });
 
-  it('fast empty draft → chunked with zero estimated chunks', () => {
+  it('forceChunked overrides one_shot single', () => {
     const preview = buildEditExecutionPreview({
-      preset: 'fast',
+      executionMode: 'one_shot',
+      modelId: 'gpt-5.4-mini',
+      translatedText: repeatChar('a', 5000),
+      forceChunked: true,
+    });
+    assert.equal(preview.chunkingMode, 'chunked');
+    assert.ok(preview.estimatedChunks >= 1);
+  });
+
+  it('chunked empty draft → zero estimated chunks', () => {
+    const preview = buildEditExecutionPreview({
+      executionMode: 'chunked',
       modelId: 'gpt-4.1-mini',
       translatedText: '',
     });
-    assert.equal(preview.hasDraftText, false);
-    assert.equal(preview.chunkingMode, 'chunked');
     assert.equal(preview.estimatedChunks, 0);
   });
 });

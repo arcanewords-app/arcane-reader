@@ -85,6 +85,31 @@ export const projectSettingsBodySchema = z
       .optional()
       .transform((v) => (v === undefined ? v : normalizeEditingFocus(v))),
     allowReasoningModelsForAnalysis: z.boolean().optional(),
+    enableTranslateFewShot: z.boolean().optional(),
+    enableTranslateCoT: z.boolean().optional(),
+    enableTranslateStructuredCoT: z.boolean().optional(),
+    translateLeadingContextParagraphs: z.number().int().min(0).max(4).optional(),
+    miniModelTranslationProfile: z.boolean().optional(),
+    forceChunked: z.boolean().optional(),
+    chunkSize: z.number().int().min(800).max(4500).nullable().optional(),
+    translateExecutionMode: z
+      .enum(['one_shot', 'chunked', 'fast', 'standard', 'enhanced'])
+      .nullable()
+      .optional()
+      .transform((v) => {
+        if (v === null || v === undefined) return v;
+        if (v === 'one_shot' || v === 'enhanced') return 'one_shot' as const;
+        return 'chunked' as const;
+      }),
+    editExecutionMode: z
+      .enum(['one_shot', 'chunked', 'fast', 'standard', 'enhanced'])
+      .nullable()
+      .optional()
+      .transform((v) => {
+        if (v === null || v === undefined) return v;
+        if (v === 'one_shot' || v === 'enhanced') return 'one_shot' as const;
+        return 'chunked' as const;
+      }),
   })
   .passthrough();
 

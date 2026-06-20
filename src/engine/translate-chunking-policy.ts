@@ -1,11 +1,13 @@
 /**
  * Resolve translate chunking mode: single-shot vs token chunking.
  *
- * Single-shot is preferred when CoT or leading context is enabled and the chapter
- * fits within model input/output budgets — avoids merge bloat from repeated full-chapter JSON.
+ * Execution modes:
+ * - one_shot: prefer single API call; overflow → large chunks (4500 tok)
+ * - chunked: always standard chunks (3000 tok), no CoT
  */
 
 import type { Language } from './types/common.js';
+import type { TranslateExecutionMode } from '../shared/translate-execution-modes.js';
 import { estimateTokensHeuristic } from './utils/token-estimate.js';
 import {
   resolveTranslateLlmDefaults,
@@ -52,6 +54,7 @@ export interface ResolveTranslateChunkingModeInput {
   sourceText: string;
   modelId: string;
   optimization: TranslateOptimizationFlags;
+  executionMode?: TranslateExecutionMode;
   targetLanguage?: Language;
   glossaryText?: string;
   contextText?: string;
@@ -123,32 +126,32 @@ export function resolveTranslateChunkingMode(
     };
   }
 
-  const wantsContextualMode =
-    input.optimization.enableCoT || input.optimization.leadingContextParagraphs > 0;
+  const executionMode = input.executionMode ?? 'chunked';
 
-  if (wantsContextualMode && canSingleShotTranslate(input)) {
-    return {
-      mode: 'single_shot',
-      reason: 'cot_or_leading_context_fits_budget',
-      estimatedInputTokens: inputTokens,
-      estimatedOutputTokens: outputTokens,
-      effectiveMaxTokens,
-    };
-  }
-
-  if (wantsContextualMode && !canSingleShotTranslate(input)) {
+  if (executionMode === 'chunked') {
     return {
       mode: 'chunked',
-      reason: 'cot_or_leading_context_exceeds_output_budget',
+      reason: 'chunked_standard',
       estimatedInputTokens: inputTokens,
       estimatedOutputTokens: outputTokens,
       effectiveMaxTokens: baseMax,
     };
   }
 
+  // one_shot execution mode
+  if (canSingleShotTranslate(input)) {
+    return {
+      mode: 'single_shot',
+      reason: 'one_shot_fits_budget',
+      estimatedInputTokens: inputTokens,
+      estimatedOutputTokens: outputTokens,
+      effectiveMaxTokens,
+    };
+  }
+
   return {
     mode: 'chunked',
-    reason: 'default_chunked',
+    reason: 'one_shot_large_chunks',
     estimatedInputTokens: inputTokens,
     estimatedOutputTokens: outputTokens,
     effectiveMaxTokens: baseMax,

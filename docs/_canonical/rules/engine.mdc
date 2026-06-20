@@ -25,12 +25,15 @@ alwaysApply: false
 
 | Scenario | Translation | Glossary in translate | Edit | Glossary in edit |
 |----------|-------------|----------------------|------|------------------|
-| Translate only | 2000 | yes | — | — |
-| Full pipeline (+ edit) | 3500 | no | 2000 | yes |
-| `includeGlossaryInTranslation: false` | 3500 | no | — | — |
+| Translate only (default) | 3000 | yes | — | — |
+| Full pipeline (+ edit) | 3500 | no | 3000 | yes |
+| `includeGlossaryInTranslation: false` | 3000 | no | — | — |
 | `includeGlossaryInEditing: false` | — | — | 3500 | no |
+| Prompt Lab `one_shot` overflow | 4500 | — | 4500 | — |
 
-Override via `PipelineOptions.chunkSize`. Chunker: `neverSplitParagraphs` default true.
+Override via `PipelineOptions.chunkSize` or `MAX_TOKENS_PER_CHUNK` (default 3000). Chunker: `neverSplitParagraphs` default true.
+
+**Execution modes** (`one_shot` / `chunked`), tiered chunking, Lab vs prod contract: `docs/03-explanation/prompt-lab-engine-config.md`.
 
 ### Stage 3 caveat
 
@@ -38,9 +41,9 @@ Edit chunks **translated text only** — boundaries independent of Stage 2. See 
 
 ## PipelineOptions (summary)
 
-`runStages`, `skipAnalysis`/`skipEditing`, `existingTranslatedTextForEdit`, `isCancelled`, `onProgress`, `parallelChunks`, `neverSplitParagraphs`, `includeGlossaryInAnalysis|Translation|Editing`, `textBlockTypes`, `customInstructions`, `editingStylePreset`, `editingFocus`, `checkQualityForChunked`.
+`runStages`, `skipAnalysis`/`skipEditing`, `existingTranslatedTextForEdit`, `isCancelled`, `onProgress`, `parallelChunks`, `neverSplitParagraphs`, `includeGlossaryInAnalysis|Translation|Editing`, `textBlockTypes`, `customInstructions`, `editingStylePreset`, `editingFocus`, `translateExecutionMode`, `editExecutionMode`, `forceSingleShot`, `forceChunked`, `checkQualityForChunked`.
 
-Full list: `@src/engine/types/pipeline.ts`.
+Resolver SSOT: `@src/engine/pipeline/resolve-execution-options.ts` (prod + Prompt Lab).
 
 ## Glossary
 
@@ -84,6 +87,10 @@ Markers: `{{block:type-id}}text{{/block:type-id}}`. Types in `@src/engine/consta
 ## Paragraph markers
 
 `--para:{id}--` — prompts in engine; injection/parsing on server. See vault `engine-integration-boundary.md`.
+
+Translate Stage 2 may receive `{ paragraphs: [{ id, translated }] }` from the model (JSON / CoT). **SSOT unwrap:** `@src/engine/utils/para-markers.ts` — `tryParseTranslationParagraphsJson`, `mergeJsonParagraphsToMarkedText`. `TranslateStage.translateChunk` must unwrap JSON on every completion path (including text fallback). Prompt Lab draft/output uses `normalizeLabTranslatedText`.
+
+Translate Stage 2 may receive `{ paragraphs: [{ id, translated }] }` from the model (JSON / CoT). **SSOT unwrap:** `@src/engine/utils/para-markers.ts` — `tryParseTranslationParagraphsJson`, `mergeJsonParagraphsToMarkedText`. `TranslateStage.translateChunk` must unwrap JSON on every completion path (including text fallback). Prompt Lab draft/output uses `normalizeLabTranslatedText`.
 
 ## Logging
 

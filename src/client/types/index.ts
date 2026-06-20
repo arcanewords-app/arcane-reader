@@ -335,6 +335,18 @@ export interface ProjectSettings {
   editingStylePreset?: 'default' | 'literary' | 'minimal' | 'ai_revivification';
   /** Editing focus: fix_only, polish, elevate */
   editingFocus?: 'fix_only' | 'polish' | 'elevate';
+  /** Translate execution mode override (undefined = auto from model). */
+  translateExecutionMode?: 'one_shot' | 'chunked';
+  /** Edit execution mode override (undefined = auto from model). */
+  editExecutionMode?: 'one_shot' | 'chunked';
+  enableTranslateFewShot?: boolean;
+  enableTranslateCoT?: boolean;
+  enableTranslateStructuredCoT?: boolean;
+  translateLeadingContextParagraphs?: number;
+  miniModelTranslationProfile?: boolean;
+  forceChunked?: boolean;
+  chunkSize?: number;
+  allowReasoningModelsForAnalysis?: boolean;
 }
 
 // === Project Metadata ===

@@ -26,6 +26,7 @@ alwaysApply: false
 - Default app locale: **ru** (`fallbackLng: 'ru'`). Resolution order: `localStorage` key `app.locale` (explicit choice) → `navigator.languages` / `navigator.language` (`ru-*` → ru, `en-*` → en, `be-*` → be) → **ru**.
 - Header locale dropdown persists choice via `setSavedLocale`; updates `document.documentElement.lang`.
 - Use `useTranslation()` hook. Add new keys to **en**, **ru**, and **be**.
+- MUST follow `@.cursor/rules/plain-language-ui.mdc` for prod user-facing labels and hints (settings, translation workflow).
 - **Translation pair labels** (`language.en`, `language.ko`, …): for project source/target display, not app locale.
 - MVP translation pairs in UI: source `en` | `ko` | `zh` (+ `ru` when target `be`), target `ru` | `be` (default en→ru).
 - Project default pair: edit in `SettingsModal` (`PUT /api/projects/:id/languages`). `ProjectInfo` shows read-only badge + link to settings.

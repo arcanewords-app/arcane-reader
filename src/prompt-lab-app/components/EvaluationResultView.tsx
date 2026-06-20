@@ -101,6 +101,8 @@ function MqmEvaluationView({ result }: { result: LabEvaluationResult }) {
   const [copied, setCopied] = useState(false);
   const verdict = result.verdict!;
   const polished = verdict.final_polished_version ?? '';
+  const isExcerpt = Boolean(verdict.final_polished_excerpt);
+  const polishedLabel = isExcerpt ? 'Polished excerpt' : 'Final polished version';
 
   const handleCopy = async () => {
     if (!polished) return;
@@ -132,7 +134,7 @@ function MqmEvaluationView({ result }: { result: LabEvaluationResult }) {
       {polished ? (
         <div class="pl-evaluation-section">
           <div class="pl-evaluation-polished-header">
-            <h3 class="pl-label">Final polished version</h3>
+            <h3 class="pl-label">{polishedLabel}</h3>
             <button
               type="button"
               class="pl-btn secondary pl-btn--sm"

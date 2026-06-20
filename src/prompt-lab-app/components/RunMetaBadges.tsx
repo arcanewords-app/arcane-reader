@@ -8,15 +8,17 @@ import {
   glossarySnapshotCount,
 } from '../utils/glossaryRunStatus';
 import {
-  inferPresetFromLegacyParams,
-  presetLabel,
-  type TranslateQualityPreset,
-} from '../../shared/translate-quality-presets.js';
+  inferExecutionModeFromLegacyParams,
+  executionModeLabel,
+  normalizeTranslateExecutionMode,
+  type TranslateExecutionMode,
+} from '../../shared/translate-execution-modes.js';
 import {
-  inferEditPresetFromLegacyParams,
-  editPresetLabel,
-  type EditQualityPreset,
-} from '../../shared/edit-quality-presets.js';
+  inferEditExecutionModeFromLegacyParams,
+  editExecutionModeLabel,
+  normalizeEditExecutionMode,
+  type EditExecutionMode,
+} from '../../shared/edit-execution-modes.js';
 import { normalizeEditingFocus } from '../../shared/editing-focus.js';
 
 interface RunMetaBadgesProps {
@@ -40,13 +42,13 @@ function runLabel(run: LabRun): string | null {
   return typeof label === 'string' && label.trim() ? label.trim() : null;
 }
 
-function translateQualityPreset(run: LabRun): TranslateQualityPreset | null {
-  const fromParams = run.params.translateQualityPreset;
-  if (fromParams === 'fast' || fromParams === 'standard' || fromParams === 'enhanced') {
-    return fromParams;
+function translateExecutionMode(run: LabRun): TranslateExecutionMode | null {
+  const fromParams = run.params.translateExecutionMode ?? run.params.translateQualityPreset;
+  if (typeof fromParams === 'string') {
+    return normalizeTranslateExecutionMode(fromParams);
   }
   if (run.stage !== 'translate') return null;
-  return inferPresetFromLegacyParams({
+  return inferExecutionModeFromLegacyParams({
     enableTranslateCoT: run.params.enableTranslateCoT === true,
     enableTranslateFewShot: run.params.enableTranslateFewShot === true,
     miniModelTranslationProfile: run.params.miniModelTranslationProfile === true,
@@ -58,18 +60,20 @@ function translateQualityPreset(run: LabRun): TranslateQualityPreset | null {
 }
 
 function translateChunkCount(run: LabRun): number | null {
+  const actual = run.output.translateDebug?.actualChunks;
+  if (typeof actual === 'number' && actual > 0) return actual;
   const summaries = run.output.translateDebug?.chunkSummaries;
   if (summaries?.length) return summaries.length;
   return null;
 }
 
-function editQualityPreset(run: LabRun): EditQualityPreset | null {
-  const fromParams = run.params.editQualityPreset;
-  if (fromParams === 'fast' || fromParams === 'standard' || fromParams === 'enhanced') {
-    return fromParams;
+function editExecutionMode(run: LabRun): EditExecutionMode | null {
+  const fromParams = run.params.editExecutionMode ?? run.params.editQualityPreset;
+  if (typeof fromParams === 'string') {
+    return normalizeEditExecutionMode(fromParams);
   }
   if (run.stage !== 'edit') return null;
-  return inferEditPresetFromLegacyParams({
+  return inferEditExecutionModeFromLegacyParams({
     preset: typeof run.params.preset === 'string' ? run.params.preset : null,
     focus: typeof run.params.focus === 'string' ? run.params.focus : null,
   });
@@ -90,9 +94,9 @@ export function RunMetaBadges({ run, hideStatus }: RunMetaBadgesProps) {
   const label = runLabel(run);
   const glossaryStatus = glossaryRunStatus(run);
   const glossaryCount = glossarySnapshotCount(run);
-  const qualityPreset = translateQualityPreset(run);
+  const executionMode = translateExecutionMode(run);
   const chunks = translateChunkCount(run);
-  const editPreset = editQualityPreset(run);
+  const editMode = editExecutionMode(run);
   const editChunks = editChunkCount(run);
 
   return (
@@ -106,13 +110,17 @@ export function RunMetaBadges({ run, hideStatus }: RunMetaBadgesProps) {
       />
       <PlChip variant="lang" label={langPairLabel(source, target)} />
       {runTemp(run) ? <PlChip variant="neutral" label={runTemp(run)!} /> : null}
-      {run.stage === 'edit' && editPreset ? (
-        <PlChip variant="neutral" label={editPresetLabel(editPreset)} title="Edit quality preset" />
+      {run.stage === 'edit' && editMode ? (
+        <PlChip
+          variant="neutral"
+          label={editExecutionModeLabel(editMode)}
+          title="Edit execution mode"
+        />
       ) : null}
-      {run.stage === 'edit' && !editPreset && typeof preset === 'string' ? (
+      {run.stage === 'edit' && !editMode && typeof preset === 'string' ? (
         <PlChip variant="preset" label={preset} />
       ) : null}
-      {run.stage === 'edit' && !editPreset && typeof focus === 'string' ? (
+      {run.stage === 'edit' && !editMode && typeof focus === 'string' ? (
         <PlChip variant="preset" label={normalizeEditingFocus(focus)} />
       ) : null}
       {label ? <PlChip variant="neutral" label={label} title="Run label" /> : null}
@@ -121,20 +129,20 @@ export function RunMetaBadges({ run, hideStatus }: RunMetaBadgesProps) {
         label={glossaryRunLabel(glossaryStatus, glossaryCount)}
         title={glossaryRunTitle(glossaryStatus)}
       />
-      {run.stage === 'translate' && qualityPreset ? (
+      {run.stage === 'translate' && executionMode ? (
         <PlChip
           variant="neutral"
-          label={presetLabel(qualityPreset)}
-          title="Translate quality preset"
+          label={executionModeLabel(executionMode)}
+          title="Translate execution mode"
         />
       ) : null}
       {run.stage === 'translate' && chunks != null ? (
         <PlChip variant="neutral" label={`${chunks}×`} title="Chunks executed" />
       ) : null}
-      {run.stage === 'translate' && !qualityPreset && typeof run.params.chunkSize === 'number' ? (
+      {run.stage === 'translate' && !executionMode && typeof run.params.chunkSize === 'number' ? (
         <PlChip variant="neutral" label={`chunk ${run.params.chunkSize}`} />
       ) : null}
-      {run.stage === 'translate' && !qualityPreset && run.params.enableTranslateCoT === true ? (
+      {run.stage === 'translate' && !executionMode && run.params.enableTranslateCoT === true ? (
         <PlChip variant="neutral" label="CoT" />
       ) : null}
       {run.stage === 'edit' && editChunks != null ? (

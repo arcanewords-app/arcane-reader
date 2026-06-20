@@ -22,6 +22,7 @@ import {
   getEffectiveStagePrompts,
   languageDisplayName,
   normalizeLabSourceText,
+  normalizeLabTranslatedText,
   parseProjectLanguage,
   SUPPORTED_TRANSLATION_PAIRS,
 } from '../engine/index.js';
@@ -57,6 +58,7 @@ import {
 } from './db.js';
 import {
   buildEvaluationPrompts,
+  EvaluationInputTooLargeError,
   EvaluationModeError,
   runPromptLabEvaluation,
 } from './evaluator.js';
@@ -106,7 +108,8 @@ export function registerPromptLabRoutes(app: Express): void {
       stages: ['analyze', 'translate', 'edit'],
       presets: ['default', 'literary', 'minimal', 'ai_revivification'],
       focusOptions: ['fix_only', 'polish', 'elevate'],
-      editQualityPresets: ['fast', 'standard', 'enhanced'],
+      executionModes: ['one_shot', 'chunked'],
+      defaultChunkSize: appConfig.translation.maxTokensPerChunk,
       defaultModel,
       models: modelsForPromptLabStage('translate'),
       modelCapabilities: promptLabModelCapabilitiesForUi(),
@@ -242,7 +245,7 @@ export function registerPromptLabRoutes(app: Express): void {
         stage_hint: parsed.data.stageHint ?? null,
         content: normalizeLabSourceText(parsed.data.content),
         translated_text: parsed.data.translatedText
-          ? normalizeLabSourceText(parsed.data.translatedText)
+          ? normalizeLabTranslatedText(parsed.data.translatedText)
           : null,
         glossary_snapshot: parsed.data.glossarySnapshot ?? null,
       });
@@ -261,9 +264,12 @@ export function registerPromptLabRoutes(app: Express): void {
     try {
       const patch: Record<string, unknown> = {};
       if (parsed.data.title) patch.title = parsed.data.title;
-      if (parsed.data.content !== undefined) patch.content = parsed.data.content;
+      if (parsed.data.content !== undefined)
+        patch.content = normalizeLabSourceText(parsed.data.content);
       if (parsed.data.translatedText !== undefined)
-        patch.translated_text = parsed.data.translatedText;
+        patch.translated_text = parsed.data.translatedText
+          ? normalizeLabTranslatedText(parsed.data.translatedText)
+          : null;
       if (parsed.data.glossarySnapshot !== undefined)
         patch.glossary_snapshot = parsed.data.glossarySnapshot;
       if (parsed.data.sourceLanguage) patch.source_language = parsed.data.sourceLanguage;
@@ -428,7 +434,7 @@ export function registerPromptLabRoutes(app: Express): void {
         stats: prompts.stats,
       });
     } catch (e) {
-      if (e instanceof EvaluationModeError) {
+      if (e instanceof EvaluationModeError || e instanceof EvaluationInputTooLargeError) {
         res.status(400).json({ error: e.message });
         return;
       }
@@ -482,7 +488,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
       res.status(201).json(rowToPromptLabEvaluation(row));
     } catch (e) {
-      if (e instanceof EvaluationModeError) {
+      if (e instanceof EvaluationModeError || e instanceof EvaluationInputTooLargeError) {
         res.status(400).json({ error: e.message });
         return;
       }
@@ -566,8 +572,8 @@ export function registerPromptLabRoutes(app: Express): void {
           translateLeadingContextParagraphs: data.translateLeadingContextParagraphs,
           miniModelTranslationProfile: data.miniModelTranslationProfile,
           forceChunked: data.forceChunked,
-          translateQualityPreset: data.translateQualityPreset,
-          editQualityPreset: data.editQualityPreset,
+          translateExecutionMode: data.translateExecutionMode ?? data.translateQualityPreset,
+          editExecutionMode: data.editExecutionMode ?? data.editQualityPreset,
           runLabel: data.runLabel,
           userPromptOverride: Boolean(data.userPromptOverride),
         };

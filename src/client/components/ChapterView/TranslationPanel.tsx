@@ -532,7 +532,10 @@ export function TranslationPanel({
             {chunkProgress && chunkProgress.totalChunks > 0 && (
               <span class="translation-chunk-progress">
                 {' '}
-                ({chunkProgress.chunksDone}/{chunkProgress.totalChunks})
+                {t('translationPanel.chunkProgress', {
+                  done: chunkProgress.chunksDone,
+                  total: chunkProgress.totalChunks,
+                })}
               </span>
             )}
           </Button>

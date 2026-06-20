@@ -13,8 +13,22 @@ export interface EvaluatorUserPromptParams {
   glossaryText?: string;
 }
 
-export function getPromptLabEvaluatorSystemPrompt(targetLanguage: Language): string {
+export interface EvaluatorSystemPromptOptions {
+  /** Use excerpt-only polished output (long chapters). */
+  compactOutput?: boolean;
+}
+
+export function getPromptLabEvaluatorSystemPrompt(
+  targetLanguage: Language,
+  options?: EvaluatorSystemPromptOptions
+): string {
   const lang = languageDisplayName(targetLanguage);
+  const compactOutput = options?.compactOutput ?? false;
+
+  const polishedField = compactOutput
+    ? `"final_polished_excerpt": "1–3 representative paragraphs from the winning variant with remaining issues fixed (not the full chapter)."`
+    : `"final_polished_version": "Corrected ${lang} translation of the full text by taking the winning variant and fixing its remaining issues."`;
+
   return `You are an Expert Literary Translation Reviewer and Quality Assurance Judge.
 Your task is to evaluate and compare two ${lang} translation variants (Variant A and Variant B) against the original source text.
 
@@ -32,27 +46,33 @@ When logging issues, use these exact severity tags:
 - **MAJOR:** The meaning is understandable but noticeably distorted, or there is a glaring stylistic/grammatical error that disrupts the reading flow.
 - **MINOR:** Slight awkwardness, suboptimal word choice, or minor punctuation issues. The core meaning is intact.
 
+## Output constraints
+- Keep \`analysis_scratchpad\` concise: max ~300 words. Summarize complexity and key differences — do NOT walk through every paragraph.
+- Report only **CRITICAL** and **MAJOR** issues in \`issues\` arrays (skip MINOR unless truly noteworthy).
+- Max **5 issues per variant** — prioritize the most severe.
+- Stay within the JSON token budget; brevity over exhaustiveness.
+
 ## Output Format
 You must output ONLY a valid JSON object matching the exact structure below. Do not include markdown formatting or extra text outside the JSON.
 
 {
-  "analysis_scratchpad": "STEP 1: Briefly analyze the source text complexity. STEP 2: Compare Variant A and Variant B paragraph-by-paragraph. Identify specific CRITICAL, MAJOR, and MINOR errors in each. STEP 3: Weigh the errors to determine the winner.",
+  "analysis_scratchpad": "Brief summary: source complexity, main differences between A and B, and which variant wins on severity of errors.",
   "variant_A": {
     "issues": [
-      { "paragraphIndex": 0, "dimension": "accuracy|fluency|glossary|style", "severity": "CRITICAL|MAJOR|MINOR", "description": "Describe the specific error and quote the problematic phrase." }
+      { "paragraphIndex": 0, "dimension": "accuracy|fluency|glossary|style", "severity": "CRITICAL|MAJOR", "description": "Describe the specific error and quote the problematic phrase." }
     ],
     "strengths": "1-2 sentences on what this variant did well."
   },
   "variant_B": {
     "issues": [
-      { "paragraphIndex": 0, "dimension": "accuracy|fluency|glossary|style", "severity": "CRITICAL|MAJOR|MINOR", "description": "Describe the specific error and quote the problematic phrase." }
+      { "paragraphIndex": 0, "dimension": "accuracy|fluency|glossary|style", "severity": "CRITICAL|MAJOR", "description": "Describe the specific error and quote the problematic phrase." }
     ],
     "strengths": "1-2 sentences on what this variant did well."
   },
   "verdict": {
     "preferred_variant": "A|B|TIE",
     "justification": "Explain concisely why the preferred variant is better based on the severity of issues found.",
-    "final_polished_version": "Provide the ultimate, corrected ${lang} translation by taking the winning variant and fixing its remaining issues."
+    ${polishedField}
   }
 }`;
 }

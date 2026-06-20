@@ -61,6 +61,12 @@ export const promptLabPreviewBodySchema = z.object({
 
 const reasoningEffortSchema = z.enum(['low', 'medium', 'high']);
 
+const executionModeSchema = z
+  .enum(['one_shot', 'chunked', 'fast', 'standard', 'enhanced'])
+  .transform((v) =>
+    v === 'enhanced' ? 'one_shot' : v === 'fast' || v === 'standard' ? 'chunked' : v
+  );
+
 export const promptLabRunBodySchema = promptLabPreviewBodySchema.extend({
   model: z.string().trim().max(200).optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -75,8 +81,12 @@ export const promptLabRunBodySchema = promptLabPreviewBodySchema.extend({
   translateLeadingContextParagraphs: z.number().int().min(0).max(4).optional(),
   miniModelTranslationProfile: z.boolean().optional(),
   forceChunked: z.boolean().optional(),
-  translateQualityPreset: z.enum(['fast', 'standard', 'enhanced']).optional(),
-  editQualityPreset: z.enum(['fast', 'standard', 'enhanced']).optional(),
+  translateExecutionMode: executionModeSchema.optional(),
+  editExecutionMode: executionModeSchema.optional(),
+  /** @deprecated */
+  translateQualityPreset: executionModeSchema.optional(),
+  /** @deprecated */
+  editQualityPreset: executionModeSchema.optional(),
   runLabel: z.string().trim().max(80).optional(),
   saveRun: z.boolean().optional(),
   textId: z.string().uuid().optional(),

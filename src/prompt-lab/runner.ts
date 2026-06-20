@@ -36,15 +36,20 @@ import {
   resolveTranslateOptimizationFlags,
 } from '../engine/translate-optimization.js';
 import {
-  resolvePresetToTranslateOptions,
-  type TranslateQualityPreset,
-} from '../shared/translate-quality-presets.js';
+  resolveEditExecutionMode,
+  resolveEditPipelineOptions,
+  resolveTranslatePipelineOptions,
+  type ResolvedEditPipelineOptions,
+} from '../engine/pipeline/resolve-execution-options.js';
 import {
-  resolvePresetToEditOptions,
-  type EditQualityPreset,
-} from '../shared/edit-quality-presets.js';
+  resolveExecutionModeToEditOptions,
+  type EditExecutionMode,
+} from '../shared/edit-execution-modes.js';
+import type { TranslateExecutionMode } from '../shared/translate-execution-modes.js';
 import { resolveEditChunkingMode } from '../engine/edit-chunking-policy.js';
-import { estimateTokensHeuristic } from '../engine/utils/token-estimate.js';
+import { chunkText } from '../engine/utils/chunker.js';
+import { normalizeLabTranslatedText } from '../engine/utils/para-markers.js';
+import { DEFAULT_TRANSLATION_CHUNK_SIZE } from '../shared/translationChunkPresets.js';
 import { TRANSLATE_COT_JSON_SCHEMA } from '../engine/prompts/shared/translate-cot.js';
 
 export interface PreviewUserPromptInput {
@@ -76,41 +81,31 @@ export interface RunStageInput extends PreviewUserPromptInput {
   translateLeadingContextParagraphs?: number;
   miniModelTranslationProfile?: boolean;
   forceChunked?: boolean;
-  translateQualityPreset?: TranslateQualityPreset;
-  editQualityPreset?: EditQualityPreset;
+  translateExecutionMode?: TranslateExecutionMode;
+  editExecutionMode?: EditExecutionMode;
+  /** @deprecated Use translateExecutionMode */
+  translateQualityPreset?: TranslateExecutionMode | 'fast' | 'standard' | 'enhanced';
+  /** @deprecated Use editExecutionMode */
+  editQualityPreset?: EditExecutionMode | 'fast' | 'standard' | 'enhanced';
 }
 
-function resolveTranslateRunFlags(input: RunStageInput): {
-  enableTranslateFewShot?: boolean;
-  enableTranslateCoT?: boolean;
-  enableTranslateStructuredCoT?: boolean;
-  translateLeadingContextParagraphs?: number;
-  miniModelTranslationProfile?: boolean;
-} {
-  if (input.translateQualityPreset) {
-    const preset = resolvePresetToTranslateOptions(input.translateQualityPreset);
-    return {
-      enableTranslateFewShot: preset.enableTranslateFewShot,
-      enableTranslateCoT: preset.enableTranslateCoT,
-      translateLeadingContextParagraphs: preset.translateLeadingContextParagraphs,
-      enableTranslateStructuredCoT: input.enableTranslateStructuredCoT,
-    };
-  }
-  return {
-    enableTranslateFewShot: input.enableTranslateFewShot,
-    enableTranslateCoT: input.enableTranslateCoT,
-    enableTranslateStructuredCoT: input.enableTranslateStructuredCoT,
-    translateLeadingContextParagraphs: input.translateLeadingContextParagraphs,
-    miniModelTranslationProfile: input.miniModelTranslationProfile,
-  };
-}
+export type ResolvedEditRunOptions = ResolvedEditPipelineOptions;
 
-export interface ResolvedEditRunOptions {
-  editingStylePreset: EditingStylePreset;
-  editingFocus: EditingFocus;
-  chunkSize?: number;
-  forceChunked: boolean;
-  forceSingleShot: boolean;
+export function resolveEditRunOptions(
+  input: RunStageInput,
+  modelId: string,
+  translatedText: string,
+  glossaryText: string,
+  castText: string
+): ResolvedEditRunOptions {
+  return resolveEditPipelineOptions(
+    input,
+    modelId,
+    translatedText,
+    glossaryText,
+    castText,
+    input.includeGlossary !== false
+  );
 }
 
 function buildEditGlossaryAndCast(
@@ -134,56 +129,18 @@ function buildEditGlossaryAndCast(
   return { glossaryText, castText };
 }
 
-export function resolveEditRunOptions(
-  input: RunStageInput,
-  modelId: string,
-  translatedText: string,
-  glossaryText: string,
-  castText: string
-): ResolvedEditRunOptions {
-  const preset = input.editQualityPreset ?? 'standard';
-  const presetOpts = resolvePresetToEditOptions(preset);
-  const editingStylePreset = input.preset ?? presetOpts.editingStylePreset;
-  const editingFocus = normalizeEditingFocus(input.focus ?? presetOpts.editingFocus);
-  const forceChunked = input.forceChunked === true || presetOpts.forceChunked;
-
-  const chunking = resolveEditChunkingMode({
-    translatedText,
-    modelId,
-    preset,
-    glossaryText,
-    castText,
-    forceChunked,
-    forceSingleShot: presetOpts.forceSingleShot,
-    chunkSizeOverride: input.chunkSize,
-    includeGlossary: input.includeGlossary !== false,
-  });
-
-  const forceSingleShot = chunking.mode === 'single_shot' && !forceChunked;
-  let chunkSize = input.chunkSize;
-  if (chunking.mode === 'chunked' && chunkSize === undefined) {
-    chunkSize = chunking.effectiveChunkSize;
-  } else if (chunking.mode === 'single_shot') {
-    chunkSize = undefined;
-  }
-
-  return {
-    editingStylePreset,
-    editingFocus,
-    chunkSize,
-    forceChunked,
-    forceSingleShot,
-  };
-}
-
 function estimateEditChunkCount(translatedText: string, chunkSize: number): number {
-  const tokens = estimateTokensHeuristic(translatedText);
-  if (tokens <= 0) return 0;
-  return Math.max(1, Math.ceil(tokens / chunkSize));
+  const trimmed = translatedText.trim();
+  if (!trimmed || chunkSize <= 0) return 0;
+  return chunkText(trimmed, {
+    maxTokens: chunkSize,
+    preserveParagraphs: true,
+    neverSplitParagraphs: true,
+  }).length;
 }
 
-/** Engine default chunk size when Lab does not override (matches prod mini-aware resolver). */
-export const PROMPT_LAB_DEFAULT_CHUNK_SIZE = 2000;
+/** Engine default chunk size when Lab does not override (matches prod config). */
+export const PROMPT_LAB_DEFAULT_CHUNK_SIZE = DEFAULT_TRANSLATION_CHUNK_SIZE;
 
 function resolveTranslateSourceText(sourceText: string): string {
   return sourceText.trim() ? prepareTranslateSourceText(sourceText) : sourceText;
@@ -327,16 +284,17 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
   const provider = new OpenAIProvider({ apiKey: appConfig.openai.apiKey, model });
 
   const effectivePreset =
-    input.stage === 'edit' && input.editQualityPreset
-      ? (input.preset ?? resolvePresetToEditOptions(input.editQualityPreset).editingStylePreset)
+    input.stage === 'edit'
+      ? (input.preset ??
+        resolveExecutionModeToEditOptions(resolveEditExecutionMode(input, model))
+          .editingStylePreset)
       : input.preset;
   const effectiveFocus =
     input.stage === 'edit'
-      ? input.editQualityPreset
-        ? normalizeEditingFocus(
-            input.focus ?? resolvePresetToEditOptions(input.editQualityPreset).editingFocus
-          )
-        : normalizeEditingFocus(input.focus)
+      ? normalizeEditingFocus(
+          input.focus ??
+            resolveExecutionModeToEditOptions(resolveEditExecutionMode(input, model)).editingFocus
+        )
       : input.focus;
 
   const effective = getEffectiveStagePrompts(
@@ -388,21 +346,22 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
     const ctx = createLabAgentContext(input.sourceLanguage, input.targetLanguage, glossary);
     const stage = new TranslateStage(provider);
     const sourceText = resolveTranslateSourceText(input.sourceText);
-    const translateFlags = resolveTranslateRunFlags(input);
+    const translateOpts = resolveTranslatePipelineOptions(input, model);
     const optimizationFlags = resolveTranslateOptimizationFlags({
-      enableTranslateFewShot: translateFlags.enableTranslateFewShot,
-      enableTranslateCoT: translateFlags.enableTranslateCoT,
-      enableTranslateStructuredCoT: translateFlags.enableTranslateStructuredCoT,
-      translateLeadingContextParagraphs: translateFlags.translateLeadingContextParagraphs,
-      miniModelProfile: translateFlags.miniModelTranslationProfile,
+      enableTranslateFewShot: translateOpts.enableTranslateFewShot,
+      enableTranslateCoT: translateOpts.enableTranslateCoT,
+      enableTranslateStructuredCoT: translateOpts.enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs: translateOpts.translateLeadingContextParagraphs,
+      miniModelProfile: translateOpts.miniModelTranslationProfile,
       modelId: model,
       chunkSizeOverride: input.chunkSize,
       includeGlossaryInTranslation: input.includeGlossary !== false,
+      executionMode: translateOpts.translateExecutionMode,
     });
     const llmDefaults = resolveTranslateLlmDefaults(model, optimizationFlags.enableStructuredCoT);
     const result = await stage.execute(sourceText, {
       context: ctx,
-      chunkSize: input.chunkSize,
+      ...(input.chunkSize != null && input.chunkSize > 0 ? { chunkSize: input.chunkSize } : {}),
       temperature: input.temperature ?? 0.7,
       reasoningEffort: input.reasoningEffort,
       includeGlossary: input.includeGlossary !== false,
@@ -411,37 +370,45 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
       systemPromptOverride: systemPrompt,
       userPromptOverride: userPrompt,
       neverSplitParagraphs: true,
-      enableTranslateFewShot: translateFlags.enableTranslateFewShot,
-      enableTranslateCoT: translateFlags.enableTranslateCoT,
-      enableTranslateStructuredCoT: translateFlags.enableTranslateStructuredCoT,
-      translateLeadingContextParagraphs: translateFlags.translateLeadingContextParagraphs,
-      miniModelTranslationProfile: translateFlags.miniModelTranslationProfile,
+      enableTranslateFewShot: translateOpts.enableTranslateFewShot,
+      enableTranslateCoT: translateOpts.enableTranslateCoT,
+      enableTranslateStructuredCoT: translateOpts.enableTranslateStructuredCoT,
+      translateLeadingContextParagraphs: translateOpts.translateLeadingContextParagraphs,
+      miniModelTranslationProfile: translateOpts.miniModelTranslationProfile,
+      translateExecutionMode: translateOpts.translateExecutionMode,
       forceChunked: input.forceChunked,
     });
+    const chunking = result.data?.translateChunking;
     return {
       stage: 'translate',
       success: result.success,
       error: result.error,
-      text: result.data?.translatedText,
+      text: result.data?.translatedText
+        ? normalizeLabTranslatedText(result.data.translatedText)
+        : undefined,
       tokensUsed: result.tokensUsed,
       durationMs: result.duration,
       prompts: { system: systemPrompt, user: userPrompt },
       apiRequestParams,
       translateDebug: {
-        translateQualityPreset: input.translateQualityPreset,
+        translateExecutionMode: translateOpts.translateExecutionMode,
         resolvedFlags: optimizationFlags,
         llmDefaults,
         effectiveChunkSize: resolveTranslateChunkSize({
           chunkSizeOverride: input.chunkSize,
-          miniModelProfile: translateFlags.miniModelTranslationProfile,
+          miniModelProfile: translateOpts.miniModelTranslationProfile,
           modelId: model,
           includeGlossaryInTranslation: input.includeGlossary !== false,
+          executionMode: translateOpts.translateExecutionMode,
+          chunkingMode: chunking?.mode,
         }),
-        chunkingMode: result.data?.translateChunking?.mode,
-        chunkingReason: result.data?.translateChunking?.reason,
-        estimatedInputTokens: result.data?.translateChunking?.estimatedInputTokens,
-        estimatedOutputTokens: result.data?.translateChunking?.estimatedOutputTokens,
-        effectiveMaxTokens: result.data?.translateChunking?.effectiveMaxTokens,
+        chunkingMode: chunking?.mode,
+        chunkingReason: chunking?.reason,
+        chunkSizeTier: chunking?.chunkSizeTier,
+        actualChunks: result.data?.chunkResults.length,
+        estimatedInputTokens: chunking?.estimatedInputTokens,
+        estimatedOutputTokens: chunking?.estimatedOutputTokens,
+        effectiveMaxTokens: chunking?.effectiveMaxTokens,
         chunkSummaries: result.data?.chunkResults.map((c) => ({
           chunkId: c.chunkId,
           completionPath: c.completionPath,
@@ -467,11 +434,12 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
 
   const ctx = createLabAgentContext(input.sourceLanguage, input.targetLanguage, glossary);
   const { glossaryText, castText } = buildEditGlossaryAndCast(input, translatedText);
+  const editExecutionMode = resolveEditExecutionMode(input, model);
   const editOpts = resolveEditRunOptions(input, model, translatedText, glossaryText, castText);
   const chunkingPreview = resolveEditChunkingMode({
     translatedText,
     modelId: model,
-    preset: input.editQualityPreset ?? 'standard',
+    executionMode: editExecutionMode,
     glossaryText,
     castText,
     forceChunked: editOpts.forceChunked,
@@ -496,28 +464,31 @@ export async function runPromptLabStage(input: RunStageInput): Promise<PromptLab
     userPromptOverride: userPrompt,
   });
 
-  const estimatedChunks =
-    chunkingPreview.mode === 'single_shot'
-      ? 1
-      : estimateEditChunkCount(translatedText, chunkingPreview.effectiveChunkSize);
-
   return {
     stage: 'edit',
     success: result.success,
     error: result.error,
-    text: result.data?.finalText,
+    text: result.data?.finalText ? normalizeLabTranslatedText(result.data.finalText) : undefined,
     tokensUsed: result.tokensUsed,
     durationMs: result.duration,
     prompts: { system: systemPrompt, user: userPrompt },
     apiRequestParams,
     editDebug: {
-      editQualityPreset: input.editQualityPreset,
+      editExecutionMode,
       editingStylePreset: editOpts.editingStylePreset,
       editingFocus: editOpts.editingFocus,
       chunkingMode: chunkingPreview.mode,
       chunkingReason: chunkingPreview.reason,
+      chunkSizeTier: chunkingPreview.chunkSizeTier,
       effectiveChunkSize: chunkingPreview.effectiveChunkSize,
-      estimatedChunks,
+      estimatedChunks:
+        chunkingPreview.mode === 'single_shot'
+          ? 1
+          : estimateEditChunkCount(translatedText, chunkingPreview.effectiveChunkSize),
+      actualChunks:
+        chunkingPreview.mode === 'single_shot'
+          ? 1
+          : estimateEditChunkCount(translatedText, chunkingPreview.effectiveChunkSize),
       estimatedInputTokens: chunkingPreview.estimatedInputTokens,
       estimatedOutputTokens: chunkingPreview.estimatedOutputTokens,
       effectiveMaxTokens: chunkingPreview.effectiveMaxTokens,

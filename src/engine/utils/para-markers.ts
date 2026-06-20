@@ -255,3 +255,49 @@ export function filterJsonParagraphsToChunk(
   }
   return paras;
 }
+
+const TRANSLATION_PARAGRAPHS_JSON_RE = /\{[\s\S]*"paragraphs"[\s\S]*\}/;
+
+/**
+ * Unwrap translate-stage JSON (`{ paragraphs: [{ id, translated }] }`) into marked/plain text.
+ * Returns null when input is not valid translation JSON.
+ */
+export function tryParseTranslationParagraphsJson(
+  text: string,
+  chunkContent?: string
+): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (!trimmed.startsWith('{') && !trimmed.includes('"paragraphs"')) return null;
+
+  let parsed: { paragraphs?: JsonParagraphRow[] };
+  try {
+    const jsonMatch = trimmed.match(TRANSLATION_PARAGRAPHS_JSON_RE);
+    if (!jsonMatch) return null;
+    parsed = JSON.parse(jsonMatch[0]) as { paragraphs?: JsonParagraphRow[] };
+  } catch {
+    return null;
+  }
+
+  if (!parsed?.paragraphs || !Array.isArray(parsed.paragraphs) || parsed.paragraphs.length === 0) {
+    return null;
+  }
+
+  const filtered = chunkContent
+    ? filterJsonParagraphsToChunk(parsed.paragraphs, chunkContent)
+    : parsed.paragraphs;
+  if (filtered.length === 0) return null;
+
+  const merged = mergeJsonParagraphsToMarkedText(filtered);
+  return merged.trim() ? merged : null;
+}
+
+/**
+ * Canonical Lab translated/draft text: unwrap translate JSON when present, else normalize like source.
+ */
+export function normalizeLabTranslatedText(text: string): string {
+  if (!text.trim()) return text;
+  const fromJson = tryParseTranslationParagraphsJson(text);
+  if (fromJson) return fromJson;
+  return normalizeLabSourceText(text);
+}

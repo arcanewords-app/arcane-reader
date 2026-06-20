@@ -14,7 +14,9 @@ import type { AgentContext } from '../types/agent.js';
 import type { StageResult, EditedTranslation, EditChange } from '../types/pipeline.js';
 import type { TextChunk } from '../types/common.js';
 import type { EditingFocus, EditingStylePreset } from '../prompts/system/editor.js';
-import { DEFAULT_EDITING_FOCUS, normalizeEditingFocus ,
+import {
+  DEFAULT_EDITING_FOCUS,
+  normalizeEditingFocus,
   createEditorPrompt,
   getEditorSystemPrompt,
   getQualityCheckPrompt,
@@ -23,6 +25,7 @@ import { GlossaryManager } from '../glossary/glossary-manager.js';
 import { filterGlossaryForChunk, getChapterCastCharacters } from '../glossary/glossary-filter.js';
 import { chunkText, mergeChunks, type MergeChunkInput } from '../utils/chunker.js';
 import { languageDisplayName } from '../language.js';
+import { EDIT_STANDARD_CHUNK_SIZE } from '../../shared/edit-execution-modes.js';
 import { log } from '../logger.js';
 
 const DMP_DIFF_DELETE = -1;
@@ -149,7 +152,7 @@ export class EditStage {
 
       if (useChunkedEditing) {
         usedChunkedOrPairs = true;
-        const chunkSize = options.chunkSize ?? 2000;
+        const chunkSize = options.chunkSize ?? EDIT_STANDARD_CHUNK_SIZE;
         log.debug('EditStage: using chunked editing', {
           estimatedTokens,
           chunkSize,
