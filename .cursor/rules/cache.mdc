@@ -16,7 +16,8 @@ alwaysApply: false
 
 - Any route that changes project/chapter/glossary/metadata MUST invalidate related caches before response.
 - For project-scoped writes, call `invalidateProjectAndRelatedCaches(userId, projectId, token)`.
-- For auth profile updates (avatar/role), invalidate `auth:profile` cache keys.
+- For auth profile updates (avatar/role), invalidate `auth:profile` Redis keys **and** call `invalidateProfileCache(userId)` in `@src/middleware/auth.ts` (in-process memory cache).
+- `redisAuthProfileSec` is **60s** — role demotions propagate across instances within one TTL window.
 - For reading progress/token usage writes, invalidate related user aggregate caches.
 
 ## Client Cache Rules

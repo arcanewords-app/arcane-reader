@@ -40,7 +40,7 @@ export const CACHE_TTL = {
   // Server-side — user-scoped (fresher for editing)
   redisProjectListSec: 60,
   redisProjectSec: 120,
-  redisAuthProfileSec: 180,
+  redisAuthProfileSec: 60,
   redisTokenUsageSec: 60,
   redisTokenHistorySec: 60,
   /** Analysis results per chapter. Invalidate on chapter content change. */

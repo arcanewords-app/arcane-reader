@@ -32,6 +32,11 @@ function setCachedProfile(
   profileMemoryCache.set(userId, { value, ts: Date.now() });
 }
 
+/** Clear in-process auth profile cache after role/avatar mutations. */
+export function invalidateProfileCache(userId: string): void {
+  profileMemoryCache.delete(userId);
+}
+
 async function getProfileFromToken(
   token: string,
   userId: string

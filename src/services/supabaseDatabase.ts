@@ -3354,8 +3354,12 @@ export async function listPublicationsPublic(options?: {
     .range(offset, offset + limit - 1);
 
   if (error) {
-    // Fallback if view not yet migrated: use publications + RPC
-    if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+    // Fallback if view unavailable or anon cannot EXECUTE SECURITY DEFINER helpers in view
+    if (
+      error.message?.includes('relation') ||
+      error.message?.includes('does not exist') ||
+      error.message?.includes('permission denied for function')
+    ) {
       return listPublicationsPublicFallback({
         limit,
         offset,

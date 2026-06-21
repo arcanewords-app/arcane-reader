@@ -163,7 +163,12 @@ import {
   type PublicEntityKind,
 } from './storage/database.js';
 import type { UserRole } from './types/roles.js';
-import { requireAuth, optionalAuth, requireRole } from './middleware/auth.js';
+import {
+  requireAuth,
+  optionalAuth,
+  requireRole,
+  invalidateProfileCache,
+} from './middleware/auth.js';
 import { requestContext, requestLogging } from './middleware/requestContext.js';
 import { respondRouteError } from './middleware/routeDebugError.js';
 import {
@@ -1491,6 +1496,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
       return res.status(500).json({ error: 'Failed to update profile' });
     }
     await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, req.user.id)]);
+    invalidateProfileCache(req.user.id);
     res.json({ avatarUrl: data?.avatar_url ?? null });
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
@@ -1552,6 +1558,7 @@ app.post(
         return res.status(500).json({ error: 'Failed to update profile' });
       }
       await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, req.user.id)]);
+      invalidateProfileCache(req.user.id);
       res.json({ avatarUrl: data?.avatar_url ?? null });
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
@@ -8928,6 +8935,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, requireRole('admin'), async 
     }
 
     await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, targetUserId)]);
+    invalidateProfileCache(targetUserId);
     req.log?.info(
       { event: 'admin.user.role', targetUserId, role, adminId: req.user.id },
       'Admin updated user role'
