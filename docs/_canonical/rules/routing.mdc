@@ -195,6 +195,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | POST | `/api/projects/:projectId/chapters/:chapterId/translate` | Translate chapter (body: `translateOnlyEmpty?`, `translateChapterTitles?` default true, `paragraphIds?`, `stages?`, optional `languagePair`) |
 | POST | `/api/projects/:projectId/chapters/:chapterId/translate/cancel` | Cancel translation |
 | POST | `/api/projects/:projectId/chapters/:chapterId/translate/sync` | Manual sync translated chunks to paragraphs (recovery) |
+| POST | `/api/projects/:projectId/chapters/:chapterId/critic` | AI translation review (Author+); body: `{ force?: boolean }`; returns `{ report, cached }` |
 | POST | `/api/projects/:projectId/chapters/:chapterId/upload-translation` | Upload ready-made translation text |
 | POST | `/api/projects/:projectId/chapters/:chapterId/mark-as-translated` | Mark chapter as translated (copy original to translated) |
 | POST | `/api/projects/:projectId/chapters/mark-as-translated-batch` | Batch mark chapters as translated |

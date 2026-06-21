@@ -60,6 +60,8 @@
     "retryAfterErrorTitle": "Ponów tłumaczenie po błędzie",
     "retryAfterErrorTitleWithTokens": "Ponów tłumaczenie po błędzie (~{{tokens}} tokenów)",
     "translate": "Tłumacz",
+    "actionTranslate": "Tłumacz",
+    "actionsMenu": "Akcje rozdziału",
     "translateAgain": "Tłumacz ponownie",
     "translateAgainTitle": "Przetłumacz rozdział ponownie (przydatne, gdy akapity nie pasują z powodu wcześniejszych błędów)",
     "translateAgainWithTokens": "Przetłumacz rozdział ponownie (~{{tokens}} tokenów)",
@@ -75,6 +77,47 @@
     "errorReorder": "Błąd zmiany kolejności",
     "pollingLostTitle": "Utracono połączenie",
     "pollingLostMessage": "Połączenie utracone lub serwer został zrestartowany. Odśwież stronę lub spróbuj ponownie przetłumaczyć."
+  },
+  "critic": {
+    "menuLabel": "Sprawdź tłumaczenie",
+    "experimental": "Eksperyment",
+    "tierBadge": "Author+",
+    "modeTitle": "Przegląd tłumaczenia",
+    "notesColumn": "Uwagi",
+    "exit": "Wyjdź",
+    "rerun": "Sprawdź ponownie",
+    "loading": "AI sprawdza tłumaczenie…",
+    "staleBanner": "Tłumaczenie zmieniło się po tej ocenie. Uruchom sprawdzenie ponownie.",
+    "summaryToggle": "Podsumowanie oceny",
+    "strengthsLabel": "Mocne strony",
+    "generalIssues": "Uwagi ogólne: {{count}}",
+    "noIssues": "Brak uwag",
+    "needTranslation": "Najpierw potrzebne jest tłumaczenie",
+    "waitTranslating": "Poczekaj na zakończenie tłumaczenia",
+    "confirmTitle": "Uruchomić sprawdzenie?",
+    "confirmMessage": "AI sprawdzi tłumaczenie i oznaczy problematyczne akapity z uwzględnieniem słownika. To zużyje część dziennego limitu AI.",
+    "confirmProceed": "Sprawdź",
+    "errorTitle": "Sprawdzenie nie powiodło się",
+    "errorGeneric": "Nie udało się wykonać sprawdzenia. Spróbuj później.",
+    "tooLong": "Ten rozdział jest zbyt długi do sprawdzenia.",
+    "dimension": {
+      "accuracy": "Znaczenie",
+      "fluency": "Płynność",
+      "glossary": "Słownik",
+      "style": "Styl"
+    },
+    "severity": {
+      "CRITICAL": "Krytyczne",
+      "MAJOR": "Ważne",
+      "MINOR": "Drobne"
+    },
+    "upgrade": {
+      "title": "Przegląd tłumaczenia — Author+",
+      "message": "AI porówna tłumaczenie z oryginałem i słownikiem i oznaczy problematyczne akapity w rozdziale.",
+      "compareTiers": "Porównaj poziomy",
+      "requestUpgrade": "Poproś o podwyższenie",
+      "mailSubject": "Prośba o Author+ (przegląd tłumaczenia)"
+    }
   },
   "translationPanel": {
     "scope": "Zakres",

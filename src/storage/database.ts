@@ -10,6 +10,7 @@ import { JSONFile } from 'lowdb/node';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../logger.js';
+import type { EvaluationIssue } from '../shared/evaluation-normalize.js';
 
 // Types
 /**
@@ -115,6 +116,18 @@ export interface ChapterListItem {
   translationMeta?: Chapter['translationMeta'];
 }
 
+export interface ChapterCriticReport {
+  strengths: string;
+  summary: string;
+  issues: EvaluationIssue[];
+  contentFingerprint: string;
+  paragraphCount: number;
+  model: string;
+  tokensUsed: number;
+  durationMs: number;
+  createdAt: string;
+}
+
 export interface Chapter {
   id: string;
   number: number;
@@ -147,6 +160,8 @@ export interface Chapter {
     /** Index of first failed chunk (0-based), or -1 if none (for debugging / UI). */
     failedChunkIndex?: number;
   };
+  /** Persisted AI translation review (Author+ Critic mode). */
+  criticReport?: ChapterCriticReport;
 }
 
 export interface GlossaryEntry {

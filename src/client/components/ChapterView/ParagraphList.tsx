@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Paragraph, TextBlockType } from '../../types';
+import type { Paragraph, TextBlockType, EvaluationIssue } from '../../types';
 import type { SearchHighlight } from '../SearchReplace';
 import { Icon } from '../ui';
 import { renderTextWithBlocks } from '../../utils/text-blocks';
+import { CriticIssueList } from './CriticIssueList';
 import './ParagraphList.css';
 
 /** Virtualization: enable when paragraph count exceeds this. */
@@ -71,6 +72,9 @@ interface ParagraphListProps {
   searchHighlight?: SearchHighlight | null;
   /** Ref to receive scroll-to-paragraph function (called when user clicks search result row) */
   scrollToParagraphRef?: { current: ((id: string) => void) | null };
+  isCriticMode?: boolean;
+  criticIssuesByParagraph?: Map<number, EvaluationIssue[]>;
+  criticLoading?: boolean;
 }
 
 export function ParagraphList({
@@ -84,6 +88,9 @@ export function ParagraphList({
   textBlockTypes = [],
   searchHighlight,
   scrollToParagraphRef,
+  isCriticMode = false,
+  criticIssuesByParagraph,
+  criticLoading = false,
 }: ParagraphListProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -134,12 +141,13 @@ export function ParagraphList({
     };
   }, []);
 
-  // Clear measured heights when chapter/paragraphs change
+  // Clear measured heights when chapter/paragraphs or critic data change
   const firstParagraphId = paragraphs[0]?.id ?? '';
+  const criticDataKey = criticIssuesByParagraph?.size ?? 0;
   useEffect(() => {
     rowHeightsRef.current.clear();
     rowRefsRef.current.clear();
-  }, [firstParagraphId]);
+  }, [firstParagraphId, criticDataKey, isCriticMode]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -284,6 +292,91 @@ export function ParagraphList({
 
   const singleColumn = isOriginalReadingMode || isTranslationOnlyDisplay;
 
+  const criticIssuesForIndex = (index: number): EvaluationIssue[] =>
+    criticIssuesByParagraph?.get(index) ?? [];
+
+  const rowCriticClass = (index: number): string => {
+    const issues = criticIssuesForIndex(index);
+    if (issues.some((i) => i.severity === 'CRITICAL')) return 'paragraph-row--critical';
+    return '';
+  };
+
+  const renderCriticCell = (index: number) => {
+    if (!isCriticMode) return null;
+    return (
+      <div class="paragraph-cell paragraph-cell-critic">
+        {criticLoading ? (
+          <span class="critic-cell-loading">
+            <span class="spinner" />
+          </span>
+        ) : (
+          <CriticIssueList issues={criticIssuesForIndex(index)} />
+        )}
+      </div>
+    );
+  };
+
+  const renderTranslationContent = (paragraph: Paragraph) => {
+    if (isCriticMode) {
+      return (
+        <div
+          class={`paragraph-text ${!paragraph.translatedText ? 'empty' : ''}`}
+          dangerouslySetInnerHTML={{
+            __html: paragraph.translatedText
+              ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
+              : `<em>${t('paragraphList.clickToEdit')}</em>`,
+          }}
+        />
+      );
+    }
+    if (editingId === paragraph.id) {
+      return (
+        <div>
+          <textarea
+            ref={textareaRef}
+            class="paragraph-editor"
+            value={editText}
+            onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
+            onKeyDown={handleKeyDown}
+          />
+          <div class="paragraph-actions">
+            <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
+              {t('common.cancel')}
+            </button>
+            <button class="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <span class="spinner" />
+              ) : (
+                <>
+                  <Icon name="save" size="sm" /> {t('paragraphList.save')}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
+        onClick={() => startEditing(paragraph)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            startEditing(paragraph);
+          }
+        }}
+        dangerouslySetInnerHTML={{
+          __html: paragraph.translatedText
+            ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
+            : `<em>${t('paragraphList.clickToEdit')}</em>`,
+        }}
+      />
+    );
+  };
+
   return (
     <div class="text-panel-unified">
       <div class="panel-headers">
@@ -305,6 +398,9 @@ export function ParagraphList({
               {translatedChars.toLocaleString()} {t('paragraphList.characters')}
             </span>
           </div>
+        )}
+        {isCriticMode && !singleColumn && (
+          <div class="panel-header-critic">{t('critic.notesColumn')}</div>
         )}
       </div>
 
@@ -333,7 +429,7 @@ export function ParagraphList({
                     key={paragraph.id}
                     ref={(el) => setRowRef(el, index)}
                     id={`paragraph-row-${paragraph.id}`}
-                    class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+                    class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''} ${isCriticMode ? 'paragraph-row-critic' : ''} ${rowCriticClass(index)}`}
                     style={{
                       ...(singleColumn ? { gridTemplateColumns: '1fr' } : {}),
                       minHeight: EST_ROW_HEIGHT + 'px',
@@ -384,55 +480,10 @@ export function ParagraphList({
                         {isTranslationOnlyDisplay && (
                           <span class="paragraph-index">{index + 1}</span>
                         )}
-                        {editingId === paragraph.id ? (
-                          <div>
-                            <textarea
-                              ref={textareaRef}
-                              class="paragraph-editor"
-                              value={editText}
-                              onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
-                              onKeyDown={handleKeyDown}
-                            />
-                            <div class="paragraph-actions">
-                              <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
-                                {t('common.cancel')}
-                              </button>
-                              <button
-                                class="btn btn-primary btn-sm"
-                                onClick={handleSave}
-                                disabled={saving}
-                              >
-                                {saving ? (
-                                  <span class="spinner" />
-                                ) : (
-                                  <>
-                                    <Icon name="save" size="sm" /> {t('paragraphList.save')}
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
-                            onClick={() => startEditing(paragraph)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                startEditing(paragraph);
-                              }
-                            }}
-                            dangerouslySetInnerHTML={{
-                              __html: paragraph.translatedText
-                                ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
-                                : `<em>${t('paragraphList.clickToEdit')}</em>`,
-                            }}
-                          />
-                        )}
+                        {renderTranslationContent(paragraph)}
                       </div>
                     )}
+                    {renderCriticCell(index)}
                   </div>
                 );
               })}
@@ -454,7 +505,7 @@ export function ParagraphList({
               <div
                 key={paragraph.id}
                 id={`paragraph-row-${paragraph.id}`}
-                class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''}`}
+                class={`paragraph-row ${highlightedId === paragraph.id ? 'highlighted' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchCurrent ? 'search-current' : ''} ${isTranslationOnlyDisplay ? 'paragraph-row-translation-only' : ''} ${isCriticMode ? 'paragraph-row-critic' : ''} ${rowCriticClass(index)}`}
                 style={singleColumn ? { gridTemplateColumns: '1fr' } : {}}
                 onMouseEnter={() => setHighlightedId(paragraph.id)}
                 onMouseLeave={() => setHighlightedId(null)}
@@ -497,55 +548,10 @@ export function ParagraphList({
                     style={isTranslationOnlyDisplay ? { width: '100%' } : {}}
                   >
                     {isTranslationOnlyDisplay && <span class="paragraph-index">{index + 1}</span>}
-                    {editingId === paragraph.id ? (
-                      <div>
-                        <textarea
-                          ref={textareaRef}
-                          class="paragraph-editor"
-                          value={editText}
-                          onInput={(e) => setEditText((e.target as HTMLTextAreaElement).value)}
-                          onKeyDown={handleKeyDown}
-                        />
-                        <div class="paragraph-actions">
-                          <button class="btn btn-secondary btn-sm" onClick={cancelEditing}>
-                            {t('common.cancel')}
-                          </button>
-                          <button
-                            class="btn btn-primary btn-sm"
-                            onClick={handleSave}
-                            disabled={saving}
-                          >
-                            {saving ? (
-                              <span class="spinner" />
-                            ) : (
-                              <>
-                                <Icon name="save" size="sm" /> {t('paragraphList.save')}
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        class={`paragraph-text editable ${!paragraph.translatedText ? 'empty' : ''}`}
-                        onClick={() => startEditing(paragraph)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            startEditing(paragraph);
-                          }
-                        }}
-                        dangerouslySetInnerHTML={{
-                          __html: paragraph.translatedText
-                            ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
-                            : `<em>${t('paragraphList.clickToEdit')}</em>`,
-                        }}
-                      />
-                    )}
+                    {renderTranslationContent(paragraph)}
                   </div>
                 )}
+                {renderCriticCell(index)}
               </div>
             );
           })}

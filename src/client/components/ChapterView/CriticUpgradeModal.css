@@ -1,0 +1,11 @@
+.critic-upgrade-message {
+  margin: 0 0 1.25rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.critic-upgrade-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}

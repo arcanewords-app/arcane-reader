@@ -68,6 +68,8 @@
     "retryAfterErrorTitle": "Retry translation after error",
     "retryAfterErrorTitleWithTokens": "Retry translation after error (~{{tokens}} tokens)",
     "translate": "Translate",
+    "actionTranslate": "Translate",
+    "actionsMenu": "Chapter actions",
     "translateAgain": "Translate again",
     "translateAgainTitle": "Retranslate chapter (useful if paragraphs don't match due to past errors)",
     "translateAgainWithTokens": "Retranslate chapter (~{{tokens}} tokens)",
@@ -83,6 +85,47 @@
     "errorReorder": "Reorder error",
     "pollingLostTitle": "Connection lost",
     "pollingLostMessage": "Connection lost or server restarted. Refresh the page or try translating again."
+  },
+  "critic": {
+    "menuLabel": "Review translation",
+    "experimental": "Experimental",
+    "tierBadge": "Author+",
+    "modeTitle": "Translation review",
+    "notesColumn": "Notes",
+    "exit": "Exit",
+    "rerun": "Review again",
+    "loading": "AI is reviewing the translation…",
+    "staleBanner": "The translation changed after this review. Run review again.",
+    "summaryToggle": "Review summary",
+    "strengthsLabel": "Strengths",
+    "generalIssues": "General notes: {{count}}",
+    "noIssues": "No issues",
+    "needTranslation": "A translation is required first",
+    "waitTranslating": "Wait until translation finishes",
+    "confirmTitle": "Start review?",
+    "confirmMessage": "AI will review the translation and flag problematic paragraphs using the glossary. This uses part of your daily AI limit.",
+    "confirmProceed": "Review",
+    "errorTitle": "Review failed",
+    "errorGeneric": "Could not complete the review. Try again later.",
+    "tooLong": "This chapter is too long for review.",
+    "dimension": {
+      "accuracy": "Meaning",
+      "fluency": "Fluency",
+      "glossary": "Glossary",
+      "style": "Style"
+    },
+    "severity": {
+      "CRITICAL": "Critical",
+      "MAJOR": "Major",
+      "MINOR": "Minor"
+    },
+    "upgrade": {
+      "title": "Translation review — Author+",
+      "message": "AI compares the translation with the original and glossary and marks problematic paragraphs in the chapter.",
+      "compareTiers": "Compare tiers",
+      "requestUpgrade": "Request upgrade",
+      "mailSubject": "Author+ upgrade request (translation review)"
+    }
   },
   "translationPanel": {
     "scope": "Scope",
@@ -1151,7 +1194,8 @@
       "translationProjects": "Translation projects, multi-language pairs, AI pipeline",
       "glossaryPublishExport": "Glossary, publishing, EPUB/FB2 export",
       "dailyTokens": "Daily AI tokens",
-      "parallelJobs": "Parallel background jobs"
+      "parallelJobs": "Parallel background jobs",
+      "translationReview": "AI translation review"
     }
   },
   "about": {

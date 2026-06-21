@@ -27,6 +27,12 @@ interface ChapterHeaderProps {
   isOriginalReadingMode?: boolean;
   /** When true, show skeleton for actions (chapter loading) */
   isLoading?: boolean;
+  isCriticMode?: boolean;
+  canUseCritic?: boolean;
+  criticActionDisabled?: boolean;
+  criticDisabledTitle?: string;
+  onEnterCriticMode?: () => void;
+  onCriticUpgrade?: () => void;
 }
 
 export function ChapterHeader({
@@ -46,9 +52,17 @@ export function ChapterHeader({
   onChapterUpdate,
   isOriginalReadingMode = false,
   isLoading = false,
+  isCriticMode = false,
+  canUseCritic = false,
+  criticActionDisabled = false,
+  criticDisabledTitle,
+  onEnterCriticMode,
+  onCriticUpgrade,
 }: ChapterHeaderProps) {
   const { t } = useTranslation();
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const displayChapter = chapter ?? chapterListItem;
   const title = displayChapter ? chapterDisplayTitle(displayChapter) : '';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -69,6 +83,17 @@ export function ChapterHeader({
       titleInputRef.current.select();
     }
   }, [isEditingTitle]);
+
+  useEffect(() => {
+    if (!showActionsMenu) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [showActionsMenu]);
 
   const hasTranslations = chapter?.paragraphs?.some((p) => p.translatedText);
   const hasTranslatedText = !!chapter?.translatedText;
@@ -187,14 +212,67 @@ export function ChapterHeader({
             )}
 
             {!isOriginalReadingMode && (
-              <Button
-                variant={isTranslationPanelOpen ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={onToggleTranslationPanel}
-                title={t('translationPanel.toggle', 'Панель перевода')}
-              >
-                <Icon name="translate" size="sm" /> {t('chapter.translate', 'Перевод')}
-              </Button>
+              <div class="chapter-actions-menu" ref={actionsMenuRef}>
+                <button
+                  type="button"
+                  class={`chapter-header-btn chapter-actions-trigger ${isTranslationPanelOpen || isCriticMode ? 'is-active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowActionsMenu((open) => !open);
+                  }}
+                  aria-label={t('chapter.actionsMenu')}
+                  aria-expanded={showActionsMenu}
+                  aria-haspopup="menu"
+                  title={t('chapter.actionsMenu')}
+                >
+                  <Icon name="more_vert" />
+                </button>
+                {showActionsMenu && (
+                  <div class="chapter-actions-dropdown" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="chapter-actions-item"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        onToggleTranslationPanel();
+                      }}
+                    >
+                      <Icon name="translate" size="sm" />
+                      <span>{t('chapter.actionTranslate')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class={`chapter-actions-item ${!canUseCritic ? 'is-locked' : ''} ${criticActionDisabled ? 'is-disabled' : ''}`}
+                      disabled={criticActionDisabled && canUseCritic}
+                      title={criticDisabledTitle}
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        if (!canUseCritic) {
+                          onCriticUpgrade?.();
+                          return;
+                        }
+                        if (criticActionDisabled) return;
+                        onEnterCriticMode?.();
+                      }}
+                    >
+                      <Icon name="rate_review" size="sm" />
+                      <span class="chapter-actions-item-label">{t('critic.menuLabel')}</span>
+                      <span class="chapter-actions-item-badges">
+                        {!canUseCritic ? (
+                          <>
+                            <Icon name="lock" size="sm" />
+                            <span class="chapter-actions-tier-badge">{t('critic.tierBadge')}</span>
+                          </>
+                        ) : (
+                          <span class="chapter-actions-exp-badge">{t('critic.experimental')}</span>
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {onToggleSearch && (

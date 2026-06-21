@@ -87,4 +87,8 @@ export type ChapterStatusBody = z.infer<typeof chapterStatusBodySchema>;
 export type ChaptersOrderBody = z.infer<typeof chaptersOrderBodySchema>;
 export type ParagraphBulkUpdateBody = z.infer<typeof paragraphBulkUpdateBodySchema>;
 export type ParagraphUpdateBody = z.infer<typeof paragraphUpdateBodySchema>;
-export type ExportBody = z.infer<typeof exportBodySchema>;
+export const chapterCriticBodySchema = z.object({
+  force: z.boolean().optional(),
+});
+
+export type ChapterCriticBody = z.infer<typeof chapterCriticBodySchema>;

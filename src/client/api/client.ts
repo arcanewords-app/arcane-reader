@@ -984,6 +984,17 @@ export const api = {
     });
   },
 
+  async runChapterCritic(
+    projectId: string,
+    chapterId: string,
+    options?: { force?: boolean }
+  ): Promise<{ report: import('../types').ChapterCriticReport; cached: boolean }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/critic`, {
+      method: 'POST',
+      body: JSON.stringify({ force: options?.force ?? false }),
+    });
+  },
+
   // === Paragraphs ===
 
   async updateParagraph(

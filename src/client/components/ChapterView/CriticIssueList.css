@@ -1,0 +1,60 @@
+.critic-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.critic-issue-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.critic-issue-dimension {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.critic-issue-description {
+  flex: 1 1 100%;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.critic-issue-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.critic-severity-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.critic-severity-badge--critical {
+  background: color-mix(in srgb, var(--error) 20%, transparent);
+  color: var(--error);
+}
+
+.critic-severity-badge--major {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+.critic-severity-badge--minor {
+  background: var(--bg-hover);
+  color: var(--text-dim);
+}

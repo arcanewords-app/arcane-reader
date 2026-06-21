@@ -1,24 +1,33 @@
-import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type {
   Chapter,
   ChapterListItem,
+  ChapterCriticReport,
+  EvaluationIssue,
   Project,
   ProjectWithChapterList,
   ProjectSettings,
   ReaderSettings,
 } from '../../types';
 import { LEGACY_FONT_MAP } from '../../types';
-import { api } from '../../api/client';
+import { api, ApiError } from '../../api/client';
 import { isChunkError } from '../../../shared/chunkErrors';
+import { CRITIC_MAX_INPUT_CHARS } from '../../../shared/critic-limits';
+import { groupIssuesByParagraph } from '../../../shared/evaluation-normalize';
 import { useChapterTranslation } from '../../hooks/useChapterTranslation';
-import { Card, AlertModal } from '../ui';
+import { useTokenLimitCheck } from '../../hooks/useTokenLimitCheck';
+import { useUserRole } from '../../hooks/useUserRole';
+import { computeCriticContentFingerprint } from '../../utils/criticFingerprint';
+import { Card, AlertModal, Modal, Button } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
 import { SearchReplaceBar, type SearchHighlight } from '../SearchReplace';
 import { ReaderSettingsPanel } from './ReaderSettings';
 import { ParagraphList } from './ParagraphList';
 import { ParagraphListSkeleton } from './ParagraphListSkeleton';
 import { TranslationPanel } from './TranslationPanel';
+import { CriticModeBar } from './CriticModeBar';
+import { CriticUpgradeModal } from './CriticUpgradeModal';
 import { TokenLimitWarning } from '../TokenUsage';
 
 interface ChapterViewProps {
@@ -67,8 +76,18 @@ export function ChapterView({
   onRefreshProject,
 }: ChapterViewProps) {
   const { t } = useTranslation();
+  const { isAtLeast } = useUserRole();
+  const canUseCritic = isAtLeast('author_plus');
   const [showSettings, setShowSettings] = useState(false);
   const [showTranslationPanel, setShowTranslationPanel] = useState(false);
+  const [isCriticMode, setIsCriticMode] = useState(false);
+  const [criticReport, setCriticReport] = useState<ChapterCriticReport | null>(null);
+  const [criticLoading, setCriticLoading] = useState(false);
+  const [criticStale, setCriticStale] = useState(false);
+  const [showCriticUpgrade, setShowCriticUpgrade] = useState(false);
+  const [showCriticConfirm, setShowCriticConfirm] = useState(false);
+  const [criticConfirmTokens, setCriticConfirmTokens] = useState(0);
+  const [criticForceOnConfirm, setCriticForceOnConfirm] = useState(false);
   const [markingAsTranslated, setMarkingAsTranslated] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
     const raw = project.settings.reader;
@@ -122,6 +141,14 @@ export function ChapterView({
     onChapterUpdate,
     (title, msg) => setErrorModal({ title, message: msg })
   );
+
+  const {
+    checkBeforeTranslate: checkBeforeCritic,
+    warningState: criticWarningState,
+    closeWarning: closeCriticWarning,
+    confirmAndProceed: confirmCriticProceed,
+    tokenUsage: criticTokenUsage,
+  } = useTokenLimitCheck();
 
   const isOriginalReadingMode = project.settings.originalReadingMode ?? false;
 
@@ -332,6 +359,150 @@ export function ChapterView({
     await api.updateReaderSettings(project.id, newSettings);
   };
 
+  const hasTranslationForCritic = useMemo(() => {
+    return (
+      !!chapter?.paragraphs?.some((p) => (p.translatedText?.trim() ?? '').length > 0) ||
+      !!(chapter?.translatedText && chapter.translatedText.trim().length > 0)
+    );
+  }, [chapter?.paragraphs, chapter?.translatedText]);
+
+  const estimateCriticTokens = useCallback(() => {
+    if (!chapter?.paragraphs?.length) return 0;
+    const sourceChars = chapter.paragraphs.reduce((s, p) => s + p.originalText.length, 0);
+    const translationChars = chapter.paragraphs.reduce(
+      (s, p) => s + (p.translatedText?.length ?? 0),
+      0
+    );
+    const glossaryChars = (project.glossary?.characters?.length ?? 0) * 80;
+    return Math.ceil((sourceChars + translationChars + glossaryChars) / 4) + 2000;
+  }, [chapter?.paragraphs, project.glossary]);
+
+  const criticIssuesByParagraph = useMemo(() => {
+    if (!criticReport?.issues?.length || !chapter?.paragraphs?.length) {
+      return new Map<number, EvaluationIssue[]>();
+    }
+    return groupIssuesByParagraph(criticReport.issues, chapter.paragraphs.length);
+  }, [criticReport?.issues, chapter?.paragraphs?.length]);
+
+  const generalCriticIssuesCount = criticIssuesByParagraph.get(-1)?.length ?? 0;
+
+  const refreshCriticStale = useCallback(async () => {
+    if (!chapter?.paragraphs?.length || !criticReport) {
+      setCriticStale(false);
+      return;
+    }
+    const fp = await computeCriticContentFingerprint(chapter.paragraphs);
+    setCriticStale(fp !== criticReport.contentFingerprint);
+  }, [chapter?.paragraphs, criticReport]);
+
+  useEffect(() => {
+    if (!isCriticMode || !canUseCritic) return;
+    void refreshCriticStale();
+  }, [isCriticMode, canUseCritic, refreshCriticStale, chapter?.paragraphs]);
+
+  useEffect(() => {
+    setIsCriticMode(false);
+    setCriticReport(null);
+    setCriticStale(false);
+  }, [effectiveChapter.id]);
+
+  useEffect(() => {
+    if (isCriticMode && !canUseCritic) {
+      setIsCriticMode(false);
+      setCriticReport(null);
+    }
+  }, [isCriticMode, canUseCritic]);
+
+  const runCriticApi = useCallback(
+    async (force: boolean) => {
+      if (!chapter) return;
+      setCriticLoading(true);
+      try {
+        const { report } = await api.runChapterCritic(project.id, chapter.id, { force });
+        setCriticReport(report);
+        setCriticStale(false);
+        const updated = await api.getChapter(project.id, chapter.id);
+        onChapterUpdate(updated);
+      } catch (err) {
+        const message =
+          err instanceof ApiError
+            ? String((err.data as { message?: string })?.message ?? err.message)
+            : t('critic.errorGeneric');
+        setErrorModal({ title: t('critic.errorTitle'), message });
+        if (isCriticMode && !criticReport) setIsCriticMode(false);
+      } finally {
+        setCriticLoading(false);
+      }
+    },
+    [chapter, project.id, onChapterUpdate, t, isCriticMode, criticReport]
+  );
+
+  const startCriticWithChecks = useCallback(
+    (force = false) => {
+      if (!chapter || !canUseCritic) return;
+      const tokens = estimateCriticTokens();
+      const sourceChars = chapter.paragraphs?.reduce((s, p) => s + p.originalText.length, 0) ?? 0;
+      const translationChars =
+        chapter.paragraphs?.reduce((s, p) => s + (p.translatedText?.length ?? 0), 0) ?? 0;
+      const total = sourceChars + translationChars;
+      if (total > CRITIC_MAX_INPUT_CHARS) {
+        setErrorModal({
+          title: t('critic.errorTitle'),
+          message: t('critic.tooLong'),
+        });
+        return;
+      }
+      setCriticConfirmTokens(tokens);
+      setCriticForceOnConfirm(force);
+      setShowCriticConfirm(true);
+    },
+    [chapter, canUseCritic, estimateCriticTokens, t]
+  );
+
+  const handleCriticConfirmProceed = () => {
+    setShowCriticConfirm(false);
+    checkBeforeCritic(criticConfirmTokens, () => {
+      void runCriticApi(criticForceOnConfirm);
+    });
+  };
+
+  const handleEnterCriticMode = useCallback(async () => {
+    if (!chapter || !canUseCritic) return;
+    setShowTranslationPanel(false);
+    setIsCriticMode(true);
+
+    const existing = chapter.criticReport;
+    if (existing) {
+      const fp = await computeCriticContentFingerprint(chapter.paragraphs ?? []);
+      if (fp === existing.contentFingerprint) {
+        setCriticReport(existing);
+        setCriticStale(false);
+        return;
+      }
+      setCriticReport(existing);
+      setCriticStale(true);
+      return;
+    }
+    startCriticWithChecks(false);
+  }, [chapter, canUseCritic, startCriticWithChecks]);
+
+  const handleExitCriticMode = () => {
+    setIsCriticMode(false);
+    setCriticLoading(false);
+  };
+
+  const criticActionDisabled =
+    !hasTranslationForCritic ||
+    chapter?.status === 'translating' ||
+    criticLoading ||
+    isOriginalReadingMode;
+
+  const criticDisabledTitle = !hasTranslationForCritic
+    ? t('critic.needTranslation')
+    : chapter?.status === 'translating'
+      ? t('critic.waitTranslating')
+      : undefined;
+
   const paragraphs = chapter?.paragraphs || [];
 
   return (
@@ -354,7 +525,24 @@ export function ChapterView({
           onChapterUpdate={onChapterUpdate}
           isOriginalReadingMode={isOriginalReadingMode}
           isLoading={isLoading}
+          isCriticMode={isCriticMode}
+          canUseCritic={canUseCritic}
+          criticActionDisabled={criticActionDisabled}
+          criticDisabledTitle={criticDisabledTitle}
+          onEnterCriticMode={() => void handleEnterCriticMode()}
+          onCriticUpgrade={() => setShowCriticUpgrade(true)}
         />
+
+        {isCriticMode && !isLoading && (
+          <CriticModeBar
+            report={criticReport}
+            loading={criticLoading}
+            isStale={criticStale}
+            generalIssuesCount={generalCriticIssuesCount}
+            onExit={handleExitCriticMode}
+            onRerun={() => startCriticWithChecks(true)}
+          />
+        )}
 
         {showSearch && !isLoading && paragraphs.length > 0 && (
           <SearchReplaceBar
@@ -373,7 +561,7 @@ export function ChapterView({
           />
         )}
 
-        {!isOriginalReadingMode && !isLoading && showTranslationPanel && (
+        {!isOriginalReadingMode && !isLoading && showTranslationPanel && !isCriticMode && (
           <TranslationPanel
             chapter={chapter}
             project={project}
@@ -405,6 +593,16 @@ export function ChapterView({
             onConfirm={confirmAndProceed}
             usage={tokenUsage}
             estimatedTokens={warningState.estimatedTokens}
+          />
+        )}
+
+        {criticWarningState.isOpen && criticTokenUsage && (
+          <TokenLimitWarning
+            isOpen={criticWarningState.isOpen}
+            onClose={closeCriticWarning}
+            onConfirm={confirmCriticProceed}
+            usage={criticTokenUsage}
+            estimatedTokens={criticWarningState.estimatedTokens}
           />
         )}
 
@@ -442,6 +640,9 @@ export function ChapterView({
           textBlockTypes={project.settings?.textBlockTypes ?? []}
           searchHighlight={searchHighlight}
           scrollToParagraphRef={scrollToParagraphRef}
+          isCriticMode={isCriticMode && canUseCritic}
+          criticIssuesByParagraph={criticIssuesByParagraph}
+          criticLoading={criticLoading}
         />
       ) : (
         <Card>
@@ -458,6 +659,36 @@ export function ChapterView({
         title={errorModal?.title ?? ''}
         message={errorModal?.message ?? ''}
       />
+
+      <CriticUpgradeModal isOpen={showCriticUpgrade} onClose={() => setShowCriticUpgrade(false)} />
+
+      <Modal
+        isOpen={showCriticConfirm}
+        onClose={() => {
+          setShowCriticConfirm(false);
+          if (!criticReport && !criticLoading) setIsCriticMode(false);
+        }}
+        title={t('critic.confirmTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCriticConfirm(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={handleCriticConfirmProceed}>
+              {t('critic.confirmProceed')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('critic.confirmMessage')}</p>
+        {criticConfirmTokens > 0 && (
+          <p class="critic-confirm-tokens">
+            {t('translationPanel.estimatedTokens', {
+              tokens: criticConfirmTokens.toLocaleString(),
+            })}
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -34,6 +34,7 @@ import {
   chapterIdsBodySchema,
   translateBatchBodySchema,
   chapterTranslateBodySchema,
+  chapterCriticBodySchema,
   type LanguagePairBody,
   chapterTitleBodySchema,
   chapterNumberBodySchema,
@@ -4378,6 +4379,155 @@ app.post(
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to start translation' });
+    }
+  }
+);
+
+// Chapter translation review (Critic mode — Author+)
+app.post(
+  '/api/projects/:projectId/chapters/:chapterId/critic',
+  requireAuth,
+  requireRole('author_plus'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const chapter = await getChapter(req.params.projectId, req.params.chapterId, token);
+      if (!chapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+
+      if (chapter.status === 'translating') {
+        return res.status(409).json({
+          error: 'Translation in progress',
+          code: 'ALREADY_TRANSLATING',
+          message: 'Дождитесь завершения перевода перед проверкой.',
+        });
+      }
+
+      const parsedBody = chapterCriticBodySchema.safeParse(req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsedBody.error.flatten().fieldErrors,
+        });
+      }
+
+      const { force = false } = parsedBody.data;
+      const fingerprint = (
+        await import('./services/chapter-critic.js')
+      ).computeCriticContentFingerprint(chapter.paragraphs ?? []);
+
+      if (
+        !force &&
+        chapter.criticReport &&
+        chapter.criticReport.contentFingerprint === fingerprint
+      ) {
+        return res.json({ report: chapter.criticReport, cached: true });
+      }
+
+      const {
+        runChapterCritic,
+        computeCriticInputStats,
+        CriticInputTooLargeError,
+        CriticChapterTooLongError,
+        CriticNoTranslationError,
+        CriticOutputTruncatedError,
+      } = await import('./services/chapter-critic.js');
+      const { GlossaryManager } = await import('./engine/index.js');
+      const { languageDisplayName } = await import('./engine/language.js');
+      const { getAgentForProject } = await import('./services/engine-integration.js');
+
+      const agent = await getAgentForProject(project);
+      const glossaryText = new GlossaryManager(agent.glossary).toPromptText({
+        targetLanguageLabel: languageDisplayName(
+          project.targetLanguage as import('./engine/types/common.js').Language
+        ),
+      });
+      const stats = computeCriticInputStats(chapter, glossaryText);
+
+      if (stats.tooLarge) {
+        return res.status(400).json({
+          error: 'Chapter too long for review',
+          code: 'CRITIC_INPUT_TOO_LARGE',
+          totalChars: stats.totalChars,
+          maxChars: stats.maxInputChars,
+        });
+      }
+
+      const estimatedTokens = Math.ceil(stats.totalChars / 3) + 2000;
+      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
+      if (!limitCheck.allowed) {
+        const now = new Date();
+        const resetTime = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
+        );
+        return res.status(429).json({
+          error: 'Token limit exceeded',
+          message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          estimatedTokens,
+          resetAt: resetTime.toISOString(),
+        });
+      }
+
+      let report;
+      try {
+        report = await runChapterCritic(project, chapter);
+      } catch (err) {
+        if (err instanceof CriticInputTooLargeError) {
+          return res.status(400).json({
+            error: 'Chapter too long for review',
+            code: 'CRITIC_INPUT_TOO_LARGE',
+            totalChars: err.totalChars,
+            maxChars: err.maxChars,
+          });
+        }
+        if (err instanceof CriticChapterTooLongError) {
+          return res.status(400).json({
+            error: err.message,
+            code: 'CRITIC_CHAPTER_TOO_LONG',
+          });
+        }
+        if (err instanceof CriticNoTranslationError) {
+          return res.status(400).json({
+            error: err.message,
+            code: 'CRITIC_NO_TRANSLATION',
+          });
+        }
+        if (err instanceof CriticOutputTruncatedError) {
+          return res.status(422).json({
+            error: 'Review output was truncated',
+            code: 'CRITIC_OUTPUT_TRUNCATED',
+            message: 'Ответ модели обрезан. Попробуйте проверить снова.',
+          });
+        }
+        throw err;
+      }
+
+      await updateChapter(
+        req.params.projectId,
+        req.params.chapterId,
+        { criticReport: report },
+        token
+      );
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
+      await incrementTokenUsage(req.user.id, token, report.tokensUsed);
+
+      res.json({ report, cached: false });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Chapter critic failed');
+      res.status(500).json({ error: 'Failed to run translation review' });
     }
   }
 );

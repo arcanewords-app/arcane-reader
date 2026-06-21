@@ -227,6 +227,7 @@ function transformChapterFromDB(
     translated_chunks?: unknown;
     status: string;
     translation_meta?: unknown;
+    critic_report?: unknown;
   };
   return {
     id: r.id,
@@ -240,6 +241,7 @@ function transformChapterFromDB(
     translationMeta: r.translation_meta
       ? (r.translation_meta as Chapter['translationMeta'])
       : undefined,
+    criticReport: r.critic_report ? (r.critic_report as Chapter['criticReport']) : undefined,
     paragraphs,
   };
 }
@@ -257,6 +259,7 @@ function transformChapterToDB(chapter: Partial<Chapter>): Record<string, unknown
   if (chapter.translatedChunks !== undefined) result.translated_chunks = chapter.translatedChunks;
   if (chapter.status !== undefined) result.status = chapter.status;
   if (chapter.translationMeta !== undefined) result.translation_meta = chapter.translationMeta;
+  if (chapter.criticReport !== undefined) result.critic_report = chapter.criticReport;
   return result;
 }
 

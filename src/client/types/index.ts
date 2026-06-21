@@ -167,6 +167,25 @@ export interface TranslationMeta {
   failedChunkIndex?: number;
 }
 
+export interface EvaluationIssue {
+  paragraphIndex: number;
+  dimension: 'accuracy' | 'fluency' | 'glossary' | 'style';
+  severity: 'CRITICAL' | 'MAJOR' | 'MINOR';
+  description: string;
+}
+
+export interface ChapterCriticReport {
+  strengths: string;
+  summary: string;
+  issues: EvaluationIssue[];
+  contentFingerprint: string;
+  paragraphCount: number;
+  model: string;
+  tokensUsed: number;
+  durationMs: number;
+  createdAt: string;
+}
+
 export interface Chapter {
   id: string;
   number: number;
@@ -178,6 +197,7 @@ export interface Chapter {
   paragraphs?: Paragraph[];
   status: ChapterStatus;
   translationMeta?: TranslationMeta;
+  criticReport?: ChapterCriticReport;
   createdAt?: string;
   updatedAt?: string;
 }

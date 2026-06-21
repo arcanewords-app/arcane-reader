@@ -21,6 +21,7 @@ export type TierFeatureId =
   | 'profileHistory'
   | 'translationProjects'
   | 'glossaryPublishExport'
+  | 'translationReview'
   | 'dailyTokens'
   | 'parallelJobs';
 
@@ -29,6 +30,7 @@ export const TIER_FEATURE_ROWS: TierFeatureId[] = [
   'profileHistory',
   'translationProjects',
   'glossaryPublishExport',
+  'translationReview',
   'dailyTokens',
   'parallelJobs',
 ];
@@ -60,6 +62,12 @@ export const TIER_FEATURE_MATRIX: Record<
   glossaryPublishExport: {
     user: 'no',
     author: 'yes',
+    author_plus: 'yes',
+    super_author: 'yes',
+  },
+  translationReview: {
+    user: 'no',
+    author: 'no',
     author_plus: 'yes',
     super_author: 'yes',
   },
