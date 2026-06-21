@@ -465,9 +465,10 @@ export async function translateChapterWithPipeline(
       miniModelTranslationProfile: translateOpts.miniModelTranslationProfile,
       forceChunked: translateOpts.forceChunked,
       ...(options.isCancelled && { isCancelled: options.isCancelled }),
-      ...(project.settings?.textBlockTypes?.length && {
-        textBlockTypes: project.settings.textBlockTypes.filter((bt) => bt.enabled),
-      }),
+      ...(project.settings?.includeTextBlockTypesInTranslation === true &&
+        project.settings?.textBlockTypes?.length && {
+          textBlockTypes: project.settings.textBlockTypes.filter((bt) => bt.enabled),
+        }),
       ...(project.settings?.customInstructions && {
         customInstructions: project.settings.customInstructions,
       }),

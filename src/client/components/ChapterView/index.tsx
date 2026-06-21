@@ -28,6 +28,7 @@ import { ParagraphListSkeleton } from './ParagraphListSkeleton';
 import { TranslationPanel } from './TranslationPanel';
 import { CriticModeBar } from './CriticModeBar';
 import { CriticUpgradeModal } from './CriticUpgradeModal';
+import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import { TokenLimitWarning } from '../TokenUsage';
 
 interface ChapterViewProps {
@@ -637,7 +638,11 @@ export function ChapterView({
           emptyParagraphIds={emptyParagraphIds}
           selectedParagraphIds={selectedParagraphIds}
           onToggleParagraphSelection={handleToggleParagraphSelection}
-          textBlockTypes={project.settings?.textBlockTypes ?? []}
+          textBlockTypes={
+            (project.settings?.textBlockTypes?.length ?? 0) > 0
+              ? (project.settings?.textBlockTypes ?? [])
+              : DEFAULT_TEXT_BLOCK_TYPES
+          }
           searchHighlight={searchHighlight}
           scrollToParagraphRef={scrollToParagraphRef}
           isCriticMode={isCriticMode && canUseCritic}

@@ -162,6 +162,7 @@ export function SettingsModal({
   const includeGlossaryInAnalysis = settings.includeGlossaryInAnalysis ?? true;
   const includeGlossaryInTranslation = settings.includeGlossaryInTranslation ?? true;
   const includeGlossaryInEditing = settings.includeGlossaryInEditing ?? true;
+  const includeTextBlockTypesInTranslation = settings.includeTextBlockTypesInTranslation ?? false;
 
   const toggleIncludeGlossaryInAnalysis = async () => {
     const updated = await api.updateSettings(project.id, {
@@ -180,6 +181,13 @@ export function SettingsModal({
   const toggleIncludeGlossaryInEditing = async () => {
     const updated = await api.updateSettings(project.id, {
       includeGlossaryInEditing: !includeGlossaryInEditing,
+    });
+    onSettingsChange(updated);
+  };
+
+  const toggleIncludeTextBlockTypesInTranslation = async () => {
+    const updated = await api.updateSettings(project.id, {
+      includeTextBlockTypesInTranslation: !includeTextBlockTypesInTranslation,
     });
     onSettingsChange(updated);
   };
@@ -453,6 +461,36 @@ export function SettingsModal({
             <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.75rem' }}>
               {t('settings.textBlocksDesc')}
             </div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={includeTextBlockTypesInTranslation}
+                onChange={toggleIncludeTextBlockTypesInTranslation}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  marginTop: '2px',
+                  cursor: 'pointer',
+                }}
+                aria-label={t('settings.includeTextBlockTypesInTranslation')}
+              />
+              <div>
+                <div style={{ fontWeight: 500 }}>
+                  {t('settings.includeTextBlockTypesInTranslation')}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                  {t('settings.includeTextBlockTypesInTranslationHint')}
+                </div>
+              </div>
+            </label>
             <div style={{ marginBottom: '0.75rem' }}>
               <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
                 {t('settings.textBlocksPresets')}

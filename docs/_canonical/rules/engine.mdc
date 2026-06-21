@@ -82,7 +82,7 @@ Resolver SSOT: `@src/engine/pipeline/resolve-execution-options.ts` (prod + Promp
 
 ## Text Blocks
 
-Markers: `{{block:type-id}}text{{/block:type-id}}`. Types in `@src/engine/constants/text-block-presets.ts`. Use markers, not raw HTML.
+Markers: `{{block:type-id}}text{{/block:type-id}}`. Types in `@src/engine/constants/text-block-presets.ts`. Use markers, not raw HTML. Prompt inclusion gated by `includeTextBlockTypesInTranslation` (default false); display/export always use `textBlockTypes`.
 
 ## Paragraph markers
 

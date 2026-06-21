@@ -26,9 +26,9 @@ If the original text does not contain paragraph markers, return a simple JSON:
   "paragraphs": [
     {"id": "auto_0", "translated": "Full translation text here..."}
   ]
-}
+}`;
 
-## Special Text Blocks
+export const TRANSLATOR_TEXT_BLOCKS_APPENDIX = `## Special Text Blocks
 
 When text block types are configured in the user prompt section "Text Block Types", wrap special text with markers:
 - Format: {{block:type-name}}text{{/block:type-name}}
@@ -36,9 +36,18 @@ When text block types are configured in the user prompt section "Text Block Type
 - ONLY use the types listed in the user prompt section "Text Block Types"
 - If no types are configured, do NOT add any markers`;
 
-export function buildTranslatorJsonOutputFormat(enableCoT?: boolean): string {
-  if (!enableCoT) return TRANSLATOR_JSON_OUTPUT_FORMAT;
-  return `${TRANSLATOR_JSON_OUTPUT_FORMAT}\n${TRANSLATE_COT_JSON_FORMAT_APPENDIX}`;
+export function buildTranslatorJsonOutputFormat(
+  enableCoT?: boolean,
+  includeTextBlocks?: boolean
+): string {
+  let format = TRANSLATOR_JSON_OUTPUT_FORMAT;
+  if (includeTextBlocks) {
+    format += `\n\n${TRANSLATOR_TEXT_BLOCKS_APPENDIX}`;
+  }
+  if (enableCoT) {
+    format += `\n${TRANSLATE_COT_JSON_FORMAT_APPENDIX}`;
+  }
+  return format;
 }
 
 export function buildTranslatorUserPrompt(params: TranslatorUserPromptParams): string {

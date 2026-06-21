@@ -73,6 +73,7 @@ export const projectSettingsBodySchema = z
     includeGlossaryInTranslation: z.boolean().optional(),
     includeGlossaryInEditing: z.boolean().optional(),
     textBlockTypes: z.array(z.unknown()).optional(),
+    includeTextBlockTypesInTranslation: z.boolean().optional(),
     customInstructions: z
       .object({
         translation: z.string().optional(),

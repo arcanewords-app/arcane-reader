@@ -72,6 +72,7 @@ export function ChapterList({
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [undoAvailable, setUndoAvailable] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
   // optimistic local order for smoother UX during/after drag
   const [optimisticOrder, setOptimisticOrder] = useState<string[] | null>(null);
   const lastOrderRef = useRef<string[] | null>(null);
@@ -207,7 +208,10 @@ export function ChapterList({
         }) => ComponentChildren);
   }) => {
     const { id, children } = props;
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+      id,
+      disabled: !reorderMode,
+    });
     const style: { transform?: string; transition?: string } = {
       transform: transform ? CSS.Transform.toString(transform) : undefined,
       transition,
@@ -665,7 +669,7 @@ export function ChapterList({
 
   const handleStartEditNumber = (chapter: Chapter, e: MouseEvent) => {
     e.stopPropagation();
-    if (!projectId) return;
+    if (!reorderMode || !projectId) return;
     setEditingNumber(chapter.id);
     setEditedNumber(chapter.number);
     // Focus input after state update
@@ -769,6 +773,34 @@ export function ChapterList({
     setEditingNumber(null);
     setEditedNumber(chapter.number);
   };
+
+  const exitReorderMode = useCallback(() => {
+    if (editingNumber) {
+      const chapter = chapters.find((c) => c.id === editingNumber);
+      if (chapter) handleCancelEditNumber(chapter);
+    }
+    setReorderMode(false);
+  }, [chapters, editingNumber]);
+
+  const enterReorderMode = useCallback(() => {
+    setFilter('all');
+    setSearch('');
+    setReorderMode(true);
+  }, []);
+
+  const toggleReorderMode = useCallback(() => {
+    if (reorderMode) {
+      if (isDragging) return;
+      exitReorderMode();
+    } else {
+      enterReorderMode();
+    }
+  }, [reorderMode, isDragging, exitReorderMode, enterReorderMode]);
+
+  useEffect(() => {
+    setReorderMode(false);
+    setEditingNumber(null);
+  }, [projectId]);
 
   const handleNumberKeyDown = (e: KeyboardEvent, chapterId: string) => {
     if (e.key === 'Enter') {
@@ -1035,42 +1067,60 @@ export function ChapterList({
   return (
     <Card
       title={
-        <>
-          {t('chapterList.title')} <CountBadge count={counts.all} />
-          <span class="chapter-list-title-meta">
-            {isSavingOrder && (
-              <>
-                <span class="spinner chapter-list-title-spinner" />
-                <small class="chapter-list-title-note">
-                  {t('chapterList.savingOrder') || 'Saving order...'}
-                </small>
-              </>
-            )}
-            {!isSavingOrder && undoAvailable && (
-              <>
-                <small class="chapter-list-title-note chapter-list-title-note-spaced">
-                  {isReverting
-                    ? t('chapterList.reverting') || 'Reverting...'
-                    : t('chapterList.orderSaved') || 'Order saved'}
-                </small>
-                <button
-                  class="small"
-                  onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation();
-                    handleUndo();
-                  }}
-                  disabled={isReverting}
-                >
-                  {isReverting
-                    ? t('chapterList.reverting') || 'Reverting...'
-                    : t('chapterList.undo') || 'Undo'}
-                </button>
-              </>
-            )}
+        <span class="chapter-list-card-title-wrap">
+          <span class="chapter-list-card-title-left">
+            {t('chapterList.title')} <CountBadge count={counts.all} />
+            <span class="chapter-list-title-meta">
+              {isSavingOrder && (
+                <>
+                  <span class="spinner chapter-list-title-spinner" />
+                  <small class="chapter-list-title-note">{t('chapterList.savingOrder')}</small>
+                </>
+              )}
+              {!isSavingOrder && undoAvailable && (
+                <>
+                  <small class="chapter-list-title-note chapter-list-title-note-spaced">
+                    {isReverting ? t('chapterList.reverting') : t('chapterList.orderSaved')}
+                  </small>
+                  <button
+                    class="small"
+                    onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+                      e.stopPropagation();
+                      handleUndo();
+                    }}
+                    disabled={isReverting}
+                  >
+                    {isReverting ? t('chapterList.reverting') : t('chapterList.undo')}
+                  </button>
+                </>
+              )}
+            </span>
           </span>
-        </>
+          <button
+            type="button"
+            class={`chapter-reorder-toggle ${reorderMode ? 'active' : ''}`}
+            onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+              e.stopPropagation();
+              toggleReorderMode();
+            }}
+            disabled={chapters.length < 2 || isDragging}
+            aria-pressed={reorderMode}
+            title={
+              chapters.length < 2
+                ? t('chapterList.reorderModeMinChapters')
+                : reorderMode
+                  ? t('chapterList.reorderModeDone')
+                  : t('chapterList.reorderMode')
+            }
+          >
+            <Icon name="swap_vert" size="sm" />
+            <span class="chapter-reorder-toggle-label">
+              {reorderMode ? t('chapterList.reorderModeDone') : t('chapterList.reorderMode')}
+            </span>
+          </button>
+        </span>
       }
-      className="chapter-list-card"
+      className={`chapter-list-card${reorderMode ? ' is-reorder-mode' : ''}`}
     >
       <div class="chapter-search">
         <input
@@ -1078,6 +1128,7 @@ export function ChapterList({
           class="chapter-search-input"
           placeholder={t('chapterList.searchPlaceholder')}
           value={search}
+          disabled={reorderMode}
           onInput={(e: JSX.TargetedEvent<HTMLInputElement>) =>
             setSearch((e.target as HTMLInputElement).value)
           }
@@ -1135,6 +1186,7 @@ export function ChapterList({
               class={`chapter-filter-btn ${filter === f ? 'active' : ''}`}
               onClick={() => setFilter(f)}
               title={label}
+              disabled={reorderMode}
             >
               <Icon name={iconName} size="sm" />
               <span class="chapter-filter-label chapter-filter-label-long">{label}</span>
@@ -1143,6 +1195,21 @@ export function ChapterList({
           );
         })}
       </div>
+
+      {reorderMode && (
+        <div class="chapter-reorder-bar" role="status">
+          <div class="chapter-reorder-bar-top">
+            <div class="chapter-reorder-bar-title-row">
+              <Icon name="drag_indicator" size="sm" />
+              <span>{t('chapterList.reorderModeTitle')}</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={toggleReorderMode} disabled={isDragging}>
+              <Icon name="check" size="sm" /> {t('chapterList.reorderModeDone')}
+            </Button>
+          </div>
+          <p class="chapter-reorder-bar-hint">{t('chapterList.reorderModeHint')}</p>
+        </div>
+      )}
 
       <DndContext
         sensors={sensors}
@@ -1182,11 +1249,14 @@ export function ChapterList({
                         <SortableItem id={chapter.id} key={chapter.id}>
                           {({ attributes, listeners }) => (
                             <div
-                              class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}`}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => onSelect(chapter.id)}
+                              class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}${reorderMode ? ' chapter-item-reorder' : ''}`}
+                              role={reorderMode ? undefined : 'button'}
+                              tabIndex={reorderMode ? undefined : 0}
+                              onClick={() => {
+                                if (!reorderMode) onSelect(chapter.id);
+                              }}
                               onKeyDown={(e) => {
+                                if (reorderMode) return;
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault();
                                   onSelect(chapter.id);
@@ -1198,13 +1268,24 @@ export function ChapterList({
                                 boxSizing: 'border-box',
                               }}
                             >
-                              <div
-                                class="chapter-item-drag-area"
-                                {...attributes}
-                                {...listeners}
-                                style={isDragging ? { cursor: 'grabbing' } : undefined}
-                              >
-                                {editingNumber === chapter.id ? (
+                              {reorderMode && (
+                                <button
+                                  type="button"
+                                  class="chapter-reorder-handle"
+                                  title={t('chapterList.dragHandleTitle')}
+                                  aria-label={t('chapterList.dragHandleTitle')}
+                                  {...attributes}
+                                  {...listeners}
+                                  onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) =>
+                                    e.stopPropagation()
+                                  }
+                                  style={isDragging ? { cursor: 'grabbing' } : undefined}
+                                >
+                                  <Icon name="drag_indicator" size="sm" />
+                                </button>
+                              )}
+                              <div class="chapter-item-drag-area">
+                                {reorderMode && editingNumber === chapter.id ? (
                                   <div
                                     class="chapter-number-edit"
                                     role="presentation"
@@ -1267,7 +1348,7 @@ export function ChapterList({
                                       </button>
                                     </div>
                                   </div>
-                                ) : (
+                                ) : reorderMode ? (
                                   <button
                                     type="button"
                                     class="chapter-number"
@@ -1285,6 +1366,8 @@ export function ChapterList({
                                   >
                                     {chapter.number}
                                   </button>
+                                ) : (
+                                  <span class="chapter-number">{chapter.number}</span>
                                 )}
                                 <span class="chapter-item-title">
                                   {chapterDisplayTitle(chapter)}

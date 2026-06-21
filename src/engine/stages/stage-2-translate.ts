@@ -83,15 +83,15 @@ interface TranslateStageOptions {
   forceChunked?: boolean;
 }
 
-function applyCoTToSystemPrompt(systemPrompt: string, enableCoT: boolean): string {
-  if (!enableCoT) return systemPrompt;
+function applyOutputFormatToSystemPrompt(
+  systemPrompt: string,
+  options: { enableCoT?: boolean; includeTextBlocks?: boolean }
+): string {
+  const formatBlock = buildTranslatorJsonOutputFormat(options.enableCoT, options.includeTextBlocks);
   if (systemPrompt.includes(TRANSLATOR_JSON_OUTPUT_FORMAT)) {
-    return systemPrompt.replace(
-      TRANSLATOR_JSON_OUTPUT_FORMAT,
-      buildTranslatorJsonOutputFormat(true)
-    );
+    return systemPrompt.replace(TRANSLATOR_JSON_OUTPUT_FORMAT, formatBlock);
   }
-  return `${systemPrompt.trimEnd()}\n${buildTranslatorJsonOutputFormat(true)}`;
+  return `${systemPrompt.trimEnd()}\n${formatBlock}`;
 }
 
 const DEFAULT_CHUNK_RETRY_ATTEMPTS = 2;
@@ -587,11 +587,12 @@ export class TranslateStage {
     }
 
     const translatorPrompts = resolvePrompts('translate', sourceLanguage, targetLanguage);
-    const defaultSystem = applyCoTToSystemPrompt(
+    const hasTextBlocks = (textBlockTypes?.filter((bt) => bt.enabled).length ?? 0) > 0;
+    const defaultSystem = applyOutputFormatToSystemPrompt(
       buildTranslateSystemPrompt(translatorPrompts.systemPrompt, targetLanguage, {
         enableFewShot: flags.enableFewShot,
       }),
-      flags.enableCoT
+      { enableCoT: flags.enableCoT, includeTextBlocks: hasTextBlocks }
     );
     const systemPrompt = systemPromptOverride ?? defaultSystem;
 

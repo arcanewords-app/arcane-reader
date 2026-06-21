@@ -375,6 +375,8 @@ export interface ProjectSettings {
   reader: ReaderSettings;
   /** Special text block types for formatting (system messages, notes, letters, etc.) */
   textBlockTypes?: TextBlockType[];
+  /** When true, enabled text block types are sent to the translation stage. Default false. */
+  includeTextBlockTypesInTranslation?: boolean;
   /** Custom instructions for translator and editor stages */
   customInstructions?: CustomInstructions;
   /** Editing style preset: default, literary, minimal, ai_revivification */

@@ -1792,6 +1792,7 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
       includeGlossaryInTranslation,
       includeGlossaryInEditing,
       textBlockTypes,
+      includeTextBlockTypesInTranslation,
       customInstructions,
       editingStylePreset,
       editingFocus,
@@ -1848,6 +1849,9 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
 
     if (textBlockTypes !== undefined) {
       updatedSettings.textBlockTypes = textBlockTypes as typeof project.settings.textBlockTypes;
+    }
+    if (includeTextBlockTypesInTranslation !== undefined) {
+      updatedSettings.includeTextBlockTypesInTranslation = includeTextBlockTypesInTranslation;
     }
     if (customInstructions !== undefined) {
       updatedSettings.customInstructions = customInstructions;
