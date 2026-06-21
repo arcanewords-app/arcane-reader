@@ -252,6 +252,28 @@
   border-color: var(--accent-bright);
 }
 
+.home-order-btn--complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+}
+
+.home-order-btn--complete:hover {
+  border-color: color-mix(in srgb, var(--success) 60%, var(--border-hover));
+}
+
+.home-order-btn--complete.active {
+  color: #fff;
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.home-order-btn--complete.active:hover {
+  background: color-mix(in srgb, var(--success) 85%, #fff);
+  border-color: color-mix(in srgb, var(--success) 85%, #fff);
+}
+
 .home-language-filter {
   min-width: 160px;
 }

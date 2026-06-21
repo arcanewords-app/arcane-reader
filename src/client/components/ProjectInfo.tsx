@@ -7,11 +7,13 @@ import type {
   Chapter,
   Publication,
   PublicEntity,
+  TranslationStatus,
 } from '../types';
+import { TRANSLATION_STATUSES } from '../../shared/translation-status';
 import { Card, Button, Modal, Input, LoadingSpinner, Icon, AlertModal, ConfirmModal } from './ui';
 import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
 import { formatLanguagePairLabel } from '../constants/translationLanguages';
-import { api, ApiError } from '../api/client';
+import { api, ApiError, clearCatalogLocalCache } from '../api/client';
 import { authService } from '../services/authService';
 import { isChunkError } from '../../shared/chunkErrors';
 import { invalidateProject } from '../store/projects';
@@ -159,6 +161,7 @@ export function ProjectInfo({
       authorEntityId?: string | null;
       translatorEntityId?: string | null;
       tagEntityIds?: string[];
+      translationStatus?: TranslationStatus | null;
     }) => {
       setSavingEntities(true);
       try {
@@ -167,6 +170,14 @@ export function ProjectInfo({
           ...updates,
         });
         invalidateProject(project.id);
+        if (Object.prototype.hasOwnProperty.call(updates, 'translationStatus')) {
+          clearCatalogLocalCache();
+          if (publication) {
+            setPublication((p) =>
+              p ? { ...p, translationStatus: updates.translationStatus ?? null } : null
+            );
+          }
+        }
         await onRefreshProject();
       } catch (error) {
         setErrorModal({
@@ -177,7 +188,7 @@ export function ProjectInfo({
         setSavingEntities(false);
       }
     },
-    [project.id, project.metadata, onRefreshProject, t]
+    [project.id, project.metadata, publication, onRefreshProject, t]
   );
 
   const handleAuthorSelect = useCallback(
@@ -287,6 +298,7 @@ export function ProjectInfo({
         authorEntityId: project.metadata?.authorEntityId ?? undefined,
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
         tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
+        translationStatus: project.metadata?.translationStatus ?? null,
       });
       setPublication(pub);
       setShowPublishModal(false);
@@ -318,6 +330,7 @@ export function ProjectInfo({
     project.metadata?.authorEntityId,
     project.metadata?.translatorEntityId,
     project.metadata?.tagEntityIds,
+    project.metadata?.translationStatus,
     project.metadata?.authors,
     authorEntity,
     translatorEntity,
@@ -375,6 +388,7 @@ export function ProjectInfo({
         authorEntityId: project.metadata?.authorEntityId ?? undefined,
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
         tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
+        translationStatus: project.metadata?.translationStatus ?? null,
       });
       setPublication(pub);
     } catch (error) {
@@ -394,6 +408,7 @@ export function ProjectInfo({
     project.metadata?.authorEntityId,
     project.metadata?.translatorEntityId,
     project.metadata?.tagEntityIds,
+    project.metadata?.translationStatus,
     project.name,
     authorEntity,
     translatorEntity,
@@ -1180,6 +1195,55 @@ export function ProjectInfo({
                 >
                   {t('projectInfo.addTags')}
                 </Button>
+              </div>
+            </div>
+            <div class="entity-section__row entity-section__row--translation-status">
+              <span class="entity-section__label">{t('projectInfo.translationStatus.label')}</span>
+              <div class="entity-section__value entity-section__translation-status">
+                <div
+                  class="translation-status-pills"
+                  role="group"
+                  aria-label={t('projectInfo.translationStatus.label')}
+                >
+                  {TRANSLATION_STATUSES.map((status) => {
+                    const isActive = project.metadata?.translationStatus === status;
+                    const optionKey =
+                      status === 'in_progress'
+                        ? 'inProgress'
+                        : status === 'complete'
+                          ? 'complete'
+                          : 'abandoned';
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        class={`translation-status-pill${isActive ? ' translation-status-pill--active' : ''}`}
+                        disabled={savingEntities}
+                        aria-pressed={isActive}
+                        onClick={() => {
+                          const next =
+                            project.metadata?.translationStatus === status ? null : status;
+                          saveEntityMetadata({ translationStatus: next });
+                        }}
+                      >
+                        {t(`projectInfo.translationStatus.${optionKey}`)}
+                      </button>
+                    );
+                  })}
+                  {project.metadata?.translationStatus != null && (
+                    <button
+                      type="button"
+                      class="translation-status-clear"
+                      disabled={savingEntities}
+                      onClick={() => saveEntityMetadata({ translationStatus: null })}
+                    >
+                      {t('projectInfo.translationStatus.clear')}
+                    </button>
+                  )}
+                </div>
+                <p class="entity-section__translation-status-hint">
+                  {t('projectInfo.translationStatus.hint')}
+                </p>
               </div>
             </div>
           </div>

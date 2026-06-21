@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Publication, PublicationListItem, PublicEntity } from '../../types';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { EntityChip } from './EntityChip';
+import { PublicationStatusBadge } from './PublicationStatusBadge';
 import { trackEvent } from '../../utils/analytics';
 import './PublicationCard.css';
 
@@ -42,6 +43,8 @@ export function PublicationCard({
 
   const translatedChapterCount =
     'translatedChapterCount' in publication ? publication.translatedChapterCount : undefined;
+
+  const translationStatus = publication.translationStatus ?? null;
 
   const declension = (n: number, forms: [string, string, string]) => {
     const n10 = n % 10;
@@ -103,6 +106,7 @@ export function PublicationCard({
         onKeyDown={handleCardAreaKeyDown}
       >
         <div class="publication-card-cover">
+          {translationStatus && <PublicationStatusBadge status={translationStatus} />}
           {coverImageUrl ? (
             <>
               <img

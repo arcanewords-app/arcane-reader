@@ -745,7 +745,15 @@
     "publishSelectAuthor": "Select",
     "publishSelectTranslator": "Select",
     "publishChangeAuthor": "Change",
-    "publishChangeTranslator": "Change"
+    "publishChangeTranslator": "Change",
+    "translationStatus": {
+      "label": "Translation status",
+      "hint": "Badge on the cover in the catalog. No selection — no badge.",
+      "inProgress": "In progress",
+      "complete": "Complete",
+      "abandoned": "Abandoned",
+      "clear": "No badge"
+    }
   },
   "processChapters": {
     "perPage": "Per page",
@@ -901,7 +909,11 @@
     "clearFilter": "Clear filter",
     "clearAllFilters": "Clear all filters",
     "clearFilterHint": "Try clearing the filter to see more publications.",
-    "noPublicationsForFilter": "No publications for this filter"
+    "noPublicationsForFilter": "No publications for this filter",
+    "filterCompleteOnly": "Complete",
+    "filterCompleteOnlyAria": "Show complete works only",
+    "noCompleteWorks": "No complete works",
+    "noCompleteWorksHint": "Clear the filter or choose another language"
   },
   "nav": {
     "catalog": "Catalog",
@@ -1116,7 +1128,17 @@
     "buildExportsError": "Failed to prepare files for download.",
     "exportsNotReady": "Download not yet available",
     "exportsNotReadyTooltip": "Author has not prepared files yet",
-    "updateExports": "Update files"
+    "updateExports": "Update files",
+    "statusBadge": {
+      "inProgress": "In progress",
+      "complete": "Complete",
+      "abandoned": "On hold"
+    },
+    "statusBadgeAria": {
+      "inProgress": "Translation in progress",
+      "complete": "Complete work",
+      "abandoned": "Abandoned work"
+    }
   },
   "language": {
     "en": "English",

@@ -8,6 +8,7 @@ import type { PublicationWithChapters, GlossaryEntry, PublicEntity } from '../ty
 import { usePageMeta } from '../hooks/usePageMeta';
 import { useUserRole } from '../hooks/useUserRole';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
+import { PublicationStatusBadge } from '../components/Home/PublicationStatusBadge';
 import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
@@ -349,6 +350,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       </div>
       <div class="publication-page-content">
         <div class="publication-page-cover">
+          {pub.translationStatus && <PublicationStatusBadge status={pub.translationStatus} />}
           {pub.coverImageUrl ? (
             <img src={pub.coverImageUrl} alt={title} />
           ) : (

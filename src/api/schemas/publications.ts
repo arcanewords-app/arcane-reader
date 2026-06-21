@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { paginationQuerySchema } from './common.js';
 
+const translationStatusSchema = z.enum(['in_progress', 'complete', 'abandoned']);
+
 export const publicationsListQuerySchema = paginationQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
@@ -36,6 +38,9 @@ export const publishBodySchema = z
     translatorEntityId: z.string().min(1).nullable().optional(),
     sourceLanguage: z.string().trim().max(20).optional(),
     targetLanguage: z.string().trim().max(20).optional(),
+    translationStatus: translationStatusSchema.nullable().optional(),
+    /** @deprecated Use translationStatus: 'complete' */
+    isCompleteWork: z.boolean().optional(),
   })
   .passthrough();
 

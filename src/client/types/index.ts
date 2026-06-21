@@ -3,6 +3,10 @@
  * Shared types for the client application
  */
 
+import type { TranslationStatus } from '../../shared/translation-status.js';
+
+export type { TranslationStatus };
+
 // === Declensions (Russian grammar cases) ===
 
 export interface Declensions {
@@ -391,6 +395,8 @@ export interface ProjectMetadata {
   seriesNumber?: number;
   coverImageUrl?: string;
   translatedAt?: string;
+  /** Catalog cover badge; null/omit = no badge. */
+  translationStatus?: TranslationStatus | null;
 }
 
 // === Project ===
@@ -682,6 +688,8 @@ export interface Publication {
   showGlossary?: boolean;
   /** Number of translated chapters (when loaded from list/user APIs). */
   translatedChapterCount?: number;
+  /** Catalog cover badge; null = no badge. */
+  translationStatus?: TranslationStatus | null;
 }
 
 export interface PublicationListItem {
@@ -709,6 +717,8 @@ export interface PublicationListItem {
   showGlossary?: boolean;
   /** Number of translated chapters (from publications_list_with_counts view). */
   translatedChapterCount?: number;
+  /** Catalog cover badge; null = no badge. */
+  translationStatus?: TranslationStatus | null;
 }
 
 export interface PublicationWithChapters extends Publication {

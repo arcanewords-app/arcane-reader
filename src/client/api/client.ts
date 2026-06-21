@@ -40,6 +40,7 @@ import type {
   PublicationWithChapters,
   PublicEntity,
   PublicEntityKind,
+  TranslationStatus,
   NewsPost,
   NewsCategory,
   NewsStatus,
@@ -226,6 +227,16 @@ function setLocalStorageCached<T>(key: string, data: T): void {
       data,
     })
   );
+}
+
+/** Drop cached default catalog list so cover badges refresh after publication metadata changes. */
+export function clearCatalogLocalCache(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(cacheVersionedKey([CACHE_PREFIX.publicationsList, 'catalog-default']));
+  } catch {
+    // ignore quota / private mode
+  }
 }
 
 function getReadProgressCacheKey(publicationId: string): string {
@@ -1422,12 +1433,16 @@ export const api = {
       translatorDisplay?: string | null;
       authorEntityId?: string | null;
       translatorEntityId?: string | null;
+      tagEntityIds?: string[];
+      translationStatus?: TranslationStatus | null;
     }
   ): Promise<Publication> {
-    return fetchJson(`/api/projects/${projectId}/publish`, {
+    const result = await fetchJson<Publication>(`/api/projects/${projectId}/publish`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    clearCatalogLocalCache();
+    return result;
   },
 
   /** Unpublish project (auth required) */

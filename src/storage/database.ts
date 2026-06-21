@@ -39,6 +39,8 @@ export interface ProjectMetadata {
   authorEntityId?: string;
   translatorEntityId?: string;
   tagEntityIds?: string[];
+  /** Catalog cover badge; null/omit = no badge. */
+  translationStatus?: 'in_progress' | 'complete' | 'abandoned' | null;
   isbn?: string;
   series?: string;
   seriesNumber?: number;

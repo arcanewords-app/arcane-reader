@@ -8,6 +8,11 @@
 import { supabase, createClientWithToken } from './supabaseClient.js';
 import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../shared/cacheContract.js';
 import { isChunkError } from '../shared/chunkErrors.js';
+import {
+  isTranslationStatus,
+  translationStatusFromMetadata,
+  type TranslationStatus,
+} from '../shared/translation-status.js';
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
 import { chapterDisplayTitle } from '../shared/chapterTitle.js';
@@ -3063,6 +3068,7 @@ export interface PublicationRow {
   epub_storage_path?: string | null;
   fb2_storage_path?: string | null;
   show_glossary?: boolean | null;
+  translation_status?: string | null;
 }
 
 /** Row from publications_list_with_counts view (adds translated_chapter_count). */
@@ -3103,7 +3109,9 @@ function transformPublicationFromDB(row: PublicationRow): {
   epubStoragePath: string | null;
   fb2StoragePath: string | null;
   showGlossary: boolean;
+  translationStatus: TranslationStatus | null;
 } {
+  const rawStatus = (row as { translation_status?: string | null }).translation_status;
   return {
     id: row.id,
     projectId: row.project_id,
@@ -3127,6 +3135,7 @@ function transformPublicationFromDB(row: PublicationRow): {
     epubStoragePath: (row as { epub_storage_path?: string | null }).epub_storage_path ?? null,
     fb2StoragePath: (row as { fb2_storage_path?: string | null }).fb2_storage_path ?? null,
     showGlossary: (row as { show_glossary?: boolean | null }).show_glossary !== false,
+    translationStatus: isTranslationStatus(rawStatus) ? rawStatus : null,
   };
 }
 
@@ -3632,6 +3641,7 @@ export async function createOrUpdatePublication(
     tagEntityIds?: string[] | null;
     sourceLanguage?: string;
     targetLanguage?: string;
+    translationStatus?: TranslationStatus | null;
   }
 ): Promise<ReturnType<typeof transformPublicationFromDB>> {
   validateToken(token);
@@ -3656,6 +3666,11 @@ export async function createOrUpdatePublication(
   const slug = title
     ? await ensureUniqueSlug(client, titleToSlug(title), existing?.id ?? null)
     : null;
+
+  const translationStatus =
+    data.translationStatus !== undefined
+      ? data.translationStatus
+      : translationStatusFromMetadata(project.metadata ?? null);
 
   const row = {
     project_id: projectId,
@@ -3694,6 +3709,7 @@ export async function createOrUpdatePublication(
     if (data.translatorEntityId !== undefined)
       updatePayload.translator_entity_id = data.translatorEntityId;
     if (data.tagEntityIds !== undefined) updatePayload.tag_entity_ids = data.tagEntityIds;
+    updatePayload.translation_status = translationStatus;
     // Only set published_at when first publishing (keep "first published" date on subsequent updates)
     if (isPublish && !(existing as { published_at?: string | null }).published_at) {
       updatePayload.published_at = row.published_at;
@@ -3721,6 +3737,7 @@ export async function createOrUpdatePublication(
     author_entity_id: data.authorEntityId ?? null,
     translator_entity_id: data.translatorEntityId ?? null,
     tag_entity_ids: data.tagEntityIds ?? [],
+    translation_status: translationStatus,
   };
 
   const { data: inserted, error } = await client
@@ -3800,7 +3817,7 @@ export async function updatePublicationDisplaySettings(
   publicationId: string,
   userId: string,
   token: string,
-  data: { showGlossary?: boolean }
+  data: { showGlossary?: boolean; translationStatus?: TranslationStatus | null }
 ): Promise<void> {
   validateToken(token);
   const client = createClientWithToken(token);
@@ -3809,6 +3826,8 @@ export async function updatePublicationDisplaySettings(
     updated_at: new Date().toISOString(),
   };
   if (data.showGlossary !== undefined) updatePayload.show_glossary = data.showGlossary;
+  if (data.translationStatus !== undefined)
+    updatePayload.translation_status = data.translationStatus;
 
   const { error } = await client
     .from('publications')
@@ -3818,6 +3837,32 @@ export async function updatePublicationDisplaySettings(
 
   if (error) {
     throw new Error(`Failed to update publication display settings: ${error.message}`);
+  }
+}
+
+/**
+ * Sync translation_status on publication from project metadata (owner only).
+ */
+export async function syncPublicationTranslationStatus(
+  projectId: string,
+  userId: string,
+  token: string,
+  translationStatus: TranslationStatus | null
+): Promise<void> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { error } = await client
+    .from('publications')
+    .update({
+      translation_status: translationStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('project_id', projectId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to sync publication translation status: ${error.message}`);
   }
 }
 

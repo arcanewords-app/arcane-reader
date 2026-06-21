@@ -743,7 +743,15 @@
     "publishSelectAuthor": "Выбраць",
     "publishSelectTranslator": "Выбраць",
     "publishChangeAuthor": "Змяніць",
-    "publishChangeTranslator": "Змяніць"
+    "publishChangeTranslator": "Змяніць",
+    "translationStatus": {
+      "label": "Статус перакладу",
+      "hint": "Плашка на вокладцы ў каталогу. Без выбару — плашкі няма.",
+      "inProgress": "У перакладзе",
+      "complete": "Поўнае",
+      "abandoned": "Закінутае",
+      "clear": "Без плашкі"
+    }
   },
   "processChapters": {
     "perPage": "На старонцы",
@@ -900,7 +908,11 @@
     "clearFilter": "Скінуць фільтр",
     "clearAllFilters": "Скінуць усе фільтры",
     "clearFilterHint": "Паспрабуйце скінуць фільтр, каб убачыць больш публікацый.",
-    "noPublicationsForFilter": "Няма публікацый па гэтым фільтры"
+    "noPublicationsForFilter": "Няма публікацый па гэтым фільтры",
+    "filterCompleteOnly": "Поўныя",
+    "filterCompleteOnlyAria": "Паказаць толькі поўныя творы",
+    "noCompleteWorks": "Няма поўных твораў",
+    "noCompleteWorksHint": "Зніміце фільтр або выберыце іншую мову"
   },
   "nav": {
     "catalog": "Каталог",
@@ -1116,7 +1128,17 @@
     "buildExportsError": "Не ўдалося падрыхтаваць файлы для спампоўкі.",
     "exportsNotReady": "Спампоўка пакуль недаступная",
     "exportsNotReadyTooltip": "Аўтар пакуль не падрыхтаваў файлы",
-    "updateExports": "Абнавіць файлы"
+    "updateExports": "Абнавіць файлы",
+    "statusBadge": {
+      "inProgress": "У працы",
+      "complete": "Поўнае",
+      "abandoned": "Паўза"
+    },
+    "statusBadgeAria": {
+      "inProgress": "У перакладзе",
+      "complete": "Поўнае твор",
+      "abandoned": "Закінутае твор"
+    }
   },
   "language": {
     "en": "Англійская",

@@ -743,7 +743,15 @@
     "publishSelectAuthor": "Выбрать",
     "publishSelectTranslator": "Выбрать",
     "publishChangeAuthor": "Изменить",
-    "publishChangeTranslator": "Изменить"
+    "publishChangeTranslator": "Изменить",
+    "translationStatus": {
+      "label": "Статус перевода",
+      "hint": "Плашка на обложке в каталоге. Без выбора — плашки нет.",
+      "inProgress": "В переводе",
+      "complete": "Полное",
+      "abandoned": "Заброшенное",
+      "clear": "Без плашки"
+    }
   },
   "processChapters": {
     "perPage": "На странице",
@@ -900,7 +908,11 @@
     "clearFilter": "Сбросить фильтр",
     "clearAllFilters": "Сбросить все фильтры",
     "clearFilterHint": "Попробуйте сбросить фильтр, чтобы увидеть больше публикаций.",
-    "noPublicationsForFilter": "Нет публикаций по этому фильтру"
+    "noPublicationsForFilter": "Нет публикаций по этому фильтру",
+    "filterCompleteOnly": "Полные",
+    "filterCompleteOnlyAria": "Показать только полные произведения",
+    "noCompleteWorks": "Нет полных произведений",
+    "noCompleteWorksHint": "Снимите фильтр или выберите другой язык"
   },
   "nav": {
     "catalog": "Каталог",
@@ -1116,7 +1128,17 @@
     "buildExportsError": "Не удалось подготовить файлы для скачивания.",
     "exportsNotReady": "Скачивание пока недоступно",
     "exportsNotReadyTooltip": "Автор пока не подготовил файлы",
-    "updateExports": "Обновить файлы"
+    "updateExports": "Обновить файлы",
+    "statusBadge": {
+      "inProgress": "В работе",
+      "complete": "Полное",
+      "abandoned": "Пауза"
+    },
+    "statusBadgeAria": {
+      "inProgress": "В переводе",
+      "complete": "Полное произведение",
+      "abandoned": "Заброшенное произведение"
+    }
   },
   "language": {
     "en": "Английский",

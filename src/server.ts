@@ -103,6 +103,7 @@ import {
   unpublishProject,
   updatePublicationExportPaths,
   updatePublicationDisplaySettings,
+  syncPublicationTranslationStatus,
   getUserPublications,
   getPublicationByProjectId,
   getProjectForPublicationExport,
@@ -166,6 +167,11 @@ import { logger, getLoggingStatus } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { readSharedHealth, shouldAwaitRecoveryProbe } from './services/healthSnapshotStore.js';
 import { isChunkError } from './shared/chunkErrors.js';
+import {
+  isTranslationStatus,
+  translationStatusFromMetadata,
+  type TranslationStatus,
+} from './shared/translation-status.js';
 import { registerDebugRoutes } from './debug/routes.js';
 import { registerPromptLabRoutes } from './prompt-lab/routes.js';
 import {
@@ -7291,7 +7297,66 @@ app.put(
         return res.status(404).json({ error: 'Failed to update project' });
       }
 
-      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, requireToken(req));
+      const token = requireToken(req);
+      if (Object.prototype.hasOwnProperty.call(metadataUpdates, 'translationStatus')) {
+        const raw = metadataUpdates.translationStatus;
+        const translationStatus =
+          raw === null || raw === undefined ? null : isTranslationStatus(raw) ? raw : null;
+        try {
+          await syncPublicationTranslationStatus(
+            req.params.projectId,
+            req.user.id,
+            token,
+            translationStatus
+          );
+          const publication = await getPublicationByProjectId(
+            req.params.projectId,
+            req.user.id,
+            token
+          );
+          if (publication) {
+            await invalidatePublicationCaches(publication.id, publication.id);
+            if (publication.slug) {
+              await invalidatePublicationCaches(publication.slug);
+            }
+            await invalidatePublicationListCaches();
+          }
+        } catch (syncErr) {
+          req.log?.warn(
+            { err: syncErr, projectId: req.params.projectId },
+            'Failed to sync publication translationStatus from metadata'
+          );
+        }
+      } else if (Object.prototype.hasOwnProperty.call(metadataUpdates, 'isCompleteWork')) {
+        const translationStatus = metadataUpdates.isCompleteWork === true ? 'complete' : null;
+        try {
+          await syncPublicationTranslationStatus(
+            req.params.projectId,
+            req.user.id,
+            token,
+            translationStatus
+          );
+          const publication = await getPublicationByProjectId(
+            req.params.projectId,
+            req.user.id,
+            token
+          );
+          if (publication) {
+            await invalidatePublicationCaches(publication.id, publication.id);
+            if (publication.slug) {
+              await invalidatePublicationCaches(publication.slug);
+            }
+            await invalidatePublicationListCaches();
+          }
+        } catch (syncErr) {
+          req.log?.warn(
+            { err: syncErr, projectId: req.params.projectId },
+            'Failed to sync publication translationStatus from legacy isCompleteWork'
+          );
+        }
+      }
+
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
       res.json(updatedProject);
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
@@ -9083,6 +9148,14 @@ app.post(
         }
       }
 
+      let translationStatus: TranslationStatus | null | undefined = body.translationStatus;
+      if (translationStatus === undefined && body.isCompleteWork === true) {
+        translationStatus = 'complete';
+      }
+      if (translationStatus === undefined) {
+        translationStatus = translationStatusFromMetadata(project?.metadata ?? null);
+      }
+
       const publication = await createOrUpdatePublication(projectId, userId, token, {
         status,
         title: body.title,
@@ -9095,6 +9168,7 @@ app.post(
         tagEntityIds: project?.metadata?.tagEntityIds ?? undefined,
         sourceLanguage: body.sourceLanguage,
         targetLanguage: body.targetLanguage,
+        translationStatus,
       });
       await invalidateUserProjectCaches(userId, projectId);
       await invalidatePublicationCaches(publication.id, publication.id);

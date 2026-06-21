@@ -60,6 +60,7 @@ export function HomePage() {
   }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('');
+  const [completeOnly, setCompleteOnly] = useState(false);
   const [orderAsc, setOrderAsc] = useState(false);
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
   const [entityMap, setEntityMap] = useState<Record<string, PublicEntity | null>>({});
@@ -80,6 +81,11 @@ export function HomePage() {
     });
     return options;
   }, [publications, t]);
+
+  const hasCompleteWorks = useMemo(
+    () => publications.some((p) => p.translationStatus === 'complete'),
+    [publications]
+  );
 
   const filteredPublications = useMemo(() => {
     let list = publications;
@@ -102,6 +108,9 @@ export function HomePage() {
     if (targetLanguage) {
       list = list.filter((p) => p.targetLanguage === targetLanguage);
     }
+    if (completeOnly) {
+      list = list.filter((p) => p.translationStatus === 'complete');
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter((p) => {
@@ -122,7 +131,16 @@ export function HomePage() {
       const tb = new Date(b.publishedAt || 0).getTime();
       return orderAsc ? ta - tb : tb - ta;
     });
-  }, [publications, filter, isAuthor, entityFilter, searchQuery, targetLanguage, orderAsc]);
+  }, [
+    publications,
+    filter,
+    isAuthor,
+    entityFilter,
+    searchQuery,
+    targetLanguage,
+    completeOnly,
+    orderAsc,
+  ]);
 
   // Sync filter and entity params from URL (browser back/forward, route changes)
   useEffect(() => {
@@ -262,6 +280,12 @@ export function HomePage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!hasCompleteWorks && completeOnly) {
+      setCompleteOnly(false);
+    }
+  }, [hasCompleteWorks, completeOnly]);
 
   const switchToAll = useCallback(() => {
     setFilter('all');
@@ -439,6 +463,18 @@ export function HomePage() {
                   className="home-language-select"
                 />
               </div>
+              {hasCompleteWorks && (
+                <button
+                  type="button"
+                  class={`home-order-btn home-order-btn--complete ${completeOnly ? 'active' : ''}`}
+                  aria-pressed={completeOnly}
+                  aria-label={t('home.filterCompleteOnlyAria')}
+                  onClick={() => setCompleteOnly((v) => !v)}
+                >
+                  <Icon name="check_circle" size="sm" />
+                  {t('home.filterCompleteOnly')}
+                </button>
+              )}
             </div>
           </div>
           {hasEntityFilter && (
@@ -491,12 +527,30 @@ export function HomePage() {
           {filteredPublications.length === 0 ? (
             <div class="home-empty home-empty-filtered">
               <p class="home-empty-text">
-                {hasEntityFilter ? t('home.noPublicationsForFilter') : t('home.noSearchResults')}
+                {completeOnly
+                  ? t('home.noCompleteWorks')
+                  : hasEntityFilter
+                    ? t('home.noPublicationsForFilter')
+                    : t('home.noSearchResults')}
               </p>
               <p class="home-empty-hint">
-                {hasEntityFilter ? t('home.clearFilterHint') : t('home.noSearchResultsHint')}
+                {completeOnly
+                  ? t('home.noCompleteWorksHint')
+                  : hasEntityFilter
+                    ? t('home.clearFilterHint')
+                    : t('home.noSearchResultsHint')}
               </p>
-              {hasEntityFilter && (
+              {completeOnly && (
+                <button
+                  type="button"
+                  class="page-back-btn"
+                  onClick={() => setCompleteOnly(false)}
+                  style={{ marginTop: '1rem' }}
+                >
+                  {t('home.clearFilter')}
+                </button>
+              )}
+              {!completeOnly && hasEntityFilter && (
                 <button
                   type="button"
                   class="page-back-btn"
