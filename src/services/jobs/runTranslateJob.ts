@@ -32,6 +32,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
     jobId,
     projectId,
     userId,
+    userRole,
     estimatedTokens,
     chapterIds,
     stages,
@@ -150,6 +151,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
               languagePair,
               translateChapterTitles: translateTitles,
               deferChapterTitleTranslation: true,
+              userRole,
               onProgress: (chunksDone, totalChunks) => {
                 translateJobStore
                   .updateJob(jobId, {
@@ -260,6 +262,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
               token,
               languagePair,
               isCancelled: () => cancelledFlag,
+              userRole,
             });
           }
         }

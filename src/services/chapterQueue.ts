@@ -5,6 +5,7 @@
 
 import { Queue } from 'bullmq';
 import type { TranslationStages } from '../config/tokenLimits.js';
+import type { UserRole } from '../types/roles.js';
 
 const QUEUE_NAME_ANALYSIS = 'chapter-analysis';
 const QUEUE_NAME_TRANSLATE = 'chapter-translate';
@@ -13,6 +14,7 @@ export interface AnalysisJobPayload {
   jobId: string;
   projectId: string;
   userId: string;
+  userRole: UserRole;
   estimatedTokens: number;
   chapterIds: string[];
   /** Ephemeral override; when set, engine uses this pair instead of project default. */
@@ -24,6 +26,7 @@ export interface TranslateJobPayload {
   jobId: string;
   projectId: string;
   userId: string;
+  userRole: UserRole;
   estimatedTokens: number;
   chapterIds: string[];
   stages: TranslationStages;

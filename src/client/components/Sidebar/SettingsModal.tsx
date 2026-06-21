@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import type { Project, ProjectSettings, TextBlockType, CustomInstructions } from '../../types';
 import { Modal, Button, Icon } from '../ui';
 import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
 import { api } from '../../api/client';
 import { invalidateProject } from '../../store/projects';
+import { useUserRole } from '../../hooks/useUserRole';
 import {
   normalizeProjectSourceLanguage,
   normalizeProjectTargetLanguage,
@@ -21,11 +23,13 @@ import {
   getCustomBlockPreview,
 } from '../../constants/text-block-presets';
 import {
-  DEFAULT_LLM_MODEL,
-  isModelInProdSettingsList,
-  modelUsesDefaultTemperature,
-  modelsForProdSettings,
-} from '../../../shared/llmModels.js';
+  allProdModelsForStage,
+  clampStageModelForRole,
+  isPremiumProdModel,
+  modelsForProdSettingsByRole,
+  roleHasPremiumModelAccess,
+} from '../../../shared/modelAccess.js';
+import { DEFAULT_LLM_MODEL, modelUsesDefaultTemperature } from '../../../shared/llmModels.js';
 import {
   defaultExecutionModeForModel,
   TRANSLATE_EXECUTION_MODES,
@@ -58,16 +62,24 @@ export function SettingsModal({
   onRefreshProject,
 }: SettingsModalProps) {
   const { t } = useTranslation();
+  const { role } = useUserRole();
+  const hasPremiumModels = roleHasPremiumModelAccess(role);
   const settings = project.settings || {};
   const isOriginalReadingMode = settings.originalReadingMode ?? false;
 
-  // Get current model for a stage (with fallbacks). Show saved value even if not in MODELS list.
   const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
+    let resolved: string;
     if (settings.stageModels) {
       const current = settings.stageModels[stage];
-      if (current && typeof current === 'string') return current;
+      if (current && typeof current === 'string') {
+        resolved = current;
+      } else {
+        resolved = settings.model || DEFAULT_LLM_MODEL;
+      }
+    } else {
+      resolved = settings.model || DEFAULT_LLM_MODEL;
     }
-    return settings.model || DEFAULT_LLM_MODEL;
+    return clampStageModelForRole(resolved, stage, role);
   };
 
   const effectiveTranslateMode: TranslateExecutionMode =
@@ -77,8 +89,8 @@ export function SettingsModal({
 
   const renderProdModelOptions = (stage: 'analysis' | 'translation' | 'editing') => {
     const current = getStageModel(stage);
-    const options = modelsForProdSettings(stage);
-    const inList = isModelInProdSettingsList(stage, current);
+    const options = allProdModelsForStage(stage);
+    const inList = modelsForProdSettingsByRole(stage, role).some((m) => m.value === current);
     return (
       <>
         {!inList && (
@@ -86,12 +98,27 @@ export function SettingsModal({
             {current} ({t('settings.savedModel')})
           </option>
         )}
-        {options.map((m) => (
-          <option key={m.value} value={m.value}>
-            {m.label}
-          </option>
-        ))}
+        {options.map((m) => {
+          const locked = !hasPremiumModels && isPremiumProdModel(stage, m.value);
+          return (
+            <option key={m.value} value={m.value} disabled={locked}>
+              {locked ? `${m.label} (${t('settings.modelLockedBadge')})` : m.label}
+            </option>
+          );
+        })}
       </>
+    );
+  };
+
+  const renderModelUpgradeHint = () => {
+    if (hasPremiumModels || isOriginalReadingMode) return null;
+    return (
+      <span class="setting-hint setting-hint-upgrade">
+        {t('settings.modelUpgradeHint')}{' '}
+        <button type="button" class="settings-inline-link" onClick={() => route('/account-tiers')}>
+          {t('settings.modelUpgradeLink')}
+        </button>
+      </span>
     );
   };
 
@@ -852,6 +879,7 @@ export function SettingsModal({
                       )}
                     </div>
                   </div>
+                  {renderModelUpgradeHint()}
                 </>
               )}
             </div>

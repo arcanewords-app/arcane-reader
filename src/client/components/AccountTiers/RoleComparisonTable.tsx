@@ -3,10 +3,12 @@ import {
   ACCOUNT_TIER_COLUMNS,
   TIER_FEATURE_ROWS,
   TIER_FEATURE_MATRIX,
+  TIER_MODEL_ACCESS_MATRIX,
   getDailyTokenLimitForTier,
   roleToAccountTier,
   type AccountTierId,
   type TierFeatureId,
+  type TierModelAccessLevel,
 } from '../../../shared/accountTiers';
 import type { UserRole } from '../../../types/roles';
 import { Icon } from '../ui';
@@ -54,11 +56,17 @@ function formatTokenLimit(limit: number | 'unlimited', locale: string): string {
   return limit.toLocaleString(locale);
 }
 
+function modelAccessLabel(level: TierModelAccessLevel, t: (key: string) => string): string {
+  if (level === 'no') return '—';
+  return t(`tiers.modelAccess.${level}`);
+}
+
 function featureStatus(
   featureId: TierFeatureId,
   tierId: AccountTierId
-): 'yes' | 'no' | 'soon' | 'tokens' {
+): 'yes' | 'no' | 'soon' | 'tokens' | 'modelAccess' {
   if (featureId === 'dailyTokens') return 'tokens';
+  if (featureId === 'aiModelChoice') return 'modelAccess';
   return TIER_FEATURE_MATRIX[featureId][tierId];
 }
 
@@ -113,6 +121,10 @@ export function RoleComparisonTable({
                         <span class="tier-token-limit">
                           {formatTokenLimit(getDailyTokenLimitForTier(tierId), locale)}
                         </span>
+                      ) : status === 'modelAccess' ? (
+                        <span class="tier-model-access">
+                          {modelAccessLabel(TIER_MODEL_ACCESS_MATRIX[tierId], t)}
+                        </span>
                       ) : (
                         <StatusCell status={status} label={cellLabel} />
                       )}
@@ -148,6 +160,10 @@ export function RoleComparisonTable({
                       {status === 'tokens' ? (
                         <span class="tier-token-limit">
                           {formatTokenLimit(getDailyTokenLimitForTier(tierId), locale)}
+                        </span>
+                      ) : status === 'modelAccess' ? (
+                        <span class="tier-model-access">
+                          {modelAccessLabel(TIER_MODEL_ACCESS_MATRIX[tierId], t)}
                         </span>
                       ) : (
                         <StatusCell

@@ -16,6 +16,8 @@ import {
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
 import { chapterDisplayTitle } from '../shared/chapterTitle.js';
+import { defaultStageModelsForRole, roleHasPremiumModelAccess } from '../shared/modelAccess.js';
+import type { UserRole } from '../types/roles.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 async function ensureUniqueSlug(
@@ -347,15 +349,13 @@ function transformGlossaryEntryFromDB(row: Record<string, unknown>): GlossaryEnt
 /**
  * Get default project settings
  */
-function getDefaultProjectSettings(): ProjectSettings {
+function getDefaultProjectSettings(role: UserRole = 'author'): ProjectSettings {
+  const stageModels = defaultStageModelsForRole(role);
+  const premium = roleHasPremiumModelAccess(role);
   return {
-    stageModels: {
-      analysis: 'gpt-4.1-mini',
-      translation: 'gpt-5.4-mini',
-      editing: 'gpt-5.4-mini',
-    },
-    translateExecutionMode: 'one_shot',
-    editExecutionMode: 'one_shot',
+    stageModels,
+    translateExecutionMode: premium ? 'one_shot' : 'chunked',
+    editExecutionMode: premium ? 'one_shot' : 'chunked',
     temperature: 0.7,
     enableAnalysis: true,
     enableTranslation: true,
@@ -719,12 +719,14 @@ export async function createProject(
     name: string;
     sourceLanguage?: string;
     targetLanguage?: string;
+    role?: UserRole;
   },
   userId: string,
   token: string
 ): Promise<Project> {
   validateToken(token);
   const client = createClientWithToken(token);
+  const role = data.role ?? 'author';
 
   const projectData = {
     user_id: userId,
@@ -732,7 +734,7 @@ export async function createProject(
     type: 'text', // Default type, will be updated when first file is uploaded
     source_language: data.sourceLanguage || 'en',
     target_language: data.targetLanguage || 'ru',
-    settings: getDefaultProjectSettings(),
+    settings: getDefaultProjectSettings(role),
   };
 
   const { data: project, error } = await client

@@ -622,8 +622,10 @@ import {
   getNameDeclensions,
   clearAgentCache,
   resolveEffectiveLanguagePair,
+  getStageModel,
   type LanguagePairOverride,
 } from './services/engine-integration.js';
+import { clampStageModelsForRole, clampStageModelForRole } from './shared/modelAccess.js';
 import {
   applyChapterTitleTranslations,
   collectTitleTranslationCandidates,
@@ -1635,7 +1637,7 @@ app.post('/api/projects', requireAuth, requireRole('author'), async (req, res) =
     const { name, sourceLanguage, targetLanguage } = parsed.data;
     const token = requireToken(req);
     const project = await createProject(
-      { name, sourceLanguage, targetLanguage },
+      { name, sourceLanguage, targetLanguage, role: req.user.role },
       req.user.id,
       token
     );
@@ -1866,6 +1868,19 @@ app.put('/api/projects/:id/settings', requireAuth, requireRole('author'), async 
     } else if (model) {
       // Legacy: update single model (will be migrated to stageModels on next load)
       updatedSettings.model = model;
+    }
+
+    if (updatedSettings.stageModels) {
+      updatedSettings.stageModels =
+        clampStageModelsForRole(updatedSettings.stageModels, req.user.role) ??
+        updatedSettings.stageModels;
+    }
+    if (updatedSettings.model) {
+      updatedSettings.model = clampStageModelForRole(
+        updatedSettings.model,
+        'translation',
+        req.user.role
+      );
     }
 
     if (textBlockTypes !== undefined) {
@@ -3716,6 +3731,7 @@ app.post(
           jobId,
           projectId,
           userId,
+          userRole: req.user.role,
           estimatedTokens,
           chapterIds: chaptersWithText.map((c) => c.id),
           ...jobLanguageFields,
@@ -3734,6 +3750,7 @@ app.post(
           useCache: true,
           analysisConcurrency,
           languagePair: languagePairOverride,
+          userRole: req.user!.role,
         })
       );
 
@@ -4076,6 +4093,7 @@ app.post(
           jobId,
           projectId,
           userId,
+          userRole: req.user.role,
           estimatedTokens,
           chapterIds: chaptersToTranslate.map((c) => c.id),
           stages,
@@ -4300,17 +4318,14 @@ app.post(
       const startTime = Date.now();
       const wordCount = Math.max(1, textLength / 5);
 
-      // Get models for each stage
-      const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
-        if (project.settings?.stageModels) {
-          return project.settings.stageModels[stage];
-        }
-        return project.settings?.model || config.openai.model;
-      };
-
-      const analysisModel = getStageModel('analysis');
-      const translationModel = getStageModel('translation');
-      const editingModel = getStageModel('editing');
+      const analysisModel = getStageModel(project, 'analysis', config.openai.model, req.user!.role);
+      const translationModel = getStageModel(
+        project,
+        'translation',
+        config.openai.model,
+        req.user!.role
+      );
+      const editingModel = getStageModel(project, 'editing', config.openai.model, req.user!.role);
 
       // Estimate tokens for the requested stages
       const translateTitles = translateChapterTitles !== false;
@@ -4397,6 +4412,7 @@ app.post(
           requestId,
           languagePair: languagePairOverride,
           translateChapterTitles: translateTitles,
+          userRole: req.user!.role,
         }
       );
 
@@ -4616,6 +4632,7 @@ export async function performTranslation(
     translateChapterTitles?: boolean;
     /** When true, skip per-chapter title translation (bulk job runs batch phase 2). */
     deferChapterTitleTranslation?: boolean;
+    userRole?: import('./types/roles.js').UserRole;
   }
 ): Promise<void> {
   const traceId = options?.traceId ?? createTraceId();
@@ -4664,6 +4681,7 @@ async function performTranslationInner(
         languagePair?: LanguagePairOverride;
         translateChapterTitles?: boolean;
         deferChapterTitleTranslation?: boolean;
+        userRole?: import('./types/roles.js').UserRole;
       }
     | undefined,
   traceId: string
@@ -4760,17 +4778,19 @@ async function performTranslationInner(
       return;
     }
 
-    // Get models for each stage
-    const getStageModel = (stage: 'analysis' | 'translation' | 'editing'): string => {
-      if (project.settings?.stageModels) {
-        return project.settings.stageModels[stage];
-      }
-      return project.settings?.model || config.openai.model;
-    };
-
-    const analysisModel = getStageModel('analysis');
-    const translationModel = getStageModel('translation');
-    const editingModel = getStageModel('editing');
+    const analysisModel = getStageModel(
+      project,
+      'analysis',
+      config.openai.model,
+      options?.userRole
+    );
+    const translationModel = getStageModel(
+      project,
+      'translation',
+      config.openai.model,
+      options?.userRole
+    );
+    const editingModel = getStageModel(project, 'editing', config.openai.model, options?.userRole);
 
     const projectTemperature = project.settings?.temperature ?? config.translation.temperature;
 
@@ -4974,6 +4994,7 @@ async function performTranslationInner(
         includeGlossaryInTranslation: phase1IncludeGlossaryInTranslation,
         includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
         languagePair: options?.languagePair,
+        userRole: options?.userRole,
         onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
           setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
           options?.onProgress?.(chunksDone, totalChunks, stage);
@@ -5382,6 +5403,7 @@ async function performTranslationInner(
           existingTranslatedText: buildMarkedTextFromParagraphs(syncedParagraphs),
           isCancelled,
           languagePair: options?.languagePair,
+          userRole: options?.userRole,
           onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
             setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
             options?.onProgress?.(chunksDone, totalChunks, stage);
@@ -5663,6 +5685,7 @@ async function performTranslationInner(
             token,
             languagePair: options?.languagePair,
             isCancelled,
+            userRole: options?.userRole,
           });
           logger.info(
             { event: 'chapter.title.translated', projectId, chapterId },

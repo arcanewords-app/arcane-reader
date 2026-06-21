@@ -21,6 +21,8 @@ import {
   truncateChapterTitle,
 } from '../shared/chapterTitle.js';
 import { resolveEffectiveLanguagePair } from './engine-integration.js';
+import { clampStageModelForRole } from '../shared/modelAccess.js';
+import type { UserRole } from '../types/roles.js';
 import { updateChapter } from './supabaseDatabase.js';
 import { incrementTokenUsage } from '../middleware/tokenLimits.js';
 import { logger } from '../logger.js';
@@ -32,16 +34,23 @@ function modelForChatCompletions(id: string): string {
   return RESPONSES_ONLY_MODELS.has(id) ? FALLBACK_MODEL : id;
 }
 
-function getTranslationModel(project: Project | ProjectWithChapterList, config: AppConfig): string {
+function getTranslationModel(
+  project: Project | ProjectWithChapterList,
+  config: AppConfig,
+  userRole?: UserRole
+): string {
   const fromSettings = project.settings?.stageModels?.translation;
-  return modelForChatCompletions(fromSettings || project.settings?.model || config.openai.model);
+  const raw = fromSettings || project.settings?.model || config.openai.model;
+  const resolved = modelForChatCompletions(raw);
+  return userRole ? clampStageModelForRole(resolved, 'translation', userRole) : resolved;
 }
 
 function createTitleTranslationProvider(
   config: AppConfig,
-  project: Project | ProjectWithChapterList
+  project: Project | ProjectWithChapterList,
+  userRole?: UserRole
 ): OpenAIProvider {
-  const model = getTranslationModel(project, config);
+  const model = getTranslationModel(project, config, userRole);
   return new OpenAIProvider({
     apiKey: config.openai.apiKey!,
     model,
@@ -127,6 +136,7 @@ export async function applyChapterTitleTranslations(
     languagePair?: { sourceLanguage?: string; targetLanguage?: string };
     glossary?: GlossaryEntry[];
     isCancelled?: () => boolean;
+    userRole?: UserRole;
   }
 ): Promise<number> {
   if (candidates.length === 0) return 0;
@@ -156,7 +166,7 @@ export async function applyChapterTitleTranslations(
   const llmCandidates = candidates.filter((c) => c.useLlm);
   if (llmCandidates.length === 0) return totalTokens;
 
-  const provider = createTitleTranslationProvider(config, project);
+  const provider = createTitleTranslationProvider(config, project, options.userRole);
   const temperature =
     project.settings?.temperatureByStage?.translation ?? project.settings?.temperature ?? 0.5;
 

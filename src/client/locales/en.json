@@ -348,6 +348,9 @@
       "advancedHint": "Tries to process the whole chapter at once — faster on short chapters; long ones are still split into parts."
     },
     "savedModel": "saved",
+    "modelLockedBadge": "Author+",
+    "modelUpgradeHint": "More AI models are available on Author+ and higher.",
+    "modelUpgradeLink": "Compare account levels",
     "advancedEngineTitle": "Advanced engine",
     "advancedEngineHint": "Execution modes default from the selected model. Override only when experimenting.",
     "translateExecutionMode": "Translation",
@@ -1270,7 +1273,7 @@
   },
   "tiers": {
     "pageTitle": "Account levels",
-    "intro": "Arcane has reader and translator tiers. Higher tiers increase daily AI token limits; some features are planned for future releases.",
+    "intro": "Arcane has reader and translator tiers. Higher tiers increase daily AI token limits and unlock more models plus translation review (Critic); some features are planned for future releases.",
     "tableAria": "Account level comparison",
     "featureColumn": "Feature",
     "currentTier": "Your level",
@@ -1292,9 +1295,14 @@
       "profileHistory": "Profile and reading history",
       "translationProjects": "Translation projects, multi-language pairs, AI pipeline",
       "glossaryPublishExport": "Glossary, publishing, EPUB/FB2 export",
+      "aiModelChoice": "AI model choice",
       "dailyTokens": "Daily AI tokens",
       "parallelJobs": "Parallel background jobs",
-      "translationReview": "AI translation review"
+      "translationReview": "Translation review (Critic)"
+    },
+    "modelAccess": {
+      "basic": "GPT-4.1 Mini",
+      "full": "All models"
     }
   },
   "about": {
@@ -1310,6 +1318,7 @@
     "feature4": "Public catalog of translated works",
     "feature5": "Profile and reading history for registered readers",
     "feature6": "Projects dashboard for translators",
+    "feature7": "AI translation review (Critic) on Author+ — flags problem paragraphs against the glossary",
     "accountTiersLink": "Compare account levels and token limits →",
     "mission": "Mission",
     "missionDesc": "Give people faster access to quality translations in their native language — better than raw machine translation.",
@@ -1359,7 +1368,7 @@
     "readers": "For readers",
     "readersDesc": "Catalog and reading are free for everyone. Registered readers get a profile and reading history. Content is created by author-translators.",
     "authors": "For authors",
-    "authorsDesc": "Cabinet, translation, export. Daily token limits by role. See account levels for details. You are responsible for your content.",
+    "authorsDesc": "Cabinet, translation, export. Author tier uses GPT-4.1 Mini; more models on Author+ and above. Daily token limits by role — see account levels. You are responsible for your content.",
     "contentResponsibility": "Content responsibility",
     "contentResponsibilityDesc": "Arcane is a translation tool. You are responsible for what you translate and publish. For copyright-protected works, permission from the rights holder is required. We do not claim rights to translations.",
     "changes": "Changes",

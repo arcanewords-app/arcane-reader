@@ -28,6 +28,8 @@ import {
   resolveEditExecutionMode,
 } from '../engine/index.js';
 import { isReasoningModel } from '../shared/openaiModelAdapter.js';
+import { clampStageModelForRole } from '../shared/modelAccess.js';
+import type { UserRole } from '../types/roles.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { getCachedAnalysisResult, setCachedAnalysisResult } from './analysisCache.js';
 
@@ -191,17 +193,23 @@ export function getAgentForProject(
 export function getStageModel(
   project: Project | ProjectWithChapterList,
   stage: 'analysis' | 'translation' | 'editing',
-  defaultModel: string
+  defaultModel: string,
+  userRole?: UserRole
 ): string {
   const stageModels = project.settings?.stageModels;
   const stageModel = stageModels?.[stage];
+  let resolved: string;
   if (stageModel && typeof stageModel === 'string' && stageModel.trim()) {
-    return stageModel;
+    resolved = stageModel;
+  } else if (project.settings?.model) {
+    resolved = project.settings.model;
+  } else {
+    resolved = defaultModel;
   }
-  if (project.settings?.model) {
-    return project.settings.model;
+  if (userRole) {
+    return clampStageModelForRole(resolved, stage, userRole);
   }
-  return defaultModel;
+  return resolved;
 }
 
 /** Models that only support v1/responses (not chat/completions). Fallback for old saved settings. */
@@ -218,7 +226,8 @@ function modelForChatCompletions(id: string): string {
 export function createPipeline(
   config: AppConfig,
   project: Project | ProjectWithChapterList,
-  languagePair?: Partial<LanguagePairOverride>
+  languagePair?: Partial<LanguagePairOverride>,
+  userRole?: UserRole
 ): TranslationPipeline {
   // Validate API key
   if (!config.openai.apiKey) {
@@ -226,7 +235,7 @@ export function createPipeline(
   }
 
   const rawAnalysisModel = modelForChatCompletions(
-    getStageModel(project, 'analysis', 'gpt-4.1-mini')
+    getStageModel(project, 'analysis', 'gpt-4.1-mini', userRole)
   );
   const allowReasoning = project.settings?.allowReasoningModelsForAnalysis === true;
   const analysisModel =
@@ -245,9 +254,11 @@ export function createPipeline(
   }
 
   const translationModel = modelForChatCompletions(
-    getStageModel(project, 'translation', 'gpt-4.1-mini') || config.openai.model
+    getStageModel(project, 'translation', 'gpt-4.1-mini', userRole) || config.openai.model
   );
-  const editingModel = modelForChatCompletions(getStageModel(project, 'editing', 'gpt-4.1-mini'));
+  const editingModel = modelForChatCompletions(
+    getStageModel(project, 'editing', 'gpt-4.1-mini', userRole)
+  );
 
   logger.debug(
     { analysisModel, translationModel, editingModel, hasApiKey: !!config.openai.apiKey },
@@ -385,6 +396,8 @@ export type TranslatePipelineOptions = PipelineOptions & {
   languagePair?: Partial<LanguagePairOverride>;
   /** Called when chunk progress updates (for UI). */
   onProgress?: (chunksDone: number, totalChunks: number, stage?: string) => void;
+  /** User role for model access clamping. */
+  userRole?: UserRole;
 };
 
 /**
@@ -422,16 +435,17 @@ export async function translateChapterWithPipeline(
   failedChunkIndex?: number;
 }> {
   try {
-    const pipeline = createPipeline(config, project, options.languagePair);
+    const pipeline = createPipeline(config, project, options.languagePair, options.userRole);
     const stages = options.stages ?? 'all';
 
     const fallbackTemp = project.settings.temperature ?? config.translation?.temperature ?? 0.5;
     const translationModel = getStageModel(
       project,
       'translation',
-      config.openai.model || 'gpt-4.1-mini'
+      config.openai.model || 'gpt-4.1-mini',
+      options.userRole
     );
-    const editingModel = getStageModel(project, 'editing', 'gpt-4.1-mini');
+    const editingModel = getStageModel(project, 'editing', 'gpt-4.1-mini', options.userRole);
     const executionSource = executionSourceFromProjectSettings(project.settings);
     const translateOpts = resolveTranslatePipelineOptions(executionSource, translationModel);
     const editExecutionMode = resolveEditExecutionMode(executionSource, editingModel);
@@ -897,6 +911,7 @@ export async function analyzeChaptersBatch(
       chapterId: string,
       result: { success: boolean; tokensUsed: number; error?: string }
     ) => void | Promise<void>;
+    userRole?: UserRole;
   } = {}
 ): Promise<{
   totalTokensUsed: number;
@@ -916,7 +931,7 @@ export async function analyzeChaptersBatch(
 }> {
   const useCache = options.useCache ?? true;
   const startTime = Date.now();
-  const pipeline = createPipeline(config, project, options.languagePair);
+  const pipeline = createPipeline(config, project, options.languagePair, options.userRole);
   const agent = getAgentForProject(project, options.languagePair);
   const effectivePair = resolveEffectiveLanguagePair(project, options.languagePair);
   const analysisCachePair = {

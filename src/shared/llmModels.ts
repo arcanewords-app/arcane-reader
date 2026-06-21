@@ -9,11 +9,15 @@ import {
   resolveModelCapabilities,
   type ModelCapabilities,
 } from './openaiModelAdapter.js';
+import {
+  PROD_ANALYSIS_MODELS,
+  PROD_TRANSLATE_EDIT_MODELS,
+  type LlmModelOption,
+  type LlmStage,
+} from './prodModelLists.js';
 
-export interface LlmModelOption {
-  value: string;
-  label: string;
-}
+export type { LlmModelOption, LlmStage } from './prodModelLists.js';
+export { PROD_ANALYSIS_MODELS, PROD_TRANSLATE_EDIT_MODELS } from './prodModelLists.js';
 
 /** Promo models that support Chat Completions API. */
 export const LLM_MODELS: LlmModelOption[] = [
@@ -45,18 +49,6 @@ export const PROMPT_LAB_TRANSLATE_MODELS: LlmModelOption[] = [
   { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
   { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
   { value: 'o4-mini', label: 'O4 Mini' },
-];
-
-/** Production settings: translate + edit (5.4 → o4 → 4.1). */
-export const PROD_TRANSLATE_EDIT_MODELS: LlmModelOption[] = [
-  { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-  { value: 'o4-mini', label: 'O4 Mini' },
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-];
-
-/** Production settings: analysis only. */
-export const PROD_ANALYSIS_MODELS: LlmModelOption[] = [
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
 ];
 
 /** Prompt Lab analyze: non-reasoning only. */
@@ -91,7 +83,21 @@ export function isModelInList(modelId: string): boolean {
   return LLM_MODELS.some((m) => m.value === modelId);
 }
 
-export type LlmStage = 'analysis' | 'translation' | 'editing' | 'analyze' | 'translate' | 'edit';
+/** Models shown in main app project settings (subset, Lab-aligned). */
+export function modelsForProdSettings(stage: LlmStage): LlmModelOption[] {
+  const normalized =
+    stage === 'analyze' || stage === 'analysis'
+      ? 'analysis'
+      : stage === 'translate' || stage === 'translation'
+        ? 'translation'
+        : 'editing';
+  if (normalized === 'analysis') return PROD_ANALYSIS_MODELS;
+  return PROD_TRANSLATE_EDIT_MODELS;
+}
+
+export function isModelInProdSettingsList(stage: LlmStage, modelId: string): boolean {
+  return modelsForProdSettings(stage).some((m) => m.value === modelId);
+}
 
 /** Models allowed for a pipeline stage in UI selectors. */
 export function modelsForStage(stage: LlmStage): LlmModelOption[] {
@@ -118,22 +124,6 @@ export function modelsForPromptLabStage(stage: LlmStage): LlmModelOption[] {
   if (normalized === 'analysis') return PROMPT_LAB_ANALYZE_MODELS;
   if (normalized === 'translation') return PROMPT_LAB_TRANSLATE_MODELS;
   return PROMPT_LAB_EDIT_MODELS;
-}
-
-/** Models shown in main app project settings (subset, Lab-aligned). */
-export function modelsForProdSettings(stage: LlmStage): LlmModelOption[] {
-  const normalized =
-    stage === 'analyze' || stage === 'analysis'
-      ? 'analysis'
-      : stage === 'translate' || stage === 'translation'
-        ? 'translation'
-        : 'editing';
-  if (normalized === 'analysis') return PROD_ANALYSIS_MODELS;
-  return PROD_TRANSLATE_EDIT_MODELS;
-}
-
-export function isModelInProdSettingsList(stage: LlmStage, modelId: string): boolean {
-  return modelsForProdSettings(stage).some((m) => m.value === modelId);
 }
 
 export function promptLabModelCapabilitiesForUi(): Array<LlmModelOption & ModelCapabilities> {

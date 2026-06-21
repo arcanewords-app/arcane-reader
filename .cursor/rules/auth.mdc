@@ -18,7 +18,19 @@ alwaysApply: false
 
 - Default for authenticated users without profile role: `user`.
 - API project/glossary/export routes typically use `requireRole('author')`.
+- Chapter translation review (Critic): `requireRole('author_plus')` — see `@src/shared/featureGates.ts` (`CRITIC_MIN_ROLE`).
 - Admin routes use `requireRole('admin')`.
+
+## Model access (production project settings)
+
+SSOT: `@src/shared/modelAccess.ts` (matrix UI: `@src/shared/accountTiers.ts` → `aiModelChoice`).
+
+| Role | Translate / edit models |
+|------|-------------------------|
+| `author` | `gpt-4.1-mini` only (server clamp + UI locks premium options) |
+| `author_plus`+ | Full prod list (`PROD_TRANSLATE_EDIT_MODELS` in `@src/shared/llmModels.ts`) |
+
+Enforcement: `PUT /api/projects/:id/settings`, `getStageModel` in `@src/services/engine-integration.ts`, job payloads include `userRole`.
 
 ## Client gates
 

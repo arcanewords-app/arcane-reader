@@ -21,6 +21,7 @@ export type TierFeatureId =
   | 'profileHistory'
   | 'translationProjects'
   | 'glossaryPublishExport'
+  | 'aiModelChoice'
   | 'translationReview'
   | 'dailyTokens'
   | 'parallelJobs';
@@ -30,6 +31,7 @@ export const TIER_FEATURE_ROWS: TierFeatureId[] = [
   'profileHistory',
   'translationProjects',
   'glossaryPublishExport',
+  'aiModelChoice',
   'translationReview',
   'dailyTokens',
   'parallelJobs',
@@ -38,7 +40,7 @@ export const TIER_FEATURE_ROWS: TierFeatureId[] = [
 export type TierFeatureStatus = 'yes' | 'no' | 'soon';
 
 export const TIER_FEATURE_MATRIX: Record<
-  Exclude<TierFeatureId, 'dailyTokens'>,
+  Exclude<TierFeatureId, 'dailyTokens' | 'aiModelChoice'>,
   Record<AccountTierId, TierFeatureStatus>
 > = {
   catalogReading: {
@@ -77,6 +79,16 @@ export const TIER_FEATURE_MATRIX: Record<
     author_plus: 'soon',
     super_author: 'soon',
   },
+};
+
+/** AI model picker access per tier (text cells in comparison table). */
+export type TierModelAccessLevel = 'no' | 'basic' | 'full';
+
+export const TIER_MODEL_ACCESS_MATRIX: Record<AccountTierId, TierModelAccessLevel> = {
+  user: 'no',
+  author: 'basic',
+  author_plus: 'full',
+  super_author: 'full',
 };
 
 const TIER_TO_ROLE: Record<AccountTierId, UserRole> = {

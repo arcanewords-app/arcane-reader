@@ -4,7 +4,7 @@
  */
 
 import { loadConfig } from '../../config.js';
-import { analyzeChaptersBatch } from '../engine-integration.js';
+import { analyzeChaptersBatch, getStageModel } from '../engine-integration.js';
 import {
   getChapter,
   updateChapter,
@@ -27,8 +27,16 @@ const analysisJobStore = createAnalysisJobStoreFromEnv();
 const ANALYSIS_JOB_TTL_SECONDS = parseInt(process.env.ANALYSIS_JOB_TTL_SECONDS ?? '3600', 10);
 
 export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void> {
-  const { jobId, projectId, userId, estimatedTokens, chapterIds, sourceLanguage, targetLanguage } =
-    payload;
+  const {
+    jobId,
+    projectId,
+    userId,
+    userRole,
+    estimatedTokens,
+    chapterIds,
+    sourceLanguage,
+    targetLanguage,
+  } = payload;
   const languagePair =
     sourceLanguage && targetLanguage ? { sourceLanguage, targetLanguage } : undefined;
   const config = loadConfig();
@@ -97,6 +105,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
             analysisConcurrency,
             languagePair,
             isCancelled: () => cancelledFlag,
+            userRole,
             onProgress: async (chapterId, progResult) => {
               if (await analysisJobStore.isCancelRequested(jobId)) return;
               const ch = chapterMap.get(chapterId);
@@ -115,10 +124,12 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
 
               if (progResult.success) {
                 const nowIso = new Date().toISOString();
-                const analysisModel =
-                  project.settings?.stageModels?.analysis ??
-                  project.settings?.model ??
-                  config.openai.model;
+                const analysisModel = getStageModel(
+                  project,
+                  'analysis',
+                  config.openai.model,
+                  userRole
+                );
                 const existingChapter = await getChapter(projectId, chapterId, token, {
                   useServiceRole: true,
                 });

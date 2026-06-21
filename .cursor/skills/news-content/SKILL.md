@@ -136,6 +136,8 @@ Anchor every claim in code, not memory:
 | ---------------------- | --------------------------------------------------------------------------- |
 | Language pairs         | `src/client/constants/translationLanguages.ts`, `src/engine/prompts/pairs/` |
 | Token limits / tiers   | `src/config/tokenLimits.ts`, `src/shared/accountTiers.ts`                   |
+| Model access by role   | `src/shared/modelAccess.ts` (`author` = GPT-4.1 Mini; `author_plus`+ = all) |
+| Translation review     | `src/shared/featureGates.ts` (`CRITIC_MIN_ROLE` = `author_plus`)            |
 | Glossary import/export | `src/services/glossaryImportExport.ts`, `src/api/schemas/glossary.ts`       |
 | UI labels / routes     | `src/client/locales/ru.json`, `.cursor/rules/routing.mdc`                   |
 
