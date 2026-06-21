@@ -13,6 +13,7 @@ alwaysApply: false
 - SHOULD align visual behavior with proven patterns from:
   - `@src/client/pages/PublicationPage.tsx` and `@src/client/pages/PublicationPage.css`
   - `@src/client/components/ReadingMode/index.tsx` and `@src/client/components/ReadingMode/ReadingMode.css`
+- For feature-level UX recipes (catalog filters, icon chips, responsive toolbars), see `@.cursor/skills/ui/PATTERNS.md` before inventing new patterns.
 
 ## Design Tokens
 

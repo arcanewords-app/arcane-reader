@@ -13,6 +13,7 @@ alwaysApply: false
 - UI primitives: `@src/client/components/ui/` (Button, Modal, Input, Badge, etc.).
 - State/query patterns: prefer existing `@preact/signals` stores and shared API client cache before adding new libs.
 - UI design standards: follow `@.cursor/rules/design-system.mdc` for tokens, states, accessibility, and i18n UI copy.
+- UX recipes (filters, chips, toolbars): `@.cursor/skills/ui/PATTERNS.md` before new feature-level patterns.
 - Icons: follow `@.cursor/rules/design-system.mdc` (Material Symbols via `Icon.tsx`).
 
 ## Hooks

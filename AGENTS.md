@@ -12,6 +12,7 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 | Route map (SSOT)          | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc)                                                         |
 | All domain rules          | [`.cursor/rules/`](.cursor/rules/)                                                                               |
 | Local dev, vault, grep    | [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md)                                         |
+| UI patterns & UX recipes  | [`.cursor/skills/ui/PATTERNS.md`](.cursor/skills/ui/PATTERNS.md) — filters, chips, toolbars                      |
 | News posts, announcements | [`.cursor/skills/news-content/SKILL.md`](.cursor/skills/news-content/SKILL.md) — technical-startup voice         |
 | Obsidian vault (MCP)      | [`.cursor/skills/obsidian-mcp/SKILL.md`](.cursor/skills/obsidian-mcp/SKILL.md) — Obsidian must be running        |
 | Trello boards (MCP)       | [`.cursor/skills/trello-mcp/SKILL.md`](.cursor/skills/trello-mcp/SKILL.md) — credentials in `~/.cursor/mcp.json` |

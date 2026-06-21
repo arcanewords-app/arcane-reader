@@ -4,7 +4,7 @@ Reference for control icons in Arcane Reader. Use via `@src/client/components/ui
 
 ## Navigation
 
-`arrow_back`, `chevron_left`, `chevron_right`, `close`, `more_vert`
+`arrow_back`, `arrow_downward`, `arrow_upward`, `chevron_left`, `chevron_right`, `close`, `language`, `more_vert`
 
 ## Reader
 

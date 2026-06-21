@@ -6,7 +6,8 @@ import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
 import type { PublicationListItem, Publication, PublicEntity } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
-import { LoadingSpinner, Input, Select, Icon } from '../components/ui';
+import { CatalogFilterToolbar } from '../components/Home/CatalogFilterToolbar';
+import { LoadingSpinner, Input, Icon } from '../components/ui';
 import './HomePage.css';
 
 type CatalogFilter = 'all' | 'mine';
@@ -70,17 +71,13 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const targetLanguageOptions = useMemo(() => {
+  const languageCodes = useMemo(() => {
     const codes = [
       ...new Set(publications.map((p) => p.targetLanguage).filter(Boolean)),
     ] as string[];
     codes.sort((a, b) => a.localeCompare(b));
-    const options = [{ value: '', label: t('home.languageAll') }];
-    codes.forEach((code) => {
-      options.push({ value: code, label: t(`language.${code}`) || code.toUpperCase() });
-    });
-    return options;
-  }, [publications, t]);
+    return codes;
+  }, [publications]);
 
   const hasCompleteWorks = useMemo(
     () => publications.some((p) => p.translationStatus === 'complete'),
@@ -438,44 +435,16 @@ export function HomePage() {
                 className="home-search-input"
               />
             </div>
-            <div class="home-filters-actions">
-              <div class="home-order-btns">
-                <button
-                  type="button"
-                  class={`home-order-btn ${!orderAsc ? 'active' : ''}`}
-                  onClick={() => setOrderAsc(false)}
-                >
-                  {t('home.orderNewest')}
-                </button>
-                <button
-                  type="button"
-                  class={`home-order-btn ${orderAsc ? 'active' : ''}`}
-                  onClick={() => setOrderAsc(true)}
-                >
-                  {t('home.orderOldest')}
-                </button>
-              </div>
-              <div class="home-language-filter">
-                <Select
-                  options={targetLanguageOptions}
-                  value={targetLanguage}
-                  onChange={(e) => setTargetLanguage((e.target as HTMLSelectElement).value)}
-                  className="home-language-select"
-                />
-              </div>
-              {hasCompleteWorks && (
-                <button
-                  type="button"
-                  class={`home-order-btn home-order-btn--complete ${completeOnly ? 'active' : ''}`}
-                  aria-pressed={completeOnly}
-                  aria-label={t('home.filterCompleteOnlyAria')}
-                  onClick={() => setCompleteOnly((v) => !v)}
-                >
-                  <Icon name="check_circle" size="sm" />
-                  {t('home.filterCompleteOnly')}
-                </button>
-              )}
-            </div>
+            <CatalogFilterToolbar
+              targetLanguage={targetLanguage}
+              onTargetLanguageChange={setTargetLanguage}
+              languageCodes={languageCodes}
+              completeOnly={completeOnly}
+              onCompleteOnlyChange={setCompleteOnly}
+              showCompleteFilter={hasCompleteWorks}
+              orderAsc={orderAsc}
+              onOrderAscChange={setOrderAsc}
+            />
           </div>
           {hasEntityFilter && (
             <div class="home-entity-filters">

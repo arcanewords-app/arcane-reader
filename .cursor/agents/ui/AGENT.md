@@ -31,16 +31,23 @@ Owns the Preact SPA: pages, components, hooks, styles, i18n, and client-side rou
 
 ## Key Files
 
-| File                                               | Purpose                                                  |
-| -------------------------------------------------- | -------------------------------------------------------- |
-| `src/client/AppRouter.tsx`                         | Frontend route definitions                               |
-| `src/client/components/ui/`                        | Button, Modal, Input, Icon, etc.                         |
-| `src/client/styles/base/variables.css`             | Design tokens                                            |
-| `src/client/locales/en.json`, `ru.json`, `pl.json` | i18n strings                                             |
-| `src/client/hooks/`                                | Shared hooks (`useChapterTranslation`, `useUserRole`, …) |
-| `src/client/contexts/`                             | `TokenUsageContext`, `ServiceHealthContext`              |
+| File                                                          | Purpose                                                  |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| `src/client/AppRouter.tsx`                                    | Frontend route definitions                               |
+| `src/client/components/ui/`                                   | Button, Modal, Input, Icon, etc.                         |
+| `src/client/styles/base/variables.css`                        | Design tokens                                            |
+| `src/client/locales/en.json`, `ru.json`, `be.json`, `pl.json` | i18n strings                                             |
+| `src/client/hooks/`                                           | Shared hooks (`useChapterTranslation`, `useUserRole`, …) |
+| `src/client/contexts/`                                        | `TokenUsageContext`, `ServiceHealthContext`              |
 
-Reference patterns: `PublicationPage.tsx`, `ReadingMode/index.tsx`.
+## Reference implementations
+
+- `PublicationPage.tsx`, `ReadingMode/index.tsx`
+- Catalog filters: `CatalogFilterToolbar.tsx`, `HomePage.tsx`
+
+## UX pattern cookbook
+
+[`.cursor/skills/ui/PATTERNS.md`](../../skills/ui/PATTERNS.md) — filters, icon chips, segments, responsive toolbars. Read before new toolbar/filter UI; add entries after successful ships.
 
 ## Skill
 
@@ -51,7 +58,8 @@ Read and follow: [`.cursor/skills/ui/SKILL.md`](../../skills/ui/SKILL.md)
 - [ ] Reused UI primitives from `components/ui/` before new patterns
 - [ ] Tokens from `variables.css` — no ad-hoc colors/spacing
 - [ ] States: hover, focus-visible, disabled, loading where applicable
-- [ ] i18n keys added to `en`, `ru`, and `pl`
+- [ ] i18n keys added to `en`, `ru`, `be` (and `pl` when that file is touched)
 - [ ] Responsive checked: mobile, tablet, desktop
 - [ ] Touch targets ≥ 44px on mobile/tablet
 - [ ] If routes changed: `routing.mdc` + `AppRouter.tsx` updated in same task
+- [ ] Reusable UX shipped → consider entry in [PATTERNS.md](../../skills/ui/PATTERNS.md)
