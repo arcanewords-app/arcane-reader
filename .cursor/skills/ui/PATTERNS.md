@@ -34,6 +34,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 | `entity-filter-chips`    | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
 | `header-locale-control`  | App language: icon + code + dropdown           | `Header.tsx`                         |
 | `cover-status-badge`     | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
+| `admin-section-layout`   | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
 
 ---
 
@@ -159,6 +160,40 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 - `complete` → `--success`; keep badge set minimal for catalog clarity (prefer only `complete` visible when product is binary)
 
 **Reference:** [`PublicationStatusBadge.tsx`](../../../src/client/components/Home/PublicationStatusBadge.tsx).
+
+---
+
+## `admin-section-layout`
+
+**When:** Admin panel page with create form, list, and edit modal (entities, news, publications, users).
+
+**Compose:** `AdminLayout` → `admin-page` → intro → optional `AdminSegmentTabs` → `AdminFlash` → `AdminSection`(create) → `AdminSection`(list).
+
+| Piece     | Component                            | Role                                                |
+| --------- | ------------------------------------ | --------------------------------------------------- |
+| Shell     | `AdminLayout`                        | Top tabs: entities, news, publications, users       |
+| Sub-nav   | `AdminSegmentTabs`                   | Kind tabs inside entities (`/admin/entities/:kind`) |
+| Feedback  | `AdminFlash`                         | Page-level error/success (not inside forms)         |
+| Section   | `AdminSection`                       | Card with `h2`; `as="form"` for create              |
+| List item | `admin-list-card` + `Button` actions | Text buttons, not icon-only                         |
+
+**Files:**
+
+- [`src/client/components/Admin/`](../../../src/client/components/Admin/) — `AdminSection`, `AdminFlash`, `AdminSegmentTabs`, `AdminPhotoUpload`, `admin-shared.css`
+- [`src/client/pages/AdminNewsPage.tsx`](../../../src/client/pages/AdminNewsPage.tsx) — reference orchestration
+- [`src/client/pages/AdminEntitiesPage.tsx`](../../../src/client/pages/AdminEntitiesPage.tsx) — kind tabs variant
+
+**UX rules:**
+
+- Create on page; edit in `Modal`; delete in `ConfirmModal`.
+- Flash messages at page level only.
+- List actions use `Button size="sm"` with visible labels.
+
+**i18n:** `admin.*` namespace; per-kind keys under `admin.entities.*`.
+
+**a11y:** `AdminSegmentTabs` uses `aria-current="page"`; segment tabs min-height 44px.
+
+**Do not:** Mix entity kinds in one list; put success/error inside create form.
 
 ---
 

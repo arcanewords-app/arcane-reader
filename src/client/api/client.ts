@@ -37,10 +37,14 @@ import type {
   TokenUsageHistory,
   Publication,
   PublicationListItem,
+  PublicationStatus,
   PublicationWithChapters,
+  AdminPublicationListItem,
+  AdminUserListItem,
   PublicEntity,
   PublicEntityKind,
   TranslationStatus,
+  UserRole,
   NewsPost,
   NewsCategory,
   NewsStatus,
@@ -1741,6 +1745,49 @@ export const api = {
 
   async deleteAnnouncement(id: string): Promise<void> {
     await fetchJson(`/api/admin/announcements/${id}`, { method: 'DELETE' });
+  },
+
+  async getAdminPublications(params?: {
+    status?: PublicationStatus;
+    search?: string;
+    targetLanguage?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AdminPublicationListItem[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    if (params?.targetLanguage) query.set('targetLanguage', params.targetLanguage);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return fetchJson<AdminPublicationListItem[]>(`/api/admin/publications${qs ? `?${qs}` : ''}`);
+  },
+
+  async adminUnpublishPublication(id: string): Promise<{ ok: boolean }> {
+    return fetchJson<{ ok: boolean }>(`/api/admin/publications/${id}/unpublish`, {
+      method: 'POST',
+    });
+  },
+
+  async getAdminUsers(params?: {
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AdminUserListItem[]> {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return fetchJson<AdminUserListItem[]>(`/api/admin/users${qs ? `?${qs}` : ''}`);
+  },
+
+  async updateAdminUserRole(id: string, role: UserRole): Promise<AdminUserListItem> {
+    return fetchJson<AdminUserListItem>(`/api/admin/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
   },
 
   // === Token Usage ===

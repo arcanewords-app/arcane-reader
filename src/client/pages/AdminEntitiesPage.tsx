@@ -1,27 +1,37 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
 import type { PublicEntity, PublicEntityKind } from '../types';
-import { Button, Input, Select, Icon, Modal, ConfirmModal } from '../components/ui';
-import { AdminLayout } from '../components/Admin/AdminLayout';
+import { Button, Input, Modal, ConfirmModal } from '../components/ui';
+import {
+  AdminLayout,
+  AdminSection,
+  AdminFlash,
+  AdminSegmentTabs,
+  AdminEntityFormFields,
+} from '../components/Admin';
 import './AdminEntitiesPage.css';
 
-const kindOptions: Array<{ value: PublicEntityKind | ''; i18nKey: string }> = [
-  { value: '', i18nKey: 'admin.filter.all' },
-  { value: 'tag', i18nKey: 'admin.kinds.tag' },
-  { value: 'author', i18nKey: 'admin.kinds.author' },
-  { value: 'translator', i18nKey: 'admin.kinds.translator' },
-];
+const ENTITY_KINDS: PublicEntityKind[] = ['tag', 'author', 'translator'];
 
-const isTag = (k: PublicEntityKind) => k === 'tag';
+function parseKindParam(kind?: string): PublicEntityKind {
+  if (kind && ENTITY_KINDS.includes(kind as PublicEntityKind)) {
+    return kind as PublicEntityKind;
+  }
+  return 'tag';
+}
 
-export function AdminEntitiesPage() {
+interface AdminEntitiesPageProps {
+  kind?: string;
+}
+
+export function AdminEntitiesPage({ kind: kindParam }: AdminEntitiesPageProps) {
   const { t } = useTranslation();
+  const kind = parseKindParam(kindParam);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const editPhotoInputRef = useRef<HTMLInputElement>(null);
 
-  // Create form state
-  const [kind, setKind] = useState<PublicEntityKind>('tag');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<File | undefined>(undefined);
@@ -30,14 +40,11 @@ export function AdminEntitiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // List state
   const [entities, setEntities] = useState<PublicEntity[]>([]);
   const [listLoading, setListLoading] = useState(false);
-  const [filterKind, setFilterKind] = useState<PublicEntityKind | ''>('');
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
 
-  // Edit modal state
   const [editingEntity, setEditingEntity] = useState<PublicEntity | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -47,21 +54,34 @@ export function AdminEntitiesPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Delete modal state
   const [deletingEntity, setDeletingEntity] = useState<PublicEntity | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const selectOptions = useMemo(
-    () => kindOptions.map((item) => ({ value: item.value, label: t(item.i18nKey) })),
+  const kindTabs = useMemo(
+    () =>
+      ENTITY_KINDS.map((k) => ({
+        id: k,
+        path: `/admin/entities/${k}`,
+        label: t(`admin.kinds.${k}`),
+      })),
     [t]
   );
+
+  const createTitle = t(`admin.entities.createTitle.${kind}`);
+  const introText = t(`admin.entities.intro.${kind}`);
+
+  useEffect(() => {
+    if (!kindParam || !ENTITY_KINDS.includes(kindParam as PublicEntityKind)) {
+      route('/admin/entities/tag', true);
+    }
+  }, [kindParam]);
 
   const reloadEntities = useCallback(async () => {
     setListLoading(true);
     try {
       const list = await api.getPublicEntities({
-        kind: filterKind || undefined,
+        kind,
         search: searchDebounced || undefined,
         limit: 100,
       });
@@ -72,28 +92,30 @@ export function AdminEntitiesPage() {
     } finally {
       setListLoading(false);
     }
-  }, [filterKind, searchDebounced]);
+  }, [kind, searchDebounced]);
 
   useEffect(() => {
     reloadEntities();
   }, [reloadEntities]);
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setSearchDebounced(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
   useEffect(() => {
-    if (isTag(kind)) {
-      setDescription('');
-      setPhoto(undefined);
-      setPhotoPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      if (photoInputRef.current) photoInputRef.current.value = '';
-    }
+    setName('');
+    setDescription('');
+    setPhoto(undefined);
+    setPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setSearch('');
+    setSearchDebounced('');
+    setError(null);
+    setSuccess(null);
+    if (photoInputRef.current) photoInputRef.current.value = '';
   }, [kind]);
 
   const clearForm = () => {
@@ -104,9 +126,7 @@ export function AdminEntitiesPage() {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
-    if (photoInputRef.current) {
-      photoInputRef.current.value = '';
-    }
+    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   const openEditModal = (entity: PublicEntity) => {
@@ -165,8 +185,9 @@ export function AdminEntitiesPage() {
         return;
       }
 
+      const isTagKind = editingEntity.kind === 'tag';
       const hasPhotoChange = editPhoto || editRemovePhoto;
-      if (hasPhotoChange && !isTag(editingEntity.kind)) {
+      if (hasPhotoChange && !isTagKind) {
         await api.updatePublicEntityWithPhoto(editingEntity.id, {
           name: trimmedName,
           description: editDescription.trim() || undefined,
@@ -177,7 +198,7 @@ export function AdminEntitiesPage() {
         await api.updatePublicEntity(editingEntity.id, {
           name: trimmedName,
           description: editDescription.trim() || null,
-          photoUrl: editRemovePhoto && !isTag(editingEntity.kind) ? null : undefined,
+          photoUrl: editRemovePhoto && !isTagKind ? null : undefined,
         });
       }
 
@@ -193,11 +214,6 @@ export function AdminEntitiesPage() {
     } finally {
       setEditLoading(false);
     }
-  };
-
-  const handleDeleteClick = (entity: PublicEntity) => {
-    setDeletingEntity(entity);
-    setDeleteError(null);
   };
 
   const handleDeleteConfirm = async (): Promise<boolean> => {
@@ -239,11 +255,8 @@ export function AdminEntitiesPage() {
         return;
       }
 
-      if (isTag(kind)) {
-        await api.createPublicEntity({
-          kind,
-          name: trimmedName,
-        });
+      if (kind === 'tag') {
+        await api.createPublicEntity({ kind, name: trimmedName });
       } else {
         await api.createPublicEntityWithPhoto({
           kind,
@@ -291,186 +304,104 @@ export function AdminEntitiesPage() {
 
   return (
     <AdminLayout activeTab="entities">
-      <div class="admin-entities-page">
-        <div class="admin-entities-header">
-          <p>{t('admin.subtitle')}</p>
-        </div>
+      <div class="admin-page admin-entities-page">
+        <p class="admin-intro">{introText}</p>
 
-        <form class="admin-entities-form" onSubmit={handleSubmit}>
-          <Select
-            label={t('admin.form.kind')}
-            options={selectOptions.filter((o) => o.value !== '')}
-            value={kind}
-            onChange={(e) => setKind((e.target as HTMLSelectElement).value as PublicEntityKind)}
+        <AdminSegmentTabs
+          tabs={kindTabs}
+          activeId={kind}
+          ariaLabel={t('admin.entities.kindTabsAria')}
+        />
+
+        <AdminFlash error={error} success={success} />
+
+        <AdminSection title={createTitle} as="form" onSubmit={handleSubmit}>
+          <AdminEntityFormFields
+            kind={kind}
+            name={name}
+            onNameChange={setName}
+            description={description}
+            onDescriptionChange={setDescription}
+            photoInputId="admin-entity-photo"
+            photoInputRef={photoInputRef}
+            photoPreviewUrl={photoPreview}
+            onPhotoChange={handlePhotoChange}
+            onPhotoRemove={handleRemovePhoto}
+            descriptionInputId="admin-entity-description"
           />
-
-          <Input
-            label={t('admin.form.name')}
-            placeholder={t('admin.form.namePlaceholder')}
-            value={name}
-            onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            maxLength={120}
-          />
-
-          {!isTag(kind) && (
-            <div class="form-group">
-              <label class="form-label" for="admin-entity-description">
-                {t('admin.form.description')}
-              </label>
-              <textarea
-                id="admin-entity-description"
-                class="form-input admin-entities-textarea"
-                value={description}
-                onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
-                rows={4}
-                maxLength={2000}
-                placeholder={t('admin.form.descriptionPlaceholder')}
-              />
-            </div>
-          )}
-
-          {!isTag(kind) && (
-            <div class="form-group admin-photo-upload">
-              <label class="form-label">{t('admin.form.photo')}</label>
-              <div class="admin-photo-zone">
-                <input
-                  ref={photoInputRef}
-                  id="admin-entity-photo"
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  class="admin-photo-input"
-                  onChange={handlePhotoChange}
-                />
-                {photoPreview ? (
-                  <div class="admin-photo-preview">
-                    <img src={photoPreview} alt="" class="admin-photo-preview-img" />
-                    <button
-                      type="button"
-                      class="admin-photo-remove"
-                      onClick={handleRemovePhoto}
-                      aria-label={t('admin.form.removePhoto')}
-                    >
-                      <Icon name="close" size="sm" />
-                    </button>
-                  </div>
-                ) : (
-                  <label for="admin-entity-photo" class="admin-photo-drop">
-                    <Icon name="add_photo_alternate" size="md" />
-                    <span>{t('admin.form.photoHint')}</span>
-                  </label>
-                )}
-              </div>
-            </div>
-          )}
-
-          {error && <p class="admin-entities-message error">{error}</p>}
-          {success && <p class="admin-entities-message success">{success}</p>}
-
-          <div class="admin-entities-actions">
+          <div class="admin-form-actions">
             <Button type="submit" loading={loading}>
-              {t('admin.form.submit')}
+              {t(`admin.entities.submit.${kind}`)}
             </Button>
           </div>
-        </form>
+        </AdminSection>
 
-        <section class="admin-entities-list">
-          <div class="admin-entities-list-header">
-            <h2>{t('admin.list.title')}</h2>
-            <div class="admin-entities-filters">
-              <Select
-                label=""
-                options={selectOptions}
-                value={filterKind}
-                onChange={(e) =>
-                  setFilterKind((e.target as HTMLSelectElement).value as PublicEntityKind | '')
-                }
-              />
-              <Input
-                placeholder={t('admin.form.searchPlaceholder')}
-                value={search}
-                onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-                aria-label={t('admin.form.searchPlaceholder')}
-              />
-            </div>
+        <AdminSection title={t('admin.list.title')}>
+          <div class="admin-list-filters">
+            <Input
+              placeholder={t('admin.form.searchPlaceholder')}
+              value={search}
+              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+              aria-label={t('admin.form.searchPlaceholder')}
+            />
           </div>
 
           {listLoading ? (
-            <p class="admin-entities-empty">{t('common.loading')}</p>
+            <p class="admin-empty">{t('common.loading')}</p>
           ) : entities.length === 0 ? (
-            <p class="admin-entities-empty">{t('admin.list.empty')}</p>
+            <p class="admin-empty">{t('admin.list.empty')}</p>
+          ) : kind === 'tag' ? (
+            <ul class="admin-entities-chip-list">
+              {entities.map((entity) => (
+                <li key={entity.id} class="admin-entities-chip-item">
+                  <span class="admin-entities-chip">{entity.name}</span>
+                  <div class="admin-list-card-actions">
+                    <Button variant="secondary" size="sm" onClick={() => openEditModal(entity)}>
+                      {t('admin.form.edit')}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setDeletingEntity(entity)}>
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <div class="admin-entities-container">
-              {entities.map((entity) =>
-                isTag(entity.kind) ? (
-                  <span class="admin-entities-chip admin-entities-chip--actions" key={entity.id}>
-                    <span class="admin-entities-chip-text">{entity.name}</span>
-                    <div class="admin-entities-chip-actions">
-                      <button
-                        type="button"
-                        class="admin-entities-action-btn"
-                        onClick={() => openEditModal(entity)}
-                        aria-label={t('admin.form.edit')}
-                      >
-                        <Icon name="edit" size="sm" />
-                      </button>
-                      <button
-                        type="button"
-                        class="admin-entities-action-btn admin-entities-action-btn--danger"
-                        onClick={() => handleDeleteClick(entity)}
-                        aria-label={t('admin.form.delete')}
-                      >
-                        <Icon name="delete" size="sm" />
-                      </button>
-                    </div>
-                  </span>
-                ) : (
-                  <article class="admin-entities-card admin-entities-card--actions" key={entity.id}>
-                    {entity.photoUrl && (
-                      <img
-                        src={entity.photoUrl}
-                        alt={entity.name}
-                        class="admin-entities-card-photo"
-                      />
-                    )}
-                    <div class="admin-entities-card-content">
-                      <span class="admin-entities-kind">{t(`admin.kinds.${entity.kind}`)}</span>
-                      <h3>{entity.name}</h3>
-                      {entity.description && <p>{entity.description}</p>}
-                    </div>
-                    <div class="admin-entities-card-actions">
-                      <button
-                        type="button"
-                        class="admin-entities-action-btn"
-                        onClick={() => openEditModal(entity)}
-                        aria-label={t('admin.form.edit')}
-                      >
-                        <Icon name="edit" size="sm" />
-                      </button>
-                      <button
-                        type="button"
-                        class="admin-entities-action-btn admin-entities-action-btn--danger"
-                        onClick={() => handleDeleteClick(entity)}
-                        aria-label={t('admin.form.delete')}
-                      >
-                        <Icon name="delete" size="sm" />
-                      </button>
-                    </div>
-                  </article>
-                )
-              )}
-            </div>
+            <ul class="admin-list">
+              {entities.map((entity) => (
+                <li key={entity.id} class="admin-list-card admin-entities-profile-card">
+                  {entity.photoUrl && (
+                    <img
+                      src={entity.photoUrl}
+                      alt={entity.name}
+                      class="admin-entities-card-photo"
+                    />
+                  )}
+                  <div class="admin-entities-card-content">
+                    <h3>{entity.name}</h3>
+                    {entity.description && <p>{entity.description}</p>}
+                  </div>
+                  <div class="admin-list-card-actions">
+                    <Button variant="secondary" size="sm" onClick={() => openEditModal(entity)}>
+                      {t('admin.form.edit')}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setDeletingEntity(entity)}>
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
-        </section>
+        </AdminSection>
 
-        {/* Edit Modal */}
         <Modal
           isOpen={!!editingEntity}
           onClose={closeEditModal}
           title={t('admin.form.editTitle')}
-          size="default"
           footer={
             editingEntity && (
-              <div class="form-actions">
+              <div class="admin-form-actions">
                 <Button variant="secondary" onClick={closeEditModal} type="button">
                   {t('common.cancel')}
                 </Button>
@@ -487,79 +418,31 @@ export function AdminEntitiesPage() {
           }
         >
           {editingEntity && (
-            <form
-              id="admin-edit-form"
-              class="admin-entities-form admin-entities-form--modal"
-              onSubmit={handleEditSubmit}
-            >
-              <Input
-                label={t('admin.form.name')}
-                placeholder={t('admin.form.namePlaceholder')}
-                value={editName}
-                onInput={(e) => setEditName((e.target as HTMLInputElement).value)}
-                maxLength={120}
+            <form id="admin-edit-form" onSubmit={handleEditSubmit}>
+              <AdminEntityFormFields
+                kind={editingEntity.kind}
+                name={editName}
+                onNameChange={setEditName}
+                description={editDescription}
+                onDescriptionChange={setEditDescription}
+                photoInputId="admin-edit-photo"
+                photoInputRef={editPhotoInputRef}
+                photoPreviewUrl={displayPhotoPreview}
+                onPhotoChange={handleEditPhotoChange}
+                onPhotoRemove={handleEditRemovePhoto}
+                descriptionInputId="admin-edit-description"
               />
-
-              {!isTag(editingEntity.kind) && (
-                <>
-                  <div class="form-group">
-                    <label class="form-label" for="admin-edit-description">
-                      {t('admin.form.description')}
-                    </label>
-                    <textarea
-                      id="admin-edit-description"
-                      class="form-input admin-entities-textarea"
-                      value={editDescription}
-                      onInput={(e) => setEditDescription((e.target as HTMLTextAreaElement).value)}
-                      rows={4}
-                      maxLength={2000}
-                      placeholder={t('admin.form.descriptionPlaceholder')}
-                    />
-                  </div>
-
-                  <div class="form-group admin-photo-upload">
-                    <label class="form-label">{t('admin.form.photo')}</label>
-                    <div class="admin-photo-zone">
-                      <input
-                        ref={editPhotoInputRef}
-                        id="admin-edit-photo"
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif,image/webp"
-                        class="admin-photo-input"
-                        onChange={handleEditPhotoChange}
-                      />
-                      {displayPhotoPreview ? (
-                        <div class="admin-photo-preview">
-                          <img src={displayPhotoPreview} alt="" class="admin-photo-preview-img" />
-                          <button
-                            type="button"
-                            class="admin-photo-remove"
-                            onClick={handleEditRemovePhoto}
-                            aria-label={t('admin.form.removePhoto')}
-                          >
-                            <Icon name="close" size="sm" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label for="admin-edit-photo" class="admin-photo-drop">
-                          <Icon name="add_photo_alternate" size="md" />
-                          <span>{t('admin.form.photoHint')}</span>
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {editError && <p class="admin-entities-message error">{editError}</p>}
+              {editError && <p class="admin-flash admin-flash--error">{editError}</p>}
             </form>
           )}
         </Modal>
 
-        {/* Delete Confirm Modal */}
         <ConfirmModal
           isOpen={!!deletingEntity}
-          onClose={() => setDeletingEntity(null)}
+          onClose={() => {
+            setDeletingEntity(null);
+            setDeleteError(null);
+          }}
           onConfirm={handleDeleteConfirm}
           title={t('admin.delete.title')}
           message={

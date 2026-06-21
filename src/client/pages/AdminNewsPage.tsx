@@ -8,7 +8,8 @@ import type {
   NewsCategory,
   NewsPost,
 } from '../types';
-import { AdminLayout } from '../components/Admin/AdminLayout';
+import { AdminLayout, AdminSection, AdminFlash } from '../components/Admin';
+import '../components/Admin/admin-shared.css';
 import { Button, Input, Select, Modal, ConfirmModal } from '../components/ui';
 import './AdminNewsPage.css';
 
@@ -246,14 +247,12 @@ export function AdminNewsPage() {
 
   return (
     <AdminLayout activeTab="news">
-      <div class="admin-news-page">
-        <p class="admin-news-intro">{t('admin.news.subtitle')}</p>
+      <div class="admin-page admin-news-page">
+        <p class="admin-intro">{t('admin.news.subtitle')}</p>
 
-        {error && <p class="admin-news-message error">{error}</p>}
-        {success && <p class="admin-news-message success">{success}</p>}
+        <AdminFlash error={error} success={success} />
 
-        <form class="admin-news-form" onSubmit={handleCreate}>
-          <h2>{t('admin.news.createTitle')}</h2>
+        <AdminSection title={t('admin.news.createTitle')} as="form" onSubmit={handleCreate}>
           <Input
             label={t('admin.news.form.title')}
             value={title}
@@ -274,7 +273,7 @@ export function AdminNewsPage() {
             </label>
             <textarea
               id="admin-news-body"
-              class="form-input admin-news-textarea"
+              class="form-input admin-textarea admin-textarea--lg"
               value={body}
               onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
               rows={8}
@@ -293,7 +292,7 @@ export function AdminNewsPage() {
             placeholder={t('admin.news.form.slugPlaceholder')}
             maxLength={120}
           />
-          <div class="admin-news-form-actions">
+          <div class="admin-form-actions">
             <Button type="submit" variant="primary" loading={formLoading} disabled={formLoading}>
               {t('admin.news.form.create')}
             </Button>
@@ -306,18 +305,17 @@ export function AdminNewsPage() {
               {t('admin.news.translateSoon')}
             </Button>
           </div>
-        </form>
+        </AdminSection>
 
-        <section class="admin-news-section">
-          <h2>{t('admin.news.listTitle')}</h2>
+        <AdminSection title={t('admin.news.listTitle')}>
           {listLoading ? (
-            <p>{t('common.loading')}</p>
+            <p class="admin-empty">{t('common.loading')}</p>
           ) : posts.length === 0 ? (
-            <p class="admin-news-empty">{t('admin.news.empty')}</p>
+            <p class="admin-empty">{t('admin.news.empty')}</p>
           ) : (
-            <ul class="admin-news-list">
+            <ul class="admin-list">
               {posts.map((post) => (
-                <li key={post.id} class="admin-news-card">
+                <li key={post.id} class="admin-list-card">
                   <div class="admin-news-card-header">
                     <span class={`admin-news-status admin-news-status--${post.status}`}>
                       {statusLabel(post.status)}
@@ -328,7 +326,7 @@ export function AdminNewsPage() {
                   </div>
                   <h3 class="admin-news-card-title">{post.title}</h3>
                   <p class="admin-news-card-summary">{post.summary}</p>
-                  <div class="admin-news-card-actions">
+                  <div class="admin-list-card-actions">
                     <Button variant="secondary" size="sm" onClick={() => openEdit(post)}>
                       {t('admin.form.edit')}
                     </Button>
@@ -350,12 +348,11 @@ export function AdminNewsPage() {
               ))}
             </ul>
           )}
-        </section>
+        </AdminSection>
 
-        <section class="admin-news-section">
-          <h2>{t('admin.news.alertsTitle')}</h2>
+        <AdminSection title={t('admin.news.alertsTitle')}>
           {alerts.length === 0 ? (
-            <p class="admin-news-empty">{t('admin.news.alertsEmpty')}</p>
+            <p class="admin-empty">{t('admin.news.alertsEmpty')}</p>
           ) : (
             <ul class="admin-news-alerts">
               {alerts.map((alert) => (
@@ -398,7 +395,7 @@ export function AdminNewsPage() {
               ))}
             </ul>
           )}
-        </section>
+        </AdminSection>
       </div>
 
       <Modal
@@ -435,7 +432,7 @@ export function AdminNewsPage() {
             </label>
             <textarea
               id="admin-news-edit-body"
-              class="form-input admin-news-textarea"
+              class="form-input admin-textarea admin-textarea--lg"
               value={editBody}
               onInput={(e) => setEditBody((e.target as HTMLTextAreaElement).value)}
               rows={8}

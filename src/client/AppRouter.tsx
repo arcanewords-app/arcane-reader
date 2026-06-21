@@ -38,6 +38,9 @@ import { AboutPage } from './pages/AboutPage';
 import { NewsPage } from './pages/NewsPage';
 import { NewsDetailPage } from './pages/NewsDetailPage';
 import { AdminNewsPage } from './pages/AdminNewsPage';
+import { AdminPublicationsPage } from './pages/AdminPublicationsPage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminRedirect, AdminEntitiesRedirect } from './pages/AdminRedirect';
 import { AccountTiersPage } from './pages/AccountTiersPage';
 import { ContactPage } from './pages/ContactPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -407,8 +410,12 @@ export function AppRouter() {
                   <CabinetRedirect path="/cabinet" />
                   <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
                   <PublicationPage path="/p/:publicationId" />
-                  <AdminGate path="/admin/entities" component={AdminEntitiesPage} />
+                  <AdminGate path="/admin" component={AdminRedirect} />
+                  <AdminGate path="/admin/entities" component={AdminEntitiesRedirect} />
+                  <AdminGate path="/admin/entities/:kind" component={AdminEntitiesPage} />
                   <AdminGate path="/admin/news" component={AdminNewsPage} />
+                  <AdminGate path="/admin/publications" component={AdminPublicationsPage} />
+                  <AdminGate path="/admin/users" component={AdminUsersPage} />
                   {/* More specific /projects/* routes first — preact-router uses first-match */}
                   <AuthorGate
                     path="/projects/:projectId/chapters/:chapterId/reading"

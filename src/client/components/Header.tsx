@@ -134,13 +134,13 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
             )}
             {isAdmin && (
               <a
-                href="/admin/entities"
+                href="/admin/entities/tag"
                 onClick={(e) => {
                   e.preventDefault();
-                  route('/admin/entities');
+                  route('/admin/entities/tag');
                 }}
-                class={`nav-link ${currentPath === '/admin/entities' ? 'active' : ''}`}
-                aria-current={currentPath === '/admin/entities' ? 'page' : undefined}
+                class={`nav-link ${currentPath.startsWith('/admin') ? 'active' : ''}`}
+                aria-current={currentPath.startsWith('/admin') ? 'page' : undefined}
               >
                 {t('nav.admin')}
               </a>

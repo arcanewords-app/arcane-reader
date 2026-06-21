@@ -62,6 +62,9 @@ import {
   announcementUpdateSchema,
   announcementFromNewsSchema,
   announcementDismissSchema,
+  adminPublicationsListQuerySchema,
+  adminUsersListQuerySchema,
+  adminUserRoleUpdateSchema,
 } from './api/schemas/index.js';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
@@ -137,6 +140,11 @@ import {
   createAnnouncementFromNews,
   updateAnnouncementAlert,
   deleteAnnouncementAlert,
+  listPublicationsAdmin,
+  unpublishPublicationAdmin,
+  listUsersAdmin,
+  updateUserRoleAdmin,
+  countAdminUsersWithRole,
   getActiveAnnouncementForUser,
   dismissAnnouncement,
   type MarkTranslatedBatchResult,
@@ -8801,6 +8809,134 @@ app.delete('/api/admin/announcements/:id', requireAuth, requireRole('admin'), as
     if (handleServiceError(error, req, res)) return;
     req.log?.error({ err: error }, 'Failed to delete announcement alert');
     res.status(500).json({ error: 'Failed to delete announcement alert' });
+  }
+});
+
+app.get('/api/admin/publications', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const parsed = adminPublicationsListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { status, search, targetLanguage, limit, offset } = parsed.data;
+    const list = await listPublicationsAdmin({
+      status,
+      search,
+      targetLanguage,
+      limit: limit ?? 50,
+      offset: offset ?? 0,
+    });
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list admin publications');
+    res.status(500).json({ error: 'Failed to list publications' });
+  }
+});
+
+app.post(
+  '/api/admin/publications/:id/unpublish',
+  requireAuth,
+  requireRole('admin'),
+  async (req, res) => {
+    try {
+      const publicationId = req.params.id;
+      const ok = await unpublishPublicationAdmin(publicationId);
+      if (!ok) {
+        return res.status(404).json({ error: 'Publication not found' });
+      }
+      req.log?.info(
+        { event: 'admin.publication.unpublish', publicationId, adminId: req.user?.id },
+        'Admin unpublished publication'
+      );
+      await invalidatePublicationCaches(publicationId, publicationId);
+      await invalidatePublicationListCaches();
+      res.json({ ok: true });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Failed to admin unpublish publication');
+      res.status(500).json({ error: 'Failed to unpublish publication' });
+    }
+  }
+);
+
+app.get('/api/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const parsed = adminUsersListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { search, limit, offset } = parsed.data;
+    const list = await listUsersAdmin({
+      search,
+      limit: limit ?? 50,
+      offset: offset ?? 0,
+    });
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list admin users');
+    res.status(500).json({ error: 'Failed to list users' });
+  }
+});
+
+app.patch('/api/admin/users/:id/role', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const parsed = adminUserRoleUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const targetUserId = req.params.id;
+    const { role } = parsed.data;
+
+    const { data: currentProfile } = await (async () => {
+      const { createServiceRoleClient } = await import('./services/supabaseClient.js');
+      const client = createServiceRoleClient();
+      return client.from('profiles').select('role').eq('id', targetUserId).single();
+    })();
+
+    if (!currentProfile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (targetUserId === req.user.id && currentProfile.role === 'admin' && role !== 'admin') {
+      return res.status(400).json({ error: 'Cannot demote your own admin role' });
+    }
+
+    if (currentProfile.role === 'admin' && role !== 'admin') {
+      const adminCount = await countAdminUsersWithRole('admin');
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot remove the last admin' });
+      }
+    }
+
+    const updated = await updateUserRoleAdmin(targetUserId, role);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await redisDelMany([buildRedisKey(CACHE_PREFIX.authProfile, targetUserId)]);
+    req.log?.info(
+      { event: 'admin.user.role', targetUserId, role, adminId: req.user.id },
+      'Admin updated user role'
+    );
+    res.json(updated);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to update user role');
+    res.status(500).json({ error: 'Failed to update user role' });
   }
 });
 

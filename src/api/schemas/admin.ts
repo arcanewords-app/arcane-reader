@@ -40,3 +40,27 @@ export type PublicEntityCreateBody = z.infer<typeof publicEntityCreateSchema>;
 export type PublicEntityListQuery = z.infer<typeof publicEntityListQuerySchema>;
 export type PublicEntityUpdateBody = z.infer<typeof publicEntityUpdateSchema>;
 export type ReportStatusBody = z.infer<typeof reportStatusSchema>;
+
+const publicationStatuses = ['draft', 'published', 'unpublished'] as const;
+
+export const adminPublicationsListQuerySchema = z.object({
+  status: z.enum(publicationStatuses).optional(),
+  search: z.string().trim().max(200).optional(),
+  targetLanguage: z.string().trim().max(10).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+export const adminUsersListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+export const adminUserRoleUpdateSchema = z.object({
+  role: z.enum(['user', 'author', 'author_plus', 'super_author', 'admin']),
+});
+
+export type AdminPublicationsListQuery = z.infer<typeof adminPublicationsListQuerySchema>;
+export type AdminUsersListQuery = z.infer<typeof adminUsersListQuerySchema>;
+export type AdminUserRoleUpdateBody = z.infer<typeof adminUserRoleUpdateSchema>;

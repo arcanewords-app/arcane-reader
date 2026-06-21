@@ -5078,3 +5078,205 @@ export async function dismissAnnouncement(
     throw new Error(`Failed to dismiss announcement: ${error.message}`);
   }
 }
+
+// ============================================
+// Admin: publications & users
+// ============================================
+
+export interface AdminPublicationListItem {
+  id: string;
+  projectId: string;
+  userId: string;
+  status: PublicationStatus;
+  title: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  authorDisplay: string | null;
+  translatorDisplay: string | null;
+  sourceLanguage: string;
+  targetLanguage: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  slug: string | null;
+  translationStatus: TranslationStatus | null;
+  translatedChapterCount: number;
+}
+
+export async function listPublicationsAdmin(options?: {
+  status?: PublicationStatus;
+  search?: string;
+  targetLanguage?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AdminPublicationListItem[]> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
+  let query = client.from('publications_list_with_counts').select('*');
+
+  if (options?.status) {
+    query = query.eq('status', options.status);
+  }
+  if (options?.targetLanguage) {
+    query = query.eq('target_language', options.targetLanguage);
+  }
+  if (options?.search) {
+    query = query.ilike('title', `%${options.search}%`);
+  }
+
+  const { data, error } = await query
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+      let fallback = client.from('publications').select('*');
+      if (options?.status) fallback = fallback.eq('status', options.status);
+      if (options?.targetLanguage)
+        fallback = fallback.eq('target_language', options.targetLanguage);
+      if (options?.search) fallback = fallback.ilike('title', `%${options.search}%`);
+      const fb = await fallback
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (fb.error) throw new Error(`Failed to list publications: ${fb.error.message}`);
+      return (fb.data || []).map((row: PublicationRow) => ({
+        ...transformPublicationFromDB(row),
+        translatedChapterCount: 0,
+      }));
+    }
+    throw new Error(`Failed to list publications: ${error.message}`);
+  }
+
+  return (data || []).map((row: PublicationListRow) => ({
+    ...transformPublicationFromDB(row),
+    translatedChapterCount: row.translated_chapter_count ?? 0,
+  }));
+}
+
+export async function unpublishPublicationAdmin(publicationId: string): Promise<boolean> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data, error } = await client
+    .from('publications')
+    .update({ status: 'unpublished', updated_at: new Date().toISOString() })
+    .eq('id', publicationId)
+    .select('id, slug')
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return false;
+    throw new Error(`Failed to unpublish publication: ${error.message}`);
+  }
+  return !!data;
+}
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  createdAt: string | null;
+}
+
+export async function listUsersAdmin(options?: {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AdminUserListItem[]> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+  const page = Math.floor(offset / limit) + 1;
+  const search = options?.search?.trim().toLowerCase();
+
+  const { data: authData, error: authError } = await client.auth.admin.listUsers({
+    page,
+    perPage: limit,
+  });
+  if (authError) {
+    throw new Error(`Failed to list users: ${authError.message}`);
+  }
+
+  const users = authData.users || [];
+  const ids = users.map((u) => u.id);
+  if (ids.length === 0) return [];
+
+  const { data: profiles, error: profileError } = await client
+    .from('profiles')
+    .select('id, role, avatar_url, created_at')
+    .in('id', ids);
+
+  if (profileError) {
+    throw new Error(`Failed to load user profiles: ${profileError.message}`);
+  }
+
+  const profileById = new Map((profiles || []).map((p) => [p.id, p]));
+
+  let items: AdminUserListItem[] = users.map((user) => {
+    const profile = profileById.get(user.id);
+    return {
+      id: user.id,
+      email: user.email ?? '',
+      role: profile?.role ?? 'user',
+      avatarUrl: profile?.avatar_url ?? null,
+      createdAt: profile?.created_at ?? user.created_at ?? null,
+    };
+  });
+
+  if (search) {
+    items = items.filter(
+      (u) => u.email.toLowerCase().includes(search) || u.role.toLowerCase().includes(search)
+    );
+  }
+
+  return items;
+}
+
+export async function countAdminUsersWithRole(role: string): Promise<number> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+  const { count, error } = await client
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', role);
+  if (error) throw new Error(`Failed to count admins: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function updateUserRoleAdmin(
+  userId: string,
+  role: string
+): Promise<AdminUserListItem | null> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: profile, error } = await client
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId)
+    .select('id, role, avatar_url, created_at')
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw new Error(`Failed to update user role: ${error.message}`);
+  }
+
+  const { data: authUser, error: authError } = await client.auth.admin.getUserById(userId);
+  if (authError) {
+    throw new Error(`Failed to load user: ${authError.message}`);
+  }
+
+  return {
+    id: userId,
+    email: authUser.user?.email ?? '',
+    role: profile.role ?? role,
+    avatarUrl: profile.avatar_url ?? null,
+    createdAt: profile.created_at ?? authUser.user?.created_at ?? null,
+  };
+}

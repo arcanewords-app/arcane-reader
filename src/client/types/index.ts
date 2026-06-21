@@ -721,6 +721,18 @@ export interface PublicationListItem {
   translationStatus?: TranslationStatus | null;
 }
 
+export interface AdminPublicationListItem extends PublicationListItem {
+  userId: string;
+}
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string | null;
+  createdAt: string | null;
+}
+
 export interface PublicationWithChapters extends Publication {
   chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
   /** Number of glossary entries (for showing Glossary button on publication). */

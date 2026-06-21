@@ -936,8 +936,10 @@
     "subtitle": "Create global public tags, authors, and translators.",
     "tabs": {
       "aria": "Admin sections",
-      "entities": "Entities",
-      "news": "News"
+      "entities": "Catalog",
+      "news": "News",
+      "publications": "Publications",
+      "users": "Users"
     },
     "deniedTitle": "Admin access required",
     "deniedMessage": "You do not have enough permissions to open this section.",
@@ -988,6 +990,70 @@
     },
     "usage": {
       "publicationsCount": "Used in {{count}} publication(s)"
+    },
+    "entities": {
+      "kindTabsAria": "Entity type",
+      "intro": {
+        "tag": "Tags for catalog filtering. Only a name is required.",
+        "author": "Authors shown on publication pages. Add a photo and description.",
+        "translator": "Translators shown on publication pages. Add a photo and description."
+      },
+      "createTitle": {
+        "tag": "Create tag",
+        "author": "Create author",
+        "translator": "Create translator"
+      },
+      "submit": {
+        "tag": "Create tag",
+        "author": "Create author",
+        "translator": "Create translator"
+      }
+    },
+    "publications": {
+      "subtitle": "Browse and moderate all catalog publications.",
+      "listTitle": "Publications",
+      "statusFilter": "Status",
+      "searchPlaceholder": "Search by title",
+      "empty": "No publications found.",
+      "loadFailed": "Failed to load publications.",
+      "open": "Open page",
+      "unpublish": "Unpublish",
+      "unpublishTitle": "Unpublish publication",
+      "unpublishMessage": "Remove \"{{title}}\" from the public catalog?",
+      "unpublished": "Publication unpublished.",
+      "unpublishFailed": "Failed to unpublish publication.",
+      "notFound": "Publication not found.",
+      "chapters": "{{count}} translated chapters",
+      "publishedAt": "Published {{date}}",
+      "status": {
+        "published": "Published",
+        "draft": "Draft",
+        "unpublished": "Unpublished"
+      }
+    },
+    "users": {
+      "subtitle": "View accounts and change roles.",
+      "listTitle": "Users",
+      "searchPlaceholder": "Search by email or role",
+      "empty": "No users found.",
+      "loadFailed": "Failed to load users.",
+      "changeRole": "Change role",
+      "changeRoleTitle": "Change user role",
+      "changeRoleMessage": "Set a new role for {{email}}.",
+      "roleLabel": "Role",
+      "roleUpdated": "User role updated.",
+      "updateFailed": "Failed to update user role.",
+      "cannotDemoteSelf": "You cannot remove your own admin role.",
+      "lastAdmin": "Cannot remove the last admin.",
+      "joined": "Joined {{date}}",
+      "roles": {
+        "user": "User",
+        "author": "Author",
+        "author_plus": "Author+",
+        "super_author": "Super author",
+        "admin": "Admin",
+        "guest": "Guest"
+      }
     },
     "news": {
       "subtitle": "News feed and short banner announcements for users.",

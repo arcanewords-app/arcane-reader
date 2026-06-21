@@ -41,8 +41,12 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/news/:slugOrId` | guest+ | NewsDetailPage | Single news post |
 | `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar |
 | `/projects` | author+ | ProjectsPage | Projects grid (AuthorGate) |
-| `/admin/entities` | admin+ | AdminEntitiesPage | Admin panel for global entities (AdminGate) |
+| `/admin/entities` | admin+ | AdminEntitiesRedirect | Redirect to `/admin/entities/tag` |
+| `/admin/entities/:kind` | admin+ | AdminEntitiesPage | Global entities by kind: `tag`, `author`, `translator` (AdminGate) |
 | `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
+| `/admin/publications` | admin+ | AdminPublicationsPage | Catalog publication moderation (AdminGate) |
+| `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
+| `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
 | `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` - pre-fill and auto-open find-in-chapter (e.g. from ReportsModal) |
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate) |
@@ -235,6 +239,10 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET/POST | `/api/admin/announcements` | List / create announcement alert |
 | PATCH/DELETE | `/api/admin/announcements/:id` | Update / delete alert |
 | POST | `/api/admin/announcements/from-news/:newsId` | Create alert prefilled from news |
+| GET | `/api/admin/publications` | List all publications (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |
+| POST | `/api/admin/publications/:id/unpublish` | Force unpublish publication |
+| GET | `/api/admin/users` | List users with profiles (query: `search`, `limit`, `offset`) |
+| PATCH | `/api/admin/users/:id/role` | Update user role (body: `{ role }`) |
 
 ### News & announcements (public)
 
