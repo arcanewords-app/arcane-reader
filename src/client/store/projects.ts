@@ -1,35 +1,50 @@
 /**
  * Projects store using @preact/signals
- * Global state management for projects cache
+ * In-memory state for projects (no TTL — always fetch fresh from API on load)
  */
 
 import { signal, computed } from '@preact/signals';
 import type { ProjectListItem, Project, ProjectWithChapterList } from '../types';
 import { api } from '../api/client';
-import { CACHE_TTL } from '../../shared/cacheContract';
 
-// Projects cache
 export const projectsCache = signal<ProjectListItem[]>([]);
 export const projectsLoading = signal(false);
 export const projectsError = signal<string | null>(null);
 
-// Individual project cache (project with lightweight chapter list)
-const projectCache = new Map<string, { project: ProjectWithChapterList; timestamp: number }>();
-const PROJECT_CACHE_TTL_MS = CACHE_TTL.clientProjectsMs;
+/** Last fetched project snapshot — updated after API load or mutation, not used to skip fetches */
+const projectCache = new Map<string, ProjectWithChapterList>();
 
-// Computed: projects with metadata
 export const projectsWithMetadata = computed(() => {
   return projectsCache.value.filter((p) => p.metadata);
 });
 
-// Computed: projects by type
 export const projectsByType = computed(() => {
   const books = projectsCache.value.filter((p) => p.type === 'book');
   const texts = projectsCache.value.filter((p) => p.type === 'text' || !p.type);
   return { books, texts };
 });
 
-// Load projects list
+function syncProjectListItem(project: ProjectWithChapterList | Project): void {
+  const index = projectsCache.value.findIndex((p) => p.id === project.id);
+  if (index === -1) return;
+
+  projectsCache.value = [
+    ...projectsCache.value.slice(0, index),
+    {
+      ...projectsCache.value[index],
+      name: project.name,
+      type: project.type,
+      chapterCount: project.chapters.length,
+      translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
+      glossaryCount: project.glossary.length,
+      originalReadingMode: project.settings?.originalReadingMode ?? false,
+      updatedAt: project.updatedAt,
+      metadata: project.metadata || projectsCache.value[index].metadata,
+    },
+    ...projectsCache.value.slice(index + 1),
+  ];
+}
+
 export async function loadProjects(): Promise<void> {
   projectsLoading.value = true;
   projectsError.value = null;
@@ -45,43 +60,11 @@ export async function loadProjects(): Promise<void> {
   }
 }
 
-// Get project from cache or API
-export async function getProject(
-  id: string,
-  forceRefresh = false
-): Promise<ProjectWithChapterList | null> {
-  const cached = projectCache.get(id);
-
-  // Return cached if valid and not forced refresh
-  if (!forceRefresh && cached && Date.now() - cached.timestamp < PROJECT_CACHE_TTL_MS) {
-    return cached.project;
-  }
-
+export async function getProject(id: string): Promise<ProjectWithChapterList | null> {
   try {
     const project = await api.getProject(id);
-    projectCache.set(id, { project, timestamp: Date.now() });
-
-    // Update project in list cache
-    const index = projectsCache.value.findIndex((p) => p.id === id);
-    if (index !== -1) {
-      projectsCache.value = [
-        ...projectsCache.value.slice(0, index),
-        {
-          ...projectsCache.value[index],
-          name: project.name,
-          type: project.type,
-          chapterCount: project.chapters.length,
-          translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
-          glossaryCount: project.glossary.length,
-          originalReadingMode: project.settings?.originalReadingMode ?? false,
-          updatedAt: project.updatedAt,
-          // Update metadata if project has it
-          metadata: project.metadata || projectsCache.value[index].metadata,
-        },
-        ...projectsCache.value.slice(index + 1),
-      ];
-    }
-
+    projectCache.set(id, project);
+    syncProjectListItem(project);
     return project;
   } catch (error) {
     console.error('Failed to load project:', error);
@@ -89,44 +72,17 @@ export async function getProject(
   }
 }
 
-/**
- * Update project cache directly (useful when API returns updated project)
- */
+/** Update in-memory project snapshot after a mutation (does not skip future API fetches). */
 export function updateProjectCache(project: ProjectWithChapterList | Project): void {
-  projectCache.set(project.id, { project, timestamp: Date.now() });
-
-  // Update project in list cache
-  const index = projectsCache.value.findIndex((p) => p.id === project.id);
-  if (index !== -1) {
-    projectsCache.value = [
-      ...projectsCache.value.slice(0, index),
-      {
-        ...projectsCache.value[index],
-        name: project.name,
-        type: project.type,
-        chapterCount: project.chapters.length,
-        translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
-        glossaryCount: project.glossary.length,
-        originalReadingMode: project.settings?.originalReadingMode ?? false,
-        updatedAt: project.updatedAt,
-        metadata: project.metadata || projectsCache.value[index].metadata,
-      },
-      ...projectsCache.value.slice(index + 1),
-    ];
-  }
+  projectCache.set(project.id, project as ProjectWithChapterList);
+  syncProjectListItem(project);
 }
 
-// Invalidate project cache
+/** Drop local project snapshot so the next load refetches from API. */
 export function invalidateProject(id: string): void {
   projectCache.delete(id);
-  const index = projectsCache.value.findIndex((p) => p.id === id);
-  if (index !== -1) {
-    // Trigger update by creating new array
-    projectsCache.value = [...projectsCache.value];
-  }
 }
 
-// Clear all caches
 export function clearCache(): void {
   projectsCache.value = [];
   projectCache.clear();

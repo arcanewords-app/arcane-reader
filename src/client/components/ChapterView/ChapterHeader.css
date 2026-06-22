@@ -279,6 +279,12 @@ button.chapter-title {
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
+.status-partial {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
 .status-completed {
   background: color-mix(in srgb, var(--success) 15%, transparent);
   color: var(--success);

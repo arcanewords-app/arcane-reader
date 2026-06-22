@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
 import type { ProjectWithChapterList, ProjectSettings } from '../types';
-import { getProject, invalidateProject } from '../store/projects';
+import { getProject } from '../store/projects';
 import { trackEvent } from '../utils/analytics';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
@@ -78,8 +78,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const handleRefreshProject = useCallback(
     async () => {
       if (!project) return;
-      invalidateProject(project.id);
-      const updated = await getProject(project.id, true);
+      const updated = await getProject(project.id);
       if (updated) {
         setProject(updated);
         refreshTrigger.value += 1;

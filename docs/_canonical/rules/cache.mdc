@@ -10,7 +10,8 @@ alwaysApply: false
 
 - Keep cache keys, TTL, and prefixes in `@src/shared/cacheContract.ts`.
 - Use shared Redis helpers from `@src/services/redisCache.ts` instead of ad-hoc clients.
-- Prefer `withRedisCache(...)` pattern in `@src/server.ts` for read-heavy GET endpoints.
+- Prefer `withRedisCache(...)` pattern in `@src/server.ts` for read-heavy **public** GET endpoints (catalog, publications, news).
+- **Do not** Redis-cache user project reads (`GET /api/projects`, `GET /api/projects/:id`, reports count) — single-author editing; stale data caused UX bugs.
 
 ## Mandatory Invalidation After Mutations
 
@@ -22,7 +23,8 @@ alwaysApply: false
 
 ## Client Cache Rules
 
-- Keep volatile data in memory cache; do not persist dynamic status to `localStorage`.
+- Authoring project data (`/projects`, `/projects/:id`) is **not** TTL-cached — always fetch fresh from API on load. `src/client/store/projects.ts` holds in-memory UI state only.
+- Keep other volatile data in memory cache; do not persist dynamic status to `localStorage`.
 - `localStorage` is allowed only for stable, low-risk data with TTL + schema version.
 - Cross-tab invalidation must use `BroadcastChannel` with `storage` fallback.
 

@@ -24,7 +24,7 @@ export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) 
   const loadProject = async () => {
     setLoading(true);
     try {
-      const loadedProject = await getProject(projectId, false);
+      const loadedProject = await getProject(projectId);
       if (loadedProject) {
         setProject(loadedProject);
       } else {

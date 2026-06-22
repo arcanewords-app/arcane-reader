@@ -21,6 +21,7 @@ import type {
   TranslationStageKind,
 } from '../../types';
 import { isChunkError } from '../../../shared/chunkErrors';
+import { getTranslationCoverage } from '../../../shared/chapterTranslationCoverage.js';
 import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
 import { estimateTokensForChapterTitles } from '../../config/tokenEstimate';
 import './TranslationPanel.css';
@@ -28,6 +29,15 @@ import './TranslationPanel.css';
 type Scope = 'full' | 'empty' | 'selected';
 
 const STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translation', 'editing'];
+const GAP_FILL_STAGES: TranslationStageKind[] = ['translation', 'editing'];
+
+function getTranslationPanelDefaults(chapter: Chapter) {
+  const coverage = getTranslationCoverage(chapter.paragraphs ?? []);
+  if (coverage.translatedCount > 0 && coverage.missingParagraphIds.length > 0) {
+    return { scope: 'empty' as Scope, stages: GAP_FILL_STAGES, translateChapterTitles: false };
+  }
+  return { scope: 'full' as Scope, stages: [...STAGE_ORDER], translateChapterTitles: true };
+}
 
 interface TranslationPanelProps {
   chapter: Chapter;
@@ -92,17 +102,24 @@ export function TranslationPanel({
 }: TranslationPanelProps) {
   const { t } = useTranslation();
 
-  const [scope, setScope] = useState<Scope>('full');
-  const [selectedStages, setSelectedStages] = useState<TranslationStageKind[]>([
-    'analysis',
-    'translation',
-    'editing',
-  ]);
-  const [translateChapterTitles, setTranslateChapterTitles] = useState(true);
+  const [scope, setScope] = useState<Scope>(() => getTranslationPanelDefaults(chapter).scope);
+  const [selectedStages, setSelectedStages] = useState<TranslationStageKind[]>(
+    () => getTranslationPanelDefaults(chapter).stages
+  );
+  const [translateChapterTitles, setTranslateChapterTitles] = useState(
+    () => getTranslationPanelDefaults(chapter).translateChapterTitles
+  );
   const [panelLanguagePair, setPanelLanguagePair] = useState<LanguagePairValue>(() =>
     projectDefaultLanguagePair(project)
   );
   const [languageOverrideAck, setLanguageOverrideAck] = useState(false);
+
+  useEffect(() => {
+    const defaults = getTranslationPanelDefaults(chapter);
+    setScope(defaults.scope);
+    setSelectedStages(defaults.stages);
+    setTranslateChapterTitles(defaults.translateChapterTitles);
+  }, [chapter.id]);
 
   useEffect(() => {
     setPanelLanguagePair(projectDefaultLanguagePair(project));

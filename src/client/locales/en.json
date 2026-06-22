@@ -1301,6 +1301,7 @@
     "translating": "Translating...",
     "analyzed": "Analysis only",
     "draft": "Draft",
+    "partial": "Incomplete translation",
     "completed": "Completed",
     "error": "Error",
     "translated": "Translated",

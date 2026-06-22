@@ -23,6 +23,11 @@ export function chapterDisplayTitle(ch: ChapterTitleFields): string {
   return defaultChapterTitleFallback(ch.number);
 }
 
+/** Title shown in the edit field — matches what the user sees in the header. */
+export function chapterTitleForEdit(ch: ChapterTitleFields): string {
+  return chapterDisplayTitle(ch);
+}
+
 export function defaultChapterTitleFallback(number: number): string {
   return `Chapter ${number}`;
 }

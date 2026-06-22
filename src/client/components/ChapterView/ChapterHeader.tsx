@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Chapter, ChapterListItem } from '../../types';
 import { Button, Modal, Icon, Skeleton } from '../ui';
 import { api } from '../../api/client';
-import { chapterDisplayTitle } from '../../../shared/chapterTitle';
+import { chapterDisplayTitle, chapterTitleForEdit } from '../../../shared/chapterTitle';
 import '../ui/Input.css';
 import { ChapterStatusSelect } from './ChapterStatusSelect';
 import './ChapterHeader.css';
@@ -109,11 +109,11 @@ export function ChapterHeader({
   const handleStartEdit = () => {
     if (!chapter) return;
     setIsEditingTitle(true);
-    setEditedTitle(chapter.title);
+    setEditedTitle(chapterTitleForEdit(chapter));
   };
 
   const handleSaveTitle = async () => {
-    if (!chapter || !editedTitle.trim() || editedTitle.trim() === chapter.title) {
+    if (!chapter || !editedTitle.trim() || editedTitle.trim() === chapterTitleForEdit(chapter)) {
       setIsEditingTitle(false);
       return;
     }
@@ -125,7 +125,7 @@ export function ChapterHeader({
       setIsEditingTitle(false);
     } catch (error) {
       console.error('Failed to update chapter title:', error);
-      setEditedTitle(chapter.title);
+      setEditedTitle(chapterTitleForEdit(chapter));
     } finally {
       setSavingTitle(false);
     }
@@ -133,7 +133,7 @@ export function ChapterHeader({
 
   const handleCancelEdit = () => {
     setIsEditingTitle(false);
-    setEditedTitle(chapter?.title ?? title);
+    setEditedTitle(chapter ? chapterTitleForEdit(chapter) : title);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {

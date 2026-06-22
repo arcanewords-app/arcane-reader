@@ -14,6 +14,7 @@ const statusIcons: Record<StatusType, { iconName: string; className: string }> =
   translating: { iconName: 'translate', className: 'status-translating' },
   analyzed: { iconName: 'manage_search', className: 'status-analyzed' },
   draft: { iconName: 'edit_note', className: 'status-draft' },
+  partial: { iconName: 'warning', className: 'status-partial' },
   completed: { iconName: 'check_circle', className: 'status-completed' },
   error: { iconName: 'error', className: 'status-error' },
   translated: { iconName: 'menu_book', className: 'status-translated' },

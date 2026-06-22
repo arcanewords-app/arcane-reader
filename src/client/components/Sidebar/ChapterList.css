@@ -533,6 +533,10 @@
   color: var(--accent);
 }
 
+.chapter-status-icon.is-partial {
+  color: var(--warning);
+}
+
 .chapter-status-icon.is-pending {
   color: var(--text-dim);
 }

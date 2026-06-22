@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { ProjectWithChapterList, Chapter, ProjectSettings } from '../types';
-import { getProject, invalidateProject } from '../store/projects';
+import { getProject, updateProjectCache } from '../store/projects';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
@@ -94,12 +94,14 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const handleChapterUpdate = (updatedChapter: Chapter) => {
     if (!project) return;
     setChapter(updatedChapter);
-    setProject({
+    const nextProject: ProjectWithChapterList = {
       ...project,
       chapters: project.chapters.map((c) =>
         c.id === updatedChapter.id
           ? {
               ...c,
+              title: updatedChapter.title,
+              translatedTitle: updatedChapter.translatedTitle,
               status: updatedChapter.status,
               hasTranslation:
                 updatedChapter.status === 'completed' ||
@@ -111,7 +113,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
             }
           : c
       ),
-    });
+    };
+    setProject(nextProject);
+    updateProjectCache(nextProject);
   };
 
   const handleSettingsChange = (settings: ProjectSettings) => {
@@ -122,8 +126,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const handleRefreshProject = useCallback(
     async () => {
       if (!project) return;
-      invalidateProject(project.id);
-      const updated = await getProject(project.id, true);
+      const updated = await getProject(project.id);
       if (updated) {
         setProject(updated);
         api

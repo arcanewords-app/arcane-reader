@@ -20,7 +20,6 @@ export const CHAPTER_LOAD_BATCH = 25;
 export const CACHE_TTL = {
   // Client-side
   clientPublicationMs: 120_000, // 2 min — public content rarely changes
-  clientProjectsMs: 5 * 60_000,
   clientReaderSettingsMs: 2 * 60_000,
   clientReadingHistoryMs: 60_000,
   clientCatalogLocalStorageMs: 5 * 60_000, // 5 min
@@ -37,16 +36,12 @@ export const CACHE_TTL = {
   redisNewsPostSec: 120,
   redisAnnouncementsActiveSec: 60,
 
-  // Server-side — user-scoped (fresher for editing)
-  redisProjectListSec: 60,
-  redisProjectSec: 120,
+  // Server-side — user-scoped
   redisAuthProfileSec: 60,
   redisTokenUsageSec: 60,
   redisTokenHistorySec: 60,
   /** Analysis results per chapter. Invalidate on chapter content change. */
   redisAnalysisResultSec: 86400, // 24 h
-  /** Project reports count (translation complaints). */
-  redisProjectReportsCountSec: 120,
   healthSnapshotMs: 30_000,
   /** Shared service health snapshot across serverless instances. */
   redisServiceHealthSec: 60,

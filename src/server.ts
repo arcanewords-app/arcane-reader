@@ -1664,11 +1664,7 @@ app.get('/api/projects', requireAuth, requireRole('author'), async (req, res) =>
 
     let projectList;
     try {
-      projectList = await withRedisCache(
-        userProjectsCacheKey(user.id),
-        CACHE_TTL.redisProjectListSec,
-        () => getAllProjectsLightweight(user.id, token)
-      );
+      projectList = await getAllProjectsLightweight(user.id, token);
     } catch (getAllErr) {
       req.log?.error(
         { err: getAllErr, phase: 'getAllProjectsLightweight' },
@@ -1722,11 +1718,7 @@ app.get('/api/projects/:id', requireAuth, requireRole('author'), async (req, res
     const user = req.user;
 
     const token = requireToken(req);
-    const project = await withRedisCache(
-      userProjectCacheKey(user.id, req.params.id),
-      CACHE_TTL.redisProjectSec,
-      () => getProject(req.params.id, user.id, token)
-    );
+    const project = await getProject(req.params.id, user.id, token);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -6479,11 +6471,7 @@ app.get('/api/projects/:id/reports-count', requireAuth, requireRole('author'), a
     const token = requireToken(req);
     const projectId = req.params.id;
 
-    const count = await withRedisCache(
-      projectReportsCountCacheKey(projectId),
-      CACHE_TTL.redisProjectReportsCountSec,
-      () => getTranslationReportsCountByProject(projectId, userId, token)
-    );
+    const count = await getTranslationReportsCountByProject(projectId, userId, token);
     res.json({ count });
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
