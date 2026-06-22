@@ -1,12 +1,17 @@
 import { useTranslation } from 'react-i18next';
 import { Modal, Button } from '../ui';
+import { createSnippetHtml } from '../../utils/search-utils';
 import './ReplacePreviewModal.css';
 
 export interface ReplacePreviewItem {
   paragraphId: string;
   paragraphIndex: number;
+  chapterId?: string;
+  chapterNumber?: number;
   before: string;
   after: string;
+  find?: string;
+  caseSensitive?: boolean;
 }
 
 interface ReplacePreviewModalProps {
@@ -15,9 +20,17 @@ interface ReplacePreviewModalProps {
   items: ReplacePreviewItem[];
   onConfirm: () => void;
   isReplacing: boolean;
+  progress?: { done: number; total: number } | null;
+  preventClose?: boolean;
 }
 
-const MAX_PREVIEW_ITEMS = 10;
+function renderDiffText(text: string, find: string | undefined, caseSensitive: boolean): string {
+  if (!find?.trim()) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  const snippet = text.length > 300 ? text.slice(0, 300) + '…' : text;
+  return createSnippetHtml(snippet, find, caseSensitive);
+}
 
 export function ReplacePreviewModal({
   isOpen,
@@ -25,11 +38,10 @@ export function ReplacePreviewModal({
   items,
   onConfirm,
   isReplacing,
+  progress,
+  preventClose = false,
 }: ReplacePreviewModalProps) {
   const { t } = useTranslation();
-  const showAll = items.length <= MAX_PREVIEW_ITEMS;
-  const displayItems = showAll ? items : items.slice(0, MAX_PREVIEW_ITEMS);
-  const hasMore = items.length > MAX_PREVIEW_ITEMS;
 
   return (
     <Modal
@@ -40,6 +52,10 @@ export function ReplacePreviewModal({
         { count: items.length },
         'Replace preview ({{count}} paragraphs)'
       )}
+      closeOnBackdropClick={false}
+      preventClose={preventClose || isReplacing}
+      closeButtonDisabled={isReplacing}
+      className="replace-preview-modal nested"
       footer={
         <div class="replace-preview-footer">
           <Button variant="secondary" onClick={onClose} disabled={isReplacing}>
@@ -60,36 +76,68 @@ export function ReplacePreviewModal({
         <p class="replace-preview-hint">
           {t('searchReplace.previewHint', 'The following paragraphs will be updated:')}
         </p>
+        <p class="replace-preview-hint replace-preview-block-hint">
+          {t(
+            'searchReplace.blockMarkerHint',
+            'Formatting markers ({{block:…}}) are not changed automatically.'
+          )}
+        </p>
+
+        {progress && isReplacing && (
+          <div class="replace-preview-progress">
+            <div class="replace-preview-progress-bar">
+              <div
+                class="replace-preview-progress-fill"
+                style={{
+                  width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <span class="replace-preview-progress-label">
+              {t('searchReplace.progress', {
+                done: progress.done,
+                total: progress.total,
+              })}
+            </span>
+          </div>
+        )}
+
         <div class="replace-preview-list">
-          {displayItems.map((item) => (
-            <div key={item.paragraphId} class="replace-preview-item">
+          {items.map((item) => (
+            <div key={`${item.chapterId ?? ''}-${item.paragraphId}`} class="replace-preview-item">
               <div class="replace-preview-item-header">
-                {t(
-                  'searchReplace.paragraphLabel',
-                  { index: item.paragraphIndex },
-                  'Paragraph #{{index}}'
-                )}
+                {item.chapterNumber != null
+                  ? t('searchReplace.previewChapterParagraph', {
+                      chapter: item.chapterNumber,
+                      index: item.paragraphIndex,
+                    })
+                  : t(
+                      'searchReplace.paragraphLabel',
+                      { index: item.paragraphIndex },
+                      'Paragraph #{{index}}'
+                    )}
               </div>
               <div class="replace-preview-row">
                 <span class="replace-preview-label">{t('searchReplace.before', 'Before')}:</span>
-                <span class="replace-preview-text replace-preview-before">{item.before}</span>
+                <span
+                  class="replace-preview-text replace-preview-before"
+                  dangerouslySetInnerHTML={{
+                    __html: renderDiffText(item.before, item.find, item.caseSensitive ?? false),
+                  }}
+                />
               </div>
               <div class="replace-preview-row">
                 <span class="replace-preview-label">{t('searchReplace.after', 'After')}:</span>
-                <span class="replace-preview-text replace-preview-after">{item.after}</span>
+                <span
+                  class="replace-preview-text replace-preview-after"
+                  dangerouslySetInnerHTML={{
+                    __html: renderDiffText(item.after, item.find, item.caseSensitive ?? false),
+                  }}
+                />
               </div>
             </div>
           ))}
         </div>
-        {hasMore && (
-          <p class="replace-preview-more">
-            {t(
-              'searchReplace.andMore',
-              { count: items.length - MAX_PREVIEW_ITEMS },
-              '...and {{count}} more'
-            )}
-          </p>
-        )}
       </div>
     </Modal>
   );

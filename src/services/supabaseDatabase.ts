@@ -17,6 +17,11 @@ import {
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
 import { chapterDisplayTitle } from '../shared/chapterTitle.js';
+import {
+  createMatchSnippet,
+  paragraphMatchesSearch,
+  type ProjectSearchMatchBase,
+} from '../shared/projectSearch.js';
 import { defaultStageModelsForRole, roleHasPremiumModelAccess } from '../shared/modelAccess.js';
 import type { UserRole } from '../types/roles.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -2887,22 +2892,7 @@ export async function updateParagraph(
 
   // If translated text was updated, sync to chapter translatedText
   if (updates.translatedText !== undefined) {
-    const fullChapter = await getChapter(projectId, chapterId, token);
-    if (fullChapter && fullChapter.paragraphs) {
-      const mergedText = mergeParagraphsToText(fullChapter.paragraphs);
-      const chunks = mergedText
-        .split(/\n\s*\n/)
-        .map((chunk) => chunk.trim())
-        .filter((chunk) => chunk.length > 0);
-
-      await client
-        .from('chapters')
-        .update({
-          translated_text: mergedText || null,
-          translated_chunks: chunks.length > 0 ? chunks : null,
-        })
-        .eq('id', chapterId);
-    }
+    await syncChapterTranslatedTextFromDb(projectId, chapterId, token, client);
   }
 
   // Update project updated_at
@@ -2911,120 +2901,154 @@ export async function updateParagraph(
   return transformParagraphFromDB(updatedParagraph);
 }
 
+async function syncChapterTranslatedTextFromDb(
+  projectId: string,
+  chapterId: string,
+  token: string,
+  client: SupabaseClient
+): Promise<void> {
+  const fullChapter = await getChapter(projectId, chapterId, token);
+  if (!fullChapter?.paragraphs) return;
+
+  const mergedText = mergeParagraphsToText(fullChapter.paragraphs);
+  const chunks = mergedText
+    .split(/\n\s*\n/)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 0);
+
+  await client
+    .from('chapters')
+    .update({
+      translated_text: mergedText || null,
+      translated_chunks: chunks.length > 0 ? chunks : null,
+    })
+    .eq('id', chapterId);
+}
+
 /** Escape % and _ for use in ilike pattern (literal match) */
 function escapeIlike(s: string): string {
   return s.replace(/[%_\\]/g, '\\$&');
 }
 
-export interface ProjectSearchMatch {
-  chapterId: string;
-  chapterNumber: number;
-  chapterTitle: string;
-  paragraphId: string;
-  paragraphIndex: number;
-  field: 'original' | 'translated';
-  snippet: string;
-  fullText: string;
+export interface ProjectSearchMatch extends ProjectSearchMatchBase {}
+
+export interface ProjectSearchParams {
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  chapterIds?: string[];
+  chapterFrom?: number;
+  chapterTo?: number;
+  offset?: number;
+  limit?: number;
 }
 
-const SEARCH_MAX_RESULTS = 200;
+export interface ProjectSearchResult {
+  matches: ProjectSearchMatch[];
+  total: number;
+  hasMore: boolean;
+  nextOffset?: number;
+}
 
-const SEARCH_CHAPTER_BATCH = 5;
+const DEFAULT_SEARCH_LIMIT = 200;
+
+interface SearchParagraphRpcRow {
+  paragraph_id: string;
+  paragraph_index: number;
+  chapter_id: string;
+  chapter_number: number;
+  chapter_title: string;
+  chapter_translated_title: string | null;
+  match_field: string;
+  original_text: string | null;
+  translated_text: string | null;
+}
 
 /**
- * Search paragraphs across project. Returns matches with snippet.
- * Searches chapter-by-chapter in small batches to avoid statement timeout on large projects.
+ * Search paragraphs across project via single RPC (JOIN + LIMIT).
+ * Falls back is not used — migration must be applied in Supabase.
  */
 export async function searchParagraphsInProject(
   projectId: string,
   query: string,
   field: 'original' | 'translated' | 'both',
-  token: string
-): Promise<ProjectSearchMatch[]> {
+  token: string,
+  params: ProjectSearchParams = {}
+): Promise<ProjectSearchResult> {
   validateToken(token);
   const trimmed = query.trim().slice(0, 500);
-  if (!trimmed) return [];
+  if (!trimmed) {
+    return { matches: [], total: 0, hasMore: false };
+  }
+
+  const {
+    caseSensitive = false,
+    wholeWord = false,
+    chapterIds,
+    chapterFrom,
+    chapterTo,
+    offset = 0,
+    limit = DEFAULT_SEARCH_LIMIT,
+  } = params;
+
+  const pageLimit = Math.min(Math.max(limit, 1), 500);
+  const fetchLimit = wholeWord ? Math.min(pageLimit * 3, 500) : pageLimit + 1;
 
   const client = createClientWithToken(token);
   const pattern = `%${escapeIlike(trimmed)}%`;
-  const matches: ProjectSearchMatch[] = [];
-  let chapterOffset = 0;
+  const searchOptions = { caseSensitive, wholeWord };
 
-  const searchInField = async (col: 'original_text' | 'translated_text') => {
-    while (matches.length < SEARCH_MAX_RESULTS) {
-      const { data: chapters, error: chError } = await client
-        .from('chapters')
-        .select('id, number, title')
-        .eq('project_id', projectId)
-        .order('number', { ascending: true })
-        .range(chapterOffset, chapterOffset + SEARCH_CHAPTER_BATCH - 1);
-
-      if (chError || !chapters?.length) break;
-      chapterOffset += chapters.length;
-
-      const chapterMap = new Map(
-        (chapters as Array<{ id: string; number: number; title: string }>).map((c) => [c.id, c])
-      );
-      const ids = (chapters as Array<{ id: string }>).map((c) => c.id);
-
-      const { data: rows, error } = await client
-        .from('paragraphs')
-        .select('id, index, chapter_id, original_text, translated_text')
-        .in('chapter_id', ids)
-        .ilike(col, pattern)
-        .limit(SEARCH_MAX_RESULTS - matches.length);
-
-      if (error) throw new Error(`Search failed: ${error.message}`);
-      if (!rows) continue;
-
-      for (const row of rows as Array<{
-        id: string;
-        index: number;
-        chapter_id: string;
-        original_text: string | null;
-        translated_text: string | null;
-      }>) {
-        const ch = chapterMap.get(row.chapter_id);
-        if (!ch) continue;
-        const text = (col === 'original_text' ? row.original_text : row.translated_text) || '';
-        const idx = text.toLowerCase().indexOf(trimmed.toLowerCase());
-        const start = Math.max(0, idx - 50);
-        const end = Math.min(text.length, idx + trimmed.length + 50);
-        let snippet = text.slice(start, end);
-        if (start > 0) snippet = '…' + snippet;
-        if (end < text.length) snippet = snippet + '…';
-
-        matches.push({
-          chapterId: ch.id,
-          chapterNumber: ch.number,
-          chapterTitle: ch.title,
-          paragraphId: row.id,
-          paragraphIndex: row.index + 1,
-          field: col === 'original_text' ? 'original' : 'translated',
-          snippet,
-          fullText: text,
-        });
-      }
-
-      if (chapters.length < SEARCH_CHAPTER_BATCH) break;
-    }
-  };
-
-  if (field === 'original' || field === 'both') {
-    await searchInField('original_text');
-    if (field === 'both') chapterOffset = 0;
-  }
-  if (field === 'translated' || field === 'both') {
-    if (field === 'both') chapterOffset = 0;
-    await searchInField('translated_text');
-  }
-
-  matches.sort((a, b) => {
-    if (a.chapterNumber !== b.chapterNumber) return a.chapterNumber - b.chapterNumber;
-    return a.paragraphIndex - b.paragraphIndex;
+  const { data, error } = await client.rpc('search_paragraphs_in_project', {
+    p_project_id: projectId,
+    p_pattern: pattern,
+    p_field: field,
+    p_case_sensitive: caseSensitive,
+    p_chapter_from: chapterFrom ?? null,
+    p_chapter_to: chapterTo ?? null,
+    p_chapter_ids: chapterIds?.length ? chapterIds : null,
+    p_offset: offset,
+    p_limit: fetchLimit,
   });
 
-  return matches.slice(0, SEARCH_MAX_RESULTS);
+  if (error) {
+    throw new Error(`Search failed: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as SearchParagraphRpcRow[];
+  const matches: ProjectSearchMatch[] = [];
+
+  for (const row of rows) {
+    const matchField: 'original' | 'translated' =
+      row.match_field === 'original' ? 'original' : 'translated';
+    const fullText = (matchField === 'original' ? row.original_text : row.translated_text) || '';
+    if (!paragraphMatchesSearch(fullText, trimmed, searchOptions)) continue;
+
+    matches.push({
+      chapterId: row.chapter_id,
+      chapterNumber: row.chapter_number,
+      chapterTitle: chapterDisplayTitle({
+        title: row.chapter_title,
+        translatedTitle: row.chapter_translated_title,
+        number: row.chapter_number,
+      }),
+      paragraphId: row.paragraph_id,
+      paragraphIndex: row.paragraph_index + 1,
+      field: matchField,
+      snippet: createMatchSnippet(fullText, trimmed, caseSensitive),
+      fullText,
+    });
+
+    if (matches.length > pageLimit) break;
+  }
+
+  const hasMore = matches.length > pageLimit || rows.length >= fetchLimit;
+  const pageMatches = matches.slice(0, pageLimit);
+
+  return {
+    matches: pageMatches,
+    total: pageMatches.length,
+    hasMore,
+    nextOffset: hasMore ? offset + rows.length : undefined,
+  };
 }
 
 export interface BulkParagraphUpdate {
@@ -3040,6 +3064,7 @@ export interface BulkUpdateResult {
 
 /**
  * Bulk update paragraph translated text. Returns succeeded and failed.
+ * Groups updates by chapter and syncs translated_text once per chapter.
  */
 export async function bulkUpdateParagraphs(
   projectId: string,
@@ -3050,32 +3075,89 @@ export async function bulkUpdateParagraphs(
 
   const succeeded: string[] = [];
   const failed: Array<{ paragraphId: string; error: string }> = [];
+  const client = createClientWithToken(token);
+  const editedAt = new Date().toISOString();
 
+  const byChapter = new Map<string, BulkParagraphUpdate[]>();
   for (const u of updates) {
-    try {
-      const paragraph = await updateParagraph(
-        projectId,
-        u.chapterId,
-        u.paragraphId,
-        {
-          translatedText: u.translatedText,
-          status: 'edited',
-          editedAt: new Date().toISOString(),
-          editedBy: 'user',
-        },
-        token
-      );
-      if (paragraph) {
-        succeeded.push(u.paragraphId);
-      } else {
-        failed.push({ paragraphId: u.paragraphId, error: 'Not found' });
+    const list = byChapter.get(u.chapterId) ?? [];
+    list.push(u);
+    byChapter.set(u.chapterId, list);
+  }
+
+  const BATCH_SIZE = 15;
+
+  for (const [chapterId, chapterUpdates] of byChapter) {
+    const { data: chapter } = await client
+      .from('chapters')
+      .select('id')
+      .eq('id', chapterId)
+      .eq('project_id', projectId)
+      .single();
+
+    if (!chapter) {
+      for (const u of chapterUpdates) {
+        failed.push({ paragraphId: u.paragraphId, error: 'Chapter not found' });
       }
-    } catch (err) {
-      failed.push({
-        paragraphId: u.paragraphId,
-        error: err instanceof Error ? err.message : 'Unknown error',
-      });
+      continue;
     }
+
+    const chapterSucceeded: string[] = [];
+
+    for (let i = 0; i < chapterUpdates.length; i += BATCH_SIZE) {
+      const batch = chapterUpdates.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (u) => {
+          const { error } = await client
+            .from('paragraphs')
+            .update({
+              translated_text: u.translatedText || null,
+              status: 'edited',
+              edited_at: editedAt,
+              edited_by: 'user',
+            })
+            .eq('id', u.paragraphId)
+            .eq('chapter_id', chapterId);
+
+          if (error) {
+            return {
+              paragraphId: u.paragraphId,
+              ok: false as const,
+              error: error.message,
+            };
+          }
+          return { paragraphId: u.paragraphId, ok: true as const };
+        })
+      );
+
+      for (const r of results) {
+        if (r.ok) {
+          chapterSucceeded.push(r.paragraphId);
+        } else {
+          failed.push({ paragraphId: r.paragraphId, error: r.error });
+        }
+      }
+
+      if (i + BATCH_SIZE < chapterUpdates.length) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    if (chapterSucceeded.length > 0) {
+      try {
+        await syncChapterTranslatedTextFromDb(projectId, chapterId, token, client);
+        succeeded.push(...chapterSucceeded);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Chapter sync failed';
+        for (const id of chapterSucceeded) {
+          failed.push({ paragraphId: id, error: msg });
+        }
+      }
+    }
+  }
+
+  if (succeeded.length > 0) {
+    await client.from('projects').update({}).eq('id', projectId);
   }
 
   return { succeeded, failed };

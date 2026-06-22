@@ -221,6 +221,8 @@ export function Sidebar({
         onClose={() => setShowProjectSearch(false)}
         projectId={project.id}
         isOriginalReadingMode={project.settings?.originalReadingMode ?? false}
+        chapters={project.chapters}
+        textBlockTypes={project.settings?.textBlockTypes ?? []}
         onRefresh={onRefreshProject}
       />
     </>

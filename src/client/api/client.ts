@@ -561,10 +561,36 @@ export const api = {
   async searchProject(
     projectId: string,
     query: string,
-    field: 'original' | 'translated' | 'both' = 'translated'
-  ): Promise<{ matches: ProjectSearchMatch[] }> {
-    const params = new URLSearchParams({ q: query, field });
-    return fetchJson(`/api/projects/${projectId}/search?${params}`);
+    options: {
+      field?: 'original' | 'translated' | 'both';
+      caseSensitive?: boolean;
+      wholeWord?: boolean;
+      chapterFrom?: number;
+      chapterTo?: number;
+      chapterIds?: string;
+      offset?: number;
+      limit?: number;
+      signal?: AbortSignal;
+    } = {}
+  ): Promise<{
+    matches: ProjectSearchMatch[];
+    total: number;
+    hasMore: boolean;
+    nextOffset?: number;
+  }> {
+    const params = new URLSearchParams({ q: query });
+    const field = options.field ?? 'translated';
+    params.set('field', field);
+    if (options.caseSensitive) params.set('caseSensitive', 'true');
+    if (options.wholeWord) params.set('wholeWord', 'true');
+    if (options.chapterFrom != null) params.set('chapterFrom', String(options.chapterFrom));
+    if (options.chapterTo != null) params.set('chapterTo', String(options.chapterTo));
+    if (options.chapterIds) params.set('chapterIds', options.chapterIds);
+    if (options.offset != null) params.set('offset', String(options.offset));
+    if (options.limit != null) params.set('limit', String(options.limit));
+    return fetchJson(`/api/projects/${projectId}/search?${params}`, {
+      signal: options.signal,
+    });
   },
 
   async bulkUpdateParagraphs(

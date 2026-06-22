@@ -1763,9 +1763,23 @@ app.get('/api/projects/:id/search', requireAuth, requireRole('author'), async (r
     }
     const projectId = req.params.id;
     const queryResult = projectSearchQuerySchema.safeParse(req.query);
-    const { q, field } = queryResult.success
-      ? queryResult.data
-      : { q: '', field: 'translated' as const };
+    if (!queryResult.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: queryResult.error.flatten().fieldErrors,
+      });
+    }
+    const {
+      q,
+      field,
+      caseSensitive,
+      wholeWord,
+      chapterIds,
+      chapterFrom,
+      chapterTo,
+      offset,
+      limit,
+    } = queryResult.data;
 
     const token = requireToken(req);
     const project = await getProject(projectId, req.user.id, token);
@@ -1773,8 +1787,23 @@ app.get('/api/projects/:id/search', requireAuth, requireRole('author'), async (r
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const matches = await searchParagraphsInProject(projectId, q, field, token);
-    res.json({ matches });
+    const parsedChapterIds = chapterIds
+      ? chapterIds
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : undefined;
+
+    const result = await searchParagraphsInProject(projectId, q, field, token, {
+      caseSensitive,
+      wholeWord,
+      chapterIds: parsedChapterIds,
+      chapterFrom,
+      chapterTo,
+      offset,
+      limit,
+    });
+    res.json(result);
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to search project' });

@@ -13,6 +13,8 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: 'danger' | 'default';
   loading?: boolean;
+  /** Stack above glossary / large modals (z-index 2000). */
+  overlayClassName?: string;
 }
 
 export function ConfirmModal({
@@ -25,6 +27,7 @@ export function ConfirmModal({
   cancelLabel,
   variant = 'default',
   loading = false,
+  overlayClassName = 'nested-modal',
 }: ConfirmModalProps) {
   const { t } = useTranslation();
 
@@ -52,6 +55,7 @@ export function ConfirmModal({
       onClose={onClose}
       title={title}
       closeButtonDisabled={loading}
+      overlayClassName={overlayClassName}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>

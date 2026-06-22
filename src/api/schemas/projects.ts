@@ -42,9 +42,21 @@ export const projectLanguagesBodySchema = z
   })
   .refine(languagePairRefine, languagePairRefineMessage);
 
+const boolQuery = z.preprocess(
+  (val) => val === 'true' || val === '1' || val === true,
+  z.boolean().optional().default(false)
+);
+
 export const projectSearchQuerySchema = z.object({
   q: z.string().optional().default(''),
   field: z.enum(['original', 'translated', 'both']).optional().default('translated'),
+  caseSensitive: boolQuery,
+  wholeWord: boolQuery,
+  chapterIds: z.string().optional(),
+  chapterFrom: z.coerce.number().int().positive().optional(),
+  chapterTo: z.coerce.number().int().positive().optional(),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(200),
 });
 
 export const projectSettingsBodySchema = z

@@ -64,7 +64,8 @@ export const paragraphBulkUpdateBodySchema = z.object({
         translatedText: z.string(),
       })
     )
-    .min(1),
+    .min(1)
+    .max(100),
 });
 
 export const paragraphUpdateBodySchema = z.object({

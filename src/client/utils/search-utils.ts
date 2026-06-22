@@ -4,11 +4,16 @@
  */
 
 import type { Paragraph } from '../types';
+import { escapeRegex, createSnippetHtml } from '../../shared/projectSearch.js';
 
-/** Escape special regex characters for literal string match */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+export {
+  createSnippetHtml,
+  matchesWholeWord,
+  filterProjectMatches,
+  dedupeParagraphMatches,
+  paragraphMatchKey,
+  replaceInText,
+} from '../../shared/projectSearch.js';
 
 export interface SearchMatch {
   paragraphId: string;
@@ -31,20 +36,6 @@ function createSnippet(text: string, matchStart: number, matchEnd: number): stri
   if (before > 0) snippet = '…' + snippet;
   if (after < text.length) snippet = snippet + '…';
   return snippet;
-}
-
-/**
- * Wrap match in <mark> for highlight display
- */
-function createSnippetHtml(snippet: string, find: string, caseSensitive: boolean): string {
-  const flags = caseSensitive ? 'g' : 'gi';
-  const escaped = escapeRegex(find);
-  const re = new RegExp(`(${escaped})`, flags);
-  return snippet
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(re, '<mark>$1</mark>');
 }
 
 export type SearchField = 'original' | 'translated' | 'both';
@@ -102,22 +93,4 @@ export function searchInParagraphs(
   }
 
   return matches;
-}
-
-/**
- * Replace first or all occurrences in text. Literal match.
- */
-export function replaceInText(
-  text: string,
-  find: string,
-  replace: string,
-  replaceAll: boolean,
-  caseSensitive: boolean
-): string {
-  const trimmed = find.trim();
-  if (!trimmed) return text;
-
-  const flags = (replaceAll ? 'g' : '') + (caseSensitive ? '' : 'i');
-  const re = new RegExp(escapeRegex(trimmed), flags);
-  return text.replace(re, replace);
 }

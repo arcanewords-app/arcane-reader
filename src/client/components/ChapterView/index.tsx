@@ -46,6 +46,8 @@ interface ChapterViewProps {
   onSettingsChange?: (settings: ProjectSettings) => void;
   /** Pre-fill and auto-open search (e.g. from ?search= when navigating from ReportsModal). */
   initialSearchQuery?: string;
+  /** Scroll to paragraph on load (e.g. from project search ?paragraph=). */
+  initialParagraphId?: string;
   /** Reload project (including glossary) after translation/analysis completes. */
   onRefreshProject?: () => void | Promise<void>;
 }
@@ -74,6 +76,7 @@ export function ChapterView({
   onEnterReadingMode,
   onSettingsChange,
   initialSearchQuery = '',
+  initialParagraphId = '',
   onRefreshProject,
 }: ChapterViewProps) {
   const { t } = useTranslation();
@@ -109,12 +112,21 @@ export function ChapterView({
   const [searchHighlight, setSearchHighlight] = useState<SearchHighlight | null>(null);
   const scrollToParagraphRef = useRef<((id: string) => void) | null>(null);
 
-  // Auto-open search when navigating with ?search= (e.g. from ReportsModal)
+  // Auto-open search when navigating with ?search= (e.g. from ReportsModal or project search)
   useEffect(() => {
     if (initialSearchQuery.trim()) {
       setShowSearch(true);
     }
   }, [initialSearchQuery]);
+
+  // Scroll to paragraph when navigating with ?paragraph= (e.g. from project search)
+  useEffect(() => {
+    if (!initialParagraphId || !chapter?.paragraphs?.length) return;
+    const timer = setTimeout(() => {
+      scrollToParagraphRef.current?.(initialParagraphId);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [initialParagraphId, chapter?.id, chapter?.paragraphs?.length]);
 
   const isLoading = !chapter;
   const effectiveChapter: Chapter = chapter ?? {

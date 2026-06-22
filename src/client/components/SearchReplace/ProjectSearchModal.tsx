@@ -1,20 +1,20 @@
-import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
+import { useCallback, useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import type { ProjectSearchMatch } from '../../types';
-import { Modal, Button } from '../ui';
-import { api } from '../../api/client';
-import { replaceInText } from '../../utils/search-utils';
-import { ReplacePreviewModal, type ReplacePreviewItem } from './ReplacePreviewModal';
+import type { ChapterListItem, ProjectSearchMatch, TextBlockType } from '../../types';
+import { Modal, Button, ConfirmModal } from '../ui';
+import { createSnippetHtml, paragraphMatchKey } from '../../utils/search-utils';
+import { ReplacePreviewModal } from './ReplacePreviewModal';
+import { useProjectSearch } from './useProjectSearch';
 import './ProjectSearchModal.css';
-
-const DEBOUNCE_MS = 300;
 
 interface ProjectSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
   isOriginalReadingMode: boolean;
+  chapters: ChapterListItem[];
+  textBlockTypes?: TextBlockType[];
   onRefresh?: () => void | Promise<void>;
 }
 
@@ -23,281 +23,417 @@ export function ProjectSearchModal({
   onClose,
   projectId,
   isOriginalReadingMode,
+  chapters,
+  textBlockTypes = [],
   onRefresh,
 }: ProjectSearchModalProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const [replace, setReplace] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [matches, setMatches] = useState<ProjectSearchMatch[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [replacing, setReplacing] = useState(false);
-  const [replaceResult, setReplaceResult] = useState<{
-    succeeded: number;
-    failed: number;
-  } | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [previewAll, setPreviewAll] = useState(false);
 
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(query.trim()), DEBOUNCE_MS);
-    return () => clearTimeout(id);
-  }, [query]);
+  const search = useProjectSearch({
+    projectId,
+    isOpen,
+    isOriginalReadingMode,
+    chapters,
+    textBlockTypes,
+    onRefresh,
+  });
 
-  useEffect(() => {
-    if (!isOpen || !debouncedQuery) {
-      setMatches([]);
-      setError(null);
+  const requestClose = useCallback(() => {
+    if (search.replacing) return;
+    if (search.isDirty) {
+      setShowDiscardConfirm(true);
       return;
     }
-    setLoading(true);
-    setError(null);
-    const field = isOriginalReadingMode ? 'original' : 'translated';
-    api
-      .searchProject(projectId, debouncedQuery, field)
-      .then(({ matches: m }) => {
-        setMatches(m);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Search failed');
-        setMatches([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [isOpen, debouncedQuery, projectId, isOriginalReadingMode]);
+    onClose();
+  }, [search.replacing, search.isDirty, onClose]);
 
-  const handleRowClick = useCallback(
+  useEffect(() => {
+    if (!isOpen) setShowDiscardConfirm(false);
+  }, [isOpen]);
+
+  const handleConfirmDiscard = useCallback(() => {
+    setShowDiscardConfirm(false);
+    onClose();
+  }, [onClose]);
+
+  const handleOpenParagraph = useCallback(
     (m: ProjectSearchMatch) => {
-      onClose();
-      route(`/projects/${projectId}/chapters/${m.chapterId}`);
+      const params = new URLSearchParams();
+      if (search.debouncedQuery) params.set('search', search.debouncedQuery);
+      params.set('paragraph', m.paragraphId);
+      const qs = params.toString();
+      route(`/projects/${projectId}/chapters/${m.chapterId}${qs ? `?${qs}` : ''}`);
     },
-    [projectId, onClose]
+    [projectId, search.debouncedQuery]
   );
 
-  // Only translated matches can be replaced
-  const translatedMatches = useMemo(
-    () => matches.filter((m) => m.field === 'translated'),
-    [matches]
-  );
-
-  const previewItems = useMemo((): ReplacePreviewItem[] => {
-    if (!debouncedQuery || !replace.trim() || replace.trim() === debouncedQuery) return [];
-    const seen = new Set<string>();
-    const items: ReplacePreviewItem[] = [];
-    for (const m of translatedMatches) {
-      const key = `${m.chapterId}-${m.paragraphId}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const after = replaceInText(m.fullText, debouncedQuery, replace, true, false);
-      if (after !== m.fullText) {
-        items.push({
-          paragraphId: m.paragraphId,
-          paragraphIndex: m.paragraphIndex,
-          before: m.fullText.slice(0, 150) + (m.fullText.length > 150 ? '…' : ''),
-          after: after.slice(0, 150) + (after.length > 150 ? '…' : ''),
-        });
-      }
-    }
-    return items;
-  }, [translatedMatches, debouncedQuery, replace]);
-
-  const canReplaceAll =
-    !isOriginalReadingMode &&
-    !!debouncedQuery &&
-    replace.trim() !== debouncedQuery &&
-    translatedMatches.length > 0 &&
-    previewItems.length > 0;
+  const handleReplaceSelected = useCallback(() => {
+    if (!search.canReplace || search.previewItems.length === 0) return;
+    setPreviewAll(false);
+    search.setShowPreview(true);
+  }, [search]);
 
   const handleReplaceAll = useCallback(() => {
-    if (!canReplaceAll) return;
-    setShowPreview(true);
-    setReplaceResult(null);
-  }, [canReplaceAll]);
+    if (!search.canReplace || search.previewItemsAll.length === 0) return;
+    setPreviewAll(true);
+    search.setShowPreview(true);
+  }, [search]);
 
-  const handleConfirmReplaceAll = useCallback(async () => {
-    if (previewItems.length === 0) return;
-    setReplacing(true);
-    try {
-      const seen = new Set<string>();
-      const updates: Array<{ chapterId: string; paragraphId: string; translatedText: string }> = [];
-      for (const m of translatedMatches) {
-        const key = `${m.chapterId}-${m.paragraphId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const after = replaceInText(m.fullText, debouncedQuery, replace, true, false);
-        if (after !== m.fullText) {
-          updates.push({
-            chapterId: m.chapterId,
-            paragraphId: m.paragraphId,
-            translatedText: after,
-          });
-        }
-      }
-      const result = await api.bulkUpdateParagraphs(projectId, updates);
-      setReplaceResult({
-        succeeded: result.succeeded.length,
-        failed: result.failed.length,
-      });
-      if (result.succeeded.length > 0) {
-        setShowPreview(false);
-        onRefresh?.();
-      }
-      if (result.failed.length === 0) {
-        setReplace('');
-      }
-    } catch (err) {
-      setReplaceResult({
-        succeeded: 0,
-        failed: 1,
-      });
-    } finally {
-      setReplacing(false);
-    }
-  }, [previewItems, translatedMatches, debouncedQuery, replace, projectId, onRefresh]);
+  const previewItems = previewAll ? search.previewItemsAll : search.previewItems;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={t('searchReplace.findInProject', 'Find in project')}
-      size="large"
-      className="project-search-modal"
-    >
-      <div class="project-search-body">
-        <div class="project-search-input-row">
-          <div class="form-group" style={{ marginBottom: 0, flex: 1 }}>
-            <input
-              type="text"
-              class="form-input"
-              placeholder={t('searchReplace.findPlaceholder', 'Find')}
-              value={query}
-              onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-              aria-label={t('searchReplace.findPlaceholder', 'Find')}
-            />
-          </div>
-          {!isOriginalReadingMode && (
-            <>
-              <div class="form-group" style={{ marginBottom: 0, flex: 1 }}>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={requestClose}
+        title={t('searchReplace.findInProject', 'Find in project')}
+        size="large"
+        className="project-search-modal"
+        closeOnBackdropClick={false}
+        preventClose={search.replacing}
+        closeButtonDisabled={search.replacing}
+      >
+        <div class="project-search-body">
+          <div class="project-search-input-row">
+            <div class="form-group project-search-field" style={{ marginBottom: 0 }}>
+              <input
+                type="text"
+                class="form-input"
+                placeholder={t('searchReplace.findPlaceholder', 'Find')}
+                value={search.query}
+                onInput={(e) => search.setQuery((e.target as HTMLInputElement).value)}
+                aria-label={t('searchReplace.findPlaceholder', 'Find')}
+              />
+            </div>
+            {!search.isOriginalReadingMode && (
+              <div class="form-group project-search-field" style={{ marginBottom: 0 }}>
                 <input
                   type="text"
                   class="form-input"
                   placeholder={t('searchReplace.replacePlaceholder', 'Replace')}
-                  value={replace}
-                  onInput={(e) => setReplace((e.target as HTMLInputElement).value)}
+                  value={search.replace}
+                  onInput={(e) => search.setReplace((e.target as HTMLInputElement).value)}
                   aria-label={t('searchReplace.replacePlaceholder', 'Replace')}
                 />
               </div>
+            )}
+          </div>
+
+          <div class="project-search-options-row">
+            <label class="project-search-option">
+              <input
+                type="checkbox"
+                checked={search.caseSensitive}
+                onChange={(e) => search.setCaseSensitive((e.target as HTMLInputElement).checked)}
+              />
+              <span>{t('searchReplace.caseSensitive', 'Aa')}</span>
+            </label>
+            <label class="project-search-option">
+              <input
+                type="checkbox"
+                checked={search.wholeWord}
+                onChange={(e) => search.setWholeWord((e.target as HTMLInputElement).checked)}
+              />
+              <span>{t('searchReplace.wholeWord', 'Whole word')}</span>
+            </label>
+          </div>
+
+          <div class="project-search-filters-row">
+            <div class="form-group project-search-filter-field" style={{ marginBottom: 0 }}>
+              <label class="project-search-filter-label">
+                {t('searchReplace.chapterFrom', 'Chapter from')}
+              </label>
+              <input
+                type="number"
+                min="1"
+                class="form-input"
+                value={search.chapterFrom}
+                onInput={(e) => search.setChapterFrom((e.target as HTMLInputElement).value)}
+              />
+            </div>
+            <div class="form-group project-search-filter-field" style={{ marginBottom: 0 }}>
+              <label class="project-search-filter-label">
+                {t('searchReplace.chapterTo', 'Chapter to')}
+              </label>
+              <input
+                type="number"
+                min="1"
+                class="form-input"
+                value={search.chapterTo}
+                onInput={(e) => search.setChapterTo((e.target as HTMLInputElement).value)}
+              />
+            </div>
+            <div
+              class="form-group project-search-filter-field project-search-filter-grow"
+              style={{ marginBottom: 0 }}
+            >
+              <label class="project-search-filter-label">
+                {t('searchReplace.filterResults', 'Filter in results')}
+              </label>
+              <input
+                type="text"
+                class="form-input"
+                placeholder={t('searchReplace.filterResultsPlaceholder', 'Narrow results…')}
+                value={search.filterQuery}
+                onInput={(e) => search.setFilterQuery((e.target as HTMLInputElement).value)}
+              />
+            </div>
+            {search.textBlockTypes.length > 0 && (
+              <div class="form-group project-search-filter-field" style={{ marginBottom: 0 }}>
+                <label class="project-search-filter-label">
+                  {t('searchReplace.textBlockType', 'Text block')}
+                </label>
+                <select
+                  class="form-input"
+                  value={search.textBlockType}
+                  onChange={(e) => search.setTextBlockType((e.target as HTMLSelectElement).value)}
+                >
+                  <option value="">{t('searchReplace.textBlockAll', 'All')}</option>
+                  {search.textBlockTypes.map((tb) => (
+                    <option key={tb.id} value={tb.id}>
+                      {tb.name || tb.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {!search.isOriginalReadingMode && (
+            <div class="project-search-actions-row">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleReplaceSelected}
+                disabled={
+                  !search.canReplace ||
+                  search.replacing ||
+                  search.previewItems.length === 0 ||
+                  search.selectedVisibleCount === 0 ||
+                  search.isSearchPending ||
+                  search.loading
+                }
+              >
+                {t('searchReplace.replaceSelected', 'Replace selected')}
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={handleReplaceAll}
-                disabled={!canReplaceAll || replacing}
+                disabled={
+                  !search.canReplace ||
+                  search.replacing ||
+                  search.previewItemsAll.length === 0 ||
+                  search.isSearchPending ||
+                  search.loading
+                }
               >
                 {t('searchReplace.replaceAll', 'Replace all')}
               </Button>
-            </>
+            </div>
+          )}
+
+          {search.replaceResult && (
+            <div
+              class={
+                search.replaceResult.failed > 0
+                  ? 'project-search-result project-search-result-partial'
+                  : 'project-search-result project-search-result-ok'
+              }
+            >
+              {search.replaceResult.succeeded > 0 && (
+                <span>
+                  {t('searchReplace.updatedCount', {
+                    count: search.replaceResult.succeeded,
+                  })}
+                </span>
+              )}
+              {search.replaceResult.failed > 0 && (
+                <>
+                  <span>
+                    {t('searchReplace.failedCount', {
+                      count: search.replaceResult.failed,
+                    })}
+                  </span>
+                  {search.pendingRetryUpdates.length > 0 && (
+                    <Button variant="secondary" size="sm" onClick={() => void search.retryFailed()}>
+                      {t('searchReplace.retryFailed', 'Retry failed')}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {search.showLargeProjectHint && (
+            <p class="project-search-large-hint">
+              {t(
+                'searchReplace.largeProjectHint',
+                'Large project: narrow the chapter range for faster search.'
+              )}
+            </p>
+          )}
+
+          {search.initialLoading && <div class="project-search-loading">{t('common.loading')}</div>}
+
+          {search.error && (
+            <div class="project-search-error">
+              {search.error}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => search.runSearch(false, 0, true)}
+              >
+                {t('common.retry')}
+              </Button>
+            </div>
+          )}
+
+          {search.debouncedQuery && !search.initialLoading && (
+            <div
+              class={`project-search-results${search.refreshing ? ' project-search-results-refreshing' : ''}`}
+            >
+              {search.filteredMatches.length === 0 && !search.refreshing ? (
+                <div class="project-search-empty">{t('searchReplace.noMatches', 'No matches')}</div>
+              ) : (
+                <>
+                  <div class="project-search-results-header">
+                    <span>
+                      {search.refreshing
+                        ? t('searchReplace.searchPending', 'Searching…')
+                        : t('searchReplace.resultsSummary', {
+                            total: search.dedupedMatches.length,
+                            visible: search.filteredMatches.length,
+                            selected: search.selectedVisibleCount,
+                          })}
+                    </span>
+                    <div class="project-search-results-actions">
+                      <button
+                        type="button"
+                        class="project-search-link-btn"
+                        onClick={search.selectAllVisible}
+                      >
+                        {t('searchReplace.selectAll', 'Select all')}
+                      </button>
+                      <button
+                        type="button"
+                        class="project-search-link-btn"
+                        onClick={search.deselectAllVisible}
+                      >
+                        {t('searchReplace.deselectAll', 'Deselect all')}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="project-search-list">
+                    {search.filteredMatches.map((m) => {
+                      const key = paragraphMatchKey(m.chapterId, m.paragraphId);
+                      const excluded = search.excludedKeys.has(key);
+                      const selected = search.selectedKeys.has(key) && !excluded;
+                      return (
+                        <div
+                          key={key}
+                          class={`project-search-row${excluded ? ' project-search-row-excluded' : ''}`}
+                        >
+                          <span class="project-search-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              disabled={excluded || search.isOriginalReadingMode}
+                              onChange={() => search.toggleSelected(key)}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={t('searchReplace.selectParagraph', {
+                                index: m.paragraphIndex,
+                              })}
+                            />
+                          </span>
+                          <button
+                            type="button"
+                            class="project-search-row-main"
+                            onClick={() => handleOpenParagraph(m)}
+                            title={t('searchReplace.openParagraph', 'Open in chapter')}
+                          >
+                            <span class="project-search-chapter">
+                              Ch. {m.chapterNumber}: {m.chapterTitle}
+                            </span>
+                            <span class="project-search-para">#{m.paragraphIndex}</span>
+                            <span
+                              class="project-search-snippet"
+                              dangerouslySetInnerHTML={{
+                                __html: createSnippetHtml(
+                                  m.snippet,
+                                  search.debouncedQuery,
+                                  search.caseSensitive
+                                ),
+                              }}
+                            />
+                          </button>
+                          {!search.isOriginalReadingMode && (
+                            <button
+                              type="button"
+                              class="project-search-exclude-btn"
+                              onClick={() =>
+                                excluded ? search.includeKey(key) : search.excludeKey(key)
+                              }
+                              title={
+                                excluded
+                                  ? t('searchReplace.include', 'Include')
+                                  : t('searchReplace.exclude', 'Exclude')
+                              }
+                            >
+                              {excluded
+                                ? t('searchReplace.include', 'Include')
+                                : t('searchReplace.exclude', 'Exclude')}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {search.hasMore && (
+                    <div class="project-search-load-more">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={search.loadMore}
+                        loading={search.loadingMore}
+                        disabled={search.loadingMore}
+                      >
+                        {t('searchReplace.loadMore', 'Load more')}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
 
-        {replaceResult && (
-          <div
-            class={
-              replaceResult.failed > 0
-                ? 'project-search-result project-search-result-partial'
-                : 'project-search-result project-search-result-ok'
-            }
-          >
-            {replaceResult.succeeded > 0 && (
-              <span>
-                {t(
-                  'searchReplace.updatedCount',
-                  { count: replaceResult.succeeded },
-                  'Updated {{count}}'
-                )}
-              </span>
-            )}
-            {replaceResult.failed > 0 && (
-              <span>
-                {t(
-                  'searchReplace.failedCount',
-                  { count: replaceResult.failed },
-                  '{{count}} failed'
-                )}
-              </span>
-            )}
-          </div>
+        <ReplacePreviewModal
+          isOpen={search.showPreview}
+          onClose={() => !search.replacing && search.setShowPreview(false)}
+          items={previewItems}
+          onConfirm={() => void search.applyReplace(previewItems)}
+          isReplacing={search.replacing}
+          progress={search.replaceProgress}
+          preventClose={search.replacing}
+        />
+      </Modal>
+
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={handleConfirmDiscard}
+        title={t('searchReplace.confirmDiscardTitle', 'Discard search?')}
+        message={t(
+          'searchReplace.confirmDiscard',
+          'Close without saving? Your search and selection will be lost.'
         )}
-
-        {loading && <div class="project-search-loading">{t('common.loading')}</div>}
-
-        {error && (
-          <div class="project-search-error">
-            {error}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setError(null);
-                setLoading(true);
-                const field = isOriginalReadingMode ? 'original' : 'translated';
-                api
-                  .searchProject(projectId, debouncedQuery, field)
-                  .then(({ matches: m }) => setMatches(m))
-                  .catch((err) => setError(err instanceof Error ? err.message : 'Search failed'))
-                  .finally(() => setLoading(false));
-              }}
-            >
-              {t('common.retry')}
-            </Button>
-          </div>
-        )}
-
-        {!loading && !error && debouncedQuery && (
-          <div class="project-search-results">
-            {matches.length === 0 ? (
-              <div class="project-search-empty">{t('searchReplace.noMatches', 'No matches')}</div>
-            ) : (
-              <>
-                <div class="project-search-results-header">
-                  {t('searchReplace.resultsCount', { count: matches.length }, '{{count}} matches')}
-                </div>
-                <div class="project-search-list">
-                  {matches.map((m) => (
-                    <div
-                      key={`${m.chapterId}-${m.paragraphId}`}
-                      class="project-search-row"
-                      onClick={() => handleRowClick(m)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleRowClick(m);
-                        }
-                      }}
-                    >
-                      <span class="project-search-chapter">
-                        Ch. {m.chapterNumber}: {m.chapterTitle}
-                      </span>
-                      <span class="project-search-para">#{m.paragraphIndex}</span>
-                      <span class="project-search-snippet">{m.snippet}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      <ReplacePreviewModal
-        isOpen={showPreview}
-        onClose={() => !replacing && setShowPreview(false)}
-        items={previewItems}
-        onConfirm={handleConfirmReplaceAll}
-        isReplacing={replacing}
+        confirmLabel={t('searchReplace.discard', 'Discard')}
+        cancelLabel={t('common.cancel')}
+        variant="danger"
       />
-    </Modal>
+    </>
   );
 }

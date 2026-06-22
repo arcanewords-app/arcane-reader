@@ -50,7 +50,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
-| `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` - pre-fill and auto-open find-in-chapter (e.g. from ReportsModal) |
+| `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph (e.g. from project search) |
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate) |
 | `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode, first chapter (AuthorGate) |
 | `/p/:publicationId` | guest+ | PublicationPage | Public publication page |
@@ -182,7 +182,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/projects/:id/settings/reader` | Get project reader settings |
 | PUT | `/api/projects/:id/settings/reader` | Update project reader settings |
 | GET | `/api/projects/:id/chapters/summary` | Chapters summary |
-| GET | `/api/projects/:id/search` | Search paragraphs in project (query: `q`, `field=original|translated|both`) |
+| GET | `/api/projects/:id/search` | Search paragraphs in project (query: `q`, `field=original\|translated\|both`, `caseSensitive`, `wholeWord`, `chapterFrom`, `chapterTo`, `chapterIds`, `offset`, `limit`) |
 | POST | `/api/projects/:id/chapters` | Upload chapters (multipart: file) |
 | POST | `/api/projects/:id/chapters/import` | Start async import job for `.epub/.fb2/.csv` (multipart: file) |
 | GET | `/api/projects/:id/import-jobs/:jobId` | Get import job status/progress (polling, `compact` query supported) |

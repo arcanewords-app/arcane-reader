@@ -162,6 +162,10 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     typeof window !== 'undefined'
       ? (new URLSearchParams(window.location.search).get('search') ?? '')
       : '';
+  const paragraphFromUrl =
+    typeof window !== 'undefined'
+      ? (new URLSearchParams(window.location.search).get('paragraph') ?? '')
+      : '';
 
   if (!chapterListItem) {
     route(`/projects/${projectId}`);
@@ -245,6 +249,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           onEnterReadingMode={handleEnterReadingMode}
           onSettingsChange={handleSettingsChange}
           initialSearchQuery={searchFromUrl}
+          initialParagraphId={paragraphFromUrl}
           onRefreshProject={handleRefreshProject}
         />
       </section>
