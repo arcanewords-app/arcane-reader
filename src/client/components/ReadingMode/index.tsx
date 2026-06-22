@@ -288,7 +288,13 @@ export function ReadingMode({
       availableChapters = [...projectChapters].sort((a, b) => a.number - b.number);
     } else {
       availableChapters = projectChapters
-        .filter((ch) => ch.hasTranslation || ch.status === 'completed' || ch.status === 'draft')
+        .filter(
+          (ch) =>
+            ch.hasTranslation ||
+            ch.status === 'completed' ||
+            ch.status === 'draft' ||
+            ch.status === 'partial'
+        )
         .sort((a, b) => a.number - b.number);
     }
 

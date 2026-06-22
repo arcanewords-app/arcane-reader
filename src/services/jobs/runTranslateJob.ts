@@ -11,7 +11,7 @@ import {
 } from '../supabaseDatabase.js';
 import { releaseTokens } from '../../middleware/tokenLimits.js';
 import { invalidateProjectAndRelatedCaches } from '../cacheInvalidation.js';
-import { createTranslateJobStoreFromEnv } from '../translateJobStore.js';
+import { createTranslateJobStoreFromEnv, type TranslateJobChapter } from '../translateJobStore.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
 import { logger } from '../../logger.js';
 import { createTraceId } from '../../debug/context.js';
@@ -182,12 +182,15 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
         const updatedChapter = await getChapter(projectId, chapter.id, token, {
           useServiceRole: true,
         });
+        const chapterDbStatus = updatedChapter?.status;
         const hasBodyTranslation =
           updatedChapter &&
-          (updatedChapter.status === 'completed' || updatedChapter.status === 'draft') &&
+          (chapterDbStatus === 'completed' ||
+            chapterDbStatus === 'draft' ||
+            chapterDbStatus === 'partial') &&
           (!!updatedChapter.translatedText?.trim() ||
             updatedChapter.paragraphs?.some((p) => p.translatedText?.trim()));
-        if (hasBodyTranslation) {
+        if (hasBodyTranslation && chapterDbStatus === 'completed') {
           succeededChapterIds.add(chapter.id);
         }
 
@@ -197,13 +200,20 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
         const duration = meta?.duration ?? Date.now() - chapterStartTime;
         totalTokensAccum += tokensUsed;
 
+        const jobChapterStatus: TranslateJobChapter['status'] =
+          chapterDbStatus === 'partial'
+            ? 'partial'
+            : chapterDbStatus === 'error'
+              ? 'error'
+              : 'completed';
+
         const jobNow = await translateJobStore.getJob(jobId);
         if (!jobNow) continue;
         const updatedChapters = jobNow.chapters.map((c) =>
           c.chapterId === chapter.id
             ? {
                 ...c,
-                status: 'completed' as const,
+                status: jobChapterStatus,
                 tokensUsed,
                 tokensByStage,
                 duration,

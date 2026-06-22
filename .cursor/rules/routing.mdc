@@ -40,11 +40,13 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/news` | guest+ | NewsPage | News feed list |
 | `/news/:slugOrId` | guest+ | NewsDetailPage | Single news post |
 | `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar |
+| `/translation-requests` | user+ | TranslationRequestsPage | Suggest titles for catalog; list user's requests (UserGate) |
 | `/projects` | author+ | ProjectsPage | Projects grid (AuthorGate) |
 | `/admin/entities` | admin+ | AdminEntitiesRedirect | Redirect to `/admin/entities/tag` |
 | `/admin/entities/:kind` | admin+ | AdminEntitiesPage | Global entities by kind: `tag`, `author`, `translator` (AdminGate) |
 | `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
 | `/admin/publications` | admin+ | AdminPublicationsPage | Catalog publication moderation (AdminGate) |
+| `/admin/translation-requests` | admin+ | AdminTranslationRequestsPage | User translation request moderation (AdminGate) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
@@ -63,7 +65,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 
 ### Protected routes
 
-When guest visits `/profile`, `/projects`, `/projects/*`, `/admin/entities`, or `/admin/*`, redirect to `/?login=required` and open AuthModal.
+When guest visits `/profile`, `/translation-requests`, `/projects`, `/projects/*`, `/admin/entities`, or `/admin/*`, redirect to `/?login=required` and open AuthModal.
 
 ---
 
@@ -158,6 +160,8 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/user/token-usage` | user+ | Token usage (query: date) |
 | GET | `/api/user/token-usage/history` | user+ | Token usage history (query: days) |
 | GET | `/api/user/reading-history` | user+ | Reading history (publications) |
+| GET | `/api/user/translation-requests` | user+ | User's catalog translation requests |
+| POST | `/api/catalog/translation-requests` | user+ | Create catalog translation request |
 | GET | `/api/user/profile` | user+ | Profile (id, email, role, avatarUrl) |
 | PUT | `/api/user/profile` | user+ | Update profile (body: avatarUrl) |
 | POST | `/api/user/profile/avatar` | user+ | Upload avatar (multipart: avatar) |
@@ -232,7 +236,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | PATCH | `/api/admin/entities/:id` | Update global public entity (name, description, photo) |
 | DELETE | `/api/admin/entities/:id` | Delete global public entity (409 if used by publications) |
 | GET | `/api/admin/entities/:id/usage` | Get entity usage count (publications referencing it) |
-| GET/POST | `/api/admin/news` | List all news posts / create draft |
+| GET/POST | `/api/admin/news` | List all news posts (query: `status`, `search`, `limit`, `offset`) / create draft |
 | GET/PATCH/DELETE | `/api/admin/news/:id` | News CRUD |
 | POST | `/api/admin/news/:id/publish` | Publish draft |
 | POST | `/api/admin/news/:id/translate` | Stub 501 (future AI translation) |
@@ -241,6 +245,9 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | POST | `/api/admin/announcements/from-news/:newsId` | Create alert prefilled from news |
 | GET | `/api/admin/publications` | List all publications (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |
 | POST | `/api/admin/publications/:id/unpublish` | Force unpublish publication |
+| GET | `/api/admin/translation-requests` | List translation requests (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |
+| PATCH | `/api/admin/translation-requests/:id` | Update request (`status`, `adminNotes`, `linkedPublicationId`) |
+| DELETE | `/api/admin/translation-requests/:id` | Delete request (only `rejected` or `fulfilled`; 409 otherwise) |
 | GET | `/api/admin/users` | List users with profiles (query: `search`, `limit`, `offset`) |
 | PATCH | `/api/admin/users/:id/role` | Update user role (body: `{ role }`) |
 
@@ -336,7 +343,7 @@ Implemented in [src/server.ts](src/server.ts). Audits: `.cursor/skills/seo/SKILL
 
 | Path | Notes |
 |------|--------|
-| `/robots.txt`, `/api/robots` | Allow `/`; disallow `/profile`, `/projects`, `/admin`; `Sitemap:` absolute URL |
+| `/robots.txt`, `/api/robots` | Allow `/`; disallow `/profile`, `/translation-requests`, `/projects`, `/admin`; `Sitemap:` absolute URL |
 | `/sitemap.xml`, `/api/sitemap` | Also [api/sitemap.ts](api/sitemap.ts) on Vercel |
 
 ### Sitemap contents and limits
@@ -362,7 +369,7 @@ In [vercel.json](vercel.json), `/`, `/catalog`, `/about`, `/contact`, `/privacy`
 
 ### Auth areas
 
-`/projects/*`, `/profile`, `/admin/*` are disallowed in robots and not in sitemap (author workspace, not public SEO targets).
+`/projects/*`, `/profile`, `/translation-requests`, `/admin/*` are disallowed in robots and not in sitemap (author workspace, not public SEO targets).
 
 ---
 

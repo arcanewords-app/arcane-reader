@@ -48,7 +48,7 @@ export const chapterNumberBodySchema = z.object({
 });
 
 export const chapterStatusBodySchema = z.object({
-  status: z.enum(['pending', 'translating', 'analyzed', 'draft', 'completed', 'error']),
+  status: z.enum(['pending', 'translating', 'analyzed', 'draft', 'partial', 'completed', 'error']),
 });
 
 export const chaptersOrderBodySchema = z.object({

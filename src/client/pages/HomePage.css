@@ -34,6 +34,19 @@
   margin-bottom: 2rem;
 }
 
+.home-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.home-suggest-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .home-title {
   font-size: clamp(1.75rem, 4vw, 2rem);
   font-weight: 700;

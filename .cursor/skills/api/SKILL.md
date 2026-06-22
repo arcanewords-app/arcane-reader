@@ -11,6 +11,7 @@ description: Express API patterns for Arcane Reader — Zod, auth, 503, routing 
 - Middleware: auth, logging, service health
 - Zod schemas in `src/api/schemas/`
 - Updating the canonical route map
+- Security-sensitive routes (ownership, roles, admin) — also read `@.cursor/skills/security/SKILL.md`
 
 ## Domain Knowledge
 
@@ -50,6 +51,7 @@ try {
 - Forgetting `routing.mdc` when adding/removing paths
 - Business logic bloating route handlers (move to services)
 - Logging tokens, API keys, or full PII bodies
+- Missing ownership checks on user-supplied object ids (BOLA) — see `@.cursor/skills/security/SKILL.md`
 
 ## Planned extensions
 

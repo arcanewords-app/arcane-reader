@@ -148,6 +148,7 @@ export type ChapterStatus =
   | 'translating'
   | 'analyzed'
   | 'draft' // Translation saved, editing not applied
+  | 'partial' // Translation started but not all content paragraphs filled
   | 'completed'
   | 'error';
 
@@ -225,6 +226,7 @@ export interface ChapterSummary {
   translatedTitle?: string;
   status: ChapterStatus;
   hasTranslation: boolean;
+  isFullyTranslated: boolean;
   hasOriginalText: boolean;
   paragraphCount: number;
   translatedParagraphCount: number;
@@ -514,7 +516,7 @@ export interface AnalysisJobState {
 }
 
 export type TranslateJobStatus = 'queued' | 'processing' | 'completed' | 'error' | 'canceled';
-export type TranslateChapterStatus = 'pending' | 'processing' | 'completed' | 'error';
+export type TranslateChapterStatus = 'pending' | 'processing' | 'completed' | 'partial' | 'error';
 
 export interface TranslateJobChapter {
   chapterId: string;
@@ -731,6 +733,33 @@ export interface AdminUserListItem {
   role: UserRole;
   avatarUrl: string | null;
   createdAt: string | null;
+}
+
+export type CatalogTranslationRequestStatus =
+  | 'pending'
+  | 'reviewed'
+  | 'accepted'
+  | 'rejected'
+  | 'fulfilled';
+
+export interface CatalogTranslationRequest {
+  id: string;
+  userId: string;
+  title: string;
+  authorName: string | null;
+  sourceLanguage: string | null;
+  targetLanguage: string;
+  comment: string | null;
+  sourceUrl: string | null;
+  status: CatalogTranslationRequestStatus;
+  adminNotes: string | null;
+  linkedPublicationId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCatalogTranslationRequest extends CatalogTranslationRequest {
+  userEmail: string;
 }
 
 export interface PublicationWithChapters extends Publication {

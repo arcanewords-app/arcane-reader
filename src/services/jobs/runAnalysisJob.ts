@@ -134,7 +134,9 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
                   useServiceRole: true,
                 });
                 const preserveStatus =
-                  existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
+                  existingChapter?.status === 'completed' ||
+                  existingChapter?.status === 'draft' ||
+                  existingChapter?.status === 'partial';
                 const preservedSource = existingChapter?.translationMeta?.source;
                 await updateChapter(
                   projectId,

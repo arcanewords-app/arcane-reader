@@ -53,38 +53,46 @@ export function ServiceHealthProvider({ children }: { children: preact.Component
 
   const startPollingRef = useRef<() => void>(() => {});
 
-  const checkHealth = useCallback(async () => {
-    try {
-      const data = await fetchHealth();
-      if (data.status === 'healthy') {
-        healthyCountRef.current += 1;
-        if (healthyCountRef.current >= 2) {
-          healthyCountRef.current = 0;
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
+  const markRecovered = useCallback(() => {
+    healthyCountRef.current = 0;
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setState({ status: 'recovered' });
+    setTimeout(() => setState(null), RECOVERED_DISPLAY_MS);
+  }, []);
+
+  const checkHealth = useCallback(
+    async (opts?: { immediateRecovery?: boolean }) => {
+      try {
+        const data = await fetchHealth();
+        if (data.status === 'healthy') {
+          healthyCountRef.current += 1;
+          const shouldRecover = opts?.immediateRecovery || healthyCountRef.current >= 2;
+          if (shouldRecover) {
+            markRecovered();
           }
-          setState({ status: 'recovered' });
-          setTimeout(() => setState(null), RECOVERED_DISPLAY_MS);
+        } else {
+          healthyCountRef.current = 0;
+          const firstService = data.services ? Object.values(data.services)[0] : undefined;
+          const message =
+            firstService?.error ||
+            (data.status === 'down' ? 'Service unavailable' : 'Service degraded');
+          setState({
+            status: data.status === 'down' ? 'down' : 'degraded',
+            message,
+          });
+          startPollingRef.current();
         }
-      } else {
+      } catch {
         healthyCountRef.current = 0;
-        const firstService = data.services ? Object.values(data.services)[0] : undefined;
-        const message =
-          firstService?.error ||
-          (data.status === 'down' ? 'Service unavailable' : 'Service degraded');
-        setState({
-          status: data.status === 'down' ? 'down' : 'degraded',
-          message,
-        });
+        setState({ status: 'down', message: 'Service unavailable' });
         startPollingRef.current();
       }
-    } catch {
-      healthyCountRef.current = 0;
-      setState({ status: 'down', message: 'Service unavailable' });
-      startPollingRef.current();
-    }
-  }, []);
+    },
+    [markRecovered]
+  );
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
@@ -103,7 +111,7 @@ export function ServiceHealthProvider({ children }: { children: preact.Component
   }, []);
 
   const retry = useCallback(async () => {
-    await checkHealth();
+    await checkHealth({ immediateRecovery: true });
   }, [checkHealth]);
 
   useEffect(() => {

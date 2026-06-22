@@ -12,7 +12,7 @@ import type { ChapterTranslationOptions } from './useChapterTranslation';
 export interface BatchChapterProgressItem {
   chapterId: string;
   title: string;
-  status: 'pending' | 'translating' | 'completed' | 'error' | 'skipped';
+  status: 'pending' | 'translating' | 'completed' | 'partial' | 'error' | 'skipped';
   reason?: string;
   tokensUsed?: number;
   tokensByStage?: {
@@ -50,7 +50,7 @@ async function pollChapterUntilDone(
   chapterId: string,
   isCancelled: () => boolean,
   _t: (key: string) => string
-): Promise<{ success: boolean; cancelled?: boolean; error?: string }> {
+): Promise<{ success: boolean; cancelled?: boolean; partial?: boolean; error?: string }> {
   let delayMs = INITIAL_POLL_MS;
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     if (isCancelled()) {
@@ -60,6 +60,9 @@ async function pollChapterUntilDone(
       const { status } = await api.getChapterStatus(projectId, chapterId);
       if (status === 'completed' || status === 'analyzed' || status === 'draft') {
         return { success: true };
+      }
+      if (status === 'partial') {
+        return { success: true, partial: true };
       }
       if (status === 'error') {
         return { success: false, error: _t('projectInfo.errorTranslation') };
@@ -386,12 +389,15 @@ export function useBatchChapterTranslation(
                     const currentGlossaryCount = updatedProject.glossary.length;
                     const prevGlossaryCount = initialGlossaryCountRef.current;
                     const glossaryEntries = Math.max(0, currentGlossaryCount - prevGlossaryCount);
+                    const isPartial =
+                      result.partial === true || updatedChapter.status === 'partial';
 
                     setProgress((prev) =>
                       prev
                         ? {
                             ...prev,
-                            completed: prev.completed + 1,
+                            completed: isPartial ? prev.completed : prev.completed + 1,
+                            errors: isPartial ? prev.errors + 1 : prev.errors,
                             totalTokens: prev.totalTokens + tokensUsed,
                             totalDuration: prev.totalDuration + chapterDuration,
                             totalGlossaryEntries: currentGlossaryCount - batchStartGlossary,
@@ -399,7 +405,9 @@ export function useBatchChapterTranslation(
                               c.chapterId === chapter.id
                                 ? {
                                     ...c,
-                                    status: 'completed' as const,
+                                    status: isPartial
+                                      ? ('partial' as const)
+                                      : ('completed' as const),
                                     tokensUsed,
                                     tokensByStage,
                                     duration: chapterDuration,

@@ -114,7 +114,12 @@ export function TranslationPanel({
     [project.sourceLanguage, project.targetLanguage, project.id]
   );
   const hasTranslatedContent = useMemo(() => {
-    if (chapter.status === 'completed' || chapter.status === 'draft') return true;
+    if (
+      chapter.status === 'completed' ||
+      chapter.status === 'draft' ||
+      chapter.status === 'partial'
+    )
+      return true;
     return (
       chapter.paragraphs?.some((p) => {
         const text = p.translatedText?.trim() || '';

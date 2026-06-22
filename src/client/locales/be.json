@@ -173,6 +173,8 @@
     "filterCompletedShort": "Перакл.",
     "filterDraft": "Чарнавікі",
     "filterDraftShort": "Чарн.",
+    "filterPartial": "Непоўныя",
+    "filterPartialShort": "Непоўн.",
     "filterAnalyzed": "Толькі аналіз",
     "filterAnalyzedShort": "Аналіз",
     "filterError": "Памылкі",
@@ -687,6 +689,9 @@
     "noChaptersInProject": "У праекце пакуль няма раздзелаў",
     "chapterStatusError": "Памылка перакладу",
     "chapterStatusTranslated": "Перакладзены",
+    "chapterStatusPartial": "Непоўны пераклад",
+    "chapterParagraphProgress": "{{translated}}/{{total}}",
+    "presetPartial": "Непоўныя ({{count}})",
     "chapterStatusDraft": "Чарнавік (без рэдагавання)",
     "chapterStatusAnalyzed": "Толькі аналіз",
     "chapterStatusEmpty": "Без перакладу",
@@ -915,7 +920,49 @@
     "filterCompleteOnly": "Поўныя",
     "filterCompleteOnlyAria": "Паказаць толькі поўныя творы",
     "noCompleteWorks": "Няма поўных твораў",
-    "noCompleteWorksHint": "Зніміце фільтр або выберыце іншую мову"
+    "noCompleteWorksHint": "Зніміце фільтр або выберыце іншую мову",
+    "suggestTranslation": "Прапанаваць пераклад"
+  },
+  "translationRequests": {
+    "title": "Прапанаваць пераклад",
+    "subtitleEmpty": "Раскажыце, які пераклад хочаце бачыць у каталогу",
+    "subtitleCount": "{{count}} заявак",
+    "newButton": "Прапанаваць твор",
+    "loading": "Загрузка заявак...",
+    "loadFailed": "Не ўдалося загрузіць заявкі",
+    "created": "Заяўка адпраўлена. Дзякуй!",
+    "searchPlaceholder": "Пошук па вашых заявках...",
+    "emptyList": "Заявак пакуль няма",
+    "emptyHint": "Націсніце кнопку вышэй, каб прапанаваць твор для каталогу.",
+    "emptySearch": "Нічога не знойдзена",
+    "authorLabel": "Аўтар",
+    "targetOnly": "Пераклад на {{target}}",
+    "modalTitle": "Прапанаваць твор для каталогу",
+    "submit": "Адправіць",
+    "status": {
+      "pending": "На разглядзе",
+      "reviewed": "Прагледжана",
+      "accepted": "Прынята",
+      "rejected": "Адхілена",
+      "fulfilled": "У каталогу"
+    },
+    "form": {
+      "title": "Назва",
+      "titlePlaceholder": "Напрыклад: Уладар пярсцёнкаў",
+      "author": "Аўтар арыгінала",
+      "authorPlaceholder": "Неабавязкова",
+      "comment": "Каментар",
+      "commentPlaceholder": "Чаму вам цікавы гэты пераклад?",
+      "sourceUrl": "Спасылка на арыгінал",
+      "sourceUrlPlaceholder": "Неабавязковая спасылка",
+      "hint": "Мы разглядаем заявкі і можам дадаць адпаведныя пераклады ў каталог."
+    },
+    "errors": {
+      "titleRequired": "Укажыце назву (мінімум 2 сімвалы).",
+      "commentTooShort": "Каментар — мінімум 5 сімвалаў.",
+      "createFailed": "Не ўдалося адправіць заявку.",
+      "pendingLimit": "У вас ужо 5 заявак на разглядзе. Дачакайцеся адказу."
+    }
   },
   "nav": {
     "catalog": "Каталог",
@@ -941,6 +988,7 @@
       "entities": "Каталог",
       "news": "Навіны",
       "publications": "Публікацыі",
+      "translationRequests": "Заяўкі",
       "users": "Карыстальнікі"
     },
     "deniedTitle": "Патрабуецца доступ адміністратара",
@@ -1033,6 +1081,29 @@
         "unpublished": "Знята"
       }
     },
+    "translationRequests": {
+      "subtitle": "Прапановы карыстальнікаў пра творы для каталогу.",
+      "searchPlaceholder": "Пошук па назве або аўтары",
+      "statusFilter": "Статус",
+      "empty": "Заявак не знойдзена.",
+      "loadFailed": "Не ўдалося загрузіць заявкі.",
+      "saved": "Заяўка абноўлена.",
+      "saveFailed": "Не ўдалося абнавіць заявку.",
+      "notFound": "Заяўка не знойдзена.",
+      "userEmail": "Карыстальнік",
+      "statusLabel": "Статус",
+      "adminNotes": "Заўвагі адміна",
+      "linkedPublication": "ID публікацыі",
+      "linkedPublicationPlaceholder": "UUID пры выкананні",
+      "reject": "Адхіліць",
+      "rejected": "Заяўка адхілена.",
+      "delete": "Выдаліць",
+      "deleteTitle": "Выдаліць заявку",
+      "deleteMessage": "Безвяротна выдаліць заявку «{{title}}»?",
+      "deleted": "Заяўка выдалена.",
+      "deleteFailed": "Не ўдалося выдаліць заявку.",
+      "deleteForbidden": "Выдаляць можна толькі адхіленыя або выкананыя заявкі."
+    },
     "users": {
       "subtitle": "Уліковыя запісы і змена роляў.",
       "listTitle": "Карыстальнікі",
@@ -1061,6 +1132,8 @@
       "subtitle": "Навінная стужка і кароткія банер-апавяшчэнні для карыстальнікаў.",
       "createTitle": "Новая запіс",
       "listTitle": "Навінная стужка",
+      "statusFilter": "Статус",
+      "searchPlaceholder": "Пошук па загалоўку або апісанні",
       "alertsTitle": "Актыўныя апавяшчэнні",
       "empty": "Запісаў пакуль няма.",
       "alertsEmpty": "Апавяшчэнняў пакуль няма.",

@@ -173,6 +173,8 @@
     "filterCompletedShort": "Trans.",
     "filterDraft": "Drafts",
     "filterDraftShort": "Drafts",
+    "filterPartial": "Incomplete",
+    "filterPartialShort": "Partial",
     "filterAnalyzed": "Analysis only",
     "filterAnalyzedShort": "Analysis",
     "filterError": "Errors",
@@ -689,6 +691,9 @@
     "noChaptersInProject": "No chapters in project yet",
     "chapterStatusError": "Translation error",
     "chapterStatusTranslated": "Translated",
+    "chapterStatusPartial": "Incomplete translation",
+    "chapterParagraphProgress": "{{translated}}/{{total}}",
+    "presetPartial": "Incomplete ({{count}})",
     "chapterStatusDraft": "Draft (no editing)",
     "chapterStatusAnalyzed": "Analysis only",
     "chapterStatusEmpty": "No translation",
@@ -916,7 +921,49 @@
     "filterCompleteOnly": "Complete",
     "filterCompleteOnlyAria": "Show complete works only",
     "noCompleteWorks": "No complete works",
-    "noCompleteWorksHint": "Clear the filter or choose another language"
+    "noCompleteWorksHint": "Clear the filter or choose another language",
+    "suggestTranslation": "Suggest a title"
+  },
+  "translationRequests": {
+    "title": "Suggest a translation",
+    "subtitleEmpty": "Tell us which translation you would like to see in the catalog",
+    "subtitleCount": "{{count}} requests",
+    "newButton": "Suggest a title",
+    "loading": "Loading your requests...",
+    "loadFailed": "Failed to load your requests",
+    "created": "Request submitted. Thank you!",
+    "searchPlaceholder": "Search your requests...",
+    "emptyList": "No requests yet",
+    "emptyHint": "Use the button above to suggest a title for the catalog.",
+    "emptySearch": "No matching requests",
+    "authorLabel": "Author",
+    "targetOnly": "Translation into {{target}}",
+    "modalTitle": "Suggest a title for the catalog",
+    "submit": "Submit",
+    "status": {
+      "pending": "Pending",
+      "reviewed": "Reviewed",
+      "accepted": "Accepted",
+      "rejected": "Declined",
+      "fulfilled": "In catalog"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "e.g. The Lord of the Rings",
+      "author": "Original author",
+      "authorPlaceholder": "Optional",
+      "comment": "Comment",
+      "commentPlaceholder": "Why would you like to read this translation?",
+      "sourceUrl": "Link to original",
+      "sourceUrlPlaceholder": "Optional URL",
+      "hint": "We review suggestions and may add matching translations to the catalog."
+    },
+    "errors": {
+      "titleRequired": "Enter a title (at least 2 characters).",
+      "commentTooShort": "Comment must be at least 5 characters.",
+      "createFailed": "Failed to submit request.",
+      "pendingLimit": "You already have 5 requests awaiting review. Please wait for a response."
+    }
   },
   "nav": {
     "catalog": "Catalog",
@@ -942,6 +989,7 @@
       "entities": "Catalog",
       "news": "News",
       "publications": "Publications",
+      "translationRequests": "Requests",
       "users": "Users"
     },
     "deniedTitle": "Admin access required",
@@ -1034,6 +1082,29 @@
         "unpublished": "Unpublished"
       }
     },
+    "translationRequests": {
+      "subtitle": "User suggestions for titles to add to the catalog.",
+      "searchPlaceholder": "Search by title or author",
+      "statusFilter": "Status",
+      "empty": "No translation requests found.",
+      "loadFailed": "Failed to load translation requests.",
+      "saved": "Request updated.",
+      "saveFailed": "Failed to update request.",
+      "notFound": "Request not found.",
+      "userEmail": "User",
+      "statusLabel": "Status",
+      "adminNotes": "Admin notes",
+      "linkedPublication": "Linked publication ID",
+      "linkedPublicationPlaceholder": "UUID when fulfilled",
+      "reject": "Decline",
+      "rejected": "Request declined.",
+      "delete": "Delete",
+      "deleteTitle": "Delete request",
+      "deleteMessage": "Permanently delete the request for \"{{title}}\"?",
+      "deleted": "Request deleted.",
+      "deleteFailed": "Failed to delete request.",
+      "deleteForbidden": "Only declined or fulfilled requests can be deleted."
+    },
     "users": {
       "subtitle": "View accounts and change roles.",
       "listTitle": "Users",
@@ -1062,6 +1133,8 @@
       "subtitle": "News feed and short banner announcements for users.",
       "createTitle": "New post",
       "listTitle": "News feed",
+      "statusFilter": "Status",
+      "searchPlaceholder": "Search by title or summary",
       "alertsTitle": "Active announcements",
       "empty": "No posts yet.",
       "alertsEmpty": "No announcements yet.",

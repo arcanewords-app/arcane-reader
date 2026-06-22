@@ -51,9 +51,6 @@ export function ConfirmModal({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      variant="error"
-      overlayClassName="error-modal-overlay"
-      className="error-modal"
       closeButtonDisabled={loading}
       footer={
         <>

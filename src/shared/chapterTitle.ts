@@ -64,7 +64,7 @@ export function chapterHasBodyTranslation(ch: {
   hasTranslation?: boolean;
 }): boolean {
   if (ch.hasTranslation === true) return true;
-  if (ch.status === 'completed' || ch.status === 'draft') return true;
+  if (ch.status === 'completed' || ch.status === 'draft' || ch.status === 'partial') return true;
   const text = ch.translatedText?.trim();
   return !!text && !text.startsWith('❌');
 }

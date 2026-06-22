@@ -173,6 +173,8 @@
     "filterCompletedShort": "Перез.",
     "filterDraft": "Черновики",
     "filterDraftShort": "Черн.",
+    "filterPartial": "Неполные",
+    "filterPartialShort": "Неполн.",
     "filterAnalyzed": "Только анализ",
     "filterAnalyzedShort": "Анализ",
     "filterError": "Ошибки",
@@ -687,6 +689,9 @@
     "noChaptersInProject": "В проекте пока нет глав",
     "chapterStatusError": "Ошибка перевода",
     "chapterStatusTranslated": "Переведена",
+    "chapterStatusPartial": "Неполный перевод",
+    "chapterParagraphProgress": "{{translated}}/{{total}}",
+    "presetPartial": "Неполные ({{count}})",
     "chapterStatusDraft": "Черновик (без редактуры)",
     "chapterStatusAnalyzed": "Только анализ",
     "chapterStatusEmpty": "Без перевода",
@@ -915,7 +920,49 @@
     "filterCompleteOnly": "Полные",
     "filterCompleteOnlyAria": "Показать только полные произведения",
     "noCompleteWorks": "Нет полных произведений",
-    "noCompleteWorksHint": "Снимите фильтр или выберите другой язык"
+    "noCompleteWorksHint": "Снимите фильтр или выберите другой язык",
+    "suggestTranslation": "Предложить перевод"
+  },
+  "translationRequests": {
+    "title": "Предложить перевод",
+    "subtitleEmpty": "Расскажите, какой перевод хотите видеть в каталоге",
+    "subtitleCount": "{{count}} заявок",
+    "newButton": "Предложить произведение",
+    "loading": "Загрузка заявок...",
+    "loadFailed": "Не удалось загрузить заявки",
+    "created": "Заявка отправлена. Спасибо!",
+    "searchPlaceholder": "Поиск по вашим заявкам...",
+    "emptyList": "Заявок пока нет",
+    "emptyHint": "Нажмите кнопку выше, чтобы предложить произведение для каталога.",
+    "emptySearch": "Ничего не найдено",
+    "authorLabel": "Автор",
+    "targetOnly": "Перевод на {{target}}",
+    "modalTitle": "Предложить произведение для каталога",
+    "submit": "Отправить",
+    "status": {
+      "pending": "На рассмотрении",
+      "reviewed": "Просмотрено",
+      "accepted": "Принято",
+      "rejected": "Отклонено",
+      "fulfilled": "В каталоге"
+    },
+    "form": {
+      "title": "Название",
+      "titlePlaceholder": "Например: Властелин колец",
+      "author": "Автор оригинала",
+      "authorPlaceholder": "Необязательно",
+      "comment": "Комментарий",
+      "commentPlaceholder": "Почему вам интересен этот перевод?",
+      "sourceUrl": "Ссылка на оригинал",
+      "sourceUrlPlaceholder": "Необязательная ссылка",
+      "hint": "Мы просматриваем заявки и можем добавить подходящие переводы в каталог."
+    },
+    "errors": {
+      "titleRequired": "Укажите название (минимум 2 символа).",
+      "commentTooShort": "Комментарий — минимум 5 символов.",
+      "createFailed": "Не удалось отправить заявку.",
+      "pendingLimit": "У вас уже 5 заявок на рассмотрении. Дождитесь ответа."
+    }
   },
   "nav": {
     "catalog": "Каталог",
@@ -941,6 +988,7 @@
       "entities": "Каталог",
       "news": "Новости",
       "publications": "Публикации",
+      "translationRequests": "Заявки",
       "users": "Пользователи"
     },
     "deniedTitle": "Требуется доступ администратора",
@@ -1033,6 +1081,29 @@
         "unpublished": "Снято"
       }
     },
+    "translationRequests": {
+      "subtitle": "Предложения пользователей о произведениях для каталога.",
+      "searchPlaceholder": "Поиск по названию или автору",
+      "statusFilter": "Статус",
+      "empty": "Заявок не найдено.",
+      "loadFailed": "Не удалось загрузить заявки.",
+      "saved": "Заявка обновлена.",
+      "saveFailed": "Не удалось обновить заявку.",
+      "notFound": "Заявка не найдена.",
+      "userEmail": "Пользователь",
+      "statusLabel": "Статус",
+      "adminNotes": "Заметки админа",
+      "linkedPublication": "ID публикации",
+      "linkedPublicationPlaceholder": "UUID при выполнении",
+      "reject": "Отклонить",
+      "rejected": "Заявка отклонена.",
+      "delete": "Удалить",
+      "deleteTitle": "Удалить заявку",
+      "deleteMessage": "Безвозвратно удалить заявку «{{title}}»?",
+      "deleted": "Заявка удалена.",
+      "deleteFailed": "Не удалось удалить заявку.",
+      "deleteForbidden": "Удалять можно только отклонённые или выполненные заявки."
+    },
     "users": {
       "subtitle": "Аккаунты и смена ролей.",
       "listTitle": "Пользователи",
@@ -1061,6 +1132,8 @@
       "subtitle": "Новостная лента и короткие баннер-оповещения для пользователей.",
       "createTitle": "Новая запись",
       "listTitle": "Новостная лента",
+      "statusFilter": "Статус",
+      "searchPlaceholder": "Поиск по заголовку или описанию",
       "alertsTitle": "Активные оповещения",
       "empty": "Записей пока нет.",
       "alertsEmpty": "Оповещений пока нет.",

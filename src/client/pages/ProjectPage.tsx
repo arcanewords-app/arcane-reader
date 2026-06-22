@@ -98,7 +98,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
     // Navigate to reading mode for the first translated chapter (completed or draft), or first chapter
     const sortedChapters = [...project.chapters].sort((a, b) => a.number - b.number);
     const firstCompleted = sortedChapters.find(
-      (c) => c.status === 'completed' || c.status === 'draft'
+      (c) => c.status === 'completed' || c.status === 'draft' || c.status === 'partial'
     );
     const firstChapter = sortedChapters[0];
     const chapterId = (firstCompleted || firstChapter)?.id;

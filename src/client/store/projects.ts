@@ -71,9 +71,7 @@ export async function getProject(
           name: project.name,
           type: project.type,
           chapterCount: project.chapters.length,
-          translatedCount: project.chapters.filter(
-            (c) => c.status === 'completed' || c.status === 'draft'
-          ).length,
+          translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
           glossaryCount: project.glossary.length,
           originalReadingMode: project.settings?.originalReadingMode ?? false,
           updatedAt: project.updatedAt,
@@ -107,9 +105,7 @@ export function updateProjectCache(project: ProjectWithChapterList | Project): v
         name: project.name,
         type: project.type,
         chapterCount: project.chapters.length,
-        translatedCount: project.chapters.filter(
-          (c) => c.status === 'completed' || c.status === 'draft'
-        ).length,
+        translatedCount: project.chapters.filter((c) => c.status === 'completed').length,
         glossaryCount: project.glossary.length,
         originalReadingMode: project.settings?.originalReadingMode ?? false,
         updatedAt: project.updatedAt,

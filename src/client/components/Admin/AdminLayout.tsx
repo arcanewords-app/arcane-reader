@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import './AdminLayout.css';
 
-export type AdminTab = 'entities' | 'news' | 'publications' | 'users';
+export type AdminTab = 'entities' | 'news' | 'publications' | 'users' | 'translationRequests';
 
 interface AdminLayoutProps {
   activeTab: AdminTab;
@@ -16,6 +16,11 @@ export function AdminLayout({ activeTab, children }: AdminLayoutProps) {
     { id: 'entities', path: '/admin/entities/tag', label: t('admin.tabs.entities') },
     { id: 'news', path: '/admin/news', label: t('admin.tabs.news') },
     { id: 'publications', path: '/admin/publications', label: t('admin.tabs.publications') },
+    {
+      id: 'translationRequests',
+      path: '/admin/translation-requests',
+      label: t('admin.tabs.translationRequests'),
+    },
     { id: 'users', path: '/admin/users', label: t('admin.tabs.users') },
   ];
 

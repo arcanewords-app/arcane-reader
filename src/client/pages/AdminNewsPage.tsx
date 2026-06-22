@@ -7,6 +7,7 @@ import type {
   AnnouncementVariant,
   NewsCategory,
   NewsPost,
+  NewsStatus,
 } from '../types';
 import { AdminLayout, AdminSection, AdminFlash } from '../components/Admin';
 import '../components/Admin/admin-shared.css';
@@ -14,6 +15,7 @@ import { Button, Input, Select, Modal, ConfirmModal } from '../components/ui';
 import './AdminNewsPage.css';
 
 const categoryOptions: NewsCategory[] = ['feature', 'discount', 'update', 'other'];
+const statusOptions: Array<NewsStatus | ''> = ['', 'draft', 'published', 'archived'];
 const variantOptions: AnnouncementVariant[] = ['info', 'promo', 'neutral'];
 const minRoleOptions: AnnouncementMinRole[] = [
   'guest',
@@ -59,6 +61,10 @@ export function AdminNewsPage() {
 
   const [bumpingAlert, setBumpingAlert] = useState<AnnouncementAlert | null>(null);
 
+  const [statusFilter, setStatusFilter] = useState<NewsStatus | ''>('');
+  const [search, setSearch] = useState('');
+  const [searchDebounced, setSearchDebounced] = useState('');
+
   const categorySelectOptions = useMemo(
     () => categoryOptions.map((c) => ({ value: c, label: t(`news.category.${c}`) })),
     [t]
@@ -74,11 +80,24 @@ export function AdminNewsPage() {
     [t]
   );
 
+  const statusSelectOptions = useMemo(
+    () =>
+      statusOptions.map((s) => ({
+        value: s,
+        label: s ? t(`admin.news.status.${s}`) : t('admin.filter.all'),
+      })),
+    [t]
+  );
+
   const reload = useCallback(async () => {
     setListLoading(true);
     try {
       const [newsList, alertList] = await Promise.all([
-        api.getAdminNewsPosts(),
+        api.getAdminNewsPosts({
+          status: statusFilter || undefined,
+          search: searchDebounced || undefined,
+          limit: 100,
+        }),
         api.getAdminAnnouncements(),
       ]);
       setPosts(newsList);
@@ -89,11 +108,16 @@ export function AdminNewsPage() {
     } finally {
       setListLoading(false);
     }
-  }, []);
+  }, [statusFilter, searchDebounced]);
 
   useEffect(() => {
     reload();
   }, [reload]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchDebounced(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const clearForm = () => {
     setTitle('');
@@ -308,6 +332,23 @@ export function AdminNewsPage() {
         </AdminSection>
 
         <AdminSection title={t('admin.news.listTitle')}>
+          <div class="admin-list-filters">
+            <Select
+              label={t('admin.news.statusFilter')}
+              options={statusSelectOptions}
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter((e.target as HTMLSelectElement).value as NewsStatus | '')
+              }
+            />
+            <Input
+              placeholder={t('admin.news.searchPlaceholder')}
+              value={search}
+              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+              aria-label={t('admin.news.searchPlaceholder')}
+            />
+          </div>
+
           {listLoading ? (
             <p class="admin-empty">{t('common.loading')}</p>
           ) : posts.length === 0 ? (

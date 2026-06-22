@@ -18,6 +18,13 @@ export const newsListQuerySchema = z.object({
   category: z.enum(newsCategories).optional(),
 });
 
+export const adminNewsListQuerySchema = z.object({
+  status: z.enum(newsStatuses).optional(),
+  search: z.string().trim().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
 export const newsCreateSchema = z.object({
   title: z.string().trim().min(1).max(200),
   summary: z.string().trim().min(1).max(300),
@@ -95,6 +102,7 @@ export const announcementDismissSchema = z.object({
 });
 
 export type NewsListQuery = z.infer<typeof newsListQuerySchema>;
+export type AdminNewsListQuery = z.infer<typeof adminNewsListQuerySchema>;
 export type NewsCreateBody = z.infer<typeof newsCreateSchema>;
 export type NewsUpdateBody = z.infer<typeof newsUpdateSchema>;
 export type AnnouncementCreateBody = z.infer<typeof announcementCreateSchema>;

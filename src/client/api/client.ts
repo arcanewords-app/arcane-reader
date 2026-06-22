@@ -41,6 +41,9 @@ import type {
   PublicationWithChapters,
   AdminPublicationListItem,
   AdminUserListItem,
+  CatalogTranslationRequest,
+  AdminCatalogTranslationRequest,
+  CatalogTranslationRequestStatus,
   PublicEntity,
   PublicEntityKind,
   TranslationStatus,
@@ -354,7 +357,14 @@ async function fetchJson<T>(url: string, options?: RequestInit, isRetry = false)
     throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data);
   }
 
-  return response.json();
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const text = await response.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
 }
 
 /** Progress callback for upload: loaded and total bytes */
@@ -1631,8 +1641,19 @@ export const api = {
     });
   },
 
-  async getAdminNewsPosts(): Promise<NewsPost[]> {
-    return fetchJson<NewsPost[]>('/api/admin/news');
+  async getAdminNewsPosts(params?: {
+    status?: NewsStatus;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<NewsPost[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return fetchJson<NewsPost[]>(`/api/admin/news${qs ? `?${qs}` : ''}`);
   },
 
   async createNewsPost(data: {
@@ -1787,6 +1808,61 @@ export const api = {
     return fetchJson<AdminUserListItem>(`/api/admin/users/${id}/role`, {
       method: 'PATCH',
       body: JSON.stringify({ role }),
+    });
+  },
+
+  async getAdminTranslationRequests(params?: {
+    status?: CatalogTranslationRequestStatus;
+    search?: string;
+    targetLanguage?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AdminCatalogTranslationRequest[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    if (params?.targetLanguage) query.set('targetLanguage', params.targetLanguage);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return fetchJson<AdminCatalogTranslationRequest[]>(
+      `/api/admin/translation-requests${qs ? `?${qs}` : ''}`
+    );
+  },
+
+  async updateAdminTranslationRequest(
+    id: string,
+    data: {
+      status?: CatalogTranslationRequestStatus;
+      adminNotes?: string | null;
+      linkedPublicationId?: string | null;
+    }
+  ): Promise<AdminCatalogTranslationRequest> {
+    return fetchJson<AdminCatalogTranslationRequest>(`/api/admin/translation-requests/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAdminTranslationRequest(id: string): Promise<void> {
+    await fetchJson(`/api/admin/translation-requests/${id}`, { method: 'DELETE' });
+  },
+
+  async getUserTranslationRequests(): Promise<CatalogTranslationRequest[]> {
+    return fetchJson<CatalogTranslationRequest[]>('/api/user/translation-requests');
+  },
+
+  async createCatalogTranslationRequest(data: {
+    title: string;
+    authorName?: string;
+    sourceLanguage?: string;
+    targetLanguage: string;
+    comment?: string;
+    sourceUrl?: string;
+  }): Promise<CatalogTranslationRequest> {
+    return fetchJson<CatalogTranslationRequest>('/api/catalog/translation-requests', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 

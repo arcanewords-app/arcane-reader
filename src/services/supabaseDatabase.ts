@@ -8,6 +8,7 @@
 import { supabase, createClientWithToken } from './supabaseClient.js';
 import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../shared/cacheContract.js';
 import { isChunkError } from '../shared/chunkErrors.js';
+import { getTranslationCoverage } from '../shared/chapterTranslationCoverage.js';
 import {
   isTranslationStatus,
   translationStatusFromMetadata,
@@ -684,17 +685,26 @@ export async function getChaptersSummary(
       const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
       const paragraphCount = Number(ch.paragraph_count ?? 0);
       const translatedParagraphCount = Number(ch.translated_paragraph_count ?? 0);
+      const status = ch.status as ChapterStatus;
       const hasTranslation =
-        ch.status === 'completed' ||
-        (ch.status === 'draft' && translatedParagraphCount > 0) ||
-        (translatedParagraphCount > 0 && ch.status !== 'error');
+        status === 'completed' ||
+        status === 'draft' ||
+        status === 'partial' ||
+        (translatedParagraphCount > 0 && status !== 'error');
+      const isFullyTranslated =
+        paragraphCount > 0 &&
+        translatedParagraphCount >= paragraphCount &&
+        status !== 'partial' &&
+        status !== 'error' &&
+        (status === 'completed' || translatedParagraphCount >= paragraphCount);
       results.push({
         id: ch.id,
         number: ch.number,
         title: ch.title,
         translatedTitle: ch.translated_title?.trim() || undefined,
-        status: ch.status as ChapterStatus,
+        status,
         hasTranslation,
+        isFullyTranslated,
         hasOriginalText: paragraphCount > 0,
         paragraphCount,
         translatedParagraphCount,
@@ -1246,7 +1256,8 @@ async function loadChaptersForProjectLightweight(
 
     for (const ch of chapters) {
       const meta = ch.translation_meta as Chapter['translationMeta'] | undefined;
-      const hasTranslation = ch.status === 'completed' || ch.status === 'draft';
+      const hasTranslation =
+        ch.status === 'completed' || ch.status === 'draft' || ch.status === 'partial';
       allChapters.push({
         id: ch.id,
         number: ch.number,
@@ -2176,7 +2187,35 @@ export async function getChapter(
     }
   }
 
-  return transformChapterFromDB(chapter, paragraphs);
+  // Lazy backfill: completed status but incomplete paragraph coverage → partial
+  let chapterRow = chapter;
+  const coverage = getTranslationCoverage(paragraphs);
+  if (chapterData.status === 'completed' && !coverage.isComplete && coverage.translatedCount > 0) {
+    logger.info(
+      {
+        event: 'chapter.status.backfill_partial',
+        chapterId,
+        contentTotal: coverage.contentTotal,
+        translatedCount: coverage.translatedCount,
+      },
+      'Lazy backfill: downgrading completed chapter to partial'
+    );
+    const { error: statusError } = await client
+      .from('chapters')
+      .update({ status: 'partial' })
+      .eq('id', chapterId)
+      .eq('project_id', projectId);
+    if (!statusError) {
+      chapterRow = { ...chapter, status: 'partial' };
+    } else {
+      logger.warn(
+        { chapterId, error: statusError.message },
+        'Lazy backfill: failed to update chapter status to partial'
+      );
+    }
+  }
+
+  return transformChapterFromDB(chapterRow, paragraphs);
 }
 
 /**
@@ -4656,6 +4695,8 @@ export async function getPublishedNewsPostByIdOrSlug(idOrSlug: string): Promise<
 }
 
 export async function listNewsPostsAdmin(options?: {
+  status?: NewsStatus;
+  search?: string;
   limit?: number;
   offset?: number;
 }): Promise<NewsPost[]> {
@@ -4665,9 +4706,17 @@ export async function listNewsPostsAdmin(options?: {
   const { createServiceRoleClient } = await import('./supabaseClient.js');
   const client = createServiceRoleClient();
 
-  const { data, error } = await client
-    .from('news_posts')
-    .select('*')
+  let query = client.from('news_posts').select('*');
+
+  if (options?.status) {
+    query = query.eq('status', options.status);
+  }
+  if (options?.search) {
+    const term = options.search.trim();
+    query = query.or(`title.ilike.%${term}%,summary.ilike.%${term}%`);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -5285,4 +5334,335 @@ export async function updateUserRoleAdmin(
     avatarUrl: profile.avatar_url ?? null,
     createdAt: profile.created_at ?? authUser.user?.created_at ?? null,
   };
+}
+
+// === Catalog translation requests ===
+
+/**
+ * Ensure profiles row exists for an auth user (handles legacy/manual auth users without trigger).
+ */
+export async function ensureProfileForAuthUser(userId: string): Promise<void> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: existing, error: fetchError } = await client
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw new Error(`Failed to check profile: ${fetchError.message}`);
+  }
+  if (existing) return;
+
+  const { data: authData, error: authError } = await client.auth.admin.getUserById(userId);
+  if (authError || !authData.user) {
+    throw new Error('User not found');
+  }
+
+  const { error: insertError } = await client.from('profiles').insert({
+    id: userId,
+    email: authData.user.email ?? '',
+    role: 'user',
+  });
+
+  if (insertError && insertError.code !== '23505') {
+    throw new Error(`Failed to create profile: ${insertError.message}`);
+  }
+}
+
+export type CatalogTranslationRequestStatus =
+  | 'pending'
+  | 'reviewed'
+  | 'accepted'
+  | 'rejected'
+  | 'fulfilled';
+
+const MAX_PENDING_CATALOG_REQUESTS_PER_USER = 5;
+
+export interface CatalogTranslationRequestRow {
+  id: string;
+  user_id: string;
+  title: string;
+  author_name: string | null;
+  source_language: string | null;
+  target_language: string;
+  comment: string | null;
+  source_url: string | null;
+  status: CatalogTranslationRequestStatus;
+  admin_notes: string | null;
+  linked_publication_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CatalogTranslationRequest {
+  id: string;
+  userId: string;
+  title: string;
+  authorName: string | null;
+  sourceLanguage: string | null;
+  targetLanguage: string;
+  comment: string | null;
+  sourceUrl: string | null;
+  status: CatalogTranslationRequestStatus;
+  adminNotes: string | null;
+  linkedPublicationId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCatalogTranslationRequest extends CatalogTranslationRequest {
+  userEmail: string;
+}
+
+function transformCatalogTranslationRequestFromDB(
+  row: CatalogTranslationRequestRow
+): CatalogTranslationRequest {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    authorName: row.author_name,
+    sourceLanguage: row.source_language,
+    targetLanguage: row.target_language,
+    comment: row.comment,
+    sourceUrl: row.source_url,
+    status: row.status,
+    adminNotes: row.admin_notes,
+    linkedPublicationId: row.linked_publication_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function countPendingCatalogTranslationRequests(
+  userId: string,
+  token: string
+): Promise<number> {
+  const client = createClientWithToken(token);
+
+  const { count, error } = await client
+    .from('catalog_translation_requests')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'pending');
+
+  if (error) {
+    throw new Error(`Failed to count catalog translation requests: ${error.message}`);
+  }
+  return count ?? 0;
+}
+
+export async function createCatalogTranslationRequest(
+  userId: string,
+  token: string,
+  data: {
+    title: string;
+    authorName?: string;
+    sourceLanguage?: string;
+    targetLanguage: string;
+    comment?: string;
+    sourceUrl?: string;
+  }
+): Promise<CatalogTranslationRequest> {
+  await ensureProfileForAuthUser(userId);
+
+  const pendingCount = await countPendingCatalogTranslationRequests(userId, token);
+  if (pendingCount >= MAX_PENDING_CATALOG_REQUESTS_PER_USER) {
+    const err = new Error('Too many pending translation requests');
+    (err as Error & { code?: string }).code = 'PENDING_LIMIT';
+    throw err;
+  }
+
+  const client = createClientWithToken(token);
+
+  const { data: inserted, error } = await client
+    .from('catalog_translation_requests')
+    .insert({
+      user_id: userId,
+      title: data.title,
+      author_name: data.authorName ?? null,
+      source_language: data.sourceLanguage ?? null,
+      target_language: data.targetLanguage,
+      comment: data.comment ?? null,
+      source_url: data.sourceUrl ?? null,
+      status: 'pending',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create catalog translation request: ${error.message}`);
+  }
+
+  return transformCatalogTranslationRequestFromDB(inserted as CatalogTranslationRequestRow);
+}
+
+export async function listCatalogTranslationRequestsByUser(
+  userId: string,
+  token: string
+): Promise<CatalogTranslationRequest[]> {
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('catalog_translation_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    throw new Error(`Failed to list catalog translation requests: ${error.message}`);
+  }
+
+  return (data || []).map((row) =>
+    transformCatalogTranslationRequestFromDB(row as CatalogTranslationRequestRow)
+  );
+}
+
+export async function listCatalogTranslationRequestsAdmin(options?: {
+  status?: CatalogTranslationRequestStatus;
+  search?: string;
+  targetLanguage?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AdminCatalogTranslationRequest[]> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
+  let query = client.from('catalog_translation_requests').select('*');
+
+  if (options?.status) {
+    query = query.eq('status', options.status);
+  }
+  if (options?.targetLanguage) {
+    query = query.eq('target_language', options.targetLanguage);
+  }
+  if (options?.search) {
+    const term = options.search.trim();
+    query = query.or(`title.ilike.%${term}%,author_name.ilike.%${term}%`);
+  }
+
+  const { data, error } = await query
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    throw new Error(`Failed to list admin catalog translation requests: ${error.message}`);
+  }
+
+  const rows = (data || []) as CatalogTranslationRequestRow[];
+  if (rows.length === 0) return [];
+
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const emailByUserId = new Map<string, string>();
+
+  await Promise.all(
+    userIds.map(async (id) => {
+      const { data: authUser, error: authError } = await client.auth.admin.getUserById(id);
+      if (!authError && authUser.user) {
+        emailByUserId.set(id, authUser.user.email ?? '');
+      }
+    })
+  );
+
+  return rows.map((row) => ({
+    ...transformCatalogTranslationRequestFromDB(row),
+    userEmail: emailByUserId.get(row.user_id) ?? '',
+  }));
+}
+
+export async function updateCatalogTranslationRequestAdmin(
+  requestId: string,
+  data: {
+    status?: CatalogTranslationRequestStatus;
+    adminNotes?: string | null;
+    linkedPublicationId?: string | null;
+  }
+): Promise<AdminCatalogTranslationRequest | null> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const patch: Record<string, unknown> = {};
+  if (data.status !== undefined) patch.status = data.status;
+  if (data.adminNotes !== undefined) patch.admin_notes = data.adminNotes;
+  if (data.linkedPublicationId !== undefined) {
+    patch.linked_publication_id = data.linkedPublicationId;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    const { data: existing, error: fetchError } = await client
+      .from('catalog_translation_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+    if (fetchError || !existing) return null;
+    const row = existing as CatalogTranslationRequestRow;
+    const { data: authUser } = await client.auth.admin.getUserById(row.user_id);
+    return {
+      ...transformCatalogTranslationRequestFromDB(row),
+      userEmail: authUser.user?.email ?? '',
+    };
+  }
+
+  const { data: updated, error } = await client
+    .from('catalog_translation_requests')
+    .update(patch)
+    .eq('id', requestId)
+    .select('*')
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw new Error(`Failed to update catalog translation request: ${error.message}`);
+  }
+
+  const row = updated as CatalogTranslationRequestRow;
+  const { data: authUser } = await client.auth.admin.getUserById(row.user_id);
+  return {
+    ...transformCatalogTranslationRequestFromDB(row),
+    userEmail: authUser.user?.email ?? '',
+  };
+}
+
+const DELETABLE_CATALOG_REQUEST_STATUSES: CatalogTranslationRequestStatus[] = [
+  'rejected',
+  'fulfilled',
+];
+
+export async function deleteCatalogTranslationRequestAdmin(requestId: string): Promise<boolean> {
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: existing, error: fetchError } = await client
+    .from('catalog_translation_requests')
+    .select('id, status')
+    .eq('id', requestId)
+    .single();
+
+  if (fetchError || !existing) {
+    return false;
+  }
+
+  const status = existing.status as CatalogTranslationRequestStatus;
+  if (!DELETABLE_CATALOG_REQUEST_STATUSES.includes(status)) {
+    const err = new Error('Translation request cannot be deleted in current status');
+    (err as Error & { code?: string }).code = 'DELETE_FORBIDDEN';
+    throw err;
+  }
+
+  const { error: deleteError } = await client
+    .from('catalog_translation_requests')
+    .delete()
+    .eq('id', requestId);
+
+  if (deleteError) {
+    throw new Error(`Failed to delete catalog translation request: ${deleteError.message}`);
+  }
+
+  return true;
 }

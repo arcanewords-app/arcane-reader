@@ -7,7 +7,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import type { PublicationListItem, Publication, PublicEntity } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
 import { CatalogFilterToolbar } from '../components/Home/CatalogFilterToolbar';
-import { LoadingSpinner, Input, Icon } from '../components/ui';
+import { LoadingSpinner, Input, Icon, Button } from '../components/ui';
 import './HomePage.css';
 
 type CatalogFilter = 'all' | 'mine';
@@ -380,8 +380,19 @@ export function HomePage() {
         </div>
       )}
       <div class="home-header">
-        <h1 class="home-title">{t('home.title')}</h1>
-        <p class="home-subtitle">{t('home.subtitle')}</p>
+        <div class="home-header-top">
+          <div>
+            <h1 class="home-title">{t('home.title')}</h1>
+            <p class="home-subtitle">{t('home.subtitle')}</p>
+          </div>
+          <Button
+            variant="secondary"
+            className="home-suggest-btn"
+            onClick={() => route('/translation-requests')}
+          >
+            <Icon name="add" size="sm" /> {t('home.suggestTranslation')}
+          </Button>
+        </div>
         {showMyWorksTab && (
           <div class="home-tabs" role="tablist">
             <button

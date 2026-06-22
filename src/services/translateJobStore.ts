@@ -1,7 +1,7 @@
 import { Redis } from '@upstash/redis';
 
 export type TranslateJobStatus = 'queued' | 'processing' | 'completed' | 'error' | 'canceled';
-export type TranslateChapterStatus = 'pending' | 'processing' | 'completed' | 'error';
+export type TranslateChapterStatus = 'pending' | 'processing' | 'completed' | 'partial' | 'error';
 
 export interface TranslateJobChapter {
   chapterId: string;

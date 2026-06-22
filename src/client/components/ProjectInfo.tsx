@@ -262,7 +262,12 @@ export function ProjectInfo({
         }
   ): boolean => {
     if ('hasTranslation' in chapter && chapter.hasTranslation) return true;
-    if (chapter.status === 'completed' || chapter.status === 'draft') return true;
+    if (
+      chapter.status === 'completed' ||
+      chapter.status === 'draft' ||
+      chapter.status === 'partial'
+    )
+      return true;
     const ch = chapter as Chapter;
     const translatedText = ch.translatedText?.trim() || '';
     if (translatedText.length === 0) return false;
@@ -277,6 +282,7 @@ export function ProjectInfo({
   const stats = {
     chapters: project.chapters.length,
     translated: project.chapters.filter((c) => c.status === 'completed').length,
+    partial: project.chapters.filter((c) => c.status === 'partial').length,
     pending: project.chapters.filter((c) => c.status === 'pending').length,
     analyzed: project.chapters.filter((c) => c.status === 'analyzed').length,
     error: project.chapters.filter((c) => c.status === 'error').length,

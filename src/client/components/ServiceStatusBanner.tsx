@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useServiceHealth } from '../contexts/ServiceHealthContext';
 import { Button } from './ui';
@@ -6,6 +7,7 @@ import './ServiceStatusBanner.css';
 export function ServiceStatusBanner() {
   const { t } = useTranslation();
   const { state, retry } = useServiceHealth();
+  const [retrying, setRetrying] = useState(false);
 
   if (!state) return null;
 
@@ -32,7 +34,15 @@ export function ServiceStatusBanner() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => retry()}
+            loading={retrying}
+            onClick={async () => {
+              setRetrying(true);
+              try {
+                await retry();
+              } finally {
+                setRetrying(false);
+              }
+            }}
             className="service-status-banner__retry"
           >
             {t('serviceHealth.retry')}

@@ -34,7 +34,15 @@ const BATCH_STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translation', 'e
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
-type StatusFilter = 'all' | 'empty' | 'error' | 'completed' | 'draft' | 'analyzed' | 'not_analyzed';
+type StatusFilter =
+  | 'all'
+  | 'empty'
+  | 'error'
+  | 'completed'
+  | 'partial'
+  | 'draft'
+  | 'analyzed'
+  | 'not_analyzed';
 
 interface ProcessChaptersProps {
   project: Project | ProjectWithChapterList;
@@ -61,9 +69,11 @@ function presetButtonStyle(filter: StatusFilter): Record<string, string> {
   const color =
     filter === 'error'
       ? 'var(--error)'
-      : filter === 'draft' || filter === 'analyzed' || filter === 'not_analyzed'
-        ? 'var(--accent)'
-        : 'var(--text-dim)';
+      : filter === 'partial'
+        ? 'var(--warning)'
+        : filter === 'draft' || filter === 'analyzed' || filter === 'not_analyzed'
+          ? 'var(--accent)'
+          : 'var(--text-dim)';
   return { ...base, color };
 }
 
@@ -82,7 +92,9 @@ function filterChaptersByStatus<
   return list.filter((c) => {
     const s = c as ChapterSummary;
     const hasTranslation =
-      'hasTranslation' in s ? s.hasTranslation : s.status === 'completed' || s.status === 'draft';
+      'hasTranslation' in s
+        ? s.hasTranslation
+        : s.status === 'completed' || s.status === 'draft' || s.status === 'partial';
     switch (statusFilter) {
       case 'empty':
         return !hasTranslation;
@@ -90,6 +102,8 @@ function filterChaptersByStatus<
         return s.status === 'error';
       case 'completed':
         return s.status === 'completed';
+      case 'partial':
+        return s.status === 'partial';
       case 'draft':
         return s.status === 'draft';
       case 'analyzed':
@@ -187,7 +201,11 @@ export function ProcessChapters({
             ...c,
             hasTranslation:
               (c as { status: string }).status === 'completed' ||
-              (c as { status: string }).status === 'draft',
+              (c as { status: string }).status === 'draft' ||
+              (c as { status: string }).status === 'partial',
+            isFullyTranslated: (c as { status: string }).status === 'completed',
+            paragraphCount: 0,
+            translatedParagraphCount: 0,
           };
     const notAnalyzedCount = chapters.filter(
       (c) =>
@@ -198,6 +216,7 @@ export function ProcessChapters({
     return {
       chapters: chapters.length,
       translated: chapters.filter((c) => (c as ChapterSummary).status === 'completed').length,
+      partial: chapters.filter((c) => (c as ChapterSummary).status === 'partial').length,
       draft: chapters.filter((c) => (c as ChapterSummary).status === 'draft').length,
       analyzed: chapters.filter((c) => (c as ChapterSummary).status === 'analyzed').length,
       error: chapters.filter((c) => (c as ChapterSummary).status === 'error').length,
@@ -380,7 +399,9 @@ export function ProcessChapters({
     const hasTranslatedAmongSelected = selectedChaptersForTranslate.some((c) => {
       const s = c as ChapterSummary;
       const hasTranslation =
-        'hasTranslation' in s ? s.hasTranslation : s.status === 'completed' || s.status === 'draft';
+        'hasTranslation' in s
+          ? s.hasTranslation
+          : s.status === 'completed' || s.status === 'draft' || s.status === 'partial';
       return hasTranslation;
     });
     return getLanguageOverrideWarnings({
@@ -659,6 +680,23 @@ export function ProcessChapters({
                 )}
               </button>
             )}
+            {stats.partial > 0 && (
+              <button
+                type="button"
+                class={statusFilter === 'partial' ? 'process-chapters-preset-active' : ''}
+                onClick={() => {
+                  const chapters = (summary ?? project.chapters).filter(
+                    (c) => (c as ChapterSummary).status === 'partial'
+                  );
+                  setStatusFilter('partial');
+                  setTranslateSelectionIds(chapters.map((c) => c.id));
+                  setCurrentPage(1);
+                }}
+                style={presetButtonStyle('partial')}
+              >
+                {t('projectInfo.presetPartial', { count: stats.partial }, 'Неполные ({{count}})')}
+              </button>
+            )}
             {stats.draft > 0 && (
               <button
                 type="button"
@@ -839,8 +877,18 @@ export function ProcessChapters({
               const isEmpty = !(chapter as ChapterSummary).hasTranslation;
               const isError = chapter.status === 'error';
               const isCompleted = chapter.status === 'completed';
+              const isPartial = chapter.status === 'partial';
               const isDraft = chapter.status === 'draft';
               const isAnalyzed = chapter.status === 'analyzed';
+              const summaryChapter = chapter as ChapterSummary;
+              const paragraphProgress =
+                summaryChapter.paragraphCount > 0 &&
+                summaryChapter.translatedParagraphCount < summaryChapter.paragraphCount
+                  ? t('projectInfo.chapterParagraphProgress', {
+                      translated: summaryChapter.translatedParagraphCount,
+                      total: summaryChapter.paragraphCount,
+                    })
+                  : null;
               return (
                 <label
                   key={chapter.id}
@@ -887,7 +935,7 @@ export function ProcessChapters({
                   >
                     {chapterDisplayTitle(chapter as ChapterSummary)}
                   </span>
-                  {(isEmpty || isError || isCompleted || isDraft || isAnalyzed) && (
+                  {(isEmpty || isError || isCompleted || isPartial || isDraft || isAnalyzed) && (
                     <span
                       style={{
                         fontSize: '0.7rem',
@@ -897,17 +945,21 @@ export function ProcessChapters({
                           ? 'var(--error)'
                           : isCompleted
                             ? 'var(--success)'
-                            : isDraft
-                              ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
-                              : isAnalyzed
+                            : isPartial
+                              ? 'var(--warning-muted, rgba(245, 158, 11, 0.25))'
+                              : isDraft
                                 ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
-                                : 'var(--text-dim)',
+                                : isAnalyzed
+                                  ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
+                                  : 'var(--text-dim)',
                         color:
                           isError || isCompleted
                             ? 'white'
-                            : isDraft || isAnalyzed
-                              ? 'var(--accent)'
-                              : 'var(--bg-secondary)',
+                            : isPartial
+                              ? 'var(--warning)'
+                              : isDraft || isAnalyzed
+                                ? 'var(--accent)'
+                                : 'var(--bg-secondary)',
                         flexShrink: 0,
                       }}
                       title={
@@ -915,17 +967,23 @@ export function ProcessChapters({
                           ? t('projectInfo.chapterStatusError')
                           : isCompleted
                             ? t('projectInfo.chapterStatusTranslated')
-                            : isDraft
-                              ? t('projectInfo.chapterStatusDraft')
-                              : isAnalyzed
-                                ? t('projectInfo.chapterStatusAnalyzed', 'Только анализ')
-                                : t('projectInfo.chapterStatusEmpty')
+                            : isPartial
+                              ? paragraphProgress
+                                ? `${t('projectInfo.chapterStatusPartial')} (${paragraphProgress})`
+                                : t('projectInfo.chapterStatusPartial')
+                              : isDraft
+                                ? t('projectInfo.chapterStatusDraft')
+                                : isAnalyzed
+                                  ? t('projectInfo.chapterStatusAnalyzed', 'Только анализ')
+                                  : t('projectInfo.chapterStatusEmpty')
                       }
                     >
                       {isError ? (
                         <Icon name="error" size="sm" />
                       ) : isCompleted ? (
                         <Icon name="check" size="sm" />
+                      ) : isPartial ? (
+                        paragraphProgress || <Icon name="warning" size="sm" />
                       ) : isDraft ? (
                         <Icon name="edit_note" size="sm" />
                       ) : isAnalyzed ? (

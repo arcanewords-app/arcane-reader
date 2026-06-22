@@ -78,6 +78,7 @@ export interface ChapterSummary {
   translatedTitle?: string;
   status: ChapterStatus;
   hasTranslation: boolean;
+  isFullyTranslated: boolean;
   hasOriginalText: boolean;
   paragraphCount: number;
   translatedParagraphCount: number;
@@ -104,6 +105,7 @@ export type ChapterStatus =
   | 'translating'
   | 'analyzed'
   | 'draft' // Translation saved, editing not applied (refactor 2.1)
+  | 'partial' // Translation started but not all content paragraphs filled
   | 'completed'
   | 'error';
 

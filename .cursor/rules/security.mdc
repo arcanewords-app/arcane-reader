@@ -1,0 +1,52 @@
+---
+description: Security policies — RLS, grants, SECURITY DEFINER, access control, secrets
+globs: supabase/migrations/**,src/middleware/**,src/services/**,src/server.ts,src/api/schemas/**,src/storage/**
+alwaysApply: false
+---
+
+# Security Rules
+
+How-to and checklists: `@.cursor/skills/security/SKILL.md`. Auth roles: `@.cursor/rules/auth.mdc`.
+
+## Access control (MUST)
+
+- User-writable tables: RLS policies need **`WITH CHECK`** on `INSERT`/`UPDATE`, not only `USING`.
+- Privileged columns (`role`, `subscription`, billing) MUST NOT be writable by `anon` or `authenticated` via PostgREST — `REVOKE` + server/service-role path or trigger guard.
+- **BOLA:** every endpoint with a user-supplied object id MUST enforce ownership in the query or RLS — authentication alone is insufficient.
+- **BFLA:** privileged routes MUST use `requireRole(...)` or equivalent; admin routes need safeguards (no self-demotion, no removing last admin).
+
+## Supabase / Postgres (MUST)
+
+- Views over RLS tables: `ALTER VIEW ... SET (security_invoker = on)`.
+- `SECURITY DEFINER` functions: `SET search_path = ''` **and** schema-qualified object names (`public.table_name`).
+- Least privilege: `REVOKE EXECUTE` / write grants from `anon` and `PUBLIC` unless explicitly required and documented in `supabase/README.md`.
+- Trigger-only functions MUST NOT be invokable via PostgREST RPC (`REVOKE EXECUTE FROM anon, authenticated, PUBLIC`).
+- After `CREATE OR REPLACE FUNCTION`, verify grants were not widened unintentionally.
+
+## Express API (MUST)
+
+- Validate body/query with Zod — no spreading raw `req.body` into DB updates.
+- Zod schemas MUST NOT allow mass-assignment of privileged fields unless admin-only route with extra checks.
+- `handleServiceError` MUST be first in catch blocks — Supabase/Redis failures return **503**.
+- Client-facing errors MUST NOT expose stack traces, SQL, or internal paths.
+
+## Secrets (MUST)
+
+- `SUPABASE_SERVICE_ROLE_KEY` ONLY in server code via `createServiceRoleClient()` — never in `src/client/**`.
+- Do not log tokens, API keys, passwords, or full JWT — see `@.cursor/rules/logging.mdc`.
+
+## Cache (MUST)
+
+- Call `invalidateProfileCache(userId)` when `role` or avatar changes — see `@.cursor/rules/cache.mdc`.
+
+## Migration checklist
+
+Before merging a security-related migration:
+
+1. RLS: `USING` + `WITH CHECK` on user writes
+2. No new grants on privileged columns to client roles
+3. `SECURITY DEFINER`: empty `search_path` + qualified names
+4. RPC/trigger exposure reviewed (`REVOKE` from `anon` where appropriate)
+5. Smoke-test as `authenticated` and `anon` for affected views/RPC
+6. Update `supabase/README.md` migration table
+7. Re-run Supabase Security Advisor

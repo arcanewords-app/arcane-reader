@@ -163,6 +163,8 @@
     "filterCompletedShort": "Przetł.",
     "filterDraft": "Szkice",
     "filterDraftShort": "Szkice",
+    "filterPartial": "Niekompletne",
+    "filterPartialShort": "Częściowe",
     "filterAnalyzed": "Tylko analiza",
     "filterAnalyzedShort": "Analiza",
     "filterError": "Błędy",
@@ -660,6 +662,9 @@
     "noChaptersInProject": "W projekcie nie ma jeszcze rozdziałów",
     "chapterStatusError": "Błąd tłumaczenia",
     "chapterStatusTranslated": "Przetłumaczono",
+    "chapterStatusPartial": "Niekompletne tłumaczenie",
+    "chapterParagraphProgress": "{{translated}}/{{total}}",
+    "presetPartial": "Niekompletne ({{count}})",
     "chapterStatusDraft": "Szkic (bez redakcji)",
     "chapterStatusAnalyzed": "Tylko analiza",
     "chapterStatusEmpty": "Brak tłumaczenia",
@@ -882,7 +887,49 @@
     "filterCompleteOnly": "Kompletne",
     "filterCompleteOnlyAria": "Pokaż tylko kompletne dzieła",
     "noCompleteWorks": "Brak kompletnych dzieł",
-    "noCompleteWorksHint": "Wyłącz filtr lub wybierz inny język"
+    "noCompleteWorksHint": "Wyłącz filtr lub wybierz inny język",
+    "suggestTranslation": "Zaproponuj tłumaczenie"
+  },
+  "translationRequests": {
+    "title": "Zaproponuj tłumaczenie",
+    "subtitleEmpty": "Powiedz, jakie tłumaczenie chcesz zobaczyć w katalogu",
+    "subtitleCount": "{{count}} próśb",
+    "newButton": "Zaproponuj tytuł",
+    "loading": "Ładowanie próśb...",
+    "loadFailed": "Nie udało się załadować próśb",
+    "created": "Prośba wysłana. Dziękujemy!",
+    "searchPlaceholder": "Szukaj w swoich prośbach...",
+    "emptyList": "Brak próśb",
+    "emptyHint": "Użyj przycisku powyżej, aby zaproponować tytuł do katalogu.",
+    "emptySearch": "Brak wyników",
+    "authorLabel": "Autor",
+    "targetOnly": "Tłumaczenie na {{target}}",
+    "modalTitle": "Zaproponuj tytuł do katalogu",
+    "submit": "Wyślij",
+    "status": {
+      "pending": "Oczekuje",
+      "reviewed": "Przejrzane",
+      "accepted": "Zaakceptowane",
+      "rejected": "Odrzucone",
+      "fulfilled": "W katalogu"
+    },
+    "form": {
+      "title": "Tytuł",
+      "titlePlaceholder": "np. Władca Pierścieni",
+      "author": "Autor oryginału",
+      "authorPlaceholder": "Opcjonalnie",
+      "comment": "Komentarz",
+      "commentPlaceholder": "Dlaczego chcesz przeczytać to tłumaczenie?",
+      "sourceUrl": "Link do oryginału",
+      "sourceUrlPlaceholder": "Opcjonalny URL",
+      "hint": "Przeglądamy propozycje i możemy dodać pasujące tłumaczenia do katalogu."
+    },
+    "errors": {
+      "titleRequired": "Podaj tytuł (min. 2 znaki).",
+      "commentTooShort": "Komentarz musi mieć min. 5 znaków.",
+      "createFailed": "Nie udało się wysłać prośby.",
+      "pendingLimit": "Masz już 5 próśb oczekujących na rozpatrzenie."
+    }
   },
   "nav": {
     "catalog": "Katalog",
@@ -952,6 +999,46 @@
     },
     "usage": {
       "publicationsCount": "Używana w {{count}} publikacji(ach)"
+    },
+    "tabs": {
+      "aria": "Sekcje admina",
+      "entities": "Katalog",
+      "news": "Aktualności",
+      "publications": "Publikacje",
+      "translationRequests": "Prośby",
+      "users": "Użytkownicy"
+    },
+    "news": {
+      "statusFilter": "Status",
+      "searchPlaceholder": "Szukaj po tytule lub opisie",
+      "status": {
+        "draft": "Szkic",
+        "published": "Opublikowane",
+        "archived": "Zarchiwizowane"
+      }
+    },
+    "translationRequests": {
+      "subtitle": "Propozycje użytkowników dotyczące tytułów w katalogu.",
+      "searchPlaceholder": "Szukaj po tytule lub autorze",
+      "statusFilter": "Status",
+      "empty": "Nie znaleziono próśb.",
+      "loadFailed": "Nie udało się załadować próśb.",
+      "saved": "Prośba zaktualizowana.",
+      "saveFailed": "Nie udało się zaktualizować prośby.",
+      "notFound": "Nie znaleziono prośby.",
+      "userEmail": "Użytkownik",
+      "statusLabel": "Status",
+      "adminNotes": "Notatki admina",
+      "linkedPublication": "ID publikacji",
+      "linkedPublicationPlaceholder": "UUID po realizacji",
+      "reject": "Odrzuć",
+      "rejected": "Prośba odrzucona.",
+      "delete": "Usuń",
+      "deleteTitle": "Usuń prośbę",
+      "deleteMessage": "Trwale usunąć prośbę o „{{title}}”?",
+      "deleted": "Prośba usunięta.",
+      "deleteFailed": "Nie udało się usunąć prośby.",
+      "deleteForbidden": "Usunąć można tylko odrzucone lub zrealizowane prośby."
     }
   },
   "cabinet": {

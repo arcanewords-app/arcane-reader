@@ -33,6 +33,7 @@ import { LoadingSpinner } from './components/ui';
 import { api } from './api/client';
 import { ProfilePage, ProjectsPage, CatalogPage, AdminEntitiesPage } from './pages';
 import { AuthorGate } from './components/Auth/AuthorGate';
+import { UserGate } from './components/Auth/UserGate';
 import { AdminGate } from './components/Auth/AdminGate';
 import { AboutPage } from './pages/AboutPage';
 import { NewsPage } from './pages/NewsPage';
@@ -40,6 +41,8 @@ import { NewsDetailPage } from './pages/NewsDetailPage';
 import { AdminNewsPage } from './pages/AdminNewsPage';
 import { AdminPublicationsPage } from './pages/AdminPublicationsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminTranslationRequestsPage } from './pages/AdminTranslationRequestsPage';
+import { TranslationRequestsPage } from './pages/TranslationRequestsPage';
 import { AdminRedirect, AdminEntitiesRedirect } from './pages/AdminRedirect';
 import { AccountTiersPage } from './pages/AccountTiersPage';
 import { ContactPage } from './pages/ContactPage';
@@ -144,6 +147,7 @@ export function AppRouter() {
     const path = window.location.pathname;
     if (
       path === '/profile' ||
+      path === '/translation-requests' ||
       path === '/projects' ||
       path.startsWith('/projects/') ||
       path === '/admin/entities' ||
@@ -407,6 +411,7 @@ export function AppRouter() {
                   <PrivacyPage path="/privacy" />
                   <TermsPage path="/terms" />
                   <ProfilePage path="/profile" />
+                  <UserGate path="/translation-requests" component={TranslationRequestsPage} />
                   <CabinetRedirect path="/cabinet" />
                   <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
                   <PublicationPage path="/p/:publicationId" />
@@ -415,6 +420,10 @@ export function AppRouter() {
                   <AdminGate path="/admin/entities/:kind" component={AdminEntitiesPage} />
                   <AdminGate path="/admin/news" component={AdminNewsPage} />
                   <AdminGate path="/admin/publications" component={AdminPublicationsPage} />
+                  <AdminGate
+                    path="/admin/translation-requests"
+                    component={AdminTranslationRequestsPage}
+                  />
                   <AdminGate path="/admin/users" component={AdminUsersPage} />
                   {/* More specific /projects/* routes first — preact-router uses first-match */}
                   <AuthorGate

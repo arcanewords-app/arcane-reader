@@ -241,6 +241,7 @@ export function ChapterList({
       all: chapters.length,
       pending: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'pending').length,
       completed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'completed').length,
+      partial: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'partial').length,
       draft: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'draft').length,
       analyzed: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'analyzed').length,
       error: originalReadingMode ? 0 : chapters.filter((c) => c.status === 'error').length,
@@ -654,6 +655,8 @@ export function ChapterList({
     switch (status) {
       case 'completed':
         return <Icon name="check_circle" size="sm" />;
+      case 'partial':
+        return <Icon name="warning" size="sm" />;
       case 'draft':
         return <Icon name="edit_note" size="sm" />;
       case 'translating':
@@ -1141,7 +1144,14 @@ export function ChapterList({
             'all',
             ...(originalReadingMode
               ? []
-              : (['pending', 'completed', 'draft', 'analyzed', 'error'] as FilterType[])),
+              : ([
+                  'pending',
+                  'completed',
+                  'partial',
+                  'draft',
+                  'analyzed',
+                  'error',
+                ] as FilterType[])),
           ] as FilterType[]
         ).map((f) => {
           const label =
@@ -1151,11 +1161,13 @@ export function ChapterList({
                 ? t('chapterList.filterPending')
                 : f === 'completed'
                   ? t('chapterList.filterCompleted')
-                  : f === 'draft'
-                    ? t('chapterList.filterDraft')
-                    : f === 'analyzed'
-                      ? t('chapterList.filterAnalyzed')
-                      : t('chapterList.filterError');
+                  : f === 'partial'
+                    ? t('chapterList.filterPartial')
+                    : f === 'draft'
+                      ? t('chapterList.filterDraft')
+                      : f === 'analyzed'
+                        ? t('chapterList.filterAnalyzed')
+                        : t('chapterList.filterError');
           const labelShort =
             f === 'all'
               ? t('chapterList.all')
@@ -1163,11 +1175,13 @@ export function ChapterList({
                 ? t('chapterList.filterPendingShort')
                 : f === 'completed'
                   ? t('chapterList.filterCompletedShort')
-                  : f === 'draft'
-                    ? t('chapterList.filterDraftShort')
-                    : f === 'analyzed'
-                      ? t('chapterList.filterAnalyzedShort')
-                      : t('chapterList.filterErrorShort');
+                  : f === 'partial'
+                    ? t('chapterList.filterPartialShort')
+                    : f === 'draft'
+                      ? t('chapterList.filterDraftShort')
+                      : f === 'analyzed'
+                        ? t('chapterList.filterAnalyzedShort')
+                        : t('chapterList.filterErrorShort');
           const iconName =
             f === 'all'
               ? 'grid_view'
@@ -1175,11 +1189,13 @@ export function ChapterList({
                 ? 'schedule'
                 : f === 'completed'
                   ? 'check_circle'
-                  : f === 'draft'
-                    ? 'edit_note'
-                    : f === 'analyzed'
-                      ? 'manage_search'
-                      : 'error';
+                  : f === 'partial'
+                    ? 'warning'
+                    : f === 'draft'
+                      ? 'edit_note'
+                      : f === 'analyzed'
+                        ? 'manage_search'
+                        : 'error';
           return (
             <button
               key={f}

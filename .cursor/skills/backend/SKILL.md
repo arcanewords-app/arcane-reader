@@ -11,6 +11,7 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 - `src/storage/database.ts` types
 - `src/worker.ts` and async analyze/translate jobs
 - `src/shared/cacheContract.ts`
+- Supabase migrations, RLS, RPC, grants — also read `@.cursor/skills/security/SKILL.md`
 
 ## Domain Knowledge
 
@@ -34,6 +35,7 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 - Duplicating types that already exist in `database.ts`
 - Service-role key usage from client-facing code paths
 - Logging secrets or full row dumps
+- `SECURITY DEFINER` without `search_path = ''` and schema-qualified names — see `@.cursor/skills/security/SKILL.md`
 
 ## Planned extensions
 

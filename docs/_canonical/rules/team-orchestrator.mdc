@@ -42,6 +42,7 @@ You are part of a **4-agent team**. Before implementing, determine which agent(s
 | Translation / analyze behavior | Engine | API (if new routes/queues), Backend (if persistence/cache) |
 | Import/export, cache, worker jobs | Backend | API (if new endpoints) |
 | Route map / auth gates | API | UI (if client routes/gates change) |
+| Security audit, RLS, grants, migrations, privilege escalation | Read [`.cursor/skills/security/SKILL.md`](.cursor/skills/security/SKILL.md) + [`.cursor/rules/security.mdc`](.cursor/rules/security.mdc) | Primary agent for touched paths (API / Backend) |
 | Local dev / vault / env / docs search / shell confusion on Windows | DevTools utility | Read `local-dev` skill §G–H first; **Obsidian MCP** when Obsidian is running; domain agent if code changes |
 | SEO audit, indexing, meta/sitemap/content discoverability | SEO utility | Read `.cursor/agents/seo/AGENT.md` + `.cursor/skills/seo/SKILL.md` + `seo.mdc`; implement SSR/sitemap in **API**, client meta in **UI** |
 
@@ -51,7 +52,7 @@ You are part of a **4-agent team**. Before implementing, determine which agent(s
 
 **Orchestrator (agent-requested):** this file — load when implementing or routing across agents.
 
-**Domain (globs + agent profile):** e.g. `api.mdc`, `cache.mdc`, `client.mdc` — auto-attached when matching files are in context, or listed in the active agent's `AGENT.md`. Read domain rules from the agent profile; do not assume all domain rules are always loaded.
+**Domain (globs + agent profile):** e.g. `api.mdc`, `cache.mdc`, `security.mdc`, `client.mdc` — auto-attached when matching files are in context, or listed in the active agent's `AGENT.md`. Read domain rules from the agent profile; do not assume all domain rules are always loaded.
 
 **Skills:** `.cursor/skills/<agent>/SKILL.md` — patterns and how-to; rules remain SSOT for policies.
 

@@ -56,6 +56,7 @@ import {
   publicationDownloadQuerySchema,
   publicationDisplaySettingsBodySchema,
   newsListQuerySchema,
+  adminNewsListQuerySchema,
   newsCreateSchema,
   newsUpdateSchema,
   announcementCreateSchema,
@@ -65,6 +66,9 @@ import {
   adminPublicationsListQuerySchema,
   adminUsersListQuerySchema,
   adminUserRoleUpdateSchema,
+  catalogTranslationRequestCreateSchema,
+  adminTranslationRequestsListQuerySchema,
+  adminTranslationRequestUpdateSchema,
 } from './api/schemas/index.js';
 import { loadConfig, validateConfig, hasAIProvider } from './config.js';
 // Database operations from Supabase
@@ -145,6 +149,11 @@ import {
   listUsersAdmin,
   updateUserRoleAdmin,
   countAdminUsersWithRole,
+  createCatalogTranslationRequest,
+  listCatalogTranslationRequestsByUser,
+  listCatalogTranslationRequestsAdmin,
+  updateCatalogTranslationRequestAdmin,
+  deleteCatalogTranslationRequestAdmin,
   getActiveAnnouncementForUser,
   dismissAnnouncement,
   type MarkTranslatedBatchResult,
@@ -180,6 +189,10 @@ import { logger, getLoggingStatus } from './logger.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { readSharedHealth, shouldAwaitRecoveryProbe } from './services/healthSnapshotStore.js';
 import { isChunkError } from './shared/chunkErrors.js';
+import {
+  getTranslationCoverage,
+  resolveChapterStatusAfterTranslation,
+} from './shared/chapterTranslationCoverage.js';
 import {
   isTranslationStatus,
   translationStatusFromMetadata,
@@ -1448,6 +1461,57 @@ app.get('/api/user/reading-history', requireAuth, async (req, res) => {
     const errorMessage = error instanceof Error ? error.message : 'Failed to get reading history';
     req.log?.error({ err: error }, 'Error getting reading history');
     res.status(500).json({ error: errorMessage });
+  }
+});
+
+// Catalog translation requests (user demand signal)
+app.post('/api/catalog/translation-requests', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const parsed = catalogTranslationRequestCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const body = parsed.data;
+    const created = await createCatalogTranslationRequest(req.user.id, requireToken(req), {
+      title: body.title,
+      authorName: body.authorName,
+      sourceLanguage: body.sourceLanguage,
+      targetLanguage: body.targetLanguage,
+      comment: body.comment,
+      sourceUrl: body.sourceUrl,
+    });
+    req.log?.info(
+      { event: 'catalog.translation_request.created', requestId: created.id, userId: req.user.id },
+      'Catalog translation request created'
+    );
+    res.status(201).json(created);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    if (error instanceof Error && (error as Error & { code?: string }).code === 'PENDING_LIMIT') {
+      return res.status(409).json({ error: 'Too many pending translation requests' });
+    }
+    req.log?.error({ err: error }, 'Failed to create catalog translation request');
+    res.status(500).json({ error: 'Failed to create translation request' });
+  }
+});
+
+app.get('/api/user/translation-requests', requireAuth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const list = await listCatalogTranslationRequestsByUser(req.user.id, requireToken(req));
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list user translation requests');
+    res.status(500).json({ error: 'Failed to list translation requests' });
   }
 });
 
@@ -3342,6 +3406,16 @@ app.post(
         .filter((c) => c.length > 0);
 
       const now = new Date().toISOString();
+      const uploadStatus = resolveChapterStatusAfterTranslation({
+        paragraphs: syncedParagraphs,
+        runEditing: false,
+        editingPhase: 'none',
+      });
+      logTranslationCoverageIfIncomplete(
+        req.params.projectId,
+        req.params.chapterId,
+        syncedParagraphs
+      );
       const updatedChapter = await updateChapter(
         req.params.projectId,
         req.params.chapterId,
@@ -3349,7 +3423,7 @@ app.post(
           paragraphs: syncedParagraphs,
           translatedText: mergedText,
           translatedChunks: chunks,
-          status: 'completed',
+          status: uploadStatus,
           translationMeta: {
             ...(chapter.translationMeta || {}),
             source: 'uploaded',
@@ -3788,7 +3862,9 @@ app.post(
           useServiceRole: true,
         });
         const preserveStatus =
-          existingChapter?.status === 'completed' || existingChapter?.status === 'draft';
+          existingChapter?.status === 'completed' ||
+          existingChapter?.status === 'draft' ||
+          existingChapter?.status === 'partial';
         const preservedSource = existingChapter?.translationMeta?.source;
         await updateChapter(
           projectId,
@@ -5351,6 +5427,12 @@ async function performTranslationInner(
       (Array.isArray(phase1Stages) && phase1Stages.includes('analysis'));
 
     if (runEditing) {
+      const phase1Status = resolveChapterStatusAfterTranslation({
+        paragraphs: syncedParagraphs,
+        runEditing: true,
+        editingPhase: 'after_translate',
+      });
+      logTranslationCoverageIfIncomplete(projectId, chapterId, syncedParagraphs);
       // Refactor 2.1: save draft after stage 2, then run stage 3 (editing)
       await updateChapter(
         projectId,
@@ -5359,7 +5441,7 @@ async function performTranslationInner(
           translatedText: result.translatedText,
           translatedChunks: chunksToSave,
           paragraphs: syncedParagraphs,
-          status: 'draft',
+          status: phase1Status,
           translationMeta: {
             ...(chapter.translationMeta || {}),
             tokensUsed: result.tokensUsed,
@@ -5469,6 +5551,13 @@ async function performTranslationInner(
           : syncedParagraphs2;
       const translatedTextToStore = mergeParagraphsToText(finalParagraphs, 'translatedText');
 
+      const finalStatus = resolveChapterStatusAfterTranslation({
+        paragraphs: finalParagraphs,
+        runEditing: true,
+        editingPhase: 'after_edit',
+      });
+      logTranslationCoverageIfIncomplete(projectId, chapterId, finalParagraphs);
+
       const nowIso2 = new Date().toISOString();
       await updateChapter(
         projectId,
@@ -5477,7 +5566,7 @@ async function performTranslationInner(
           translatedText: translatedTextToStore,
           translatedChunks: editedChunks,
           paragraphs: finalParagraphs,
-          status: 'completed',
+          status: finalStatus,
           translationMeta: {
             ...(chapter.translationMeta || {}),
             tokensUsed: result.tokensUsed + result2.tokensUsed,
@@ -5544,6 +5633,12 @@ async function performTranslationInner(
           );
         }
       }
+      const singlePhaseStatus = resolveChapterStatusAfterTranslation({
+        paragraphs: paragraphsToSave,
+        runEditing: false,
+        editingPhase: editingOnly ? 'after_edit' : 'none',
+      });
+      logTranslationCoverageIfIncomplete(projectId, chapterId, paragraphsToSave);
       await updateChapter(
         projectId,
         chapterId,
@@ -5551,7 +5646,7 @@ async function performTranslationInner(
           translatedText: translatedTextToSave,
           translatedChunks: chunksToSaveFinal,
           paragraphs: paragraphsToSave,
-          status: 'completed',
+          status: singlePhaseStatus,
           translationMeta: {
             ...(chapter.translationMeta || {}),
             tokensUsed: result.tokensUsed,
@@ -5669,7 +5764,9 @@ async function performTranslationInner(
       const chapterAfter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
       const bodyOk =
         chapterAfter &&
-        (chapterAfter.status === 'completed' || chapterAfter.status === 'draft') &&
+        (chapterAfter.status === 'completed' ||
+          chapterAfter.status === 'draft' ||
+          chapterAfter.status === 'partial') &&
         (!!chapterAfter.translatedText?.trim() ||
           chapterAfter.paragraphs?.some((p) => p.translatedText?.trim()));
       if (bodyOk && chapterAfter) {
@@ -5765,6 +5862,28 @@ async function performTranslationInner(
     translationCancelRegistry.delete(cancelKey);
     clearTranslationProgress(projectId, chapterId);
   }
+}
+
+function logTranslationCoverageIfIncomplete(
+  projectId: string,
+  chapterId: string,
+  paragraphs: Paragraph[]
+): ReturnType<typeof getTranslationCoverage> {
+  const coverage = getTranslationCoverage(paragraphs);
+  if (!coverage.isComplete) {
+    logger.warn(
+      {
+        event: 'translation.incomplete',
+        projectId,
+        chapterId,
+        contentTotal: coverage.contentTotal,
+        translatedCount: coverage.translatedCount,
+        missingCount: coverage.missingParagraphIds.length,
+      },
+      'Translation incomplete: not all paragraphs filled'
+    );
+  }
+  return coverage;
 }
 
 /**
@@ -8594,7 +8713,20 @@ app.post('/api/announcements/:id/dismiss', requireAuth, async (req, res) => {
 
 app.get('/api/admin/news', requireAuth, requireRole('admin'), async (req, res) => {
   try {
-    const list = await listNewsPostsAdmin({ limit: 100 });
+    const parsed = adminNewsListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { status, search, limit, offset } = parsed.data;
+    const list = await listNewsPostsAdmin({
+      status,
+      search,
+      limit: limit ?? 100,
+      offset: offset ?? 0,
+    });
     res.json(list);
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
@@ -8970,6 +9102,104 @@ app.patch('/api/admin/users/:id/role', requireAuth, requireRole('admin'), async 
     res.status(500).json({ error: 'Failed to update user role' });
   }
 });
+
+app.get('/api/admin/translation-requests', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const parsed = adminTranslationRequestsListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const { status, search, targetLanguage, limit, offset } = parsed.data;
+    const list = await listCatalogTranslationRequestsAdmin({
+      status,
+      search,
+      targetLanguage,
+      limit: limit ?? 50,
+      offset: offset ?? 0,
+    });
+    res.json(list);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to list admin translation requests');
+    res.status(500).json({ error: 'Failed to list translation requests' });
+  }
+});
+
+app.patch(
+  '/api/admin/translation-requests/:id',
+  requireAuth,
+  requireRole('admin'),
+  async (req, res) => {
+    try {
+      const parsed = adminTranslationRequestUpdateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const updated = await updateCatalogTranslationRequestAdmin(req.params.id, {
+        status: parsed.data.status,
+        adminNotes: parsed.data.adminNotes,
+        linkedPublicationId: parsed.data.linkedPublicationId,
+      });
+      if (!updated) {
+        return res.status(404).json({ error: 'Translation request not found' });
+      }
+      req.log?.info(
+        {
+          event: 'admin.translation_request.updated',
+          requestId: updated.id,
+          adminId: req.user?.id,
+        },
+        'Admin updated translation request'
+      );
+      res.json(updated);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Failed to update admin translation request');
+      res.status(500).json({ error: 'Failed to update translation request' });
+    }
+  }
+);
+
+app.delete(
+  '/api/admin/translation-requests/:id',
+  requireAuth,
+  requireRole('admin'),
+  async (req, res) => {
+    try {
+      const deleted = await deleteCatalogTranslationRequestAdmin(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Translation request not found' });
+      }
+      req.log?.info(
+        {
+          event: 'admin.translation_request.deleted',
+          requestId: req.params.id,
+          adminId: req.user?.id,
+        },
+        'Admin deleted translation request'
+      );
+      res.status(204).send();
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      if (
+        error instanceof Error &&
+        (error as Error & { code?: string }).code === 'DELETE_FORBIDDEN'
+      ) {
+        return res
+          .status(409)
+          .json({ error: 'Translation request cannot be deleted in current status' });
+      }
+      req.log?.error({ err: error }, 'Failed to delete admin translation request');
+      res.status(500).json({ error: 'Failed to delete translation request' });
+    }
+  }
+);
 
 // List published publications (public, no auth)
 app.get('/api/publications', async (req, res) => {
@@ -9427,6 +9657,7 @@ function sendRobotsTxt(req: express.Request, res: express.Response): void {
     `User-agent: *
 Allow: /
 Disallow: /profile
+Disallow: /translation-requests
 Disallow: /projects
 Disallow: /admin
 
