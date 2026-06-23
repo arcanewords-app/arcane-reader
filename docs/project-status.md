@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-06-08
+updated: 2026-06-24
 ---
 
 # Project status
@@ -32,6 +32,7 @@ Update this file when completing plans or shipping major features.
 - Structured logging (Pino): dev `/debug` console; prod/staging Axiom when `LOG_SHIPPING=1` — [[02-how-to/observability-axiom]]
 
 - News feed (`/news`) + announcement banner; admin at `/admin/news`; GA4 announcement events; migration `20250618_news_and_announcements`
+- Project-wide search and replace in author workspace; smart AI replace (Author+) for declensions and term fixes — `/news/project-search-replace`
 
 ## Active plans (`05-plans/`)
 

@@ -6,7 +6,7 @@ import { Modal, Button, ConfirmModal } from '../ui';
 import { createSnippetHtml, paragraphMatchKey } from '../../utils/search-utils';
 import { AI_REPLACE_MIN_ROLE } from '../../../shared/featureGates';
 import { useUserRole } from '../../hooks/useUserRole';
-import { CriticUpgradeModal } from '../ChapterView/CriticUpgradeModal';
+import { AiReplaceUpgradeModal } from './AiReplaceUpgradeModal';
 import { ReplacePreviewModal } from './ReplacePreviewModal';
 import { AiReplaceSetupModal } from './AiReplaceSetupModal';
 import { useProjectSearch } from './useProjectSearch';
@@ -449,7 +449,7 @@ export function ProjectSearchModal({
         onPreview={search.openAiPreview}
       />
 
-      <CriticUpgradeModal isOpen={showAiUpgrade} onClose={() => setShowAiUpgrade(false)} />
+      <AiReplaceUpgradeModal isOpen={showAiUpgrade} onClose={() => setShowAiUpgrade(false)} />
 
       <ConfirmModal
         isOpen={showDiscardConfirm}

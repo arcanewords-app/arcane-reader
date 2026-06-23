@@ -7,14 +7,14 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { Button } from '../ui';
 import { RoleComparisonTable } from '../AccountTiers';
+import { UpgradeRequestActions } from '../UpgradeRequest';
 import { useUserRole } from '../../hooks/useUserRole';
-import { CONTACT_EMAIL } from '../../../shared/contact';
 import './UpgradeScreen.css';
 import '../AccountTiers/RoleComparisonTable.css';
 
 export function UpgradeScreen() {
   const { t } = useTranslation();
-  const { role } = useUserRole();
+  const { role, user } = useUserRole();
 
   const handleGoToCatalog = () => {
     route('/');
@@ -22,11 +22,6 @@ export function UpgradeScreen() {
 
   const handleGoToProfile = () => {
     route('/profile');
-  };
-
-  const handleRequestUpgrade = () => {
-    const subject = encodeURIComponent(t('auth.upgradeMailSubject'));
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}`;
   };
 
   const handleLearnMore = () => {
@@ -44,9 +39,12 @@ export function UpgradeScreen() {
         <p class="role-comparison-footnote">{t('tiers.tokenResetNote')}</p>
 
         <div class="upgrade-screen__actions">
-          <Button variant="primary" onClick={handleRequestUpgrade}>
-            {t('auth.requestUpgrade')}
-          </Button>
+          <UpgradeRequestActions
+            showCompareTiers={false}
+            mailSubject={t('auth.upgradeMailSubject')}
+            userEmail={user?.email}
+            requestUpgradeLabel={t('auth.requestUpgrade')}
+          />
           <Button variant="secondary" onClick={handleLearnMore}>
             {t('auth.upgradeLearnMore')}
           </Button>

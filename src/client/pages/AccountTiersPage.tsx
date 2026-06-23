@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useUserRole } from '../hooks/useUserRole';
 import { RoleComparisonTable } from '../components/AccountTiers';
+import { UpgradeRequestActions } from '../components/UpgradeRequest';
 import { Button } from '../components/ui';
-import { CONTACT_EMAIL } from '../../shared/contact';
 import { authService } from '../services/authService';
 import './InfoPages.css';
 import '../components/AccountTiers/RoleComparisonTable.css';
@@ -14,11 +14,6 @@ export function AccountTiersPage() {
   const isLoggedIn = !!user || authService.isAuthenticated();
   const isAuthor = isAtLeast('author');
   const canRequestUpgrade = isLoggedIn && !isAtLeast('admin');
-
-  const handleRequestUpgrade = () => {
-    const subject = encodeURIComponent(t('profile.upgradeMailSubject'));
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}`;
-  };
 
   return (
     <div class="info-page info-page-wide">
@@ -41,9 +36,12 @@ export function AccountTiersPage() {
 
         <div class="account-tiers-actions">
           {canRequestUpgrade && !isAuthor && (
-            <Button variant="primary" onClick={handleRequestUpgrade}>
-              {t('tiers.requestUpgrade')}
-            </Button>
+            <UpgradeRequestActions
+              showCompareTiers={false}
+              mailSubject={t('profile.upgradeMailSubject')}
+              userEmail={user?.email}
+              requestUpgradeLabel={t('tiers.requestUpgrade')}
+            />
           )}
           {isAuthor && (
             <Button variant="primary" onClick={() => route('/projects')}>

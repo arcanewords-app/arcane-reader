@@ -19,6 +19,7 @@ alwaysApply: false
 - Default for authenticated users without profile role: `user`.
 - API project/glossary/export routes typically use `requireRole('author')`.
 - Chapter translation review (Critic): `requireRole('author_plus')` — see `@src/shared/featureGates.ts` (`CRITIC_MIN_ROLE`).
+- AI smart replace in project search: `requireRole('author_plus')` — `AI_REPLACE_MIN_ROLE` in `@src/shared/featureGates.ts`.
 - Admin routes use `requireRole('admin')`.
 
 ## Model access (production project settings)

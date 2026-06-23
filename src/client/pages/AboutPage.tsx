@@ -39,6 +39,7 @@ export function AboutPage() {
             <li>{t('about.feature5')}</li>
             <li>{t('about.feature6')}</li>
             <li>{t('about.feature7')}</li>
+            <li>{t('about.feature8')}</li>
           </ul>
           <p>
             <a

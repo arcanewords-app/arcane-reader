@@ -23,6 +23,7 @@ export type TierFeatureId =
   | 'glossaryPublishExport'
   | 'aiModelChoice'
   | 'translationReview'
+  | 'projectAiReplace'
   | 'dailyTokens'
   | 'parallelJobs';
 
@@ -33,6 +34,7 @@ export const TIER_FEATURE_ROWS: TierFeatureId[] = [
   'glossaryPublishExport',
   'aiModelChoice',
   'translationReview',
+  'projectAiReplace',
   'dailyTokens',
   'parallelJobs',
 ];
@@ -68,6 +70,12 @@ export const TIER_FEATURE_MATRIX: Record<
     super_author: 'yes',
   },
   translationReview: {
+    user: 'no',
+    author: 'no',
+    author_plus: 'yes',
+    super_author: 'yes',
+  },
+  projectAiReplace: {
     user: 'no',
     author: 'no',
     author_plus: 'yes',

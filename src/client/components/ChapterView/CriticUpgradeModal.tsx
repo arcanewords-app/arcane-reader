@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { route } from 'preact-router';
-import { Modal, Button } from '../ui';
-import { CONTACT_EMAIL } from '../../../shared/contact';
+import { Modal } from '../ui';
+import { UpgradeRequestActions } from '../UpgradeRequest';
+import { useUserRole } from '../../hooks/useUserRole';
 import './CriticUpgradeModal.css';
 
 interface CriticUpgradeModalProps {
@@ -11,23 +11,17 @@ interface CriticUpgradeModalProps {
 
 export function CriticUpgradeModal({ isOpen, onClose }: CriticUpgradeModalProps) {
   const { t } = useTranslation();
-
-  const handleRequestUpgrade = () => {
-    const subject = encodeURIComponent(t('critic.upgrade.mailSubject'));
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}`;
-  };
+  const { user } = useUserRole();
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('critic.upgrade.title')} size="medium">
       <p class="critic-upgrade-message">{t('critic.upgrade.message')}</p>
-      <div class="critic-upgrade-actions">
-        <Button variant="primary" onClick={() => route('/account-tiers')}>
-          {t('critic.upgrade.compareTiers')}
-        </Button>
-        <Button variant="secondary" onClick={handleRequestUpgrade}>
-          {t('critic.upgrade.requestUpgrade')}
-        </Button>
-      </div>
+      <UpgradeRequestActions
+        mailSubject={t('critic.upgrade.mailSubject')}
+        userEmail={user?.email}
+        compareTiersLabel={t('critic.upgrade.compareTiers')}
+        requestUpgradeLabel={t('critic.upgrade.requestUpgrade')}
+      />
     </Modal>
   );
 }

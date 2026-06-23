@@ -277,6 +277,11 @@
     "aiReplaceEstimatedHint": "Estimated AI usage for today. Actual cost may differ slightly.",
     "aiReplaceErrorWithParagraph": "{{message}} (paragraph {{id}}…)",
     "aiReplaceCoverageHint": "Preview will list only paragraphs where AI suggests a change. Search may also match forms that are already correct.",
+    "upgrade": {
+      "title": "Smart AI replace — Author+",
+      "message": "AI fixes names and terms in context — declensions and spelling — with a preview before you apply changes across the project.",
+      "mailSubject": "Request for Author+ (smart AI replace in project search)"
+    },
     "aiPreviewCoverage": "AI suggested changes in {{changed}} of {{selected}} selected paragraphs. The rest are already fine or were left unchanged.",
     "aiPreviewHint": "Suggested by AI — review each change before applying.",
     "aiPreset": {
@@ -1390,6 +1395,15 @@
       "other": "Other"
     }
   },
+  "upgrade": {
+    "compareTiers": "Compare tiers",
+    "requestUpgrade": "Request upgrade",
+    "mailBodyWithEmail": "My account: {{email}}",
+    "mailFallbackHint": "If your mail app did not open, copy the address and write manually:",
+    "copyEmail": "Copy email address",
+    "copyEmailDone": "Copied",
+    "contactPageLink": "Contact page"
+  },
   "announcement": {
     "dismiss": "Dismiss announcement",
     "ctaDefault": "Learn more",
@@ -1397,7 +1411,7 @@
   },
   "tiers": {
     "pageTitle": "Account levels",
-    "intro": "Arcane has reader and translator tiers. Higher tiers increase daily AI token limits and unlock more models plus translation review (Critic); some features are planned for future releases.",
+    "intro": "Arcane has reader and translator tiers. Higher tiers increase daily AI token limits and unlock more models, translation review (Critic), and smart AI replace in project search; some features are planned for future releases.",
     "tableAria": "Account level comparison",
     "featureColumn": "Feature",
     "currentTier": "Your level",
@@ -1422,7 +1436,8 @@
       "aiModelChoice": "AI model choice",
       "dailyTokens": "Daily AI tokens",
       "parallelJobs": "Parallel background jobs",
-      "translationReview": "Translation review (Critic)"
+      "translationReview": "Translation review (Critic)",
+      "projectAiReplace": "Smart AI replace in project search"
     },
     "modelAccess": {
       "basic": "GPT-4.1 Mini",
@@ -1443,6 +1458,7 @@
     "feature5": "Profile and reading history for registered readers",
     "feature6": "Projects dashboard for translators",
     "feature7": "AI translation review (Critic) on Author+ — flags problem paragraphs against the glossary",
+    "feature8": "Smart AI replace on Author+ — fix names and terms with correct declensions across the project",
     "accountTiersLink": "Compare account levels and token limits →",
     "mission": "Mission",
     "missionDesc": "Give people faster access to quality translations in their native language — better than raw machine translation.",

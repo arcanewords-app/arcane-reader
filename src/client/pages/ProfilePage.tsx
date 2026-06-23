@@ -8,7 +8,7 @@ import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
 import { Button } from '../components/ui';
 import { RoleComparisonTable } from '../components/AccountTiers';
-import { CONTACT_EMAIL } from '../../shared/contact';
+import { UpgradeRequestActions } from '../components/UpgradeRequest';
 import type { ReaderSettings } from '../types';
 import type { UserRole } from '../../types/roles';
 import { DEFAULT_READER_SETTINGS, LEGACY_FONT_MAP } from '../types';
@@ -177,16 +177,12 @@ export function ProfilePage() {
               {user && !isAtLeast('admin') && (
                 <div class="profile-upgrade-block">
                   <p class="profile-upgrade-hint">{t('profile.upgradeHint')}</p>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      const subject = encodeURIComponent(t('profile.upgradeMailSubject'));
-                      window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}`;
-                    }}
-                  >
-                    {t('profile.upgradeButton')}
-                  </Button>
+                  <UpgradeRequestActions
+                    showCompareTiers={false}
+                    mailSubject={t('profile.upgradeMailSubject')}
+                    userEmail={user.email}
+                    requestUpgradeLabel={t('profile.upgradeButton')}
+                  />
                   <Button variant="secondary" size="sm" onClick={() => route('/account-tiers')}>
                     {t('tiers.viewFullComparison')}
                   </Button>
