@@ -976,7 +976,9 @@
     "filterCompleteOnlyAria": "Паказаць толькі поўныя творы",
     "noCompleteWorks": "Няма поўных твораў",
     "noCompleteWorksHint": "Зніміце фільтр або выберыце іншую мову",
-    "suggestTranslation": "Прапанаваць пераклад"
+    "suggestTranslation": "Прапанаваць пераклад",
+    "suggestTranslationLoginTitle": "Увайдзіце, каб прапанаваць пераклад",
+    "suggestTranslationLoginMessage": "Зарэгіструйцеся або ўвайдзіце — так мы зможам звязацца з вамі па заявцы."
   },
   "translationRequests": {
     "title": "Прапанаваць пераклад",

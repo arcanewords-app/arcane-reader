@@ -11,11 +11,33 @@ const USER_KEY = 'arcane_user';
 const EXPIRES_KEY = 'arcane_auth_expires';
 export const AUTH_CHANGED_EVENT = 'arcane:auth-changed';
 export const USER_UPDATED_EVENT = 'arcane:user-updated';
+export const OPEN_AUTH_EVENT = 'arcane:open-auth';
+export const POST_AUTH_REDIRECT_KEY = 'arcane:postAuthRedirect';
 
 export type AuthChangedDetail = {
   authenticated: boolean;
   user: AuthUser | null;
 };
+
+export type OpenAuthDetail = {
+  mode?: 'login' | 'register';
+  redirect?: string;
+};
+
+export function openAuthModal(detail?: OpenAuthDetail): void {
+  if (detail?.redirect) {
+    sessionStorage.setItem(POST_AUTH_REDIRECT_KEY, detail.redirect);
+  }
+  window.dispatchEvent(new CustomEvent<OpenAuthDetail>(OPEN_AUTH_EVENT, { detail }));
+}
+
+export function consumePostAuthRedirect(): string | null {
+  const redirect = sessionStorage.getItem(POST_AUTH_REDIRECT_KEY);
+  if (redirect) {
+    sessionStorage.removeItem(POST_AUTH_REDIRECT_KEY);
+  }
+  return redirect;
+}
 
 // Helper function to clear storage
 function clearAuthStorage(): void {

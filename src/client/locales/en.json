@@ -977,7 +977,9 @@
     "filterCompleteOnlyAria": "Show complete works only",
     "noCompleteWorks": "No complete works",
     "noCompleteWorksHint": "Clear the filter or choose another language",
-    "suggestTranslation": "Suggest a title"
+    "suggestTranslation": "Suggest a title",
+    "suggestTranslationLoginTitle": "Sign in to suggest a translation",
+    "suggestTranslationLoginMessage": "Create an account or sign in so we can follow up on your request."
   },
   "translationRequests": {
     "title": "Suggest a translation",

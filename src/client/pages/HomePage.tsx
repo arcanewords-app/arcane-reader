@@ -2,12 +2,12 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'preact/hooks'
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
-import { authService } from '../services/authService';
+import { authService, openAuthModal } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
 import type { PublicationListItem, Publication, PublicEntity } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
 import { CatalogFilterToolbar } from '../components/Home/CatalogFilterToolbar';
-import { LoadingSpinner, Input, Icon, Button } from '../components/ui';
+import { LoadingSpinner, Input, Icon, Button, Modal } from '../components/ui';
 import './HomePage.css';
 
 type CatalogFilter = 'all' | 'mine';
@@ -50,8 +50,9 @@ function buildCatalogUrl(
 
 export function HomePage() {
   const { t } = useTranslation();
-  const { isAtLeast } = useUserRole();
+  const { user, isAtLeast } = useUserRole();
   const isAuthor = !!authService.getToken() && isAtLeast('author');
+  const [showSuggestLoginPrompt, setShowSuggestLoginPrompt] = useState(false);
   const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
   const [entityFilter, setEntityFilter] = useState(getEntityFilterFromUrl);
   const [entityFilterNames, setEntityFilterNames] = useState<{
@@ -388,7 +389,10 @@ export function HomePage() {
           <Button
             variant="secondary"
             className="home-suggest-btn"
-            onClick={() => route('/translation-requests')}
+            onClick={() => {
+              if (user) route('/translation-requests');
+              else setShowSuggestLoginPrompt(true);
+            }}
           >
             <Icon name="add" size="sm" /> {t('home.suggestTranslation')}
           </Button>
@@ -559,6 +563,38 @@ export function HomePage() {
           )}
         </>
       )}
+
+      <Modal
+        isOpen={showSuggestLoginPrompt}
+        onClose={() => setShowSuggestLoginPrompt(false)}
+        title={t('home.suggestTranslationLoginTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowSuggestLoginPrompt(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowSuggestLoginPrompt(false);
+                openAuthModal({ mode: 'login', redirect: '/translation-requests' });
+              }}
+            >
+              {t('auth.login')}
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSuggestLoginPrompt(false);
+                openAuthModal({ mode: 'register', redirect: '/translation-requests' });
+              }}
+            >
+              {t('header.register')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('home.suggestTranslationLoginMessage')}</p>
+      </Modal>
     </div>
   );
 }

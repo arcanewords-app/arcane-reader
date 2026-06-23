@@ -938,7 +938,9 @@
     "filterCompleteOnlyAria": "Pokaż tylko kompletne dzieła",
     "noCompleteWorks": "Brak kompletnych dzieł",
     "noCompleteWorksHint": "Wyłącz filtr lub wybierz inny język",
-    "suggestTranslation": "Zaproponuj tłumaczenie"
+    "suggestTranslation": "Zaproponuj tłumaczenie",
+    "suggestTranslationLoginTitle": "Zaloguj się, aby zaproponować tłumaczenie",
+    "suggestTranslationLoginMessage": "Załóż konto lub zaloguj się — dzięki temu będziemy mogli odpowiedzieć na Twoją prośbę."
   },
   "translationRequests": {
     "title": "Zaproponuj tłumaczenie",

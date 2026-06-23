@@ -20,7 +20,13 @@ function CabinetRedirect() {
 }
 import { useTranslation } from 'react-i18next';
 import type { SystemStatus, AuthUser } from './types';
-import { AUTH_CHANGED_EVENT, authService } from './services/authService';
+import {
+  AUTH_CHANGED_EVENT,
+  OPEN_AUTH_EVENT,
+  authService,
+  consumePostAuthRedirect,
+  type OpenAuthDetail,
+} from './services/authService';
 import { TokenUsageProvider } from './contexts/TokenUsageContext';
 import { ServiceHealthProvider } from './contexts/ServiceHealthContext';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
@@ -178,6 +184,20 @@ export function AppRouter() {
     };
   }, []);
 
+  // Open AuthModal from feature prompts (e.g. suggest translation on catalog)
+  useEffect(() => {
+    const handleOpenAuth = (e: CustomEvent<OpenAuthDetail>) => {
+      const mode = e.detail?.mode === 'register' ? 'register' : 'login';
+      setAuthModalMode(mode);
+      setShowAuthModal(true);
+    };
+
+    window.addEventListener(OPEN_AUTH_EVENT, handleOpenAuth as EventListener);
+    return () => {
+      window.removeEventListener(OPEN_AUTH_EVENT, handleOpenAuth as EventListener);
+    };
+  }, []);
+
   // Keep auth state in sync after login/logout/refresh and across browser tabs.
   useEffect(() => {
     const handleAuthChanged = (
@@ -245,6 +265,10 @@ export function AppRouter() {
     if (params.get('login') === 'required') {
       window.history.replaceState({}, '', window.location.pathname || '/');
       route(window.location.pathname || '/');
+    }
+    const postAuthRedirect = consumePostAuthRedirect();
+    if (postAuthRedirect) {
+      route(postAuthRedirect);
     }
   };
 
