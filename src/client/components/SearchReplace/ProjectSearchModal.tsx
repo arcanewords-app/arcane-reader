@@ -4,7 +4,11 @@ import { route } from 'preact-router';
 import type { ChapterListItem, ProjectSearchMatch, TextBlockType } from '../../types';
 import { Modal, Button, ConfirmModal } from '../ui';
 import { createSnippetHtml, paragraphMatchKey } from '../../utils/search-utils';
+import { AI_REPLACE_MIN_ROLE } from '../../../shared/featureGates';
+import { useUserRole } from '../../hooks/useUserRole';
+import { CriticUpgradeModal } from '../ChapterView/CriticUpgradeModal';
 import { ReplacePreviewModal } from './ReplacePreviewModal';
+import { AiReplaceSetupModal } from './AiReplaceSetupModal';
 import { useProjectSearch } from './useProjectSearch';
 import './ProjectSearchModal.css';
 
@@ -28,8 +32,11 @@ export function ProjectSearchModal({
   onRefresh,
 }: ProjectSearchModalProps) {
   const { t } = useTranslation();
+  const { isAtLeast } = useUserRole();
+  const canUseAiReplace = isAtLeast(AI_REPLACE_MIN_ROLE);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [previewAll, setPreviewAll] = useState(false);
+  const [showAiSetup, setShowAiSetup] = useState(false);
+  const [showAiUpgrade, setShowAiUpgrade] = useState(false);
 
   const search = useProjectSearch({
     projectId,
@@ -50,7 +57,10 @@ export function ProjectSearchModal({
   }, [search.replacing, search.isDirty, onClose]);
 
   useEffect(() => {
-    if (!isOpen) setShowDiscardConfirm(false);
+    if (!isOpen) {
+      setShowDiscardConfirm(false);
+      setShowAiSetup(false);
+    }
   }, [isOpen]);
 
   const handleConfirmDiscard = useCallback(() => {
@@ -71,17 +81,19 @@ export function ProjectSearchModal({
 
   const handleReplaceSelected = useCallback(() => {
     if (!search.canReplace || search.previewItems.length === 0) return;
-    setPreviewAll(false);
-    search.setShowPreview(true);
+    search.openLiteralPreview();
   }, [search]);
 
-  const handleReplaceAll = useCallback(() => {
-    if (!search.canReplace || search.previewItemsAll.length === 0) return;
-    setPreviewAll(true);
-    search.setShowPreview(true);
-  }, [search]);
+  const handleAiReplace = useCallback(() => {
+    if (!search.canAiReplace) return;
+    if (!canUseAiReplace) {
+      setShowAiUpgrade(true);
+      return;
+    }
+    setShowAiSetup(true);
+  }, [search, canUseAiReplace]);
 
-  const previewItems = previewAll ? search.previewItemsAll : search.previewItems;
+  const selectedMatches = search.getSelectedMatches(false);
 
   return (
     <>
@@ -221,16 +233,20 @@ export function ProjectSearchModal({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={handleReplaceAll}
+                onClick={handleAiReplace}
                 disabled={
-                  !search.canReplace ||
                   search.replacing ||
-                  search.previewItemsAll.length === 0 ||
+                  !search.canAiReplace ||
                   search.isSearchPending ||
                   search.loading
                 }
+                title={
+                  canUseAiReplace
+                    ? undefined
+                    : t('searchReplace.aiReplaceAuthorPlusHint', 'Available on Author+')
+                }
               >
-                {t('searchReplace.replaceAll', 'Replace all')}
+                {t('searchReplace.aiReplace', 'Fix with AI')}
               </Button>
             </div>
           )}
@@ -412,14 +428,28 @@ export function ProjectSearchModal({
 
         <ReplacePreviewModal
           isOpen={search.showPreview}
-          onClose={() => !search.replacing && search.setShowPreview(false)}
-          items={previewItems}
-          onConfirm={() => void search.applyReplace(previewItems)}
+          onClose={() => !search.replacing && search.closePreview()}
+          items={search.activePreviewItems}
+          onConfirm={() => void search.applyReplace(search.activePreviewItems)}
           isReplacing={search.replacing}
           progress={search.replaceProgress}
           preventClose={search.replacing}
+          source={search.previewSource}
+          selectedCount={search.previewSource === 'ai' ? search.aiSelectedCount : undefined}
         />
       </Modal>
+
+      <AiReplaceSetupModal
+        isOpen={showAiSetup}
+        onClose={() => setShowAiSetup(false)}
+        projectId={projectId}
+        find={search.debouncedQuery}
+        replaceHint={search.replace}
+        selectedMatches={selectedMatches}
+        onPreview={search.openAiPreview}
+      />
+
+      <CriticUpgradeModal isOpen={showAiUpgrade} onClose={() => setShowAiUpgrade(false)} />
 
       <ConfirmModal
         isOpen={showDiscardConfirm}

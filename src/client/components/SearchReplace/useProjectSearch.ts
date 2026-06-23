@@ -64,6 +64,9 @@ export function useProjectSearch({
   const [selectionTouched, setSelectionTouched] = useState(false);
 
   const [showPreview, setShowPreview] = useState(false);
+  const [previewSource, setPreviewSource] = useState<'literal' | 'ai'>('literal');
+  const [aiPreviewItems, setAiPreviewItems] = useState<ReplacePreviewItem[]>([]);
+  const [aiSelectedCount, setAiSelectedCount] = useState(0);
   const [replacing, setReplacing] = useState(false);
   const [replaceProgress, setReplaceProgress] = useState<{ done: number; total: number } | null>(
     null
@@ -317,10 +320,35 @@ export function useProjectSearch({
     [buildPreviewItems, getSelectedMatches]
   );
 
-  const previewItemsAll = useMemo(
-    () => buildPreviewItems(getSelectedMatches(true)),
-    [buildPreviewItems, getSelectedMatches]
-  );
+  const activePreviewItems = previewSource === 'ai' ? aiPreviewItems : previewItems;
+
+  const openLiteralPreview = useCallback(() => {
+    setPreviewSource('literal');
+    setAiPreviewItems([]);
+    setShowPreview(true);
+  }, []);
+
+  const openAiPreview = useCallback((items: ReplacePreviewItem[], selectedCount: number) => {
+    setPreviewSource('ai');
+    setAiPreviewItems(items);
+    setAiSelectedCount(selectedCount);
+    setShowPreview(true);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setShowPreview(false);
+    setAiPreviewItems([]);
+    setAiSelectedCount(0);
+    setPreviewSource('literal');
+  }, []);
+
+  const canAiReplace =
+    !isOriginalReadingMode &&
+    !!debouncedQuery &&
+    selectedVisibleCount > 0 &&
+    getSelectedMatches(false).length > 0 &&
+    !isSearchPending &&
+    !loading;
 
   const canReplace =
     !isOriginalReadingMode &&
@@ -365,7 +393,7 @@ export function useProjectSearch({
         setPendingRetryUpdates(updates.filter((u) => failedIds.includes(u.paragraphId)));
 
         if (result.succeeded.length > 0) {
-          setShowPreview(false);
+          closePreview();
           await onRefresh?.();
           await performSearch(
             debouncedQuery,
@@ -391,6 +419,7 @@ export function useProjectSearch({
       debouncedQuery,
       debouncedParsedChapterFrom,
       debouncedParsedChapterTo,
+      closePreview,
     ]
   );
 
@@ -528,7 +557,14 @@ export function useProjectSearch({
     replaceProgress,
     replaceResult,
     previewItems,
-    previewItemsAll,
+    previewSource,
+    activePreviewItems,
+    openLiteralPreview,
+    openAiPreview,
+    aiSelectedCount,
+    closePreview,
+    canAiReplace,
+    getSelectedMatches,
     canReplace,
     applyReplace,
     retryFailed,

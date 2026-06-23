@@ -262,7 +262,33 @@
     "resultsSummary": "{{total}} matches · {{visible}} shown · {{selected}} selected",
     "previewChapterParagraph": "Ch. {{chapter}}, paragraph #{{index}}",
     "searchPending": "Searching…",
-    "largeProjectHint": "Large project: narrow the chapter range for faster search."
+    "largeProjectHint": "Large project: narrow the chapter range for faster search.",
+    "selectParagraph": "Select paragraph #{{index}}",
+    "aiReplace": "Fix with AI",
+    "aiReplaceAuthorPlusHint": "Available on Author+",
+    "aiReplaceSetupTitle": "Smart replace",
+    "aiReplaceRun": "Generate preview",
+    "aiReplaceSelectedCount": "{{count}} selected paragraphs · search \"{{find}}\"",
+    "aiReplacePresetLabel": "Task",
+    "aiReplaceTargetForm": "Target form: {{value}}",
+    "aiReplaceDetailLabel": "Note (optional)",
+    "aiReplaceDetailPlaceholder": "Short clarification…",
+    "aiReplaceEstimatedTokens": "~{{tokens}} of today's AI limit",
+    "aiReplaceEstimatedHint": "Estimated AI usage for today. Actual cost may differ slightly.",
+    "aiReplaceErrorWithParagraph": "{{message}} (paragraph {{id}}…)",
+    "aiReplaceCoverageHint": "Preview will list only paragraphs where AI suggests a change. Search may also match forms that are already correct.",
+    "aiPreviewCoverage": "AI suggested changes in {{changed}} of {{selected}} selected paragraphs. The rest are already fine or were left unchanged.",
+    "aiPreviewHint": "Suggested by AI — review each change before applying.",
+    "aiPreset": {
+      "name_declension": "Fix name declension",
+      "term_unify": "Unify term spelling",
+      "minimal_fix": "Minimal fix"
+    },
+    "aiPresetHint": {
+      "name_declension": "Correct grammatical case in context. Put the canonical name in the Replace field.",
+      "term_unify": "One consistent spelling across selected paragraphs.",
+      "minimal_fix": "Small fix around the found fragment without rewriting the paragraph."
+    }
   },
   "sidebar": {
     "projects": "Projects",

@@ -252,7 +252,33 @@
     "resultsSummary": "{{total}} trafień · {{visible}} na liście · {{selected}} wybranych",
     "previewChapterParagraph": "Rozdz. {{chapter}}, akapit #{{index}}",
     "searchPending": "Wyszukiwanie…",
-    "largeProjectHint": "Duży projekt: zawęź zakres rozdziałów, aby przyspieszyć wyszukiwanie."
+    "largeProjectHint": "Duży projekt: zawęź zakres rozdziałów, aby przyspieszyć wyszukiwanie.",
+    "selectParagraph": "Wybierz akapit #{{index}}",
+    "aiReplace": "Popraw z AI",
+    "aiReplaceAuthorPlusHint": "Dostępne na poziomie Autor+",
+    "aiReplaceSetupTitle": "Inteligentna zamiana",
+    "aiReplaceRun": "Wygeneruj podgląd",
+    "aiReplaceSelectedCount": "{{count}} wybranych akapitów · wyszukiwanie „{{find}}”",
+    "aiReplacePresetLabel": "Zadanie",
+    "aiReplaceTargetForm": "Docelowa forma: {{value}}",
+    "aiReplaceDetailLabel": "Doprecyzowanie (opcjonalnie)",
+    "aiReplaceDetailPlaceholder": "Krótkie wyjaśnienie…",
+    "aiReplaceEstimatedTokens": "~{{tokens}} z dziennego limitu AI",
+    "aiReplaceEstimatedHint": "Szacowany zużycie limitu AI na dziś. Rzeczywista wartość może się nieznacznie różnić.",
+    "aiReplaceErrorWithParagraph": "{{message}} (akapit {{id}}…)",
+    "aiReplaceCoverageHint": "Podgląd pokaże nie wszystkie wybrane akapity — tylko te, w których AI widzi poprawkę. Wyszukiwanie może trafiać też na już poprawne formy słowa.",
+    "aiPreviewCoverage": "AI zaproponowało zmiany w {{changed}} z {{selected}} wybranych akapitów. Pozostałe są już poprawne lub model ich nie zmienił.",
+    "aiPreviewHint": "Sugerowane przez AI — sprawdź każdą zmianę przed zastosowaniem.",
+    "aiPreset": {
+      "name_declension": "Popraw odmianę imienia",
+      "term_unify": "Ujednolić termin",
+      "minimal_fix": "Punktowa poprawka"
+    },
+    "aiPresetHint": {
+      "name_declension": "Imię we właściwym przypadku w kontekście. Formę kanoniczną wpisz w polu Zamień.",
+      "term_unify": "Jednolite pisownia terminu we wszystkich wybranych miejscach.",
+      "minimal_fix": "Drobna poprawka wokół znalezionego fragmentu bez przepisywania akapitu."
+    }
   },
   "jobsPanel": {
     "title": "Aktywne zadania",

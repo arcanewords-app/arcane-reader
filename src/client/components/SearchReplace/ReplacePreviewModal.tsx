@@ -12,6 +12,7 @@ export interface ReplacePreviewItem {
   after: string;
   find?: string;
   caseSensitive?: boolean;
+  source?: 'literal' | 'ai';
 }
 
 interface ReplacePreviewModalProps {
@@ -22,6 +23,9 @@ interface ReplacePreviewModalProps {
   isReplacing: boolean;
   progress?: { done: number; total: number } | null;
   preventClose?: boolean;
+  source?: 'literal' | 'ai';
+  /** How many paragraphs were sent to AI (for sparse-output explanation). */
+  selectedCount?: number;
 }
 
 function renderDiffText(text: string, find: string | undefined, caseSensitive: boolean): string {
@@ -40,8 +44,11 @@ export function ReplacePreviewModal({
   isReplacing,
   progress,
   preventClose = false,
+  source = 'literal',
+  selectedCount,
 }: ReplacePreviewModalProps) {
   const { t } = useTranslation();
+  const showAiCoverage = source === 'ai' && selectedCount != null && selectedCount > items.length;
 
   return (
     <Modal
@@ -74,14 +81,26 @@ export function ReplacePreviewModal({
     >
       <div class="replace-preview-body">
         <p class="replace-preview-hint">
-          {t('searchReplace.previewHint', 'The following paragraphs will be updated:')}
+          {source === 'ai'
+            ? showAiCoverage
+              ? t('searchReplace.aiPreviewCoverage', {
+                  changed: items.length,
+                  selected: selectedCount,
+                })
+              : t(
+                  'searchReplace.aiPreviewHint',
+                  'Suggested by AI — review each change before applying.'
+                )
+            : t('searchReplace.previewHint', 'The following paragraphs will be updated:')}
         </p>
-        <p class="replace-preview-hint replace-preview-block-hint">
-          {t(
-            'searchReplace.blockMarkerHint',
-            'Formatting markers ({{block:…}}) are not changed automatically.'
-          )}
-        </p>
+        {source === 'literal' && (
+          <p class="replace-preview-hint replace-preview-block-hint">
+            {t(
+              'searchReplace.blockMarkerHint',
+              'Formatting markers ({{block:…}}) are not changed automatically.'
+            )}
+          </p>
+        )}
 
         {progress && isReplacing && (
           <div class="replace-preview-progress">

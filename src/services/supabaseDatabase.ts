@@ -3057,6 +3057,65 @@ export interface BulkParagraphUpdate {
   translatedText: string;
 }
 
+export interface ParagraphForAiReplace {
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string;
+  paragraphId: string;
+  paragraphIndex: number;
+  translatedText: string;
+}
+
+/**
+ * Load paragraph translated text for AI replace. Verifies project ownership via chapter join.
+ */
+export async function loadParagraphsForAiReplace(
+  projectId: string,
+  refs: Array<{ chapterId: string; paragraphId: string }>,
+  token: string
+): Promise<ParagraphForAiReplace[]> {
+  validateToken(token);
+  if (refs.length === 0) return [];
+
+  const client = createClientWithToken(token);
+  const paragraphIds = [...new Set(refs.map((r) => r.paragraphId))];
+  const refByParagraphId = new Map(refs.map((r) => [r.paragraphId, r.chapterId]));
+
+  const { data, error } = await client
+    .from('paragraphs')
+    .select('id, index, translated_text, chapter_id, chapters!inner(number, title, project_id)')
+    .in('id', paragraphIds)
+    .eq('chapters.project_id', projectId);
+
+  if (error) {
+    throw new Error(`Failed to load paragraphs: ${error.message}`);
+  }
+
+  const results: ParagraphForAiReplace[] = [];
+  for (const row of data ?? []) {
+    const chapterId = row.chapter_id as string;
+    const expectedChapterId = refByParagraphId.get(row.id as string);
+    if (!expectedChapterId || expectedChapterId !== chapterId) continue;
+
+    const chapterRaw = row.chapters as
+      | { number: number; title: string | null }
+      | { number: number; title: string | null }[]
+      | null;
+    const chapter = Array.isArray(chapterRaw) ? chapterRaw[0] : chapterRaw;
+    if (!chapter) continue;
+    results.push({
+      chapterId,
+      chapterNumber: chapter.number,
+      chapterTitle: chapter.title ?? '',
+      paragraphId: row.id as string,
+      paragraphIndex: row.index as number,
+      translatedText: (row.translated_text as string | null) ?? '',
+    });
+  }
+
+  return results;
+}
+
 export interface BulkUpdateResult {
   succeeded: string[];
   failed: Array<{ paragraphId: string; error: string }>;

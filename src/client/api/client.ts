@@ -603,6 +603,34 @@ export const api = {
     });
   },
 
+  async aiReplaceInProject(
+    projectId: string,
+    body: {
+      find: string;
+      replaceHint?: string;
+      preset: 'name_declension' | 'term_unify' | 'minimal_fix';
+      detail?: string;
+      paragraphs: Array<{ chapterId: string; paragraphId: string }>;
+    }
+  ): Promise<{
+    items: Array<{
+      chapterId: string;
+      paragraphId: string;
+      paragraphIndex: number;
+      chapterNumber: number;
+      before: string;
+      after: string;
+    }>;
+    tokensUsed: number;
+    model: string;
+    batches: number;
+  }> {
+    return fetchJson(`/api/projects/${projectId}/search/ai-replace`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   async createProject(
     name: string,
     options?: { sourceLanguage?: string; targetLanguage?: string }

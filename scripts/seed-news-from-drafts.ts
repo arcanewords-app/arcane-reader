@@ -25,12 +25,14 @@ const PUBLISH_ORDER = [
   'glossary-from-external-sources',
   'belarusian',
   'engine-gpt-54-mini',
+  'project-search-replace',
 ] as const;
 
 const BANNER_PRIORITY: Record<string, number> = {
   'new-language-pairs': 10,
   belarusian: 20,
   'engine-gpt-54-mini': 30,
+  'project-search-replace': 40,
 };
 
 type NewsCategory = 'feature' | 'discount' | 'update' | 'other';
@@ -126,25 +128,15 @@ function parseDraftFile(filePath: string): ParsedDraft {
 }
 
 function loadDrafts(): ParsedDraft[] {
-  const files = fs
-    .readdirSync(DRAFTS_DIR)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => path.join(DRAFTS_DIR, f));
-
-  const bySlug = new Map<string, ParsedDraft>();
-  for (const file of files) {
-    const draft = parseDraftFile(file);
-    if (!draft.title || !draft.summary) {
-      throw new Error(`Missing title/summary in ${file}`);
-    }
-    bySlug.set(draft.slug, draft);
-  }
-
   const ordered: ParsedDraft[] = [];
   for (const slug of PUBLISH_ORDER) {
-    const draft = bySlug.get(slug);
-    if (!draft) {
-      throw new Error(`Missing draft for slug "${slug}" in ${DRAFTS_DIR}`);
+    const filePath = path.join(DRAFTS_DIR, `${slug}.md`);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Missing draft for slug "${slug}" at ${filePath}`);
+    }
+    const draft = parseDraftFile(filePath);
+    if (!draft.title || !draft.summary) {
+      throw new Error(`Missing title/summary in ${filePath}`);
     }
     ordered.push(draft);
   }

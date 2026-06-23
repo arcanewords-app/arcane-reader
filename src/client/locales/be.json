@@ -262,7 +262,33 @@
     "resultsSummary": "{{total}} супадзенняў · {{visible}} у спісе · {{selected}} выбрана",
     "previewChapterParagraph": "Гл. {{chapter}}, параграф #{{index}}",
     "searchPending": "Пошук…",
-    "largeProjectHint": "Вялікі праект: звузьце дыяпазон глав — пошук будзе хутчэйшым."
+    "largeProjectHint": "Вялікі праект: звузьце дыяпазон глав — пошук будзе хутчэйшым.",
+    "selectParagraph": "Выбраць параграф #{{index}}",
+    "aiReplace": "Выпраўціць з AI",
+    "aiReplaceAuthorPlusHint": "Даступна на ўзроўні Аўтар+",
+    "aiReplaceSetupTitle": "Разумная замена",
+    "aiReplaceRun": "Сфармаваць перадпрагляд",
+    "aiReplaceSelectedCount": "{{count}} выбраных параграфаў · пошук «{{find}}»",
+    "aiReplacePresetLabel": "Задача",
+    "aiReplaceTargetForm": "Мэтавая форма: {{value}}",
+    "aiReplaceDetailLabel": "Удакладненне (неабавязкова)",
+    "aiReplaceDetailPlaceholder": "Кароткае поясненне…",
+    "aiReplaceEstimatedTokens": "~{{tokens}} з суточнага ліміту AI",
+    "aiReplaceEstimatedHint": "Ацэнка выдаткаў ліміту AI за сёння. Дакладнае значэнне можа крыху адрознівацца.",
+    "aiReplaceErrorWithParagraph": "{{message}} (параграф {{id}}…)",
+    "aiReplaceCoverageHint": "У перадпрагляд трапяць не ўсе выбраныя параграфы — толькі тыя, дзе AI бачыць правку. Пошук можа знаходзіць ужо карэктныя формы слова.",
+    "aiPreviewCoverage": "AI прапанаваў правкі ў {{changed}} з {{selected}} выбраных параграфаў. Рэшта ўжо ў парадку або мадэль не стала іх мяняць.",
+    "aiPreviewHint": "Прапанавана AI — праверце кожнае змяненне перад ужываннем.",
+    "aiPreset": {
+      "name_declension": "Выпраўіць скланенне імені",
+      "term_unify": "Уніфікаваць тэрмін",
+      "minimal_fix": "Кропкавая праўка"
+    },
+    "aiPresetHint": {
+      "name_declension": "Імя ў патрэбным склоне па кантэксту. Кананічную форму ўкажыце ў полі «Замяніць».",
+      "term_unify": "Адно напісанне тэрміна ва ўсіх выбраных месцах.",
+      "minimal_fix": "Дробная праўка вакол знойдзенага фрагмента без перапісвання абзаца."
+    }
   },
   "jobsPanel": {
     "title": "Актыўныя задачы",

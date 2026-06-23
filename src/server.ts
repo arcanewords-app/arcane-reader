@@ -28,6 +28,7 @@ import {
   projectCreateBodySchema,
   projectLanguagesBodySchema,
   projectSearchQuerySchema,
+  projectAiReplaceBodySchema,
   projectSettingsBodySchema,
   metadataUpdateBodySchema,
   exportDownloadQuerySchema,
@@ -1809,6 +1810,115 @@ app.get('/api/projects/:id/search', requireAuth, requireRole('author'), async (r
     res.status(500).json({ error: 'Failed to search project' });
   }
 });
+
+// AI smart replace for project search (Author+)
+app.post(
+  '/api/projects/:id/search/ai-replace',
+  requireAuth,
+  requireRole('author_plus'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const projectId = req.params.id;
+      const parsed = projectAiReplaceBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const {
+        runProjectAiReplace,
+        AiReplaceTooManyError,
+        AiReplaceInputTooLargeError,
+        AiReplaceNoChangesError,
+        AiReplaceOutputInvalidError,
+      } = await import('./services/project-ai-replace.js');
+      const { loadParagraphsForAiReplace } = await import('./services/supabaseDatabase.js');
+      const { sanitizeAiReplaceDetail } = await import('./shared/aiReplacePresets.js');
+      const { estimateAiReplaceTokens } = await import('./shared/aiReplaceEstimate.js');
+
+      const body = {
+        ...parsed.data,
+        detail: sanitizeAiReplaceDetail(parsed.data.detail),
+      };
+
+      const loaded = await loadParagraphsForAiReplace(projectId, body.paragraphs, token);
+      const totalChars = loaded.reduce((sum, p) => sum + p.translatedText.length, 0);
+      const estimatedTokens = estimateAiReplaceTokens(totalChars, loaded.length);
+      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
+      if (!limitCheck.allowed) {
+        const now = new Date();
+        const resetTime = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
+        );
+        return res.status(429).json({
+          error: 'Token limit exceeded',
+          code: 'AI_REPLACE_TOKEN_LIMIT',
+          message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+          currentUsage: limitCheck.currentUsage,
+          limit: limitCheck.limit,
+          estimatedTokens,
+          resetAt: resetTime.toISOString(),
+        });
+      }
+
+      let result;
+      try {
+        result = await runProjectAiReplace(project, body, token);
+      } catch (err) {
+        if (err instanceof AiReplaceTooManyError) {
+          return res.status(400).json({ error: err.message, code: err.code });
+        }
+        if (err instanceof AiReplaceInputTooLargeError) {
+          return res.status(400).json({ error: err.message, code: err.code });
+        }
+        if (err instanceof AiReplaceNoChangesError) {
+          return res.status(422).json({ error: err.message, code: err.code });
+        }
+        if (err instanceof AiReplaceOutputInvalidError) {
+          req.log?.warn(
+            {
+              event: 'ai_replace.validation_failed',
+              reason: err.reason,
+              paragraphId: err.paragraphId,
+              beforeLen: err.beforeLen,
+              afterLen: err.afterLen,
+              changeRatio: err.changeRatio,
+            },
+            'AI replace paragraph rejected'
+          );
+          return res.status(422).json({
+            error: err.message,
+            code: err.code,
+            paragraphId: err.paragraphId,
+            reason: err.reason,
+            changeRatio: err.changeRatio,
+          });
+        }
+        throw err;
+      }
+
+      await incrementTokenUsage(req.user.id, token, result.tokensUsed);
+
+      res.json(result);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Project AI replace failed');
+      res.status(500).json({ error: 'Failed to run AI replace' });
+    }
+  }
+);
 
 // Bulk update paragraphs (requires auth)
 app.post(

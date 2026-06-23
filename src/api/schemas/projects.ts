@@ -134,9 +134,28 @@ export const exportDownloadQuerySchema = z.object({
   path: z.string().min(1),
 });
 
+export const aiReplacePresetSchema = z.enum(['name_declension', 'term_unify', 'minimal_fix']);
+
+export const projectAiReplaceBodySchema = z.object({
+  find: z.string().trim().min(1).max(200),
+  replaceHint: z.string().trim().max(200).optional(),
+  preset: aiReplacePresetSchema,
+  detail: z.string().trim().max(200).optional(),
+  paragraphs: z
+    .array(
+      z.object({
+        chapterId: z.string().min(1),
+        paragraphId: z.string().min(1),
+      })
+    )
+    .min(1)
+    .max(100),
+});
+
 export type ProjectCreateBody = z.infer<typeof projectCreateBodySchema>;
 export type ProjectLanguagesBody = z.infer<typeof projectLanguagesBodySchema>;
 export type ProjectSearchQuery = z.infer<typeof projectSearchQuerySchema>;
+export type ProjectAiReplaceBody = z.infer<typeof projectAiReplaceBodySchema>;
 export type ProjectSettingsBody = z.infer<typeof projectSettingsBodySchema>;
 export type MetadataUpdateBody = z.infer<typeof metadataUpdateBodySchema>;
 export type ExportDownloadQuery = z.infer<typeof exportDownloadQuerySchema>;
