@@ -5,6 +5,20 @@
  */
 
 import type { UserRole } from '../types/roles.js';
+import {
+  estimateChapterTranslationTokens as estimateChapterTranslationTokensShared,
+  estimateBatchTranslationTokens,
+  type ChapterTranslationTokenEstimateInput,
+  type GlossaryEstimateEntry,
+  type TranslationTokenEstimateSettings,
+} from '../shared/translationTokenEstimate.js';
+
+export type {
+  ChapterTranslationTokenEstimateInput,
+  GlossaryEstimateEntry,
+  TranslationTokenEstimateSettings,
+};
+export { estimateBatchTranslationTokens };
 
 export const TOKEN_LIMITS = {
   /** Default daily limit for role 'author' (kept for backward compat / docs) */
@@ -175,4 +189,58 @@ export function estimateTokensByStage(
   }
 
   return result;
+}
+
+/** Chapter translation estimate with glossary + prompt overhead (shared SSOT). */
+export function estimateChapterTranslationTokens(
+  input: ChapterTranslationTokenEstimateInput
+): number {
+  return estimateChapterTranslationTokensShared(input);
+}
+
+/** Server/client: estimate for one chapter using project glossary. */
+export function estimateProjectChapterTranslationTokens(
+  project: {
+    glossary: GlossaryEstimateEntry[];
+    settings?: TranslationTokenEstimateSettings;
+    targetLanguage?: string;
+  },
+  chapterNumber: number,
+  input: {
+    textLength: number;
+    stages?: TranslationStages;
+    translateChapterTitles?: boolean;
+  }
+): number {
+  return estimateChapterTranslationTokens({
+    textLength: input.textLength,
+    stages: input.stages,
+    translateChapterTitles: input.translateChapterTitles,
+    glossary: project.glossary,
+    chapterNumber,
+    settings: project.settings,
+    targetLanguage: project.targetLanguage,
+  });
+}
+
+/** Server/client: batch estimate with per-chapter glossary filter. */
+export function estimateProjectBatchTranslationTokens(
+  project: {
+    glossary: GlossaryEstimateEntry[];
+    settings?: TranslationTokenEstimateSettings;
+    targetLanguage?: string;
+  },
+  chapters: Array<{ textLength: number; chapterNumber: number }>,
+  input: {
+    stages?: TranslationStages;
+    translateChapterTitles?: boolean;
+  }
+): number {
+  return estimateBatchTranslationTokens(chapters, {
+    stages: input.stages,
+    translateChapterTitles: input.translateChapterTitles,
+    glossary: project.glossary,
+    settings: project.settings,
+    targetLanguage: project.targetLanguage,
+  });
 }

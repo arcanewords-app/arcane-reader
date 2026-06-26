@@ -2,39 +2,15 @@ import { useState, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
-import { isChunkError } from '../../shared/chunkErrors';
-import { useTokenEstimate } from './useTokenEstimate';
+import { resolveChapterSourceTextLengthFromOptions } from '../../shared/chapterSourceText.js';
+import { estimateChapterTranslationTokensForProject } from '../config/tokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
-import type { Chapter, Paragraph, Project, ChapterTranslationOptions } from '../types';
+import type { Chapter, Project, ChapterTranslationOptions } from '../types';
 
 export type { ChapterTranslationOptions } from '../types';
 
 /**
- * Get text length for token estimation based on chapter and translation options.
- */
-function getTextLengthForOptions(chapter: Chapter, options: ChapterTranslationOptions): number {
-  if (options.paragraphIds?.length && chapter.paragraphs?.length) {
-    const idSet = new Set(options.paragraphIds);
-    return chapter.paragraphs
-      .filter((p) => idSet.has(p.id))
-      .reduce((sum, p) => sum + p.originalText.length, 0);
-  }
-  if (options.translateOnlyEmpty && chapter.paragraphs?.length) {
-    const hasValidTranslation = (p: Paragraph) => {
-      const t = p.translatedText?.trim() || '';
-      if (!t.length) return false;
-      if (t.startsWith('❌') || isChunkError(t)) return false;
-      return true;
-    };
-    const empty = chapter.paragraphs.filter((p) => !hasValidTranslation(p));
-    return empty.reduce((sum, p) => sum + p.originalText.length, 0);
-  }
-  return chapter.originalText?.length ?? 0;
-}
-
-/**
  * Hook: start chapter translation with token limit check.
- * Uses useTokenEstimate and useTokenLimitCheck internally.
  * Caller is responsible for polling chapter status (e.g. when chapter.status === 'translating').
  */
 export function useChapterTranslation(
@@ -48,7 +24,6 @@ export function useChapterTranslation(
   const { t } = useTranslation();
   const [translating, setTranslating] = useState(false);
 
-  const estimate = useTokenEstimate();
   const {
     tokenUsage,
     checkBeforeTranslate,
@@ -57,6 +32,21 @@ export function useChapterTranslation(
     confirmAndProceed,
     loadTokenUsage,
   } = useTokenLimitCheck();
+
+  const estimateForOptions = useCallback(
+    (options: ChapterTranslationOptions = {}) => {
+      const textLength = resolveChapterSourceTextLengthFromOptions(chapter, {
+        paragraphIds: options.paragraphIds,
+        translateOnlyEmpty: options.translateOnlyEmpty,
+      });
+      return estimateChapterTranslationTokensForProject(project, chapter, {
+        textLength,
+        stages: options.stages ?? 'all',
+        translateChapterTitles: options.translateChapterTitles,
+      });
+    },
+    [chapter, project]
+  );
 
   // Clear local translating when chapter status is no longer translating (e.g. after polling)
   useEffect(() => {
@@ -70,23 +60,12 @@ export function useChapterTranslation(
       if (chapter.status === 'translating' || translating) {
         return;
       }
-      const textLength = getTextLengthForOptions(chapter, options);
-      const estimated = estimate(textLength);
+      const estimated = estimateForOptions(options);
 
       checkBeforeTranslate(estimated, () => {
         setTranslating(true);
-        const body: Parameters<typeof api.translateChapter>[2] = {};
-        if (options.paragraphIds?.length) {
-          body.paragraphIds = options.paragraphIds;
-        } else if (options.translateOnlyEmpty) {
-          body.translateOnlyEmpty = true;
-        }
-        if (options.stages !== undefined) {
-          body.stages = options.stages;
-        }
-
         api
-          .translateChapter(projectId, chapterId, body)
+          .translateChapter(projectId, chapterId, options)
           .then(() => {
             onChapterUpdate({ ...chapter, status: 'translating' });
             if (authService.isAuthenticated()) {
@@ -124,7 +103,7 @@ export function useChapterTranslation(
       chapterId,
       chapter,
       translating,
-      estimate,
+      estimateForOptions,
       checkBeforeTranslate,
       onChapterUpdate,
       loadTokenUsage,
@@ -136,7 +115,7 @@ export function useChapterTranslation(
   return {
     startTranslation,
     translating: translating || chapter.status === 'translating',
-    estimate,
+    estimateForOptions,
     tokenUsage,
     warningState,
     closeWarning,

@@ -37,6 +37,9 @@ npm-debug.log*
 .cache/
 *.tsbuildinfo
 
+# Local debug persistence (dev only)
+.debug/
+
 supabase/migrations/
 docs/supabase-migrations/
 docs/migrations

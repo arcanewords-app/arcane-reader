@@ -37,11 +37,35 @@ import {
 } from './httpCapture.js';
 import { buildTraceDetailSummary } from './traceDetail.js';
 import { isDebugRedisBridgeAvailable } from './redisBridge.js';
+import { checkDebugQueryRateLimit } from './rateLimit.js';
+import {
+  executeDebugQuery,
+  executeJobDebugQuery,
+  executeAgentFormatQuery,
+  parseDebugQueryFromRequest,
+} from './query.js';
+import { isDebugPersistEnabled } from './persist.js';
+import { buildAgentContext, type AgentContextParams } from './agentContext.js';
+import { getDebugStatus } from './debugStatus.js';
+import { getDebugCatalog } from './catalog.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEBUG_DIST = path.resolve(__dirname, '../../dist/debug');
 
 function parseBoolQuery(v: unknown): boolean {
   return v === '1' || v === 'true';
+}
+
+function parseAgentContextParams(query: Record<string, unknown>): AgentContextParams {
+  const str = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : undefined);
+  return {
+    jobId: str(query.jobId),
+    traceId: str(query.traceId),
+    requestId: str(query.requestId),
+    includePrompts:
+      query.includePrompts === undefined ? true : parseBoolQuery(query.includePrompts),
+    includeHttp: query.includeHttp === undefined ? true : parseBoolQuery(query.includeHttp),
+    limit: parseInt(String(query.limit ?? ''), 10) || undefined,
+  };
 }
 
 export function registerDebugRoutes(app: Express): void {
@@ -65,8 +89,71 @@ export function registerDebugRoutes(app: Express): void {
         workerBridge: isDebugRedisBridgeAvailable(),
         llmCapture: isLlmCaptureEnabled(),
         httpCapture: isHttpCaptureEnabled(),
+        persist: isDebugPersistEnabled(),
       },
     });
+  });
+
+  app.get('/api/debug/status', (_req, res) => {
+    res.json(getDebugStatus());
+  });
+
+  app.get('/api/debug/catalog', (_req, res) => {
+    res.json(getDebugCatalog());
+  });
+
+  app.get('/api/debug/agent/context', (req, res) => {
+    const rate = checkDebugQueryRateLimit(req.ip);
+    if (!rate.allowed) {
+      res.status(429).json({
+        error: 'Too many debug queries',
+        retryAfterSec: rate.retryAfterSec,
+      });
+      return;
+    }
+    const result = buildAgentContext(parseAgentContextParams(req.query as Record<string, unknown>));
+    if ('error' in result) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  });
+
+  app.get('/api/debug/query', (req, res) => {
+    const rate = checkDebugQueryRateLimit(req.ip);
+    if (!rate.allowed) {
+      res.status(429).json({
+        error: 'Too many debug queries',
+        retryAfterSec: rate.retryAfterSec,
+      });
+      return;
+    }
+    const params = parseDebugQueryFromRequest(req.query as Record<string, unknown>);
+    if (params.format === 'agent') {
+      const agent = executeAgentFormatQuery(params);
+      if ('error' in agent) {
+        res.status(400).json(agent);
+        return;
+      }
+      res.json(agent);
+      return;
+    }
+    const result = executeDebugQuery(params);
+    res.json(result);
+  });
+
+  app.get('/api/debug/jobs/:jobId', (req, res) => {
+    const rate = checkDebugQueryRateLimit(req.ip);
+    if (!rate.allowed) {
+      res.status(429).json({
+        error: 'Too many debug queries',
+        retryAfterSec: rate.retryAfterSec,
+      });
+      return;
+    }
+    const params = parseDebugQueryFromRequest(req.query as Record<string, unknown>);
+    const result = executeJobDebugQuery(req.params.jobId, params);
+    res.json(result);
   });
 
   app.get('/api/debug/traces', (_req, res) => {

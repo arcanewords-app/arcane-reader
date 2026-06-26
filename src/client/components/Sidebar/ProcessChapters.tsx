@@ -20,8 +20,7 @@ import {
   toLanguagePairOverride,
 } from '../../utils/languagePairOverride';
 import { api } from '../../api/client';
-import { useTokenEstimate } from '../../hooks/useTokenEstimate';
-import { estimateTokensForChapterTitles } from '../../config/tokenEstimate';
+import { estimateBatchTranslationTokensForProject } from '../../config/tokenEstimate';
 import { chapterDisplayTitle } from '../../../shared/chapterTitle';
 import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
@@ -174,7 +173,6 @@ export function ProcessChapters({
     onRefreshProject,
   ]);
 
-  const estimate = useTokenEstimate();
   const batch = useBatchChapterTranslation(
     project.id,
     project,
@@ -275,42 +273,12 @@ export function ProcessChapters({
     return allChaptersSorted.filter((c) => idSet.has(c.id));
   }, [allChaptersSorted, translateSelectionIds]);
 
-  const getChapterTextLength = useCallback(
-    (ch: {
-      originalText?: string;
-      paragraphs?: Array<{ originalText?: string }>;
-      paragraphCount?: number;
-    }) => {
-      const direct = (ch.originalText || '').trim().length;
-      if (direct > 0) return direct;
-      const fromParagraphs = (ch.paragraphs || []).reduce(
-        (s, p) => s + (p.originalText || '').length,
-        0
-      );
-      if (fromParagraphs > 0) return fromParagraphs;
-      return ((ch as { paragraphCount?: number }).paragraphCount ?? 0) * 150;
-    },
-    []
-  );
-
   const estimatedTokensSelected = useMemo(() => {
-    const totalLength = selectedChaptersForTranslate.reduce(
-      (sum, ch) => sum + getChapterTextLength(ch),
-      0
-    );
-    let tokens = estimate(totalLength, batchSelectedStages);
-    const includesTranslation = batchSelectedStages.includes('translation');
-    if (batchTranslateChapterTitles && includesTranslation) {
-      tokens += estimateTokensForChapterTitles(selectedChaptersForTranslate.length);
-    }
-    return tokens;
-  }, [
-    selectedChaptersForTranslate,
-    batchSelectedStages,
-    batchTranslateChapterTitles,
-    estimate,
-    getChapterTextLength,
-  ]);
+    return estimateBatchTranslationTokensForProject(project, selectedChaptersForTranslate, {
+      stages: batchSelectedStages,
+      translateChapterTitles: batchTranslateChapterTitles,
+    });
+  }, [project, selectedChaptersForTranslate, batchSelectedStages, batchTranslateChapterTitles]);
 
   const defaultStatusFilter = useMemo((): StatusFilter => {
     if (stats.error > 0) return 'error';

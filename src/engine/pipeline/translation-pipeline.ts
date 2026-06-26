@@ -16,6 +16,7 @@ import { EditStage } from '../stages/stage-3-edit.js';
 import { formatChunkError } from '../constants/errors.js';
 import { filterGlossaryByChapter } from '../glossary/glossary-filter.js';
 import { log } from '../logger.js';
+import { runWithDebugContextAsync } from '../../debug/context.js';
 import { runWithConcurrencyResilient } from '../utils/concurrency.js';
 import {
   buildEditGlossaryAndCastFromContext,
@@ -25,6 +26,28 @@ import {
 
 /** Default concurrency for parallel analysis. */
 const DEFAULT_ANALYSIS_CONCURRENCY = 4;
+
+type PipelineStageName = 'analysis' | 'translation' | 'editing';
+
+function logPipelineStage(
+  phase: 'started' | 'completed' | 'failed',
+  stage: PipelineStageName,
+  chapterNumber: number,
+  extra?: Record<string, unknown>
+): void {
+  const event =
+    phase === 'started'
+      ? 'pipeline.stage.started'
+      : phase === 'completed'
+        ? 'pipeline.stage.completed'
+        : 'pipeline.stage.failed';
+  log.info(`Pipeline stage ${stage} ${phase}`, {
+    event,
+    stage,
+    chapterNumber,
+    ...extra,
+  });
+}
 
 export interface PipelineConfig {
   // Support both single provider (legacy) and per-stage providers
@@ -196,22 +219,30 @@ export class TranslationPipeline {
       log.info(`Pipeline: run only analysis (chapter ${chapterNumber})`, {
         sourceTextLength: sourceText.length,
       });
-      const stage1Result = await this.analyzeStage.execute(sourceText, {
-        chapterNumber,
-        sourceLanguage: context.sourceLanguage,
-        targetLanguage: context.targetLanguage,
-        existingGlossary: context.glossary,
-        temperature: options.temperatureByStage?.analysis,
-        maxSectionTokens: options.analysisMaxSectionTokens,
-      });
+      logPipelineStage('started', 'analysis', chapterNumber);
+      const stage1Result = await runWithDebugContextAsync({ stage: 'analysis' }, () =>
+        this.analyzeStage.execute(sourceText, {
+          chapterNumber,
+          sourceLanguage: context.sourceLanguage,
+          targetLanguage: context.targetLanguage,
+          existingGlossary: context.glossary,
+          temperature: options.temperatureByStage?.analysis,
+          maxSectionTokens: options.analysisMaxSectionTokens,
+        })
+      );
       checkCancelled();
       totalTokens += stage1Result.tokensUsed;
       if (stage1Result.success && stage1Result.data) {
+        logPipelineStage('completed', 'analysis', chapterNumber, {
+          tokensUsed: stage1Result.tokensUsed,
+        });
         this.agent.applyAnalysisResult(stage1Result.data);
         log.info('Pipeline: Stage 1 complete', {
           characters: stage1Result.data.foundCharacters.length,
           terms: stage1Result.data.foundTerms.length,
         });
+      } else {
+        logPipelineStage('failed', 'analysis', chapterNumber, { error: stage1Result.error });
       }
       return {
         chapterNumber,
@@ -229,19 +260,29 @@ export class TranslationPipeline {
     if (onlyEditing) {
       const existingText = options.existingTranslatedTextForEdit ?? '';
       log.info(`Pipeline: run only editing (chapter ${chapterNumber})`);
+      logPipelineStage('started', 'editing', chapterNumber);
       const onlyEditIncludeGlossary = options.includeGlossaryInEditing !== false;
-      const stage3Result = await this.editStage.execute(
-        existingText,
-        sourceText,
-        this.buildEditStageArgs(
+      const stage3Result = await runWithDebugContextAsync({ stage: 'editing' }, () =>
+        this.editStage.execute(
           existingText,
-          chapterNumber,
-          options,
-          ctxForTranslateEdit(),
-          onlyEditIncludeGlossary
+          sourceText,
+          this.buildEditStageArgs(
+            existingText,
+            chapterNumber,
+            options,
+            ctxForTranslateEdit(),
+            onlyEditIncludeGlossary
+          )
         )
       );
       totalTokens += stage3Result.tokensUsed;
+      if (stage3Result.success) {
+        logPipelineStage('completed', 'editing', chapterNumber, {
+          tokensUsed: stage3Result.tokensUsed,
+        });
+      } else {
+        logPipelineStage('failed', 'editing', chapterNumber, { error: stage3Result.error });
+      }
       const finalTranslation =
         stage3Result.success && stage3Result.data ? stage3Result.data.finalText : existingText;
       return {
@@ -264,18 +305,24 @@ export class TranslationPipeline {
       : !options.runOnlyStage && !options.skipAnalysis;
     if (runStage1) {
       log.info(`Pipeline: Stage 1 analyzing chapter ${chapterNumber}`);
-      stage1Result = await this.analyzeStage.execute(sourceText, {
-        chapterNumber,
-        sourceLanguage: context.sourceLanguage,
-        targetLanguage: context.targetLanguage,
-        existingGlossary:
-          options.includeGlossaryInAnalysis !== false ? context.glossary : undefined,
-        temperature: options.temperatureByStage?.analysis,
-        maxSectionTokens: options.analysisMaxSectionTokens,
-      });
+      logPipelineStage('started', 'analysis', chapterNumber);
+      stage1Result = await runWithDebugContextAsync({ stage: 'analysis' }, () =>
+        this.analyzeStage.execute(sourceText, {
+          chapterNumber,
+          sourceLanguage: context.sourceLanguage,
+          targetLanguage: context.targetLanguage,
+          existingGlossary:
+            options.includeGlossaryInAnalysis !== false ? context.glossary : undefined,
+          temperature: options.temperatureByStage?.analysis,
+          maxSectionTokens: options.analysisMaxSectionTokens,
+        })
+      );
       checkCancelled();
       totalTokens += stage1Result.tokensUsed;
       if (stage1Result.success && stage1Result.data) {
+        logPipelineStage('completed', 'analysis', chapterNumber, {
+          tokensUsed: stage1Result.tokensUsed,
+        });
         this.agent.applyAnalysisResult(stage1Result.data);
         log.info('Pipeline: Stage 1 complete', {
           characters: stage1Result.data.foundCharacters.length,
@@ -283,6 +330,7 @@ export class TranslationPipeline {
         });
       } else {
         log.warn(`Pipeline: Stage 1 failed: ${stage1Result.error}`);
+        logPipelineStage('failed', 'analysis', chapterNumber, { error: stage1Result.error });
       }
       // Return partial result on cancel so server can save glossary (refactor 2.2)
       if (options.isCancelled?.()) {
@@ -326,15 +374,17 @@ export class TranslationPipeline {
           );
         }
         const editOnlyIncludeGlossary = options.includeGlossaryInEditing !== false;
-        const stage3Result = await this.editStage.execute(
-          existing,
-          sourceText,
-          this.buildEditStageArgs(
+        const stage3Result = await runWithDebugContextAsync({ stage: 'editing' }, () =>
+          this.editStage.execute(
             existing,
-            chapterNumber,
-            options,
-            ctxForTranslateEdit(),
-            editOnlyIncludeGlossary
+            sourceText,
+            this.buildEditStageArgs(
+              existing,
+              chapterNumber,
+              options,
+              ctxForTranslateEdit(),
+              editOnlyIncludeGlossary
+            )
           )
         );
         totalTokens += stage3Result.tokensUsed;
@@ -382,35 +432,39 @@ export class TranslationPipeline {
       leadingContext: options.translateLeadingContextParagraphs,
       chunkSizeOverride: options.chunkSize,
     });
-    const stage2Result = await this.translateStage.execute(sourceText, {
-      context: ctxForTranslateEdit(),
-      ...(options.chunkSize != null && options.chunkSize > 0
-        ? { chunkSize: options.chunkSize }
-        : {}),
-      includeGlossary: includeGlossaryInTranslation,
-      temperature: options.temperatureByStage?.translation,
-      isCancelled: options.isCancelled,
-      chunkRetryAttempts: options.retryAttempts ?? 2,
-      chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
-      neverSplitParagraphs: options.neverSplitParagraphs,
-      textBlockTypes: options.textBlockTypes,
-      customInstructions: options.customInstructions?.translation,
-      parallelChunks: options.parallelChunks,
-      onProgress: options.onProgress
-        ? (d, t) => options.onProgress?.(d, t, 'translation')
-        : undefined,
-      chapterNumber,
-      translateExecutionMode: options.translateExecutionMode,
-      enableTranslateFewShot: options.enableTranslateFewShot,
-      enableTranslateCoT: options.enableTranslateCoT,
-      enableTranslateStructuredCoT: options.enableTranslateStructuredCoT,
-      translateLeadingContextParagraphs: options.translateLeadingContextParagraphs,
-      miniModelTranslationProfile: options.miniModelTranslationProfile,
-      forceChunked: options.forceChunked,
-    });
+    logPipelineStage('started', 'translation', chapterNumber);
+    const stage2Result = await runWithDebugContextAsync({ stage: 'translation' }, () =>
+      this.translateStage.execute(sourceText, {
+        context: ctxForTranslateEdit(),
+        ...(options.chunkSize != null && options.chunkSize > 0
+          ? { chunkSize: options.chunkSize }
+          : {}),
+        includeGlossary: includeGlossaryInTranslation,
+        temperature: options.temperatureByStage?.translation,
+        isCancelled: options.isCancelled,
+        chunkRetryAttempts: options.retryAttempts ?? 2,
+        chunkRetryDelayMs: options.chunkRetryDelayMs ?? 1500,
+        neverSplitParagraphs: options.neverSplitParagraphs,
+        textBlockTypes: options.textBlockTypes,
+        customInstructions: options.customInstructions?.translation,
+        parallelChunks: options.parallelChunks,
+        onProgress: options.onProgress
+          ? (d, t) => options.onProgress?.(d, t, 'translation')
+          : undefined,
+        chapterNumber,
+        translateExecutionMode: options.translateExecutionMode,
+        enableTranslateFewShot: options.enableTranslateFewShot,
+        enableTranslateCoT: options.enableTranslateCoT,
+        enableTranslateStructuredCoT: options.enableTranslateStructuredCoT,
+        translateLeadingContextParagraphs: options.translateLeadingContextParagraphs,
+        miniModelTranslationProfile: options.miniModelTranslationProfile,
+        forceChunked: options.forceChunked,
+      })
+    );
     totalTokens += stage2Result.tokensUsed;
 
     if (!stage2Result.success || !stage2Result.data) {
+      logPipelineStage('failed', 'translation', chapterNumber, { error: stage2Result.error });
       return this.createFailedResult(
         chapterNumber,
         sourceText,
@@ -422,6 +476,10 @@ export class TranslationPipeline {
         `Translation failed: ${stage2Result.error}`
       );
     }
+    const stage2TranslatedText = stage2Result.data.translatedText;
+    logPipelineStage('completed', 'translation', chapterNumber, {
+      tokensUsed: stage2Result.tokensUsed,
+    });
     log.info('Pipeline: Stage 2 complete', { chunks: stage2Result.data.chunkResults.length });
     checkCancelled();
 
@@ -430,30 +488,37 @@ export class TranslationPipeline {
     let finalTranslation: string;
     if (willRunEditing) {
       const includeGlossaryInEditing = options.includeGlossaryInEditing !== false;
-      stage3Result = await this.editStage.execute(
-        stage2Result.data.translatedText,
-        sourceText,
-        this.buildEditStageArgs(
-          stage2Result.data.translatedText,
-          chapterNumber,
-          options,
-          ctxForTranslateEdit(),
-          includeGlossaryInEditing
+      logPipelineStage('started', 'editing', chapterNumber);
+      stage3Result = await runWithDebugContextAsync({ stage: 'editing' }, () =>
+        this.editStage.execute(
+          stage2TranslatedText,
+          sourceText,
+          this.buildEditStageArgs(
+            stage2TranslatedText,
+            chapterNumber,
+            options,
+            ctxForTranslateEdit(),
+            includeGlossaryInEditing
+          )
         )
       );
       totalTokens += stage3Result.tokensUsed;
       if (stage3Result.success && stage3Result.data) {
+        logPipelineStage('completed', 'editing', chapterNumber, {
+          tokensUsed: stage3Result.tokensUsed,
+        });
         finalTranslation = stage3Result.data.finalText;
         log.info('Pipeline: Stage 3 complete', {
           qualityScore: stage3Result.data.qualityScore ?? 'N/A',
         });
       } else {
-        finalTranslation = stage2Result.data.translatedText;
+        finalTranslation = stage2TranslatedText;
+        logPipelineStage('failed', 'editing', chapterNumber, { error: stage3Result.error });
         log.warn(`Pipeline: Stage 3 failed, using raw translation: ${stage3Result.error}`);
       }
     } else {
       stage3Result = dummyStage3;
-      finalTranslation = stage2Result.data.translatedText;
+      finalTranslation = stage2TranslatedText;
       log.debug('Pipeline: Stage 3 skipped');
     }
 

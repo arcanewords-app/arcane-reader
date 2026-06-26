@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type { ProjectWithChapterList, Chapter, ProjectSettings } from '../types';
 import { getProject, updateProjectCache } from '../store/projects';
+import { shouldRefetchOpenChapter } from '../../shared/chapterContentSync.js';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
@@ -123,21 +124,76 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     setProject({ ...project, settings });
   };
 
-  const handleRefreshProject = useCallback(
-    async () => {
-      if (!project) return;
-      const updated = await getProject(project.id);
-      if (updated) {
-        setProject(updated);
-        api
-          .getProjectReportsCount(project.id)
-          .then(({ count }) => setReportsCount(count))
-          .catch(() => {});
+  const handleRefreshProject = useCallback(async () => {
+    if (!project) return;
+    const updated = await getProject(project.id);
+    if (!updated) return;
+    setProject(updated);
+
+    if (chapterId && chapter) {
+      const listItem = updated.chapters.find((c) => c.id === chapterId);
+      if (listItem && shouldRefetchOpenChapter(chapter.status, listItem.status)) {
+        try {
+          const fresh = await api.getChapterFresh(project.id, chapterId);
+          setChapter(fresh);
+          const nextProject: ProjectWithChapterList = {
+            ...updated,
+            chapters: updated.chapters.map((c) =>
+              c.id === fresh.id
+                ? {
+                    ...c,
+                    title: fresh.title,
+                    translatedTitle: fresh.translatedTitle,
+                    status: fresh.status,
+                    hasTranslation:
+                      fresh.status === 'completed' ||
+                      fresh.status === 'draft' ||
+                      (fresh.paragraphs?.some(
+                        (p) => p.translatedText && p.translatedText.trim().length > 0
+                      ) ??
+                        false),
+                  }
+                : c
+            ),
+          };
+          setProject(nextProject);
+          updateProjectCache(nextProject);
+        } catch (error) {
+          console.error('Failed to sync open chapter after project refresh:', error);
+        }
       }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- project?.id only, to avoid JobsPanel fetch cascade on every re-render
-    [project?.id]
-  );
+    }
+
+    api
+      .getProjectReportsCount(project.id)
+      .then(({ count }) => setReportsCount(count))
+      .catch(() => {});
+  }, [project, chapterId, chapter?.id, chapter?.status]);
+
+  const listItemStatus = project?.chapters.find((c) => c.id === chapterId)?.status;
+
+  useEffect(() => {
+    if (!project || !chapterId || !chapter || !listItemStatus) return;
+    if (!shouldRefetchOpenChapter(chapter.status, listItemStatus)) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void api
+        .getChapterFresh(projectId, chapterId)
+        .then((fresh) => {
+          if (!cancelled) handleChapterUpdate(fresh);
+        })
+        .catch((error) => {
+          console.error('Failed to sync open chapter:', error);
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleChapterUpdate stable enough; chapter paragraphs intentionally omitted
+  }, [listItemStatus, chapter?.status, chapterId, projectId]);
 
   const handleEnterReadingMode = () => {
     route(`/projects/${projectId}/chapters/${chapterId}/reading`);

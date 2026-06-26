@@ -42,6 +42,17 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
   const config = loadConfig();
   const token = ''; // Service role used for all DB ops
 
+  logger.info(
+    {
+      event: 'job.started',
+      jobId,
+      jobType: 'analysis',
+      projectId,
+      chapterCount: chapterIds.length,
+    },
+    'Analysis job started'
+  );
+
   try {
     const currentJob = await analysisJobStore.getJob(jobId);
     if (!currentJob) return;
@@ -260,6 +271,18 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
         totalTokensUsed: result.totalTokensUsed,
         finishedAt: new Date().toISOString(),
       });
+      logger.info(
+        {
+          event: 'job.completed',
+          jobId,
+          jobType: 'analysis',
+          projectId,
+          chapterCount: chapterIds.length,
+          successful,
+          failed,
+        },
+        'Analysis job completed'
+      );
       await analysisJobStore.setTtl(jobId, ANALYSIS_JOB_TTL_SECONDS);
     } catch (bgErr) {
       clearInterval(cancelCheckInterval);

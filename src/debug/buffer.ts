@@ -86,23 +86,45 @@ function defaultProcess(): 'api' | 'worker' {
   return process.env.RUN_AS_WORKER === '1' ? 'worker' : 'api';
 }
 
-export function addDebugLogEntry(entry: DebugLogEntry): void {
+function writeLogEntry(enriched: DebugLogEntry, options?: { skipBridge?: boolean }): void {
   const max = maxEntries();
-  const enriched = mergeDebugContext({
-    ...entry,
-    process: entry.process ?? defaultProcess(),
-  }) as DebugLogEntry;
-
   const next = index % max;
   buffer[next] = enriched;
   index += 1;
   updateTraceIndex(enriched);
 
-  if (process.env.NODE_ENV !== 'production' && process.env.RUN_AS_WORKER === '1') {
-    void import('./redisBridge.js').then(({ publishDebugLogEntry }) => {
-      publishDebugLogEntry(enriched);
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.RUN_AS_WORKER === '1' &&
+    !options?.skipBridge
+  ) {
+    void import('./redisBridge.js').then(({ publishDebugBridgeMessage }) => {
+      publishDebugBridgeMessage({ kind: 'log', entry: enriched });
     });
   }
+
+  if (process.env.NODE_ENV !== 'production' && process.env.RUN_AS_WORKER !== '1') {
+    void import('./persist.js').then(({ appendPersistRecord }) => {
+      appendPersistRecord('log', enriched);
+    });
+  }
+}
+
+export function addDebugLogEntry(entry: DebugLogEntry): void {
+  const enriched = mergeDebugContext({
+    ...entry,
+    process: entry.process ?? defaultProcess(),
+  }) as DebugLogEntry;
+  writeLogEntry(enriched);
+}
+
+/** Ingest log from worker Redis bridge without re-publishing. */
+export function importBridgedLogEntry(entry: DebugLogEntry): void {
+  const enriched = mergeDebugContext({
+    ...entry,
+    process: 'worker' as const,
+  }) as DebugLogEntry;
+  writeLogEntry(enriched, { skipBridge: true });
 }
 
 export function getDebugLogEntries(): DebugLogEntry[] {
@@ -140,4 +162,125 @@ export function getDistinctEvents(): string[] {
     if (typeof e.event === 'string' && e.event) events.add(e.event);
   }
   return [...events].sort();
+}
+
+export interface LogQueryFilters {
+  traceId?: string;
+  jobId?: string;
+  requestId?: string;
+  chapterId?: string;
+  projectId?: string;
+  event?: string;
+  level?: string;
+  process?: string;
+  since?: string;
+  until?: string;
+  q?: string;
+  errorsOnly?: boolean;
+  excludeEvents?: string[];
+}
+
+function matchesCorrelation(
+  entry: DebugLogEntry,
+  filters: Pick<LogQueryFilters, 'traceId' | 'jobId' | 'requestId' | 'chapterId' | 'projectId'>
+): boolean {
+  if (filters.traceId && entry.traceId !== filters.traceId) return false;
+  if (filters.jobId && entry.jobId !== filters.jobId) return false;
+  if (filters.requestId && entry.requestId !== filters.requestId) return false;
+  if (filters.chapterId && entry.chapterId !== filters.chapterId) return false;
+  if (filters.projectId && entry.projectId !== filters.projectId) return false;
+  return true;
+}
+
+export function queryLogEntries(filters: LogQueryFilters = {}): DebugLogEntry[] {
+  const exclude = new Set(filters.excludeEvents ?? []);
+  const qLower = filters.q?.toLowerCase();
+
+  return getDebugLogEntriesNewestFirst().filter((entry) => {
+    if (!matchesCorrelation(entry, filters)) return false;
+    if (filters.event && entry.event !== filters.event) return false;
+    if (filters.level && entry.level !== filters.level) return false;
+    if (filters.process && entry.process !== filters.process) return false;
+    if (filters.since && String(entry.time ?? '') < filters.since) return false;
+    if (filters.until && String(entry.time ?? '') > filters.until) return false;
+    if (filters.errorsOnly) {
+      const level = String(entry.level ?? '');
+      if (level !== 'error' && level !== 'fatal') return false;
+    }
+    if (exclude.size > 0 && typeof entry.event === 'string' && exclude.has(entry.event)) {
+      return false;
+    }
+    if (qLower) {
+      const hay = [entry.msg, entry.event, entry.traceId, entry.jobId, entry.requestId]
+        .filter((v): v is string => typeof v === 'string')
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(qLower)) return false;
+    }
+    return true;
+  });
+}
+
+export function getTracesForJob(jobId: string): DebugTraceSummary[] {
+  const traceIds = new Set<string>();
+  for (const e of getDebugLogEntries()) {
+    if (e.jobId === jobId && typeof e.traceId === 'string' && e.traceId) {
+      traceIds.add(e.traceId);
+    }
+  }
+  const summaries: DebugTraceSummary[] = [];
+  for (const traceId of traceIds) {
+    const fromIndex = traceIndex.get(traceId);
+    if (fromIndex) summaries.push(fromIndex);
+    else {
+      const entries = getEntriesForCorrelation(traceId).filter((e) => e.jobId === jobId);
+      if (entries.length === 0) continue;
+      const sorted = [...entries].sort((a, b) =>
+        String(a.time ?? '').localeCompare(String(b.time ?? ''))
+      );
+      summaries.push({
+        traceId,
+        firstTime: String(sorted[0]?.time ?? ''),
+        lastTime: String(sorted[sorted.length - 1]?.time ?? ''),
+        entryCount: entries.length,
+        errorCount: entries.filter((e) => e.level === 'error' || e.level === 'fatal').length,
+        warnCount: entries.filter((e) => e.level === 'warn').length,
+        jobId,
+        chapterId: typeof sorted[0]?.chapterId === 'string' ? sorted[0].chapterId : undefined,
+        projectId: typeof sorted[0]?.projectId === 'string' ? sorted[0].projectId : undefined,
+      });
+    }
+  }
+  return summaries.sort((a, b) => b.lastTime.localeCompare(a.lastTime));
+}
+
+export function hydrateLogEntry(entry: DebugLogEntry): void {
+  writeLogEntry(entry, { skipBridge: true });
+}
+
+export function getLastErrorEntry(): DebugLogEntry | undefined {
+  return getDebugLogEntriesNewestFirst().find((e) => e.level === 'error' || e.level === 'fatal');
+}
+
+export function getRecentJobIds(limit = 5): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const e of getDebugLogEntriesNewestFirst()) {
+    const jobId = typeof e.jobId === 'string' ? e.jobId : undefined;
+    if (!jobId || seen.has(jobId)) continue;
+    seen.add(jobId);
+    result.push(jobId);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+export function sortLogEntries(
+  entries: DebugLogEntry[],
+  order: 'asc' | 'desc' = 'asc'
+): DebugLogEntry[] {
+  const sorted = [...entries].sort((a, b) =>
+    String(a.time ?? '').localeCompare(String(b.time ?? ''))
+  );
+  return order === 'desc' ? sorted.reverse() : sorted;
 }

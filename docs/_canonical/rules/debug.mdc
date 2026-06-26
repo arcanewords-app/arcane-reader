@@ -16,9 +16,11 @@ For production/staging log search, retention, and alerts use **Axiom** (`LOG_SHI
 
 | Path | Role |
 |------|------|
-| `src/debug/` | Server: buffers, capture, API routes, Redis bridge |
+| `src/debug/` | Server: buffers, capture, API routes, Redis bridge, query, persist |
 | `src/debug/shared/` | Browser-safe types + copy format (shared with debug-app) |
 | `src/debug-app/` | Preact SPA — unified debug console UI |
+
+Agent/chat queries: `@.cursor/skills/debug-local/SKILL.md` → `GET /api/debug/status`, `GET /api/debug/agent/context`, `GET /api/debug/query`.
 
 Web scraper experiments live in the separate **[arcane-scraper](https://github.com/arcane-scraper)** repo, not in debug console.
 
@@ -42,6 +44,7 @@ npm run dev:full     # + worker
 
 - Debug UI: `http://localhost:5174/debug/` or via main client proxy `http://localhost:5173/debug`
 - API: `http://localhost:3000/api/debug/*`
+- Worker bridge: Redis pub/sub + list backlog (`DEBUG_BRIDGE_BACKLOG`, default 500) — see `src/debug/redisBridge.ts`
 
 ## Future extraction
 

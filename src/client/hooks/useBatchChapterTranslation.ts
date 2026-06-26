@@ -2,8 +2,7 @@ import { useState, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../api/client';
 import { authService } from '../services/authService';
-import { useTokenEstimate } from './useTokenEstimate';
-import { estimateTokensForChapterTitles } from '../config/tokenEstimate';
+import { estimateBatchTranslationTokensForProject } from '../config/tokenEstimate';
 import { useTokenLimitCheck } from './useTokenLimitCheck';
 import { getProject as getProjectFromStore } from '../store/projects';
 import type { Chapter, ChapterSummary, Project, ProjectWithChapterList } from '../types';
@@ -90,7 +89,6 @@ export function useBatchChapterTranslation(
   onBatchJobCreated?: () => void
 ) {
   const { t } = useTranslation();
-  const estimate = useTokenEstimate();
   const {
     tokenUsage,
     checkBeforeTranslate,
@@ -244,25 +242,10 @@ export function useBatchChapterTranslation(
     (chapters: Array<Chapter | ChapterSummary>, optionsPerChapter?: ChapterTranslationOptions) => {
       if (chapters.length === 0) return;
 
-      const totalLength = chapters.reduce((sum, ch) => {
-        const full = ch as Chapter;
-        if (full.originalText) return sum + full.originalText.length;
-        const fromPar = (full.paragraphs || []).reduce(
-          (s, p) => s + (p.originalText || '').length,
-          0
-        );
-        if (fromPar > 0) return sum + fromPar;
-        return sum + ((ch as ChapterSummary).paragraphCount ?? 0) * 150;
-      }, 0);
-      const stagesForEstimate = optionsPerChapter?.stages ?? 'all';
-      let estimatedTokens = estimate(totalLength, stagesForEstimate);
-      const translateTitles = optionsPerChapter?.translateChapterTitles !== false;
-      const includesTranslation =
-        stagesForEstimate === 'all' ||
-        (Array.isArray(stagesForEstimate) && stagesForEstimate.includes('translation'));
-      if (translateTitles && includesTranslation) {
-        estimatedTokens += estimateTokensForChapterTitles(chapters.length);
-      }
+      const estimatedTokens = estimateBatchTranslationTokensForProject(project, chapters, {
+        stages: optionsPerChapter?.stages ?? 'all',
+        translateChapterTitles: optionsPerChapter?.translateChapterTitles,
+      });
 
       checkBeforeTranslate(estimatedTokens, () => {
         cancelledRef.current = false;
@@ -518,8 +501,7 @@ export function useBatchChapterTranslation(
     },
     [
       projectId,
-      project.glossary.length,
-      estimate,
+      project,
       checkBeforeTranslate,
       onRefreshProject,
       loadTokenUsage,

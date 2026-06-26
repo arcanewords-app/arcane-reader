@@ -12,5 +12,6 @@ export {
   formatHttpUpstream,
   formatLlmCaptureMarkdown,
   formatTraceForCursor,
+  getCodeHintsForEntries,
   omitLogPayload,
 } from './shared/copyFormat.js';

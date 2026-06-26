@@ -14,6 +14,7 @@ import { LEGACY_FONT_MAP } from '../../types';
 import { api, ApiError } from '../../api/client';
 import { isChunkError } from '../../../shared/chunkErrors';
 import { CRITIC_MAX_INPUT_CHARS } from '../../../shared/critic-limits';
+import { getTranslationCoverage } from '../../../shared/chapterTranslationCoverage.js';
 import { groupIssuesByParagraph } from '../../../shared/evaluation-normalize';
 import { useChapterTranslation } from '../../hooks/useChapterTranslation';
 import { useTokenLimitCheck } from '../../hooks/useTokenLimitCheck';
@@ -141,7 +142,6 @@ export function ChapterView({
   const {
     startTranslation,
     translating,
-    estimate,
     tokenUsage,
     warningState,
     closeWarning,
@@ -243,11 +243,13 @@ export function ChapterView({
     }
   }, [readerSettings]);
 
-  // Poll for chapter updates during translation (lightweight status + exponential backoff, skip when tab hidden)
+  // Poll while chapter is translating (local state or sidebar summary)
+  const isChapterTranslating =
+    chapter?.status === 'translating' || chapterListItem?.status === 'translating';
   const MAX_POLL_ATTEMPTS = 120;
   const MAX_CONSECUTIVE_ERRORS = 5;
   useEffect(() => {
-    if (!chapter || chapter.status !== 'translating') {
+    if (!chapter || !isChapterTranslating) {
       setChunkProgress(null);
       if (pollingInterval) {
         clearTimeout(pollingInterval);
@@ -282,7 +284,7 @@ export function ChapterView({
         }
         if (status !== 'translating') {
           setChunkProgress(null);
-          const fullChapter = await api.getChapter(project.id, chapter.id);
+          const fullChapter = await api.getChapterFresh(project.id, chapter.id);
           onChapterUpdate(fullChapter);
           try {
             await onRefreshProject?.();
@@ -318,7 +320,7 @@ export function ChapterView({
       clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onChapterUpdate from parent; pollingInterval is managed inside
-  }, [chapter?.status, chapter?.id, project.id, onChapterUpdate, onRefreshProject]);
+  }, [isChapterTranslating, chapter?.id, project.id, onChapterUpdate, onRefreshProject]);
 
   const handleSelectAllEmpty = () => setSelectedParagraphIds([...emptyParagraphIds]);
   const handleDeselectAll = () => setSelectedParagraphIds([]);
@@ -517,6 +519,10 @@ export function ChapterView({
       : undefined;
 
   const paragraphs = chapter?.paragraphs || [];
+  const translationCoverage = useMemo(
+    () => getTranslationCoverage(paragraphs),
+    [chapter?.paragraphs]
+  );
 
   return (
     <div id="chapterView">
@@ -582,7 +588,6 @@ export function ChapterView({
             startTranslation={startTranslation}
             translating={translating}
             chunkProgress={chunkProgress}
-            estimate={estimate}
             emptyCount={emptyParagraphIds.length}
             selectedParagraphIds={selectedParagraphIds}
             onSelectAllEmpty={handleSelectAllEmpty}
@@ -627,13 +632,16 @@ export function ChapterView({
                 class="progress-fill"
                 style={{
                   width: `${
-                    (paragraphs.filter((p) => p.translatedText).length / paragraphs.length) * 100
+                    translationCoverage.contentTotal > 0
+                      ? (translationCoverage.translatedCount / translationCoverage.contentTotal) *
+                        100
+                      : 0
                   }%`,
                 }}
               />
             </div>
             <span class="progress-text">
-              {paragraphs.filter((p) => p.translatedText).length}/{paragraphs.length}
+              {translationCoverage.translatedCount}/{translationCoverage.contentTotal}
             </span>
           </div>
         )}

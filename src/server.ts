@@ -206,8 +206,11 @@ import {
   PARA_MARKER_PREFIX,
   PARA_MARKER_SUFFIX,
 } from './engine/utils/para-markers.js';
-import { startDebugLogSubscriber } from './debug/redisBridge.js';
-import { addDebugLogEntry } from './debug/buffer.js';
+import { startDebugBridgeSubscriber } from './debug/redisBridge.js';
+import { importBridgedLogEntry } from './debug/buffer.js';
+import { importBridgedLlmCapture } from './debug/promptCapture.js';
+import { importBridgedHttpExchange } from './debug/httpCapture.js';
+import { hydrateDebugBuffersFromDisk } from './debug/hydrate.js';
 import { createTraceId, runWithDebugContextAsync } from './debug/context.js';
 import { httpCaptureMiddleware, setDebugTraceId } from './debug/httpCaptureMiddleware.js';
 
@@ -626,8 +629,8 @@ import {
   getTokenUsageHistory,
 } from './middleware/tokenLimits.js';
 import {
-  estimateTokensForStages,
-  estimateTokensForChapterTitles,
+  estimateProjectChapterTranslationTokens,
+  estimateProjectBatchTranslationTokens,
   type TranslationStages,
 } from './config/tokenLimits.js';
 import {
@@ -3854,11 +3857,14 @@ app.post(
         });
       }
 
-      const totalTextLength = chaptersWithText.reduce(
-        (sum, ch) => sum + (ch.originalText?.length ?? 0),
-        0
+      const estimatedTokens = estimateProjectBatchTranslationTokens(
+        project,
+        chaptersWithText.map((ch) => ({
+          textLength: ch.originalText?.length ?? 0,
+          chapterNumber: ch.number,
+        })),
+        { stages: ['analysis'], translateChapterTitles: false }
       );
-      const estimatedTokens = estimateTokensForStages(totalTextLength, ['analysis']);
       const limitCheck = await checkTokenLimit(
         req.user!.id,
         token,
@@ -3941,6 +3947,16 @@ app.post(
           chapterIds: chaptersWithText.map((c) => c.id),
           ...jobLanguageFields,
         });
+
+        req.log?.info(
+          {
+            event: 'analysis.job.enqueued',
+            jobId,
+            projectId,
+            chapterCount: chaptersWithText.length,
+          },
+          'Analysis job enqueued'
+        );
 
         res.status(202).json({ jobId, status: 'queued' as const });
         return;
@@ -4217,17 +4233,15 @@ app.post(
         });
       }
 
-      const totalTextLength = chaptersToTranslate.reduce(
-        (sum, ch) => sum + (ch.originalText?.length ?? 0),
-        0
-      );
       const translateTitles = translateChapterTitles !== false;
-      const stagesIncludeTranslation =
-        stages === 'all' || (Array.isArray(stages) && stages.includes('translation'));
-      let estimatedTokens = estimateTokensForStages(totalTextLength, stages);
-      if (translateTitles && stagesIncludeTranslation) {
-        estimatedTokens += estimateTokensForChapterTitles(chaptersToTranslate.length);
-      }
+      const estimatedTokens = estimateProjectBatchTranslationTokens(
+        project,
+        chaptersToTranslate.map((ch) => ({
+          textLength: ch.originalText?.length ?? 0,
+          chapterNumber: ch.number,
+        })),
+        { stages, translateChapterTitles: translateTitles }
+      );
       const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
       if (!limitCheck.allowed) {
         const now = new Date();
@@ -4308,6 +4322,16 @@ app.post(
           translateChapterTitles: translateTitles,
           ...jobLanguageFields,
         });
+
+        req.log?.info(
+          {
+            event: 'translate.job.enqueued',
+            jobId,
+            projectId,
+            chapterCount: chaptersToTranslate.length,
+          },
+          'Translate job enqueued'
+        );
 
         res.status(202).json({ jobId, status: 'queued' as const });
         return;
@@ -4534,14 +4558,12 @@ app.post(
       );
       const editingModel = getStageModel(project, 'editing', config.openai.model, req.user!.role);
 
-      // Estimate tokens for the requested stages
       const translateTitles = translateChapterTitles !== false;
-      const stagesIncludeTranslation =
-        stages === 'all' || (Array.isArray(stages) && stages.includes('translation'));
-      let estimatedTokens = estimateTokensForStages(textLength, stages);
-      if (translateTitles && stagesIncludeTranslation) {
-        estimatedTokens += estimateTokensForChapterTitles(1);
-      }
+      const estimatedTokens = estimateProjectChapterTranslationTokens(
+        project,
+        chapterForTranslation.number,
+        { textLength, stages, translateChapterTitles: translateTitles }
+      );
 
       // Check token limit before starting translation (limit depends on user role)
       const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
@@ -4897,6 +4919,44 @@ async function performTranslationInner(
   const isCancelled = () =>
     translationCancelRegistry.get(cancelKey) === true || options?.externalIsCancelled?.() === true;
   let savedDraftThisRun = false;
+  let chunkProgressStarted = false;
+  const handleChunkProgress = (chunksDone: number, totalChunks: number, stage?: string) => {
+    setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
+    options?.onProgress?.(chunksDone, totalChunks, stage);
+    if (totalChunks <= 0) return;
+    if (!chunkProgressStarted) {
+      chunkProgressStarted = true;
+      logger.info(
+        {
+          event: 'translation.chunk_progress',
+          phase: 'started',
+          traceId,
+          jobId: options?.jobId,
+          projectId,
+          chapterId,
+          totalChunks,
+          stage,
+        },
+        'Translation chunk progress started'
+      );
+    }
+    if (chunksDone === totalChunks) {
+      logger.info(
+        {
+          event: 'translation.chunk_progress',
+          phase: 'completed',
+          traceId,
+          jobId: options?.jobId,
+          projectId,
+          chapterId,
+          chunksDone,
+          totalChunks,
+          stage,
+        },
+        'Translation chunk progress completed'
+      );
+    }
+  };
 
   logger.info(
     {
@@ -5202,10 +5262,7 @@ async function performTranslationInner(
         includeGlossaryInEditing: project.settings?.includeGlossaryInEditing ?? true,
         languagePair: options?.languagePair,
         userRole: options?.userRole,
-        onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
-          setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
-          options?.onProgress?.(chunksDone, totalChunks, stage);
-        },
+        onProgress: handleChunkProgress,
       });
     } catch (pipelineError) {
       const errorMessage =
@@ -5617,10 +5674,7 @@ async function performTranslationInner(
           isCancelled,
           languagePair: options?.languagePair,
           userRole: options?.userRole,
-          onProgress: (chunksDone: number, totalChunks: number, stage?: string) => {
-            setTranslationProgress(projectId, chapterId, { chunksDone, totalChunks, stage });
-            options?.onProgress?.(chunksDone, totalChunks, stage);
-          },
+          onProgress: handleChunkProgress,
         });
       } catch (phase2Error) {
         logger.error(
@@ -10035,8 +10089,11 @@ async function startServer(): Promise<void> {
     }
     serviceHealthManager.startPeriodicChecks(30_000);
     if (process.env.NODE_ENV !== 'production') {
-      void startDebugLogSubscriber((entry) => {
-        addDebugLogEntry(entry);
+      hydrateDebugBuffersFromDisk();
+      void startDebugBridgeSubscriber({
+        onLog: importBridgedLogEntry,
+        onLlm: importBridgedLlmCapture,
+        onHttp: importBridgedHttpExchange,
       });
     }
   });

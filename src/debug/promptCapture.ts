@@ -96,9 +96,34 @@ export function captureLlmCall(params: {
     schemaName: params.schemaName,
   };
 
+  pushCapturedLlmCall(entry);
+}
+
+function pushCapturedLlmCall(entry: CapturedLlmCall, options?: { skipBridge?: boolean }): void {
   const max = maxCaptures();
   if (buffer.length >= max) buffer.shift();
   buffer.push(entry);
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.RUN_AS_WORKER === '1' &&
+    !options?.skipBridge
+  ) {
+    void import('./redisBridge.js').then(({ publishDebugBridgeMessage }) => {
+      publishDebugBridgeMessage({ kind: 'llm', capture: entry });
+    });
+  }
+
+  if (process.env.NODE_ENV !== 'production' && process.env.RUN_AS_WORKER !== '1') {
+    void import('./persist.js').then(({ appendPersistRecord }) => {
+      appendPersistRecord('llm', entry);
+    });
+  }
+}
+
+export function importBridgedLlmCapture(capture: CapturedLlmCall): void {
+  if (!isLlmCaptureEnabled()) return;
+  pushCapturedLlmCall(capture, { skipBridge: true });
 }
 
 export function getCapturedLlmCalls(): CapturedLlmCall[] {
@@ -111,4 +136,42 @@ export function getCapturedLlmCallsForCorrelation(id: string): CapturedLlmCall[]
 
 export function clearCapturedLlmCalls(): void {
   buffer.length = 0;
+}
+
+export interface LlmQueryFilters {
+  traceId?: string;
+  jobId?: string;
+  requestId?: string;
+  chapterId?: string;
+  projectId?: string;
+  stage?: string;
+  since?: string;
+  until?: string;
+  q?: string;
+}
+
+export function queryLlmCaptures(filters: LlmQueryFilters = {}): CapturedLlmCall[] {
+  const qLower = filters.q?.toLowerCase();
+  return getCapturedLlmCalls().filter((c) => {
+    if (filters.traceId && c.traceId !== filters.traceId) return false;
+    if (filters.jobId && c.jobId !== filters.jobId) return false;
+    if (filters.requestId && c.requestId !== filters.requestId) return false;
+    if (filters.chapterId && c.chapterId !== filters.chapterId) return false;
+    if (filters.projectId && c.projectId !== filters.projectId) return false;
+    if (filters.stage && c.stage !== filters.stage) return false;
+    if (filters.since && c.time < filters.since) return false;
+    if (filters.until && c.time > filters.until) return false;
+    if (qLower) {
+      const hay = [c.model, c.method, c.stage, c.systemPreview, c.userPreview]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(qLower)) return false;
+    }
+    return true;
+  });
+}
+
+export function hydrateLlmCapture(capture: CapturedLlmCall): void {
+  pushCapturedLlmCall(capture, { skipBridge: true });
 }

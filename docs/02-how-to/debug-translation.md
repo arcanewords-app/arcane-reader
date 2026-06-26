@@ -31,6 +31,8 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 | `http://localhost:5173/debug`   | Same via main Vite proxy → `:5174`                                   |
 | `http://localhost:3000/debug`   | Redirect to debug app (`:5174`)                                      |
 | `GET /api/debug/logs`           | JSON log buffer (`?newestFirst=1`)                                   |
+| `GET /api/debug/query`          | Filtered query for agents (`?kind=`, `?jobId=`, `?compact=1`)        |
+| `GET /api/debug/jobs/:jobId`    | Async job aggregate (traces + logs + prompts + HTTP)                 |
 | `GET /api/debug/traces`         | Trace summaries (`traceId` / `jobId` / `requestId`)                  |
 | `GET /api/debug/traces/:id`     | Entries for one correlation id                                       |
 | `GET /api/debug/export`         | Markdown/JSON export (`?format=cursor\|markdown\|json`, `?traceId=`) |
@@ -43,7 +45,7 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 
 **Buffer:** default 2000 entries (`DEBUG_LOG_MAX_ENTRIES`). Older entries are overwritten (ring buffer).
 
-**Worker logs (`npm run dev:full`):** async jobs run in a separate process. With `REDIS_URL` set, worker logs are merged into the API viewer with `process: worker`. Without Redis, worker logs appear only in the worker terminal.
+**Worker logs (`npm run dev:full`):** async jobs run in a separate process. With `REDIS_URL` set, worker **logs, LLM captures, and HTTP captures** are merged into the API buffer with `process: worker` on logs. Without Redis, worker output appears only in the worker terminal.
 
 **Correlation:** each translation run gets a `traceId` (UUID). Engine and pipeline logs inherit `traceId`, `projectId`, `chapterId`, and `jobId` (async jobs) via async context. HTTP routes also log `requestId` on `req.log`.
 
@@ -60,6 +62,22 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 **HTTP tab:** per-exchange copy (response / request / all / requestId), **Copy visible**, Copy errors (4xx/5xx), presets (errors, slow >2s), auto-refresh, Open trace, Filter logs.
 
 Implementation: `src/debug/` (buffer, routes, capture, redis bridge) + `src/debug-app/` (Preact UI).
+
+## Query from Cursor agent
+
+Use `@.cursor/skills/debug-local/SKILL.md` — **2-step workflow**:
+
+```bash
+curl -s "http://localhost:3000/api/debug/status"
+curl -s "http://localhost:3000/api/debug/agent/context?jobId=trl_...&includePrompts=1"
+```
+
+- `GET /api/debug/status` — buffer counts, last error, recent `jobId`s
+- `GET /api/debug/agent/context` — markdown timeline (asc) + code hints + prompts/http
+- `GET /api/debug/catalog` — translation events and example queries
+- `GET /api/debug/query?format=agent&jobId=...` — same as agent/context
+
+Async jobs: always use `jobId` first (one `traceId` per chapter inside the job).
 
 ## Sync vs async
 

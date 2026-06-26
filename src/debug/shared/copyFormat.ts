@@ -28,9 +28,18 @@ function formatEntryLine(entry: DebugLogEntry): string {
 
 const EVENT_CODE_HINTS: Record<string, string[]> = {
   'pipeline.start': ['src/engine/pipeline/translation-pipeline.ts', 'src/server.ts'],
+  'pipeline.stage.started': ['src/engine/pipeline/translation-pipeline.ts'],
+  'pipeline.stage.completed': ['src/engine/pipeline/translation-pipeline.ts'],
+  'pipeline.stage.failed': ['src/engine/pipeline/translation-pipeline.ts'],
   'translation.started': ['src/server.ts'],
   'translation.completed': ['src/server.ts', 'src/services/engine-integration.ts'],
   'translation.perform_start': ['src/server.ts'],
+  'translation.chunk_progress': ['src/server.ts', 'src/engine/stages/stage-2-translate.ts'],
+  'translate.job.enqueued': ['src/server.ts', 'src/services/chapterQueue.ts'],
+  'analysis.job.enqueued': ['src/server.ts', 'src/services/chapterQueue.ts'],
+  'job.started': ['src/services/jobs/runAnalysisJob.ts', 'src/services/jobs/runTranslateJob.ts'],
+  'job.completed': ['src/services/jobs/runAnalysisJob.ts', 'src/services/jobs/runTranslateJob.ts'],
+  'worker.started': ['src/worker.ts', 'src/services/chapterWorker.ts'],
   'http.request': ['src/middleware/requestContext.ts'],
   'auth.register.failed': ['src/services/authService.ts', 'src/server.ts'],
   'auth.login.failed': ['src/services/authService.ts', 'src/server.ts'],
@@ -39,7 +48,7 @@ const EVENT_CODE_HINTS: Record<string, string[]> = {
   'auth.refresh.failed': ['src/services/authService.ts', 'src/server.ts'],
 };
 
-function codeHintsForEntries(entries: DebugLogEntry[]): string[] {
+export function getCodeHintsForEntries(entries: DebugLogEntry[]): string[] {
   const hints = new Set<string>(['docs/02-how-to/debug-translation.md', 'src/debug/']);
   for (const e of entries) {
     const event = typeof e.event === 'string' ? e.event : '';
@@ -59,10 +68,21 @@ export function formatEntryMarkdown(entry: DebugLogEntry): string {
   return formatEntryLine(entry);
 }
 
-export function formatEntriesMarkdown(entries: DebugLogEntry[], title: string): string {
+export function formatEntriesMarkdown(
+  entries: DebugLogEntry[],
+  title: string,
+  options?: { timelineOrder?: 'asc' | 'desc' }
+): string {
   if (entries.length === 0) return `${title}\n\n(no entries)\n`;
 
-  const first = entries[0];
+  const order = options?.timelineOrder ?? 'desc';
+  const timelineLabel = order === 'asc' ? 'oldest first' : 'newest first';
+  const sorted =
+    order === 'asc'
+      ? [...entries].sort((a, b) => String(a.time ?? '').localeCompare(String(b.time ?? '')))
+      : [...entries].sort((a, b) => String(b.time ?? '').localeCompare(String(a.time ?? '')));
+
+  const first = sorted[0];
   const traceId = first.traceId ?? first.jobId ?? first.requestId;
   const errors = entries.filter((e) => e.level === 'error' || e.level === 'fatal');
   const warns = entries.filter((e) => e.level === 'warn');
@@ -78,9 +98,9 @@ export function formatEntriesMarkdown(entries: DebugLogEntry[], title: string): 
     `- requestId: ${first.requestId ?? '—'}`,
     `- entries: ${entries.length}`,
     '',
-    '### Timeline (newest first)',
+    `### Timeline (${timelineLabel})`,
     '',
-    ...[...entries].reverse().map(formatEntryLine),
+    ...sorted.map(formatEntryLine),
   ];
 
   if (errors.length > 0) {
@@ -93,7 +113,7 @@ export function formatEntriesMarkdown(entries: DebugLogEntry[], title: string): 
   }
 
   lines.push('', '### Relevant code', '');
-  for (const h of codeHintsForEntries(entries)) {
+  for (const h of getCodeHintsForEntries(entries)) {
     lines.push(`- ${h}`);
   }
   lines.push('');
@@ -180,12 +200,12 @@ export function formatTraceForCursor(params: {
   entries: DebugLogEntry[];
   llmCaptures: CapturedLlmCall[];
   httpExchanges: CapturedHttpExchange[];
+  timelineOrder?: 'asc' | 'desc';
 }): string {
-  const { traceId, summary, entries, llmCaptures, httpExchanges } = params;
-  const logMd = formatEntriesMarkdown(
-    [...entries].reverse(),
-    `Arcane trace ${traceId} (for Cursor agent)`
-  );
+  const { traceId, summary, entries, llmCaptures, httpExchanges, timelineOrder = 'asc' } = params;
+  const logMd = formatEntriesMarkdown(entries, `Arcane trace ${traceId} (for Cursor agent)`, {
+    timelineOrder,
+  });
 
   const extra: string[] = [];
   if (httpExchanges.length > 0) {

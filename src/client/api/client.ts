@@ -820,6 +820,12 @@ export const api = {
     return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
   },
 
+  /** Bypass in-flight GET dedupe — use after translation completes. */
+  async getChapterFresh(projectId: string, chapterId: string): Promise<Chapter> {
+    const url = `/api/projects/${projectId}/chapters/${chapterId}?_=${Date.now()}`;
+    return fetchJson<Chapter>(url);
+  },
+
   /** Lightweight: only chapter status (for polling during translation). When translating, may include chunksDone/totalChunks. */
   async getChapterStatus(
     projectId: string,

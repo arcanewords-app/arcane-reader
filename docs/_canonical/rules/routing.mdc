@@ -119,6 +119,11 @@ Most API endpoints validate request body and query parameters using Zod schemas 
 | GET | `/debug/clear-prompts` | - | Clear LLM prompt captures, redirect to `/debug?tab=prompts` |
 | GET | `/debug/clear-http` | - | Clear HTTP captures, redirect to `/debug?tab=http` |
 | GET | `/api/debug/logs` | - | Log entries JSON (`?newestFirst=1`) |
+| GET | `/api/debug/status` | - | Buffer snapshot for agents (counts, last error, recent jobs) |
+| GET | `/api/debug/catalog` | - | Translation debug events + example queries |
+| GET | `/api/debug/agent/context` | - | Markdown agent context (`?jobId=` \| `?traceId=` \| `?requestId=`) |
+| GET | `/api/debug/query` | - | Filtered query (`?kind=`, `?format=agent`, `?sort=asc`) |
+| GET | `/api/debug/jobs/:jobId` | - | Async job aggregate: traces, logs, prompts, HTTP |
 | GET | `/api/debug/traces` | - | Trace index for waterfall |
 | GET | `/api/debug/traces/:id` | - | Unified trace detail: entries, summary, LLM + HTTP captures |
 | GET | `/api/debug/export` | - | Export markdown/json/cursor (`?traceId=`, `?format=`) |

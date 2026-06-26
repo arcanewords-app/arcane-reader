@@ -22,8 +22,9 @@ import type {
 } from '../../types';
 import { isChunkError } from '../../../shared/chunkErrors';
 import { getTranslationCoverage } from '../../../shared/chapterTranslationCoverage.js';
+import { resolveChapterSourceTextLength } from '../../../shared/chapterSourceText.js';
+import { estimateChapterTranslationTokensForProject } from '../../config/tokenEstimate';
 import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
-import { estimateTokensForChapterTitles } from '../../config/tokenEstimate';
 import './TranslationPanel.css';
 
 type Scope = 'full' | 'empty' | 'selected';
@@ -48,8 +49,6 @@ interface TranslationPanelProps {
   translating: boolean;
   /** Chunk progress during translation (from status polling) */
   chunkProgress?: { chunksDone: number; totalChunks: number } | null;
-  /** Estimate tokens for text length and stages (array or 'all') */
-  estimate: (textLength: number, stages?: import('../../types').TranslationStages) => number;
   emptyCount: number;
   selectedParagraphIds: string[];
   onSelectAllEmpty: () => void;
@@ -63,26 +62,6 @@ interface TranslationPanelProps {
   onSettingsChange?: (settings: ProjectSettings) => void;
 }
 
-/** Get text length for scope (for token estimate). */
-function getTextLengthForScope(chapter: Chapter, scope: Scope, selectedIds: string[]): number {
-  if (scope === 'selected' && selectedIds.length && chapter.paragraphs?.length) {
-    const idSet = new Set(selectedIds);
-    return chapter.paragraphs
-      .filter((p) => idSet.has(p.id))
-      .reduce((sum, p) => sum + p.originalText.length, 0);
-  }
-  if (scope === 'empty' && chapter.paragraphs?.length) {
-    const empty = chapter.paragraphs.filter((p) => {
-      const t = p.translatedText?.trim() || '';
-      if (!t.length) return true;
-      if (t.startsWith('❌') || isChunkError(t)) return true;
-      return false;
-    });
-    return empty.reduce((sum, p) => sum + p.originalText.length, 0);
-  }
-  return chapter.originalText?.length ?? 0;
-}
-
 export function TranslationPanel({
   chapter,
   project,
@@ -90,7 +69,6 @@ export function TranslationPanel({
   startTranslation,
   translating,
   chunkProgress,
-  estimate,
   emptyCount,
   selectedParagraphIds,
   onSelectAllEmpty,
@@ -163,16 +141,18 @@ export function TranslationPanel({
   const hasLanguageOverride = panelLanguagePairOverride !== undefined;
 
   const textLength = useMemo(
-    () => getTextLengthForScope(chapter, scope, selectedParagraphIds),
+    () => resolveChapterSourceTextLength(chapter, scope, selectedParagraphIds),
     [chapter, scope, selectedParagraphIds]
   );
-  const estimatedTokens = useMemo(() => {
-    let tokens = estimate(textLength, selectedStages);
-    if (translateChapterTitles && selectedStages.includes('translation')) {
-      tokens += estimateTokensForChapterTitles(1);
-    }
-    return tokens;
-  }, [estimate, textLength, selectedStages, translateChapterTitles]);
+  const estimatedTokens = useMemo(
+    () =>
+      estimateChapterTranslationTokensForProject(project, chapter, {
+        textLength,
+        stages: selectedStages,
+        translateChapterTitles,
+      }),
+    [project, chapter, textLength, selectedStages, translateChapterTitles]
+  );
 
   const toggleStage = (stage: TranslationStageKind) => {
     setSelectedStages((prev) =>

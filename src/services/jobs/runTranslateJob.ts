@@ -46,6 +46,17 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
     sourceLanguage && targetLanguage ? { sourceLanguage, targetLanguage } : undefined;
   const token = ''; // Service role used for all DB ops
 
+  logger.info(
+    {
+      event: 'job.started',
+      jobId,
+      jobType: 'translate',
+      projectId,
+      chapterCount: chapterIds.length,
+    },
+    'Translate job started'
+  );
+
   try {
     const currentJob = await translateJobStore.getJob(jobId);
     if (!currentJob) return;
@@ -285,6 +296,17 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
         status: 'completed',
         finishedAt: new Date().toISOString(),
       });
+      logger.info(
+        {
+          event: 'job.completed',
+          jobId,
+          jobType: 'translate',
+          projectId,
+          chapterCount: chapterIds.length,
+          totalTokensUsed: totalTokensAccum,
+        },
+        'Translate job completed'
+      );
       await translateJobStore.setTtl(jobId, TRANSLATE_JOB_TTL_SECONDS);
     } catch (bgErr) {
       clearInterval(cancelCheckInterval);

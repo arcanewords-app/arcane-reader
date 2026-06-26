@@ -142,9 +142,37 @@ export function captureHttpExchange(params: {
     upstreamMessage: params.upstreamMessage,
   };
 
+  pushCapturedHttpExchange(entry);
+}
+
+function pushCapturedHttpExchange(
+  entry: CapturedHttpExchange,
+  options?: { skipBridge?: boolean }
+): void {
   const max = maxCaptures();
   if (buffer.length >= max) buffer.shift();
   buffer.push(entry);
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.RUN_AS_WORKER === '1' &&
+    !options?.skipBridge
+  ) {
+    void import('./redisBridge.js').then(({ publishDebugBridgeMessage }) => {
+      publishDebugBridgeMessage({ kind: 'http', exchange: entry });
+    });
+  }
+
+  if (process.env.NODE_ENV !== 'production' && process.env.RUN_AS_WORKER !== '1') {
+    void import('./persist.js').then(({ appendPersistRecord }) => {
+      appendPersistRecord('http', entry);
+    });
+  }
+}
+
+export function importBridgedHttpExchange(exchange: CapturedHttpExchange): void {
+  if (!isHttpCaptureEnabled()) return;
+  pushCapturedHttpExchange(exchange, { skipBridge: true });
 }
 
 export function getCapturedHttpExchanges(): CapturedHttpExchange[] {
@@ -157,4 +185,42 @@ export function getCapturedHttpExchangesForCorrelation(id: string): CapturedHttp
 
 export function clearCapturedHttpExchanges(): void {
   buffer.length = 0;
+}
+
+export interface HttpQueryFilters {
+  traceId?: string;
+  jobId?: string;
+  requestId?: string;
+  chapterId?: string;
+  projectId?: string;
+  since?: string;
+  until?: string;
+  q?: string;
+  errorsOnly?: boolean;
+}
+
+export function queryHttpExchanges(filters: HttpQueryFilters = {}): CapturedHttpExchange[] {
+  const qLower = filters.q?.toLowerCase();
+  return getCapturedHttpExchanges().filter((e) => {
+    if (filters.traceId && e.traceId !== filters.traceId) return false;
+    if (filters.jobId && e.jobId !== filters.jobId) return false;
+    if (filters.requestId && e.requestId !== filters.requestId) return false;
+    if (filters.chapterId && e.chapterId !== filters.chapterId) return false;
+    if (filters.projectId && e.projectId !== filters.projectId) return false;
+    if (filters.since && e.time < filters.since) return false;
+    if (filters.until && e.time > filters.until) return false;
+    if (filters.errorsOnly && e.statusCode < 400) return false;
+    if (qLower) {
+      const hay = [e.method, e.path, e.error, e.requestPreview, e.responsePreview]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(qLower)) return false;
+    }
+    return true;
+  });
+}
+
+export function hydrateHttpExchange(exchange: CapturedHttpExchange): void {
+  pushCapturedHttpExchange(exchange, { skipBridge: true });
 }

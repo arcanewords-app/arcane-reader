@@ -68,3 +68,64 @@ export function estimateTokensForTranslation(
   }
   return Math.ceil(tokens);
 }
+
+export {
+  estimateChapterTranslationTokens,
+  estimateBatchTranslationTokens,
+  TOKENS_PER_10K_CHARS as SHARED_TOKENS_PER_10K_CHARS,
+} from '../../shared/translationTokenEstimate.js';
+
+import {
+  estimateChapterTranslationTokens,
+  estimateBatchTranslationTokens,
+} from '../../shared/translationTokenEstimate.js';
+import { resolveChapterSummarySourceTextLength } from '../../shared/chapterSourceText.js';
+import type { Chapter, Project, TranslationStages } from '../types';
+
+/** Estimate tokens for a chapter using project glossary and settings. */
+export function estimateChapterTranslationTokensForProject(
+  project: Pick<Project, 'glossary' | 'settings' | 'targetLanguage'>,
+  chapter: Pick<Chapter, 'number'>,
+  input: {
+    textLength: number;
+    stages?: TranslationStages;
+    translateChapterTitles?: boolean;
+  }
+): number {
+  return estimateChapterTranslationTokens({
+    textLength: input.textLength,
+    stages: input.stages,
+    translateChapterTitles: input.translateChapterTitles,
+    glossary: project.glossary,
+    chapterNumber: chapter.number,
+    settings: project.settings,
+    targetLanguage: project.targetLanguage,
+  });
+}
+
+/** Batch estimate for selected chapters (summary or full chapter objects). */
+export function estimateBatchTranslationTokensForProject(
+  project: Pick<Project, 'glossary' | 'settings' | 'targetLanguage'>,
+  chapters: Array<{
+    number: number;
+    originalText?: string;
+    paragraphs?: Array<{ originalText?: string }>;
+    paragraphCount?: number;
+  }>,
+  options: {
+    stages?: TranslationStages;
+    translateChapterTitles?: boolean;
+  }
+): number {
+  const chapterInputs = chapters.map((ch) => ({
+    textLength: resolveChapterSummarySourceTextLength(ch),
+    chapterNumber: ch.number,
+  }));
+  return estimateBatchTranslationTokens(chapterInputs, {
+    stages: options.stages,
+    translateChapterTitles: options.translateChapterTitles,
+    glossary: project.glossary,
+    settings: project.settings,
+    targetLanguage: project.targetLanguage,
+  });
+}

@@ -18,6 +18,7 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 | Obsidian vault (MCP)      | [`.cursor/skills/obsidian-mcp/SKILL.md`](.cursor/skills/obsidian-mcp/SKILL.md) — Obsidian must be running                           |
 | Trello boards (MCP)       | [`.cursor/skills/trello-mcp/SKILL.md`](.cursor/skills/trello-mcp/SKILL.md) — credentials in `~/.cursor/mcp.json`                    |
 | Prod/staging logs (MCP)   | [`.cursor/skills/axiom-mcp/SKILL.md`](.cursor/skills/axiom-mcp/SKILL.md) — OAuth via official Axiom MCP                             |
+| Local dev debug (curl)    | [`.cursor/skills/debug-local/SKILL.md`](.cursor/skills/debug-local/SKILL.md) — `/api/debug/query` on localhost:3000                 |
 
 **Workflow:** orchestrator → read active [`.cursor/agents/<domain>/AGENT.md`](.cursor/agents/) + [`.cursor/skills/<domain>/SKILL.md`](.cursor/skills/) → follow domain `.mdc` rules.
 
