@@ -7,6 +7,7 @@ import { Button, Icon } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import { setSavedLocale, type AppLocale } from '../i18n';
+import { SupportMenu } from './Header/SupportMenu';
 import './Header.css';
 
 interface HeaderProps {
@@ -156,6 +157,8 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
           {/* Group 1: Tools - TokenUsage, More, Locale */}
           <div class="header-toolbar">
             {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
+
+            <SupportMenu locale={currentLocale} />
 
             {/* Info menu (About, Contact, Privacy, Terms) - grouped by category */}
             <div class="header-info-wrap">
