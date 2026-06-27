@@ -216,6 +216,7 @@ export function CopyChaptersModal({ isOpen, onClose, project, onSuccess }: CopyC
         onClose={() => setSuccessModal(null)}
         title={successModal?.title ?? ''}
         message={successModal?.message ?? ''}
+        tone="success"
       />
 
       <AlertModal

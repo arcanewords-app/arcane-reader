@@ -274,3 +274,25 @@
 .error-modal-footer button.confirm-danger:hover {
   background: rgba(239, 68, 68, 0.9);
 }
+
+/* === Compact alert modals (success + error alerts) === */
+
+.alert-modal.modal,
+.modal.error-modal {
+  max-width: min(26rem, 92vw);
+  padding: 1.5rem;
+}
+
+.alert-modal--success .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--success);
+  font-size: 1.125rem;
+}
+
+.alert-modal-message {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}

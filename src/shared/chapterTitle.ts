@@ -28,6 +28,18 @@ export function chapterTitleForEdit(ch: ChapterTitleFields): string {
   return chapterDisplayTitle(ch);
 }
 
+/** Sidebar / modal list filter — matches display title, original title, number. */
+export function chapterMatchesListSearch(ch: ChapterTitleFields, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (String(ch.number).includes(q)) return true;
+  const title = ch.title?.trim().toLowerCase() ?? '';
+  if (title.includes(q)) return true;
+  const translated = ch.translatedTitle?.trim().toLowerCase() ?? '';
+  if (translated.includes(q)) return true;
+  return chapterDisplayTitle(ch).toLowerCase().includes(q);
+}
+
 export function defaultChapterTitleFallback(number: number): string {
   return `Chapter ${number}`;
 }

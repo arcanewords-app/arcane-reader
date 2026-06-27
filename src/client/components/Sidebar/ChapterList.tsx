@@ -19,7 +19,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { useSystemStatus } from '../../contexts/SystemStatusContext';
-import { chapterDisplayTitle } from '../../../shared/chapterTitle';
+import { chapterDisplayTitle, chapterMatchesListSearch } from '../../../shared/chapterTitle';
 import type {
   Chapter,
   ChapterListItem,
@@ -231,7 +231,7 @@ export function ChapterList({
   const filteredChapters = useMemo(() => {
     return sortedChapters.filter((ch) => {
       const matchesFilter = filter === 'all' || ch.status === filter;
-      const matchesSearch = !search || ch.title.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = chapterMatchesListSearch(ch, search);
       return matchesFilter && matchesSearch;
     });
   }, [sortedChapters, filter, search]);

@@ -1344,6 +1344,7 @@ export function GlossaryModal({
         isOpen={!!importResult}
         onClose={() => setImportResult(null)}
         title={t('glossary.importResultTitle')}
+        tone="success"
         message={
           importResult
             ? t('glossary.importResultMessage', {

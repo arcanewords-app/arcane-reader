@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import type { JSX, ComponentChildren } from 'preact';
 import { useEffect, useCallback } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import './Modal.css';
@@ -6,11 +6,11 @@ import './Modal.css';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
-  children: preact.ComponentChildren;
-  footer?: preact.ComponentChildren;
+  title: string | ComponentChildren;
+  children: ComponentChildren;
+  footer?: ComponentChildren;
   /** Optional actions in header (e.g. Settings icon) — shown between title and close for default/large */
-  headerActions?: preact.ComponentChildren;
+  headerActions?: ComponentChildren;
   size?: 'default' | 'large';
   className?: string;
   /** Optional class for the overlay (e.g. error-modal-overlay for confirm/error modals) */

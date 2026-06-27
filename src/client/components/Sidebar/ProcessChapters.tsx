@@ -21,7 +21,7 @@ import {
 } from '../../utils/languagePairOverride';
 import { api } from '../../api/client';
 import { estimateBatchTranslationTokensForProject } from '../../config/tokenEstimate';
-import { chapterDisplayTitle } from '../../../shared/chapterTitle';
+import { chapterDisplayTitle, chapterMatchesListSearch } from '../../../shared/chapterTitle';
 import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
 import { TokenLimitWarning } from '../TokenUsage';
@@ -250,9 +250,7 @@ export function ProcessChapters({
     );
     const q = searchQuery.trim().toLowerCase();
     if (q) {
-      list = list.filter(
-        (c) => String(c.number).includes(q) || (c.title || '').toLowerCase().includes(q)
-      );
+      list = list.filter((c) => chapterMatchesListSearch(c, q));
     }
     return list;
   }, [allChaptersSorted, statusFilter, searchQuery, hasLastAnalysis]);
