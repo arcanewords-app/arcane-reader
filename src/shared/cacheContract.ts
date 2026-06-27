@@ -17,6 +17,9 @@ export const POSTGREST_MAX_ROWS = 1000;
 /** Chapter batch size when loading with paragraphs (avoids statement timeout on large projects) */
 export const CHAPTER_LOAD_BATCH = 25;
 
+/** Batch size for inserting paragraphs during project clone. */
+export const PARAGRAPH_INSERT_BATCH = 200;
+
 export const CACHE_TTL = {
   // Client-side
   clientPublicationMs: 120_000, // 2 min — public content rarely changes

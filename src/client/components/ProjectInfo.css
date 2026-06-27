@@ -202,3 +202,49 @@
   line-height: 1.4;
   max-width: 360px;
 }
+
+.project-actions-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.project-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: 220px;
+  z-index: 50;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 0.35rem;
+}
+
+.project-actions-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-actions-item:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.project-actions-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.project-actions-item-danger {
+  color: var(--error);
+}

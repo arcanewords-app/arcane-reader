@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
-import { Button, Input, Modal, Icon } from '../components/ui';
+import { Button, Input, Modal, Icon, AlertModal } from '../components/ui';
 import { ProjectLanguagePairFields } from '../components/Project/ProjectLanguagePairFields';
 import {
   PROJECT_DEFAULT_SOURCE_LANGUAGE,
@@ -11,8 +11,9 @@ import {
   type ProjectTargetLanguage,
 } from '../constants/translationLanguages';
 import { projectsCache, projectsLoading, loadProjects } from '../store/projects';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import { useUserRole } from '../hooks/useUserRole';
+import { getProjectLimitForRole, isUnlimitedProjectLimit } from '../../config/projectLimits';
 import type { UserRole } from '../../types/roles';
 import '../components/Dashboard/Dashboard.css';
 import './ProjectsPage.css';
@@ -40,13 +41,21 @@ export function ProjectsPage() {
     PROJECT_DEFAULT_TARGET_LANGUAGE
   );
   const [creating, setCreating] = useState(false);
+  const [limitModal, setLimitModal] = useState<{ limit: number; current: number } | null>(null);
 
   useEffect(() => {
     loadProjects();
   }, []);
 
+  const projects = projectsCache.value;
+  const projectLimit = getProjectLimitForRole(role);
+  const atProjectLimit = useMemo(
+    () => !isUnlimitedProjectLimit(projectLimit) && projects.length >= projectLimit,
+    [projectLimit, projects.length]
+  );
+
   const handleCreateProject = async () => {
-    if (!newProjectName.trim()) return;
+    if (!newProjectName.trim() || atProjectLimit) return;
 
     setCreating(true);
     try {
@@ -61,7 +70,15 @@ export function ProjectsPage() {
       await loadProjects();
       route(`/projects/${project.id}`);
     } catch (error) {
-      console.error('Failed to create project:', error);
+      if (error instanceof ApiError && error.code === 'PROJECT_LIMIT') {
+        const data = error.data as { limit?: number; current?: number } | undefined;
+        setLimitModal({
+          limit: data?.limit ?? projectLimit,
+          current: data?.current ?? projects.length,
+        });
+      } else {
+        console.error('Failed to create project:', error);
+      }
     } finally {
       setCreating(false);
     }
@@ -70,8 +87,6 @@ export function ProjectsPage() {
   const handleSelectProject = (id: string) => {
     route(`/projects/${id}`);
   };
-
-  const projects = projectsCache.value;
 
   return (
     <div class="projects-page">
@@ -82,6 +97,12 @@ export function ProjectsPage() {
             {projects.length > 0
               ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
               : t('dashboard.subtitleEmpty')}
+            {!isUnlimitedProjectLimit(projectLimit) && projects.length > 0 && (
+              <>
+                {' · '}
+                {t('dashboard.projectLimitHint', { current: projects.length, limit: projectLimit })}
+              </>
+            )}
           </p>
           <span class="projects-role-badge">{t(ROLE_LABEL_KEYS[role])}</span>
         </div>
@@ -89,6 +110,15 @@ export function ProjectsPage() {
           variant="primary"
           onClick={() => setShowCreateModal(true)}
           className="dashboard-create-btn"
+          disabled={atProjectLimit}
+          title={
+            atProjectLimit
+              ? t('dashboard.projectLimitReached', {
+                  current: projects.length,
+                  limit: projectLimit,
+                })
+              : undefined
+          }
         >
           <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
         </Button>
@@ -172,6 +202,20 @@ export function ProjectsPage() {
         />
         <p class="project-language-pair-create-hint">{t('project.languagePairCreateHint')}</p>
       </Modal>
+
+      <AlertModal
+        isOpen={!!limitModal}
+        onClose={() => setLimitModal(null)}
+        title={t('projectLimit.title')}
+        message={
+          limitModal
+            ? t('projectLimit.message', {
+                limit: limitModal.limit,
+                current: limitModal.current,
+              })
+            : ''
+        }
+      />
     </div>
   );
 }

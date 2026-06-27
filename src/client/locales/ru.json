@@ -152,6 +152,45 @@
     "batchTitle": "Пометить выбранные главы как переведённые (без AI)",
     "batchButton": "Пометить как переведённые ({{count}})"
   },
+  "chapterActions": {
+    "menuTitle": "Действия с главами",
+    "menuLabel": "Действия",
+    "transfer": "Перенести в проект…",
+    "duplicate": "Копировать",
+    "delete": "Удалить",
+    "duplicateConfirmTitle": "Копировать главы?",
+    "duplicateConfirmMessage": "Создать копии {{count}} выбранных глав в конце этого проекта?",
+    "duplicateSuccessTitle": "Главы скопированы",
+    "duplicateSuccessMessage": "{{count}} глав(ы) добавлены в конец проекта.",
+    "duplicateErrorTitle": "Не удалось скопировать",
+    "deleteConfirmTitle": "Удалить главы?",
+    "deleteConfirmMessage": "Безвозвратно удалить {{count}} выбранных глав? Отменить нельзя.",
+    "deleteSuccessTitle": "Главы удалены",
+    "deleteSuccessMessage": "Удалено глав: {{count}}.",
+    "deleteErrorTitle": "Не удалось удалить",
+    "errorGeneric": "Что-то пошло не так. Попробуйте снова."
+  },
+  "chapterTransfer": {
+    "modalTitle": "Перенести в проект",
+    "hint": "Скопировать {{count}} выбранных глав в другой проект с той же целевой локалью.",
+    "targetProject": "Целевой проект",
+    "selectProject": "Выберите проект…",
+    "noTargets": "Нет других проектов с той же целевой локалью. Создайте проект с тем же целевым языком (например, оба → русский).",
+    "sourceLanguageWarning": "Исходный язык проектов различается. Тексты глав копируются как есть.",
+    "includeGlossary": "Перенести глоссарий этого проекта",
+    "includeGlossaryHint": "Добавит записи из глоссария; дубликаты пропускаются.",
+    "confirm": "Перенести",
+    "transferring": "Перенос…",
+    "successTitle": "Главы перенесены",
+    "successMessage": "Скопировано глав: {{count}}. Глоссарий: добавлено {{glossaryAdded}}, пропущено {{glossarySkipped}}.",
+    "errorTitle": "Не удалось перенести",
+    "errorGeneric": "Не удалось перенести главы. Попробуйте снова."
+  },
+  "copyChapters": {
+    "modalTitle": "Копировать главы",
+    "chaptersHint": "Выберите главы для копирования в другой проект с той же целевой локалью.",
+    "selectedCount": "Выбрано: {{count}}"
+  },
   "uploadTranslation": {
     "title": "Загрузить готовый перевод",
     "button": "Загрузить перевод",
@@ -692,6 +731,15 @@
     "noChaptersForExport": "Нет переведенных глав для экспорта",
     "exportError": "Ошибка при экспорте в {{format}}",
     "deleteProjectConfirm": "Удалить проект?",
+    "actionsMenu": "Действия",
+    "copyChapters": "Копировать главы",
+    "cloneProject": "Клонировать",
+    "cloneProjectModalTitle": "Клонировать проект",
+    "cloneProjectHint": "Создаётся полная копия: главы, перевод, глоссарий и настройки. Публикация в каталоге не копируется.",
+    "cloneProjectNameLabel": "Название копии",
+    "cloneProjectConfirm": "Клонировать",
+    "cloneProjectSuccess": "Проект скопирован",
+    "errorCloneProject": "Не удалось клонировать проект",
     "confirmDeleteProject": "Вы уверены, что хотите удалить проект <strong>{{name}}</strong>? Это действие нельзя отменить.",
     "errorSaveDescription": "Ошибка сохранения описания",
     "errorDeleteCover": "Ошибка удаления обложки",
@@ -907,7 +955,17 @@
     "filterAll": "Все",
     "filterAllWithCount": "Все ({{count}})",
     "filterBooks": "Книги",
-    "filterText": "Текст"
+    "filterText": "Текст",
+    "projectLimitReached": "Достигнут лимит проектов ({{current}}/{{limit}})",
+    "projectLimitHint": "Проектов: {{current}} из {{limit}}"
+  },
+  "projectLimit": {
+    "title": "Лимит проектов",
+    "message": "У вашего уровня аккаунта можно создать не больше {{limit}} проектов. Сейчас: {{current}}.",
+    "upgradeLink": "Сравнить уровни аккаунта"
+  },
+  "projectClone": {
+    "defaultNameSuffix": "(копия)"
   },
   "projectCount": {
     "one": "проект",
@@ -1434,6 +1492,7 @@
       "catalogReading": "Каталог и чтение",
       "profileHistory": "Профиль и история чтения",
       "translationProjects": "Проекты перевода, несколько языковых пар, AI-пайплайн",
+      "maxProjects": "Максимум проектов перевода",
       "glossaryPublishExport": "Глоссарий, публикация, экспорт EPUB/FB2",
       "aiModelChoice": "Выбор AI-модели",
       "dailyTokens": "Дневной лимит AI-токенов",

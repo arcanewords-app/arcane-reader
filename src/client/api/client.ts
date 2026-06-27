@@ -33,6 +33,7 @@ import type {
   TranslateJobState,
   ProjectJobsResponse,
   MarkTranslatedBatchResponse,
+  TransferChaptersResult,
   TokenUsage,
   TokenUsageHistory,
   Publication,
@@ -354,7 +355,7 @@ async function fetchJson<T>(url: string, options?: RequestInit, isRetry = false)
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data);
+    throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data, data.code);
   }
 
   if (response.status === 204) {
@@ -529,7 +530,7 @@ async function fetchFormData<T>(
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data);
+    throw new ApiError(data.error || `HTTP ${response.status}`, response.status, data, data.code);
   }
 
   return response.json();
@@ -642,6 +643,13 @@ export const api = {
         sourceLanguage: options?.sourceLanguage,
         targetLanguage: options?.targetLanguage,
       }),
+    });
+  },
+
+  async cloneProject(projectId: string, options?: { name?: string }): Promise<Project> {
+    return fetchJson(`/api/projects/${projectId}/clone`, {
+      method: 'POST',
+      body: JSON.stringify({ name: options?.name }),
     });
   },
 
@@ -837,6 +845,37 @@ export const api = {
   async deleteChapter(projectId: string, chapterId: string): Promise<{ success: boolean }> {
     return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}`, {
       method: 'DELETE',
+    });
+  },
+
+  async transferChaptersFromProject(
+    targetProjectId: string,
+    body: {
+      sourceProjectId: string;
+      chapterIds: string[];
+      includeGlossary?: boolean;
+    }
+  ): Promise<TransferChaptersResult> {
+    return fetchJson(`/api/projects/${targetProjectId}/transfer-from`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async duplicateChapters(
+    projectId: string,
+    chapterIds: string[]
+  ): Promise<TransferChaptersResult> {
+    return fetchJson(`/api/projects/${projectId}/chapters/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ chapterIds }),
+    });
+  },
+
+  async bulkDeleteChapters(projectId: string, chapterIds: string[]): Promise<{ deleted: number }> {
+    return fetchJson(`/api/projects/${projectId}/chapters/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ chapterIds }),
     });
   },
 

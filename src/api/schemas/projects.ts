@@ -35,6 +35,20 @@ export const projectCreateBodySchema = z
     return isSupportedPair(source, target);
   }, languagePairRefineMessage);
 
+export const projectCloneBodySchema = z.object({
+  name: z.string().trim().min(1).max(500).optional(),
+});
+
+export const transferChaptersBodySchema = z.object({
+  sourceProjectId: z.string().min(1),
+  chapterIds: z.array(z.string().min(1)).min(1),
+  includeGlossary: z.boolean().optional(),
+});
+
+export const chapterBulkIdsBodySchema = z.object({
+  chapterIds: z.array(z.string().min(1)).min(1),
+});
+
 export const projectLanguagesBodySchema = z
   .object({
     sourceLanguage: supportedSourceLanguageSchema,
@@ -154,6 +168,8 @@ export const projectAiReplaceBodySchema = z.object({
 
 export type ProjectCreateBody = z.infer<typeof projectCreateBodySchema>;
 export type ProjectLanguagesBody = z.infer<typeof projectLanguagesBodySchema>;
+export type TransferChaptersBody = z.infer<typeof transferChaptersBodySchema>;
+export type ChapterBulkIdsBody = z.infer<typeof chapterBulkIdsBodySchema>;
 export type ProjectSearchQuery = z.infer<typeof projectSearchQuerySchema>;
 export type ProjectAiReplaceBody = z.infer<typeof projectAiReplaceBodySchema>;
 export type ProjectSettingsBody = z.infer<typeof projectSettingsBodySchema>;

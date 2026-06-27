@@ -196,6 +196,28 @@ export function extractPathFromUrl(url: string, bucket: StorageBucket): string |
 }
 
 /**
+ * Copy a file within the same bucket (download + upload).
+ */
+export async function copyFile(
+  bucket: StorageBucket,
+  fromPath: string,
+  toPath: string
+): Promise<UploadResult> {
+  const data = await downloadFile(bucket, fromPath);
+  const ext = fromPath.split('.').pop()?.toLowerCase();
+  const contentType =
+    ext === 'png'
+      ? 'image/png'
+      : ext === 'webp'
+        ? 'image/webp'
+        : ext === 'gif'
+          ? 'image/gif'
+          : 'image/jpeg';
+
+  return uploadFile(bucket, toPath, data, { contentType, upsert: true });
+}
+
+/**
  * Generate unique filename with timestamp
  */
 export function generateUniqueFilename(

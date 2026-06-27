@@ -142,6 +142,45 @@
     "batchTitle": "Oznacz wybrane rozdziały jako przetłumaczone (bez AI)",
     "batchButton": "Oznacz jako przetłumaczone ({{count}})"
   },
+  "chapterActions": {
+    "menuTitle": "Akcje rozdziałów",
+    "menuLabel": "Akcje",
+    "transfer": "Przenieś do projektu…",
+    "duplicate": "Duplikuj",
+    "delete": "Usuń",
+    "duplicateConfirmTitle": "Duplikować rozdziały?",
+    "duplicateConfirmMessage": "Utworzyć kopie {{count}} wybranych rozdziałów na końcu tego projektu?",
+    "duplicateSuccessTitle": "Rozdziały zduplikowane",
+    "duplicateSuccessMessage": "{{count}} rozdział(ów) dodano na końcu projektu.",
+    "duplicateErrorTitle": "Duplikacja nie powiodła się",
+    "deleteConfirmTitle": "Usunąć rozdziały?",
+    "deleteConfirmMessage": "Trwale usunąć {{count}} wybranych rozdziałów? Tej operacji nie można cofnąć.",
+    "deleteSuccessTitle": "Rozdziały usunięte",
+    "deleteSuccessMessage": "Usunięto rozdziałów: {{count}}.",
+    "deleteErrorTitle": "Usuwanie nie powiodło się",
+    "errorGeneric": "Coś poszło nie tak. Spróbuj ponownie."
+  },
+  "chapterTransfer": {
+    "modalTitle": "Przenieś do projektu",
+    "hint": "Skopiuj {{count}} wybranych rozdziałów do innego projektu z tym samym językiem docelowym.",
+    "targetProject": "Projekt docelowy",
+    "selectProject": "Wybierz projekt…",
+    "noTargets": "Brak innych projektów z tym samym językiem docelowym. Utwórz projekt z tą samą lokalizacją docelową (np. oba → rosyjski).",
+    "sourceLanguageWarning": "Języki źródłowe projektów różnią się. Teksty rozdziałów są kopiowane bez zmian.",
+    "includeGlossary": "Dołącz słownik z tego projektu",
+    "includeGlossaryHint": "Doda wpisy ze słownika; duplikaty zostaną pominięte.",
+    "confirm": "Przenieś",
+    "transferring": "Przenoszenie…",
+    "successTitle": "Rozdziały przeniesione",
+    "successMessage": "Skopiowano rozdziałów: {{count}}. Słownik: dodano {{glossaryAdded}}, pominięto {{glossarySkipped}}.",
+    "errorTitle": "Przeniesienie nie powiodło się",
+    "errorGeneric": "Nie udało się przenieść rozdziałów. Spróbuj ponownie."
+  },
+  "copyChapters": {
+    "modalTitle": "Kopiuj rozdziały",
+    "chaptersHint": "Wybierz rozdziały do skopiowania do innego projektu z tym samym językiem docelowym.",
+    "selectedCount": "Wybrano: {{count}}"
+  },
   "uploadTranslation": {
     "title": "Prześlij gotowe tłumaczenie",
     "button": "Prześlij tłumaczenie",
@@ -660,6 +699,15 @@
     "noChaptersForExport": "Brak przetłumaczonych rozdziałów do eksportu",
     "exportError": "Błąd eksportu do {{format}}",
     "deleteProjectConfirm": "Usunąć projekt?",
+    "actionsMenu": "Akcje",
+    "copyChapters": "Kopiuj rozdziały",
+    "cloneProject": "Klonuj",
+    "cloneProjectModalTitle": "Klonuj projekt",
+    "cloneProjectHint": "Tworzy pełną kopię: rozdziały, tłumaczenie, słownik i ustawienia. Publikacja w katalogu nie jest kopiowana.",
+    "cloneProjectNameLabel": "Nazwa kopii",
+    "cloneProjectConfirm": "Klonuj",
+    "cloneProjectSuccess": "Projekt sklonowany",
+    "errorCloneProject": "Nie udało się sklonować projektu",
     "confirmDeleteProject": "Czy na pewno chcesz usunąć projekt <strong>{{name}}</strong>? Tej operacji nie można cofnąć.",
     "errorSaveDescription": "Nie udało się zapisać opisu",
     "errorDeleteCover": "Nie udało się usunąć okładki",
@@ -869,7 +917,17 @@
     "filterAll": "Wszystkie",
     "filterAllWithCount": "Wszystkie ({{count}})",
     "filterBooks": "Książki",
-    "filterText": "Tekst"
+    "filterText": "Tekst",
+    "projectLimitReached": "Osiągnięto limit projektów ({{current}}/{{limit}})",
+    "projectLimitHint": "Projekty: {{current}} z {{limit}}"
+  },
+  "projectLimit": {
+    "title": "Limit projektów",
+    "message": "Twój poziom konta pozwala na maksymalnie {{limit}} projektów. Masz teraz: {{current}}.",
+    "upgradeLink": "Porównaj poziomy konta"
+  },
+  "projectClone": {
+    "defaultNameSuffix": "(kopia)"
   },
   "projectCount": {
     "one": "projekt",

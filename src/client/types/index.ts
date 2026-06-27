@@ -423,6 +423,8 @@ export interface ProjectListItem {
   id: string;
   name: string;
   type?: 'text' | 'book';
+  sourceLanguage?: string;
+  targetLanguage?: string;
   chapterCount: number;
   translatedCount: number;
   glossaryCount: number;
@@ -433,6 +435,13 @@ export interface ProjectListItem {
 }
 
 // === API Response Types ===
+
+export interface TransferChaptersResult {
+  chaptersTransferred: number;
+  glossaryAdded: number;
+  glossarySkipped: number;
+  chapterNumberMap: Record<number, number>;
+}
 
 export interface SystemStatus {
   version: string;

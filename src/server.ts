@@ -26,6 +26,9 @@ import {
   publicEntityListQuerySchema,
   publicEntityUpdateSchema,
   projectCreateBodySchema,
+  projectCloneBodySchema,
+  transferChaptersBodySchema,
+  chapterBulkIdsBodySchema,
   projectLanguagesBodySchema,
   projectSearchQuerySchema,
   projectAiReplaceBodySchema,
@@ -77,6 +80,10 @@ import {
   getAllProjectsLightweight,
   getProject,
   createProject,
+  cloneProject,
+  transferChaptersFromProject,
+  duplicateChaptersInProject,
+  bulkDeleteChapters,
   updateProject,
   deleteProject,
   importChaptersBatch,
@@ -633,6 +640,7 @@ import {
   estimateProjectBatchTranslationTokens,
   type TranslationStages,
 } from './config/tokenLimits.js';
+import { isProjectLimitError } from './config/projectLimits.js';
 import {
   translateChapterWithPipeline,
   analyzeChaptersBatch,
@@ -1709,9 +1717,138 @@ app.post('/api/projects', requireAuth, requireRole('author'), async (req, res) =
     res.json(project);
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
+    if (isProjectLimitError(error)) {
+      return res.status(409).json({
+        error: 'Project limit reached',
+        code: 'PROJECT_LIMIT',
+        limit: error.limit,
+        current: error.current,
+      });
+    }
     res.status(500).json({ error: 'Failed to create project' });
   }
 });
+
+// Clone project (requires auth)
+app.post('/api/projects/:id/clone', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const parsed = projectCloneBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+    const token = requireToken(req);
+    const cloned = await cloneProject(req.params.id, req.user.id, token, {
+      name: parsed.data.name,
+      role: req.user.role,
+    });
+    if (!cloned) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    await invalidateUserProjectCaches(req.user.id);
+    res.json(cloned);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    if (isProjectLimitError(error)) {
+      return res.status(409).json({
+        error: 'Project limit reached',
+        code: 'PROJECT_LIMIT',
+        limit: error.limit,
+        current: error.current,
+      });
+    }
+    if (
+      error instanceof Error &&
+      (error as Error & { code?: string }).code === 'CLONE_INCOMPLETE'
+    ) {
+      const incomplete = error as Error & { expected?: number; actual?: number };
+      return res.status(500).json({
+        error: incomplete.message,
+        code: 'CLONE_INCOMPLETE',
+        expected: incomplete.expected,
+        actual: incomplete.actual,
+      });
+    }
+    req.log?.error({ err: error, projectId: req.params.id }, 'Failed to clone project');
+    res.status(500).json({ error: 'Failed to clone project' });
+  }
+});
+
+// Transfer chapters from another project (requires auth)
+app.post(
+  '/api/projects/:targetProjectId/transfer-from',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parsed = transferChaptersBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const token = requireToken(req);
+      const result = await transferChaptersFromProject(
+        req.params.targetProjectId,
+        req.user.id,
+        token,
+        {
+          sourceProjectId: parsed.data.sourceProjectId,
+          chapterIds: parsed.data.chapterIds,
+          includeGlossary: parsed.data.includeGlossary,
+        }
+      );
+
+      if (!result) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      clearAgentCache(req.params.targetProjectId);
+      if (parsed.data.includeGlossary) {
+        clearAgentCache(parsed.data.sourceProjectId);
+      }
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.targetProjectId, token);
+
+      res.json(result);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      const coded = error as Error & { code?: string; expected?: number; actual?: number };
+      if (coded.code === 'SAME_PROJECT') {
+        return res.status(409).json({ error: coded.message, code: 'SAME_PROJECT' });
+      }
+      if (coded.code === 'TARGET_LANGUAGE_MISMATCH') {
+        return res.status(409).json({ error: coded.message, code: 'TARGET_LANGUAGE_MISMATCH' });
+      }
+      if (coded.code === 'INVALID_CHAPTER_IDS') {
+        return res.status(400).json({ error: coded.message, code: 'INVALID_CHAPTER_IDS' });
+      }
+      if (coded.code === 'TRANSFER_INCOMPLETE') {
+        return res.status(500).json({
+          error: coded.message,
+          code: 'TRANSFER_INCOMPLETE',
+          expected: coded.expected,
+          actual: coded.actual,
+        });
+      }
+      req.log?.error(
+        { err: error, targetProjectId: req.params.targetProjectId },
+        'Failed to transfer chapters'
+      );
+      res.status(500).json({ error: 'Failed to transfer chapters' });
+    }
+  }
+);
 
 // Get project by ID (requires auth)
 app.get('/api/projects/:id', requireAuth, requireRole('author'), async (req, res) => {
@@ -3322,6 +3459,103 @@ app.delete(
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
       res.status(500).json({ error: 'Failed to delete chapter' });
+    }
+  }
+);
+
+// Duplicate chapters within project (requires auth)
+app.post(
+  '/api/projects/:projectId/chapters/duplicate',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parsed = chapterBulkIdsBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const result = await duplicateChaptersInProject(
+        req.params.projectId,
+        req.user.id,
+        token,
+        parsed.data.chapterIds
+      );
+
+      if (!result) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
+      res.json(result);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      const coded = error as Error & { code?: string; expected?: number; actual?: number };
+      if (coded.code === 'INVALID_CHAPTER_IDS') {
+        return res.status(400).json({ error: coded.message, code: 'INVALID_CHAPTER_IDS' });
+      }
+      if (coded.code === 'TRANSFER_INCOMPLETE') {
+        return res.status(500).json({
+          error: coded.message,
+          code: 'TRANSFER_INCOMPLETE',
+          expected: coded.expected,
+          actual: coded.actual,
+        });
+      }
+      res.status(500).json({ error: 'Failed to duplicate chapters' });
+    }
+  }
+);
+
+// Bulk delete chapters (requires auth)
+app.post(
+  '/api/projects/:projectId/chapters/bulk-delete',
+  requireAuth,
+  requireRole('author'),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const parsed = chapterBulkIdsBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const token = requireToken(req);
+      const project = await getProject(req.params.projectId, req.user.id, token);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const deleted = await bulkDeleteChapters(req.params.projectId, parsed.data.chapterIds, token);
+
+      await invalidateProjectAndRelatedCaches(req.user.id, req.params.projectId, token);
+      res.json({ deleted });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      const coded = error as Error & { code?: string };
+      if (coded.code === 'INVALID_CHAPTER_IDS') {
+        return res.status(400).json({ error: coded.message, code: 'INVALID_CHAPTER_IDS' });
+      }
+      res.status(500).json({ error: 'Failed to delete chapters' });
     }
   }
 );

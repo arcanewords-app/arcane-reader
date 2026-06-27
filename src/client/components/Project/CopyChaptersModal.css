@@ -1,0 +1,126 @@
+.copy-chapters-hint {
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.copy-chapters-selection-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.copy-chapters-link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.25rem 0;
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+.copy-chapters-link-btn-dim {
+  color: var(--text-dim);
+}
+
+.copy-chapters-selected-count {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.copy-chapters-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  background: var(--bg-secondary);
+}
+
+.copy-chapters-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+
+.copy-chapters-item-number {
+  flex-shrink: 0;
+  width: 2rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.copy-chapters-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-chapters-empty {
+  padding: 1rem;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.copy-chapters-target-block {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.copy-chapters-target-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.copy-chapters-target-select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.copy-chapters-warning {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--warning);
+}
+
+.copy-chapters-glossary-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.copy-chapters-target-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.copy-chapters-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}

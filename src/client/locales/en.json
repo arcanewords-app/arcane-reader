@@ -152,6 +152,45 @@
     "batchTitle": "Mark selected chapters as translated (no AI)",
     "batchButton": "Mark as translated ({{count}})"
   },
+  "chapterActions": {
+    "menuTitle": "Chapter actions",
+    "menuLabel": "Actions",
+    "transfer": "Transfer to project…",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "duplicateConfirmTitle": "Duplicate chapters?",
+    "duplicateConfirmMessage": "Create copies of {{count}} selected chapter(s) at the end of this project?",
+    "duplicateSuccessTitle": "Chapters duplicated",
+    "duplicateSuccessMessage": "{{count}} chapter(s) duplicated at the end of the project.",
+    "duplicateErrorTitle": "Duplicate failed",
+    "deleteConfirmTitle": "Delete chapters?",
+    "deleteConfirmMessage": "Permanently delete {{count}} selected chapter(s)? This cannot be undone.",
+    "deleteSuccessTitle": "Chapters deleted",
+    "deleteSuccessMessage": "{{count}} chapter(s) deleted.",
+    "deleteErrorTitle": "Delete failed",
+    "errorGeneric": "Something went wrong. Try again."
+  },
+  "chapterTransfer": {
+    "modalTitle": "Transfer to project",
+    "hint": "Copy {{count}} selected chapter(s) to another project with the same target language.",
+    "targetProject": "Target project",
+    "selectProject": "Select a project…",
+    "noTargets": "No other projects with the same target language. Create a project with the same target locale (e.g. both → Russian).",
+    "sourceLanguageWarning": "Source languages differ between projects. Chapter texts are copied as-is.",
+    "includeGlossary": "Include glossary from this project",
+    "includeGlossaryHint": "Adds glossary entries from this project; duplicates are skipped.",
+    "confirm": "Transfer",
+    "transferring": "Transferring…",
+    "successTitle": "Chapters transferred",
+    "successMessage": "{{count}} chapter(s) copied. Glossary: {{glossaryAdded}} added, {{glossarySkipped}} skipped.",
+    "errorTitle": "Transfer failed",
+    "errorGeneric": "Could not transfer chapters. Try again."
+  },
+  "copyChapters": {
+    "modalTitle": "Copy chapters",
+    "chaptersHint": "Select chapters to copy to another project with the same target language.",
+    "selectedCount": "Selected: {{count}}"
+  },
   "uploadTranslation": {
     "title": "Upload ready-made translation",
     "button": "Upload translation",
@@ -694,6 +733,15 @@
     "noChaptersForExport": "No translated chapters to export",
     "exportError": "Export to {{format}} failed",
     "deleteProjectConfirm": "Delete project?",
+    "actionsMenu": "Actions",
+    "copyChapters": "Copy chapters",
+    "cloneProject": "Clone",
+    "cloneProjectModalTitle": "Clone project",
+    "cloneProjectHint": "Creates a full copy: chapters, translation, glossary, and settings. Catalog publication is not copied.",
+    "cloneProjectNameLabel": "Copy name",
+    "cloneProjectConfirm": "Clone",
+    "cloneProjectSuccess": "Project cloned",
+    "errorCloneProject": "Failed to clone project",
     "confirmDeleteProject": "Are you sure you want to delete project <strong>{{name}}</strong>? This action cannot be undone.",
     "errorSaveDescription": "Failed to save description",
     "errorDeleteCover": "Failed to delete cover",
@@ -908,7 +956,17 @@
     "searchPlaceholder": "Search projects...",
     "filterAll": "All",
     "filterBooks": "Books",
-    "filterText": "Text"
+    "filterText": "Text",
+    "projectLimitReached": "Project limit reached ({{current}}/{{limit}})",
+    "projectLimitHint": "Projects: {{current}} of {{limit}}"
+  },
+  "projectLimit": {
+    "title": "Project limit",
+    "message": "Your account level allows up to {{limit}} projects. You have {{current}}.",
+    "upgradeLink": "Compare account levels"
+  },
+  "projectClone": {
+    "defaultNameSuffix": "(copy)"
   },
   "projectCount": {
     "one": "project",
@@ -1434,6 +1492,7 @@
       "catalogReading": "Catalog and reading",
       "profileHistory": "Profile and reading history",
       "translationProjects": "Translation projects, multi-language pairs, AI pipeline",
+      "maxProjects": "Max translation projects",
       "glossaryPublishExport": "Glossary, publishing, EPUB/FB2 export",
       "aiModelChoice": "AI model choice",
       "dailyTokens": "Daily AI tokens",

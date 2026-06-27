@@ -6,7 +6,12 @@
  */
 
 import { supabase, createClientWithToken } from './supabaseClient.js';
-import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../shared/cacheContract.js';
+import {
+  CHAPTER_LOAD_BATCH,
+  PARAGRAPH_INSERT_BATCH,
+  POSTGREST_MAX_ROWS,
+} from '../shared/cacheContract.js';
+import { groupParagraphRowsByChapterId, type ParagraphRow } from './paragraphLoader.js';
 import { isChunkError } from '../shared/chunkErrors.js';
 import { getTranslationCoverage } from '../shared/chapterTranslationCoverage.js';
 import {
@@ -17,6 +22,15 @@ import {
 import { validateToken } from '../utils/tokenValidation.js';
 import { titleToSlug } from '../utils/slug.js';
 import { chapterDisplayTitle } from '../shared/chapterTitle.js';
+import {
+  createProjectLimitError,
+  getProjectLimitForRole,
+  isUnlimitedProjectLimit,
+} from '../config/projectLimits.js';
+import { remapPrimaryLocationId, remapRelatedEntryIds } from '../shared/glossaryCloneRemap.js';
+import { filterNewGlossaryEntries, glossaryEntryKey } from './glossaryImportExport.js';
+import { normalizeCloneChapterStatus } from '../shared/normalizeCloneChapterStatus.js';
+import { copyFile, extractPathFromUrl, generateUniqueFilename, getPublicUrl } from './storage.js';
 import {
   createMatchSnippet,
   paragraphMatchesSearch,
@@ -382,6 +396,8 @@ export interface ProjectListItemDB {
   id: string;
   name: string;
   type?: string;
+  sourceLanguage: string;
+  targetLanguage: string;
   chapterCount: number;
   translatedCount: number;
   glossaryCount: number;
@@ -404,7 +420,9 @@ export async function getAllProjectsLightweight(
 
   const { data: projects, error } = await client
     .from('projects')
-    .select('id, name, type, settings, created_at, updated_at, metadata')
+    .select(
+      'id, name, type, settings, created_at, updated_at, metadata, source_language, target_language'
+    )
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -430,6 +448,8 @@ export async function getAllProjectsLightweight(
       id: p.id,
       name: p.name,
       type: p.type || 'text',
+      sourceLanguage: (p.source_language as string) || 'en',
+      targetLanguage: (p.target_language as string) || 'ru',
       chapterCount: chapterCounts[p.id] ?? 0,
       translatedCount: translatedCounts[p.id] ?? 0,
       glossaryCount: glossaryCounts[p.id] ?? 0,
@@ -520,6 +540,838 @@ export async function getAllProjects(userId: string, token: string): Promise<Pro
   );
 
   return projectsWithRelations;
+}
+
+const CLONE_CHAPTER_BATCH_SIZE = 25;
+const CLONE_GLOSSARY_BATCH_SIZE = 100;
+
+function createCloneIncompleteError(
+  expected: number,
+  actual: number
+): Error & {
+  code: 'CLONE_INCOMPLETE';
+  expected: number;
+  actual: number;
+} {
+  const err = new Error(
+    `Clone incomplete: expected ${expected} paragraphs, got ${actual}`
+  ) as Error & { code: 'CLONE_INCOMPLETE'; expected: number; actual: number };
+  err.code = 'CLONE_INCOMPLETE';
+  err.expected = expected;
+  err.actual = actual;
+  return err;
+}
+
+async function insertCloneParagraphRows(
+  client: SupabaseClient,
+  rows: Record<string, unknown>[]
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += PARAGRAPH_INSERT_BATCH) {
+    const chunk = rows.slice(i, i + PARAGRAPH_INSERT_BATCH);
+    const { error } = await client.from('paragraphs').insert(chunk);
+    if (error) {
+      throw new Error(`Failed to clone paragraphs: ${error.message}`);
+    }
+  }
+}
+
+async function countParagraphsForProject(
+  client: SupabaseClient,
+  projectId: string
+): Promise<number> {
+  const { data: chapters, error: chError } = await client
+    .from('chapters')
+    .select('id')
+    .eq('project_id', projectId);
+
+  if (chError) {
+    throw new Error(`Failed to count cloned paragraphs: ${chError.message}`);
+  }
+  if (!chapters?.length) {
+    return 0;
+  }
+
+  const chapterIds = chapters.map((c) => c.id as string);
+  const { count, error } = await client
+    .from('paragraphs')
+    .select('id', { count: 'exact', head: true })
+    .in('chapter_id', chapterIds);
+
+  if (error) {
+    throw new Error(`Failed to count cloned paragraphs: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * Count projects owned by a user.
+ */
+export async function countProjectsByUser(userId: string, token: string): Promise<number> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { count, error } = await client
+    .from('projects')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to count projects: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * Throws PROJECT_LIMIT when the user cannot add another project.
+ */
+export async function assertCanAddProject(
+  userId: string,
+  role: UserRole,
+  token: string
+): Promise<void> {
+  const limit = getProjectLimitForRole(role);
+  if (isUnlimitedProjectLimit(limit)) {
+    return;
+  }
+
+  const current = await countProjectsByUser(userId, token);
+  if (current >= limit) {
+    throw createProjectLimitError(limit, current);
+  }
+}
+
+async function copyStorageImageUrl(
+  url: string | undefined,
+  targetProjectId: string,
+  filenamePrefix: string
+): Promise<string | undefined> {
+  if (!url?.trim()) return undefined;
+
+  const fromPath = extractPathFromUrl(url, 'images');
+  if (!fromPath) return url;
+
+  const ext = fromPath.split('.').pop() || 'jpg';
+  const toPath = generateUniqueFilename(filenamePrefix, ext, targetProjectId);
+
+  try {
+    await copyFile('images', fromPath, toPath);
+    return getPublicUrl('images', toPath);
+  } catch (err) {
+    logger.warn(
+      { err, fromPath, toPath, targetProjectId },
+      'Failed to copy storage image during project clone'
+    );
+    return url;
+  }
+}
+
+/**
+ * Clone a project (full snapshot: settings, metadata, chapters, glossary, images).
+ * Does not copy publication or reader progress.
+ */
+export async function cloneProject(
+  sourceProjectId: string,
+  userId: string,
+  token: string,
+  options?: { name?: string; role?: UserRole }
+): Promise<ProjectWithChapterList | undefined> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const source = await getProjectFull(sourceProjectId, userId, token);
+  if (!source) {
+    return undefined;
+  }
+
+  await assertCanAddProject(userId, options?.role ?? 'author', token);
+
+  const cloneName = options?.name?.trim() || `${source.name} (копия)`;
+  const expectedParagraphCount = source.chapters.reduce(
+    (sum, chapter) => sum + chapter.paragraphs.length,
+    0
+  );
+  let newProjectId: string | null = null;
+
+  try {
+    const { data: insertedProject, error: projectError } = await client
+      .from('projects')
+      .insert({
+        user_id: userId,
+        name: cloneName,
+        type: source.type || 'text',
+        source_language: source.sourceLanguage,
+        target_language: source.targetLanguage,
+        settings: source.settings,
+        metadata: source.metadata ?? {},
+      })
+      .select()
+      .single();
+
+    if (projectError || !insertedProject) {
+      throw new Error(`Failed to create cloned project: ${projectError?.message ?? 'unknown'}`);
+    }
+
+    newProjectId = insertedProject.id as string;
+
+    for (let offset = 0; offset < source.chapters.length; offset += CLONE_CHAPTER_BATCH_SIZE) {
+      const batch = source.chapters.slice(offset, offset + CLONE_CHAPTER_BATCH_SIZE);
+
+      for (const chapter of batch) {
+        const status = normalizeCloneChapterStatus(chapter);
+        const { data: newChapter, error: chapterError } = await client
+          .from('chapters')
+          .insert({
+            project_id: newProjectId,
+            number: chapter.number,
+            title: chapter.title,
+            translated_title: chapter.translatedTitle ?? null,
+            original_text: chapter.originalText,
+            translated_text: chapter.translatedText ?? null,
+            translated_chunks: chapter.translatedChunks ?? null,
+            status,
+            translation_meta: chapter.translationMeta ?? null,
+            critic_report: chapter.criticReport ?? null,
+          })
+          .select('id')
+          .single();
+
+        if (chapterError || !newChapter) {
+          throw new Error(`Failed to clone chapter: ${chapterError?.message ?? 'unknown'}`);
+        }
+
+        if (chapter.paragraphs.length > 0) {
+          const paragraphRows = chapter.paragraphs.map((p) => ({
+            chapter_id: newChapter.id,
+            index: p.index,
+            original_text: p.originalText,
+            translated_text: p.translatedText ?? null,
+            status: p.status,
+            edited_at: p.editedAt ?? null,
+            edited_by: p.editedBy ?? null,
+          }));
+
+          await insertCloneParagraphRows(client, paragraphRows);
+        }
+      }
+    }
+
+    const actualParagraphCount = await countParagraphsForProject(client, newProjectId);
+    if (actualParagraphCount !== expectedParagraphCount) {
+      throw createCloneIncompleteError(expectedParagraphCount, actualParagraphCount);
+    }
+
+    const glossaryIdMap = new Map<string, string>();
+    const insertedGlossaryIds: string[] = [];
+
+    for (let offset = 0; offset < source.glossary.length; offset += CLONE_GLOSSARY_BATCH_SIZE) {
+      const chunk = source.glossary.slice(offset, offset + CLONE_GLOSSARY_BATCH_SIZE);
+      const rows = chunk.map((entry) => ({
+        project_id: newProjectId,
+        type: normalizeGlossaryTypeForDB(entry.type),
+        original: entry.original,
+        translated: entry.translated,
+        gender: normalizeGenderForDB(entry.gender),
+        declensions: entry.declensions || null,
+        description: entry.description || null,
+        notes: entry.notes || null,
+        first_appearance: entry.firstAppearance || null,
+        mentioned_in_chapters: entry.mentionedInChapters ?? null,
+        image_urls: entry.imageUrls || [],
+        auto_detected: entry.autoDetected || false,
+      }));
+
+      const { data: newEntries, error: glossaryError } = await client
+        .from('glossary_entries')
+        .insert(rows)
+        .select('id');
+
+      if (glossaryError) {
+        throw new Error(`Failed to clone glossary: ${glossaryError.message}`);
+      }
+
+      if (newEntries?.length) {
+        for (let i = 0; i < newEntries.length; i++) {
+          const oldId = chunk[i]?.id;
+          const newId = newEntries[i]?.id as string | undefined;
+          if (oldId && newId) {
+            glossaryIdMap.set(oldId, newId);
+            insertedGlossaryIds.push(newId);
+          }
+        }
+      }
+    }
+
+    for (const newEntryId of insertedGlossaryIds) {
+      const oldEntry = source.glossary.find((e) => glossaryIdMap.get(e.id) === newEntryId);
+      if (!oldEntry) continue;
+
+      const remappedRelated = remapRelatedEntryIds(glossaryIdMap, oldEntry.relatedEntryIds);
+      const remappedPrimary = remapPrimaryLocationId(glossaryIdMap, oldEntry.primaryLocationId);
+
+      const copiedImageUrls: string[] = [];
+      for (const imageUrl of oldEntry.imageUrls ?? []) {
+        const copied = await copyStorageImageUrl(imageUrl, newProjectId, `glossary-${newEntryId}`);
+        if (copied) copiedImageUrls.push(copied);
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (remappedRelated?.length) {
+        updateData.related_entry_ids = remappedRelated;
+      }
+      if (remappedPrimary) {
+        updateData.primary_location_id = remappedPrimary;
+      }
+      if (copiedImageUrls.length > 0) {
+        updateData.image_urls = copiedImageUrls;
+      }
+
+      if (Object.keys(updateData).length === 0) continue;
+
+      const { error: updateError } = await client
+        .from('glossary_entries')
+        .update(updateData)
+        .eq('id', newEntryId)
+        .eq('project_id', newProjectId);
+
+      if (updateError) {
+        throw new Error(`Failed to update cloned glossary relations: ${updateError.message}`);
+      }
+    }
+
+    const sourceCoverUrl = source.metadata?.coverImageUrl;
+    if (sourceCoverUrl) {
+      const copiedCover = await copyStorageImageUrl(sourceCoverUrl, newProjectId, 'cover');
+      if (copiedCover && copiedCover !== sourceCoverUrl) {
+        const mergedMetadata = { ...(source.metadata ?? {}), coverImageUrl: copiedCover };
+        const { error: metaError } = await client
+          .from('projects')
+          .update({ metadata: mergedMetadata })
+          .eq('id', newProjectId);
+        if (metaError) {
+          throw new Error(`Failed to update cloned cover metadata: ${metaError.message}`);
+        }
+      }
+    }
+
+    logger.info(
+      {
+        event: 'project.cloned',
+        sourceProjectId,
+        newProjectId,
+        chapters: source.chapters.length,
+        paragraphs: expectedParagraphCount,
+        glossaryEntries: source.glossary.length,
+      },
+      `Project cloned: ${sourceProjectId} -> ${newProjectId}`
+    );
+
+    return getProject(newProjectId, userId, token);
+  } catch (error) {
+    if (newProjectId) {
+      try {
+        await deleteProject(newProjectId, userId, token);
+      } catch (rollbackErr) {
+        logger.error(
+          { err: rollbackErr, newProjectId, sourceProjectId },
+          'Failed to rollback partial project clone'
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+export type TransferChaptersResult = {
+  chaptersTransferred: number;
+  glossaryAdded: number;
+  glossarySkipped: number;
+  chapterNumberMap: Record<number, number>;
+};
+
+function createSameProjectError(): Error & { code: 'SAME_PROJECT' } {
+  const err = new Error('Source and target project must differ') as Error & {
+    code: 'SAME_PROJECT';
+  };
+  err.code = 'SAME_PROJECT';
+  return err;
+}
+
+function createTargetLanguageMismatchError(): Error & { code: 'TARGET_LANGUAGE_MISMATCH' } {
+  const err = new Error('Target language must match between projects') as Error & {
+    code: 'TARGET_LANGUAGE_MISMATCH';
+  };
+  err.code = 'TARGET_LANGUAGE_MISMATCH';
+  return err;
+}
+
+function createInvalidChapterIdsError(): Error & { code: 'INVALID_CHAPTER_IDS' } {
+  const err = new Error('One or more chapters do not belong to the source project') as Error & {
+    code: 'INVALID_CHAPTER_IDS';
+  };
+  err.code = 'INVALID_CHAPTER_IDS';
+  return err;
+}
+
+function createTransferIncompleteError(
+  expected: number,
+  actual: number
+): Error & { code: 'TRANSFER_INCOMPLETE'; expected: number; actual: number } {
+  const err = new Error(
+    `Transfer incomplete: expected ${expected} paragraphs, got ${actual}`
+  ) as Error & { code: 'TRANSFER_INCOMPLETE'; expected: number; actual: number };
+  err.code = 'TRANSFER_INCOMPLETE';
+  err.expected = expected;
+  err.actual = actual;
+  return err;
+}
+
+function remapMentionedInChapters(
+  mentioned: number[] | undefined,
+  chapterNumberMap: Map<number, number>
+): number[] | undefined {
+  if (!mentioned?.length) return mentioned;
+  return mentioned.map((n) => chapterNumberMap.get(n) ?? n);
+}
+
+async function countParagraphsForChapterIds(
+  client: SupabaseClient,
+  chapterIds: string[]
+): Promise<number> {
+  if (chapterIds.length === 0) return 0;
+
+  const { count, error } = await client
+    .from('paragraphs')
+    .select('id', { count: 'exact', head: true })
+    .in('chapter_id', chapterIds);
+
+  if (error) {
+    throw new Error(`Failed to count paragraphs: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+async function rollbackInsertedChapters(
+  client: SupabaseClient,
+  targetProjectId: string,
+  chapterIds: string[]
+): Promise<void> {
+  if (chapterIds.length === 0) return;
+
+  const { error } = await client
+    .from('chapters')
+    .delete()
+    .eq('project_id', targetProjectId)
+    .in('id', chapterIds);
+
+  if (error) {
+    logger.error(
+      { err: error, targetProjectId, chapterIds },
+      'Failed to rollback transferred chapters'
+    );
+  }
+}
+
+async function appendGlossaryFromSource(
+  client: SupabaseClient,
+  sourceGlossary: GlossaryEntry[],
+  targetProjectId: string,
+  targetGlossary: GlossaryEntry[],
+  chapterNumberMap: Map<number, number>
+): Promise<{ added: number; skipped: number }> {
+  const { toInsert, skipped } = filterNewGlossaryEntries(sourceGlossary, targetGlossary);
+  if (toInsert.length === 0) {
+    return { added: 0, skipped };
+  }
+
+  const glossaryIdMap = new Map<string, string>();
+  const targetKeyToId = new Map(
+    targetGlossary.map((entry) => [glossaryEntryKey(entry.type, entry.original), entry.id])
+  );
+
+  for (const entry of sourceGlossary) {
+    const existingId = targetKeyToId.get(glossaryEntryKey(entry.type, entry.original));
+    if (existingId) {
+      glossaryIdMap.set(entry.id, existingId);
+    }
+  }
+
+  const insertedGlossaryIds: string[] = [];
+
+  for (let offset = 0; offset < toInsert.length; offset += CLONE_GLOSSARY_BATCH_SIZE) {
+    const chunk = toInsert.slice(offset, offset + CLONE_GLOSSARY_BATCH_SIZE);
+    const rows = chunk.map((entry) => {
+      const sourceEntry = sourceGlossary.find(
+        (e) =>
+          glossaryEntryKey(e.type, e.original) ===
+          glossaryEntryKey(entry.type ?? 'term', entry.original)
+      );
+      return {
+        project_id: targetProjectId,
+        type: normalizeGlossaryTypeForDB(entry.type),
+        original: entry.original,
+        translated: entry.translated ?? sourceEntry?.translated ?? entry.original,
+        gender: normalizeGenderForDB(entry.gender ?? sourceEntry?.gender),
+        declensions: entry.declensions || sourceEntry?.declensions || null,
+        description: entry.description || sourceEntry?.description || null,
+        notes: entry.notes || sourceEntry?.notes || null,
+        first_appearance: sourceEntry?.firstAppearance || null,
+        mentioned_in_chapters: remapMentionedInChapters(
+          sourceEntry?.mentionedInChapters,
+          chapterNumberMap
+        ),
+        image_urls: [],
+        auto_detected: sourceEntry?.autoDetected || false,
+      };
+    });
+
+    const { data: newEntries, error: glossaryError } = await client
+      .from('glossary_entries')
+      .insert(rows)
+      .select('id');
+
+    if (glossaryError) {
+      throw new Error(`Failed to transfer glossary: ${glossaryError.message}`);
+    }
+
+    if (newEntries?.length) {
+      for (let i = 0; i < newEntries.length; i++) {
+        const sourceEntry = chunk[i];
+        const newId = newEntries[i]?.id as string | undefined;
+        if (!sourceEntry || !newId) continue;
+        const oldEntry = sourceGlossary.find(
+          (e) =>
+            glossaryEntryKey(e.type, e.original) ===
+            glossaryEntryKey(sourceEntry.type ?? 'term', sourceEntry.original)
+        );
+        if (oldEntry) {
+          glossaryIdMap.set(oldEntry.id, newId);
+          insertedGlossaryIds.push(newId);
+        }
+      }
+    }
+  }
+
+  for (const newEntryId of insertedGlossaryIds) {
+    const oldEntry = sourceGlossary.find((e) => glossaryIdMap.get(e.id) === newEntryId);
+    if (!oldEntry) continue;
+
+    const remappedRelated = remapRelatedEntryIds(glossaryIdMap, oldEntry.relatedEntryIds);
+    const remappedPrimary = remapPrimaryLocationId(glossaryIdMap, oldEntry.primaryLocationId);
+
+    const copiedImageUrls: string[] = [];
+    for (const imageUrl of oldEntry.imageUrls ?? []) {
+      const copied = await copyStorageImageUrl(imageUrl, targetProjectId, `glossary-${newEntryId}`);
+      if (copied) copiedImageUrls.push(copied);
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (remappedRelated?.length) {
+      updateData.related_entry_ids = remappedRelated;
+    }
+    if (remappedPrimary) {
+      updateData.primary_location_id = remappedPrimary;
+    }
+    if (copiedImageUrls.length > 0) {
+      updateData.image_urls = copiedImageUrls;
+    }
+
+    if (Object.keys(updateData).length === 0) continue;
+
+    const { error: updateError } = await client
+      .from('glossary_entries')
+      .update(updateData)
+      .eq('id', newEntryId)
+      .eq('project_id', targetProjectId);
+
+    if (updateError) {
+      throw new Error(`Failed to update transferred glossary relations: ${updateError.message}`);
+    }
+  }
+
+  return { added: toInsert.length, skipped };
+}
+
+/**
+ * Copy selected chapters (and optionally glossary) from one project to the end of another.
+ * Requires matching target language; source language may differ (multi-source workflow).
+ */
+async function copyChaptersBetweenProjects(
+  targetProjectId: string,
+  userId: string,
+  token: string,
+  options: {
+    sourceProjectId: string;
+    chapterIds: string[];
+    includeGlossary?: boolean;
+    allowSameProject?: boolean;
+  }
+): Promise<TransferChaptersResult | undefined> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+  const {
+    sourceProjectId,
+    chapterIds,
+    includeGlossary = false,
+    allowSameProject = false,
+  } = options;
+  const uniqueChapterIds = [...new Set(chapterIds)];
+
+  if (!allowSameProject && sourceProjectId === targetProjectId) {
+    throw createSameProjectError();
+  }
+
+  const [sourceProjectRow, targetProjectRow] = await Promise.all([
+    client
+      .from('projects')
+      .select('id, source_language, target_language')
+      .eq('id', sourceProjectId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+    client
+      .from('projects')
+      .select('id, source_language, target_language')
+      .eq('id', targetProjectId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ]);
+
+  if (!sourceProjectRow.data || !targetProjectRow.data) {
+    return undefined;
+  }
+
+  if (!allowSameProject) {
+    const sourceTargetLanguage = (sourceProjectRow.data.target_language as string) || 'ru';
+    const targetTargetLanguage = (targetProjectRow.data.target_language as string) || 'ru';
+    if (sourceTargetLanguage !== targetTargetLanguage) {
+      throw createTargetLanguageMismatchError();
+    }
+  }
+
+  const { data: sourceChapterRows, error: chaptersError } = await client
+    .from('chapters')
+    .select('*')
+    .eq('project_id', sourceProjectId)
+    .in('id', uniqueChapterIds);
+
+  if (chaptersError) {
+    throw new Error(`Failed to load source chapters: ${chaptersError.message}`);
+  }
+
+  if (!sourceChapterRows || sourceChapterRows.length !== uniqueChapterIds.length) {
+    throw createInvalidChapterIdsError();
+  }
+
+  const sortedSourceChapters = [...sourceChapterRows].sort(
+    (a, b) => (a.number as number) - (b.number as number)
+  );
+
+  const paragraphsByChapterId = await loadParagraphsForChapterIds(
+    client,
+    sortedSourceChapters.map((c) => c.id as string)
+  );
+
+  const expectedParagraphCount = sortedSourceChapters.reduce(
+    (sum, chapter) => sum + (paragraphsByChapterId.get(chapter.id as string)?.length ?? 0),
+    0
+  );
+
+  const { data: targetChapterNumbers, error: targetNumbersError } = await client
+    .from('chapters')
+    .select('number')
+    .eq('project_id', targetProjectId)
+    .order('number', { ascending: false })
+    .limit(1);
+
+  if (targetNumbersError) {
+    throw new Error(`Failed to load target chapter numbers: ${targetNumbersError.message}`);
+  }
+
+  let nextNumber = (targetChapterNumbers?.[0]?.number as number | undefined) ?? 0;
+  const chapterNumberMap = new Map<number, number>();
+  const insertedChapterIds: string[] = [];
+
+  try {
+    for (const chapterRow of sortedSourceChapters) {
+      const oldNumber = chapterRow.number as number;
+      nextNumber += 1;
+      chapterNumberMap.set(oldNumber, nextNumber);
+
+      const paragraphs = paragraphsByChapterId.get(chapterRow.id as string) ?? [];
+      const { data: newChapter, error: chapterError } = await client
+        .from('chapters')
+        .insert({
+          project_id: targetProjectId,
+          number: nextNumber,
+          title: chapterRow.title,
+          translated_title: chapterRow.translated_title ?? null,
+          original_text: chapterRow.original_text,
+          translated_text: chapterRow.translated_text ?? null,
+          translated_chunks: chapterRow.translated_chunks ?? null,
+          status: chapterRow.status,
+          translation_meta: chapterRow.translation_meta ?? null,
+          critic_report: chapterRow.critic_report ?? null,
+        })
+        .select('id')
+        .single();
+
+      if (chapterError || !newChapter) {
+        throw new Error(`Failed to transfer chapter: ${chapterError?.message ?? 'unknown'}`);
+      }
+
+      insertedChapterIds.push(newChapter.id as string);
+
+      if (paragraphs.length > 0) {
+        const paragraphRows = paragraphs.map((p) => ({
+          chapter_id: newChapter.id,
+          index: p.index,
+          original_text: p.originalText,
+          translated_text: p.translatedText ?? null,
+          status: p.status,
+          edited_at: p.editedAt ?? null,
+          edited_by: p.editedBy ?? null,
+        }));
+        await insertCloneParagraphRows(client, paragraphRows);
+      }
+    }
+
+    const actualParagraphCount = await countParagraphsForChapterIds(client, insertedChapterIds);
+    if (actualParagraphCount !== expectedParagraphCount) {
+      throw createTransferIncompleteError(expectedParagraphCount, actualParagraphCount);
+    }
+
+    let glossaryAdded = 0;
+    let glossarySkipped = 0;
+
+    if (includeGlossary) {
+      const [sourceGlossary, targetGlossary] = await Promise.all([
+        loadGlossaryForProject(sourceProjectId, token),
+        loadGlossaryForProject(targetProjectId, token),
+      ]);
+      const glossaryResult = await appendGlossaryFromSource(
+        client,
+        sourceGlossary,
+        targetProjectId,
+        targetGlossary,
+        chapterNumberMap
+      );
+      glossaryAdded = glossaryResult.added;
+      glossarySkipped = glossaryResult.skipped;
+    }
+
+    await client.from('projects').update({}).eq('id', targetProjectId);
+
+    const chapterNumberMapRecord: Record<number, number> = {};
+    for (const [oldNum, newNum] of chapterNumberMap) {
+      chapterNumberMapRecord[oldNum] = newNum;
+    }
+
+    logger.info(
+      {
+        event: allowSameProject ? 'chapters.duplicated' : 'chapters.transferred',
+        sourceProjectId,
+        targetProjectId,
+        chapters: sortedSourceChapters.length,
+        paragraphs: expectedParagraphCount,
+        glossaryAdded,
+        glossarySkipped,
+      },
+      allowSameProject
+        ? `Chapters duplicated in project ${targetProjectId}`
+        : `Chapters transferred: ${sourceProjectId} -> ${targetProjectId}`
+    );
+
+    return {
+      chaptersTransferred: sortedSourceChapters.length,
+      glossaryAdded,
+      glossarySkipped,
+      chapterNumberMap: chapterNumberMapRecord,
+    };
+  } catch (error) {
+    if (insertedChapterIds.length > 0) {
+      await rollbackInsertedChapters(client, targetProjectId, insertedChapterIds);
+    }
+    throw error;
+  }
+}
+
+export async function transferChaptersFromProject(
+  targetProjectId: string,
+  userId: string,
+  token: string,
+  options: {
+    sourceProjectId: string;
+    chapterIds: string[];
+    includeGlossary?: boolean;
+  }
+): Promise<TransferChaptersResult | undefined> {
+  return copyChaptersBetweenProjects(targetProjectId, userId, token, options);
+}
+
+/**
+ * Duplicate selected chapters within a project (append copies at the end).
+ */
+export async function duplicateChaptersInProject(
+  projectId: string,
+  userId: string,
+  token: string,
+  chapterIds: string[]
+): Promise<TransferChaptersResult | undefined> {
+  return copyChaptersBetweenProjects(projectId, userId, token, {
+    sourceProjectId: projectId,
+    chapterIds,
+    includeGlossary: false,
+    allowSameProject: true,
+  });
+}
+
+/**
+ * Delete multiple chapters in one operation (renumber once at the end).
+ */
+export async function bulkDeleteChapters(
+  projectId: string,
+  chapterIds: string[],
+  token: string
+): Promise<number> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+  const uniqueIds = [...new Set(chapterIds)];
+
+  const { data: chapters, error: loadError } = await client
+    .from('chapters')
+    .select('id')
+    .eq('project_id', projectId)
+    .in('id', uniqueIds);
+
+  if (loadError) {
+    throw new Error(`Failed to verify chapters: ${loadError.message}`);
+  }
+
+  if (!chapters || chapters.length !== uniqueIds.length) {
+    throw createInvalidChapterIdsError();
+  }
+
+  const { error: deleteError } = await client
+    .from('chapters')
+    .delete()
+    .eq('project_id', projectId)
+    .in('id', uniqueIds);
+
+  if (deleteError) {
+    throw new Error(`Failed to delete chapters: ${deleteError.message}`);
+  }
+
+  await renumberChapters(projectId, token);
+  await client.from('projects').update({}).eq('id', projectId);
+
+  logger.info(
+    { event: 'chapters.bulk_deleted', projectId, count: uniqueIds.length },
+    `Bulk deleted ${uniqueIds.length} chapter(s)`
+  );
+
+  return uniqueIds.length;
 }
 
 /**
@@ -742,6 +1594,8 @@ export async function createProject(
   validateToken(token);
   const client = createClientWithToken(token);
   const role = data.role ?? 'author';
+
+  await assertCanAddProject(userId, role, token);
 
   const projectData = {
     user_id: userId,
@@ -1286,7 +2140,7 @@ async function loadChaptersForProjectLightweight(
 
 /**
  * Load all chapters for a project (with paragraphs).
- * Uses small batches to avoid statement timeout on large projects (no heavy JOIN).
+ * Uses small chapter batches; paragraphs are paginated (PostgREST 1000-row cap per request).
  */
 async function loadChaptersForProject(projectId: string, token: string): Promise<Chapter[]> {
   const client = createClientWithToken(token);
@@ -1312,25 +2166,8 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
 
     const chapterIds = chapters.map((c) => c.id);
 
-    // 2. Load paragraphs for this batch (separate query avoids heavy JOIN)
-    const { data: paragraphsRows, error: pError } = await client
-      .from('paragraphs')
-      .select('*')
-      .in('chapter_id', chapterIds);
-
-    if (pError) {
-      throw new Error(`Failed to load paragraphs: ${pError.message}`);
-    }
-
-    // Group paragraphs by chapter_id and sort by index
-    const paragraphsByChapter = new Map<string, Record<string, unknown>[]>();
-    for (const row of paragraphsRows ?? []) {
-      const chapterId = (row as Record<string, unknown>).chapter_id as string;
-      if (!paragraphsByChapter.has(chapterId)) {
-        paragraphsByChapter.set(chapterId, []);
-      }
-      paragraphsByChapter.get(chapterId)!.push(row as Record<string, unknown>);
-    }
+    // 2. Load paragraphs for this batch (paginated — PostgREST max 1000 rows per request)
+    const paragraphsByChapterMap = await loadParagraphsForChapterIds(client, chapterIds);
 
     // Log loaded chapters order for debugging (only in development)
     if (process.env.NODE_ENV === 'development' && chapters.length <= 5 && offset === 0) {
@@ -1343,11 +2180,7 @@ async function loadChaptersForProject(projectId: string, token: string): Promise
     // 3. Build chapters with paragraphs and auto-recovery
     const chaptersWithParagraphs = await Promise.all(
       chapters.map(async (chapter) => {
-        const rawParagraphs = (paragraphsByChapter.get(chapter.id) ?? []).sort(
-          (a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0)
-        );
-        const paragraphs = rawParagraphs.map(transformParagraphFromDB);
-        let paragraphsList = paragraphs;
+        let paragraphsList = paragraphsByChapterMap.get(chapter.id) ?? [];
         const chapterData = transformChapterFromDB(chapter, paragraphsList);
 
         // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
@@ -1477,31 +2310,10 @@ async function loadChaptersForProjectWithServiceRole(projectId: string): Promise
 
     const chapterIds = chapters.map((c) => c.id);
 
-    // 2. Load paragraphs for this batch (separate query avoids heavy JOIN)
-    const { data: paragraphsRows, error: pError } = await client
-      .from('paragraphs')
-      .select('*')
-      .in('chapter_id', chapterIds);
-
-    if (pError) {
-      throw new Error(`Failed to load paragraphs: ${pError.message}`);
-    }
-
-    // Group paragraphs by chapter_id and sort by index
-    const paragraphsByChapter = new Map<string, Record<string, unknown>[]>();
-    for (const row of paragraphsRows ?? []) {
-      const chapterId = (row as Record<string, unknown>).chapter_id as string;
-      if (!paragraphsByChapter.has(chapterId)) {
-        paragraphsByChapter.set(chapterId, []);
-      }
-      paragraphsByChapter.get(chapterId)!.push(row as Record<string, unknown>);
-    }
+    const paragraphsByChapterMap = await loadParagraphsForChapterIds(client, chapterIds);
 
     const batch = chapters.map((chapter) => {
-      const rawParagraphs = (paragraphsByChapter.get(chapter.id) ?? []).sort(
-        (a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0)
-      );
-      const paragraphs = rawParagraphs.map(transformParagraphFromDB);
+      const paragraphs = paragraphsByChapterMap.get(chapter.id) ?? [];
       return transformChapterFromDB(chapter, paragraphs);
     });
 
@@ -1548,6 +2360,64 @@ export async function getProjectForPublicationExport(projectId: string): Promise
 }
 
 /**
+ * Load paragraphs for multiple chapters with PostgREST pagination (1000 row cap per request).
+ */
+async function loadParagraphsForChapterIds(
+  client: SupabaseClient,
+  chapterIds: string[]
+): Promise<Map<string, Paragraph[]>> {
+  const result = new Map<string, Paragraph[]>();
+  if (chapterIds.length === 0) {
+    return result;
+  }
+
+  for (const id of chapterIds) {
+    result.set(id, []);
+  }
+
+  let offset = 0;
+  for (;;) {
+    const { data: page, error } = await client
+      .from('paragraphs')
+      .select('*')
+      .in('chapter_id', chapterIds)
+      .order('chapter_id', { ascending: true })
+      .order('index', { ascending: true })
+      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
+
+    if (error) {
+      throw new Error(`Failed to load paragraphs: ${error.message}`);
+    }
+
+    const rows = (page ?? []) as ParagraphRow[];
+    if (rows.length === 0) {
+      break;
+    }
+
+    const grouped = groupParagraphRowsByChapterId(rows);
+    for (const [chapterId, chapterRows] of grouped) {
+      const existing = result.get(chapterId) ?? [];
+      existing.push(...chapterRows.map((row) => transformParagraphFromDB(row)));
+      result.set(chapterId, existing);
+    }
+
+    if (rows.length < POSTGREST_MAX_ROWS) {
+      break;
+    }
+    offset += POSTGREST_MAX_ROWS;
+  }
+
+  for (const [chapterId, paragraphs] of result) {
+    result.set(
+      chapterId,
+      paragraphs.sort((a, b) => a.index - b.index)
+    );
+  }
+
+  return result;
+}
+
+/**
  * Load all paragraphs for a chapter.
  * When useServiceRole is true, uses service role client (for long-running server flows where JWT may expire).
  */
@@ -1562,21 +2432,35 @@ async function loadParagraphsForChapter(
       ? createClientWithToken(token)
       : supabase;
 
-  const { data: paragraphs, error } = await client
-    .from('paragraphs')
-    .select('*')
-    .eq('chapter_id', chapterId)
-    .order('index', { ascending: true });
+  const all: Paragraph[] = [];
+  let offset = 0;
 
-  if (error) {
-    throw new Error(`Failed to load paragraphs: ${error.message}`);
+  for (;;) {
+    const { data: page, error } = await client
+      .from('paragraphs')
+      .select('*')
+      .eq('chapter_id', chapterId)
+      .order('index', { ascending: true })
+      .range(offset, offset + POSTGREST_MAX_ROWS - 1);
+
+    if (error) {
+      throw new Error(`Failed to load paragraphs: ${error.message}`);
+    }
+
+    const rows = page ?? [];
+    if (rows.length === 0) {
+      break;
+    }
+
+    all.push(...rows.map((row) => transformParagraphFromDB(row as Record<string, unknown>)));
+
+    if (rows.length < POSTGREST_MAX_ROWS) {
+      break;
+    }
+    offset += POSTGREST_MAX_ROWS;
   }
 
-  if (!paragraphs || paragraphs.length === 0) {
-    return [];
-  }
-
-  return paragraphs.map(transformParagraphFromDB);
+  return all;
 }
 
 /**

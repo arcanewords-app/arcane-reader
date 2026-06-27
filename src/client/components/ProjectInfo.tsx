@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'preact/hooks';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation, Trans } from 'react-i18next';
+import { route } from 'preact-router';
 import type {
   Project,
   ProjectWithChapterList,
@@ -16,7 +17,10 @@ import { formatLanguagePairLabel } from '../constants/translationLanguages';
 import { api, ApiError, clearCatalogLocalCache } from '../api/client';
 import { authService } from '../services/authService';
 import { isChunkError } from '../../shared/chunkErrors';
-import { invalidateProject } from '../store/projects';
+import { invalidateProject, loadProjects, projectsCache } from '../store/projects';
+import { useUserRole } from '../hooks/useUserRole';
+import { getProjectLimitForRole, isUnlimitedProjectLimit } from '../../config/projectLimits';
+import { CopyChaptersModal } from './Project/CopyChaptersModal';
 import '../components/ChapterView/ReaderSettings.css';
 import './ProjectInfo.css';
 
@@ -37,7 +41,14 @@ export function ProjectInfo({
   onOpenSettings,
 }: ProjectInfoProps) {
   const { t } = useTranslation();
+  const { role } = useUserRole();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCopyChaptersModal, setShowCopyChaptersModal] = useState(false);
+  const [showProjectActionsMenu, setShowProjectActionsMenu] = useState(false);
+  const projectActionsMenuRef = useRef<HTMLDivElement>(null);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneName, setCloneName] = useState('');
+  const [cloning, setCloning] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
@@ -469,6 +480,61 @@ export function ProjectInfo({
 
   const isOriginalReadingMode = settings.originalReadingMode ?? false;
 
+  const projectLimit = getProjectLimitForRole(role);
+  const projectCount = projectsCache.value.length;
+  const atProjectLimit = useMemo(
+    () => !isUnlimitedProjectLimit(projectLimit) && projectCount >= projectLimit,
+    [projectLimit, projectCount]
+  );
+
+  const openCloneModal = () => {
+    setCloneName(`${project.name} ${t('projectClone.defaultNameSuffix')}`);
+    setShowCloneModal(true);
+  };
+
+  useEffect(() => {
+    if (!showProjectActionsMenu) return;
+    const handleClick = (event: MouseEvent) => {
+      if (
+        projectActionsMenuRef.current &&
+        !projectActionsMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowProjectActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showProjectActionsMenu]);
+
+  const handleClone = async () => {
+    if (!cloneName.trim()) return;
+    setCloning(true);
+    try {
+      const cloned = await api.cloneProject(project.id, { name: cloneName.trim() });
+      setShowCloneModal(false);
+      await loadProjects();
+      route(`/projects/${cloned.id}`);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'PROJECT_LIMIT') {
+        const data = error.data as { limit?: number; current?: number } | undefined;
+        setErrorModal({
+          title: t('projectLimit.title'),
+          message: t('projectLimit.message', {
+            limit: data?.limit ?? projectLimit,
+            current: data?.current ?? projectCount,
+          }),
+        });
+      } else {
+        setErrorModal({
+          title: t('common.error'),
+          message: error instanceof Error ? error.message : t('projectInfo.errorCloneProject'),
+        });
+      }
+    } finally {
+      setCloning(false);
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -520,9 +586,67 @@ export function ProjectInfo({
                   )}
             </span>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setShowDeleteModal(true)}>
-            {t('projectInfo.delete')}
-          </Button>
+          <div class="project-actions-menu" ref={projectActionsMenuRef}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowProjectActionsMenu((open) => !open)}
+              aria-expanded={showProjectActionsMenu}
+              aria-haspopup="menu"
+              title={t('projectInfo.actionsMenu')}
+            >
+              <Icon name="more_vert" size="sm" /> {t('projectInfo.actionsMenu')}
+            </Button>
+            {showProjectActionsMenu && (
+              <div class="project-actions-dropdown" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="project-actions-item"
+                  disabled={atProjectLimit}
+                  title={
+                    atProjectLimit
+                      ? t('dashboard.projectLimitReached', {
+                          current: projectCount,
+                          limit: projectLimit,
+                        })
+                      : undefined
+                  }
+                  onClick={() => {
+                    setShowProjectActionsMenu(false);
+                    openCloneModal();
+                  }}
+                >
+                  <Icon name="content_copy" size="sm" />
+                  <span>{t('projectInfo.cloneProject')}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="project-actions-item"
+                  onClick={() => {
+                    setShowProjectActionsMenu(false);
+                    setShowCopyChaptersModal(true);
+                  }}
+                >
+                  <Icon name="drive_file_move" size="sm" />
+                  <span>{t('projectInfo.copyChapters')}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="project-actions-item project-actions-item-danger"
+                  onClick={() => {
+                    setShowProjectActionsMenu(false);
+                    setShowDeleteModal(true);
+                  }}
+                >
+                  <Icon name="delete" size="sm" />
+                  <span>{t('projectInfo.delete')}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div class="stats">
@@ -1561,6 +1685,44 @@ export function ProjectInfo({
               </div>
             )}
       </Card>
+
+      {/* Clone Modal */}
+      <Modal
+        isOpen={showCloneModal}
+        onClose={() => setShowCloneModal(false)}
+        title={t('projectInfo.cloneProjectModalTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCloneModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleClone} loading={cloning} disabled={!cloneName.trim()}>
+              {t('projectInfo.cloneProjectConfirm')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          {t('projectInfo.cloneProjectHint')}
+        </p>
+        <Input
+          label={t('projectInfo.cloneProjectNameLabel')}
+          value={cloneName}
+          onInput={(e) => setCloneName((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              handleClone();
+            }
+          }}
+        />
+      </Modal>
+
+      <CopyChaptersModal
+        isOpen={showCopyChaptersModal}
+        onClose={() => setShowCopyChaptersModal(false)}
+        project={project}
+        onSuccess={onRefreshProject}
+      />
 
       {/* Delete Modal */}
       <Modal

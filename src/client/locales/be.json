@@ -152,6 +152,45 @@
     "batchTitle": "Пазначыць выбраныя раздзелы як перакладзеныя (без AI)",
     "batchButton": "Пазначыць як перакладзеныя ({{count}})"
   },
+  "chapterActions": {
+    "menuTitle": "Дзеянні з раздзеламі",
+    "menuLabel": "Дзеянні",
+    "transfer": "Перанесці ў праект…",
+    "duplicate": "Капіяваць",
+    "delete": "Выдаліць",
+    "duplicateConfirmTitle": "Капіяваць раздзелы?",
+    "duplicateConfirmMessage": "Стварыць копіі {{count}} выбраных раздзелаў у канцы гэтага праекта?",
+    "duplicateSuccessTitle": "Раздзелы скапіяваны",
+    "duplicateSuccessMessage": "{{count}} раздзел(аў) дададзена ў канец праекта.",
+    "duplicateErrorTitle": "Не ўдалося скапіяваць",
+    "deleteConfirmTitle": "Выдаліць раздзелы?",
+    "deleteConfirmMessage": "Беззваротна выдаліць {{count}} выбраных раздзелаў?",
+    "deleteSuccessTitle": "Раздзелы выдалены",
+    "deleteSuccessMessage": "Выдалена раздзелаў: {{count}}.",
+    "deleteErrorTitle": "Не ўдалося выдаліць",
+    "errorGeneric": "Нешта пайшло не так. Паспрабуйце зноў."
+  },
+  "chapterTransfer": {
+    "modalTitle": "Перанесці ў праект",
+    "hint": "Скапіяваць {{count}} выбраных раздзелаў у іншы праект з той жа мэтавай мовай.",
+    "targetProject": "Мэтавы праект",
+    "selectProject": "Выберыце праект…",
+    "noTargets": "Няма іншых праектаў з той жа мэтавай мовай. Стварыце праект з той жа мэтавай лакаллю (напрыклад, абодва → руская).",
+    "sourceLanguageWarning": "Зыходная мова праектаў адрозніваецца. Тэксты раздзелаў капіруюцца як ёсць.",
+    "includeGlossary": "Перанесці гласарый гэтага праекта",
+    "includeGlossaryHint": "Дадасць запісы з гласарыя; дублі прапускаюцца.",
+    "confirm": "Перанесці",
+    "transferring": "Перанос…",
+    "successTitle": "Раздзелы перанесены",
+    "successMessage": "Скапіявана раздзелаў: {{count}}. Гласарый: дададзена {{glossaryAdded}}, прапушчана {{glossarySkipped}}.",
+    "errorTitle": "Не ўдалося перанесці",
+    "errorGeneric": "Не ўдалося перанесці раздзелы. Паспрабуйце зноў."
+  },
+  "copyChapters": {
+    "modalTitle": "Капіяваць раздзелы",
+    "chaptersHint": "Выберыце раздзелы для капіявання ў іншы праект з той жа мэтавай мовай.",
+    "selectedCount": "Выбрана: {{count}}"
+  },
   "uploadTranslation": {
     "title": "Загрузіць гатовы пераклад",
     "button": "Загрузіць пераклад",
@@ -692,6 +731,15 @@
     "noChaptersForExport": "Няма перакладзеных раздзелаў для экспарту",
     "exportError": "Памылка пры экспарце ў {{format}}",
     "deleteProjectConfirm": "Выдаліць праект?",
+    "actionsMenu": "Дзеянні",
+    "copyChapters": "Капіяваць раздзелы",
+    "cloneProject": "Кланаваць",
+    "cloneProjectModalTitle": "Кланаваць праект",
+    "cloneProjectHint": "Ствараецца поўная копія: раздзелы, пераклад, гласарый і налады. Публікацыя ў каталогу не капіруецца.",
+    "cloneProjectNameLabel": "Назва копіі",
+    "cloneProjectConfirm": "Кланаваць",
+    "cloneProjectSuccess": "Праект скапіяваны",
+    "errorCloneProject": "Не ўдалося кланаваць праект",
     "confirmDeleteProject": "Вы ўпэўнены, што хочаце выдаліць праект <strong>{{name}}</strong>? Гэта дзеянне нельга адмяніць.",
     "errorSaveDescription": "Памылка захавання апісання",
     "errorDeleteCover": "Памылка выдалення вокладкі",
@@ -907,7 +955,17 @@
     "filterAll": "Усе",
     "filterAllWithCount": "Усе ({{count}})",
     "filterBooks": "Кнігі",
-    "filterText": "Тэкст"
+    "filterText": "Тэкст",
+    "projectLimitReached": "Дасягнуты ліміт праектаў ({{current}}/{{limit}})",
+    "projectLimitHint": "Праектаў: {{current}} з {{limit}}"
+  },
+  "projectLimit": {
+    "title": "Ліміт праектаў",
+    "message": "Для вашага ўзроўню акаўнта можна стварыць не больш за {{limit}} праектаў. Зараз: {{current}}.",
+    "upgradeLink": "Параўнанне ўзроўняў акаўнта"
+  },
+  "projectClone": {
+    "defaultNameSuffix": "(копія)"
   },
   "projectCount": {
     "one": "праект",
@@ -1434,6 +1492,7 @@
       "catalogReading": "Каталог і чытанне",
       "profileHistory": "Профіль і гісторыя чытання",
       "translationProjects": "Праекты перакладу, некалькі моўных пар, AI-пайплайн",
+      "maxProjects": "Максімум праектаў перакладу",
       "glossaryPublishExport": "Гласарый, публікацыя, экспарт EPUB/FB2",
       "aiModelChoice": "Выбар AI-мадэлі",
       "dailyTokens": "Дзённы ліміт AI-токенаў",

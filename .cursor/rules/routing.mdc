@@ -179,7 +179,9 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/projects` | List projects |
-| POST | `/api/projects` | Create project |
+| POST | `/api/projects` | Create project (409 `PROJECT_LIMIT` when cap reached) |
+| POST | `/api/projects/:id/clone` | Clone project snapshot (body: optional `name`; 409 `PROJECT_LIMIT`) |
+| POST | `/api/projects/:targetProjectId/transfer-from` | Copy chapters from another project (body: `sourceProjectId`, `chapterIds[]`, `includeGlossary?`; 409 `SAME_PROJECT`, `TARGET_LANGUAGE_MISMATCH`; 500 `TRANSFER_INCOMPLETE`) |
 | GET | `/api/projects/:id` | Get project |
 | DELETE | `/api/projects/:id` | Delete project |
 | PUT | `/api/projects/:id/settings` | Update project settings |
@@ -197,6 +199,8 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/projects/:projectId/chapters/:chapterId` | Get chapter |
 | GET | `/api/projects/:projectId/chapters/:chapterId/status` | Chapter status (when translating: includes `chunksDone`/`totalChunks` for progress) |
 | DELETE | `/api/projects/:projectId/chapters/:chapterId` | Delete chapter |
+| POST | `/api/projects/:projectId/chapters/duplicate` | Duplicate selected chapters at end of project (body: `chapterIds[]`) |
+| POST | `/api/projects/:projectId/chapters/bulk-delete` | Delete selected chapters (body: `chapterIds[]`) |
 | PUT | `/api/projects/:projectId/chapters/:chapterId/title` | Update chapter title |
 | PUT | `/api/projects/:projectId/chapters/:chapterId/number` | Update chapter number |
 | PUT | `/api/projects/:projectId/chapters/order` | Reorder chapters |

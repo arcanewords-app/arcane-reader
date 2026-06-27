@@ -4,6 +4,7 @@
  */
 
 import { TOKEN_LIMITS, isUnlimitedTokenLimit } from '../config/tokenLimits.js';
+import { PROJECT_LIMITS, isUnlimitedProjectLimit } from '../config/projectLimits.js';
 import type { UserRole } from '../types/roles.js';
 
 /** Tiers shown as columns in the comparison table (excludes guest and admin). */
@@ -20,6 +21,7 @@ export type TierFeatureId =
   | 'catalogReading'
   | 'profileHistory'
   | 'translationProjects'
+  | 'maxProjects'
   | 'glossaryPublishExport'
   | 'aiModelChoice'
   | 'translationReview'
@@ -31,6 +33,7 @@ export const TIER_FEATURE_ROWS: TierFeatureId[] = [
   'catalogReading',
   'profileHistory',
   'translationProjects',
+  'maxProjects',
   'glossaryPublishExport',
   'aiModelChoice',
   'translationReview',
@@ -42,7 +45,7 @@ export const TIER_FEATURE_ROWS: TierFeatureId[] = [
 export type TierFeatureStatus = 'yes' | 'no' | 'soon';
 
 export const TIER_FEATURE_MATRIX: Record<
-  Exclude<TierFeatureId, 'dailyTokens' | 'aiModelChoice'>,
+  Exclude<TierFeatureId, 'dailyTokens' | 'aiModelChoice' | 'maxProjects'>,
   Record<AccountTierId, TierFeatureStatus>
 > = {
   catalogReading: {
@@ -111,6 +114,18 @@ export function getDailyTokenLimitForTier(tierId: AccountTierId): number | 'unli
   const limit = TOKEN_LIMITS.ROLE_DAILY_LIMITS[TIER_TO_ROLE[tierId]];
   if (isUnlimitedTokenLimit(limit)) return 'unlimited';
   return limit;
+}
+
+/** Max translation projects for a tier column. */
+export function getMaxProjectsForTier(tierId: AccountTierId): number {
+  return PROJECT_LIMITS.ROLE_MAX_PROJECTS[TIER_TO_ROLE[tierId]];
+}
+
+export function formatProjectLimitForTier(tierId: AccountTierId): string {
+  const limit = getMaxProjectsForTier(tierId);
+  if (isUnlimitedProjectLimit(limit)) return '∞';
+  if (limit === 0) return '—';
+  return String(limit);
 }
 
 /** Map user role to comparison column; null when not in the public tier table. */

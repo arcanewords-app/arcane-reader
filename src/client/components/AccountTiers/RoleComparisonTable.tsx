@@ -4,6 +4,7 @@ import {
   TIER_FEATURE_ROWS,
   TIER_FEATURE_MATRIX,
   TIER_MODEL_ACCESS_MATRIX,
+  formatProjectLimitForTier,
   getDailyTokenLimitForTier,
   roleToAccountTier,
   type AccountTierId,
@@ -64,9 +65,10 @@ function modelAccessLabel(level: TierModelAccessLevel, t: (key: string) => strin
 function featureStatus(
   featureId: TierFeatureId,
   tierId: AccountTierId
-): 'yes' | 'no' | 'soon' | 'tokens' | 'modelAccess' {
+): 'yes' | 'no' | 'soon' | 'tokens' | 'modelAccess' | 'projectLimit' {
   if (featureId === 'dailyTokens') return 'tokens';
   if (featureId === 'aiModelChoice') return 'modelAccess';
+  if (featureId === 'maxProjects') return 'projectLimit';
   return TIER_FEATURE_MATRIX[featureId][tierId];
 }
 
@@ -121,6 +123,8 @@ export function RoleComparisonTable({
                         <span class="tier-token-limit">
                           {formatTokenLimit(getDailyTokenLimitForTier(tierId), locale)}
                         </span>
+                      ) : status === 'projectLimit' ? (
+                        <span class="tier-token-limit">{formatProjectLimitForTier(tierId)}</span>
                       ) : status === 'modelAccess' ? (
                         <span class="tier-model-access">
                           {modelAccessLabel(TIER_MODEL_ACCESS_MATRIX[tierId], t)}
@@ -161,6 +165,8 @@ export function RoleComparisonTable({
                         <span class="tier-token-limit">
                           {formatTokenLimit(getDailyTokenLimitForTier(tierId), locale)}
                         </span>
+                      ) : status === 'projectLimit' ? (
+                        <span class="tier-token-limit">{formatProjectLimitForTier(tierId)}</span>
                       ) : status === 'modelAccess' ? (
                         <span class="tier-model-access">
                           {modelAccessLabel(TIER_MODEL_ACCESS_MATRIX[tierId], t)}
