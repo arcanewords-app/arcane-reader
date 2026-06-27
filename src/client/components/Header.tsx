@@ -158,7 +158,7 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
           <div class="header-toolbar">
             {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
 
-            <SupportMenu locale={currentLocale} />
+            <SupportMenu />
 
             {/* Info menu (About, Contact, Privacy, Terms) - grouped by category */}
             <div class="header-info-wrap">

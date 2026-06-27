@@ -146,16 +146,12 @@
   min-width: 0;
 }
 
-/* ===== Support menu ===== */
-.header-support-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
+/* ===== Support button ===== */
 .header-support-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
+  flex-shrink: 0;
   padding: 0.5rem 0.75rem !important;
   min-width: auto !important;
   transition:
@@ -171,80 +167,6 @@
 .header-support-label {
   font-size: 0.8125rem;
   font-weight: 600;
-}
-
-.header-support-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 240px;
-  max-width: calc(100vw - 2rem);
-  padding: 0.375rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1001;
-}
-
-.header-support-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  min-height: 44px;
-  box-sizing: border-box;
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  transition:
-    background var(--duration-normal),
-    color var(--duration-normal);
-}
-
-.header-support-item:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.header-support-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.header-support-item-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-}
-
-.header-support-item-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.header-support-item-hint {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  line-height: 1.3;
-}
-
-.header-support-recommended {
-  color: var(--warning);
-  font-weight: 500;
-}
-
-.header-support-item-icon {
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-  color: var(--text-dim);
-}
-
-.header-support-item:hover .header-support-item-icon {
-  color: var(--text-secondary);
 }
 
 /* ===== Info dropdown ===== */
@@ -667,13 +589,6 @@
     min-width: 200px;
     max-width: calc(100vw - 2rem);
     width: max-content;
-  }
-
-  .header-support-dropdown {
-    left: auto;
-    right: 0;
-    min-width: 220px;
-    max-width: calc(100vw - 2rem);
   }
 
   /* Language selector - compact */

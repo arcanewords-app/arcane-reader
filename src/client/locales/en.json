@@ -1440,13 +1440,7 @@
   },
   "support": {
     "menu": "Support",
-    "menuAria": "Support the project",
-    "boosty": "Boosty",
-    "boostyHint": "Russia & CIS cards",
-    "bmc": "Buy Me a Coffee",
-    "bmcHint": "International cards",
-    "recommended": "Recommended",
-    "opensExternal": "Opens in a new tab"
+    "menuAria": "Support the project"
   },
   "info": {
     "menu": "Info",

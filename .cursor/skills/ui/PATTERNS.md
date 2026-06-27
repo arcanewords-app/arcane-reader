@@ -33,7 +33,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 | `responsive-filter-bar`  | Search + toolbar: 2 rows mobile, 1 row tablet+ | `HomePage.css`                       |
 | `entity-filter-chips`    | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
 | `header-locale-control`  | App language: icon + code + dropdown           | `Header.tsx`                         |
-| `header-support-control` | Support BMC/Boosty: icon + label + dropdown    | `Header/SupportMenu.tsx`             |
+| `header-support-control` | Support via Boosty: icon + label, direct link  | `Header/SupportMenu.tsx`             |
 | `cover-status-badge`     | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
 | `admin-section-layout`   | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
 
@@ -153,35 +153,29 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## `header-support-control`
 
-**When:** Project accepts tips via external platforms (Buy Me a Coffee, Boosty). At least one `VITE_SUPPORT_*_URL` must be set.
+**When:** Project accepts tips via Boosty. `VITE_SUPPORT_BOOSTY_URL` must be set.
 
-**When not:** No env URLs configured (control hidden). Reading mode chrome (use global header only in v1).
+**When not:** No env URL configured (control hidden). Reading mode chrome (use global header only in v1).
 
 **Files:**
 
 - [`src/client/components/Header/SupportMenu.tsx`](../../../src/client/components/Header/SupportMenu.tsx)
 - [`src/client/constants/supportLinks.ts`](../../../src/client/constants/supportLinks.ts)
-- `.header-support-*` in [`Header.css`](../../../src/client/components/Header.css)
+- `.header-support-btn` / `.header-support-label` in [`Header.css`](../../../src/client/components/Header.css)
 
-**Behavior:**
+**Behavior:** Icon + label button → direct `window.open` to Boosty in a new tab. Hidden when URL is missing.
 
-| URLs configured | UI                                                                           |
-| --------------- | ---------------------------------------------------------------------------- |
-| 0               | Hidden                                                                       |
-| 1               | Icon + label button → direct `window.open`                                   |
-| 2               | Dropdown; locale orders primary (`ru`/`be` → Boosty first, `en` → BMC first) |
+**Specs:** `Icon local_cafe` + label; mobile icon-only 44px; warm hover on `.header-support-btn` (warning tint, not primary).
 
-**Specs:** `Icon local_cafe` + label; mobile icon-only 44px; warm hover on `.header-support-btn` (warning tint, not primary/orange BMC widget). Dropdown items: title, hint, optional «Recommended» on first row, `open_in_new`.
+**Env:** `VITE_SUPPORT_BOOSTY_URL` (https only; append `?locale=ru_RU` for Russian Boosty UI). See `env.example.txt`.
 
-**Env:** `VITE_SUPPORT_BMC_URL`, `VITE_SUPPORT_BOOSTY_URL` (https only). See `env.example.txt`.
+**i18n:** `support.menu`, `support.menuAria` in `en.json`, `ru.json`, `be.json`.
 
-**i18n:** `support.*` in `en.json`, `ru.json`, `be.json`.
+**a11y:** `aria-label` + `title` on icon-only mobile.
 
-**a11y:** `aria-expanded`, `aria-haspopup`, `role="menu"` / `menuitem`, external link `rel="noopener noreferrer"`.
+**Analytics:** `support_click` GA event with `{ platform: 'boosty' }` when cookies accepted.
 
-**Analytics:** `support_click` GA event with `{ platform: 'bmc' | 'boosty' }` when cookies accepted.
-
-**Do not:** Bury support only in Info menu; use BMC brand colors; add a third platform without redesigning the dropdown.
+**Do not:** Bury support only in Info menu; add multi-platform dropdown without explicit product decision.
 
 ---
 

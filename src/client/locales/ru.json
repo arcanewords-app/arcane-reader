@@ -1440,13 +1440,7 @@
   },
   "support": {
     "menu": "Поддержать",
-    "menuAria": "Поддержать проект",
-    "boosty": "Boosty",
-    "boostyHint": "Карты РФ и СНГ",
-    "bmc": "Buy Me a Coffee",
-    "bmcHint": "Международные карты",
-    "recommended": "Рекомендуем",
-    "opensExternal": "Откроется в новой вкладке"
+    "menuAria": "Поддержать проект"
   },
   "info": {
     "menu": "Инфо",
