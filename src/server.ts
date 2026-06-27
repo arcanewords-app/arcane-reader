@@ -27,6 +27,7 @@ import {
   publicEntityUpdateSchema,
   projectCreateBodySchema,
   projectCloneBodySchema,
+  projectRenameBodySchema,
   transferChaptersBodySchema,
   chapterBulkIdsBodySchema,
   projectLanguagesBodySchema,
@@ -2095,6 +2096,40 @@ app.post(
     }
   }
 );
+
+// Rename project (requires auth)
+app.patch('/api/projects/:id', requireAuth, requireRole('author'), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const parsed = projectRenameBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const token = requireToken(req);
+    const updatedProject = await updateProject(
+      req.params.id,
+      { name: parsed.data.name },
+      req.user.id,
+      token
+    );
+    if (!updatedProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    await invalidateUserProjectCaches(req.user.id, req.params.id);
+    res.json(updatedProject);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    res.status(500).json({ error: 'Failed to rename project' });
+  }
+});
 
 // Delete project (requires auth)
 app.delete('/api/projects/:id', requireAuth, requireRole('author'), async (req, res) => {

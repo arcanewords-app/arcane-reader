@@ -183,6 +183,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | POST | `/api/projects/:id/clone` | Clone project snapshot (body: optional `name`; 409 `PROJECT_LIMIT`) |
 | POST | `/api/projects/:targetProjectId/transfer-from` | Copy chapters from another project (body: `sourceProjectId`, `chapterIds[]`, `includeGlossary?`; 409 `SAME_PROJECT`, `TARGET_LANGUAGE_MISMATCH`; 500 `TRANSFER_INCOMPLETE`) |
 | GET | `/api/projects/:id` | Get project |
+| PATCH | `/api/projects/:id` | Rename project (body: `name`) |
 | DELETE | `/api/projects/:id` | Delete project |
 | PUT | `/api/projects/:id/settings` | Update project settings |
 | PUT | `/api/projects/:id/languages` | Update project translation language pair (source/target). Returns `409` (`LANGUAGE_PAIR_LOCKED`) if glossary non-empty or any chapter status ≠ `pending`. Clears agent cache + analysis Redis cache for project |

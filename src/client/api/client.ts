@@ -653,6 +653,13 @@ export const api = {
     });
   },
 
+  async renameProject(projectId: string, name: string): Promise<Project> {
+    return fetchJson(`/api/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  },
+
   async updateProjectLanguages(
     projectId: string,
     sourceLanguage: string,

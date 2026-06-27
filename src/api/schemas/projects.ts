@@ -39,6 +39,10 @@ export const projectCloneBodySchema = z.object({
   name: z.string().trim().min(1).max(500).optional(),
 });
 
+export const projectRenameBodySchema = z.object({
+  name: z.string().trim().min(1).max(500),
+});
+
 export const transferChaptersBodySchema = z.object({
   sourceProjectId: z.string().min(1),
   chapterIds: z.array(z.string().min(1)).min(1),
@@ -167,6 +171,7 @@ export const projectAiReplaceBodySchema = z.object({
 });
 
 export type ProjectCreateBody = z.infer<typeof projectCreateBodySchema>;
+export type ProjectRenameBody = z.infer<typeof projectRenameBodySchema>;
 export type ProjectLanguagesBody = z.infer<typeof projectLanguagesBodySchema>;
 export type TransferChaptersBody = z.infer<typeof transferChaptersBodySchema>;
 export type ChapterBulkIdsBody = z.infer<typeof chapterBulkIdsBodySchema>;

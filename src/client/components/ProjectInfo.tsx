@@ -17,7 +17,12 @@ import { formatLanguagePairLabel } from '../constants/translationLanguages';
 import { api, ApiError, clearCatalogLocalCache } from '../api/client';
 import { authService } from '../services/authService';
 import { isChunkError } from '../../shared/chunkErrors';
-import { invalidateProject, loadProjects, projectsCache } from '../store/projects';
+import {
+  invalidateProject,
+  loadProjects,
+  projectsCache,
+  updateProjectCache,
+} from '../store/projects';
 import { useUserRole } from '../hooks/useUserRole';
 import { getProjectLimitForRole, isUnlimitedProjectLimit } from '../../config/projectLimits';
 import { CopyChaptersModal } from './Project/CopyChaptersModal';
@@ -49,6 +54,9 @@ export function ProjectInfo({
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [cloneName, setCloneName] = useState('');
   const [cloning, setCloning] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameName, setRenameName] = useState('');
+  const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
@@ -61,6 +69,10 @@ export function ProjectInfo({
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [savingDescription, setSavingDescription] = useState(false);
   const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [editingOriginalTitle, setEditingOriginalTitle] = useState(false);
+  const [originalTitleDraft, setOriginalTitleDraft] = useState('');
+  const [savingOriginalTitle, setSavingOriginalTitle] = useState(false);
+  const originalTitleInputRef = useRef<HTMLInputElement>(null);
 
   // Publication (catalog)
   const [publication, setPublication] = useState<Publication | null>(null);
@@ -395,7 +407,7 @@ export function ProjectInfo({
     try {
       const pub = await api.publishProject(project.id, {
         status: 'published',
-        title: project.metadata?.title ?? project.name,
+        title: publication?.title ?? project.metadata?.title ?? project.name,
         description: project.metadata?.description ?? undefined,
         authorDisplay: authorEntity ? undefined : (project.metadata?.authors?.[0] ?? undefined),
         translatorDisplay: translatorEntity
@@ -418,6 +430,7 @@ export function ProjectInfo({
     }
   }, [
     project.id,
+    publication?.title,
     project.metadata?.title,
     project.metadata?.description,
     project.metadata?.authors,
@@ -476,6 +489,50 @@ export function ProjectInfo({
     [saveDescription, cancelEditingDescription]
   );
 
+  const startEditingOriginalTitle = useCallback(() => {
+    setOriginalTitleDraft(project.metadata?.title ?? '');
+    setEditingOriginalTitle(true);
+    setTimeout(() => originalTitleInputRef.current?.focus(), 0);
+  }, [project.metadata?.title]);
+
+  const cancelEditingOriginalTitle = useCallback(() => {
+    setEditingOriginalTitle(false);
+    setOriginalTitleDraft('');
+  }, []);
+
+  const saveOriginalTitle = useCallback(async () => {
+    setSavingOriginalTitle(true);
+    try {
+      await api.updateProjectMetadata(project.id, {
+        ...project.metadata,
+        title: originalTitleDraft.trim() || undefined,
+      });
+      invalidateProject(project.id);
+      await onRefreshProject();
+      setEditingOriginalTitle(false);
+      setOriginalTitleDraft('');
+    } catch (error) {
+      setErrorModal({
+        title: t('projectInfo.errorSaveOriginalTitle'),
+        message: error instanceof Error ? error.message : t('projectInfo.errorSaveOriginalTitle'),
+      });
+    } finally {
+      setSavingOriginalTitle(false);
+    }
+  }, [project.id, project.metadata, originalTitleDraft, onRefreshProject, t]);
+
+  const handleOriginalTitleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveOriginalTitle();
+      } else if (e.key === 'Escape') {
+        cancelEditingOriginalTitle();
+      }
+    },
+    [saveOriginalTitle, cancelEditingOriginalTitle]
+  );
+
   const settings = project.settings;
 
   const isOriginalReadingMode = settings.originalReadingMode ?? false;
@@ -490,6 +547,34 @@ export function ProjectInfo({
   const openCloneModal = () => {
     setCloneName(`${project.name} ${t('projectClone.defaultNameSuffix')}`);
     setShowCloneModal(true);
+  };
+
+  const openRenameModal = () => {
+    setRenameName(project.name);
+    setShowRenameModal(true);
+  };
+
+  const handleRename = async () => {
+    const trimmed = renameName.trim();
+    if (!trimmed) return;
+    if (trimmed === project.name) {
+      setShowRenameModal(false);
+      return;
+    }
+    setRenaming(true);
+    try {
+      const updated = await api.renameProject(project.id, trimmed);
+      updateProjectCache(updated);
+      setShowRenameModal(false);
+      await onRefreshProject();
+    } catch (error) {
+      setErrorModal({
+        title: t('common.error'),
+        message: error instanceof Error ? error.message : t('projectInfo.errorRenameProject'),
+      });
+    } finally {
+      setRenaming(false);
+    }
   };
 
   useEffect(() => {
@@ -593,12 +678,25 @@ export function ProjectInfo({
               onClick={() => setShowProjectActionsMenu((open) => !open)}
               aria-expanded={showProjectActionsMenu}
               aria-haspopup="menu"
-              title={t('projectInfo.actionsMenu')}
+              aria-label={t('projectInfo.projectMenu')}
+              title={t('projectInfo.projectMenu')}
             >
-              <Icon name="more_vert" size="sm" /> {t('projectInfo.actionsMenu')}
+              <Icon name="more_vert" size="sm" />
             </Button>
             {showProjectActionsMenu && (
               <div class="project-actions-dropdown" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="project-actions-item"
+                  onClick={() => {
+                    setShowProjectActionsMenu(false);
+                    openRenameModal();
+                  }}
+                >
+                  <Icon name="edit" size="sm" />
+                  <span>{t('projectInfo.renameProject')}</span>
+                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -879,13 +977,55 @@ export function ProjectInfo({
                     </div>
                   </div>
 
-                  {/* Title */}
-                  {project.metadata.title && project.metadata.title !== project.name && (
-                    <div class="metadata-item">
-                      <span class="metadata-label">{t('projectInfo.title')}</span>
-                      <span class="metadata-value">{project.metadata.title}</span>
-                    </div>
-                  )}
+                  {/* Original title (from source file) */}
+                  <div class="metadata-item metadata-original-title">
+                    <span class="metadata-label">{t('projectInfo.originalTitleLabel')}</span>
+                    {editingOriginalTitle ? (
+                      <div class="project-description-editor">
+                        <input
+                          ref={originalTitleInputRef}
+                          type="text"
+                          class="form-input"
+                          value={originalTitleDraft}
+                          onInput={(e) =>
+                            setOriginalTitleDraft((e.target as HTMLInputElement).value)
+                          }
+                          onKeyDown={handleOriginalTitleKeyDown}
+                          placeholder={t('projectInfo.originalTitlePlaceholder')}
+                        />
+                        <div class="project-description-actions">
+                          <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            onClick={cancelEditingOriginalTitle}
+                            disabled={savingOriginalTitle}
+                          >
+                            {t('common.cancel')}
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            onClick={saveOriginalTitle}
+                            disabled={savingOriginalTitle}
+                          >
+                            {savingOriginalTitle ? '...' : t('common.save')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        class={`metadata-value description-text editable ${!project.metadata?.title ? 'empty' : ''}`}
+                        onClick={startEditingOriginalTitle}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && startEditingOriginalTitle()}
+                      >
+                        {project.metadata?.title
+                          ? project.metadata.title
+                          : t('projectInfo.originalTitlePlaceholder')}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Authors */}
                   {project.metadata.authors && project.metadata.authors.length > 0 && (
@@ -1685,6 +1825,34 @@ export function ProjectInfo({
               </div>
             )}
       </Card>
+
+      {/* Rename Modal */}
+      <Modal
+        isOpen={showRenameModal}
+        onClose={() => setShowRenameModal(false)}
+        title={t('projectInfo.renameProjectModalTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowRenameModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleRename} loading={renaming} disabled={!renameName.trim()}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <Input
+          label={t('projectInfo.renameProjectNameLabel')}
+          value={renameName}
+          onInput={(e) => setRenameName((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              handleRename();
+            }
+          }}
+        />
+      </Modal>
 
       {/* Clone Modal */}
       <Modal
