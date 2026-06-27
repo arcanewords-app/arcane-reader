@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
+import { useStaticPageMeta } from '../hooks/useStaticPageMeta';
 import './InfoPages.css';
 
 export function AboutPage() {
   const { t } = useTranslation();
+  useStaticPageMeta('/about');
 
   return (
     <div class="info-page">

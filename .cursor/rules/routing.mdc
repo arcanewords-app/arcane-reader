@@ -359,24 +359,31 @@ Implemented in [src/server.ts](src/server.ts). Audits: `.cursor/skills/seo/SKILL
 
 ### Sitemap contents and limits
 
-- `/` (priority 1.0) plus static: `/about`, `/contact`, `/privacy`, `/terms`, `/catalog`, `/news`
+- `/` (priority 1.0) plus static: `/about`, `/contact`, `/privacy`, `/terms`, `/catalog`, `/news`, `/account-tiers`
 - Each published publication: `/p/{slugOrId}` (up to **1000** from `listPublicationsPublic`)
 - First **translated** chapter reading URL for at most **100** publications (`SITEMAP_CHAPTER_PUBS_LIMIT`)
+- Published news posts: `/news/{slugOrId}` (up to **100**, `SITEMAP_NEWS_LIMIT`)
 
 ### SSR HTML (meta for crawlers)
 
 | Path | Behavior |
 |------|----------|
-| `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news` | `serveStaticPageHtml` — title, description, og, canonical |
+| `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/account-tiers` | `serveStaticPageHtml` — title, description, og, canonical |
 | `/catalog` | Canonical URL = site root `/` (avoid duplicate home vs catalog) |
+| `/news/:slugOrId` | `serveNewsDetailHtml` — meta, hidden crawler content, NewsArticle JSON-LD |
 | `/p/:publicationId` | `servePublicationHtml` — meta, hidden `<main class="publication-page-seo">`, Book + BreadcrumbList JSON-LD |
 | `/p/:publicationId/chapters/:chapterId/reading` | Chapter title/description; chapter breadcrumb |
 
-Client navigation updates head via [usePageMeta.ts](src/client/hooks/usePageMeta.ts); direct loads and bots rely on SSR above.
+Client navigation updates head via [usePageMeta.ts](src/client/hooks/usePageMeta.ts) (publications, news detail) and [useStaticPageMeta.ts](src/client/hooks/useStaticPageMeta.ts) (static info pages); direct loads and bots rely on SSR above.
 
 ### Vercel rewrites
 
-In [vercel.json](vercel.json), `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, and `/p/*` route to `api/index` (Express SSR). Other SPA paths fall through to static `index.html`.
+In [vercel.json](vercel.json), `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/news/:slug*`, `/account-tiers`, and `/p/*` route to `api/index` (Express SSR). Other SPA paths fall through to static `index.html`.
+
+### Shared SEO modules
+
+- [src/shared/robotsTxt.ts](src/shared/robotsTxt.ts) — `buildRobotsTxt` for Express and [api/robots.ts](api/robots.ts)
+- [src/shared/staticPageMeta.ts](src/shared/staticPageMeta.ts) — static page titles/descriptions for SSR and client
 
 ### Auth areas
 

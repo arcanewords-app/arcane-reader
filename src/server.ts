@@ -309,6 +309,17 @@ function injectPublicationMeta(
       /<meta name="twitter:description" content="[^"]*" *\/?>/,
       `<meta name="twitter:description" content="${d}" />`
     );
+  if (out.includes('name="twitter:image"')) {
+    out = out.replace(
+      /<meta name="twitter:image" content="[^"]*" *\/?>/,
+      `<meta name="twitter:image" content="${img}" />`
+    );
+  } else {
+    out = out.replace(
+      /<meta name="twitter:description" content="[^"]*" *\/?>/,
+      `<meta name="twitter:description" content="${d}" />\n    <meta name="twitter:image" content="${img}" />`
+    );
+  }
 
   const canonicalTag = `<link rel="canonical" href="${url}" />`;
   if (out.includes('rel="canonical"')) {
@@ -318,49 +329,6 @@ function injectPublicationMeta(
   }
   return out;
 }
-
-/** Static page SEO meta (title, description). Russian default to match index.html. */
-const STATIC_PAGE_META: Record<string, { title: string; description: string }> = {
-  '/': {
-    title: 'Arcane — Переводчик новелл',
-    description:
-      'Arcane — библиотека переводов новелл на русский и беларусский. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.',
-  },
-  '/catalog': {
-    title: 'Каталог переводов — Arcane',
-    description:
-      'Каталог переводов новелл. Опубликованные переводы от авторов. Читайте онлайн или скачивайте EPUB, FB2.',
-  },
-  '/about': {
-    title: 'О проекте Arcane',
-    description:
-      'Arcane — веб-интерфейс для перевода новелл с AI и глоссария. Источники: en, ko, zh, ru (→ be). Цели: русский и беларусский. Импорт EPUB, FB2, TXT, CSV.',
-  },
-  '/contact': {
-    title: 'Контакты',
-    description:
-      'По вопросам, предложениям и сотрудничеству с Arcane — библиотекой переводов новелл.',
-  },
-  '/privacy': {
-    title: 'Политика конфиденциальности',
-    description:
-      'Политика конфиденциальности Arcane. Какие данные собираем, цели обработки, права пользователей (GDPR).',
-  },
-  '/terms': {
-    title: 'Условия использования',
-    description:
-      'Условия использования Arcane. Правила для читателей и авторов-переводчиков, ответственность за контент.',
-  },
-  '/account-tiers': {
-    title: 'Уровни аккаунта — Arcane',
-    description:
-      'Сравнение уровней аккаунта Arcane: читатель и автор. Лимиты AI-токенов, проекты перевода, глоссарий, публикация.',
-  },
-  '/news': {
-    title: 'Новости — Arcane',
-    description: 'Новости и обновления Arcane: новые функции, скидки и важные объявления.',
-  },
-};
 
 /**
  * Inject static page meta (title, description, og:*, canonical) into index.html.
@@ -381,10 +349,10 @@ function injectStaticPageMeta(
   const img = `${origin}/arcane_icon.png`;
   const url = escapeMetaContent(opts.pageUrl);
   const canonicalUrl = opts.canonicalUrl ? escapeMetaContent(opts.canonicalUrl) : url;
-  const titleSuffix = ' | Arcane';
+  const documentTitle = escapeMetaContent(staticPageDocumentTitle(opts.title));
 
   let out = html
-    .replace(/<title>[\s\S]*?<\/title>/, `<title>${t}${titleSuffix}</title>`)
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${documentTitle}</title>`)
     .replace(
       /<meta name="description" content="[^"]*" *\/?>/,
       `<meta name="description" content="${d}" />`
@@ -421,6 +389,17 @@ function injectStaticPageMeta(
       /<meta name="twitter:description" content="[^"]*" *\/?>/,
       `<meta name="twitter:description" content="${d}" />`
     );
+  if (out.includes('name="twitter:image"')) {
+    out = out.replace(
+      /<meta name="twitter:image" content="[^"]*" *\/?>/,
+      `<meta name="twitter:image" content="${img}" />`
+    );
+  } else {
+    out = out.replace(
+      /<meta name="twitter:description" content="[^"]*" *\/?>/,
+      `<meta name="twitter:description" content="${d}" />\n    <meta name="twitter:image" content="${img}" />`
+    );
+  }
 
   const canonicalTag = `<link rel="canonical" href="${canonicalUrl}" />`;
   if (out.includes('rel="canonical"')) {
@@ -429,6 +408,56 @@ function injectStaticPageMeta(
     out = out.replace('</head>', `    ${canonicalTag}\n  </head>`);
   }
   return out;
+}
+
+/** Inject NewsArticle JSON-LD for news detail pages. */
+function injectNewsArticleJsonLd(
+  html: string,
+  opts: {
+    title: string;
+    description: string;
+    url: string;
+    datePublished: string | null;
+    dateModified: string;
+  }
+): string {
+  const base = opts.url.startsWith('http') ? new URL(opts.url).origin : '';
+  const article: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: opts.title,
+    description: opts.description,
+    url: opts.url,
+    image: `${base}/arcane_icon.png`,
+    publisher: {
+      '@type': 'Organization',
+      name: 'Arcane',
+      url: base,
+    },
+    dateModified: opts.dateModified,
+  };
+  if (opts.datePublished) {
+    article.datePublished = opts.datePublished;
+  }
+  const jsonLd = `<script type="application/ld+json">${JSON.stringify(article)}</script>`;
+  return html.replace('</head>', `    ${jsonLd}\n  </head>`);
+}
+
+/** Inject visible news content into #app for crawlers. */
+function injectNewsContent(
+  html: string,
+  opts: { title: string; summary: string; pageUrl: string }
+): string {
+  const title = escapeHtml(opts.title);
+  const summary = escapeHtml(
+    opts.summary.length > 400 ? opts.summary.slice(0, 397) + '...' : opts.summary
+  );
+  const content = `<main class="news-page-seo" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+    <h1>${title}</h1>
+    <p class="news-page-seo-summary">${summary}</p>
+    <p><a href="${escapeHtml(opts.pageUrl)}">Читать на Arcane</a></p>
+  </main>`;
+  return html.replace(/<div id="app">\s*<\/div>/, `<div id="app">${content}</div>`);
 }
 
 /** Inject Organization + WebSite JSON-LD for homepage. */
@@ -652,6 +681,8 @@ import {
   type LanguagePairOverride,
 } from './services/engine-integration.js';
 import { clampStageModelsForRole, clampStageModelForRole } from './shared/modelAccess.js';
+import { buildRobotsTxt } from './shared/robotsTxt.js';
+import { STATIC_PAGE_META, staticPageDocumentTitle } from './shared/staticPageMeta.js';
 import {
   applyChapterTitleTranslations,
   collectTitleTranslationCandidates,
@@ -10102,21 +10133,12 @@ registerPromptLabRoutes(app);
 // Express receives /api/robots and /api/sitemap, so we need both route sets.
 
 function sendRobotsTxt(req: express.Request, res: express.Response): void {
-  const base = `${req.protocol}://${req.get('host') || 'localhost'}`;
-  res.type('text/plain').send(
-    `User-agent: *
-Allow: /
-Disallow: /profile
-Disallow: /translation-requests
-Disallow: /projects
-Disallow: /admin
-
-Sitemap: ${base}/sitemap.xml
-`
-  );
+  const base = getPublicBaseUrl(req);
+  res.type('text/plain').send(buildRobotsTxt(base));
 }
 
 const SITEMAP_CHAPTER_PUBS_LIMIT = 100;
+const SITEMAP_NEWS_LIMIT = 100;
 
 async function sendSitemapXml(req: express.Request, res: express.Response): Promise<void> {
   const base = getPublicBaseUrl(req);
@@ -10162,7 +10184,34 @@ async function sendSitemapXml(req: express.Request, res: express.Response): Prom
   } catch (err) {
     logger.warn({ err }, 'Failed to load publications for sitemap');
   }
-  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog', '/news']
+  let newsUrls = '';
+  try {
+    const posts = await listPublishedNewsPosts({ limit: SITEMAP_NEWS_LIMIT });
+    for (const post of posts) {
+      const slug = post.slug || post.id;
+      const lastmod = post.updatedAt
+        ? `<lastmod>${new Date(post.updatedAt).toISOString().slice(0, 10)}</lastmod>
+    `
+        : '';
+      newsUrls += `  <url>
+    <loc>${escapeHtml(base + '/news/' + slug)}</loc>
+    ${lastmod}<changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+`;
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to load news for sitemap');
+  }
+  const staticPages = [
+    '/about',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/catalog',
+    '/news',
+    '/account-tiers',
+  ]
     .map(
       (p) => `  <url>
     <loc>${escapeHtml(base + p)}</loc>
@@ -10181,7 +10230,7 @@ async function sendSitemapXml(req: express.Request, res: express.Response): Prom
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-${staticPages}${pubUrls}${chapterUrls}</urlset>
+${staticPages}${pubUrls}${chapterUrls}${newsUrls}</urlset>
 `
   );
 }
@@ -10279,6 +10328,48 @@ async function servePublicationHtml(
   res.type('html').send(html);
 }
 
+async function serveNewsDetailHtml(
+  req: express.Request,
+  res: express.Response,
+  slugOrId: string
+): Promise<void> {
+  const base = getPublicBaseUrl(req);
+  const indexPath = fs.existsSync(path.join(clientPath, 'index.html'))
+    ? path.join(clientPath, 'index.html')
+    : path.join(publicPath, 'index.html');
+
+  const post = await getPublishedNewsPostByIdOrSlug(slugOrId);
+  if (!post) {
+    res.sendFile(indexPath);
+    return;
+  }
+
+  const newsPath = post.slug || post.id;
+  const pageUrl = `${base}/news/${newsPath}`;
+  const pageDesc = post.summary.trim() || `${post.title} — новости Arcane`;
+
+  let html = fs.readFileSync(indexPath, 'utf-8');
+  html = html.replace(/__PUBLIC_URL__/g, base);
+  html = injectStaticPageMeta(html, {
+    title: post.title,
+    description: pageDesc,
+    pageUrl,
+  });
+  html = injectNewsContent(html, {
+    title: post.title,
+    summary: pageDesc,
+    pageUrl,
+  });
+  html = injectNewsArticleJsonLd(html, {
+    title: post.title,
+    description: pageDesc,
+    url: pageUrl,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt,
+  });
+  res.type('html').send(html);
+}
+
 app.get('/p/:publicationId', (req, res, next) => {
   servePublicationHtml(req, res, req.params.publicationId).catch(next);
 });
@@ -10294,7 +10385,20 @@ app.use(serviceUnavailableErrorHandler);
 // ============ SEO: Static pages with dynamic meta ============
 // Serve /, /catalog, /about, /contact, /privacy, /terms with unique title, description, canonical
 
-const STATIC_SEO_PATHS = ['/', '/catalog', '/about', '/contact', '/privacy', '/terms', '/news'];
+const STATIC_SEO_PATHS = [
+  '/',
+  '/catalog',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/news',
+  '/account-tiers',
+];
+
+app.get('/news/:slugOrId', (req, res, next) => {
+  serveNewsDetailHtml(req, res, req.params.slugOrId).catch(next);
+});
 
 for (const p of STATIC_SEO_PATHS) {
   app.get(p, (req, res) => {

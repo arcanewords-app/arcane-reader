@@ -1,10 +1,11 @@
 /**
- * Updates document head (title, meta tags) for publication pages.
+ * Updates document head (title, meta tags) for publication and news pages.
  * Needed because SPA client-side navigation never reloads the document —
  * the server only gets a request on direct load/refresh.
  */
 
 import { useEffect } from 'preact/hooks';
+import { staticPageDocumentTitle } from '../../shared/staticPageMeta';
 
 const DEFAULT_TITLE = 'Arcane — Переводчик новелл';
 const DEFAULT_DESCRIPTION =
@@ -41,11 +42,16 @@ export interface PageMeta {
   imageUrl?: string | null;
   /** Chapter page uses shorter title suffix */
   isChapter?: boolean;
+  /** Publication Book schema (default) or NewsArticle when 'news' */
+  schemaType?: 'book' | 'news';
   /** For JSON-LD Book schema */
   authorDisplay?: string | null;
   translatorDisplay?: string | null;
   targetLanguage?: string;
   numberOfPages?: number;
+  /** For JSON-LD NewsArticle */
+  datePublished?: string | null;
+  dateModified?: string;
   /** For JSON-LD BreadcrumbList */
   breadcrumbs?: BreadcrumbItem[];
 }
@@ -65,8 +71,15 @@ export function usePageMeta(meta: PageMeta | null): void {
         ? meta.imageUrl
         : `${origin}/arcane_icon.png`;
 
-    const titleSuffix = meta.isChapter ? ' — Arcane' : ' — читать онлайн | Arcane';
-    document.title = `${meta.title}${titleSuffix}`;
+    const titleSuffix = meta.isChapter
+      ? ' — Arcane'
+      : meta.schemaType === 'news'
+        ? ''
+        : ' — читать онлайн | Arcane';
+    document.title =
+      meta.schemaType === 'news'
+        ? staticPageDocumentTitle(meta.title)
+        : `${meta.title}${titleSuffix}`;
     setMeta('name', 'description', meta.description);
     setMeta('property', 'og:title', meta.title);
     setMeta('property', 'og:description', meta.description);
@@ -75,30 +88,60 @@ export function usePageMeta(meta: PageMeta | null): void {
     setCanonical(url);
     setMeta('name', 'twitter:title', meta.title);
     setMeta('name', 'twitter:description', meta.description);
+    setMeta('name', 'twitter:image', img);
 
-    const bookSchema = {
-      '@context': 'https://schema.org',
-      '@type': 'Book',
-      name: meta.title,
-      description: meta.description,
-      url,
-      image: img,
-      ...(meta.authorDisplay && { author: { '@type': 'Person', name: meta.authorDisplay } }),
-      ...(meta.translatorDisplay && {
-        translator: { '@type': 'Person', name: meta.translatorDisplay },
-      }),
-      ...(meta.targetLanguage && { inLanguage: meta.targetLanguage }),
-      ...(meta.numberOfPages != null &&
-        meta.numberOfPages > 0 && { numberOfPages: meta.numberOfPages }),
-    };
-    let jsonLdEl = document.querySelector('script[data-arcane-jsonld="book"]');
-    if (!jsonLdEl) {
-      jsonLdEl = document.createElement('script');
-      jsonLdEl.setAttribute('type', 'application/ld+json');
-      jsonLdEl.setAttribute('data-arcane-jsonld', 'book');
-      document.head.appendChild(jsonLdEl);
+    const schemaType = meta.schemaType ?? 'book';
+    const jsonLdKey = schemaType === 'news' ? 'news' : 'book';
+
+    if (schemaType === 'news') {
+      const articleSchema: Record<string, unknown> = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        headline: meta.title,
+        description: meta.description,
+        url,
+        image: img,
+        publisher: {
+          '@type': 'Organization',
+          name: 'Arcane',
+          url: origin,
+        },
+        ...(meta.dateModified && { dateModified: meta.dateModified }),
+        ...(meta.datePublished && { datePublished: meta.datePublished }),
+      };
+      let jsonLdEl = document.querySelector(`script[data-arcane-jsonld="${jsonLdKey}"]`);
+      if (!jsonLdEl) {
+        jsonLdEl = document.createElement('script');
+        jsonLdEl.setAttribute('type', 'application/ld+json');
+        jsonLdEl.setAttribute('data-arcane-jsonld', jsonLdKey);
+        document.head.appendChild(jsonLdEl);
+      }
+      jsonLdEl.textContent = JSON.stringify(articleSchema);
+    } else {
+      const bookSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'Book',
+        name: meta.title,
+        description: meta.description,
+        url,
+        image: img,
+        ...(meta.authorDisplay && { author: { '@type': 'Person', name: meta.authorDisplay } }),
+        ...(meta.translatorDisplay && {
+          translator: { '@type': 'Person', name: meta.translatorDisplay },
+        }),
+        ...(meta.targetLanguage && { inLanguage: meta.targetLanguage }),
+        ...(meta.numberOfPages != null &&
+          meta.numberOfPages > 0 && { numberOfPages: meta.numberOfPages }),
+      };
+      let jsonLdEl = document.querySelector(`script[data-arcane-jsonld="${jsonLdKey}"]`);
+      if (!jsonLdEl) {
+        jsonLdEl = document.createElement('script');
+        jsonLdEl.setAttribute('type', 'application/ld+json');
+        jsonLdEl.setAttribute('data-arcane-jsonld', jsonLdKey);
+        document.head.appendChild(jsonLdEl);
+      }
+      jsonLdEl.textContent = JSON.stringify(bookSchema);
     }
-    jsonLdEl.textContent = JSON.stringify(bookSchema);
 
     if (meta.breadcrumbs && meta.breadcrumbs.length > 0) {
       const breadcrumbSchema = {
@@ -139,8 +182,11 @@ export function usePageMeta(meta: PageMeta | null): void {
         'twitter:description',
         'Библиотека переводов новелл. Читайте и скачивайте переводы онлайн.'
       );
-      const jsonLdEl = document.querySelector('script[data-arcane-jsonld="book"]');
-      if (jsonLdEl) jsonLdEl.remove();
+      setMeta('name', 'twitter:image', `${origin}/arcane_icon.png`);
+      const bookEl = document.querySelector('script[data-arcane-jsonld="book"]');
+      if (bookEl) bookEl.remove();
+      const newsEl = document.querySelector('script[data-arcane-jsonld="news"]');
+      if (newsEl) newsEl.remove();
       const breadcrumbEl = document.querySelector('script[data-arcane-jsonld="breadcrumb"]');
       if (breadcrumbEl) breadcrumbEl.remove();
     };
@@ -148,10 +194,13 @@ export function usePageMeta(meta: PageMeta | null): void {
     meta?.title,
     meta?.description,
     meta?.imageUrl,
+    meta?.schemaType,
     meta?.authorDisplay,
     meta?.translatorDisplay,
     meta?.targetLanguage,
     meta?.numberOfPages,
+    meta?.datePublished,
+    meta?.dateModified,
     meta?.breadcrumbs,
   ]);
 }

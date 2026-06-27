@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
 import { useAnnouncement } from '../contexts/AnnouncementContext';
+import { usePageMeta } from '../hooks/usePageMeta';
 import type { NewsPost, NewsCategory } from '../types';
 import { trackAnnouncementDismiss } from '../utils/analytics';
 import { LoadingSpinner } from '../components/ui';
@@ -58,6 +59,19 @@ export function NewsDetailPage({ slugOrId }: NewsDetailPageProps) {
       })
       .finally(() => setLoading(false));
   }, [slugOrId]);
+
+  const pageMeta = useMemo(() => {
+    if (!post) return null;
+    return {
+      title: post.title,
+      description: post.summary.trim() || `${post.title} — новости Arcane`,
+      schemaType: 'news' as const,
+      datePublished: post.publishedAt,
+      dateModified: post.updatedAt,
+    };
+  }, [post]);
+
+  usePageMeta(pageMeta);
 
   useEffect(() => {
     if (!post || !alert?.newsPostId || post.id !== alert.newsPostId) return;

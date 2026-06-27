@@ -6,6 +6,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   listPublicationsPublic,
   getPublicationWithChapters,
+  listPublishedNewsPosts,
 } from '../src/services/supabaseDatabase.js';
 
 function escapeHtml(s: string): string {
@@ -18,6 +19,7 @@ function escapeHtml(s: string): string {
 }
 
 const SITEMAP_CHAPTER_PUBS_LIMIT = 100;
+const SITEMAP_NEWS_LIMIT = 100;
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'arcane-reader.com';
@@ -65,7 +67,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     /* return partial sitemap */
   }
 
-  const staticPages = ['/about', '/contact', '/privacy', '/terms', '/catalog', '/news']
+  let newsUrls = '';
+  try {
+    const posts = await listPublishedNewsPosts({ limit: SITEMAP_NEWS_LIMIT });
+    for (const post of posts) {
+      const slug = post.slug || post.id;
+      const lastmod = post.updatedAt
+        ? `<lastmod>${new Date(post.updatedAt).toISOString().slice(0, 10)}</lastmod>\n    `
+        : '';
+      newsUrls += `  <url>
+    <loc>${escapeHtml(base + '/news/' + slug)}</loc>
+    ${lastmod}<changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+`;
+    }
+  } catch {
+    /* return partial sitemap */
+  }
+
+  const staticPages = [
+    '/about',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/catalog',
+    '/news',
+    '/account-tiers',
+  ]
     .map(
       (p) => `  <url>
     <loc>${escapeHtml(base + p)}</loc>
@@ -83,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-${staticPages}${pubUrls}${chapterUrls}</urlset>
+${staticPages}${pubUrls}${chapterUrls}${newsUrls}</urlset>
 `;
 
   res.setHeader('Content-Type', 'application/xml');

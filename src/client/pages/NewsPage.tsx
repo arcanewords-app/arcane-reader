@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
+import { useStaticPageMeta } from '../hooks/useStaticPageMeta';
 import type { NewsPost, NewsCategory } from '../types';
 import { LoadingSpinner } from '../components/ui';
 import './InfoPages.css';
@@ -25,6 +26,7 @@ function formatDate(iso: string | null): string {
 
 export function NewsPage() {
   const { t } = useTranslation();
+  useStaticPageMeta('/news');
   const [posts, setPosts] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useUserRole } from '../hooks/useUserRole';
+import { useStaticPageMeta } from '../hooks/useStaticPageMeta';
 import { RoleComparisonTable } from '../components/AccountTiers';
 import { UpgradeRequestActions } from '../components/UpgradeRequest';
 import { Button } from '../components/ui';
@@ -10,6 +11,7 @@ import '../components/AccountTiers/RoleComparisonTable.css';
 
 export function AccountTiersPage() {
   const { t } = useTranslation();
+  useStaticPageMeta('/account-tiers');
   const { user, role, isAtLeast } = useUserRole();
   const isLoggedIn = !!user || authService.isAuthenticated();
   const isAuthor = isAtLeast('author');

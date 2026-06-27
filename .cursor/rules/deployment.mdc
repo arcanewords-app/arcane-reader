@@ -63,7 +63,7 @@ npm run start:worker # separate process for queues
 
 ## Vercel
 
-- Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes. Public SEO pages `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, and `/p/*` route to `api/index` for SSR meta (see `routing.mdc` SEO section).
+- Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes. Public SEO pages `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/news/:slug*`, `/account-tiers`, and `/p/*` route to `api/index` for SSR meta (see `routing.mdc` SEO section).
 - Set all env vars in Vercel project settings (same names as `.env`).
 - **Worker:** BullMQ worker is **not** a Vercel serverless function — run `start:worker` on a long-lived host (Railway, Fly, second Vercel service, etc.) with same `REDIS_URL` and `KV_REST_*`.
 

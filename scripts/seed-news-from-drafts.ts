@@ -26,6 +26,7 @@ const PUBLISH_ORDER = [
   'belarusian',
   'engine-gpt-54-mini',
   'project-search-replace',
+  'tsikl-neizbezhnosti-perevod-zakoncen',
 ] as const;
 
 const BANNER_PRIORITY: Record<string, number> = {
@@ -33,6 +34,7 @@ const BANNER_PRIORITY: Record<string, number> = {
   belarusian: 20,
   'engine-gpt-54-mini': 30,
   'project-search-replace': 40,
+  'tsikl-neizbezhnosti-perevod-zakoncen': 50,
 };
 
 type NewsCategory = 'feature' | 'discount' | 'update' | 'other';

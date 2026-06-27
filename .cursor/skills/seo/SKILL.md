@@ -92,14 +92,18 @@ Update `seo-search-console.md` checkboxes when GSC steps are done or new gaps fo
 
 ## Code references
 
-| File                                        | Role                                                                          |
-| ------------------------------------------- | ----------------------------------------------------------------------------- |
-| `src/server.ts`                             | `sendRobotsTxt`, `sendSitemapXml`, `servePublicationHtml`, `STATIC_SEO_PATHS` |
-| `api/sitemap.ts`                            | Vercel sitemap handler (mirror limits)                                        |
-| `src/client/hooks/usePageMeta.ts`           | Client-side meta + JSON-LD                                                    |
-| `index.html`                                | Default meta                                                                  |
-| `docs/05-plans/seo-author-content-guide.md` | Author content checklist                                                      |
-| `docs/05-plans/seo-search-console.md`       | GSC ops                                                                       |
+| File                                        | Role                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `src/server.ts`                             | `sendRobotsTxt`, `sendSitemapXml`, `servePublicationHtml`, `serveNewsDetailHtml` |
+| `src/shared/robotsTxt.ts`                   | `buildRobotsTxt` SSOT for Express + Vercel                                       |
+| `src/shared/staticPageMeta.ts`              | Static page titles/descriptions SSOT                                             |
+| `api/sitemap.ts`                            | Vercel sitemap handler (mirror limits)                                           |
+| `api/robots.ts`                             | Vercel robots handler                                                            |
+| `src/client/hooks/usePageMeta.ts`           | Client meta + JSON-LD (publications, news)                                       |
+| `src/client/hooks/useStaticPageMeta.ts`     | Client meta for static info pages                                                |
+| `index.html`                                | Default meta                                                                     |
+| `docs/05-plans/seo-author-content-guide.md` | Author content checklist                                                         |
+| `docs/05-plans/seo-search-console.md`       | GSC ops                                                                          |
 
 ## Quarterly regression
 

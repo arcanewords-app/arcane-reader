@@ -27,6 +27,8 @@
     { "source": "/privacy", "destination": "/api/index" },
     { "source": "/terms", "destination": "/api/index" },
     { "source": "/news", "destination": "/api/index" },
+    { "source": "/news/:slug*", "destination": "/api/index" },
+    { "source": "/account-tiers", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

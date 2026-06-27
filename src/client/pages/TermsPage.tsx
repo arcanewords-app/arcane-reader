@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { CONTACT_EMAIL } from '../../shared/contact';
+import { useStaticPageMeta } from '../hooks/useStaticPageMeta';
 import './InfoPages.css';
 
 export function TermsPage() {
   const { t } = useTranslation();
+  useStaticPageMeta('/terms');
 
   return (
     <div class="info-page">
