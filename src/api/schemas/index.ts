@@ -8,3 +8,4 @@ export * from './publications.js';
 export * from './admin.js';
 export * from './news.js';
 export * from './catalogRequests.js';
+export * from './translationRequestBoard.js';

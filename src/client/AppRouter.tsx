@@ -39,7 +39,6 @@ import { LoadingSpinner } from './components/ui';
 import { api } from './api/client';
 import { ProfilePage, ProjectsPage, CatalogPage, AdminEntitiesPage } from './pages';
 import { AuthorGate } from './components/Auth/AuthorGate';
-import { UserGate } from './components/Auth/UserGate';
 import { AdminGate } from './components/Auth/AdminGate';
 import { AboutPage } from './pages/AboutPage';
 import { NewsPage } from './pages/NewsPage';
@@ -435,7 +434,7 @@ export function AppRouter() {
                   <PrivacyPage path="/privacy" />
                   <TermsPage path="/terms" />
                   <ProfilePage path="/profile" />
-                  <UserGate path="/translation-requests" component={TranslationRequestsPage} />
+                  <AuthorGate path="/translation-requests" component={TranslationRequestsPage} />
                   <CabinetRedirect path="/cabinet" />
                   <PublicationReadingPage path="/p/:publicationId/chapters/:chapterId/reading" />
                   <PublicationPage path="/p/:publicationId" />

@@ -18,7 +18,7 @@ export function AdminLayout({ activeTab, children }: AdminLayoutProps) {
     { id: 'publications', path: '/admin/publications', label: t('admin.tabs.publications') },
     {
       id: 'translationRequests',
-      path: '/admin/translation-requests',
+      path: '/translation-requests',
       label: t('admin.tabs.translationRequests'),
     },
     { id: 'users', path: '/admin/users', label: t('admin.tabs.users') },

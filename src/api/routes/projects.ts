@@ -14,6 +14,7 @@ import {
   getAllProjectsLightweight,
   getProject,
   createProject,
+  createProjectFromCatalogRequest,
   cloneProject,
   transferChaptersFromProject,
   updateProject,
@@ -100,13 +101,32 @@ export function registerProjectRoutes(app: Application, _deps: RouteDeps): void 
           details: parsed.error.flatten().fieldErrors,
         });
       }
-      const { name, sourceLanguage, targetLanguage } = parsed.data;
+      const {
+        name,
+        sourceLanguage,
+        targetLanguage,
+        catalogTranslationRequestId,
+        translatorEntityId,
+      } = parsed.data;
       const token = requireToken(req);
-      const project = await createProject(
-        { name, sourceLanguage, targetLanguage, role: req.user.role },
-        req.user.id,
-        token
-      );
+      const project = catalogTranslationRequestId
+        ? await createProjectFromCatalogRequest(
+            {
+              name,
+              sourceLanguage,
+              targetLanguage,
+              catalogTranslationRequestId,
+              translatorEntityId,
+              role: req.user.role,
+            },
+            req.user.id,
+            token
+          )
+        : await createProject(
+            { name, sourceLanguage, targetLanguage, role: req.user.role },
+            req.user.id,
+            token
+          );
       await invalidateUserProjectCaches(req.user.id);
       res.json(project);
     } catch (error) {
@@ -117,6 +137,28 @@ export function registerProjectRoutes(app: Application, _deps: RouteDeps): void 
           code: 'PROJECT_LIMIT',
           limit: error.limit,
           current: error.current,
+        });
+      }
+      const code = (error as Error & { code?: string }).code;
+      if (code === 'NOT_FOUND') {
+        return res.status(404).json({ error: 'Translation request not found' });
+      }
+      if (code === 'SELF_ASSIGN') {
+        return res.status(409).json({
+          error: 'Cannot take your own translation request',
+          code: 'SELF_ASSIGN',
+        });
+      }
+      if (code === 'REQUEST_CLOSED') {
+        return res.status(409).json({
+          error: 'Translation request is not open',
+          code: 'REQUEST_CLOSED',
+        });
+      }
+      if (code === 'INVALID_TRANSLATOR') {
+        return res.status(400).json({
+          error: 'Translator entity is required',
+          code: 'INVALID_TRANSLATOR',
         });
       }
       res.status(500).json({ error: 'Failed to create project' });

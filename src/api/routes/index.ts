@@ -7,6 +7,7 @@ import { registerChapterRoutes } from './chapters.js';
 import { registerGlossaryRoutes } from './glossary.js';
 import { registerPublicationRoutes } from './publications.js';
 import { registerAdminRoutes } from './admin.js';
+import { registerTranslationRequestBoardRoutes } from './translationRequestBoard.js';
 
 export function registerAllApiRoutes(app: Application, deps: RouteDeps): void {
   registerAuthRoutes(app, deps);
@@ -15,6 +16,7 @@ export function registerAllApiRoutes(app: Application, deps: RouteDeps): void {
   registerChapterRoutes(app, deps);
   registerGlossaryRoutes(app, deps);
   registerPublicationRoutes(app, deps);
+  registerTranslationRequestBoardRoutes(app, deps);
   registerAdminRoutes(app, deps);
 }
 

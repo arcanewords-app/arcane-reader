@@ -74,12 +74,7 @@ export type NewsCategory = 'feature' | 'discount' | 'update' | 'other';
 export type NewsStatus = 'draft' | 'published' | 'archived';
 export type AnnouncementVariant = 'info' | 'promo' | 'neutral';
 export type AnnouncementMinRole =
-  | 'guest'
-  | 'user'
-  | 'author'
-  | 'author_plus'
-  | 'super_author'
-  | 'admin';
+  'guest' | 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
 
 export interface NewsPost {
   id: string;
@@ -401,6 +396,8 @@ export interface ProjectMetadata {
   translationStatus?: TranslationStatus | null;
   /** Optional link to original source (synced to publication on publish). */
   sourceUrl?: string;
+  /** Catalog translation request this project was created from. */
+  catalogTranslationRequestId?: string;
 }
 
 // === Project ===
@@ -751,11 +748,7 @@ export interface AdminUserListItem {
 }
 
 export type CatalogTranslationRequestStatus =
-  | 'pending'
-  | 'reviewed'
-  | 'accepted'
-  | 'rejected'
-  | 'fulfilled';
+  'pending' | 'reviewed' | 'accepted' | 'rejected' | 'fulfilled';
 
 export interface CatalogTranslationRequest {
   id: string;
@@ -775,6 +768,36 @@ export interface CatalogTranslationRequest {
 
 export interface AdminCatalogTranslationRequest extends CatalogTranslationRequest {
   userEmail: string;
+}
+
+export type CatalogTranslationRequestInterestStatus = 'interested' | 'working' | 'withdrawn';
+
+export interface CatalogTranslationRequestInterest {
+  id: string;
+  requestId: string;
+  userId: string;
+  translatorEntityId: string;
+  translatorName: string;
+  projectId: string | null;
+  status: CatalogTranslationRequestInterestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoardTranslationRequest {
+  id: string;
+  title: string;
+  authorName: string | null;
+  sourceLanguage: string | null;
+  targetLanguage: string;
+  comment: string | null;
+  sourceUrl: string | null;
+  status: CatalogTranslationRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  interestCount: number;
+  interests: CatalogTranslationRequestInterest[];
+  myInterest: CatalogTranslationRequestInterest | null;
 }
 
 export interface PublicationWithChapters extends Publication {

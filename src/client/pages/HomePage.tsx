@@ -8,6 +8,7 @@ import type { PublicationListItem, Publication, PublicEntity } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
 import { CatalogFilterToolbar } from '../components/Home/CatalogFilterToolbar';
 import { LoadingSpinner, Input, Icon, Button, Modal } from '../components/ui';
+import { SuggestTranslationModal } from '../components/TranslationRequests/SuggestTranslationModal';
 import './HomePage.css';
 
 type CatalogFilter = 'all' | 'mine';
@@ -53,6 +54,7 @@ export function HomePage() {
   const { user, isAtLeast } = useUserRole();
   const isAuthor = !!authService.getToken() && isAtLeast('author');
   const [showSuggestLoginPrompt, setShowSuggestLoginPrompt] = useState(false);
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
   const [entityFilter, setEntityFilter] = useState(getEntityFilterFromUrl);
   const [entityFilterNames, setEntityFilterNames] = useState<{
@@ -390,7 +392,7 @@ export function HomePage() {
             variant="secondary"
             className="home-suggest-btn"
             onClick={() => {
-              if (user) route('/translation-requests');
+              if (user) setShowSuggestModal(true);
               else setShowSuggestLoginPrompt(true);
             }}
           >
@@ -577,7 +579,7 @@ export function HomePage() {
               variant="secondary"
               onClick={() => {
                 setShowSuggestLoginPrompt(false);
-                openAuthModal({ mode: 'login', redirect: '/translation-requests' });
+                openAuthModal({ mode: 'login', redirect: '/catalog' });
               }}
             >
               {t('auth.login')}
@@ -585,7 +587,7 @@ export function HomePage() {
             <Button
               onClick={() => {
                 setShowSuggestLoginPrompt(false);
-                openAuthModal({ mode: 'register', redirect: '/translation-requests' });
+                openAuthModal({ mode: 'register', redirect: '/catalog' });
               }}
             >
               {t('header.register')}
@@ -595,6 +597,11 @@ export function HomePage() {
       >
         <p>{t('home.suggestTranslationLoginMessage')}</p>
       </Modal>
+
+      <SuggestTranslationModal
+        isOpen={showSuggestModal}
+        onClose={() => setShowSuggestModal(false)}
+      />
     </div>
   );
 }

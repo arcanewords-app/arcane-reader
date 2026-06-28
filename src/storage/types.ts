@@ -42,6 +42,8 @@ export interface ProjectMetadata {
   // Future: web-specific, document-specific fields can be added here
   /** Optional link to original source (web novel, official page). Synced to publication on publish. */
   sourceUrl?: string;
+  /** Catalog translation request this project was created from (author board). */
+  catalogTranslationRequestId?: string;
   // documentType?: string; // For 'document' type
 }
 
@@ -208,12 +210,7 @@ export type NewsCategory = 'feature' | 'discount' | 'update' | 'other';
 export type NewsStatus = 'draft' | 'published' | 'archived';
 export type AnnouncementVariant = 'info' | 'promo' | 'neutral';
 export type AnnouncementMinRole =
-  | 'guest'
-  | 'user'
-  | 'author'
-  | 'author_plus'
-  | 'super_author'
-  | 'admin';
+  'guest' | 'user' | 'author' | 'author_plus' | 'super_author' | 'admin';
 
 export interface NewsPost {
   id: string;

@@ -40,13 +40,13 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/news` | guest+ | NewsPage | News feed list |
 | `/news/:slugOrId` | guest+ | NewsDetailPage | Single news post |
 | `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar |
-| `/translation-requests` | user+ | TranslationRequestsPage | Suggest titles for catalog; list user's requests (UserGate) |
+| `/translation-requests` | author+ | TranslationRequestsPage | Author board: open requests, interests, create project (AuthorGate) |
 | `/projects` | author+ | ProjectsPage | Projects grid (AuthorGate) |
 | `/admin/entities` | admin+ | AdminEntitiesRedirect | Redirect to `/admin/entities/tag` |
 | `/admin/entities/:kind` | admin+ | AdminEntitiesPage | Global entities by kind: `tag`, `author`, `translator` (AdminGate) |
 | `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
 | `/admin/publications` | admin+ | AdminPublicationsPage | Catalog publication moderation (AdminGate) |
-| `/admin/translation-requests` | admin+ | AdminTranslationRequestsPage | User translation request moderation (AdminGate) |
+| `/admin/translation-requests` | admin+ | AdminTranslationRequestsPage | Redirect to `/translation-requests` (moderation on author board) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
@@ -60,7 +60,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 
 - **guest+** - anyone (including unauthenticated)
 - **user+** - requires `role: user` or higher (guest redirects to `/?login=required`)
-- **author+** - requires `role: author` or higher (user sees UpgradeScreen)
+- **author+** - requires `role: author` or higher (user sees UpgradeScreen on `/translation-requests` and `/projects/*`)
 - **admin+** - requires `role: admin` (non-admin users see access denied)
 
 ### Protected routes
@@ -166,13 +166,24 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/user/token-usage/history` | user+ | Token usage history (query: days) |
 | GET | `/api/user/reading-history` | user+ | Reading history (publications) |
 | GET | `/api/user/translation-requests` | user+ | User's catalog translation requests |
-| POST | `/api/catalog/translation-requests` | user+ | Create catalog translation request |
+| POST | `/api/catalog/translation-requests` | user+ | Create catalog translation request (catalog suggest modal) |
 | GET | `/api/user/profile` | user+ | Profile (id, email, role, avatarUrl) |
 | PUT | `/api/user/profile` | user+ | Update profile (body: avatarUrl) |
 | POST | `/api/user/profile/avatar` | user+ | Upload avatar (multipart: avatar) |
 | GET | `/api/user/reader-settings` | user+ | User reader settings |
 | PUT | `/api/user/reader-settings` | user+ | Update user reader settings |
 | GET | `/api/user/publications` | author+ | User's publications |
+
+### Translation request board (requireAuth + requireRole('author'))
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/translation-requests/board` | Open requests + interests aggregate (query: `status`, `search`, `targetLanguage`, `mine`, `limit`, `offset`) |
+| POST | `/api/translation-requests/:id/interests` | Express interest (`translatorEntityId`) |
+| PATCH | `/api/translation-requests/:id/interests/me` | Link `projectId` or update status |
+| DELETE | `/api/translation-requests/:id/interests/me` | Withdraw interest → `withdrawn` |
+
+`POST /api/projects` body may include `catalogTranslationRequestId` and `translatorEntityId` to prefill from a request and link interest.
 
 ### Projects (requireAuth + requireRole('author'))
 

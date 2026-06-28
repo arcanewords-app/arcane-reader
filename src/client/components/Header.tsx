@@ -122,6 +122,19 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
             </a>
             {isAuthor && (
               <a
+                href="/translation-requests"
+                onClick={(e) => {
+                  e.preventDefault();
+                  route('/translation-requests');
+                }}
+                class={`nav-link ${currentPath === '/translation-requests' ? 'active' : ''}`}
+                aria-current={currentPath === '/translation-requests' ? 'page' : undefined}
+              >
+                {t('nav.requests')}
+              </a>
+            )}
+            {isAuthor && (
+              <a
                 href="/projects"
                 onClick={(e) => {
                   e.preventDefault();

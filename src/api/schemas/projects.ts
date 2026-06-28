@@ -27,6 +27,8 @@ export const projectCreateBodySchema = z
     name: z.string().trim().min(1).max(500),
     sourceLanguage: supportedSourceLanguageSchema.optional(),
     targetLanguage: supportedTargetLanguageSchema.optional(),
+    catalogTranslationRequestId: z.string().uuid().optional(),
+    translatorEntityId: z.string().uuid().optional(),
   })
   .refine((data) => {
     if (data.sourceLanguage == null && data.targetLanguage == null) return true;
