@@ -47,7 +47,8 @@ export interface ProjectMetadata {
   publishedDate?: string;
 
   // Future: web-specific, document-specific fields can be added here
-  // webUrl?: string; // For 'web' type
+  /** Optional link to original source (web novel, official page). Synced to publication on publish. */
+  sourceUrl?: string;
   // documentType?: string; // For 'document' type
 }
 

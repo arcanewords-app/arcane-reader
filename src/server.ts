@@ -10047,6 +10047,7 @@ app.post(
         sourceLanguage: body.sourceLanguage,
         targetLanguage: body.targetLanguage,
         translationStatus,
+        sourceUrl: body.sourceUrl,
       });
       await invalidateUserProjectCaches(userId, projectId);
       await invalidatePublicationCaches(publication.id, publication.id);

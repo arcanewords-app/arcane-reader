@@ -399,6 +399,8 @@ export interface ProjectMetadata {
   translatedAt?: string;
   /** Catalog cover badge; null/omit = no badge. */
   translationStatus?: TranslationStatus | null;
+  /** Optional link to original source (synced to publication on publish). */
+  sourceUrl?: string;
 }
 
 // === Project ===
@@ -701,6 +703,8 @@ export interface Publication {
   translatedChapterCount?: number;
   /** Catalog cover badge; null = no badge. */
   translationStatus?: TranslationStatus | null;
+  /** Optional link to original source work. */
+  sourceUrl?: string | null;
 }
 
 export interface PublicationListItem {
@@ -730,6 +734,8 @@ export interface PublicationListItem {
   translatedChapterCount?: number;
   /** Catalog cover badge; null = no badge. */
   translationStatus?: TranslationStatus | null;
+  /** Optional link to original source work. */
+  sourceUrl?: string | null;
 }
 
 export interface AdminPublicationListItem extends PublicationListItem {

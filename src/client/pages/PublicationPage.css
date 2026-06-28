@@ -208,7 +208,8 @@
 }
 
 .publication-page-glossary-btn,
-.publication-page-toc-btn {
+.publication-page-toc-btn,
+.publication-page-source-link {
   flex: 0 0 auto;
   padding: 0.35rem 0.65rem;
   margin: 0;
@@ -224,20 +225,30 @@
     background 0.15s ease;
 }
 
+.publication-page-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+
 .publication-page-exports-not-ready {
   font-size: 0.9rem;
   color: var(--text-dim);
 }
 
 .publication-page-glossary-btn:hover,
-.publication-page-toc-btn:hover {
+.publication-page-toc-btn:hover,
+.publication-page-source-link:hover {
   color: var(--text-primary);
   border-color: var(--border-hover, rgba(255, 255, 255, 0.15));
   background: var(--bg-hover);
 }
 
 .publication-page-glossary-btn:focus-visible,
-.publication-page-toc-btn:focus-visible {
+.publication-page-toc-btn:focus-visible,
+.publication-page-source-link:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }

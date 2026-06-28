@@ -73,6 +73,10 @@ export function ProjectInfo({
   const [originalTitleDraft, setOriginalTitleDraft] = useState('');
   const [savingOriginalTitle, setSavingOriginalTitle] = useState(false);
   const originalTitleInputRef = useRef<HTMLInputElement>(null);
+  const [editingSourceUrl, setEditingSourceUrl] = useState(false);
+  const [sourceUrlDraft, setSourceUrlDraft] = useState('');
+  const [savingSourceUrl, setSavingSourceUrl] = useState(false);
+  const sourceUrlInputRef = useRef<HTMLInputElement>(null);
 
   // Publication (catalog)
   const [publication, setPublication] = useState<Publication | null>(null);
@@ -328,6 +332,7 @@ export function ProjectInfo({
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
         tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
         translationStatus: project.metadata?.translationStatus ?? null,
+        sourceUrl: project.metadata?.sourceUrl ?? undefined,
       });
       setPublication(pub);
       setShowPublishModal(false);
@@ -360,6 +365,7 @@ export function ProjectInfo({
     project.metadata?.translatorEntityId,
     project.metadata?.tagEntityIds,
     project.metadata?.translationStatus,
+    project.metadata?.sourceUrl,
     project.metadata?.authors,
     authorEntity,
     translatorEntity,
@@ -418,6 +424,7 @@ export function ProjectInfo({
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
         tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
         translationStatus: project.metadata?.translationStatus ?? null,
+        sourceUrl: publication?.sourceUrl ?? project.metadata?.sourceUrl ?? undefined,
       });
       setPublication(pub);
     } catch (error) {
@@ -439,6 +446,8 @@ export function ProjectInfo({
     project.metadata?.translatorEntityId,
     project.metadata?.tagEntityIds,
     project.metadata?.translationStatus,
+    project.metadata?.sourceUrl,
+    publication?.sourceUrl,
     project.name,
     authorEntity,
     translatorEntity,
@@ -531,6 +540,62 @@ export function ProjectInfo({
       }
     },
     [saveOriginalTitle, cancelEditingOriginalTitle]
+  );
+
+  const startEditingSourceUrl = useCallback(() => {
+    setSourceUrlDraft(project.metadata?.sourceUrl ?? '');
+    setEditingSourceUrl(true);
+    setTimeout(() => sourceUrlInputRef.current?.focus(), 0);
+  }, [project.metadata?.sourceUrl]);
+
+  const cancelEditingSourceUrl = useCallback(() => {
+    setEditingSourceUrl(false);
+    setSourceUrlDraft('');
+  }, []);
+
+  const saveSourceUrl = useCallback(async () => {
+    const trimmed = sourceUrlDraft.trim();
+    if (trimmed) {
+      try {
+        new URL(trimmed);
+      } catch {
+        setErrorModal({
+          title: t('projectInfo.errorInvalidSourceUrl'),
+          message: t('projectInfo.errorInvalidSourceUrl'),
+        });
+        return;
+      }
+    }
+    setSavingSourceUrl(true);
+    try {
+      await api.updateProjectMetadata(project.id, {
+        ...project.metadata,
+        sourceUrl: trimmed || undefined,
+      });
+      invalidateProject(project.id);
+      await onRefreshProject();
+      setEditingSourceUrl(false);
+      setSourceUrlDraft('');
+    } catch (error) {
+      setErrorModal({
+        title: t('projectInfo.errorSaveSourceUrl'),
+        message: error instanceof Error ? error.message : t('projectInfo.errorSaveSourceUrl'),
+      });
+    } finally {
+      setSavingSourceUrl(false);
+    }
+  }, [project.id, project.metadata, sourceUrlDraft, onRefreshProject, t]);
+
+  const handleSourceUrlKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveSourceUrl();
+      } else if (e.key === 'Escape') {
+        cancelEditingSourceUrl();
+      }
+    },
+    [saveSourceUrl, cancelEditingSourceUrl]
   );
 
   const settings = project.settings;
@@ -1552,6 +1617,52 @@ export function ProjectInfo({
               <Icon name="campaign" size="sm" />
             </span>
             <h3 class="metadata-title">{t('projectInfo.publicationTitle')}</h3>
+          </div>
+          <div class="metadata-item metadata-source-url" style={{ marginBottom: '0.75rem' }}>
+            <span class="metadata-label">{t('projectInfo.sourceUrlLabel')}</span>
+            {editingSourceUrl ? (
+              <div class="project-description-editor">
+                <input
+                  ref={sourceUrlInputRef}
+                  type="url"
+                  class="form-input"
+                  value={sourceUrlDraft}
+                  onInput={(e) => setSourceUrlDraft((e.target as HTMLInputElement).value)}
+                  onKeyDown={handleSourceUrlKeyDown}
+                  placeholder={t('projectInfo.sourceUrlPlaceholder')}
+                />
+                <div class="project-description-actions">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    onClick={cancelEditingSourceUrl}
+                    disabled={savingSourceUrl}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    onClick={saveSourceUrl}
+                    disabled={savingSourceUrl}
+                  >
+                    {savingSourceUrl ? '...' : t('common.save')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                class={`metadata-value description-text editable ${!project.metadata?.sourceUrl ? 'empty' : ''}`}
+                onClick={startEditingSourceUrl}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && startEditingSourceUrl()}
+              >
+                {project.metadata?.sourceUrl
+                  ? project.metadata.sourceUrl
+                  : t('projectInfo.clickToAddSourceUrl')}
+              </div>
+            )}
           </div>
           {publicationLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

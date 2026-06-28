@@ -25,17 +25,18 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                       | Summary                                        | Reference                            |
-| ------------------------ | ---------------------------------------------- | ------------------------------------ |
-| `catalog-filter-toolbar` | Icon chips: language, complete, sort segment   | `CatalogFilterToolbar.tsx`           |
-| `filter-icon-chip`       | 44px square chip, icon or short code           | `CatalogFilterToolbar.css`           |
-| `filter-segment-control` | Connected toggle pair (sort direction)         | `CatalogFilterToolbar.css`           |
-| `responsive-filter-bar`  | Search + toolbar: 2 rows mobile, 1 row tablet+ | `HomePage.css`                       |
-| `entity-filter-chips`    | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
-| `header-locale-control`  | App language: icon + code + dropdown           | `Header.tsx`                         |
-| `header-support-control` | Support via Boosty: icon + label, direct link  | `Header/SupportMenu.tsx`             |
-| `cover-status-badge`     | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
-| `admin-section-layout`   | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
+| Id                          | Summary                                        | Reference                            |
+| --------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `catalog-filter-toolbar`    | Icon chips: language, complete, sort segment   | `CatalogFilterToolbar.tsx`           |
+| `filter-icon-chip`          | 44px square chip, icon or short code           | `CatalogFilterToolbar.css`           |
+| `filter-segment-control`    | Connected toggle pair (sort direction)         | `CatalogFilterToolbar.css`           |
+| `responsive-filter-bar`     | Search + toolbar: 2 rows mobile, 1 row tablet+ | `HomePage.css`                       |
+| `entity-filter-chips`       | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
+| `header-locale-control`     | App language: icon + code + dropdown           | `Header.tsx`                         |
+| `header-support-control`    | Support via Boosty: icon + label, direct link  | `Header/SupportMenu.tsx`             |
+| `cover-status-badge`        | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
+| `publication-original-link` | Compact external link to source on `/p/...`    | `PublicationPage.tsx`                |
+| `admin-section-layout`      | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
 
 ---
 
@@ -189,6 +190,34 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 - `complete` → `--success`; keep badge set minimal for catalog clarity (prefer only `complete` visible when product is binary)
 
 **Reference:** [`PublicationStatusBadge.tsx`](../../../src/client/components/Home/PublicationStatusBadge.tsx).
+
+---
+
+## `publication-original-link`
+
+**When:** Published work has an optional link to the original source (web novel, official page). Shown to readers on the publication page only — not on catalog cards.
+
+**When not:** Catalog grid cards; use author workspace (`ProjectInfo` publication section) to edit the URL.
+
+**Files:**
+
+- [`src/client/pages/PublicationPage.tsx`](../../../src/client/pages/PublicationPage.tsx)
+- [`src/client/pages/PublicationPage.css`](../../../src/client/pages/PublicationPage.css) — `.publication-page-source-link`
+- [`src/client/components/ProjectInfo.tsx`](../../../src/client/components/ProjectInfo.tsx) — editable `metadata.sourceUrl`, sync on publish/update
+
+**Layout / behavior:**
+
+- Render inside `publication-page-actions` when `publication.sourceUrl` is set.
+- `<a target="_blank" rel="noopener noreferrer">` with `Icon name="open_in_new"` + short label.
+- Style matches `publication-page-toc-btn` (bordered secondary chip, inline-flex, gap).
+
+**Data flow:** Author saves `projects.metadata.sourceUrl` → `POST /api/projects/:id/publish` copies to `publications.source_url` → public GET returns `sourceUrl`.
+
+**i18n:** `publication.originalLink`; author labels under `projectInfo.sourceUrl*`.
+
+**a11y:** Visible text label (not icon-only); `focus-visible` outline; external link opens new tab.
+
+**Anti-patterns:** Inline URL in description; icon-only without label; showing on catalog cards (clutters grid).
 
 ---
 

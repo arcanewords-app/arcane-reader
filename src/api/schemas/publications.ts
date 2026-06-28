@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { paginationQuerySchema } from './common.js';
+import { paginationQuerySchema, optionalUrlSchema } from './common.js';
 
 const translationStatusSchema = z.enum(['in_progress', 'complete', 'abandoned']);
 
@@ -39,6 +39,7 @@ export const publishBodySchema = z
     sourceLanguage: z.string().trim().max(20).optional(),
     targetLanguage: z.string().trim().max(20).optional(),
     translationStatus: translationStatusSchema.nullable().optional(),
+    sourceUrl: optionalUrlSchema,
     /** @deprecated Use translationStatus: 'complete' */
     isCompleteWork: z.boolean().optional(),
   })

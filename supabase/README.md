@@ -22,6 +22,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260622130000_chapter_partial_translation_status.sql`  | Add `partial` to `chapters_status_check`; backfill `completed` → `partial` when paragraph coverage incomplete |
 | `20260622140000_paragraph_search_trgm_rpc.sql`           | `pg_trgm` GIN indexes on `paragraphs` text columns; RPC `search_paragraphs_in_project` for project-wide find  |
 | `20260622200000_search_rpc_translated_chapter_title.sql` | Search RPC: return `chapter_translated_title` for display title                                               |
+| `20260627120000_publications_source_url.sql`             | `publications.source_url`; recreate `publications_list_with_counts` view                                      |
 
 ## Accepted remaining advisor WARNs
 

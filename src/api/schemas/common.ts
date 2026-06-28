@@ -14,3 +14,13 @@ export const dateQuerySchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
 });
+
+/** Optional HTTP(S) URL; empty string → undefined */
+export const optionalUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(2048)
+  .optional()
+  .or(z.literal(''))
+  .transform((value) => (value && value.length > 0 ? value : undefined));

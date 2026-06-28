@@ -4135,6 +4135,7 @@ export interface PublicationRow {
   fb2_storage_path?: string | null;
   show_glossary?: boolean | null;
   translation_status?: string | null;
+  source_url?: string | null;
 }
 
 /** Row from publications_list_with_counts view (adds translated_chapter_count). */
@@ -4176,6 +4177,7 @@ function transformPublicationFromDB(row: PublicationRow): {
   fb2StoragePath: string | null;
   showGlossary: boolean;
   translationStatus: TranslationStatus | null;
+  sourceUrl: string | null;
 } {
   const rawStatus = (row as { translation_status?: string | null }).translation_status;
   return {
@@ -4202,6 +4204,7 @@ function transformPublicationFromDB(row: PublicationRow): {
     fb2StoragePath: (row as { fb2_storage_path?: string | null }).fb2_storage_path ?? null,
     showGlossary: (row as { show_glossary?: boolean | null }).show_glossary !== false,
     translationStatus: isTranslationStatus(rawStatus) ? rawStatus : null,
+    sourceUrl: (row as { source_url?: string | null }).source_url ?? null,
   };
 }
 
@@ -4712,6 +4715,7 @@ export async function createOrUpdatePublication(
     sourceLanguage?: string;
     targetLanguage?: string;
     translationStatus?: TranslationStatus | null;
+    sourceUrl?: string | null;
   }
 ): Promise<ReturnType<typeof transformPublicationFromDB>> {
   validateToken(token);
@@ -4742,6 +4746,8 @@ export async function createOrUpdatePublication(
       ? data.translationStatus
       : translationStatusFromMetadata(project.metadata ?? null);
 
+  const sourceUrl = data.sourceUrl ?? project.metadata?.sourceUrl ?? null;
+
   const row = {
     project_id: projectId,
     user_id: userId,
@@ -4759,6 +4765,7 @@ export async function createOrUpdatePublication(
     published_at: isPublish ? now : null,
     updated_at: now,
     slug,
+    source_url: sourceUrl,
   };
 
   if (existing) {
@@ -4767,6 +4774,7 @@ export async function createOrUpdatePublication(
       title: row.title,
       description: row.description,
       cover_image_url: row.cover_image_url,
+      source_url: row.source_url,
       source_language: row.source_language,
       target_language: row.target_language,
       updated_at: row.updated_at,
@@ -4808,6 +4816,7 @@ export async function createOrUpdatePublication(
     translator_entity_id: data.translatorEntityId ?? null,
     tag_entity_ids: data.tagEntityIds ?? [],
     translation_status: translationStatus,
+    source_url: sourceUrl,
   };
 
   const { data: inserted, error } = await client

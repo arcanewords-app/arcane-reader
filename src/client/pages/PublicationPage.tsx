@@ -419,6 +419,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           )}
           {langLabel && <p class="publication-page-lang">{langLabel}</p>}
           <div class="publication-page-actions">
+            {pub.sourceUrl && (
+              <a
+                href={pub.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="publication-page-source-link"
+              >
+                <Icon name="open_in_new" size="sm" />
+                {t('publication.originalLink')}
+              </a>
+            )}
             {glossaryCount > 0 && (
               <button
                 type="button"

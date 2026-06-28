@@ -323,7 +323,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/projects/:projectId/publish` | Create/update publication |
+| POST | `/api/projects/:projectId/publish` | Create/update publication (body: optional `title`, `description`, `coverImageUrl`, `sourceUrl`, entity IDs, `translationStatus`, …). Response includes `sourceUrl` when set |
 | DELETE | `/api/projects/:projectId/publish` | Unpublish |
 | GET | `/api/projects/:projectId/publication` | Get project's publication |
 

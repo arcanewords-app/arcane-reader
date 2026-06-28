@@ -1555,6 +1555,7 @@ export const api = {
       translatorEntityId?: string | null;
       tagEntityIds?: string[];
       translationStatus?: TranslationStatus | null;
+      sourceUrl?: string | null;
     }
   ): Promise<Publication> {
     const result = await fetchJson<Publication>(`/api/projects/${projectId}/publish`, {
