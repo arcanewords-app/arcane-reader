@@ -7,11 +7,20 @@ import {
   getDebugTraces,
   getLastErrorEntry,
   getRecentJobIds,
+  queryLogEntries,
 } from './buffer.js';
 import { getCapturedLlmCalls, isLlmCaptureEnabled } from './promptCapture.js';
 import { getCapturedHttpExchanges, isHttpCaptureEnabled } from './httpCapture.js';
 import { isDebugRedisBridgeAvailable } from './redisBridge.js';
 import { isDebugPersistEnabled } from './persist.js';
+import { DEFAULT_RELATIVE_WINDOW, resolveTimeWindow } from './timeWindow.js';
+
+export interface DebugStatusWindow {
+  last: string;
+  since: string;
+  logCount: number;
+  recentJobIds: string[];
+}
 
 export interface DebugStatusResponse {
   logCount: number;
@@ -27,12 +36,17 @@ export interface DebugStatusResponse {
     requestId?: string;
   } | null;
   recentJobIds: string[];
+  window: DebugStatusWindow;
   workerBridge: boolean;
   captureFlags: { llm: boolean; http: boolean; persist: boolean };
 }
 
 export function getDebugStatus(): DebugStatusResponse {
   const last = getLastErrorEntry();
+  const window = resolveTimeWindow({ last: DEFAULT_RELATIVE_WINDOW, applyDefault: true });
+  const since = window.since ?? new Date(0).toISOString();
+  const windowLogs = queryLogEntries({ since });
+
   return {
     logCount: getDebugLogEntries().length,
     httpCount: getCapturedHttpExchanges().length,
@@ -48,7 +62,13 @@ export function getDebugStatus(): DebugStatusResponse {
           requestId: typeof last.requestId === 'string' ? last.requestId : undefined,
         }
       : null,
-    recentJobIds: getRecentJobIds(5),
+    recentJobIds: getRecentJobIds(5, since),
+    window: {
+      last: window.lastApplied ?? DEFAULT_RELATIVE_WINDOW,
+      since,
+      logCount: windowLogs.length,
+      recentJobIds: getRecentJobIds(5, since),
+    },
     workerBridge: isDebugRedisBridgeAvailable(),
     captureFlags: {
       llm: isLlmCaptureEnabled(),

@@ -85,19 +85,28 @@ export function getDebugCatalog() {
   return {
     events: DEBUG_TRANSLATION_EVENTS,
     correlationFields: ['traceId', 'jobId', 'requestId', 'chapterId', 'projectId', 'stage'],
+    timeFilters: {
+      last: 'Relative window: 30m, 1h, 2h (default for unscoped), 6h, 24h',
+      since: 'ISO timestamp lower bound',
+      until: 'ISO timestamp upper bound',
+      example: '/api/debug/query?kind=logs&last=2h&compact=1',
+    },
     agentEndpoints: [
-      { path: '/api/debug/status', description: 'Buffer counts and last error' },
+      { path: '/api/debug/status', description: 'Buffer counts, window stats, last error' },
       {
         path: '/api/debug/agent/context',
-        description: 'Markdown context for jobId/traceId/requestId',
+        description: 'Markdown context for jobId/traceId/requestId; prefer traceId for one chapter',
       },
-      { path: '/api/debug/query', description: 'Filtered JSON query' },
+      { path: '/api/debug/query', description: 'Filtered JSON query (last/since/until, dedupe)' },
       { path: '/api/debug/jobs/:jobId', description: 'Async job aggregate (JSON)' },
     ],
     workflows: {
       syncTranslate: 'Response JSON includes traceId → /api/debug/agent/context?traceId=...',
       asyncTranslate:
-        '202 response includes jobId → /api/debug/agent/context?jobId=trl_... (one traceId per chapter)',
+        '202 response includes jobId; one chapter → traceId from translation.completed log',
+      singleChapter:
+        '/api/debug/agent/context?traceId=UUID&includePrompts=0 (not jobId for one chapter)',
+      recentLogs: '/api/debug/query?kind=logs&last=2h&compact=1&limit=100',
     },
   };
 }

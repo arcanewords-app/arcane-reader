@@ -4,7 +4,7 @@ status: active
 domain: engine
 stale: false
 created: 2026-05-16
-updated: 2026-06-06
+updated: 2026-06-29
 canonical: .cursor/rules/engine.mdc
 ---
 
@@ -30,8 +30,8 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 | `http://localhost:5174/debug/`  | Debug console (Preact app, primary dev URL)                          |
 | `http://localhost:5173/debug`   | Same via main Vite proxy → `:5174`                                   |
 | `http://localhost:3000/debug`   | Redirect to debug app (`:5174`)                                      |
-| `GET /api/debug/logs`           | JSON log buffer (`?newestFirst=1`)                                   |
-| `GET /api/debug/query`          | Filtered query for agents (`?kind=`, `?jobId=`, `?compact=1`)        |
+| `GET /api/debug/logs`           | JSON log buffer (`?last=2h` default when unscoped; `?newestFirst=1`) |
+| `GET /api/debug/query`          | Filtered query (`?kind=`, `?last=`, `?traceId=`, `?compact=1`)       |
 | `GET /api/debug/jobs/:jobId`    | Async job aggregate (traces + logs + prompts + HTTP)                 |
 | `GET /api/debug/traces`         | Trace summaries (`traceId` / `jobId` / `requestId`)                  |
 | `GET /api/debug/traces/:id`     | Entries for one correlation id                                       |
@@ -51,7 +51,9 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 
 **Copy for Cursor:** use **Copy for Cursor** or **Copy trace** in the UI, or `GET /api/debug/export?format=cursor&traceId=...`.
 
-**Filters:** level, `event`, `process`, `chapterId`, `projectId`, `traceId`, `requestId`, `jobId`, text search, presets. Query params are synced to the URL for bookmarks, e.g. `/debug?chapterId=...&event=pipeline.start`.
+**Filters:** level, `event`, `process`, `chapterId`, `projectId`, `traceId`, `requestId`, `jobId`, `last` (`30m`–`24h`), `since`/`until`, text search. Unscoped `/api/debug/query` and `/api/debug/logs` default to **last 2 hours**. Duplicate log lines from the worker bridge are deduplicated on ingest.
+
+**Benchmark runs:** record metrics in [[../01-reference/translation-run-log]] — use `traceId` for single-chapter runs.
 
 **HTTP tab:** set `DEBUG_CAPTURE_HTTP=1` in `.env` and restart. Captures truncated JSON request/response for `/api/*` (skips multipart uploads and `/api/debug/*`). Sensitive keys (`password`, `token`, etc.) are redacted. Translate responses include `traceId` for linking to Traces.
 
@@ -69,15 +71,20 @@ Use `@.cursor/skills/debug-local/SKILL.md` — **2-step workflow**:
 
 ```bash
 curl -s "http://localhost:3000/api/debug/status"
+# one chapter (preferred)
+curl -s "http://localhost:3000/api/debug/agent/context?traceId=...&includePrompts=0"
+# full async batch
 curl -s "http://localhost:3000/api/debug/agent/context?jobId=trl_...&includePrompts=1"
+# recent activity
+curl -s "http://localhost:3000/api/debug/query?kind=logs&last=2h&compact=1&limit=50"
 ```
 
-- `GET /api/debug/status` — buffer counts, last error, recent `jobId`s
-- `GET /api/debug/agent/context` — markdown timeline (asc) + code hints + prompts/http
-- `GET /api/debug/catalog` — translation events and example queries
-- `GET /api/debug/query?format=agent&jobId=...` — same as agent/context
+- `GET /api/debug/status` — buffer counts, `window` (last 2h stats), last error
+- `GET /api/debug/agent/context` — markdown timeline (asc) + code hints; prefer `traceId` for one chapter
+- `GET /api/debug/catalog` — translation events, time filter examples
+- `GET /api/debug/query?format=agent&traceId=...` — same as agent/context
 
-Async jobs: always use `jobId` first (one `traceId` per chapter inside the job).
+Async batch: `jobId` returns all chapters; use `traceId` from `translation.completed` for a single chapter.
 
 ## Sync vs async
 

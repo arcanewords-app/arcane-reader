@@ -14,11 +14,11 @@ Skill: `@.cursor/skills/local-dev/SKILL.md` for npm and Windows shell.
 1. **Pick dataset** — local dev only (`localhost:3000`).
 2. **Snapshot** — `GET /api/debug/status` (buffer counts, last error, recent `jobId`s).
 3. **Get identifier** — from user, API response, or status:
-   - Sync translate → `traceId` in response JSON
-   - Async batch → `jobId` in `202` response (`trl_*` / `ana_*`)
+   - **One chapter** (sync or async) → `traceId` from `translation.completed` log
+   - Async **whole batch** → `jobId` in `202` response (`trl_*` / `ana_*`)
    - HTTP issue → `X-Request-Id` header
-4. **One-shot context** — `GET /api/debug/agent/context?jobId=...` (preferred for async jobs).
-5. **Drill down** — `GET /api/debug/query?kind=prompts&jobId=...` if prompts needed separately.
+4. **One-shot context** — `GET /api/debug/agent/context?traceId=...` (one chapter) or `?jobId=...` (full batch; add `&detail=1` for per-trace sections).
+5. **Drill down** — `GET /api/debug/query?kind=prompts&traceId=...` if prompts needed separately.
 6. **Catalog** — `GET /api/debug/catalog` for event names and example queries.
 
 ```mermaid
@@ -32,13 +32,13 @@ flowchart LR
 
 ## Sync vs async
 
-| Mode            | Trigger                               | Agent entry point                                             |
-| --------------- | ------------------------------------- | ------------------------------------------------------------- |
-| Sync translate  | Default single/batch (no `?async=1`)  | `agent/context?traceId=...` from response                     |
-| Async translate | `?async=1` or `Prefer: respond-async` | **`agent/context?jobId=trl_...`** (one `traceId` per chapter) |
-| Async analysis  | `?async=1` on analyze-batch           | `agent/context?jobId=ana_...`                                 |
+| Mode            | Trigger                               | Agent entry point                                            |
+| --------------- | ------------------------------------- | ------------------------------------------------------------ |
+| Sync translate  | Default single/batch (no `?async=1`)  | `agent/context?traceId=...` from response                    |
+| Async translate | `?async=1` or `Prefer: respond-async` | **One chapter:** `traceId`; **whole batch:** `jobId=trl_...` |
+| Async analysis  | `?async=1` on analyze-batch           | `agent/context?jobId=ana_...`                                |
 
-**Important:** For async translate jobs, always start with `jobId`, not `kind=trace&jobId=`.
+**Important:** `jobId` returns logs for **all chapters** in the batch. For a single chapter from async job, use `traceId`.
 
 ## Prerequisites
 
@@ -52,33 +52,40 @@ flowchart LR
 
 ## Primary endpoints
 
-| Endpoint                       | Use                                            |
-| ------------------------------ | ---------------------------------------------- |
-| `GET /api/debug/status`        | First call — counts, last error, recent jobs   |
-| `GET /api/debug/agent/context` | **Main** — markdown + code hints + summary     |
-| `GET /api/debug/query`         | Filtered JSON (`format=agent` same as context) |
-| `GET /api/debug/catalog`       | Translation events + example queries           |
-| `GET /api/debug/jobs/:jobId`   | JSON aggregate (legacy/detailed)               |
+| Endpoint                       | Use                                                  |
+| ------------------------------ | ---------------------------------------------------- |
+| `GET /api/debug/status`        | First call — counts, `window` (last 2h), recent jobs |
+| `GET /api/debug/agent/context` | **Main** — markdown + code hints + summary           |
+| `GET /api/debug/query`         | Filtered JSON (`format=agent` same as context)       |
+| `GET /api/debug/catalog`       | Translation events + example queries                 |
+| `GET /api/debug/jobs/:jobId`   | JSON aggregate (legacy/detailed)                     |
 
 ### Agent context query params
 
-| Param                               | Description                       |
-| ----------------------------------- | --------------------------------- |
-| `jobId` \| `traceId` \| `requestId` | One required (mutually exclusive) |
-| `includePrompts`                    | default `1`                       |
-| `includeHttp`                       | default `1`                       |
-| `limit`                             | max log lines (default 500)       |
+| Param                               | Description                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| `jobId` \| `traceId` \| `requestId` | One required (mutually exclusive)                                               |
+| `includePrompts`                    | default `1`                                                                     |
+| `includeHttp`                       | default `1`                                                                     |
+| `limit`                             | max log lines (default 500)                                                     |
+| `since` / `until`                   | ISO time bounds (optional)                                                      |
+| `last`                              | relative window: `30m`, `1h`, `2h` (optional; no default on correlated queries) |
+| `detail`                            | `1` — per-trace sections for multi-chapter `jobId` (default off)                |
 
 ### Query API params
 
-| Param        | Values                                      |
-| ------------ | ------------------------------------------- |
-| `kind`       | `logs`, `http`, `prompts`, `trace`, `all`   |
-| `format`     | `json` (default), `agent`                   |
-| `sort`       | `asc` (timeline), `desc` (default for JSON) |
-| `compact`    | `1` — omit `*Preview` fields                |
-| `errorsOnly` | `1`                                         |
-| `limit`      | default 50, max 500                         |
+| Param        | Values                                                |
+| ------------ | ----------------------------------------------------- |
+| `kind`       | `logs`, `http`, `prompts`, `trace`, `all`             |
+| `format`     | `json` (default), `agent`                             |
+| `sort`       | `asc` (timeline), `desc` (default for JSON)           |
+| `last`       | `30m`, `1h`, `2h` (default for unscoped), `6h`, `24h` |
+| `since`      | ISO lower bound (overrides default window)            |
+| `until`      | ISO upper bound                                       |
+| `compact`    | `1` — omit `*Preview` fields                          |
+| `dedupe`     | `0` to disable fingerprint dedupe (default on)        |
+| `errorsOnly` | `1`                                                   |
+| `limit`      | default 50, max 500                                   |
 
 ## Curl recipes
 
@@ -86,20 +93,23 @@ flowchart LR
 # 1. Snapshot
 curl -s "http://localhost:3000/api/debug/status"
 
-# 2. Full async job context (markdown for agent)
+# 2. Single chapter (preferred for one chapter in async batch)
+curl -s "http://localhost:3000/api/debug/agent/context?traceId=UUID&includePrompts=0"
+
+# 3. Full async job (all chapters in batch)
 curl -s "http://localhost:3000/api/debug/agent/context?jobId=trl_REPLACE_ME&includePrompts=1"
 
-# 3. Sync trace
-curl -s "http://localhost:3000/api/debug/agent/context?traceId=UUID"
+# 4. Recent logs (default last 2h when no jobId/traceId)
+curl -s "http://localhost:3000/api/debug/query?kind=logs&last=2h&compact=1&limit=100"
 
-# 4. Errors only (JSON)
+# 5. Errors only (JSON)
 curl -s "http://localhost:3000/api/debug/query?kind=all&errorsOnly=1&limit=30&compact=1"
 
-# 5. Event catalog
+# 6. Event catalog
 curl -s "http://localhost:3000/api/debug/catalog"
 
-# 6. Pipeline stage filter
-curl -s "http://localhost:3000/api/debug/query?kind=logs&event=pipeline.stage.failed&sort=asc"
+# 7. Pipeline stage filter
+curl -s "http://localhost:3000/api/debug/query?kind=logs&event=pipeline.stage.failed&sort=asc&last=2h"
 ```
 
 ## Correlation IDs
@@ -123,4 +133,4 @@ curl -s "http://localhost:3000/api/debug/query?kind=logs&event=pipeline.stage.fa
 - `GET /api/debug/logs`, `/traces`, `/traces/:id`, `/export`, `/prompts`, `/http`
 - `POST /api/debug/clear`, `/clear-http`, `/clear-prompts`
 
-See `@docs/02-how-to/debug-translation.md` and `@.cursor/rules/debug.mdc`.
+See `@docs/02-how-to/debug-translation.md`, `@docs/01-reference/translation-run-log.md`, and `@.cursor/rules/debug.mdc`.

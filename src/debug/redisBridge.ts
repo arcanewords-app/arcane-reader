@@ -27,6 +27,20 @@ let publisher: Redis | null = null;
 let subscriber: Redis | null = null;
 let subscribed = false;
 
+const BRIDGE_SEEN_MAX = 2000;
+const seenBridgePayloads = new Set<string>();
+
+function isDuplicateBridgePayload(raw: string): boolean {
+  if (seenBridgePayloads.has(raw)) return true;
+  seenBridgePayloads.add(raw);
+  if (seenBridgePayloads.size > BRIDGE_SEEN_MAX) {
+    const keep = [...seenBridgePayloads].slice(-Math.floor(BRIDGE_SEEN_MAX / 2));
+    seenBridgePayloads.clear();
+    for (const item of keep) seenBridgePayloads.add(item);
+  }
+  return false;
+}
+
 function isDev(): boolean {
   return process.env.NODE_ENV !== 'production';
 }
@@ -58,7 +72,12 @@ function isWorkerProcess(): boolean {
   return process.env.RUN_AS_WORKER === '1';
 }
 
-function dispatchMessage(message: DebugBridgeMessage, handlers: DebugBridgeHandlers): void {
+function dispatchMessage(
+  message: DebugBridgeMessage,
+  handlers: DebugBridgeHandlers,
+  raw?: string
+): void {
+  if (raw && isDuplicateBridgePayload(raw)) return;
   if (message.kind === 'log') handlers.onLog(message.entry);
   else if (message.kind === 'llm') handlers.onLlm?.(message.capture);
   else if (message.kind === 'http') handlers.onHttp?.(message.exchange);
@@ -117,7 +136,7 @@ async function drainBacklog(handlers: DebugBridgeHandlers): Promise<void> {
     const items = await client.lrange(BACKLOG_KEY, 0, max - 1);
     for (const raw of [...items].reverse()) {
       const parsed = parseBridgeMessage(raw);
-      if (parsed) dispatchMessage(parsed, handlers);
+      if (parsed) dispatchMessage(parsed, handlers, raw);
     }
     await client.set(READY_KEY, '1', 'EX', 60);
   } catch {
@@ -140,7 +159,7 @@ export async function startDebugBridgeSubscriber(handlers: DebugBridgeHandlers):
       const sub = subscriber;
       sub.on('message', (_ch: string, message: string) => {
         const parsed = parseBridgeMessage(message);
-        if (parsed) dispatchMessage(parsed, handlers);
+        if (parsed) dispatchMessage(parsed, handlers, message);
       });
       await sub.subscribe(CHANNEL);
       await sub.set(READY_KEY, '1', 'EX', 60);

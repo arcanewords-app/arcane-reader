@@ -38,6 +38,53 @@ const buffer: DebugLogEntry[] = [];
 let index = 0;
 const traceIndex = new Map<string, DebugTraceSummary>();
 
+const DEDUPE_MAX = 5000;
+const recentFingerprints: string[] = [];
+const fingerprintSet = new Set<string>();
+
+export function logEntryFingerprint(entry: DebugLogEntry): string {
+  return [
+    entry.time,
+    entry.traceId,
+    entry.event,
+    entry.msg,
+    entry.chapterId,
+    entry.jobId,
+    entry.requestId,
+  ]
+    .filter((v): v is string => typeof v === 'string')
+    .join('|');
+}
+
+function isDuplicateLogEntry(entry: DebugLogEntry): boolean {
+  const fp = logEntryFingerprint(entry);
+  if (fingerprintSet.has(fp)) return true;
+  fingerprintSet.add(fp);
+  recentFingerprints.push(fp);
+  if (recentFingerprints.length > DEDUPE_MAX) {
+    const old = recentFingerprints.shift();
+    if (old) fingerprintSet.delete(old);
+  }
+  return false;
+}
+
+export function dedupeLogEntries(entries: DebugLogEntry[]): DebugLogEntry[] {
+  const seen = new Set<string>();
+  const out: DebugLogEntry[] = [];
+  for (const entry of entries) {
+    const fp = logEntryFingerprint(entry);
+    if (seen.has(fp)) continue;
+    seen.add(fp);
+    out.push(entry);
+  }
+  return out;
+}
+
+function resetDedupeState(): void {
+  recentFingerprints.length = 0;
+  fingerprintSet.clear();
+}
+
 function updateTraceIndex(entry: DebugLogEntry): void {
   const id =
     (typeof entry.traceId === 'string' && entry.traceId) ||
@@ -87,6 +134,8 @@ function defaultProcess(): 'api' | 'worker' {
 }
 
 function writeLogEntry(enriched: DebugLogEntry, options?: { skipBridge?: boolean }): void {
+  if (isDuplicateLogEntry(enriched)) return;
+
   const max = maxEntries();
   const next = index % max;
   buffer[next] = enriched;
@@ -144,6 +193,7 @@ export function clearDebugLogEntries(): void {
   buffer.length = 0;
   index = 0;
   traceIndex.clear();
+  resetDedupeState();
 }
 
 export function getDebugTraces(): DebugTraceSummary[] {
@@ -262,10 +312,11 @@ export function getLastErrorEntry(): DebugLogEntry | undefined {
   return getDebugLogEntriesNewestFirst().find((e) => e.level === 'error' || e.level === 'fatal');
 }
 
-export function getRecentJobIds(limit = 5): string[] {
+export function getRecentJobIds(limit = 5, since?: string): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const e of getDebugLogEntriesNewestFirst()) {
+    if (since && String(e.time ?? '') < since) continue;
     const jobId = typeof e.jobId === 'string' ? e.jobId : undefined;
     if (!jobId || seen.has(jobId)) continue;
     seen.add(jobId);

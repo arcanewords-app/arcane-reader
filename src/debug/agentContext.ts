@@ -7,6 +7,9 @@ import {
   getTracesForJob,
   queryLogEntries,
   sortLogEntries,
+  dedupeLogEntries,
+  type DebugLogEntry,
+  type LogQueryFilters,
 } from './buffer.js';
 import {
   getCapturedLlmCallsForCorrelation,
@@ -28,6 +31,7 @@ import {
 } from './copyFormat.js';
 import { isDebugRedisBridgeAvailable } from './redisBridge.js';
 import { isDebugPersistEnabled } from './persist.js';
+import { resolveTimeWindow } from './timeWindow.js';
 
 const DEFAULT_LOG_LIMIT = 500;
 
@@ -38,6 +42,11 @@ export interface AgentContextParams {
   includePrompts?: boolean;
   includeHttp?: boolean;
   limit?: number;
+  since?: string;
+  until?: string;
+  last?: string;
+  /** Include per-trace sections for multi-chapter jobs (default false) */
+  detailTraces?: boolean;
 }
 
 export interface AgentContextResponse {
@@ -91,16 +100,38 @@ function buildMeta(truncated: boolean) {
   };
 }
 
+function agentLogFilters(params: AgentContextParams): LogQueryFilters {
+  const correlation = {
+    jobId: params.jobId,
+    traceId: params.traceId,
+    requestId: params.requestId,
+  };
+  const window = resolveTimeWindow({
+    since: params.since,
+    until: params.until,
+    last: params.last,
+    ...correlation,
+    applyDefault: false,
+  });
+  return {
+    ...correlation,
+    since: window.since,
+    until: window.until,
+    excludeEvents: parseExcludeEvents(),
+  };
+}
+
+function fetchAgentLogs(params: AgentContextParams): DebugLogEntry[] {
+  return dedupeLogEntries(sortLogEntries(queryLogEntries(agentLogFilters(params)), 'asc'));
+}
+
 function buildJobContext(params: AgentContextParams): AgentContextResponse {
   const jobId = params.jobId!;
   const limit = clampLimit(params.limit);
   const includePrompts = params.includePrompts !== false;
   const includeHttp = params.includeHttp !== false;
 
-  const logs = sortLogEntries(
-    queryLogEntries({ jobId, excludeEvents: parseExcludeEvents() }),
-    'asc'
-  );
+  const logs = fetchAgentLogs(params);
   const truncated = logs.length > limit;
   const logPage = truncated ? logs.slice(-limit) : logs;
 
@@ -137,7 +168,7 @@ function buildJobContext(params: AgentContextParams): AgentContextResponse {
 
   sections.push(formatEntriesMarkdown(logPage, `Job ${jobId} timeline`, { timelineOrder: 'asc' }));
 
-  if (traces.length > 1) {
+  if (params.detailTraces && traces.length > 1) {
     sections.push('', '### Per-trace detail', '');
     for (const t of traces.slice(0, 10)) {
       const traceEntries = sortLogEntries(
@@ -199,15 +230,9 @@ function buildSingleCorrelationContext(
   const includeHttp = params.includeHttp !== false;
   const limit = clampLimit(params.limit);
 
-  let entries = sortLogEntries(
-    queryLogEntries({
-      ...correlation,
-      excludeEvents: parseExcludeEvents(),
-    }),
-    'asc'
-  );
+  let entries = fetchAgentLogs(params);
   if (entries.length === 0) {
-    entries = sortLogEntries(getEntriesForCorrelation(id), 'asc');
+    entries = dedupeLogEntries(sortLogEntries(getEntriesForCorrelation(id), 'asc'));
   }
 
   const truncated = entries.length > limit;

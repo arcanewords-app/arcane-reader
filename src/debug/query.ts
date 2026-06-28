@@ -6,6 +6,7 @@ import {
   queryLogEntries,
   getEntriesForCorrelation,
   getTracesForJob,
+  dedupeLogEntries,
   type DebugLogEntry,
   type LogQueryFilters,
 } from './buffer.js';
@@ -27,6 +28,7 @@ import { isLlmCaptureEnabled } from './promptCapture.js';
 import { isHttpCaptureEnabled } from './httpCapture.js';
 import { isDebugPersistEnabled } from './persist.js';
 import { buildAgentContext, type AgentContextResponse } from './agentContext.js';
+import { resolveTimeWindow } from './timeWindow.js';
 
 export type DebugQueryFormat = 'json' | 'agent';
 export type DebugQueryKind = 'logs' | 'http' | 'prompts' | 'trace' | 'all';
@@ -44,14 +46,17 @@ export interface DebugQueryParams {
   stage?: string;
   since?: string;
   until?: string;
+  last?: string;
   q?: string;
   limit?: number;
   offset?: number;
   compact?: boolean;
+  dedupe?: boolean;
   errorsOnly?: boolean;
   sort?: 'asc' | 'desc';
   format?: DebugQueryFormat;
   includePrompts?: boolean;
+  detailTraces?: boolean;
 }
 
 export interface DebugQueryMeta {
@@ -86,17 +91,30 @@ function clampOffset(offset?: number): number {
   return Math.floor(offset);
 }
 
-function correlationFilters(params: DebugQueryParams) {
+function correlationFilters(params: DebugQueryParams): LogQueryFilters {
+  const window = resolveTimeWindow({
+    since: params.since,
+    until: params.until,
+    last: params.last,
+    traceId: params.traceId,
+    jobId: params.jobId,
+    requestId: params.requestId,
+  });
   return {
     traceId: params.traceId,
     jobId: params.jobId,
     requestId: params.requestId,
     chapterId: params.chapterId,
     projectId: params.projectId,
-    since: params.since,
-    until: params.until,
+    since: window.since,
+    until: window.until ?? params.until,
     q: params.q,
   };
+}
+
+function applyDedupe(entries: DebugLogEntry[], params: DebugQueryParams): DebugLogEntry[] {
+  if (params.dedupe === false) return entries;
+  return dedupeLogEntries(entries);
 }
 
 function logFilters(params: DebugQueryParams): LogQueryFilters {
@@ -146,6 +164,10 @@ export function executeAgentFormatQuery(
     includePrompts: params.includePrompts !== false,
     includeHttp: true,
     limit: params.limit,
+    since: params.since,
+    until: params.until,
+    last: params.last,
+    detailTraces: params.detailTraces,
   });
 }
 
@@ -303,21 +325,44 @@ export function executeDebugQuery(params: DebugQueryParams): {
   const sort = resolveSort(params);
 
   if (kind === 'logs') {
-    const filtered = applySort(queryLogEntries(logFilters(params)), sort);
+    let filtered = applySort(queryLogEntries(logFilters(params)), sort);
+    filtered = applyDedupe(filtered, params);
     const { page, total } = paginate(filtered, limit, offset);
     const items = compact ? page.map(compactLog) : page;
     return { items, meta: buildMeta(kind, total, limit, offset) };
   }
 
   if (kind === 'prompts') {
-    const filtered = applySort(queryLlmCaptures(llmFilters(params)), sort);
+    const window = resolveTimeWindow({
+      since: params.since,
+      until: params.until,
+      last: params.last,
+      traceId: params.traceId,
+      jobId: params.jobId,
+      requestId: params.requestId,
+    });
+    const filtered = applySort(
+      queryLlmCaptures({ ...llmFilters(params), since: window.since, until: window.until }),
+      sort
+    );
     const { page, total } = paginate(filtered, limit, offset);
     const items = compact ? page.map(compactLlm) : page;
     return { items, meta: buildMeta(kind, total, limit, offset) };
   }
 
   if (kind === 'http') {
-    const filtered = applySort(queryHttpExchanges(httpFilters(params)), sort);
+    const window = resolveTimeWindow({
+      since: params.since,
+      until: params.until,
+      last: params.last,
+      traceId: params.traceId,
+      jobId: params.jobId,
+      requestId: params.requestId,
+    });
+    const filtered = applySort(
+      queryHttpExchanges({ ...httpFilters(params), since: window.since, until: window.until }),
+      sort
+    );
     const { page, total } = paginate(filtered, limit, offset);
     const items = compact ? page.map(compactHttp) : page;
     return { items, meta: buildMeta(kind, total, limit, offset) };
@@ -365,13 +410,14 @@ export function executeDebugQuery(params: DebugQueryParams): {
   const logLimit = Math.min(limit, 20);
   const promptLimit = Math.min(limit, 10);
   const httpLimit = Math.min(limit, 10);
-  const logs = applySort(
+  let logs = applySort(
     queryLogEntries({
       ...logFilters(params),
       errorsOnly: params.errorsOnly ?? false,
     }),
     sort
-  ).slice(0, logLimit);
+  );
+  logs = applyDedupe(logs, params).slice(0, logLimit);
   const prompts = queryLlmCaptures(llmFilters(params)).slice(0, promptLimit);
   const http = queryHttpExchanges(httpFilters(params)).slice(0, httpLimit);
   const traces = params.jobId ? getTracesForJob(params.jobId).slice(0, 10) : [];
@@ -398,7 +444,10 @@ export function executeJobDebugQuery(
   const offset = clampOffset(params.offset);
   const compact = params.compact ?? true;
   const traces = getTracesForJob(jobId);
-  const logs = applySort(queryLogEntries({ jobId, ...logFilters(params) }), resolveSort(params));
+  const logs = applyDedupe(
+    applySort(queryLogEntries({ jobId, ...logFilters(params) }), resolveSort(params)),
+    params
+  );
   const prompts = queryLlmCaptures({ jobId, ...llmFilters(params) });
   const http = queryHttpExchanges({ jobId, ...httpFilters(params) });
   const { page: logPage, total } = paginate(logs, limit, offset);
@@ -457,13 +506,16 @@ export function parseDebugQueryFromRequest(query: Record<string, unknown>): Debu
     stage: str(query.stage),
     since: str(query.since),
     until: str(query.until),
+    last: str(query.last),
     q: str(query.q),
     limit: num(query.limit),
     offset: num(query.offset),
     compact: query.compact !== undefined ? bool(query.compact) : undefined,
+    dedupe: query.dedupe !== undefined ? bool(query.dedupe) : undefined,
     errorsOnly: bool(query.errorsOnly),
     sort,
     format,
     includePrompts: query.includePrompts !== undefined ? bool(query.includePrompts) : undefined,
+    detailTraces: bool(query.detail),
   };
 }

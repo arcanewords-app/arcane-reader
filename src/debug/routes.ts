@@ -7,12 +7,13 @@ import { fileURLToPath } from 'url';
 import type { Application, Request, Response } from 'express';
 import express from 'express';
 import {
-  getDebugLogEntries,
   getDebugLogEntriesNewestFirst,
   clearDebugLogEntries,
   getDebugTraces,
   getEntriesForCorrelation,
   getDistinctEvents,
+  queryLogEntries,
+  dedupeLogEntries,
   type DebugLogEntry,
 } from './buffer.js';
 import {
@@ -48,6 +49,7 @@ import { isDebugPersistEnabled } from './persist.js';
 import { buildAgentContext, type AgentContextParams } from './agentContext.js';
 import { getDebugStatus } from './debugStatus.js';
 import { getDebugCatalog } from './catalog.js';
+import { resolveTimeWindow } from './timeWindow.js';
 import {
   normalizeQueryRecord,
   normalizeQueryValue,
@@ -75,6 +77,10 @@ function parseAgentContextParams(query: Record<string, unknown>): AgentContextPa
       query.includePrompts === undefined ? true : parseBoolQuery(query.includePrompts),
     includeHttp: query.includeHttp === undefined ? true : parseBoolQuery(query.includeHttp),
     limit: parseInt(normalizeQueryValue(query.limit) ?? '', 10) || undefined,
+    since: str(query.since),
+    until: str(query.until),
+    last: str(query.last),
+    detailTraces: parseBoolQuery(query.detail),
   };
 }
 
@@ -90,7 +96,30 @@ export function registerDebugRoutes(app: Application): void {
 
   app.get('/api/debug/logs', (req, res) => {
     const newestFirst = parseBoolQuery(req.query.newestFirst);
-    const entries = newestFirst ? getDebugLogEntriesNewestFirst() : getDebugLogEntries();
+    const q = normalizeQueryRecord(req.query as Record<string, unknown>);
+    const str = (v: unknown) => {
+      const s = normalizeQueryValue(v);
+      return s && s.length > 0 ? s : undefined;
+    };
+    const window = resolveTimeWindow({
+      since: str(q.since),
+      until: str(q.until),
+      last: str(q.last),
+      traceId: str(q.traceId),
+      jobId: str(q.jobId),
+      requestId: str(q.requestId),
+    });
+    let entries = queryLogEntries({
+      since: window.since,
+      until: window.until,
+      traceId: str(q.traceId),
+      jobId: str(q.jobId),
+      requestId: str(q.requestId),
+    });
+    entries = dedupeLogEntries(entries);
+    if (!newestFirst) {
+      entries = [...entries].reverse();
+    }
     res.json({
       entries,
       meta: {
@@ -100,6 +129,7 @@ export function registerDebugRoutes(app: Application): void {
         llmCapture: isLlmCaptureEnabled(),
         httpCapture: isHttpCaptureEnabled(),
         persist: isDebugPersistEnabled(),
+        window: window.lastApplied ? { last: window.lastApplied, since: window.since } : undefined,
       },
     });
   });
