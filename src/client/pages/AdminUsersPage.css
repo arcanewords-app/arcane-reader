@@ -70,14 +70,14 @@
 }
 
 .admin-user-role--admin {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgb(59, 130, 246, 0.15);
   color: var(--accent);
 }
 
 .admin-user-role--author,
 .admin-user-role--author_plus,
 .admin-user-role--super_author {
-  background: rgba(34, 197, 94, 0.12);
+  background: rgb(34, 197, 94, 0.12);
   color: var(--success);
 }
 

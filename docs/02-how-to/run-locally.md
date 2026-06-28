@@ -12,7 +12,7 @@ canonical: .cursor/rules/deployment.mdc
 
 ## Prerequisites
 
-- **Node.js 22** (see `.nvmrc`)
+- **Node.js 24** (see `.nvmrc`)
 - [NVM for Windows](https://github.com/coreybutler/nvm-windows) — `winget install CoreyButler.NVMforWindows`
 - Supabase project (URL + anon + service role keys)
 - OpenAI API key
@@ -21,12 +21,12 @@ canonical: .cursor/rules/deployment.mdc
 
 ```powershell
 # New terminal after installing nvm
-nvm install 22
-nvm use 22
-node -v   # v22.x
+nvm install 24
+nvm use 24
+node -v   # v24.x
 
 cd path\to\arcane-reader
-nvm use (Get-Content .nvmrc)   # or: nvm use 22
+nvm use (Get-Content .nvmrc)   # or: nvm use 24
 npm install
 ```
 

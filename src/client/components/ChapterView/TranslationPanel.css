@@ -98,12 +98,12 @@
 .translation-panel-stage-btn:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-glow, rgba(139, 92, 246, 0.1));
+  background: var(--accent-glow, rgb(139, 92, 246, 0.1));
 }
 
 .translation-panel-stage-btn.active {
   border-color: var(--accent);
-  background: var(--accent-glow, rgba(139, 92, 246, 0.15));
+  background: var(--accent-glow, rgb(139, 92, 246, 0.15));
   color: var(--accent);
 }
 

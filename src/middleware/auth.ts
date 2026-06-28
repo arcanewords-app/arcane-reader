@@ -147,7 +147,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
     }
 
     next();
-  } catch (error) {
+  } catch (_error) {
     req.user = null;
     next();
   }

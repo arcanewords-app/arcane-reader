@@ -4,7 +4,7 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { Express, Request, Response } from 'express';
+import type { Application, Request, Response } from 'express';
 import express from 'express';
 import {
   getDebugLogEntries,
@@ -48,15 +48,25 @@ import { isDebugPersistEnabled } from './persist.js';
 import { buildAgentContext, type AgentContextParams } from './agentContext.js';
 import { getDebugStatus } from './debugStatus.js';
 import { getDebugCatalog } from './catalog.js';
+import {
+  normalizeQueryRecord,
+  normalizeQueryValue,
+  requireRouteParam,
+} from '../api/validateRoute.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEBUG_DIST = path.resolve(__dirname, '../../dist/debug');
 
 function parseBoolQuery(v: unknown): boolean {
-  return v === '1' || v === 'true';
+  const s = normalizeQueryValue(v);
+  return s === '1' || s === 'true';
 }
 
 function parseAgentContextParams(query: Record<string, unknown>): AgentContextParams {
-  const str = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : undefined);
+  const str = (v: unknown) => {
+    const s = normalizeQueryValue(v);
+    return s && s.length > 0 ? s : undefined;
+  };
   return {
     jobId: str(query.jobId),
     traceId: str(query.traceId),
@@ -64,11 +74,11 @@ function parseAgentContextParams(query: Record<string, unknown>): AgentContextPa
     includePrompts:
       query.includePrompts === undefined ? true : parseBoolQuery(query.includePrompts),
     includeHttp: query.includeHttp === undefined ? true : parseBoolQuery(query.includeHttp),
-    limit: parseInt(String(query.limit ?? ''), 10) || undefined,
+    limit: parseInt(normalizeQueryValue(query.limit) ?? '', 10) || undefined,
   };
 }
 
-export function registerDebugRoutes(app: Express): void {
+export function registerDebugRoutes(app: Application): void {
   if (process.env.NODE_ENV === 'production') return;
 
   app.get('/debug', (_req, res) => {
@@ -111,7 +121,9 @@ export function registerDebugRoutes(app: Express): void {
       });
       return;
     }
-    const result = buildAgentContext(parseAgentContextParams(req.query as Record<string, unknown>));
+    const result = buildAgentContext(
+      parseAgentContextParams(normalizeQueryRecord(req.query as Record<string, unknown>))
+    );
     if ('error' in result) {
       res.status(400).json(result);
       return;
@@ -128,7 +140,9 @@ export function registerDebugRoutes(app: Express): void {
       });
       return;
     }
-    const params = parseDebugQueryFromRequest(req.query as Record<string, unknown>);
+    const params = parseDebugQueryFromRequest(
+      normalizeQueryRecord(req.query as Record<string, unknown>)
+    );
     if (params.format === 'agent') {
       const agent = executeAgentFormatQuery(params);
       if ('error' in agent) {
@@ -151,8 +165,10 @@ export function registerDebugRoutes(app: Express): void {
       });
       return;
     }
-    const params = parseDebugQueryFromRequest(req.query as Record<string, unknown>);
-    const result = executeJobDebugQuery(req.params.jobId, params);
+    const params = parseDebugQueryFromRequest(
+      normalizeQueryRecord(req.query as Record<string, unknown>)
+    );
+    const result = executeJobDebugQuery(requireRouteParam(req.params.jobId, 'jobId'), params);
     res.json(result);
   });
 
@@ -161,7 +177,7 @@ export function registerDebugRoutes(app: Express): void {
   });
 
   app.get('/api/debug/traces/:id', (req, res) => {
-    const id = req.params.id;
+    const id = requireRouteParam(req.params.id, 'id');
     const entries = getEntriesForCorrelation(id);
     const llmCaptures = getCapturedLlmCallsForCorrelation(id);
     const httpExchanges = getCapturedHttpExchangesForCorrelation(id);
@@ -170,10 +186,10 @@ export function registerDebugRoutes(app: Express): void {
   });
 
   app.get('/api/debug/export', (req, res) => {
-    const format = String(req.query.format ?? 'markdown');
-    const traceId = typeof req.query.traceId === 'string' ? req.query.traceId : undefined;
-    const requestId = typeof req.query.requestId === 'string' ? req.query.requestId : undefined;
-    const jobId = typeof req.query.jobId === 'string' ? req.query.jobId : undefined;
+    const format = normalizeQueryValue(req.query.format) ?? 'markdown';
+    const traceId = normalizeQueryValue(req.query.traceId);
+    const requestId = normalizeQueryValue(req.query.requestId);
+    const jobId = normalizeQueryValue(req.query.jobId);
 
     let entries: DebugLogEntry[] = getDebugLogEntriesNewestFirst();
     if (traceId) entries = getEntriesForCorrelation(traceId);
@@ -181,8 +197,8 @@ export function registerDebugRoutes(app: Express): void {
     else if (requestId) entries = getEntriesForCorrelation(requestId);
 
     const visibleOnly = parseBoolQuery(req.query.visibleOnly);
-    if (visibleOnly && typeof req.query.ids === 'string') {
-      const idSet = new Set(req.query.ids.split(',').filter(Boolean));
+    if (visibleOnly && normalizeQueryValue(req.query.ids)) {
+      const idSet = new Set((normalizeQueryValue(req.query.ids) ?? '').split(',').filter(Boolean));
       entries = entries.filter((_, i) => idSet.has(String(i)));
     }
 

@@ -119,7 +119,7 @@ export async function parseFb2(fileBuffer: Buffer): Promise<ParseResult> {
           }
         }
       }
-    } catch (coverError) {
+    } catch (_coverError) {
       warnings.push('Не удалось извлечь обложку');
     }
 

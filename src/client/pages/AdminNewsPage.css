@@ -15,12 +15,12 @@
 }
 
 .admin-news-status--draft {
-  background: rgba(245, 158, 11, 0.15);
+  background: rgb(245, 158, 11, 0.15);
   color: var(--warning);
 }
 
 .admin-news-status--published {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgb(34, 197, 94, 0.15);
   color: var(--success);
 }
 
@@ -90,7 +90,7 @@
 }
 
 .admin-news-alert-badge.active {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgb(34, 197, 94, 0.15);
   color: var(--success);
 }
 

@@ -160,8 +160,8 @@
 }
 
 .header-support-btn:hover {
-  border-color: rgba(245, 158, 11, 0.45);
-  background: rgba(245, 158, 11, 0.08);
+  border-color: rgb(245, 158, 11, 0.45);
+  background: rgb(245, 158, 11, 0.08);
 }
 
 .header-support-label {
@@ -197,7 +197,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgb(0, 0, 0, 0.15);
   z-index: 1001;
 }
 
@@ -296,7 +296,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgb(0, 0, 0, 0.15);
   z-index: 1001;
 }
 
@@ -325,7 +325,7 @@
 
 .locale-dropdown-item.active {
   color: var(--accent-bright);
-  background: rgba(157, 111, 255, 0.15);
+  background: rgb(157, 111, 255, 0.15);
 }
 
 .locale-dropdown-item:focus-visible {
@@ -363,7 +363,7 @@
 
 .header-avatar-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgb(0, 0, 0, 0.2);
 }
 
 .header-avatar-btn:focus-visible {

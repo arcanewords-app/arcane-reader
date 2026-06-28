@@ -4,9 +4,10 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { Express, Response } from 'express';
+import type { Application, Response } from 'express';
 import express from 'express';
 import multer from 'multer';
+import { asUploadMiddleware } from '../shared/multerCompat.js';
 import {
   promptLabCurrentQuerySchema,
   promptLabPreviewBodySchema,
@@ -71,6 +72,11 @@ import {
   rowToPromptLabText,
   type PromptLabRunParams,
 } from './types.js';
+import {
+  normalizeQueryRecord,
+  normalizeQueryValue,
+  requireRouteParam,
+} from '../api/validateRoute.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPT_LAB_DIST = path.resolve(__dirname, '../../dist/prompt-lab');
@@ -80,7 +86,7 @@ function sendZodError(res: Response, error: { flatten: () => unknown }): void {
   res.status(400).json({ error: 'Validation failed', details: error.flatten() });
 }
 
-export function registerPromptLabRoutes(app: Express): void {
+export function registerPromptLabRoutes(app: Application): void {
   if (process.env.NODE_ENV === 'production') return;
 
   app.get('/prompt-lab', (_req, res) => {
@@ -123,7 +129,9 @@ export function registerPromptLabRoutes(app: Express): void {
   });
 
   app.get('/api/prompt-lab/prompts/current', (req, res) => {
-    const parsed = promptLabCurrentQuerySchema.safeParse(req.query);
+    const parsed = promptLabCurrentQuerySchema.safeParse(
+      normalizeQueryRecord(req.query as Record<string, unknown>)
+    );
     if (!parsed.success) {
       sendZodError(res, parsed.error);
       return;
@@ -156,9 +164,9 @@ export function registerPromptLabRoutes(app: Express): void {
   app.get('/api/prompt-lab/prompts', async (req, res) => {
     try {
       const rows = await listPromptLabPrompts({
-        stage: typeof req.query.stage === 'string' ? req.query.stage : undefined,
-        sourceLanguage: typeof req.query.source === 'string' ? req.query.source : undefined,
-        targetLanguage: typeof req.query.target === 'string' ? req.query.target : undefined,
+        stage: normalizeQueryValue(req.query.stage),
+        sourceLanguage: normalizeQueryValue(req.query.source),
+        targetLanguage: normalizeQueryValue(req.query.target),
       });
       res.json({ prompts: rows.map(rowToPromptLabPrompt) });
     } catch (e) {
@@ -205,7 +213,7 @@ export function registerPromptLabRoutes(app: Express): void {
         patch.user_prompt_override = parsed.data.userPromptOverride;
       if (parsed.data.preset !== undefined) patch.preset = parsed.data.preset;
       if (parsed.data.focus !== undefined) patch.focus = parsed.data.focus;
-      const row = await updatePromptLabPrompt(req.params.id, patch);
+      const row = await updatePromptLabPrompt(requireRouteParam(req.params.id, 'id'), patch);
       res.json(rowToPromptLabPrompt(row));
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to update prompt' });
@@ -214,7 +222,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.delete('/api/prompt-lab/prompts/:id', async (req, res) => {
     try {
-      await deletePromptLabPrompt(req.params.id);
+      await deletePromptLabPrompt(requireRouteParam(req.params.id, 'id'));
       res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to delete prompt' });
@@ -275,7 +283,7 @@ export function registerPromptLabRoutes(app: Express): void {
       if (parsed.data.sourceLanguage) patch.source_language = parsed.data.sourceLanguage;
       if (parsed.data.targetLanguage) patch.target_language = parsed.data.targetLanguage;
       if (parsed.data.stageHint !== undefined) patch.stage_hint = parsed.data.stageHint;
-      const row = await updatePromptLabText(req.params.id, patch);
+      const row = await updatePromptLabText(requireRouteParam(req.params.id, 'id'), patch);
       res.json(rowToPromptLabText(row));
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to update text' });
@@ -284,7 +292,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.delete('/api/prompt-lab/texts/:id', async (req, res) => {
     try {
-      await deletePromptLabText(req.params.id);
+      await deletePromptLabText(requireRouteParam(req.params.id, 'id'));
       res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to delete text' });
@@ -293,7 +301,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.get('/api/prompt-lab/runs', async (req, res) => {
     try {
-      const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+      const limit = Math.min(parseInt(normalizeQueryValue(req.query.limit) ?? '50', 10) || 50, 200);
       const rows = await listPromptLabRuns(limit);
       res.json({ runs: rows.map(rowToPromptLabRun) });
     } catch (e) {
@@ -303,7 +311,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.get('/api/prompt-lab/runs/:id', async (req, res) => {
     try {
-      const row = await getPromptLabRun(req.params.id);
+      const row = await getPromptLabRun(requireRouteParam(req.params.id, 'id'));
       if (!row) {
         res.status(404).json({ error: 'Run not found' });
         return;
@@ -316,7 +324,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.get('/api/prompt-lab/runs/:id/export', async (req, res) => {
     try {
-      const row = await getPromptLabRun(req.params.id);
+      const row = await getPromptLabRun(requireRouteParam(req.params.id, 'id'));
       if (!row) {
         res.status(404).json({ error: 'Run not found' });
         return;
@@ -337,7 +345,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.delete('/api/prompt-lab/runs/:id', async (req, res) => {
     try {
-      await deletePromptLabRun(req.params.id);
+      await deletePromptLabRun(requireRouteParam(req.params.id, 'id'));
       res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to delete run' });
@@ -351,7 +359,7 @@ export function registerPromptLabRoutes(app: Express): void {
       return;
     }
     try {
-      const row = await updatePromptLabRun(req.params.id, {
+      const row = await updatePromptLabRun(requireRouteParam(req.params.id, 'id'), {
         display_name: parsed.data.displayName,
       });
       res.json(rowToPromptLabRun(row));
@@ -362,8 +370,8 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.get('/api/prompt-lab/evaluations', async (req, res) => {
     try {
-      const runId = typeof req.query.runId === 'string' ? req.query.runId : undefined;
-      const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+      const runId = normalizeQueryValue(req.query.runId);
+      const limit = Math.min(parseInt(normalizeQueryValue(req.query.limit) ?? '50', 10) || 50, 200);
       const rows = await listPromptLabEvaluations({ runId, limit });
       res.json({ evaluations: rows.map(rowToPromptLabEvaluation) });
     } catch (e) {
@@ -375,7 +383,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.get('/api/prompt-lab/evaluations/:id', async (req, res) => {
     try {
-      const row = await getPromptLabEvaluation(req.params.id);
+      const row = await getPromptLabEvaluation(requireRouteParam(req.params.id, 'id'));
       if (!row) {
         res.status(404).json({ error: 'Evaluation not found' });
         return;
@@ -388,7 +396,7 @@ export function registerPromptLabRoutes(app: Express): void {
 
   app.delete('/api/prompt-lab/evaluations/:id', async (req, res) => {
     try {
-      await deletePromptLabEvaluation(req.params.id);
+      await deletePromptLabEvaluation(requireRouteParam(req.params.id, 'id'));
       res.json({ ok: true });
     } catch (e) {
       res
@@ -496,26 +504,30 @@ export function registerPromptLabRoutes(app: Express): void {
     }
   });
 
-  app.post('/api/prompt-lab/glossary/import', upload.single('file'), async (req, res) => {
-    try {
-      let buffer: Buffer;
-      let filename: string;
-      if (req.file) {
-        buffer = req.file.buffer;
-        filename = req.file.originalname;
-      } else if (req.body?.content && typeof req.body.content === 'string') {
-        buffer = Buffer.from(req.body.content, 'utf8');
-        filename = req.body.filename ?? 'import.json';
-      } else {
-        res.status(400).json({ error: 'Provide multipart file or JSON body with content' });
-        return;
+  app.post(
+    '/api/prompt-lab/glossary/import',
+    asUploadMiddleware(upload.single('file')),
+    async (req, res) => {
+      try {
+        let buffer: Buffer;
+        let filename: string;
+        if (req.file) {
+          buffer = req.file.buffer;
+          filename = req.file.originalname;
+        } else if (req.body?.content && typeof req.body.content === 'string') {
+          buffer = Buffer.from(req.body.content, 'utf8');
+          filename = req.body.filename ?? 'import.json';
+        } else {
+          res.status(400).json({ error: 'Provide multipart file or JSON body with content' });
+          return;
+        }
+        const parsed = parseGlossaryImportFile(buffer, filename);
+        res.json(parsed);
+      } catch (e) {
+        res.status(400).json({ error: e instanceof Error ? e.message : 'Import failed' });
       }
-      const parsed = parseGlossaryImportFile(buffer, filename);
-      res.json(parsed);
-    } catch (e) {
-      res.status(400).json({ error: e instanceof Error ? e.message : 'Import failed' });
     }
-  });
+  );
 
   app.post('/api/prompt-lab/run', async (req, res) => {
     const parsed = promptLabRunBodySchema.safeParse(req.body ?? {});

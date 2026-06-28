@@ -105,7 +105,7 @@
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgb(0, 0, 0, 0.1);
   border-radius: 6px;
   min-width: 36px;
   min-height: 36px;
@@ -258,7 +258,7 @@
 .setting-select {
   padding: 0.5rem 2.5rem 0.5rem 0.75rem;
   background:
-    linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%),
+    linear-gradient(135deg, var(--bg-secondary) 0%, rgb(18, 18, 26, 0.8) 100%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
@@ -287,28 +287,28 @@
 }
 
 .setting-select:hover {
-  border-color: rgba(139, 92, 246, 0.4);
+  border-color: rgb(139, 92, 246, 0.4);
   background:
-    linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.8) 100%),
+    linear-gradient(135deg, var(--bg-secondary) 0%, rgb(18, 18, 26, 0.8) 100%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: auto, 12px;
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+  box-shadow: 0 2px 8px rgb(139, 92, 246, 0.1);
 }
 
 .setting-select:focus {
   outline: none;
   border-color: var(--accent);
   background:
-    linear-gradient(135deg, var(--bg-secondary) 0%, rgba(18, 18, 26, 0.95) 100%),
+    linear-gradient(135deg, var(--bg-secondary) 0%, rgb(18, 18, 26, 0.95) 100%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: auto, 12px;
   box-shadow:
     0 0 0 3px var(--accent-glow),
-    0 4px 16px rgba(139, 92, 246, 0.2);
+    0 4px 16px rgb(139, 92, 246, 0.2);
 }
 
 .setting-select option {
@@ -433,7 +433,7 @@
 
 .stage-toggle.active {
   border-color: var(--accent);
-  background: rgba(139, 92, 246, 0.1);
+  background: rgb(139, 92, 246, 0.1);
 }
 
 .stage-toggle.disabled {
@@ -533,7 +533,7 @@
 /* === Alert Banner === */
 
 .alert-banner {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgb(239, 68, 68, 0.1);
   border: 1px solid var(--error);
   border-radius: 12px;
   padding: 1rem 1.5rem;
@@ -610,7 +610,7 @@
   height: auto;
   max-height: 180px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgb(0, 0, 0, 0.3);
   object-fit: contain;
   background: var(--bg-secondary);
 }
@@ -652,7 +652,7 @@
   background: var(--bg-secondary);
   border-radius: 6px;
   white-space: pre-wrap;
-  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .description-text.editable {

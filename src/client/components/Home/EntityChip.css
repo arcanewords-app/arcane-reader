@@ -19,7 +19,7 @@
   max-width: 320px;
   width: max-content;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgb(0, 0, 0, 0.3);
   animation: entity-chip-popup-in var(--duration-fast) var(--ease-standard);
   white-space: pre-wrap;
   word-break: break-word;

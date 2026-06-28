@@ -15,13 +15,32 @@ description: Express API patterns for Arcane Reader — Zod, auth, 503, routing 
 
 ## Domain Knowledge
 
-- **Validation:** `schema.safeParse(req.body)` or query; 400 + `flatten().fieldErrors`
+- **Validation:** `validateParams` / `validateQuery` from `@src/api/validateRoute.ts` for path and query; `schema.safeParse(req.body)` for body; 400 + `flatten().fieldErrors`
 - **Auth:** Bearer JWT; `requireAuth`, `optionalAuth`, `requireRole('author' | 'admin' | …)`
 - **503:** `handleServiceError` must be first in catch for Supabase/Redis failures
 - **Cache:** `withRedisCache` on read-heavy GETs; invalidate on writes per `cache.mdc`
 - **Routes SSOT:** `.cursor/rules/routing.mdc` — not `docs/ROUTES.md` alone
 
 ## Patterns
+
+```typescript
+import { validateParams, parseQuery } from '../api/validateRoute.js';
+import { projectIdParamSchema } from '../api/routeParams.js';
+
+app.get(
+  '/api/projects/:id',
+  requireAuth,
+  validateParams(projectIdParamSchema),
+  async (req, res) => {
+    const { id } = req.validatedParams as { id: string };
+    // ...
+  }
+);
+
+// Or inline query parse (Express 5-safe):
+const query = parseQuery(myQuerySchema, req, res);
+if (!query) return;
+```
 
 ```typescript
 const parsed = mySchema.safeParse(req.body);
@@ -46,7 +65,8 @@ try {
 
 ## Anti-patterns
 
-- Skipping Zod on new body/query parameters
+- Skipping Zod on new body/query/**path** parameters
+- Raw `req.params.id` without `validateParams` or `requireRouteParam` (Express 5 migration)
 - 500 for Supabase/Redis outages (use 503 via `handleServiceError`)
 - Forgetting `routing.mdc` when adding/removing paths
 - Business logic bloating route handlers (move to services)

@@ -19,19 +19,19 @@
 }
 
 .announcement-banner--info {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgb(59, 130, 246, 0.12);
   border-bottom: 1px solid var(--accent);
   color: var(--text-primary);
 }
 
 .announcement-banner--promo {
-  background: rgba(168, 85, 247, 0.12);
+  background: rgb(168, 85, 247, 0.12);
   border-bottom: 1px solid #a855f7;
   color: var(--text-primary);
 }
 
 .announcement-banner--neutral {
-  background: rgba(148, 163, 184, 0.12);
+  background: rgb(148, 163, 184, 0.12);
   border-bottom: 1px solid var(--border-hover);
   color: var(--text-primary);
 }

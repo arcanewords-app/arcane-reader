@@ -102,7 +102,7 @@ export async function listFiles(
 
   // Supabase Storage list() is paginated via offset/limit.
   // We continue until we receive fewer than `limit` items.
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const { data, error } = await supabase.storage.from(bucket).list(folder, {
       limit,

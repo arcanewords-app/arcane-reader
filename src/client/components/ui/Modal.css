@@ -9,7 +9,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgb(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -38,8 +38,8 @@
   transform: translateY(20px) scale(0.96);
   transition: all var(--duration-slow) var(--ease-emphasized);
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(157, 111, 255, 0.15);
+    0 20px 60px rgb(0, 0, 0, 0.6),
+    0 0 0 1px rgb(157, 111, 255, 0.15);
   position: relative;
 }
 
@@ -89,8 +89,8 @@
 }
 
 .modal-close-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
+  background: rgb(239, 68, 68, 0.15);
+  border-color: rgb(239, 68, 68, 0.4);
   color: var(--error);
   transform: scale(1.05);
 }
@@ -157,7 +157,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,7 +168,7 @@
 .error-modal {
   background: var(--bg-primary);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgb(0, 0, 0, 0.3);
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
@@ -236,7 +236,7 @@
   border-radius: 6px;
   margin-top: 0.5rem;
   white-space: pre-wrap;
-  word-wrap: break-word;
+  overflow-wrap: break-word;
   overflow-x: auto;
 }
 
@@ -272,7 +272,7 @@
 }
 
 .error-modal-footer button.confirm-danger:hover {
-  background: rgba(239, 68, 68, 0.9);
+  background: rgb(239, 68, 68, 0.9);
 }
 
 /* === Compact alert modals (success + error alerts) === */

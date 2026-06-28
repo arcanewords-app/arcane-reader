@@ -5,7 +5,7 @@
  */
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 process.env.NODE_ENV = 'production';
 process.env.LOG_SHIPPING = process.env.LOG_SHIPPING ?? '1';

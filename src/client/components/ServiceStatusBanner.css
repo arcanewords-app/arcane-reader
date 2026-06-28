@@ -22,19 +22,19 @@
 }
 
 .service-status-banner--down {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgb(239, 68, 68, 0.15);
   border-bottom: 1px solid var(--error);
   color: var(--text-primary);
 }
 
 .service-status-banner--degraded {
-  background: rgba(245, 158, 11, 0.15);
+  background: rgb(245, 158, 11, 0.15);
   border-bottom: 1px solid var(--warning);
   color: var(--text-primary);
 }
 
 .service-status-banner--recovered {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgb(34, 197, 94, 0.15);
   border-bottom: 1px solid var(--success);
   color: var(--text-primary);
 }

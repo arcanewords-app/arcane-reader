@@ -41,7 +41,7 @@ h3 {
 }
 
 .pl-banner.error {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgb(239, 68, 68, 0.12);
   border-color: var(--pl-error);
   color: #fecaca;
 }
@@ -281,7 +281,7 @@ h3 {
 }
 
 .pl-badge.modified {
-  background: rgba(234, 179, 8, 0.2);
+  background: rgb(234, 179, 8, 0.2);
   color: var(--pl-warn);
 }
 
@@ -460,7 +460,7 @@ h3 {
 .pl-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgb(0, 0, 0, 0.65);
   border: none;
   padding: 0;
   cursor: pointer;
@@ -477,7 +477,7 @@ h3 {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 50px rgb(0, 0, 0, 0.4);
 }
 
 .pl-modal--large {
@@ -580,12 +580,12 @@ h3 {
 }
 
 .pl-diff-line--added {
-  background: rgba(34, 197, 94, 0.12);
+  background: rgb(34, 197, 94, 0.12);
   color: #86efac;
 }
 
 .pl-diff-line--removed {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgb(239, 68, 68, 0.12);
   color: #fca5a5;
 }
 
@@ -661,7 +661,7 @@ h3 {
 }
 
 .pl-banner.warn {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgb(245, 158, 11, 0.12);
   border-color: #f59e0b;
   color: #fde68a;
   margin-bottom: var(--pl-space-md);
@@ -897,12 +897,12 @@ h3 {
 }
 
 .pl-verdict-badge--a {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgb(59, 130, 246, 0.15);
   color: #3b82f6;
 }
 
 .pl-verdict-badge--b {
-  background: rgba(168, 85, 247, 0.15);
+  background: rgb(168, 85, 247, 0.15);
   color: #a855f7;
 }
 
@@ -946,27 +946,27 @@ h3 {
 }
 
 .pl-chip--stage-analyze {
-  background: rgba(34, 211, 238, 0.15);
+  background: rgb(34, 211, 238, 0.15);
   color: #67e8f9;
-  border-color: rgba(34, 211, 238, 0.35);
+  border-color: rgb(34, 211, 238, 0.35);
 }
 
 .pl-chip--stage-translate {
-  background: rgba(167, 139, 250, 0.15);
+  background: rgb(167, 139, 250, 0.15);
   color: #c4b5fd;
-  border-color: rgba(167, 139, 250, 0.35);
+  border-color: rgb(167, 139, 250, 0.35);
 }
 
 .pl-chip--stage-edit {
-  background: rgba(245, 158, 11, 0.15);
+  background: rgb(245, 158, 11, 0.15);
   color: #fcd34d;
-  border-color: rgba(245, 158, 11, 0.35);
+  border-color: rgb(245, 158, 11, 0.35);
 }
 
 .pl-chip--model {
-  background: hsla(var(--pl-chip-hue, 260), 55%, 45%, 0.2);
+  background: hsl(var(--pl-chip-hue, 260), 55%, 45%, 0.2);
   color: hsl(var(--pl-chip-hue, 260), 70%, 78%);
-  border-color: hsla(var(--pl-chip-hue, 260), 55%, 50%, 0.4);
+  border-color: hsl(var(--pl-chip-hue, 260), 55%, 50%, 0.4);
 }
 
 .pl-chip--lang {
@@ -978,7 +978,7 @@ h3 {
 }
 
 .pl-chip--preset {
-  background: rgba(148, 163, 184, 0.12);
+  background: rgb(148, 163, 184, 0.12);
   color: var(--pl-muted);
   border-color: var(--pl-border);
   text-transform: lowercase;
@@ -992,21 +992,21 @@ h3 {
 }
 
 .pl-chip--origin-manual {
-  background: rgba(167, 139, 250, 0.1);
+  background: rgb(167, 139, 250, 0.1);
   color: #c4b5fd;
-  border-color: rgba(167, 139, 250, 0.4);
+  border-color: rgb(167, 139, 250, 0.4);
 }
 
 .pl-chip--status-ok {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgb(34, 197, 94, 0.15);
   color: #86efac;
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: rgb(34, 197, 94, 0.35);
 }
 
 .pl-chip--status-fail {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgb(239, 68, 68, 0.15);
   color: #fca5a5;
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: rgb(239, 68, 68, 0.35);
 }
 
 .pl-chip--neutral {
@@ -1146,7 +1146,7 @@ h3 {
   padding: var(--pl-space-sm) var(--pl-space-md);
   border: 1px solid var(--pl-border);
   border-radius: var(--pl-radius-sm);
-  background: var(--pl-surface-2, rgba(0, 0, 0, 0.03));
+  background: var(--pl-surface-2, rgb(0, 0, 0, 0.03));
 }
 
 .pl-exec-preview__title {

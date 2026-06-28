@@ -23,7 +23,7 @@ textarea.form-input {
   padding: 0.875rem 1rem;
   min-height: 48px;
   background: var(--bg-card);
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid rgb(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: var(--font-display);
@@ -71,7 +71,7 @@ textarea.form-input:focus {
   background-repeat: no-repeat;
   background-position: right 1rem center;
   background-size: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid rgb(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: var(--font-display);
@@ -131,7 +131,7 @@ textarea.form-input:focus {
 
 .form-input.error:focus,
 .form-select.error:focus {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 0 3px rgb(239, 68, 68, 0.2);
 }
 
 .form-error-message {

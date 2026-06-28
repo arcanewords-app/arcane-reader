@@ -96,7 +96,7 @@ npm run kill-port
 | Format                   | `npm run format`                 |
 | Production build         | `npm run build`                  |
 
-**Node:** `.nvmrc` pins **22**. On Windows use [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 22`, `nvm use 22`. Restart the terminal after install so `PATH` picks up `C:\nvm4w\nodejs`.
+**Node:** `.nvmrc` pins **24**. On Windows use [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 24`, `nvm use 24`. Restart the terminal after install so `PATH` picks up `C:\nvm4w\nodejs`. Keep `.nvmrc`, `package.json` `engines.node`, and `@types/node` in sync (see `@.cursor/skills/dependency-maintenance/SKILL.md`).
 
 **First run:**
 

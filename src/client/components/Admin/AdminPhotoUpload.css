@@ -72,7 +72,7 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0, 0, 0, 0.6);
   border: none;
   border-radius: var(--radius-full);
   color: white;
@@ -81,7 +81,7 @@
 }
 
 .admin-photo-remove:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgb(0, 0, 0, 0.8);
 }
 
 .admin-photo-remove:focus-visible {

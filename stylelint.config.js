@@ -4,6 +4,8 @@ export default {
   ignoreFiles: ['node_modules/', 'dist/', '**/*.min.css'],
   rules: {
     'selector-class-pattern': null,
+    'selector-id-pattern': null,
+    'declaration-property-value-keyword-no-deprecated': null,
     'color-function-notation': null,
     'alpha-value-notation': null,
     'rule-empty-line-before': null,

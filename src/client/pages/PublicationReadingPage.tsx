@@ -134,7 +134,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     return () => {
       cancelled = true;
     };
-  }, [publicationId, chapterId, data?.chapters]);
+  }, [publicationId, chapterId, data]);
 
   // Check auth and load read progress for authenticated users
   useEffect(() => {
@@ -224,7 +224,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       (data?.chapters ?? [])
         .filter((ch) => ch.hasTranslation)
         .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- data.chapters identity stable after load
+
     [data?.chapters]
   );
 

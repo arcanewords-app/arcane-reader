@@ -41,12 +41,12 @@
   --accent-dim: #7c3aed;
   --accent-bright: #b794ff;
   --accent-contrast: #ffffff;
-  --accent-glow: rgba(157, 111, 255, 0.35);
+  --accent-glow: rgb(157, 111, 255, 0.35);
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(157, 111, 255, 0.3);
-  --border-focus: rgba(157, 111, 255, 0.5);
+  --border: rgb(255, 255, 255, 0.08);
+  --border-hover: rgb(157, 111, 255, 0.3);
+  --border-focus: rgb(157, 111, 255, 0.5);
 
   /* Status colors */
   --success: #22c55e;
@@ -86,10 +86,10 @@
   --reader-text-dim: #b4b9c5;
   /* Reader chrome (header, nav, footer, modals in reading mode) */
   --reader-chrome-bg: #151520;
-  --reader-chrome-border: rgba(255, 255, 255, 0.08);
+  --reader-chrome-border: rgb(255, 255, 255, 0.08);
   --reader-accent-text: #ffffff;
   /* Alt background for text blocks (system-message, note, etc.) */
-  --reader-bg-alt: rgba(157, 111, 255, 0.12);
+  --reader-bg-alt: rgb(157, 111, 255, 0.12);
 
   /* =============================================================
      RESPONSIVE LAYOUT - Fixed Sizes for 3 Devices
@@ -212,56 +212,56 @@
 
 [data-reader-theme='dark'] {
   --reader-bg: #1a1a2e;
-  --reader-bg-alt: rgba(157, 111, 255, 0.12);
+  --reader-bg-alt: rgb(157, 111, 255, 0.12);
   --reader-text: #f0f0f3;
   --reader-text-dim: #b4b9c5;
   --reader-accent: #9d6fff;
   --reader-chrome-bg: #151520;
-  --reader-chrome-border: rgba(255, 255, 255, 0.08);
+  --reader-chrome-border: rgb(255, 255, 255, 0.08);
   --reader-accent-text: #ffffff;
 }
 
 [data-reader-theme='light'] {
   --reader-bg: #fafafa;
-  --reader-bg-alt: rgba(124, 58, 237, 0.1);
+  --reader-bg-alt: rgb(124, 58, 237, 0.1);
   --reader-text: #1f1f1f;
   --reader-text-dim: #6b7280;
   --reader-accent: #7c3aed;
   --reader-chrome-bg: #f0f0f0;
-  --reader-chrome-border: rgba(0, 0, 0, 0.1);
+  --reader-chrome-border: rgb(0, 0, 0, 0.1);
   --reader-accent-text: #ffffff;
 }
 
 [data-reader-theme='sepia'] {
   --reader-bg: #f4ecd8;
-  --reader-bg-alt: rgba(139, 105, 20, 0.15);
+  --reader-bg-alt: rgb(139, 105, 20, 0.15);
   --reader-text: #5c4b37;
   --reader-text-dim: #8b7355;
   --reader-accent: #8b6914;
   --reader-chrome-bg: #ebe0c8;
-  --reader-chrome-border: rgba(92, 75, 55, 0.2);
+  --reader-chrome-border: rgb(92, 75, 55, 0.2);
   --reader-accent-text: #ffffff;
 }
 
 [data-reader-theme='contrast'] {
   --reader-bg: #000000;
-  --reader-bg-alt: rgba(255, 204, 0, 0.15);
+  --reader-bg-alt: rgb(255, 204, 0, 0.15);
   --reader-text: #ffffff;
   --reader-text-dim: #cccccc;
   --reader-accent: #ffcc00;
   --reader-chrome-bg: #111111;
-  --reader-chrome-border: rgba(255, 255, 255, 0.25);
+  --reader-chrome-border: rgb(255, 255, 255, 0.25);
   --reader-accent-text: #000000;
 }
 
 [data-reader-theme='paper'] {
   --reader-bg: #f5f1e5;
-  --reader-bg-alt: rgba(139, 105, 20, 0.1);
+  --reader-bg-alt: rgb(139, 105, 20, 0.1);
   --reader-text: #28282a;
   --reader-text-dim: #5a5a5d;
   --reader-accent: #7d5a3c;
   --reader-chrome-bg: #e8e2d0;
-  --reader-chrome-border: rgba(40, 40, 42, 0.12);
+  --reader-chrome-border: rgb(40, 40, 42, 0.12);
   --reader-accent-text: #ffffff;
 }
 

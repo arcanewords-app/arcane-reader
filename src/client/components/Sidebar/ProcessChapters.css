@@ -219,7 +219,7 @@
 }
 
 .process-chapters-preset-active {
-  background: var(--accent-subtle, rgba(var(--accent-rgb), 0.1)) !important;
+  background: var(--accent-subtle, rgb(var(--accent-rgb), 0.1)) !important;
   border: 1px solid var(--accent) !important;
   color: var(--accent) !important;
 }

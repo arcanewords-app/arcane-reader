@@ -116,7 +116,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
       if (await translateJobStore.isCancelRequested(jobId)) cancelledFlag = true;
     }, 500);
 
-    const { performTranslation } = await import('../../server.js');
+    const { performTranslation } = await import('../../api/chapterTranslation.js');
 
     try {
       for (let i = 0; i < sortedChapters.length; i++) {

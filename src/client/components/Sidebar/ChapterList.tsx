@@ -374,7 +374,7 @@ export function ChapterList({
         let pollDelayMs = IMPORT_POLL_INTERVAL_MIN_MS;
         let previousSnapshot = '';
         let importPollAttempt = 0;
-        // eslint-disable-next-line no-constant-condition -- exits by terminal statuses
+
         while (true) {
           importPollAttempt++;
           if (importPollAttempt > MAX_IMPORT_POLL_ATTEMPTS) {
@@ -392,7 +392,7 @@ export function ChapterList({
           let state;
           try {
             state = await api.getImportJob(projectId as string, job.jobId, controller.signal);
-          } catch (jobErr) {
+          } catch (_jobErr) {
             const msg = t('chapterList.importJobLost');
             setQueue((prev) => {
               const next = prev.map((it) =>
@@ -876,8 +876,7 @@ export function ChapterList({
   }, [selectedId, filteredChapters, containerHeight]);
 
   // dnd-kit drag start handler
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- event required by DndContext signature
-  const handleDndStart = (event: DragStartEvent) => {
+  const handleDndStart = (_event: DragStartEvent) => {
     // starting a new drag clears previous undo (we don't keep multiple undo slots)
     clearUndoImmediate();
     setIsDragging(true);

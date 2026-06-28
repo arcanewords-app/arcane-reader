@@ -23,7 +23,7 @@
 
 .entity-picker-modal__error {
   padding: var(--space-md);
-  background: rgba(239, 68, 68, 0.1);
+  background: rgb(239, 68, 68, 0.1);
   border: 1px solid var(--error);
   border-radius: var(--radius-sm);
   color: var(--error);

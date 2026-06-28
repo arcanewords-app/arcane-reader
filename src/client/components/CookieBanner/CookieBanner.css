@@ -9,7 +9,7 @@
   padding: var(--space-md) var(--space-lg);
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -4px 12px rgb(0, 0, 0, 0.08);
   animation: cookie-banner-in 0.3s var(--ease-standard);
 }
 

@@ -61,6 +61,13 @@ npm run start        # node dist/server.js
 npm run start:worker # separate process for queues
 ```
 
+## Node.js runtime
+
+- **SSOT:** `.nvmrc`, `package.json` `engines.node`, `@types/node` — all must match the same major (currently **24.x**).
+- **Local:** `nvm use` (see `@docs/02-how-to/run-locally.md`).
+- **Vercel:** Project Settings → Build and Deployment → Node.js Version → **24.x** (or rely on `engines.node` in `package.json`).
+- **Worker host:** same Node major as API (long-lived `start:worker` process).
+
 ## Vercel
 
 - Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes. Public SEO pages `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/news/:slug*`, `/account-tiers`, and `/p/*` route to `api/index` for SSR meta (see `routing.mdc` SEO section).

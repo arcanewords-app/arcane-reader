@@ -19,12 +19,13 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 | Trello boards (MCP)       | [`.cursor/skills/trello-mcp/SKILL.md`](.cursor/skills/trello-mcp/SKILL.md) — credentials in `~/.cursor/mcp.json`                    |
 | Prod/staging logs (MCP)   | [`.cursor/skills/axiom-mcp/SKILL.md`](.cursor/skills/axiom-mcp/SKILL.md) — OAuth via official Axiom MCP                             |
 | Local dev debug (curl)    | [`.cursor/skills/debug-local/SKILL.md`](.cursor/skills/debug-local/SKILL.md) — `/api/debug/query` on localhost:3000                 |
+| npm audit, deps, Node     | [`.cursor/skills/dependency-maintenance/SKILL.md`](.cursor/skills/dependency-maintenance/SKILL.md) — CVE triage, phased updates     |
 
 **Workflow:** orchestrator → read active [`.cursor/agents/<domain>/AGENT.md`](.cursor/agents/) + [`.cursor/skills/<domain>/SKILL.md`](.cursor/skills/) → follow domain `.mdc` rules.
 
 **Nested context:** [`src/client/AGENTS.md`](src/client/AGENTS.md), [`src/engine/AGENTS.md`](src/engine/AGENTS.md), [`docs/AGENTS.md`](docs/AGENTS.md) (Obsidian vault).
 
-**Utility subagents** (not domain team): `devtools.md` (Windows VM: search/files/npm — invoke when shell commands fail or repeat), `seo` ([`.cursor/agents/seo/AGENT.md`](.cursor/agents/seo/AGENT.md) — audits, GSC, publication SEO), `news-content` ([`.cursor/agents/news-content/AGENT.md`](.cursor/agents/news-content/AGENT.md) — `/news` posts and banners), `verifier.md`, `debugger.md`, `supabase-docs-setup.md`, `obsidian-mcp-setup.md`, `trello-mcp-setup.md`, `axiom-mcp-setup.md` in [`.cursor/agents/`](.cursor/agents/).
+**Utility subagents** (not domain team): `devtools.md` (Windows VM: search/files/npm — invoke when shell commands fail or repeat), `dependency-audit.md` (npm audit, outdated, CVE response — see dependency-maintenance skill), `seo` ([`.cursor/agents/seo/AGENT.md`](.cursor/agents/seo/AGENT.md) — audits, GSC, publication SEO), `news-content` ([`.cursor/agents/news-content/AGENT.md`](.cursor/agents/news-content/AGENT.md) — `/news` posts and banners), `verifier.md`, `debugger.md`, `supabase-docs-setup.md`, `obsidian-mcp-setup.md`, `trello-mcp-setup.md`, `axiom-mcp-setup.md` in [`.cursor/agents/`](.cursor/agents/).
 
 ## Session anchors
 

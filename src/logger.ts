@@ -119,7 +119,6 @@ function createDevStream(): pino.DestinationStream {
       });
   });
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires -- dynamic require for optional dev dependency
     const pretty = require('pino-pretty')({
       colorize: true,
       translateTime: 'SYS:standard',
@@ -157,7 +156,6 @@ function resolveAxiomClientOptions(token: string): {
     ...(resolvedUrl ? { url: resolvedUrl } : {}),
     ...(resolvedEdge ? { edge: resolvedEdge } : {}),
     onError: (error: Error) => {
-      // eslint-disable-next-line no-console -- ingest failures must surface in Vercel Logs
       console.error('[logger] Axiom ingest error:', error.message);
     },
   };
@@ -192,12 +190,10 @@ function createAxiomWritableStream(token: string, dataset: string): Writable {
 
 function createProductionLogger(): pino.Logger {
   if (isLogShippingRequested() && !axiomToken) {
-    // eslint-disable-next-line no-console -- boot-time config warning before logger is ready
     console.warn('[logger] LOG_SHIPPING is enabled but AXIOM_TOKEN is missing; using stdout only');
   }
 
   if (isLogShippingRequested() && axiomToken && !axiomDataset) {
-    // eslint-disable-next-line no-console -- boot-time config warning before logger is ready
     console.warn(
       '[logger] LOG_SHIPPING is enabled but AXIOM_DATASET is missing; using stdout only'
     );
@@ -265,7 +261,7 @@ export async function flushLogs(): Promise<void> {
     await axiomClient.flush();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    // eslint-disable-next-line no-console -- flush failures must surface in Vercel Logs
+
     console.error('[logger] Axiom flush error:', message);
   }
 }
