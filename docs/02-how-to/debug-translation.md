@@ -45,7 +45,7 @@ Dev-only in-memory log UI (not available when `NODE_ENV=production`):
 
 **Buffer:** default 2000 entries (`DEBUG_LOG_MAX_ENTRIES`). Older entries are overwritten (ring buffer).
 
-**Worker logs (`npm run dev:full`):** async jobs run in a separate process. With `REDIS_URL` set, worker **logs, LLM captures, and HTTP captures** are merged into the API buffer with `process: worker` on logs. Without Redis, worker output appears only in the worker terminal.
+**Worker logs (`npm run dev:full`):** async jobs run in a separate process. With `REDIS_URL` set, worker **logs, LLM captures, and HTTP captures** are merged into the API buffer with `process: worker` on logs. Without Redis, worker output appears only in the worker terminal. The debug Redis pub/sub bridge uses `ioredis` (a `devDependency`); local dev needs `npm install` with devDependencies, not `npm ci --omit=dev`.
 
 **Correlation:** each translation run gets a `traceId` (UUID). Engine and pipeline logs inherit `traceId`, `projectId`, `chapterId`, and `jobId` (async jobs) via async context. HTTP routes also log `requestId` on `req.log`.
 

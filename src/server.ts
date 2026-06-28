@@ -214,7 +214,6 @@ import {
   PARA_MARKER_PREFIX,
   PARA_MARKER_SUFFIX,
 } from './engine/utils/para-markers.js';
-import { startDebugBridgeSubscriber } from './debug/redisBridge.js';
 import { importBridgedLogEntry } from './debug/buffer.js';
 import { importBridgedLlmCapture } from './debug/promptCapture.js';
 import { importBridgedHttpExchange } from './debug/httpCapture.js';
@@ -10464,11 +10463,13 @@ async function startServer(): Promise<void> {
     serviceHealthManager.startPeriodicChecks(30_000);
     if (process.env.NODE_ENV !== 'production') {
       hydrateDebugBuffersFromDisk();
-      void startDebugBridgeSubscriber({
-        onLog: importBridgedLogEntry,
-        onLlm: importBridgedLlmCapture,
-        onHttp: importBridgedHttpExchange,
-      });
+      void import('./debug/redisBridge.js').then(({ startDebugBridgeSubscriber }) =>
+        startDebugBridgeSubscriber({
+          onLog: importBridgedLogEntry,
+          onLlm: importBridgedLlmCapture,
+          onHttp: importBridgedHttpExchange,
+        })
+      );
     }
   });
 

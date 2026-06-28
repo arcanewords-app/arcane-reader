@@ -3,7 +3,7 @@
  * Uses a Redis list backlog so messages survive API subscriber startup race.
  */
 
-import { Redis } from 'ioredis';
+import type { Redis } from 'ioredis';
 import type { DebugLogEntry } from './buffer.js';
 import type { CapturedLlmCall } from './promptCapture.js';
 import type { CapturedHttpExchange } from './httpCapture.js';
@@ -41,15 +41,16 @@ function backlogMax(): number {
   return Number.isFinite(n) && n > 0 ? n : 500;
 }
 
-function createClient(): Redis {
+async function createClient(): Promise<Redis> {
   const url = getRedisUrl();
   if (!url) throw new Error('REDIS_URL required');
-  return new Redis(url, { maxRetriesPerRequest: null });
+  const { Redis: RedisClient } = await import('ioredis');
+  return new RedisClient(url, { maxRetriesPerRequest: null });
 }
 
-function getPublisher(): Redis | null {
+async function getPublisher(): Promise<Redis | null> {
   if (!isDev() || !getRedisUrl()) return null;
-  if (!publisher) publisher = createClient();
+  if (!publisher) publisher = await createClient();
   return publisher;
 }
 
@@ -66,7 +67,7 @@ function dispatchMessage(message: DebugBridgeMessage, handlers: DebugBridgeHandl
 export async function publishDebugBridgeMessage(message: DebugBridgeMessage): Promise<void> {
   if (!isWorkerProcess()) return;
   try {
-    const redis = getPublisher();
+    const redis = await getPublisher();
     if (!redis) return;
     const payload = JSON.stringify(message);
     const max = backlogMax();
@@ -110,7 +111,7 @@ export function parseBridgeMessage(message: string): DebugBridgeMessage | null {
 async function drainBacklog(handlers: DebugBridgeHandlers): Promise<void> {
   const url = getRedisUrl();
   if (!url) return;
-  const client = createClient();
+  const client = await createClient();
   try {
     const max = backlogMax();
     const items = await client.lrange(BACKLOG_KEY, 0, max - 1);
@@ -133,7 +134,7 @@ export async function startDebugBridgeSubscriber(handlers: DebugBridgeHandlers):
 
   try {
     await drainBacklog(handlers);
-    if (!subscriber) subscriber = createClient();
+    if (!subscriber) subscriber = await createClient();
     if (!subscribed && subscriber) {
       subscribed = true;
       const sub = subscriber;

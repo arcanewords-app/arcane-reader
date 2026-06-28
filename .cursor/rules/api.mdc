@@ -48,7 +48,7 @@ Any route that calls Supabase or other external services **must** use `handleSer
 
 ## Database
 
-- Supabase: `@src/services/supabaseDatabase.ts`. Types: `@src/storage/database.ts`.
+- Supabase: `@src/services/supabaseDatabase.ts`. Types: `@src/storage/types.ts`.
 - snake_case for columns. Use existing DB functions.
 
 ## Middleware

@@ -23,7 +23,7 @@ Frontend (Preact) → Express API → Supabase / Storage
 | `@src/server.ts` | Express entry, REST routes, cache wrappers |
 | `@src/engine/` | Translation pipeline: Analyze → Translate → Edit |
 | `@src/services/` | Import/export, auth helpers, Supabase DB, Redis cache |
-| `@src/storage/` | DB types (`database.ts`) |
+| `@src/storage/` | DB types (`types.ts`), text helpers (`text-utils.ts`) |
 | `@src/middleware/` | Auth, request context, service health (503) |
 | `@src/api/schemas/` | Zod request validation |
 | `@src/shared/cacheContract.ts` | Redis key prefixes and TTL |

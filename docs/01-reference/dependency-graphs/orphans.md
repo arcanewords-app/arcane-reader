@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 generated: true
-updated: 2026-05-16
+updated: 2026-06-28
 title: Orphan modules
 ---
 
@@ -21,18 +21,36 @@ Modules that nothing imports (may be entry points or dead code).
 - `src/client/components/Home/index.ts`
 - `src/client/components/Sidebar/ProjectList.tsx`
 - `src/client/components/ui/Suspense.tsx`
+- `src/client/hooks/useTokenEstimate.ts`
 - `src/client/main.tsx`
 - `src/client/pages/CabinetPage.tsx`
+- `src/client/utils/simpleMarkdown.test.ts`
 - `src/client/vite-env.d.ts`
 
 ### Server (API, services, middleware)
 
+- `src/engine/edit-execution-preview.test.ts`
+- `src/engine/glossary/glossary-filter.test.ts`
+- `src/engine/glossary/glossary-manager.test.ts`
 - `src/engine/interfaces/llm-provider.ts`
+- `src/engine/pipeline/resolve-execution-options.test.ts`
+- `src/engine/pipeline/stage-prompt-flow.test.ts`
+- `src/engine/prompts/ai-replace.test.ts`
+- `src/engine/prompts/system/analyzer.ts`
+- `src/engine/prompts/system/translator.ts`
+- `src/engine/prompts/types.ts`
+- `src/engine/providers/openai.completejson.test.ts`
+- `src/engine/providers/openai.provider-bind.test.ts`
+- `src/engine/translate-chunking-policy.test.ts`
+- `src/engine/translate-execution-preview.test.ts`
+- `src/engine/translate-optimization.test.ts`
 - `src/engine/types/agent.ts`
 - `src/engine/types/common.ts`
 - `src/engine/types/glossary.ts`
 - `src/engine/types/pipeline.ts`
+- `src/engine/utils/para-markers.test.ts`
+- `src/middleware/serviceHealth.test.ts`
 - `src/services/chapterWorker.ts`
 - `src/services/export/epub-gen.d.ts`
 - `src/services/import/types.ts`
-- `src/services/translation-service.ts`
+- `src/services/paragraphLoader.test.ts`

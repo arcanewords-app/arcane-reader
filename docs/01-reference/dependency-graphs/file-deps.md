@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 generated: true
-updated: 2026-05-16
+updated: 2026-06-28
 title: File-level dependencies
 ---
 
@@ -18,36 +18,73 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 
 ### Client (Preact SPA)
 
-367 import edge(s).
+599 import edge(s).
 
 #### Import edges (from → to)
 
 - `src/client/api/client.ts` → `src/client/services/authService.ts`
 - `src/client/api/client.ts` → `src/shared/cacheContract.ts`
 - `src/client/AppRouter.tsx` → `src/client/api/client.ts`
+- `src/client/AppRouter.tsx` → `src/client/components/AnnouncementBanner.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/Auth/AdminGate.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/Auth/AuthorGate.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/Auth/index.ts`
+- `src/client/AppRouter.tsx` → `src/client/components/Auth/UserGate.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/CookieBanner/CookieBanner.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/Header.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/ServiceStatusBanner.tsx`
 - `src/client/AppRouter.tsx` → `src/client/components/ui/index.ts`
+- `src/client/AppRouter.tsx` → `src/client/contexts/AnnouncementContext.tsx`
 - `src/client/AppRouter.tsx` → `src/client/contexts/CookieConsentContext.tsx`
 - `src/client/AppRouter.tsx` → `src/client/contexts/ServiceHealthContext.tsx`
 - `src/client/AppRouter.tsx` → `src/client/contexts/SystemStatusContext.tsx`
 - `src/client/AppRouter.tsx` → `src/client/contexts/TokenUsageContext.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/AboutPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/AccountTiersPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/AdminNewsPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/AdminPublicationsPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/AdminRedirect.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/AdminUsersPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/ChapterPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/ContactPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/index.ts`
+- `src/client/AppRouter.tsx` → `src/client/pages/NewsDetailPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/NewsPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/PrivacyPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/ProjectPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/PublicationPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/PublicationReadingPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/ReadingModePage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/pages/TermsPage.tsx`
+- `src/client/AppRouter.tsx` → `src/client/pages/TranslationRequestsPage.tsx`
 - `src/client/AppRouter.tsx` → `src/client/services/authService.ts`
 - `src/client/AppRouter.tsx` → `src/client/utils/analytics.ts`
+- `src/client/components/AccountTiers/index.ts` → `src/client/components/AccountTiers/RoleComparisonTable.tsx`
+- `src/client/components/AccountTiers/RoleComparisonTable.tsx` → `src/client/components/AccountTiers/RoleComparisonTable.css`
+- `src/client/components/AccountTiers/RoleComparisonTable.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/AccountTiers/RoleComparisonTable.tsx` → `src/shared/accountTiers.ts`
+- `src/client/components/Admin/AdminEntityFormFields.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/components/Admin/AdminEntityFormFields.tsx` → `src/client/components/Admin/AdminPhotoUpload.tsx`
+- `src/client/components/Admin/AdminEntityFormFields.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Admin/AdminFlash.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/components/Admin/AdminLayout.tsx` → `src/client/components/Admin/AdminLayout.css`
+- `src/client/components/Admin/AdminPhotoUpload.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/components/Admin/AdminPhotoUpload.tsx` → `src/client/components/Admin/AdminPhotoUpload.css`
+- `src/client/components/Admin/AdminPhotoUpload.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Admin/AdminSection.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/components/Admin/AdminSegmentTabs.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/components/Admin/index.ts` → `src/client/components/Admin/AdminEntityFormFields.tsx`
+- `src/client/components/Admin/index.ts` → `src/client/components/Admin/AdminFlash.tsx`
+- `src/client/components/Admin/index.ts` → `src/client/components/Admin/AdminLayout.tsx`
+- `src/client/components/Admin/index.ts` → `src/client/components/Admin/AdminPhotoUpload.tsx`
+- `src/client/components/Admin/index.ts` → `src/client/components/Admin/AdminSection.tsx`
+- `src/client/components/Admin/index.ts` → `src/client/components/Admin/AdminSegmentTabs.tsx`
+- `src/client/components/AnnouncementBanner.tsx` → `src/client/components/AnnouncementBanner.css`
+- `src/client/components/AnnouncementBanner.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/AnnouncementBanner.tsx` → `src/client/contexts/AnnouncementContext.tsx`
+- `src/client/components/AnnouncementBanner.tsx` → `src/client/contexts/ServiceHealthContext.tsx`
+- `src/client/components/AnnouncementBanner.tsx` → `src/client/utils/analytics.ts`
 - `src/client/components/Auth/AdminGate.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/Auth/AdminGate.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/Auth/AuthModal.tsx` → `src/client/components/Auth/AuthModal.css`
@@ -73,9 +110,14 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Auth/RegisterForm.tsx` → `src/client/services/authService.ts`
 - `src/client/components/Auth/RegisterForm.tsx` → `src/client/utils/analytics.ts`
 - `src/client/components/Auth/RequireRole.tsx` → `src/client/hooks/useUserRole.ts`
+- `src/client/components/Auth/UpgradeScreen.tsx` → `src/client/components/AccountTiers/index.ts`
+- `src/client/components/Auth/UpgradeScreen.tsx` → `src/client/components/AccountTiers/RoleComparisonTable.css`
 - `src/client/components/Auth/UpgradeScreen.tsx` → `src/client/components/Auth/UpgradeScreen.css`
 - `src/client/components/Auth/UpgradeScreen.tsx` → `src/client/components/ui/index.ts`
-- `src/client/components/Auth/UpgradeScreen.tsx` → `src/shared/contact.ts`
+- `src/client/components/Auth/UpgradeScreen.tsx` → `src/client/components/UpgradeRequest/index.ts`
+- `src/client/components/Auth/UpgradeScreen.tsx` → `src/client/hooks/useUserRole.ts`
+- `src/client/components/Auth/UserGate.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Auth/UserGate.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/Cabinet/index.ts` → `src/client/components/Cabinet/ReadingHistorySection.tsx`
 - `src/client/components/Cabinet/ReadingHistorySection.tsx` → `src/client/api/client.ts`
 - `src/client/components/Cabinet/ReadingHistorySection.tsx` → `src/client/components/Cabinet/ReadingHistorySection.css`
@@ -83,16 +125,27 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Cabinet/ReadingHistorySection.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/ChapterTocModal.tsx` → `src/client/components/ChapterTocModal.css`
 - `src/client/components/ChapterTocModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ChapterTocModal.tsx` → `src/shared/chapterTitle.ts`
 - `src/client/components/ChapterView/ChapterHeader.tsx` → `src/client/api/client.ts`
 - `src/client/components/ChapterView/ChapterHeader.tsx` → `src/client/components/ChapterView/ChapterHeader.css`
 - `src/client/components/ChapterView/ChapterHeader.tsx` → `src/client/components/ChapterView/ChapterStatusSelect.tsx`
 - `src/client/components/ChapterView/ChapterHeader.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/ChapterView/ChapterHeader.tsx` → `src/client/components/ui/Input.css`
+- `src/client/components/ChapterView/ChapterHeader.tsx` → `src/shared/chapterTitle.ts`
 - `src/client/components/ChapterView/ChapterStatusSelect.tsx` → `src/client/api/client.ts`
 - `src/client/components/ChapterView/ChapterStatusSelect.tsx` → `src/client/components/ChapterView/ChapterStatusSelect.css`
 - `src/client/components/ChapterView/ChapterStatusSelect.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ChapterView/CriticIssueList.tsx` → `src/client/components/ChapterView/CriticIssueList.css`
+- `src/client/components/ChapterView/CriticModeBar.tsx` → `src/client/components/ChapterView/CriticModeBar.css`
+- `src/client/components/ChapterView/CriticModeBar.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx` → `src/client/components/ChapterView/CriticUpgradeModal.css`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx` → `src/client/components/UpgradeRequest/index.ts`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/client/api/client.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/ChapterView/ChapterHeader.tsx`
+- `src/client/components/ChapterView/index.tsx` → `src/client/components/ChapterView/CriticModeBar.tsx`
+- `src/client/components/ChapterView/index.tsx` → `src/client/components/ChapterView/CriticUpgradeModal.tsx`
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/ChapterView/ParagraphList.tsx`
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/ChapterView/ParagraphListSkeleton.tsx`
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/ChapterView/ReaderSettings.tsx`
@@ -100,9 +153,17 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/SearchReplace/index.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/TokenUsage/index.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/client/constants/text-block-presets.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/client/hooks/useChapterTranslation.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/client/hooks/useTokenLimitCheck.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/client/types/index.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/client/utils/criticFingerprint.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/shared/chapterTranslationCoverage.ts`
 - `src/client/components/ChapterView/index.tsx` → `src/shared/chunkErrors.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/shared/critic-limits.ts`
+- `src/client/components/ChapterView/index.tsx` → `src/shared/evaluation-normalize.ts`
+- `src/client/components/ChapterView/ParagraphList.tsx` → `src/client/components/ChapterView/CriticIssueList.tsx`
 - `src/client/components/ChapterView/ParagraphList.tsx` → `src/client/components/ChapterView/ParagraphList.css`
 - `src/client/components/ChapterView/ParagraphList.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/ChapterView/ParagraphList.tsx` → `src/client/utils/text-blocks.ts`
@@ -112,9 +173,16 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/ChapterView/ReaderSettings.tsx` → `src/client/components/ChapterView/ReaderSettings.css`
 - `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/api/client.ts`
 - `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/components/ChapterView/TranslationPanel.css`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/config/tokenEstimate.ts`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/utils/analytics.ts`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/client/utils/languagePairOverride.ts`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/shared/chapterSourceText.ts`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/shared/chapterTranslationCoverage.ts`
 - `src/client/components/ChapterView/TranslationPanel.tsx` → `src/shared/chunkErrors.ts`
+- `src/client/components/ChapterView/TranslationPanel.tsx` → `src/shared/editing-focus.ts`
 - `src/client/components/ChapterView/UploadTranslationModal.tsx` → `src/client/api/client.ts`
 - `src/client/components/ChapterView/UploadTranslationModal.tsx` → `src/client/components/ChapterView/UploadTranslationModal.css`
 - `src/client/components/ChapterView/UploadTranslationModal.tsx` → `src/client/components/ui/index.ts`
@@ -124,7 +192,9 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Dashboard/Dashboard.tsx` → `src/client/api/client.ts`
 - `src/client/components/Dashboard/Dashboard.tsx` → `src/client/components/Dashboard/Dashboard.css`
 - `src/client/components/Dashboard/Dashboard.tsx` → `src/client/components/Dashboard/ProjectGrid.tsx`
+- `src/client/components/Dashboard/Dashboard.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/components/Dashboard/Dashboard.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Dashboard/Dashboard.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/components/Dashboard/Dashboard.tsx` → `src/client/store/projects.ts`
 - `src/client/components/Dashboard/index.ts` → `src/client/components/Dashboard/Dashboard.tsx`
 - `src/client/components/Dashboard/index.ts` → `src/client/components/Dashboard/ProjectCard.tsx`
@@ -157,26 +227,49 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Glossary/PublicationGlossaryModal.tsx` → `src/client/components/Glossary/PublicationGlossaryModal.css`
 - `src/client/components/Glossary/PublicationGlossaryModal.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/Header.tsx` → `src/client/components/Header.css`
+- `src/client/components/Header.tsx` → `src/client/components/Header/SupportMenu.tsx`
 - `src/client/components/Header.tsx` → `src/client/components/TokenUsage/index.ts`
 - `src/client/components/Header.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/Header.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/Header.tsx` → `src/client/i18n.ts`
 - `src/client/components/Header.tsx` → `src/client/utils/tokenUsagePaths.ts`
+- `src/client/components/Header/SupportMenu.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Header/SupportMenu.tsx` → `src/client/constants/supportLinks.ts`
+- `src/client/components/Header/SupportMenu.tsx` → `src/client/utils/analytics.ts`
+- `src/client/components/Home/CatalogFilterToolbar.tsx` → `src/client/components/Home/CatalogFilterToolbar.css`
+- `src/client/components/Home/CatalogFilterToolbar.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/Home/EntityChip.tsx` → `src/client/api/client.ts`
 - `src/client/components/Home/EntityChip.tsx` → `src/client/components/Home/EntityChip.css`
+- `src/client/components/Home/index.ts` → `src/client/components/Home/CatalogFilterToolbar.tsx`
 - `src/client/components/Home/index.ts` → `src/client/components/Home/PublicationCard.tsx`
 - `src/client/components/Home/PublicationCard.tsx` → `src/client/components/Dashboard/BookPlaceholder.tsx`
 - `src/client/components/Home/PublicationCard.tsx` → `src/client/components/Home/EntityChip.tsx`
 - `src/client/components/Home/PublicationCard.tsx` → `src/client/components/Home/PublicationCard.css`
+- `src/client/components/Home/PublicationCard.tsx` → `src/client/components/Home/PublicationStatusBadge.tsx`
 - `src/client/components/Home/PublicationCard.tsx` → `src/client/utils/analytics.ts`
+- `src/client/components/Home/PublicationStatusBadge.tsx` → `src/client/components/Home/PublicationStatusBadge.css`
+- `src/client/components/Project/CopyChaptersModal.tsx` → `src/client/api/client.ts`
+- `src/client/components/Project/CopyChaptersModal.tsx` → `src/client/components/Project/CopyChaptersModal.css`
+- `src/client/components/Project/CopyChaptersModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Project/CopyChaptersModal.tsx` → `src/client/constants/translationLanguages.ts`
+- `src/client/components/Project/CopyChaptersModal.tsx` → `src/client/store/projects.ts`
+- `src/client/components/Project/CopyChaptersModal.tsx` → `src/shared/chapterTitle.ts`
+- `src/client/components/Project/ProjectLanguagePairFields.tsx` → `src/client/components/Project/ProjectLanguagePairFields.css`
+- `src/client/components/Project/ProjectLanguagePairFields.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Project/ProjectLanguagePairFields.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/components/ProjectInfo.tsx` → `src/client/api/client.ts`
 - `src/client/components/ProjectInfo.tsx` → `src/client/components/ChapterView/ReaderSettings.css`
 - `src/client/components/ProjectInfo.tsx` → `src/client/components/EntityCard/index.ts`
+- `src/client/components/ProjectInfo.tsx` → `src/client/components/Project/CopyChaptersModal.tsx`
 - `src/client/components/ProjectInfo.tsx` → `src/client/components/ProjectInfo.css`
 - `src/client/components/ProjectInfo.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/ProjectInfo.tsx` → `src/client/constants/translationLanguages.ts`
+- `src/client/components/ProjectInfo.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/ProjectInfo.tsx` → `src/client/services/authService.ts`
 - `src/client/components/ProjectInfo.tsx` → `src/client/store/projects.ts`
+- `src/client/components/ProjectInfo.tsx` → `src/config/projectLimits.ts`
 - `src/client/components/ProjectInfo.tsx` → `src/shared/chunkErrors.ts`
+- `src/client/components/ProjectInfo.tsx` → `src/shared/translation-status.ts`
 - `src/client/components/ReadingMode/index.tsx` → `src/client/api/client.ts`
 - `src/client/components/ReadingMode/index.tsx` → `src/client/components/ChapterTocModal.tsx`
 - `src/client/components/ReadingMode/index.tsx` → `src/client/components/ChapterView/ReaderSettings.tsx`
@@ -191,20 +284,41 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Reports/ReportsModal.tsx` → `src/client/api/client.ts`
 - `src/client/components/Reports/ReportsModal.tsx` → `src/client/components/Reports/ReportsModal.css`
 - `src/client/components/Reports/ReportsModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/client/api/client.ts`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/client/components/SearchReplace/AiReplaceSetupModal.css`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/client/components/TokenUsage/TokenLimitWarning.tsx`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/client/contexts/TokenUsageContext.tsx`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/client/hooks/useTokenLimitCheck.ts`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/shared/aiReplaceEstimate.ts`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx` → `src/shared/aiReplacePresets.ts`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx` → `src/client/components/SearchReplace/AiReplaceUpgradeModal.css`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx` → `src/client/components/UpgradeRequest/index.ts`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx` → `src/client/hooks/useUserRole.ts`
+- `src/client/components/SearchReplace/bulkReplaceChunked.ts` → `src/client/api/client.ts`
 - `src/client/components/SearchReplace/index.ts` → `src/client/components/SearchReplace/ProjectSearchModal.tsx`
 - `src/client/components/SearchReplace/index.ts` → `src/client/components/SearchReplace/ReplacePreviewModal.tsx`
 - `src/client/components/SearchReplace/index.ts` → `src/client/components/SearchReplace/SearchReplaceBar.tsx`
-- `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/api/client.ts`
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx`
 - `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/components/SearchReplace/ProjectSearchModal.css`
 - `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/components/SearchReplace/ReplacePreviewModal.tsx`
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/components/SearchReplace/useProjectSearch.ts`
 - `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/client/utils/search-utils.ts`
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx` → `src/shared/featureGates.ts`
 - `src/client/components/SearchReplace/ReplacePreviewModal.tsx` → `src/client/components/SearchReplace/ReplacePreviewModal.css`
 - `src/client/components/SearchReplace/ReplacePreviewModal.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/SearchReplace/ReplacePreviewModal.tsx` → `src/client/utils/search-utils.ts`
 - `src/client/components/SearchReplace/SearchReplaceBar.tsx` → `src/client/components/SearchReplace/ReplacePreviewModal.tsx`
 - `src/client/components/SearchReplace/SearchReplaceBar.tsx` → `src/client/components/SearchReplace/SearchReplace.css`
 - `src/client/components/SearchReplace/SearchReplaceBar.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/SearchReplace/SearchReplaceBar.tsx` → `src/client/utils/search-utils.ts`
+- `src/client/components/SearchReplace/useProjectSearch.ts` → `src/client/api/client.ts`
+- `src/client/components/SearchReplace/useProjectSearch.ts` → `src/client/components/SearchReplace/bulkReplaceChunked.ts`
+- `src/client/components/SearchReplace/useProjectSearch.ts` → `src/client/utils/search-utils.ts`
 - `src/client/components/ServiceStatusBanner.tsx` → `src/client/components/ServiceStatusBanner.css`
 - `src/client/components/ServiceStatusBanner.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/ServiceStatusBanner.tsx` → `src/client/contexts/ServiceHealthContext.tsx`
@@ -213,6 +327,7 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Sidebar/ChapterList.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/Sidebar/ChapterList.tsx` → `src/client/contexts/SystemStatusContext.tsx`
 - `src/client/components/Sidebar/ChapterList.tsx` → `src/client/store/projects.ts`
+- `src/client/components/Sidebar/ChapterList.tsx` → `src/shared/chapterTitle.ts`
 - `src/client/components/Sidebar/index.tsx` → `src/client/components/SearchReplace/index.ts`
 - `src/client/components/Sidebar/index.tsx` → `src/client/components/Sidebar/ChapterList.tsx`
 - `src/client/components/Sidebar/index.tsx` → `src/client/components/Sidebar/JobsPanel.tsx`
@@ -223,23 +338,41 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/Sidebar/JobsPanel.tsx` → `src/client/api/client.ts`
 - `src/client/components/Sidebar/JobsPanel.tsx` → `src/client/components/Sidebar/JobsPanel.css`
 - `src/client/components/Sidebar/JobsPanel.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Sidebar/JobsPanel.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/api/client.ts`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/components/ChapterView/ChapterHeader.css`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/components/ChapterView/ReaderSettings.css`
+- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/components/Sidebar/ProcessChapters.css`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/components/TokenUsage/index.ts`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/config/tokenEstimate.ts`
+- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/hooks/useBatchChapterTranslation.ts`
-- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/hooks/useTokenEstimate.ts`
+- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/client/utils/languagePairOverride.ts`
+- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/shared/chapterTitle.ts`
+- `src/client/components/Sidebar/ProcessChapters.tsx` → `src/shared/editing-focus.ts`
 - `src/client/components/Sidebar/ProjectList.tsx` → `src/client/api/client.ts`
+- `src/client/components/Sidebar/ProjectList.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/components/Sidebar/ProjectList.tsx` → `src/client/components/Sidebar/ProjectList.css`
 - `src/client/components/Sidebar/ProjectList.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/Sidebar/ProjectList.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/components/Sidebar/ProjectList.tsx` → `src/client/store/projects.ts`
 - `src/client/components/Sidebar/ProjectList.tsx` → `src/client/utils/project-type.ts`
 - `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/api/client.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/components/Sidebar/SettingsModal.css`
 - `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/components/ui/index.ts`
 - `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/constants/text-block-presets.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/constants/translationLanguages.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/hooks/useUserRole.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/client/store/projects.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/shared/edit-execution-modes.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/shared/editing-focus.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/shared/execution-presets-ui.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/shared/llmModels.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/shared/modelAccess.ts`
+- `src/client/components/Sidebar/SettingsModal.tsx` → `src/shared/translate-execution-modes.ts`
 - `src/client/components/TokenUsage/index.ts` → `src/client/components/TokenUsage/TokenLimitWarning.tsx`
 - `src/client/components/TokenUsage/index.ts` → `src/client/components/TokenUsage/TokenUsageIndicator.tsx`
 - `src/client/components/TokenUsage/TokenLimitWarning.tsx` → `src/client/components/TokenUsage/TokenLimitWarning.css`
@@ -249,6 +382,7 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/TokenUsage/TokenUsageIndicator.tsx` → `src/client/contexts/TokenUsageContext.tsx`
 - `src/client/components/TokenUsage/TokenUsageIndicator.tsx` → `src/client/services/authService.ts`
 - `src/client/components/ui/AlertModal.tsx` → `src/client/components/ui/Button.tsx`
+- `src/client/components/ui/AlertModal.tsx` → `src/client/components/ui/Icon.tsx`
 - `src/client/components/ui/AlertModal.tsx` → `src/client/components/ui/Modal.tsx`
 - `src/client/components/ui/Badge.tsx` → `src/client/components/ui/Icon.tsx`
 - `src/client/components/ui/Button.tsx` → `src/client/components/ui/Button.css`
@@ -272,41 +406,88 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/components/ui/Modal.tsx` → `src/client/components/ui/Modal.css`
 - `src/client/components/ui/PageLoading.tsx` → `src/client/components/ui/LoadingSpinner.tsx`
 - `src/client/components/ui/Skeleton.tsx` → `src/client/components/ui/Skeleton.css`
+- `src/client/components/UpgradeRequest/index.ts` → `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx`
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx` → `src/client/components/ui/index.ts`
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx` → `src/client/components/UpgradeRequest/UpgradeRequestActions.css`
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx` → `src/client/utils/openMailto.ts`
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx` → `src/shared/contact.ts`
+- `src/client/config/tokenEstimate.ts` → `src/shared/chapterSourceText.ts`
+- `src/client/config/tokenEstimate.ts` → `src/shared/translationTokenEstimate.ts`
+- `src/client/contexts/AnnouncementContext.tsx` → `src/client/api/client.ts`
+- `src/client/contexts/AnnouncementContext.tsx` → `src/client/services/authService.ts`
+- `src/client/contexts/AnnouncementContext.tsx` → `src/client/utils/dismissedAlerts.ts`
 - `src/client/contexts/CookieConsentContext.tsx` → `src/client/utils/cookieConsent.ts`
 - `src/client/contexts/TokenUsageContext.tsx` → `src/client/api/client.ts`
 - `src/client/contexts/TokenUsageContext.tsx` → `src/client/services/authService.ts`
 - `src/client/contexts/TokenUsageContext.tsx` → `src/client/utils/tokenUsagePaths.ts`
 - `src/client/hooks/useBatchChapterTranslation.ts` → `src/client/api/client.ts`
-- `src/client/hooks/useBatchChapterTranslation.ts` → `src/client/hooks/useTokenEstimate.ts`
+- `src/client/hooks/useBatchChapterTranslation.ts` → `src/client/config/tokenEstimate.ts`
 - `src/client/hooks/useBatchChapterTranslation.ts` → `src/client/hooks/useTokenLimitCheck.ts`
 - `src/client/hooks/useBatchChapterTranslation.ts` → `src/client/services/authService.ts`
 - `src/client/hooks/useBatchChapterTranslation.ts` → `src/client/store/projects.ts`
 - `src/client/hooks/useChapterTranslation.ts` → `src/client/api/client.ts`
-- `src/client/hooks/useChapterTranslation.ts` → `src/client/hooks/useTokenEstimate.ts`
+- `src/client/hooks/useChapterTranslation.ts` → `src/client/config/tokenEstimate.ts`
 - `src/client/hooks/useChapterTranslation.ts` → `src/client/hooks/useTokenLimitCheck.ts`
 - `src/client/hooks/useChapterTranslation.ts` → `src/client/services/authService.ts`
-- `src/client/hooks/useChapterTranslation.ts` → `src/shared/chunkErrors.ts`
+- `src/client/hooks/useChapterTranslation.ts` → `src/shared/chapterSourceText.ts`
+- `src/client/hooks/usePageMeta.ts` → `src/shared/staticPageMeta.ts`
+- `src/client/hooks/useStaticPageMeta.ts` → `src/shared/staticPageMeta.ts`
 - `src/client/hooks/useTokenEstimate.ts` → `src/client/config/tokenEstimate.ts`
 - `src/client/hooks/useTokenLimitCheck.ts` → `src/client/contexts/TokenUsageContext.tsx`
 - `src/client/hooks/useTokenLimitCheck.ts` → `src/client/services/authService.ts`
 - `src/client/hooks/useUserRole.ts` → `src/client/services/authService.ts`
+- `src/client/i18n.ts` → `src/client/locales/be.json`
 - `src/client/i18n.ts` → `src/client/locales/en.json`
-- `src/client/i18n.ts` → `src/client/locales/pl.json`
 - `src/client/i18n.ts` → `src/client/locales/ru.json`
 - `src/client/main.tsx` → `src/client/AppRouter.tsx`
 - `src/client/main.tsx` → `src/client/contexts/CookieConsentContext.tsx`
 - `src/client/main.tsx` → `src/client/i18n.ts`
 - `src/client/main.tsx` → `src/client/styles/index.css`
+- `src/client/pages/AboutPage.tsx` → `src/client/hooks/useStaticPageMeta.ts`
 - `src/client/pages/AboutPage.tsx` → `src/client/pages/InfoPages.css`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/components/AccountTiers/index.ts`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/components/AccountTiers/RoleComparisonTable.css`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/components/UpgradeRequest/index.ts`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/hooks/useStaticPageMeta.ts`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/hooks/useUserRole.ts`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/pages/InfoPages.css`
+- `src/client/pages/AccountTiersPage.tsx` → `src/client/services/authService.ts`
 - `src/client/pages/AdminEntitiesPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/AdminEntitiesPage.tsx` → `src/client/components/Admin/index.ts`
 - `src/client/pages/AdminEntitiesPage.tsx` → `src/client/components/ui/index.ts`
 - `src/client/pages/AdminEntitiesPage.tsx` → `src/client/pages/AdminEntitiesPage.css`
+- `src/client/pages/AdminNewsPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/AdminNewsPage.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/pages/AdminNewsPage.tsx` → `src/client/components/Admin/index.ts`
+- `src/client/pages/AdminNewsPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/AdminNewsPage.tsx` → `src/client/pages/AdminNewsPage.css`
+- `src/client/pages/AdminPublicationsPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/AdminPublicationsPage.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/pages/AdminPublicationsPage.tsx` → `src/client/components/Admin/index.ts`
+- `src/client/pages/AdminPublicationsPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/AdminPublicationsPage.tsx` → `src/client/pages/AdminPublicationsPage.css`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/components/Admin/index.ts`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/constants/translationLanguages.ts`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/pages/AdminTranslationRequestsPage.css`
+- `src/client/pages/AdminTranslationRequestsPage.tsx` → `src/client/pages/TranslationRequestsPage.css`
+- `src/client/pages/AdminUsersPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/AdminUsersPage.tsx` → `src/client/components/Admin/admin-shared.css`
+- `src/client/pages/AdminUsersPage.tsx` → `src/client/components/Admin/index.ts`
+- `src/client/pages/AdminUsersPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/AdminUsersPage.tsx` → `src/client/pages/AdminUsersPage.css`
+- `src/client/pages/AdminUsersPage.tsx` → `src/types/roles.ts`
 - `src/client/pages/CabinetPage.tsx` → `src/client/api/client.ts`
 - `src/client/pages/CabinetPage.tsx` → `src/client/components/Cabinet/ReadingHistorySection.tsx`
 - `src/client/pages/CabinetPage.tsx` → `src/client/components/ChapterView/ReaderSettings.tsx`
 - `src/client/pages/CabinetPage.tsx` → `src/client/components/Dashboard/Dashboard.css`
 - `src/client/pages/CabinetPage.tsx` → `src/client/components/Dashboard/ProjectGrid.tsx`
+- `src/client/pages/CabinetPage.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/pages/CabinetPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/CabinetPage.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/pages/CabinetPage.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/pages/CabinetPage.tsx` → `src/client/pages/CabinetPage.css`
 - `src/client/pages/CabinetPage.tsx` → `src/client/store/projects.ts`
@@ -318,9 +499,12 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/pages/ChapterPage.tsx` → `src/client/components/Sidebar/index.tsx`
 - `src/client/pages/ChapterPage.tsx` → `src/client/components/ui/index.ts`
 - `src/client/pages/ChapterPage.tsx` → `src/client/store/projects.ts`
+- `src/client/pages/ChapterPage.tsx` → `src/shared/chapterContentSync.ts`
+- `src/client/pages/ContactPage.tsx` → `src/client/hooks/useStaticPageMeta.ts`
 - `src/client/pages/ContactPage.tsx` → `src/client/pages/InfoPages.css`
 - `src/client/pages/ContactPage.tsx` → `src/shared/contact.ts`
 - `src/client/pages/HomePage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/HomePage.tsx` → `src/client/components/Home/CatalogFilterToolbar.tsx`
 - `src/client/pages/HomePage.tsx` → `src/client/components/Home/PublicationCard.tsx`
 - `src/client/pages/HomePage.tsx` → `src/client/components/ui/index.ts`
 - `src/client/pages/HomePage.tsx` → `src/client/hooks/useUserRole.ts`
@@ -334,17 +518,33 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/pages/index.ts` → `src/client/pages/ProjectPage.tsx`
 - `src/client/pages/index.ts` → `src/client/pages/ProjectsPage.tsx`
 - `src/client/pages/index.ts` → `src/client/pages/ReadingModePage.tsx`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/contexts/AnnouncementContext.tsx`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/hooks/usePageMeta.ts`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/pages/InfoPages.css`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/pages/NewsPages.css`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/utils/analytics.ts`
+- `src/client/pages/NewsDetailPage.tsx` → `src/client/utils/simpleMarkdown.ts`
+- `src/client/pages/NewsPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/NewsPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/NewsPage.tsx` → `src/client/hooks/useStaticPageMeta.ts`
+- `src/client/pages/NewsPage.tsx` → `src/client/pages/InfoPages.css`
+- `src/client/pages/NewsPage.tsx` → `src/client/pages/NewsPages.css`
+- `src/client/pages/PrivacyPage.tsx` → `src/client/hooks/useStaticPageMeta.ts`
 - `src/client/pages/PrivacyPage.tsx` → `src/client/pages/InfoPages.css`
 - `src/client/pages/PrivacyPage.tsx` → `src/shared/contact.ts`
 - `src/client/pages/ProfilePage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/ProfilePage.tsx` → `src/client/components/AccountTiers/index.ts`
+- `src/client/pages/ProfilePage.tsx` → `src/client/components/AccountTiers/RoleComparisonTable.css`
 - `src/client/pages/ProfilePage.tsx` → `src/client/components/Cabinet/ReadingHistorySection.tsx`
 - `src/client/pages/ProfilePage.tsx` → `src/client/components/ChapterView/ReaderSettings.tsx`
 - `src/client/pages/ProfilePage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/ProfilePage.tsx` → `src/client/components/UpgradeRequest/index.ts`
 - `src/client/pages/ProfilePage.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/pages/ProfilePage.tsx` → `src/client/pages/ProfilePage.css`
 - `src/client/pages/ProfilePage.tsx` → `src/client/services/authService.ts`
 - `src/client/pages/ProfilePage.tsx` → `src/client/types/index.ts`
-- `src/client/pages/ProfilePage.tsx` → `src/shared/contact.ts`
 - `src/client/pages/ProjectPage.tsx` → `src/client/api/client.ts`
 - `src/client/pages/ProjectPage.tsx` → `src/client/components/Glossary/index.ts`
 - `src/client/pages/ProjectPage.tsx` → `src/client/components/ProjectInfo.tsx`
@@ -356,15 +556,19 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/pages/ProjectsPage.tsx` → `src/client/api/client.ts`
 - `src/client/pages/ProjectsPage.tsx` → `src/client/components/Dashboard/Dashboard.css`
 - `src/client/pages/ProjectsPage.tsx` → `src/client/components/Dashboard/ProjectGrid.tsx`
+- `src/client/pages/ProjectsPage.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/pages/ProjectsPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/ProjectsPage.tsx` → `src/client/constants/translationLanguages.ts`
 - `src/client/pages/ProjectsPage.tsx` → `src/client/hooks/useUserRole.ts`
 - `src/client/pages/ProjectsPage.tsx` → `src/client/pages/ProjectsPage.css`
 - `src/client/pages/ProjectsPage.tsx` → `src/client/store/projects.ts`
+- `src/client/pages/ProjectsPage.tsx` → `src/config/projectLimits.ts`
 - `src/client/pages/PublicationPage.tsx` → `src/client/api/client.ts`
 - `src/client/pages/PublicationPage.tsx` → `src/client/components/ChapterTocModal.tsx`
 - `src/client/pages/PublicationPage.tsx` → `src/client/components/Dashboard/BookPlaceholder.tsx`
 - `src/client/pages/PublicationPage.tsx` → `src/client/components/EntityCard/index.ts`
 - `src/client/pages/PublicationPage.tsx` → `src/client/components/Glossary/index.ts`
+- `src/client/pages/PublicationPage.tsx` → `src/client/components/Home/PublicationStatusBadge.tsx`
 - `src/client/pages/PublicationPage.tsx` → `src/client/components/ui/index.ts`
 - `src/client/pages/PublicationPage.tsx` → `src/client/hooks/usePageMeta.ts`
 - `src/client/pages/PublicationPage.tsx` → `src/client/hooks/useUserRole.ts`
@@ -380,15 +584,43 @@ Searchable import map for Obsidian and AI context. Each line is one runtime impo
 - `src/client/pages/ReadingModePage.tsx` → `src/client/components/ReadingMode/index.tsx`
 - `src/client/pages/ReadingModePage.tsx` → `src/client/components/ui/index.ts`
 - `src/client/pages/ReadingModePage.tsx` → `src/client/store/projects.ts`
+- `src/client/pages/TermsPage.tsx` → `src/client/hooks/useStaticPageMeta.ts`
 - `src/client/pages/TermsPage.tsx` → `src/client/pages/InfoPages.css`
 - `src/client/pages/TermsPage.tsx` → `src/shared/contact.ts`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/api/client.ts`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/components/Dashboard/Dashboard.css`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/components/Project/ProjectLanguagePairFields.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/components/ui/index.ts`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/constants/translationLanguages.ts`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/hooks/useUserRole.ts`
+- `src/client/pages/TranslationRequestsPage.tsx` → `src/client/pages/TranslationRequestsPage.css`
 - `src/client/store/projects.ts` → `src/client/api/client.ts`
-- `src/client/store/projects.ts` → `src/shared/cacheContract.ts`
 - `src/client/styles/index.css` → `src/client/styles/base/reset.css`
 - `src/client/styles/index.css` → `src/client/styles/base/variables.css`
 - `src/client/styles/index.css` → `src/client/styles/layout/layout.css`
 - `src/client/styles/index.css` → `src/client/styles/pages/pages.css`
 - `src/client/styles/index.css` → `src/client/styles/text-blocks.css`
+- `src/client/utils/languagePairOverride.ts` → `src/client/constants/translationLanguages.ts`
+- `src/client/utils/search-utils.ts` → `src/shared/projectSearch.ts`
+- `src/client/utils/simpleMarkdown.test.ts` → `src/client/utils/simpleMarkdown.ts`
+- `src/config/tokenLimits.ts` → `src/shared/translationTokenEstimate.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/gender-agreement-be.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/gender-agreement-ru.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/gender-agreement-target.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/translation-examples.ts`
+- `src/engine/prompts/shared/translation-examples.ts` → `src/engine/prompts/shared/gender-agreement-target.ts`
+- `src/engine/prompts/system/editor.ts` → `src/engine/prompts/shared/gender-agreement.ts`
+- `src/engine/prompts/system/editor.ts` → `src/engine/prompts/shared/target-language-anchor.ts`
+- `src/shared/accountTiers.ts` → `src/config/projectLimits.ts`
+- `src/shared/accountTiers.ts` → `src/config/tokenLimits.ts`
+- `src/shared/aiReplaceEstimate.ts` → `src/shared/aiReplacePresets.ts`
+- `src/shared/chapterSourceText.ts` → `src/shared/chunkErrors.ts`
+- `src/shared/chapterTranslationCoverage.ts` → `src/shared/chunkErrors.ts`
+- `src/shared/editing-focus.ts` → `src/engine/prompts/system/editor.ts`
+- `src/shared/llmModels.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/shared/llmModels.ts` → `src/shared/prodModelLists.ts`
+- `src/shared/modelAccess.ts` → `src/shared/prodModelLists.ts`
+- `src/shared/modelAccess.ts` → `src/types/roles.ts`
 
 #### Reverse lookup (imported by)
 
@@ -414,28 +646,147 @@ Imported by:
 - `src/client/components/Glossary/GlossaryModal.tsx`
 - `src/client/components/Glossary/PublicationGlossaryModal.tsx`
 - `src/client/components/Home/EntityChip.tsx`
+- `src/client/components/Project/CopyChaptersModal.tsx`
 - `src/client/components/ProjectInfo.tsx`
 - `src/client/components/ReadingMode/index.tsx`
 - `src/client/components/Reports/ReportsModal.tsx`
-- `src/client/components/SearchReplace/ProjectSearchModal.tsx`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+- `src/client/components/SearchReplace/bulkReplaceChunked.ts`
+- `src/client/components/SearchReplace/useProjectSearch.ts`
 - `src/client/components/Sidebar/ChapterList.tsx`
 - `src/client/components/Sidebar/JobsPanel.tsx`
 - `src/client/components/Sidebar/ProcessChapters.tsx`
 - `src/client/components/Sidebar/ProjectList.tsx`
 - `src/client/components/Sidebar/SettingsModal.tsx`
+- `src/client/contexts/AnnouncementContext.tsx`
 - `src/client/contexts/TokenUsageContext.tsx`
 - `src/client/hooks/useBatchChapterTranslation.ts`
 - `src/client/hooks/useChapterTranslation.ts`
 - `src/client/pages/AdminEntitiesPage.tsx`
+- `src/client/pages/AdminNewsPage.tsx`
+- `src/client/pages/AdminPublicationsPage.tsx`
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/pages/AdminUsersPage.tsx`
 - `src/client/pages/CabinetPage.tsx`
 - `src/client/pages/ChapterPage.tsx`
 - `src/client/pages/HomePage.tsx`
+- `src/client/pages/NewsDetailPage.tsx`
+- `src/client/pages/NewsPage.tsx`
 - `src/client/pages/ProfilePage.tsx`
 - `src/client/pages/ProjectPage.tsx`
 - `src/client/pages/ProjectsPage.tsx`
 - `src/client/pages/PublicationPage.tsx`
 - `src/client/pages/PublicationReadingPage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
 - `src/client/store/projects.ts`
+
+#### `src/client/components/AccountTiers/RoleComparisonTable.css`
+
+Imported by:
+
+- `src/client/components/AccountTiers/RoleComparisonTable.tsx`
+- `src/client/components/Auth/UpgradeScreen.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
+- `src/client/pages/ProfilePage.tsx`
+
+#### `src/client/components/AccountTiers/RoleComparisonTable.tsx`
+
+Imported by:
+
+- `src/client/components/AccountTiers/index.ts`
+
+#### `src/client/components/AccountTiers/index.ts`
+
+Imported by:
+
+- `src/client/components/Auth/UpgradeScreen.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
+- `src/client/pages/ProfilePage.tsx`
+
+#### `src/client/components/Admin/AdminEntityFormFields.tsx`
+
+Imported by:
+
+- `src/client/components/Admin/index.ts`
+
+#### `src/client/components/Admin/AdminFlash.tsx`
+
+Imported by:
+
+- `src/client/components/Admin/index.ts`
+
+#### `src/client/components/Admin/AdminLayout.css`
+
+Imported by:
+
+- `src/client/components/Admin/AdminLayout.tsx`
+
+#### `src/client/components/Admin/AdminLayout.tsx`
+
+Imported by:
+
+- `src/client/components/Admin/index.ts`
+
+#### `src/client/components/Admin/AdminPhotoUpload.css`
+
+Imported by:
+
+- `src/client/components/Admin/AdminPhotoUpload.tsx`
+
+#### `src/client/components/Admin/AdminPhotoUpload.tsx`
+
+Imported by:
+
+- `src/client/components/Admin/AdminEntityFormFields.tsx`
+- `src/client/components/Admin/index.ts`
+
+#### `src/client/components/Admin/AdminSection.tsx`
+
+Imported by:
+
+- `src/client/components/Admin/index.ts`
+
+#### `src/client/components/Admin/AdminSegmentTabs.tsx`
+
+Imported by:
+
+- `src/client/components/Admin/index.ts`
+
+#### `src/client/components/Admin/admin-shared.css`
+
+Imported by:
+
+- `src/client/components/Admin/AdminEntityFormFields.tsx`
+- `src/client/components/Admin/AdminFlash.tsx`
+- `src/client/components/Admin/AdminPhotoUpload.tsx`
+- `src/client/components/Admin/AdminSection.tsx`
+- `src/client/components/Admin/AdminSegmentTabs.tsx`
+- `src/client/pages/AdminNewsPage.tsx`
+- `src/client/pages/AdminPublicationsPage.tsx`
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/pages/AdminUsersPage.tsx`
+
+#### `src/client/components/Admin/index.ts`
+
+Imported by:
+
+- `src/client/pages/AdminEntitiesPage.tsx`
+- `src/client/pages/AdminNewsPage.tsx`
+- `src/client/pages/AdminPublicationsPage.tsx`
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/pages/AdminUsersPage.tsx`
+
+#### `src/client/components/AnnouncementBanner.css`
+
+Imported by:
+
+- `src/client/components/AnnouncementBanner.tsx`
+
+#### `src/client/components/AnnouncementBanner.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
 
 #### `src/client/components/Auth/AdminGate.tsx`
 
@@ -502,6 +853,12 @@ Imported by:
 - `src/client/components/Auth/AuthorGate.tsx`
 - `src/client/components/Auth/index.ts`
 
+#### `src/client/components/Auth/UserGate.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
 #### `src/client/components/Auth/index.ts`
 
 Imported by:
@@ -559,6 +916,42 @@ Imported by:
 Imported by:
 
 - `src/client/components/ChapterView/ChapterHeader.tsx`
+
+#### `src/client/components/ChapterView/CriticIssueList.css`
+
+Imported by:
+
+- `src/client/components/ChapterView/CriticIssueList.tsx`
+
+#### `src/client/components/ChapterView/CriticIssueList.tsx`
+
+Imported by:
+
+- `src/client/components/ChapterView/ParagraphList.tsx`
+
+#### `src/client/components/ChapterView/CriticModeBar.css`
+
+Imported by:
+
+- `src/client/components/ChapterView/CriticModeBar.tsx`
+
+#### `src/client/components/ChapterView/CriticModeBar.tsx`
+
+Imported by:
+
+- `src/client/components/ChapterView/index.tsx`
+
+#### `src/client/components/ChapterView/CriticUpgradeModal.css`
+
+Imported by:
+
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx`
+
+#### `src/client/components/ChapterView/CriticUpgradeModal.tsx`
+
+Imported by:
+
+- `src/client/components/ChapterView/index.tsx`
 
 #### `src/client/components/ChapterView/ParagraphList.css`
 
@@ -654,6 +1047,7 @@ Imported by:
 - `src/client/components/Dashboard/Dashboard.tsx`
 - `src/client/pages/CabinetPage.tsx`
 - `src/client/pages/ProjectsPage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
 
 #### `src/client/components/Dashboard/Dashboard.tsx`
 
@@ -786,6 +1180,25 @@ Imported by:
 
 - `src/client/AppRouter.tsx`
 
+#### `src/client/components/Header/SupportMenu.tsx`
+
+Imported by:
+
+- `src/client/components/Header.tsx`
+
+#### `src/client/components/Home/CatalogFilterToolbar.css`
+
+Imported by:
+
+- `src/client/components/Home/CatalogFilterToolbar.tsx`
+
+#### `src/client/components/Home/CatalogFilterToolbar.tsx`
+
+Imported by:
+
+- `src/client/components/Home/index.ts`
+- `src/client/pages/HomePage.tsx`
+
 #### `src/client/components/Home/EntityChip.css`
 
 Imported by:
@@ -810,6 +1223,50 @@ Imported by:
 
 - `src/client/components/Home/index.ts`
 - `src/client/pages/HomePage.tsx`
+
+#### `src/client/components/Home/PublicationStatusBadge.css`
+
+Imported by:
+
+- `src/client/components/Home/PublicationStatusBadge.tsx`
+
+#### `src/client/components/Home/PublicationStatusBadge.tsx`
+
+Imported by:
+
+- `src/client/components/Home/PublicationCard.tsx`
+- `src/client/pages/PublicationPage.tsx`
+
+#### `src/client/components/Project/CopyChaptersModal.css`
+
+Imported by:
+
+- `src/client/components/Project/CopyChaptersModal.tsx`
+
+#### `src/client/components/Project/CopyChaptersModal.tsx`
+
+Imported by:
+
+- `src/client/components/ProjectInfo.tsx`
+
+#### `src/client/components/Project/ProjectLanguagePairFields.css`
+
+Imported by:
+
+- `src/client/components/Project/ProjectLanguagePairFields.tsx`
+
+#### `src/client/components/Project/ProjectLanguagePairFields.tsx`
+
+Imported by:
+
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/components/Dashboard/Dashboard.tsx`
+- `src/client/components/Sidebar/ProcessChapters.tsx`
+- `src/client/components/Sidebar/ProjectList.tsx`
+- `src/client/components/Sidebar/SettingsModal.tsx`
+- `src/client/pages/CabinetPage.tsx`
+- `src/client/pages/ProjectsPage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
 
 #### `src/client/components/ProjectInfo.css`
 
@@ -855,6 +1312,30 @@ Imported by:
 - `src/client/pages/ChapterPage.tsx`
 - `src/client/pages/ProjectPage.tsx`
 
+#### `src/client/components/SearchReplace/AiReplaceSetupModal.css`
+
+Imported by:
+
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+
+#### `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+
+Imported by:
+
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx`
+
+#### `src/client/components/SearchReplace/AiReplaceUpgradeModal.css`
+
+Imported by:
+
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx`
+
+#### `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx`
+
+Imported by:
+
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx`
+
 #### `src/client/components/SearchReplace/ProjectSearchModal.css`
 
 Imported by:
@@ -893,12 +1374,24 @@ Imported by:
 
 - `src/client/components/SearchReplace/index.ts`
 
+#### `src/client/components/SearchReplace/bulkReplaceChunked.ts`
+
+Imported by:
+
+- `src/client/components/SearchReplace/useProjectSearch.ts`
+
 #### `src/client/components/SearchReplace/index.ts`
 
 Imported by:
 
 - `src/client/components/ChapterView/index.tsx`
 - `src/client/components/Sidebar/index.tsx`
+
+#### `src/client/components/SearchReplace/useProjectSearch.ts`
+
+Imported by:
+
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx`
 
 #### `src/client/components/ServiceStatusBanner.css`
 
@@ -989,6 +1482,7 @@ Imported by:
 
 Imported by:
 
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
 - `src/client/components/TokenUsage/index.ts`
 
 #### `src/client/components/TokenUsage/TokenUsageIndicator.css`
@@ -1010,6 +1504,28 @@ Imported by:
 - `src/client/components/ChapterView/index.tsx`
 - `src/client/components/Header.tsx`
 - `src/client/components/Sidebar/ProcessChapters.tsx`
+
+#### `src/client/components/UpgradeRequest/UpgradeRequestActions.css`
+
+Imported by:
+
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx`
+
+#### `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx`
+
+Imported by:
+
+- `src/client/components/UpgradeRequest/index.ts`
+
+#### `src/client/components/UpgradeRequest/index.ts`
+
+Imported by:
+
+- `src/client/components/Auth/UpgradeScreen.tsx`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
+- `src/client/pages/ProfilePage.tsx`
 
 #### `src/client/components/ui/AlertModal.tsx`
 
@@ -1065,6 +1581,7 @@ Imported by:
 
 Imported by:
 
+- `src/client/components/ui/AlertModal.tsx`
 - `src/client/components/ui/Badge.tsx`
 - `src/client/components/ui/index.ts`
 
@@ -1131,6 +1648,10 @@ Imported by:
 Imported by:
 
 - `src/client/AppRouter.tsx`
+- `src/client/components/AccountTiers/RoleComparisonTable.tsx`
+- `src/client/components/Admin/AdminEntityFormFields.tsx`
+- `src/client/components/Admin/AdminPhotoUpload.tsx`
+- `src/client/components/AnnouncementBanner.tsx`
 - `src/client/components/Auth/AdminGate.tsx`
 - `src/client/components/Auth/AuthModal.tsx`
 - `src/client/components/Auth/AuthorGate.tsx`
@@ -1138,10 +1659,13 @@ Imported by:
 - `src/client/components/Auth/LoginForm.tsx`
 - `src/client/components/Auth/RegisterForm.tsx`
 - `src/client/components/Auth/UpgradeScreen.tsx`
+- `src/client/components/Auth/UserGate.tsx`
 - `src/client/components/Cabinet/ReadingHistorySection.tsx`
 - `src/client/components/ChapterTocModal.tsx`
 - `src/client/components/ChapterView/ChapterHeader.tsx`
 - `src/client/components/ChapterView/ChapterStatusSelect.tsx`
+- `src/client/components/ChapterView/CriticModeBar.tsx`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx`
 - `src/client/components/ChapterView/ParagraphList.tsx`
 - `src/client/components/ChapterView/ParagraphListSkeleton.tsx`
 - `src/client/components/ChapterView/TranslationPanel.tsx`
@@ -1155,9 +1679,15 @@ Imported by:
 - `src/client/components/Glossary/GlossaryModal.tsx`
 - `src/client/components/Glossary/PublicationGlossaryModal.tsx`
 - `src/client/components/Header.tsx`
+- `src/client/components/Header/SupportMenu.tsx`
+- `src/client/components/Home/CatalogFilterToolbar.tsx`
+- `src/client/components/Project/CopyChaptersModal.tsx`
+- `src/client/components/Project/ProjectLanguagePairFields.tsx`
 - `src/client/components/ProjectInfo.tsx`
 - `src/client/components/ReadingMode/index.tsx`
 - `src/client/components/Reports/ReportsModal.tsx`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx`
 - `src/client/components/SearchReplace/ProjectSearchModal.tsx`
 - `src/client/components/SearchReplace/ReplacePreviewModal.tsx`
 - `src/client/components/SearchReplace/SearchReplaceBar.tsx`
@@ -1170,29 +1700,76 @@ Imported by:
 - `src/client/components/Sidebar/index.tsx`
 - `src/client/components/TokenUsage/TokenLimitWarning.tsx`
 - `src/client/components/TokenUsage/TokenUsageIndicator.tsx`
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
 - `src/client/pages/AdminEntitiesPage.tsx`
+- `src/client/pages/AdminNewsPage.tsx`
+- `src/client/pages/AdminPublicationsPage.tsx`
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/pages/AdminUsersPage.tsx`
 - `src/client/pages/CabinetPage.tsx`
 - `src/client/pages/ChapterPage.tsx`
 - `src/client/pages/HomePage.tsx`
+- `src/client/pages/NewsDetailPage.tsx`
+- `src/client/pages/NewsPage.tsx`
 - `src/client/pages/ProfilePage.tsx`
 - `src/client/pages/ProjectPage.tsx`
 - `src/client/pages/ProjectsPage.tsx`
 - `src/client/pages/PublicationPage.tsx`
 - `src/client/pages/PublicationReadingPage.tsx`
 - `src/client/pages/ReadingModePage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
 
 #### `src/client/config/tokenEstimate.ts`
 
 Imported by:
 
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/components/Sidebar/ProcessChapters.tsx`
+- `src/client/hooks/useBatchChapterTranslation.ts`
+- `src/client/hooks/useChapterTranslation.ts`
 - `src/client/hooks/useTokenEstimate.ts`
+
+#### `src/client/constants/supportLinks.ts`
+
+Imported by:
+
+- `src/client/components/Header/SupportMenu.tsx`
 
 #### `src/client/constants/text-block-presets.ts`
 
 Imported by:
 
+- `src/client/components/ChapterView/index.tsx`
 - `src/client/components/ReadingMode/index.tsx`
 - `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/client/constants/translationLanguages.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/components/Dashboard/Dashboard.tsx`
+- `src/client/components/Project/CopyChaptersModal.tsx`
+- `src/client/components/Project/ProjectLanguagePairFields.tsx`
+- `src/client/components/ProjectInfo.tsx`
+- `src/client/components/Sidebar/JobsPanel.tsx`
+- `src/client/components/Sidebar/ProcessChapters.tsx`
+- `src/client/components/Sidebar/ProjectList.tsx`
+- `src/client/components/Sidebar/SettingsModal.tsx`
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/pages/CabinetPage.tsx`
+- `src/client/pages/ProjectsPage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
+- `src/client/utils/languagePairOverride.ts`
+
+#### `src/client/contexts/AnnouncementContext.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+- `src/client/components/AnnouncementBanner.tsx`
+- `src/client/pages/NewsDetailPage.tsx`
 
 #### `src/client/contexts/CookieConsentContext.tsx`
 
@@ -1207,6 +1784,7 @@ Imported by:
 Imported by:
 
 - `src/client/AppRouter.tsx`
+- `src/client/components/AnnouncementBanner.tsx`
 - `src/client/components/ServiceStatusBanner.tsx`
 
 #### `src/client/contexts/SystemStatusContext.tsx`
@@ -1221,6 +1799,7 @@ Imported by:
 Imported by:
 
 - `src/client/AppRouter.tsx`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
 - `src/client/components/TokenUsage/TokenUsageIndicator.tsx`
 - `src/client/hooks/useTokenLimitCheck.ts`
 
@@ -1240,21 +1819,27 @@ Imported by:
 
 Imported by:
 
+- `src/client/pages/NewsDetailPage.tsx`
 - `src/client/pages/PublicationPage.tsx`
 - `src/client/pages/PublicationReadingPage.tsx`
 
-#### `src/client/hooks/useTokenEstimate.ts`
+#### `src/client/hooks/useStaticPageMeta.ts`
 
 Imported by:
 
-- `src/client/components/Sidebar/ProcessChapters.tsx`
-- `src/client/hooks/useBatchChapterTranslation.ts`
-- `src/client/hooks/useChapterTranslation.ts`
+- `src/client/pages/AboutPage.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
+- `src/client/pages/ContactPage.tsx`
+- `src/client/pages/NewsPage.tsx`
+- `src/client/pages/PrivacyPage.tsx`
+- `src/client/pages/TermsPage.tsx`
 
 #### `src/client/hooks/useTokenLimitCheck.ts`
 
 Imported by:
 
+- `src/client/components/ChapterView/index.tsx`
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
 - `src/client/hooks/useBatchChapterTranslation.ts`
 - `src/client/hooks/useChapterTranslation.ts`
 
@@ -1265,12 +1850,22 @@ Imported by:
 - `src/client/components/Auth/AdminGate.tsx`
 - `src/client/components/Auth/AuthorGate.tsx`
 - `src/client/components/Auth/RequireRole.tsx`
+- `src/client/components/Auth/UpgradeScreen.tsx`
+- `src/client/components/Auth/UserGate.tsx`
+- `src/client/components/ChapterView/CriticUpgradeModal.tsx`
+- `src/client/components/ChapterView/index.tsx`
 - `src/client/components/Header.tsx`
+- `src/client/components/ProjectInfo.tsx`
+- `src/client/components/SearchReplace/AiReplaceUpgradeModal.tsx`
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx`
+- `src/client/components/Sidebar/SettingsModal.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
 - `src/client/pages/CabinetPage.tsx`
 - `src/client/pages/HomePage.tsx`
 - `src/client/pages/ProfilePage.tsx`
 - `src/client/pages/ProjectsPage.tsx`
 - `src/client/pages/PublicationPage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
 
 #### `src/client/i18n.ts`
 
@@ -1279,13 +1874,13 @@ Imported by:
 - `src/client/components/Header.tsx`
 - `src/client/main.tsx`
 
-#### `src/client/locales/en.json`
+#### `src/client/locales/be.json`
 
 Imported by:
 
 - `src/client/i18n.ts`
 
-#### `src/client/locales/pl.json`
+#### `src/client/locales/en.json`
 
 Imported by:
 
@@ -1303,6 +1898,12 @@ Imported by:
 
 - `src/client/AppRouter.tsx`
 
+#### `src/client/pages/AccountTiersPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
 #### `src/client/pages/AdminEntitiesPage.css`
 
 Imported by:
@@ -1314,6 +1915,60 @@ Imported by:
 Imported by:
 
 - `src/client/pages/index.ts`
+
+#### `src/client/pages/AdminNewsPage.css`
+
+Imported by:
+
+- `src/client/pages/AdminNewsPage.tsx`
+
+#### `src/client/pages/AdminNewsPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
+#### `src/client/pages/AdminPublicationsPage.css`
+
+Imported by:
+
+- `src/client/pages/AdminPublicationsPage.tsx`
+
+#### `src/client/pages/AdminPublicationsPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
+#### `src/client/pages/AdminRedirect.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
+#### `src/client/pages/AdminTranslationRequestsPage.css`
+
+Imported by:
+
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+
+#### `src/client/pages/AdminTranslationRequestsPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
+#### `src/client/pages/AdminUsersPage.css`
+
+Imported by:
+
+- `src/client/pages/AdminUsersPage.tsx`
+
+#### `src/client/pages/AdminUsersPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
 
 #### `src/client/pages/CabinetPage.css`
 
@@ -1351,9 +2006,31 @@ Imported by:
 Imported by:
 
 - `src/client/pages/AboutPage.tsx`
+- `src/client/pages/AccountTiersPage.tsx`
 - `src/client/pages/ContactPage.tsx`
+- `src/client/pages/NewsDetailPage.tsx`
+- `src/client/pages/NewsPage.tsx`
 - `src/client/pages/PrivacyPage.tsx`
 - `src/client/pages/TermsPage.tsx`
+
+#### `src/client/pages/NewsDetailPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
+#### `src/client/pages/NewsPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
+#### `src/client/pages/NewsPages.css`
+
+Imported by:
+
+- `src/client/pages/NewsDetailPage.tsx`
+- `src/client/pages/NewsPage.tsx`
 
 #### `src/client/pages/PrivacyPage.tsx`
 
@@ -1429,6 +2106,19 @@ Imported by:
 
 - `src/client/AppRouter.tsx`
 
+#### `src/client/pages/TranslationRequestsPage.css`
+
+Imported by:
+
+- `src/client/pages/AdminTranslationRequestsPage.tsx`
+- `src/client/pages/TranslationRequestsPage.tsx`
+
+#### `src/client/pages/TranslationRequestsPage.tsx`
+
+Imported by:
+
+- `src/client/AppRouter.tsx`
+
 #### `src/client/pages/index.ts`
 
 Imported by:
@@ -1446,11 +2136,13 @@ Imported by:
 - `src/client/components/ProjectInfo.tsx`
 - `src/client/components/ReadingMode/index.tsx`
 - `src/client/components/TokenUsage/TokenUsageIndicator.tsx`
+- `src/client/contexts/AnnouncementContext.tsx`
 - `src/client/contexts/TokenUsageContext.tsx`
 - `src/client/hooks/useBatchChapterTranslation.ts`
 - `src/client/hooks/useChapterTranslation.ts`
 - `src/client/hooks/useTokenLimitCheck.ts`
 - `src/client/hooks/useUserRole.ts`
+- `src/client/pages/AccountTiersPage.tsx`
 - `src/client/pages/HomePage.tsx`
 - `src/client/pages/ProfilePage.tsx`
 - `src/client/pages/PublicationPage.tsx`
@@ -1461,9 +2153,11 @@ Imported by:
 Imported by:
 
 - `src/client/components/Dashboard/Dashboard.tsx`
+- `src/client/components/Project/CopyChaptersModal.tsx`
 - `src/client/components/ProjectInfo.tsx`
 - `src/client/components/Sidebar/ChapterList.tsx`
 - `src/client/components/Sidebar/ProjectList.tsx`
+- `src/client/components/Sidebar/SettingsModal.tsx`
 - `src/client/hooks/useBatchChapterTranslation.ts`
 - `src/client/pages/CabinetPage.tsx`
 - `src/client/pages/ChapterPage.tsx`
@@ -1521,11 +2215,14 @@ Imported by:
 Imported by:
 
 - `src/client/AppRouter.tsx`
+- `src/client/components/AnnouncementBanner.tsx`
 - `src/client/components/Auth/LoginForm.tsx`
 - `src/client/components/Auth/RegisterForm.tsx`
 - `src/client/components/ChapterView/TranslationPanel.tsx`
 - `src/client/components/Dashboard/ProjectCard.tsx`
+- `src/client/components/Header/SupportMenu.tsx`
 - `src/client/components/Home/PublicationCard.tsx`
+- `src/client/pages/NewsDetailPage.tsx`
 - `src/client/pages/ProjectPage.tsx`
 - `src/client/pages/PublicationPage.tsx`
 
@@ -1534,6 +2231,31 @@ Imported by:
 Imported by:
 
 - `src/client/contexts/CookieConsentContext.tsx`
+
+#### `src/client/utils/criticFingerprint.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/index.tsx`
+
+#### `src/client/utils/dismissedAlerts.ts`
+
+Imported by:
+
+- `src/client/contexts/AnnouncementContext.tsx`
+
+#### `src/client/utils/languagePairOverride.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/components/Sidebar/ProcessChapters.tsx`
+
+#### `src/client/utils/openMailto.ts`
+
+Imported by:
+
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx`
 
 #### `src/client/utils/project-type.ts`
 
@@ -1547,7 +2269,16 @@ Imported by:
 Imported by:
 
 - `src/client/components/SearchReplace/ProjectSearchModal.tsx`
+- `src/client/components/SearchReplace/ReplacePreviewModal.tsx`
 - `src/client/components/SearchReplace/SearchReplaceBar.tsx`
+- `src/client/components/SearchReplace/useProjectSearch.ts`
+
+#### `src/client/utils/simpleMarkdown.ts`
+
+Imported by:
+
+- `src/client/pages/NewsDetailPage.tsx`
+- `src/client/utils/simpleMarkdown.test.ts`
 
 #### `src/client/utils/text-blocks.ts`
 
@@ -1563,12 +2294,118 @@ Imported by:
 - `src/client/components/Header.tsx`
 - `src/client/contexts/TokenUsageContext.tsx`
 
+#### `src/config/projectLimits.ts`
+
+Imported by:
+
+- `src/client/components/ProjectInfo.tsx`
+- `src/client/pages/ProjectsPage.tsx`
+- `src/shared/accountTiers.ts`
+
+#### `src/config/tokenLimits.ts`
+
+Imported by:
+
+- `src/shared/accountTiers.ts`
+
+#### `src/engine/prompts/shared/gender-agreement-be.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+
+#### `src/engine/prompts/shared/gender-agreement-ru.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+
+#### `src/engine/prompts/shared/gender-agreement-target.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+- `src/engine/prompts/shared/translation-examples.ts`
+
+#### `src/engine/prompts/shared/gender-agreement.ts`
+
+Imported by:
+
+- `src/engine/prompts/system/editor.ts`
+
+#### `src/engine/prompts/shared/target-language-anchor.ts`
+
+Imported by:
+
+- `src/engine/prompts/system/editor.ts`
+
+#### `src/engine/prompts/shared/translation-examples.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+
+#### `src/engine/prompts/system/editor.ts`
+
+Imported by:
+
+- `src/shared/editing-focus.ts`
+
+#### `src/shared/accountTiers.ts`
+
+Imported by:
+
+- `src/client/components/AccountTiers/RoleComparisonTable.tsx`
+
+#### `src/shared/aiReplaceEstimate.ts`
+
+Imported by:
+
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+
+#### `src/shared/aiReplacePresets.ts`
+
+Imported by:
+
+- `src/client/components/SearchReplace/AiReplaceSetupModal.tsx`
+- `src/shared/aiReplaceEstimate.ts`
+
 #### `src/shared/cacheContract.ts`
 
 Imported by:
 
 - `src/client/api/client.ts`
-- `src/client/store/projects.ts`
+
+#### `src/shared/chapterContentSync.ts`
+
+Imported by:
+
+- `src/client/pages/ChapterPage.tsx`
+
+#### `src/shared/chapterSourceText.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/config/tokenEstimate.ts`
+- `src/client/hooks/useChapterTranslation.ts`
+
+#### `src/shared/chapterTitle.ts`
+
+Imported by:
+
+- `src/client/components/ChapterTocModal.tsx`
+- `src/client/components/ChapterView/ChapterHeader.tsx`
+- `src/client/components/Project/CopyChaptersModal.tsx`
+- `src/client/components/Sidebar/ChapterList.tsx`
+- `src/client/components/Sidebar/ProcessChapters.tsx`
+
+#### `src/shared/chapterTranslationCoverage.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/components/ChapterView/index.tsx`
 
 #### `src/shared/chunkErrors.ts`
 
@@ -1577,84 +2414,382 @@ Imported by:
 - `src/client/components/ChapterView/TranslationPanel.tsx`
 - `src/client/components/ChapterView/index.tsx`
 - `src/client/components/ProjectInfo.tsx`
-- `src/client/hooks/useChapterTranslation.ts`
+- `src/shared/chapterSourceText.ts`
+- `src/shared/chapterTranslationCoverage.ts`
 
 #### `src/shared/contact.ts`
 
 Imported by:
 
-- `src/client/components/Auth/UpgradeScreen.tsx`
+- `src/client/components/UpgradeRequest/UpgradeRequestActions.tsx`
 - `src/client/pages/ContactPage.tsx`
 - `src/client/pages/PrivacyPage.tsx`
-- `src/client/pages/ProfilePage.tsx`
 - `src/client/pages/TermsPage.tsx`
+
+#### `src/shared/critic-limits.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/index.tsx`
+
+#### `src/shared/edit-execution-modes.ts`
+
+Imported by:
+
+- `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/shared/editing-focus.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/TranslationPanel.tsx`
+- `src/client/components/Sidebar/ProcessChapters.tsx`
+- `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/shared/evaluation-normalize.ts`
+
+Imported by:
+
+- `src/client/components/ChapterView/index.tsx`
+
+#### `src/shared/execution-presets-ui.ts`
+
+Imported by:
+
+- `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/shared/featureGates.ts`
+
+Imported by:
+
+- `src/client/components/SearchReplace/ProjectSearchModal.tsx`
+
+#### `src/shared/llmModels.ts`
+
+Imported by:
+
+- `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/shared/modelAccess.ts`
+
+Imported by:
+
+- `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/shared/openaiModelAdapter.ts`
+
+Imported by:
+
+- `src/shared/llmModels.ts`
+
+#### `src/shared/prodModelLists.ts`
+
+Imported by:
+
+- `src/shared/llmModels.ts`
+- `src/shared/modelAccess.ts`
+
+#### `src/shared/projectSearch.ts`
+
+Imported by:
+
+- `src/client/utils/search-utils.ts`
+
+#### `src/shared/staticPageMeta.ts`
+
+Imported by:
+
+- `src/client/hooks/usePageMeta.ts`
+- `src/client/hooks/useStaticPageMeta.ts`
+
+#### `src/shared/translate-execution-modes.ts`
+
+Imported by:
+
+- `src/client/components/Sidebar/SettingsModal.tsx`
+
+#### `src/shared/translation-status.ts`
+
+Imported by:
+
+- `src/client/components/ProjectInfo.tsx`
+
+#### `src/shared/translationTokenEstimate.ts`
+
+Imported by:
+
+- `src/client/config/tokenEstimate.ts`
+- `src/config/tokenLimits.ts`
+
+#### `src/types/roles.ts`
+
+Imported by:
+
+- `src/client/pages/AdminUsersPage.tsx`
+- `src/shared/modelAccess.ts`
 
 ### Server (API, services, middleware)
 
-154 import edge(s).
+469 import edge(s).
 
 #### Import edges (from → to)
 
+- `src/api/schemas/chapters.ts` → `src/api/schemas/projects.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/admin.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/auth.ts`
+- `src/api/schemas/index.ts` → `src/api/schemas/catalogRequests.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/chapters.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/common.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/glossary.ts`
+- `src/api/schemas/index.ts` → `src/api/schemas/news.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/projects.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/publications.ts`
 - `src/api/schemas/index.ts` → `src/api/schemas/user.ts`
+- `src/api/schemas/projects.ts` → `src/engine/language.ts`
+- `src/api/schemas/projects.ts` → `src/shared/editing-focus.ts`
+- `src/api/schemas/prompt-lab.ts` → `src/shared/editing-focus.ts`
 - `src/api/schemas/publications.ts` → `src/api/schemas/common.ts`
+- `src/config/tokenLimits.ts` → `src/shared/translationTokenEstimate.ts`
+- `src/debug/agentContext.ts` → `src/debug/buffer.ts`
+- `src/debug/agentContext.ts` → `src/debug/copyFormat.ts`
+- `src/debug/agentContext.ts` → `src/debug/httpCapture.ts`
+- `src/debug/agentContext.ts` → `src/debug/persist.ts`
+- `src/debug/agentContext.ts` → `src/debug/promptCapture.ts`
+- `src/debug/agentContext.ts` → `src/debug/redisBridge.ts`
+- `src/debug/agentContext.ts` → `src/debug/traceDetail.ts`
+- `src/debug/buffer.ts` → `src/debug/context.ts`
+- `src/debug/buffer.ts` → `src/debug/persist.ts`
+- `src/debug/buffer.ts` → `src/debug/redisBridge.ts`
+- `src/debug/copyFormat.ts` → `src/debug/shared/copyFormat.ts`
+- `src/debug/debugStatus.ts` → `src/debug/buffer.ts`
+- `src/debug/debugStatus.ts` → `src/debug/httpCapture.ts`
+- `src/debug/debugStatus.ts` → `src/debug/persist.ts`
+- `src/debug/debugStatus.ts` → `src/debug/promptCapture.ts`
+- `src/debug/debugStatus.ts` → `src/debug/redisBridge.ts`
+- `src/debug/httpCapture.ts` → `src/debug/context.ts`
+- `src/debug/httpCapture.ts` → `src/debug/persist.ts`
+- `src/debug/httpCapture.ts` → `src/debug/redisBridge.ts`
+- `src/debug/httpCaptureMiddleware.ts` → `src/debug/context.ts`
+- `src/debug/httpCaptureMiddleware.ts` → `src/debug/httpCapture.ts`
+- `src/debug/httpCaptureMiddleware.ts` → `src/middleware/routeDebugError.ts`
+- `src/debug/hydrate.ts` → `src/debug/buffer.ts`
+- `src/debug/hydrate.ts` → `src/debug/httpCapture.ts`
+- `src/debug/hydrate.ts` → `src/debug/persist.ts`
+- `src/debug/hydrate.ts` → `src/debug/promptCapture.ts`
+- `src/debug/promptCapture.ts` → `src/debug/context.ts`
+- `src/debug/promptCapture.ts` → `src/debug/persist.ts`
+- `src/debug/promptCapture.ts` → `src/debug/redisBridge.ts`
+- `src/debug/query.ts` → `src/debug/agentContext.ts`
+- `src/debug/query.ts` → `src/debug/buffer.ts`
+- `src/debug/query.ts` → `src/debug/httpCapture.ts`
+- `src/debug/query.ts` → `src/debug/persist.ts`
+- `src/debug/query.ts` → `src/debug/promptCapture.ts`
+- `src/debug/query.ts` → `src/debug/redisBridge.ts`
+- `src/debug/query.ts` → `src/debug/traceDetail.ts`
+- `src/debug/routes.ts` → `src/debug/agentContext.ts`
+- `src/debug/routes.ts` → `src/debug/buffer.ts`
+- `src/debug/routes.ts` → `src/debug/catalog.ts`
+- `src/debug/routes.ts` → `src/debug/copyFormat.ts`
+- `src/debug/routes.ts` → `src/debug/debugStatus.ts`
+- `src/debug/routes.ts` → `src/debug/httpCapture.ts`
+- `src/debug/routes.ts` → `src/debug/persist.ts`
+- `src/debug/routes.ts` → `src/debug/promptCapture.ts`
+- `src/debug/routes.ts` → `src/debug/query.ts`
+- `src/debug/routes.ts` → `src/debug/rateLimit.ts`
+- `src/debug/routes.ts` → `src/debug/redisBridge.ts`
+- `src/debug/routes.ts` → `src/debug/traceDetail.ts`
 - `src/engine/constants/errors.ts` → `src/shared/chunkErrors.ts`
+- `src/engine/edit-chunking-policy.ts` → `src/engine/translate-chunking-policy.ts`
+- `src/engine/edit-chunking-policy.ts` → `src/engine/utils/token-estimate.ts`
+- `src/engine/edit-chunking-policy.ts` → `src/shared/edit-execution-modes.ts`
+- `src/engine/edit-execution-preview.test.ts` → `src/engine/edit-execution-preview.ts`
+- `src/engine/edit-execution-preview.ts` → `src/engine/edit-chunking-policy.ts`
+- `src/engine/edit-execution-preview.ts` → `src/engine/utils/chunker-core.ts`
+- `src/engine/edit-execution-preview.ts` → `src/shared/edit-execution-modes.ts`
+- `src/engine/glossary/glossary-filter.test.ts` → `src/engine/glossary/glossary-filter.ts`
+- `src/engine/glossary/glossary-filter.ts` → `src/engine/language.ts`
+- `src/engine/glossary/glossary-manager.test.ts` → `src/engine/glossary/glossary-manager.ts`
 - `src/engine/glossary/glossary-manager.ts` → `src/engine/glossary/declension.ts`
+- `src/engine/glossary/glossary-manager.ts` → `src/engine/language.ts`
+- `src/engine/glossary/glossary-manager.ts` → `src/engine/prompts/shared/gender-cast-legend.ts`
 - `src/engine/index.ts` → `src/engine/agents/novel-agent.ts`
 - `src/engine/index.ts` → `src/engine/constants/errors.ts`
 - `src/engine/index.ts` → `src/engine/glossary/declension-ru.ts`
 - `src/engine/index.ts` → `src/engine/glossary/declension.ts`
 - `src/engine/index.ts` → `src/engine/glossary/glossary-filter.ts`
 - `src/engine/index.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/engine/index.ts` → `src/engine/language.ts`
+- `src/engine/index.ts` → `src/engine/pipeline/resolve-execution-options.ts`
 - `src/engine/index.ts` → `src/engine/pipeline/translation-pipeline.ts`
-- `src/engine/index.ts` → `src/engine/prompts/system/analyzer.ts`
+- `src/engine/index.ts` → `src/engine/prompts/effective-prompts.ts`
+- `src/engine/index.ts` → `src/engine/prompts/registry.ts`
 - `src/engine/index.ts` → `src/engine/prompts/system/editor.ts`
-- `src/engine/index.ts` → `src/engine/prompts/system/translator.ts`
 - `src/engine/index.ts` → `src/engine/providers/openai.ts`
 - `src/engine/index.ts` → `src/engine/stages/stage-1-analyze.ts`
 - `src/engine/index.ts` → `src/engine/stages/stage-2-translate.ts`
 - `src/engine/index.ts` → `src/engine/stages/stage-3-edit.ts`
 - `src/engine/index.ts` → `src/engine/utils/chunker.ts`
+- `src/engine/index.ts` → `src/engine/utils/para-markers.ts`
+- `src/engine/index.ts` → `src/engine/utils/token-estimate.ts`
+- `src/engine/logger.ts` → `src/debug/context.ts`
 - `src/engine/logger.ts` → `src/logger.ts`
+- `src/engine/pipeline/resolve-execution-options.test.ts` → `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/pipeline/resolve-execution-options.test.ts` → `src/engine/translate-chunking-policy.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/engine/edit-chunking-policy.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/engine/glossary/glossary-filter.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/engine/language.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/engine/prompts/system/editor.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/shared/edit-execution-modes.ts`
+- `src/engine/pipeline/resolve-execution-options.ts` → `src/shared/translate-execution-modes.ts`
+- `src/engine/pipeline/stage-prompt-flow.test.ts` → `src/engine/glossary/glossary-filter.ts`
+- `src/engine/pipeline/stage-prompt-flow.test.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/engine/pipeline/translation-pipeline.ts` → `src/debug/context.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/agents/novel-agent.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/constants/errors.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/glossary/glossary-filter.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/logger.ts`
+- `src/engine/pipeline/translation-pipeline.ts` → `src/engine/pipeline/resolve-execution-options.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/stages/stage-1-analyze.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/stages/stage-2-translate.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/stages/stage-3-edit.ts`
 - `src/engine/pipeline/translation-pipeline.ts` → `src/engine/utils/concurrency.ts`
+- `src/engine/prompts/ai-replace.test.ts` → `src/engine/prompts/ai-replace.ts`
+- `src/engine/prompts/ai-replace.ts` → `src/engine/language.ts`
+- `src/engine/prompts/ai-replace.ts` → `src/engine/utils/para-markers.ts`
+- `src/engine/prompts/ai-replace.ts` → `src/shared/aiReplacePresets.ts`
+- `src/engine/prompts/critic.ts` → `src/engine/language.ts`
+- `src/engine/prompts/effective-prompts.ts` → `src/engine/language.ts`
+- `src/engine/prompts/effective-prompts.ts` → `src/engine/prompts/registry.ts`
+- `src/engine/prompts/effective-prompts.ts` → `src/engine/prompts/shared/gender-agreement.ts`
+- `src/engine/prompts/effective-prompts.ts` → `src/engine/prompts/shared/glossary-metadata-language.ts`
+- `src/engine/prompts/effective-prompts.ts` → `src/engine/prompts/system/editor.ts`
+- `src/engine/prompts/pairs/en-be/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/en-be/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/en-be/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/en-be/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/pairs/en-ru/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/en-ru/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/en-ru/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/en-ru/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/pairs/ko-be/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/ko-be/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/ko-be/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/ko-be/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/pairs/ko-ru/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/ko-ru/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/ko-ru/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/ko-ru/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/pairs/ru-be/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/ru-be/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/ru-be/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/ru-be/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/pairs/zh-be/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/zh-be/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/zh-be/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/zh-be/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/pairs/zh-ru/analyzer.ts` → `src/engine/language.ts`
+- `src/engine/prompts/pairs/zh-ru/analyzer.ts` → `src/engine/prompts/shared/analysis-output.ts`
+- `src/engine/prompts/pairs/zh-ru/analyzer.ts` → `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/prompts/pairs/zh-ru/translator.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/language.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/en-be/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/en-be/translator.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/en-ru/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/en-ru/translator.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/ko-be/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/ko-be/translator.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/ko-ru/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/ko-ru/translator.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/ru-be/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/ru-be/translator.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/zh-be/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/zh-be/translator.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/zh-ru/analyzer.ts`
+- `src/engine/prompts/registry.ts` → `src/engine/prompts/pairs/zh-ru/translator.ts`
+- `src/engine/prompts/shared/analyzer-user.ts` → `src/engine/prompts/shared/glossary-metadata-language.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/gender-agreement-be.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/gender-agreement-ru.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/gender-agreement-target.ts`
+- `src/engine/prompts/shared/gender-agreement.ts` → `src/engine/prompts/shared/translation-examples.ts`
+- `src/engine/prompts/shared/translation-examples.ts` → `src/engine/prompts/shared/gender-agreement-target.ts`
+- `src/engine/prompts/shared/translator-user.ts` → `src/engine/prompts/shared/target-language-anchor.ts`
+- `src/engine/prompts/shared/translator-user.ts` → `src/engine/prompts/shared/translate-cot.ts`
+- `src/engine/prompts/system/analyzer.ts` → `src/engine/prompts/registry.ts`
+- `src/engine/prompts/system/editor.ts` → `src/engine/prompts/shared/gender-agreement.ts`
+- `src/engine/prompts/system/editor.ts` → `src/engine/prompts/shared/target-language-anchor.ts`
+- `src/engine/prompts/system/translator.ts` → `src/engine/prompts/registry.ts`
+- `src/engine/providers/openai.completejson.test.ts` → `src/engine/providers/openai.ts`
+- `src/engine/providers/openai.ts` → `src/debug/promptCapture.ts`
 - `src/engine/providers/openai.ts` → `src/engine/logger.ts`
+- `src/engine/providers/openai.ts` → `src/engine/utils/token-estimate.ts`
+- `src/engine/providers/openai.ts` → `src/shared/openaiModelAdapter.ts`
 - `src/engine/stages/stage-1-analyze.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/engine/stages/stage-1-analyze.ts` → `src/engine/language.ts`
 - `src/engine/stages/stage-1-analyze.ts` → `src/engine/logger.ts`
-- `src/engine/stages/stage-1-analyze.ts` → `src/engine/prompts/system/analyzer.ts`
+- `src/engine/stages/stage-1-analyze.ts` → `src/engine/prompts/registry.ts`
+- `src/engine/stages/stage-1-analyze.ts` → `src/engine/prompts/shared/glossary-metadata-language.ts`
 - `src/engine/stages/stage-1-analyze.ts` → `src/engine/utils/chunker.ts`
+- `src/engine/stages/stage-1-analyze.ts` → `src/shared/openaiModelAdapter.ts`
 - `src/engine/stages/stage-2-translate.ts` → `src/engine/constants/errors.ts`
 - `src/engine/stages/stage-2-translate.ts` → `src/engine/glossary/glossary-filter.ts`
 - `src/engine/stages/stage-2-translate.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/language.ts`
 - `src/engine/stages/stage-2-translate.ts` → `src/engine/logger.ts`
-- `src/engine/stages/stage-2-translate.ts` → `src/engine/prompts/system/translator.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/prompts/registry.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/prompts/shared/gender-agreement.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/prompts/shared/translate-cot.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/translate-chunking-policy.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/translate-optimization.ts`
 - `src/engine/stages/stage-2-translate.ts` → `src/engine/utils/chunker.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/utils/leading-context.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/engine/utils/para-markers.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/engine/stages/stage-2-translate.ts` → `src/shared/translationChunkPresets.ts`
 - `src/engine/stages/stage-3-edit.ts` → `src/engine/glossary/glossary-filter.ts`
 - `src/engine/stages/stage-3-edit.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/engine/stages/stage-3-edit.ts` → `src/engine/language.ts`
 - `src/engine/stages/stage-3-edit.ts` → `src/engine/logger.ts`
 - `src/engine/stages/stage-3-edit.ts` → `src/engine/prompts/system/editor.ts`
 - `src/engine/stages/stage-3-edit.ts` → `src/engine/utils/chunker.ts`
+- `src/engine/stages/stage-3-edit.ts` → `src/shared/edit-execution-modes.ts`
+- `src/engine/title-translate.ts` → `src/engine/language.ts`
+- `src/engine/title-translate.ts` → `src/engine/logger.ts`
+- `src/engine/title-translate.ts` → `src/shared/chapterTitle.ts`
+- `src/engine/translate-chunking-policy.test.ts` → `src/engine/translate-chunking-policy.ts`
+- `src/engine/translate-chunking-policy.test.ts` → `src/engine/translate-execution-preview.ts`
+- `src/engine/translate-chunking-policy.test.ts` → `src/engine/utils/chunker.ts`
+- `src/engine/translate-chunking-policy.test.ts` → `src/shared/translationChunkPresets.ts`
+- `src/engine/translate-chunking-policy.ts` → `src/engine/utils/token-estimate.ts`
+- `src/engine/translate-chunking-policy.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/engine/translate-execution-preview.test.ts` → `src/engine/translate-execution-preview.ts`
+- `src/engine/translate-execution-preview.ts` → `src/engine/translate-chunking-policy.ts`
+- `src/engine/translate-execution-preview.ts` → `src/engine/translate-optimization.ts`
+- `src/engine/translate-execution-preview.ts` → `src/engine/utils/chunker-core.ts`
+- `src/engine/translate-execution-preview.ts` → `src/shared/translate-execution-modes.ts`
+- `src/engine/translate-execution-preview.ts` → `src/shared/translationChunkPresets.ts`
+- `src/engine/translate-optimization.test.ts` → `src/engine/translate-optimization.ts`
+- `src/engine/translate-optimization.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/engine/translate-optimization.ts` → `src/shared/translationChunkPresets.ts`
+- `src/engine/utils/chunker-core.ts` → `src/engine/utils/token-estimate.ts`
 - `src/engine/utils/chunker.ts` → `src/engine/logger.ts`
+- `src/engine/utils/chunker.ts` → `src/engine/utils/chunker-core.ts`
+- `src/engine/utils/para-markers.test.ts` → `src/engine/utils/para-markers.ts`
 - `src/engine/utils/text-blocks.ts` → `src/engine/logger.ts`
-- `src/logger.ts` → `src/debugBuffer.ts`
+- `src/logger.ts` → `src/debug/buffer.ts`
 - `src/middleware/auth.ts` → `src/logger.ts`
 - `src/middleware/auth.ts` → `src/services/redisCache.ts`
 - `src/middleware/auth.ts` → `src/shared/cacheContract.ts`
 - `src/middleware/auth.ts` → `src/types/roles.ts`
 - `src/middleware/requestContext.ts` → `src/logger.ts`
+- `src/middleware/requestContext.ts` → `src/middleware/routeDebugError.ts`
+- `src/middleware/routeDebugError.ts` → `src/middleware/serviceHealth.ts`
+- `src/middleware/routeDebugError.ts` → `src/services/authErrors.ts`
+- `src/middleware/serviceHealth.test.ts` → `src/services/healthCircuitBreaker.ts`
+- `src/middleware/serviceHealth.test.ts` → `src/services/healthSnapshotStore.ts`
 - `src/middleware/serviceHealth.ts` → `src/logger.ts`
+- `src/middleware/serviceHealth.ts` → `src/services/healthCircuitBreaker.ts`
 - `src/middleware/serviceHealth.ts` → `src/services/serviceHealth.ts`
 - `src/middleware/tokenLimits.ts` → `src/config/tokenLimits.ts`
 - `src/middleware/tokenLimits.ts` → `src/logger.ts`
@@ -1662,41 +2797,118 @@ Imported by:
 - `src/middleware/tokenLimits.ts` → `src/services/supabaseClient.ts`
 - `src/middleware/tokenLimits.ts` → `src/shared/cacheContract.ts`
 - `src/middleware/tokenLimits.ts` → `src/utils/tokenValidation.ts`
+- `src/prompt-lab/db.ts` → `src/services/supabaseClient.ts`
+- `src/prompt-lab/evaluator.ts` → `src/config.ts`
+- `src/prompt-lab/evaluator.ts` → `src/engine/index.ts`
+- `src/prompt-lab/evaluator.ts` → `src/prompt-lab/evaluation-limits.ts`
+- `src/prompt-lab/evaluator.ts` → `src/prompt-lab/glossary.ts`
+- `src/prompt-lab/evaluator.ts` → `src/prompt-lab/prompts/evaluator.ts`
+- `src/prompt-lab/evaluator.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/prompt-lab/glossary.ts` → `src/engine/glossary/glossary-manager.ts`
+- `src/prompt-lab/prompts/evaluator.ts` → `src/engine/language.ts`
+- `src/prompt-lab/routes.ts` → `src/api/schemas/prompt-lab.ts`
+- `src/prompt-lab/routes.ts` → `src/config.ts`
+- `src/prompt-lab/routes.ts` → `src/engine/index.ts`
+- `src/prompt-lab/routes.ts` → `src/prompt-lab/db.ts`
+- `src/prompt-lab/routes.ts` → `src/prompt-lab/evaluator.ts`
+- `src/prompt-lab/routes.ts` → `src/prompt-lab/runNaming.ts`
+- `src/prompt-lab/routes.ts` → `src/prompt-lab/runner.ts`
+- `src/prompt-lab/routes.ts` → `src/prompt-lab/types.ts`
+- `src/prompt-lab/routes.ts` → `src/services/glossaryImportExport.ts`
+- `src/prompt-lab/routes.ts` → `src/shared/llmModels.ts`
+- `src/prompt-lab/runner.ts` → `src/config.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/edit-chunking-policy.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/index.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/pipeline/resolve-execution-options.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/prompts/shared/translate-cot.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/prompts/system/editor.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/translate-optimization.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/utils/chunker.ts`
+- `src/prompt-lab/runner.ts` → `src/engine/utils/para-markers.ts`
+- `src/prompt-lab/runner.ts` → `src/prompt-lab/glossary.ts`
+- `src/prompt-lab/runner.ts` → `src/shared/edit-execution-modes.ts`
+- `src/prompt-lab/runner.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/prompt-lab/runner.ts` → `src/shared/translationChunkPresets.ts`
 - `src/server.ts` → `src/api/schemas/index.ts`
 - `src/server.ts` → `src/config.ts`
+- `src/server.ts` → `src/config/projectLimits.ts`
 - `src/server.ts` → `src/config/tokenLimits.ts`
-- `src/server.ts` → `src/debugBuffer.ts`
+- `src/server.ts` → `src/debug/buffer.ts`
+- `src/server.ts` → `src/debug/context.ts`
+- `src/server.ts` → `src/debug/httpCapture.ts`
+- `src/server.ts` → `src/debug/httpCaptureMiddleware.ts`
+- `src/server.ts` → `src/debug/hydrate.ts`
+- `src/server.ts` → `src/debug/promptCapture.ts`
+- `src/server.ts` → `src/debug/redisBridge.ts`
+- `src/server.ts` → `src/debug/routes.ts`
+- `src/server.ts` → `src/engine/index.ts`
+- `src/server.ts` → `src/engine/language.ts`
+- `src/server.ts` → `src/engine/utils/para-markers.ts`
 - `src/server.ts` → `src/logger.ts`
 - `src/server.ts` → `src/middleware/auth.ts`
 - `src/server.ts` → `src/middleware/requestContext.ts`
+- `src/server.ts` → `src/middleware/routeDebugError.ts`
 - `src/server.ts` → `src/middleware/serviceHealth.ts`
 - `src/server.ts` → `src/middleware/tokenLimits.ts`
+- `src/server.ts` → `src/prompt-lab/routes.ts`
+- `src/server.ts` → `src/services/analysisCache.ts`
 - `src/server.ts` → `src/services/analysisJobStore.ts`
 - `src/server.ts` → `src/services/authService.ts`
+- `src/server.ts` → `src/services/chapter-critic.ts`
 - `src/server.ts` → `src/services/chapterQueue.ts`
+- `src/server.ts` → `src/services/chapterTitleTranslate.ts`
 - `src/server.ts` → `src/services/engine-integration.ts`
 - `src/server.ts` → `src/services/export/index.ts`
+- `src/server.ts` → `src/services/glossaryImportExport.ts`
 - `src/server.ts` → `src/services/glossaryMergeSuggestions.ts`
+- `src/server.ts` → `src/services/healthSnapshotStore.ts`
 - `src/server.ts` → `src/services/import/index.ts`
 - `src/server.ts` → `src/services/importJobStore.ts`
+- `src/server.ts` → `src/services/project-ai-replace.ts`
+- `src/server.ts` → `src/services/projectLanguagePair.ts`
 - `src/server.ts` → `src/services/redisCache.ts`
 - `src/server.ts` → `src/services/serviceHealth.ts`
 - `src/server.ts` → `src/services/storage.ts`
 - `src/server.ts` → `src/services/supabaseClient.ts`
 - `src/server.ts` → `src/services/supabaseDatabase.ts`
 - `src/server.ts` → `src/services/translateJobStore.ts`
+- `src/server.ts` → `src/shared/aiReplaceEstimate.ts`
+- `src/server.ts` → `src/shared/aiReplacePresets.ts`
 - `src/server.ts` → `src/shared/cacheContract.ts`
+- `src/server.ts` → `src/shared/chapterTranslationCoverage.ts`
 - `src/server.ts` → `src/shared/chunkErrors.ts`
+- `src/server.ts` → `src/shared/modelAccess.ts`
+- `src/server.ts` → `src/shared/robotsTxt.ts`
+- `src/server.ts` → `src/shared/staticPageMeta.ts`
+- `src/server.ts` → `src/shared/translation-status.ts`
 - `src/server.ts` → `src/storage/database.ts`
 - `src/server.ts` → `src/utils/requestHelpers.ts`
 - `src/services/analysisCache.ts` → `src/services/redisCache.ts`
 - `src/services/analysisCache.ts` → `src/shared/cacheContract.ts`
+- `src/services/authService.ts` → `src/services/authErrors.ts`
 - `src/services/authService.ts` → `src/services/supabaseClient.ts`
 - `src/services/authService.ts` → `src/types/roles.ts`
 - `src/services/cacheInvalidation.ts` → `src/logger.ts`
 - `src/services/cacheInvalidation.ts` → `src/services/redisCache.ts`
 - `src/services/cacheInvalidation.ts` → `src/services/supabaseDatabase.ts`
 - `src/services/cacheInvalidation.ts` → `src/shared/cacheContract.ts`
+- `src/services/chapter-critic.ts` → `src/config.ts`
+- `src/services/chapter-critic.ts` → `src/engine/index.ts`
+- `src/services/chapter-critic.ts` → `src/engine/prompts/critic.ts`
+- `src/services/chapter-critic.ts` → `src/services/engine-integration.ts`
+- `src/services/chapter-critic.ts` → `src/shared/critic-fingerprint.ts`
+- `src/services/chapter-critic.ts` → `src/shared/critic-limits.ts`
+- `src/services/chapter-critic.ts` → `src/shared/evaluation-normalize.ts`
+- `src/services/chapter-critic.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/engine/language.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/engine/providers/openai.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/engine/title-translate.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/logger.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/middleware/tokenLimits.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/services/engine-integration.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/services/supabaseDatabase.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/shared/chapterTitle.ts`
+- `src/services/chapterTitleTranslate.ts` → `src/shared/modelAccess.ts`
 - `src/services/chapterWorker.ts` → `src/logger.ts`
 - `src/services/chapterWorker.ts` → `src/services/chapterQueue.ts`
 - `src/services/chapterWorker.ts` → `src/services/jobs/runAnalysisJob.ts`
@@ -1705,7 +2917,10 @@ Imported by:
 - `src/services/engine-integration.ts` → `src/logger.ts`
 - `src/services/engine-integration.ts` → `src/services/analysisCache.ts`
 - `src/services/engine-integration.ts` → `src/shared/chunkErrors.ts`
+- `src/services/engine-integration.ts` → `src/shared/modelAccess.ts`
+- `src/services/engine-integration.ts` → `src/shared/openaiModelAdapter.ts`
 - `src/services/export/common.ts` → `src/engine/utils/text-blocks.ts`
+- `src/services/export/common.ts` → `src/shared/chapterTitle.ts`
 - `src/services/export/common.ts` → `src/storage/database.ts`
 - `src/services/export/epub.ts` → `src/logger.ts`
 - `src/services/export/epub.ts` → `src/services/export/epub-styles.ts`
@@ -1715,13 +2930,19 @@ Imported by:
 - `src/services/export/index.ts` → `src/services/export/common.ts`
 - `src/services/export/index.ts` → `src/services/export/epub.ts`
 - `src/services/export/index.ts` → `src/services/export/fb2.ts`
+- `src/services/glossaryImportExport.ts` → `src/api/schemas/glossary.ts`
+- `src/services/glossaryImportExport.ts` → `src/services/engine-integration.ts`
 - `src/services/glossaryMergeSuggestions.ts` → `src/logger.ts`
+- `src/services/healthCircuitBreaker.ts` → `src/services/healthSnapshotStore.ts`
+- `src/services/healthSnapshotStore.ts` → `src/services/redisCache.ts`
+- `src/services/healthSnapshotStore.ts` → `src/shared/cacheContract.ts`
 - `src/services/import/index.ts` → `src/services/import/csv.ts`
 - `src/services/import/index.ts` → `src/services/import/epub.ts`
 - `src/services/import/index.ts` → `src/services/import/fb2.ts`
 - `src/services/import/index.ts` → `src/services/import/project-type.ts`
 - `src/services/import/index.ts` → `src/services/import/txt.ts`
 - `src/services/jobs/runAnalysisJob.ts` → `src/config.ts`
+- `src/services/jobs/runAnalysisJob.ts` → `src/debug/context.ts`
 - `src/services/jobs/runAnalysisJob.ts` → `src/logger.ts`
 - `src/services/jobs/runAnalysisJob.ts` → `src/middleware/tokenLimits.ts`
 - `src/services/jobs/runAnalysisJob.ts` → `src/services/analysisJobStore.ts`
@@ -1729,26 +2950,59 @@ Imported by:
 - `src/services/jobs/runAnalysisJob.ts` → `src/services/engine-integration.ts`
 - `src/services/jobs/runAnalysisJob.ts` → `src/services/supabaseDatabase.ts`
 - `src/services/jobs/runAnalysisJob.ts` → `src/storage/database.ts`
+- `src/services/jobs/runTranslateJob.ts` → `src/config.ts`
+- `src/services/jobs/runTranslateJob.ts` → `src/debug/context.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/logger.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/middleware/tokenLimits.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/server.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/services/cacheInvalidation.ts`
+- `src/services/jobs/runTranslateJob.ts` → `src/services/chapterTitleTranslate.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/services/supabaseDatabase.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/services/translateJobStore.ts`
 - `src/services/jobs/runTranslateJob.ts` → `src/storage/database.ts`
+- `src/services/paragraphLoader.test.ts` → `src/services/paragraphLoader.ts`
+- `src/services/project-ai-replace.ts` → `src/config.ts`
+- `src/services/project-ai-replace.ts` → `src/engine/index.ts`
+- `src/services/project-ai-replace.ts` → `src/engine/prompts/ai-replace.ts`
+- `src/services/project-ai-replace.ts` → `src/services/engine-integration.ts`
+- `src/services/project-ai-replace.ts` → `src/services/supabaseDatabase.ts`
+- `src/services/project-ai-replace.ts` → `src/shared/aiReplacePresets.ts`
+- `src/services/project-ai-replace.ts` → `src/shared/openaiModelAdapter.ts`
 - `src/services/redisCache.ts` → `src/shared/cacheContract.ts`
 - `src/services/serviceHealth.ts` → `src/logger.ts`
+- `src/services/serviceHealth.ts` → `src/services/healthSnapshotStore.ts`
 - `src/services/serviceHealth.ts` → `src/services/redisCache.ts`
 - `src/services/serviceHealth.ts` → `src/services/supabaseClient.ts`
 - `src/services/storage.ts` → `src/services/supabaseClient.ts`
+- `src/services/supabaseDatabase.ts` → `src/config/projectLimits.ts`
 - `src/services/supabaseDatabase.ts` → `src/logger.ts`
+- `src/services/supabaseDatabase.ts` → `src/services/glossaryImportExport.ts`
+- `src/services/supabaseDatabase.ts` → `src/services/paragraphLoader.ts`
+- `src/services/supabaseDatabase.ts` → `src/services/storage.ts`
 - `src/services/supabaseDatabase.ts` → `src/services/supabaseClient.ts`
 - `src/services/supabaseDatabase.ts` → `src/shared/cacheContract.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/chapterTitle.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/chapterTranslationCoverage.ts`
 - `src/services/supabaseDatabase.ts` → `src/shared/chunkErrors.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/glossaryCloneRemap.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/modelAccess.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/normalizeCloneChapterStatus.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/projectSearch.ts`
+- `src/services/supabaseDatabase.ts` → `src/shared/translation-status.ts`
 - `src/services/supabaseDatabase.ts` → `src/storage/database.ts`
+- `src/services/supabaseDatabase.ts` → `src/types/roles.ts`
 - `src/services/supabaseDatabase.ts` → `src/utils/slug.ts`
 - `src/services/supabaseDatabase.ts` → `src/utils/tokenValidation.ts`
-- `src/storage/database.ts` → `src/logger.ts`
+- `src/shared/aiReplaceEstimate.ts` → `src/shared/aiReplacePresets.ts`
+- `src/shared/chapterTranslationCoverage.ts` → `src/shared/chunkErrors.ts`
+- `src/shared/editing-focus.ts` → `src/engine/prompts/system/editor.ts`
+- `src/shared/llmModels.ts` → `src/shared/openaiModelAdapter.ts`
+- `src/shared/llmModels.ts` → `src/shared/prodModelLists.ts`
+- `src/shared/modelAccess.ts` → `src/shared/prodModelLists.ts`
+- `src/shared/modelAccess.ts` → `src/types/roles.ts`
+- `src/shared/normalizeCloneChapterStatus.ts` → `src/shared/chapterTranslationCoverage.ts`
+- `src/storage/database.ts` → `src/storage/text-utils.ts`
+- `src/storage/database.ts` → `src/storage/types.ts`
 
 #### Reverse lookup (imported by)
 
@@ -1759,6 +3013,12 @@ Imported by:
 - `src/api/schemas/index.ts`
 
 #### `src/api/schemas/auth.ts`
+
+Imported by:
+
+- `src/api/schemas/index.ts`
+
+#### `src/api/schemas/catalogRequests.ts`
 
 Imported by:
 
@@ -1782,6 +3042,7 @@ Imported by:
 Imported by:
 
 - `src/api/schemas/index.ts`
+- `src/services/glossaryImportExport.ts`
 
 #### `src/api/schemas/index.ts`
 
@@ -1789,11 +3050,24 @@ Imported by:
 
 - `src/server.ts`
 
-#### `src/api/schemas/projects.ts`
+#### `src/api/schemas/news.ts`
 
 Imported by:
 
 - `src/api/schemas/index.ts`
+
+#### `src/api/schemas/projects.ts`
+
+Imported by:
+
+- `src/api/schemas/chapters.ts`
+- `src/api/schemas/index.ts`
+
+#### `src/api/schemas/prompt-lab.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
 
 #### `src/api/schemas/publications.ts`
 
@@ -1811,8 +3085,21 @@ Imported by:
 
 Imported by:
 
+- `src/prompt-lab/evaluator.ts`
+- `src/prompt-lab/routes.ts`
+- `src/prompt-lab/runner.ts`
 - `src/server.ts`
+- `src/services/chapter-critic.ts`
 - `src/services/jobs/runAnalysisJob.ts`
+- `src/services/jobs/runTranslateJob.ts`
+- `src/services/project-ai-replace.ts`
+
+#### `src/config/projectLimits.ts`
+
+Imported by:
+
+- `src/server.ts`
+- `src/services/supabaseDatabase.ts`
 
 #### `src/config/tokenLimits.ts`
 
@@ -1821,12 +3108,151 @@ Imported by:
 - `src/middleware/tokenLimits.ts`
 - `src/server.ts`
 
-#### `src/debugBuffer.ts`
+#### `src/debug/agentContext.ts`
 
 Imported by:
 
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
+
+#### `src/debug/buffer.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/debugStatus.ts`
+- `src/debug/hydrate.ts`
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
 - `src/logger.ts`
 - `src/server.ts`
+
+#### `src/debug/catalog.ts`
+
+Imported by:
+
+- `src/debug/routes.ts`
+
+#### `src/debug/context.ts`
+
+Imported by:
+
+- `src/debug/buffer.ts`
+- `src/debug/httpCapture.ts`
+- `src/debug/httpCaptureMiddleware.ts`
+- `src/debug/promptCapture.ts`
+- `src/engine/logger.ts`
+- `src/engine/pipeline/translation-pipeline.ts`
+- `src/server.ts`
+- `src/services/jobs/runAnalysisJob.ts`
+- `src/services/jobs/runTranslateJob.ts`
+
+#### `src/debug/copyFormat.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/routes.ts`
+
+#### `src/debug/debugStatus.ts`
+
+Imported by:
+
+- `src/debug/routes.ts`
+
+#### `src/debug/httpCapture.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/debugStatus.ts`
+- `src/debug/httpCaptureMiddleware.ts`
+- `src/debug/hydrate.ts`
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
+- `src/server.ts`
+
+#### `src/debug/httpCaptureMiddleware.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/debug/hydrate.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/debug/persist.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/buffer.ts`
+- `src/debug/debugStatus.ts`
+- `src/debug/httpCapture.ts`
+- `src/debug/hydrate.ts`
+- `src/debug/promptCapture.ts`
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
+
+#### `src/debug/promptCapture.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/debugStatus.ts`
+- `src/debug/hydrate.ts`
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
+- `src/engine/providers/openai.ts`
+- `src/server.ts`
+
+#### `src/debug/query.ts`
+
+Imported by:
+
+- `src/debug/routes.ts`
+
+#### `src/debug/rateLimit.ts`
+
+Imported by:
+
+- `src/debug/routes.ts`
+
+#### `src/debug/redisBridge.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/buffer.ts`
+- `src/debug/debugStatus.ts`
+- `src/debug/httpCapture.ts`
+- `src/debug/promptCapture.ts`
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
+- `src/server.ts`
+
+#### `src/debug/routes.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/debug/shared/copyFormat.ts`
+
+Imported by:
+
+- `src/debug/copyFormat.ts`
+
+#### `src/debug/traceDetail.ts`
+
+Imported by:
+
+- `src/debug/agentContext.ts`
+- `src/debug/query.ts`
+- `src/debug/routes.ts`
 
 #### `src/engine/agents/novel-agent.ts`
 
@@ -1849,6 +3275,20 @@ Imported by:
 
 - `src/services/export/index.ts`
 
+#### `src/engine/edit-chunking-policy.ts`
+
+Imported by:
+
+- `src/engine/edit-execution-preview.ts`
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/prompt-lab/runner.ts`
+
+#### `src/engine/edit-execution-preview.ts`
+
+Imported by:
+
+- `src/engine/edit-execution-preview.test.ts`
+
 #### `src/engine/glossary/declension-ru.ts`
 
 Imported by:
@@ -1866,7 +3306,10 @@ Imported by:
 
 Imported by:
 
+- `src/engine/glossary/glossary-filter.test.ts`
 - `src/engine/index.ts`
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/pipeline/stage-prompt-flow.test.ts`
 - `src/engine/pipeline/translation-pipeline.ts`
 - `src/engine/stages/stage-2-translate.ts`
 - `src/engine/stages/stage-3-edit.ts`
@@ -1875,16 +3318,54 @@ Imported by:
 
 Imported by:
 
+- `src/engine/glossary/glossary-manager.test.ts`
 - `src/engine/index.ts`
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/pipeline/stage-prompt-flow.test.ts`
 - `src/engine/stages/stage-1-analyze.ts`
 - `src/engine/stages/stage-2-translate.ts`
 - `src/engine/stages/stage-3-edit.ts`
+- `src/prompt-lab/glossary.ts`
 
 #### `src/engine/index.ts`
 
 Imported by:
 
+- `src/prompt-lab/evaluator.ts`
+- `src/prompt-lab/routes.ts`
+- `src/prompt-lab/runner.ts`
+- `src/server.ts`
+- `src/services/chapter-critic.ts`
 - `src/services/engine-integration.ts`
+- `src/services/project-ai-replace.ts`
+
+#### `src/engine/language.ts`
+
+Imported by:
+
+- `src/api/schemas/projects.ts`
+- `src/engine/glossary/glossary-filter.ts`
+- `src/engine/glossary/glossary-manager.ts`
+- `src/engine/index.ts`
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/prompts/ai-replace.ts`
+- `src/engine/prompts/critic.ts`
+- `src/engine/prompts/effective-prompts.ts`
+- `src/engine/prompts/pairs/en-be/analyzer.ts`
+- `src/engine/prompts/pairs/en-ru/analyzer.ts`
+- `src/engine/prompts/pairs/ko-be/analyzer.ts`
+- `src/engine/prompts/pairs/ko-ru/analyzer.ts`
+- `src/engine/prompts/pairs/ru-be/analyzer.ts`
+- `src/engine/prompts/pairs/zh-be/analyzer.ts`
+- `src/engine/prompts/pairs/zh-ru/analyzer.ts`
+- `src/engine/prompts/registry.ts`
+- `src/engine/stages/stage-1-analyze.ts`
+- `src/engine/stages/stage-2-translate.ts`
+- `src/engine/stages/stage-3-edit.ts`
+- `src/engine/title-translate.ts`
+- `src/prompt-lab/prompts/evaluator.ts`
+- `src/server.ts`
+- `src/services/chapterTitleTranslate.ts`
 
 #### `src/engine/logger.ts`
 
@@ -1895,8 +3376,18 @@ Imported by:
 - `src/engine/stages/stage-1-analyze.ts`
 - `src/engine/stages/stage-2-translate.ts`
 - `src/engine/stages/stage-3-edit.ts`
+- `src/engine/title-translate.ts`
 - `src/engine/utils/chunker.ts`
 - `src/engine/utils/text-blocks.ts`
+
+#### `src/engine/pipeline/resolve-execution-options.ts`
+
+Imported by:
+
+- `src/engine/index.ts`
+- `src/engine/pipeline/resolve-execution-options.test.ts`
+- `src/engine/pipeline/translation-pipeline.ts`
+- `src/prompt-lab/runner.ts`
 
 #### `src/engine/pipeline/translation-pipeline.ts`
 
@@ -1904,32 +3395,237 @@ Imported by:
 
 - `src/engine/index.ts`
 
-#### `src/engine/prompts/system/analyzer.ts`
+#### `src/engine/prompts/ai-replace.ts`
+
+Imported by:
+
+- `src/engine/prompts/ai-replace.test.ts`
+- `src/services/project-ai-replace.ts`
+
+#### `src/engine/prompts/critic.ts`
+
+Imported by:
+
+- `src/services/chapter-critic.ts`
+
+#### `src/engine/prompts/effective-prompts.ts`
 
 Imported by:
 
 - `src/engine/index.ts`
+
+#### `src/engine/prompts/pairs/en-be/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/en-be/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/en-ru/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/en-ru/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/ko-be/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/ko-be/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/ko-ru/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/ko-ru/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/ru-be/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/ru-be/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/zh-be/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/zh-be/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/zh-ru/analyzer.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/pairs/zh-ru/translator.ts`
+
+Imported by:
+
+- `src/engine/prompts/registry.ts`
+
+#### `src/engine/prompts/registry.ts`
+
+Imported by:
+
+- `src/engine/index.ts`
+- `src/engine/prompts/effective-prompts.ts`
+- `src/engine/prompts/system/analyzer.ts`
+- `src/engine/prompts/system/translator.ts`
 - `src/engine/stages/stage-1-analyze.ts`
+- `src/engine/stages/stage-2-translate.ts`
+
+#### `src/engine/prompts/shared/analysis-output.ts`
+
+Imported by:
+
+- `src/engine/prompts/pairs/en-be/analyzer.ts`
+- `src/engine/prompts/pairs/en-ru/analyzer.ts`
+- `src/engine/prompts/pairs/ko-be/analyzer.ts`
+- `src/engine/prompts/pairs/ko-ru/analyzer.ts`
+- `src/engine/prompts/pairs/ru-be/analyzer.ts`
+- `src/engine/prompts/pairs/zh-be/analyzer.ts`
+- `src/engine/prompts/pairs/zh-ru/analyzer.ts`
+
+#### `src/engine/prompts/shared/analyzer-user.ts`
+
+Imported by:
+
+- `src/engine/prompts/pairs/en-be/analyzer.ts`
+- `src/engine/prompts/pairs/en-ru/analyzer.ts`
+- `src/engine/prompts/pairs/ko-be/analyzer.ts`
+- `src/engine/prompts/pairs/ko-ru/analyzer.ts`
+- `src/engine/prompts/pairs/ru-be/analyzer.ts`
+- `src/engine/prompts/pairs/zh-be/analyzer.ts`
+- `src/engine/prompts/pairs/zh-ru/analyzer.ts`
+
+#### `src/engine/prompts/shared/gender-agreement-be.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+
+#### `src/engine/prompts/shared/gender-agreement-ru.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+
+#### `src/engine/prompts/shared/gender-agreement-target.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+- `src/engine/prompts/shared/translation-examples.ts`
+
+#### `src/engine/prompts/shared/gender-agreement.ts`
+
+Imported by:
+
+- `src/engine/prompts/effective-prompts.ts`
+- `src/engine/prompts/system/editor.ts`
+- `src/engine/stages/stage-2-translate.ts`
+
+#### `src/engine/prompts/shared/gender-cast-legend.ts`
+
+Imported by:
+
+- `src/engine/glossary/glossary-manager.ts`
+
+#### `src/engine/prompts/shared/glossary-metadata-language.ts`
+
+Imported by:
+
+- `src/engine/prompts/effective-prompts.ts`
+- `src/engine/prompts/shared/analyzer-user.ts`
+- `src/engine/stages/stage-1-analyze.ts`
+
+#### `src/engine/prompts/shared/target-language-anchor.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/prompts/system/editor.ts`
+
+#### `src/engine/prompts/shared/translate-cot.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/translator-user.ts`
+- `src/engine/stages/stage-2-translate.ts`
+- `src/prompt-lab/runner.ts`
+
+#### `src/engine/prompts/shared/translation-examples.ts`
+
+Imported by:
+
+- `src/engine/prompts/shared/gender-agreement.ts`
+
+#### `src/engine/prompts/shared/translator-user.ts`
+
+Imported by:
+
+- `src/engine/prompts/pairs/en-be/translator.ts`
+- `src/engine/prompts/pairs/en-ru/translator.ts`
+- `src/engine/prompts/pairs/ko-be/translator.ts`
+- `src/engine/prompts/pairs/ko-ru/translator.ts`
+- `src/engine/prompts/pairs/ru-be/translator.ts`
+- `src/engine/prompts/pairs/zh-be/translator.ts`
+- `src/engine/prompts/pairs/zh-ru/translator.ts`
+- `src/engine/stages/stage-2-translate.ts`
 
 #### `src/engine/prompts/system/editor.ts`
 
 Imported by:
 
 - `src/engine/index.ts`
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/prompts/effective-prompts.ts`
 - `src/engine/stages/stage-3-edit.ts`
-
-#### `src/engine/prompts/system/translator.ts`
-
-Imported by:
-
-- `src/engine/index.ts`
-- `src/engine/stages/stage-2-translate.ts`
+- `src/prompt-lab/runner.ts`
+- `src/shared/editing-focus.ts`
 
 #### `src/engine/providers/openai.ts`
 
 Imported by:
 
 - `src/engine/index.ts`
+- `src/engine/providers/openai.completejson.test.ts`
+- `src/services/chapterTitleTranslate.ts`
 
 #### `src/engine/stages/stage-1-analyze.ts`
 
@@ -1952,6 +3648,46 @@ Imported by:
 - `src/engine/index.ts`
 - `src/engine/pipeline/translation-pipeline.ts`
 
+#### `src/engine/title-translate.ts`
+
+Imported by:
+
+- `src/services/chapterTitleTranslate.ts`
+
+#### `src/engine/translate-chunking-policy.ts`
+
+Imported by:
+
+- `src/engine/edit-chunking-policy.ts`
+- `src/engine/pipeline/resolve-execution-options.test.ts`
+- `src/engine/stages/stage-2-translate.ts`
+- `src/engine/translate-chunking-policy.test.ts`
+- `src/engine/translate-execution-preview.ts`
+
+#### `src/engine/translate-execution-preview.ts`
+
+Imported by:
+
+- `src/engine/translate-chunking-policy.test.ts`
+- `src/engine/translate-execution-preview.test.ts`
+
+#### `src/engine/translate-optimization.ts`
+
+Imported by:
+
+- `src/engine/stages/stage-2-translate.ts`
+- `src/engine/translate-execution-preview.ts`
+- `src/engine/translate-optimization.test.ts`
+- `src/prompt-lab/runner.ts`
+
+#### `src/engine/utils/chunker-core.ts`
+
+Imported by:
+
+- `src/engine/edit-execution-preview.ts`
+- `src/engine/translate-execution-preview.ts`
+- `src/engine/utils/chunker.ts`
+
 #### `src/engine/utils/chunker.ts`
 
 Imported by:
@@ -1960,6 +3696,8 @@ Imported by:
 - `src/engine/stages/stage-1-analyze.ts`
 - `src/engine/stages/stage-2-translate.ts`
 - `src/engine/stages/stage-3-edit.ts`
+- `src/engine/translate-chunking-policy.test.ts`
+- `src/prompt-lab/runner.ts`
 
 #### `src/engine/utils/concurrency.ts`
 
@@ -1967,12 +3705,39 @@ Imported by:
 
 - `src/engine/pipeline/translation-pipeline.ts`
 
+#### `src/engine/utils/leading-context.ts`
+
+Imported by:
+
+- `src/engine/stages/stage-2-translate.ts`
+
+#### `src/engine/utils/para-markers.ts`
+
+Imported by:
+
+- `src/engine/index.ts`
+- `src/engine/prompts/ai-replace.ts`
+- `src/engine/stages/stage-2-translate.ts`
+- `src/engine/utils/para-markers.test.ts`
+- `src/prompt-lab/runner.ts`
+- `src/server.ts`
+
 #### `src/engine/utils/text-blocks.ts`
 
 Imported by:
 
 - `src/services/export/common.ts`
 - `src/services/export/fb2.ts`
+
+#### `src/engine/utils/token-estimate.ts`
+
+Imported by:
+
+- `src/engine/edit-chunking-policy.ts`
+- `src/engine/index.ts`
+- `src/engine/providers/openai.ts`
+- `src/engine/translate-chunking-policy.ts`
+- `src/engine/utils/chunker-core.ts`
 
 #### `src/logger.ts`
 
@@ -1985,6 +3750,7 @@ Imported by:
 - `src/middleware/tokenLimits.ts`
 - `src/server.ts`
 - `src/services/cacheInvalidation.ts`
+- `src/services/chapterTitleTranslate.ts`
 - `src/services/chapterWorker.ts`
 - `src/services/engine-integration.ts`
 - `src/services/export/epub.ts`
@@ -1994,7 +3760,6 @@ Imported by:
 - `src/services/jobs/runTranslateJob.ts`
 - `src/services/serviceHealth.ts`
 - `src/services/supabaseDatabase.ts`
-- `src/storage/database.ts`
 
 #### `src/middleware/auth.ts`
 
@@ -2008,10 +3773,19 @@ Imported by:
 
 - `src/server.ts`
 
+#### `src/middleware/routeDebugError.ts`
+
+Imported by:
+
+- `src/debug/httpCaptureMiddleware.ts`
+- `src/middleware/requestContext.ts`
+- `src/server.ts`
+
 #### `src/middleware/serviceHealth.ts`
 
 Imported by:
 
+- `src/middleware/routeDebugError.ts`
 - `src/server.ts`
 
 #### `src/middleware/tokenLimits.ts`
@@ -2019,8 +3793,64 @@ Imported by:
 Imported by:
 
 - `src/server.ts`
+- `src/services/chapterTitleTranslate.ts`
 - `src/services/jobs/runAnalysisJob.ts`
 - `src/services/jobs/runTranslateJob.ts`
+
+#### `src/prompt-lab/db.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
+
+#### `src/prompt-lab/evaluation-limits.ts`
+
+Imported by:
+
+- `src/prompt-lab/evaluator.ts`
+
+#### `src/prompt-lab/evaluator.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
+
+#### `src/prompt-lab/glossary.ts`
+
+Imported by:
+
+- `src/prompt-lab/evaluator.ts`
+- `src/prompt-lab/runner.ts`
+
+#### `src/prompt-lab/prompts/evaluator.ts`
+
+Imported by:
+
+- `src/prompt-lab/evaluator.ts`
+
+#### `src/prompt-lab/routes.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/prompt-lab/runNaming.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
+
+#### `src/prompt-lab/runner.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
+
+#### `src/prompt-lab/types.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
 
 #### `src/server.ts`
 
@@ -2032,6 +3862,7 @@ Imported by:
 
 Imported by:
 
+- `src/server.ts`
 - `src/services/engine-integration.ts`
 
 #### `src/services/analysisJobStore.ts`
@@ -2040,6 +3871,13 @@ Imported by:
 
 - `src/server.ts`
 - `src/services/jobs/runAnalysisJob.ts`
+
+#### `src/services/authErrors.ts`
+
+Imported by:
+
+- `src/middleware/routeDebugError.ts`
+- `src/services/authService.ts`
 
 #### `src/services/authService.ts`
 
@@ -2054,6 +3892,12 @@ Imported by:
 - `src/services/jobs/runAnalysisJob.ts`
 - `src/services/jobs/runTranslateJob.ts`
 
+#### `src/services/chapter-critic.ts`
+
+Imported by:
+
+- `src/server.ts`
+
 #### `src/services/chapterQueue.ts`
 
 Imported by:
@@ -2061,12 +3905,23 @@ Imported by:
 - `src/server.ts`
 - `src/services/chapterWorker.ts`
 
+#### `src/services/chapterTitleTranslate.ts`
+
+Imported by:
+
+- `src/server.ts`
+- `src/services/jobs/runTranslateJob.ts`
+
 #### `src/services/engine-integration.ts`
 
 Imported by:
 
 - `src/server.ts`
+- `src/services/chapter-critic.ts`
+- `src/services/chapterTitleTranslate.ts`
+- `src/services/glossaryImportExport.ts`
 - `src/services/jobs/runAnalysisJob.ts`
+- `src/services/project-ai-replace.ts`
 
 #### `src/services/export/common.ts`
 
@@ -2098,11 +3953,35 @@ Imported by:
 
 - `src/server.ts`
 
+#### `src/services/glossaryImportExport.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
+- `src/server.ts`
+- `src/services/supabaseDatabase.ts`
+
 #### `src/services/glossaryMergeSuggestions.ts`
 
 Imported by:
 
 - `src/server.ts`
+
+#### `src/services/healthCircuitBreaker.ts`
+
+Imported by:
+
+- `src/middleware/serviceHealth.test.ts`
+- `src/middleware/serviceHealth.ts`
+
+#### `src/services/healthSnapshotStore.ts`
+
+Imported by:
+
+- `src/middleware/serviceHealth.test.ts`
+- `src/server.ts`
+- `src/services/healthCircuitBreaker.ts`
+- `src/services/serviceHealth.ts`
 
 #### `src/services/import/csv.ts`
 
@@ -2158,6 +4037,25 @@ Imported by:
 
 - `src/services/chapterWorker.ts`
 
+#### `src/services/paragraphLoader.ts`
+
+Imported by:
+
+- `src/services/paragraphLoader.test.ts`
+- `src/services/supabaseDatabase.ts`
+
+#### `src/services/project-ai-replace.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/services/projectLanguagePair.ts`
+
+Imported by:
+
+- `src/server.ts`
+
 #### `src/services/redisCache.ts`
 
 Imported by:
@@ -2167,6 +4065,7 @@ Imported by:
 - `src/server.ts`
 - `src/services/analysisCache.ts`
 - `src/services/cacheInvalidation.ts`
+- `src/services/healthSnapshotStore.ts`
 - `src/services/serviceHealth.ts`
 
 #### `src/services/serviceHealth.ts`
@@ -2181,12 +4080,14 @@ Imported by:
 Imported by:
 
 - `src/server.ts`
+- `src/services/supabaseDatabase.ts`
 
 #### `src/services/supabaseClient.ts`
 
 Imported by:
 
 - `src/middleware/tokenLimits.ts`
+- `src/prompt-lab/db.ts`
 - `src/server.ts`
 - `src/services/authService.ts`
 - `src/services/serviceHealth.ts`
@@ -2199,8 +4100,10 @@ Imported by:
 
 - `src/server.ts`
 - `src/services/cacheInvalidation.ts`
+- `src/services/chapterTitleTranslate.ts`
 - `src/services/jobs/runAnalysisJob.ts`
 - `src/services/jobs/runTranslateJob.ts`
+- `src/services/project-ai-replace.ts`
 
 #### `src/services/translateJobStore.ts`
 
@@ -2208,6 +4111,21 @@ Imported by:
 
 - `src/server.ts`
 - `src/services/jobs/runTranslateJob.ts`
+
+#### `src/shared/aiReplaceEstimate.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/shared/aiReplacePresets.ts`
+
+Imported by:
+
+- `src/engine/prompts/ai-replace.ts`
+- `src/server.ts`
+- `src/services/project-ai-replace.ts`
+- `src/shared/aiReplaceEstimate.ts`
 
 #### `src/shared/cacheContract.ts`
 
@@ -2218,8 +4136,26 @@ Imported by:
 - `src/server.ts`
 - `src/services/analysisCache.ts`
 - `src/services/cacheInvalidation.ts`
+- `src/services/healthSnapshotStore.ts`
 - `src/services/redisCache.ts`
 - `src/services/supabaseDatabase.ts`
+
+#### `src/shared/chapterTitle.ts`
+
+Imported by:
+
+- `src/engine/title-translate.ts`
+- `src/services/chapterTitleTranslate.ts`
+- `src/services/export/common.ts`
+- `src/services/supabaseDatabase.ts`
+
+#### `src/shared/chapterTranslationCoverage.ts`
+
+Imported by:
+
+- `src/server.ts`
+- `src/services/supabaseDatabase.ts`
+- `src/shared/normalizeCloneChapterStatus.ts`
 
 #### `src/shared/chunkErrors.ts`
 
@@ -2229,6 +4165,140 @@ Imported by:
 - `src/server.ts`
 - `src/services/engine-integration.ts`
 - `src/services/supabaseDatabase.ts`
+- `src/shared/chapterTranslationCoverage.ts`
+
+#### `src/shared/critic-fingerprint.ts`
+
+Imported by:
+
+- `src/services/chapter-critic.ts`
+
+#### `src/shared/critic-limits.ts`
+
+Imported by:
+
+- `src/services/chapter-critic.ts`
+
+#### `src/shared/edit-execution-modes.ts`
+
+Imported by:
+
+- `src/engine/edit-chunking-policy.ts`
+- `src/engine/edit-execution-preview.ts`
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/stages/stage-3-edit.ts`
+- `src/prompt-lab/runner.ts`
+
+#### `src/shared/editing-focus.ts`
+
+Imported by:
+
+- `src/api/schemas/projects.ts`
+- `src/api/schemas/prompt-lab.ts`
+
+#### `src/shared/evaluation-normalize.ts`
+
+Imported by:
+
+- `src/services/chapter-critic.ts`
+
+#### `src/shared/glossaryCloneRemap.ts`
+
+Imported by:
+
+- `src/services/supabaseDatabase.ts`
+
+#### `src/shared/llmModels.ts`
+
+Imported by:
+
+- `src/prompt-lab/routes.ts`
+
+#### `src/shared/modelAccess.ts`
+
+Imported by:
+
+- `src/server.ts`
+- `src/services/chapterTitleTranslate.ts`
+- `src/services/engine-integration.ts`
+- `src/services/supabaseDatabase.ts`
+
+#### `src/shared/normalizeCloneChapterStatus.ts`
+
+Imported by:
+
+- `src/services/supabaseDatabase.ts`
+
+#### `src/shared/openaiModelAdapter.ts`
+
+Imported by:
+
+- `src/engine/providers/openai.ts`
+- `src/engine/stages/stage-1-analyze.ts`
+- `src/engine/stages/stage-2-translate.ts`
+- `src/engine/translate-chunking-policy.ts`
+- `src/engine/translate-optimization.ts`
+- `src/prompt-lab/evaluator.ts`
+- `src/prompt-lab/runner.ts`
+- `src/services/chapter-critic.ts`
+- `src/services/engine-integration.ts`
+- `src/services/project-ai-replace.ts`
+- `src/shared/llmModels.ts`
+
+#### `src/shared/prodModelLists.ts`
+
+Imported by:
+
+- `src/shared/llmModels.ts`
+- `src/shared/modelAccess.ts`
+
+#### `src/shared/projectSearch.ts`
+
+Imported by:
+
+- `src/services/supabaseDatabase.ts`
+
+#### `src/shared/robotsTxt.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/shared/staticPageMeta.ts`
+
+Imported by:
+
+- `src/server.ts`
+
+#### `src/shared/translate-execution-modes.ts`
+
+Imported by:
+
+- `src/engine/pipeline/resolve-execution-options.ts`
+- `src/engine/translate-execution-preview.ts`
+
+#### `src/shared/translation-status.ts`
+
+Imported by:
+
+- `src/server.ts`
+- `src/services/supabaseDatabase.ts`
+
+#### `src/shared/translationChunkPresets.ts`
+
+Imported by:
+
+- `src/engine/stages/stage-2-translate.ts`
+- `src/engine/translate-chunking-policy.test.ts`
+- `src/engine/translate-execution-preview.ts`
+- `src/engine/translate-optimization.ts`
+- `src/prompt-lab/runner.ts`
+
+#### `src/shared/translationTokenEstimate.ts`
+
+Imported by:
+
+- `src/config/tokenLimits.ts`
 
 #### `src/storage/database.ts`
 
@@ -2240,12 +4310,26 @@ Imported by:
 - `src/services/jobs/runTranslateJob.ts`
 - `src/services/supabaseDatabase.ts`
 
+#### `src/storage/text-utils.ts`
+
+Imported by:
+
+- `src/storage/database.ts`
+
+#### `src/storage/types.ts`
+
+Imported by:
+
+- `src/storage/database.ts`
+
 #### `src/types/roles.ts`
 
 Imported by:
 
 - `src/middleware/auth.ts`
 - `src/services/authService.ts`
+- `src/services/supabaseDatabase.ts`
+- `src/shared/modelAccess.ts`
 
 #### `src/utils/requestHelpers.ts`
 

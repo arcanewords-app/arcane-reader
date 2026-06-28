@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 generated: true
-updated: 2026-05-16
+updated: 2026-06-28
 title: Circular dependencies
 ---
 

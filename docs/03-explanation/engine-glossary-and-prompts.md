@@ -76,7 +76,7 @@ Edit methods omit source-script names to save tokens; the model edits translated
 | `glossary/declension.ts`    | EN names: `declineName`, `translateName`, transliteration helpers              |
 | `glossary/declension-ru.ts` | RU: Petrovich via `declineNameRu`, `translateAndDeclineName`, gender detection |
 
-DB columns use snake_case: `gender`, `location_type`, `term_category` (see `@src/storage/database.ts`).
+DB columns use snake_case: `gender`, `location_type`, `term_category` (see `@src/storage/types.ts`).
 
 ## System prompts (`src/engine/prompts/`)
 

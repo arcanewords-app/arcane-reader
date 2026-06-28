@@ -35,7 +35,7 @@ All docs live under `/supabase/docs/` as markdown files.
 | Postgres policies    | `ssh supabase.sh cat /supabase/docs/guides/database/postgres/row-level-security.md`    |
 | Service role vs anon | `ssh supabase.sh grep -r 'service_role' /supabase/docs/guides/api --include='*.md' -l` |
 
-**In this repo:** DB access is via `@src/services/supabaseDatabase.ts`; types in `@src/storage/database.ts`. Migrations under `docs/supabase-migrations/` and `docs/migrations/`. Auth middleware: `@src/middleware/auth.ts`. Profile `role` in `profiles` table — see `@.cursor/rules/auth.mdc`.
+**In this repo:** DB access is via `@src/services/supabaseDatabase.ts`; types in `@src/storage/types.ts`. Migrations under `docs/supabase-migrations/` and `docs/migrations/`. Auth middleware: `@src/middleware/auth.ts`. Profile `role` in `profiles` table — see `@.cursor/rules/auth.mdc`.
 
 ## Typical workflows
 

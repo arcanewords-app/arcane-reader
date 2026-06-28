@@ -8,7 +8,8 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 ## When To Use
 
 - `src/services/**` — DB, cache, import/export, auth helpers
-- `src/storage/database.ts` types
+- `src/storage/types.ts` — domain types (projects, chapters, glossary)
+- `src/storage/text-utils.ts` — `parseTextToParagraphs`, `mergeParagraphsToText`, reader settings helpers
 - `src/worker.ts` and async analyze/translate jobs
 - `src/shared/cacheContract.ts`
 - Supabase migrations, RLS, RPC, grants — also read `@.cursor/skills/security/SKILL.md`
@@ -23,7 +24,7 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 
 ## Patterns
 
-- Add DB operations as functions in `supabaseDatabase.ts` — typed with `database.ts`
+- Add DB operations as functions in `supabaseDatabase.ts` — typed with `types.ts`
 - New cache prefix → extend `cacheContract.ts` first, then use in `redisCache.ts`
 - Import/export: follow existing epub/fb2/csv/txt service modules
 - Worker jobs: align with API enqueue/cancel flags in `server.ts`
@@ -32,7 +33,7 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 
 - Ad-hoc Redis keys outside `cacheContract.ts`
 - Mutations without cache invalidation
-- Duplicating types that already exist in `database.ts`
+- Duplicating types that already exist in `types.ts`
 - Service-role key usage from client-facing code paths
 - Logging secrets or full row dumps
 - `SECURITY DEFINER` without `search_path = ''` and schema-qualified names — see `@.cursor/skills/security/SKILL.md`

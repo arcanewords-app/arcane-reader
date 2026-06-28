@@ -24,7 +24,7 @@ alwaysApply: true
 
 - Prefer `@file.ts` references over copying code into rules.
 - Use existing components from `src/client/components/ui/` (Button, Modal, Input, etc.).
-- DB: snake_case columns. See `@src/storage/database.ts` for types.
+- DB: snake_case columns. See `@src/storage/types.ts` for types; `@src/storage/text-utils.ts` for paragraph/reader helpers.
 
 ## Documentation workflow
 

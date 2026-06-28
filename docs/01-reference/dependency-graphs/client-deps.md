@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 generated: true
-updated: 2026-05-16
+updated: 2026-06-28
 title: Client module dependencies
 ---
 
@@ -34,30 +34,34 @@ flowchart LR
   src_client_api --> src_client_services
   src_shared["shared"]
   src_client_api --> src_shared
+  src_client_components --> src_shared
+  src_client_components --> src_client_contexts
+  src_client_components --> src_client_utils
   src_client_hooks["client/hooks"]
   src_client_components --> src_client_hooks
   src_client_components --> src_client_services
-  src_client_components --> src_client_utils
-  src_client_components --> src_shared
   src_client_components --> src_client_api
+  src_client_config["client/config"]
+  src_client_components --> src_client_config
+  src_client_constants["client/constants"]
+  src_client_components --> src_client_constants
   src_client_types["client/types"]
   src_client_components --> src_client_types
-  src_client_components --> src_client_contexts
   src_client_store["client/store"]
   src_client_components --> src_client_store
   src_client_i18n["client/i18n"]
   src_client_components --> src_client_i18n
-  src_client_constants["client/constants"]
-  src_client_components --> src_client_constants
-  src_client_contexts --> src_client_utils
+  src_config["config"]
+  src_client_components --> src_config
+  src_client_config --> src_shared
   src_client_contexts --> src_client_api
   src_client_contexts --> src_client_services
+  src_client_contexts --> src_client_utils
   src_client_hooks --> src_client_api
+  src_client_hooks --> src_client_config
   src_client_hooks --> src_client_services
   src_client_hooks --> src_client_store
   src_client_hooks --> src_shared
-  src_client_config["client/config"]
-  src_client_hooks --> src_client_config
   src_client_hooks --> src_client_contexts
   src_client_locales["client/locales"]
   src_client_i18n --> src_client_locales
@@ -67,16 +71,27 @@ flowchart LR
   src_client_main --> src_client_i18n
   src_client_styles["client/styles"]
   src_client_main --> src_client_styles
-  src_client_pages --> src_client_api
-  src_client_pages --> src_client_components
   src_client_pages --> src_client_hooks
+  src_client_pages --> src_client_components
+  src_client_pages --> src_client_services
+  src_client_pages --> src_client_api
+  src_client_pages --> src_client_constants
+  src_types["types"]
+  src_client_pages --> src_types
   src_client_pages --> src_client_store
   src_client_pages --> src_client_types
   src_client_pages --> src_shared
-  src_client_pages --> src_client_services
+  src_client_pages --> src_client_contexts
   src_client_pages --> src_client_utils
+  src_client_pages --> src_config
   src_client_store --> src_client_api
-  src_client_store --> src_shared
+  src_client_utils --> src_client_constants
+  src_client_utils --> src_shared
+  src_config --> src_shared
+  src_shared --> src_config
+  src_engine["engine"]
+  src_shared --> src_engine
+  src_shared --> src_types
 ```
 
 ## Server overview
@@ -85,31 +100,44 @@ flowchart LR
 
 ```mermaid
 flowchart LR
+  src_api["api"]
   src_engine["engine"]
+  src_api --> src_engine
   src_shared["shared"]
+  src_api --> src_shared
+  src_config["config"]
+  src_config --> src_shared
+  src_debug["debug"]
+  src_middleware["middleware"]
+  src_debug --> src_middleware
   src_engine --> src_shared
+  src_engine --> src_debug
   src_logger["logger"]
   src_engine --> src_logger
-  src_debugBuffer["debugBuffer"]
-  src_logger --> src_debugBuffer
-  src_middleware["middleware"]
+  src_logger --> src_debug
   src_middleware --> src_logger
   src_services["services"]
   src_middleware --> src_services
   src_middleware --> src_shared
   src_types["types"]
   src_middleware --> src_types
-  src_config["config"]
   src_middleware --> src_config
   src_utils["utils"]
   src_middleware --> src_utils
+  src_prompt_lab["prompt-lab"]
+  src_prompt_lab --> src_services
+  src_prompt_lab --> src_config
+  src_prompt_lab --> src_engine
+  src_prompt_lab --> src_shared
+  src_prompt_lab --> src_api
   src_server["server"]
-  src_api["api"]
   src_server --> src_api
   src_server --> src_config
-  src_server --> src_debugBuffer
+  src_server --> src_debug
+  src_server --> src_engine
   src_server --> src_logger
   src_server --> src_middleware
+  src_server --> src_prompt_lab
   src_server --> src_services
   src_server --> src_shared
   src_storage["storage"]
@@ -118,11 +146,14 @@ flowchart LR
   src_services --> src_shared
   src_services --> src_types
   src_services --> src_logger
-  src_services --> src_engine
-  src_services --> src_storage
   src_services --> src_config
+  src_services --> src_engine
   src_services --> src_middleware
+  src_services --> src_storage
+  src_services --> src_api
+  src_services --> src_debug
   src_services --> src_server
   src_services --> src_utils
-  src_storage --> src_logger
+  src_shared --> src_engine
+  src_shared --> src_types
 ```

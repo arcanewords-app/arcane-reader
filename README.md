@@ -46,10 +46,10 @@ If you bring a translation that already contains special formatting, use **marke
 
 ## Tech Stack
 
-- **Frontend:** Preact, Vite, i18next
-- **Backend:** Express, LowDB / Supabase
-- **AI:** OpenAI, Anthropic (via config)
-- **Sanitization:** DOMPurify (for text block rendering)
+- **Frontend:** Preact, Vite, i18next (devDependencies — bundled at build)
+- **Backend:** Express, Supabase
+- **AI:** OpenAI
+- **Sanitization:** DOMPurify (client bundle)
 
 ## Documentation
 

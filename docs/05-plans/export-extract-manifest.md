@@ -62,8 +62,8 @@ flowchart TB
     textBlocks["engine/utils/text-blocks.ts"]
     presets["engine/constants/text-block-presets.ts"]
     tbType["engine/types/common.ts"]
-    mergePara["storage/database.ts mergeParagraphsToText"]
-    projTypes["storage/database.ts Project/Chapter"]
+    mergePara["storage/text-utils.ts mergeParagraphsToText"]
+    projTypes["storage/types.ts Project/Chapter"]
   end
 
   index --> common
@@ -130,7 +130,7 @@ export type { ParseResult, ParsedChapter, BookMetadata } from './types.js';
 
 ## 4. Arcane-типы — фрагменты, не весь файл
 
-Из [`src/storage/database.ts`](../../src/storage/database.ts) (~1100 строк) нужны только:
+Из [`src/storage/types.ts`](../../src/storage/types.ts) и [`src/storage/text-utils.ts`](../../src/storage/text-utils.ts) нужны только:
 
 | Символ                                    | Строки                                   | Зачем                                   |
 | ----------------------------------------- | ---------------------------------------- | --------------------------------------- |
@@ -231,7 +231,7 @@ export const logger = {
 3. Срез [`src/engine/types/common.ts`](../../src/engine/types/common.ts) (42–54) → `types/text-block.ts`
 4. [`src/engine/constants/text-block-presets.ts`](../../src/engine/constants/text-block-presets.ts)
 5. [`src/engine/utils/text-blocks.ts`](../../src/engine/utils/text-blocks.ts)
-6. `types/project.ts` + `mergeParagraphsToText` из [`src/storage/database.ts`](../../src/storage/database.ts) (1009–1018)
+6. `types/project.ts` + `mergeParagraphsToText` из [`src/storage/text-utils.ts`](../../src/storage/text-utils.ts)
 7. [`src/services/export/common.ts`](../../src/services/export/common.ts), [`epub-styles.ts`](../../src/services/export/epub-styles.ts), [`epub.ts`](../../src/services/export/epub.ts), [`fb2.ts`](../../src/services/export/fb2.ts), [`index.ts`](../../src/services/export/index.ts)
 8. `logger.ts` stub
 9. `package.json` deps + `npm install`

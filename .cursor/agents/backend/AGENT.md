@@ -9,7 +9,7 @@ Owns services, persistence, caching, async jobs, and import/export — the layer
 **In scope:**
 
 - `src/services/**` — Supabase DB, Redis cache, import/export, auth helpers
-- `src/storage/**` — DB types (`database.ts`)
+- `src/storage/**` — DB types (`types.ts`), text helpers (`text-utils.ts`)
 - `src/worker.ts` — BullMQ worker for analyze/translate jobs
 - `src/shared/**` — e.g. `cacheContract.ts`
 
@@ -35,7 +35,8 @@ Owns services, persistence, caching, async jobs, and import/export — the layer
 | `src/services/supabaseDatabase.ts` | Primary DB access         |
 | `src/services/redisCache.ts`       | Redis helpers             |
 | `src/shared/cacheContract.ts`      | Cache keys, TTL, prefixes |
-| `src/storage/database.ts`          | TypeScript DB types       |
+| `src/storage/types.ts`             | TypeScript DB types       |
+| `src/storage/text-utils.ts`        | Paragraph/reader helpers  |
 | `src/worker.ts`                    | BullMQ consumer           |
 | `src/services/import*`, `export*`  | Book formats              |
 
@@ -49,7 +50,7 @@ Read and follow: [`.cursor/skills/backend/SKILL.md`](../../skills/backend/SKILL.
 
 - [ ] Cache keys only from `cacheContract.ts`
 - [ ] `invalidateProjectAndRelatedCaches` (or equivalent) after project-scoped writes
-- [ ] snake_case columns aligned with `database.ts`
+- [ ] snake_case columns aligned with `types.ts`
 - [ ] No secrets logged
 - [ ] Worker/env: `REDIS_URL`, `KV_REST_*` documented if new async behavior
 - [ ] Reuse existing DB functions before new queries

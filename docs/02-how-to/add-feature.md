@@ -28,7 +28,7 @@ Standard path for a new API-backed UI feature. Follow rules: [[../_canonical/rul
 
 ## 4. Database
 
-- Use `@src/services/supabaseDatabase.ts`; types from `@src/storage/database.ts`.
+- Use `@src/services/supabaseDatabase.ts`; types from `@src/storage/types.ts`.
 - snake_case columns.
 
 ## 5. Client

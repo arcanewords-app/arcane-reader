@@ -15,9 +15,6 @@ export interface AppConfig {
     /** SDK-level retries per request (OpenAI client). Default 3. */
     maxRetries?: number;
   };
-  anthropic: {
-    apiKey: string;
-  };
 
   // Translation settings
   translation: {
@@ -65,10 +62,6 @@ export function loadConfig(): AppConfig {
       maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES ?? '3', 10),
     },
 
-    anthropic: {
-      apiKey: process.env.ANTHROPIC_API_KEY ?? '',
-    },
-
     translation: {
       maxTokensPerChunk: parseInt(process.env.MAX_TOKENS_PER_CHUNK ?? '3000', 10),
       temperature: parseFloat(process.env.TRANSLATION_TEMPERATURE ?? '0.7'),
@@ -101,8 +94,8 @@ export function loadConfig(): AppConfig {
 export function validateConfig(config: AppConfig): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (!config.openai.apiKey && !config.anthropic.apiKey) {
-    errors.push('Необходим хотя бы один API ключ (OpenAI или Anthropic)');
+  if (!config.openai.apiKey) {
+    errors.push('Необходим API ключ OpenAI (OPENAI_API_KEY)');
   }
 
   if (config.openai.apiKey && !config.openai.apiKey.startsWith('sk-')) {
@@ -123,5 +116,5 @@ export function validateConfig(config: AppConfig): { valid: boolean; errors: str
  * Check if AI provider is configured
  */
 export function hasAIProvider(config: AppConfig): boolean {
-  return Boolean(config.openai.apiKey || config.anthropic.apiKey);
+  return Boolean(config.openai.apiKey);
 }
