@@ -43,7 +43,7 @@ npm run build           # required after dependency changes
 2. **One major per PR** — do not combine Express + Zod + Vite in one diff.
 3. **Order:** patch/minor → dev security chain → prod runtime majors → UI/build majors.
 4. **Gate:** `npm run lint:all && npm run build` + domain smoke (see below).
-5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters.
+5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters. Root [`f:/arcane/.npmrc`](f:/arcane/.npmrc) uses `legacy-peer-deps=true` for `madge` + `eslint-plugin-import` peer gaps; root `eslint@^10` satisfies hoisted import plugin.
 
 ## Node.js SSOT (mandatory trio)
 
@@ -80,16 +80,15 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 
 ## P4 backlog (defer — separate PRs)
 
-| Package                    | Latest (2026-06) | Notes                                |
-| -------------------------- | ---------------- | ------------------------------------ |
-| `typescript`               | 6.x              | Wait for ESLint/Vite ecosystem green |
-| `@types/node`              | 26.x             | Only with Node 26 LTS + SSOT trio    |
-| `concurrently` / `wait-on` | 10 / 9           | Dev scripts only                     |
+| Package       | Latest (2026-06) | Notes                                              |
+| ------------- | ---------------- | -------------------------------------------------- |
+| `@types/node` | 26.x             | Only with Node 26 LTS + SSOT trio (`.nvmrc`, etc.) |
 
 ## Mitigations (temporary — document as tech debt)
 
 - `npm overrides` for transitive CVE (e.g. `ws`) when parent package cannot upgrade yet
 - Accept risk + note in PR when fix requires `--force` or breaking major
+- Monorepo: `legacy-peer-deps` in root `.npmrc` until `madge` publishes TS 6 peer; root `eslint` until `eslint-plugin-import` publishes ESLint 10 peer
 
 ## Completed waves (2026-06-28)
 
@@ -106,6 +105,8 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | 9 i18next 26                  | Done   | `react-i18next` 17                                                        |
 | 10 Dev lint                   | Done   | `stylelint` 17, `eslint` 10, `globals` 17, `eslint-plugin-unused-imports` |
 | SEO router                    | Done   | `src/api/routes/seo.ts`                                                   |
+| 11 Dev scripts                | Done   | `wait-on` 9, `concurrently` 10                                            |
+| 12 TypeScript 6               | Done   | tsconfig: `types: ["node"]`, removed `baseUrl`; `vite-env.d.ts` for CSS   |
 | Skill + agent                 | Done   | this file                                                                 |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.

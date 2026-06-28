@@ -16,10 +16,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@engine/*": ["src/engine/*"],
-      "@shared/*": ["src/shared/*"]
+      "@engine/*": ["./src/engine/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": [
