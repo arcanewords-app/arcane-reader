@@ -46,7 +46,6 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin/entities/:kind` | admin+ | AdminEntitiesPage | Global entities by kind: `tag`, `author`, `translator` (AdminGate) |
 | `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
 | `/admin/publications` | admin+ | AdminPublicationsPage | Catalog publication moderation (AdminGate) |
-| `/admin/translation-requests` | admin+ | AdminTranslationRequestsPage | Redirect to `/translation-requests` (moderation on author board) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |

@@ -1164,7 +1164,6 @@
       "entities": "Catalog",
       "news": "News",
       "publications": "Publications",
-      "translationRequests": "Requests",
       "users": "Users"
     },
     "deniedTitle": "Admin access required",
