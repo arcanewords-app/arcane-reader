@@ -63,3 +63,76 @@ Before Supabase work, use live docs via SSH (see [`.cursor/skills/supabase-docs/
 ssh supabase.sh grep -rl 'auth' /supabase/docs/
 ssh supabase.sh cat /supabase/docs/guides/auth/passwords.md
 ```
+
+## Cursor Cloud specific instructions
+
+### Node.js
+
+The VM default Node is v22 under `/exec-daemon/node`, but this repo requires **Node 24** (`.nvmrc`, `package.json` `engines`). Before any npm command, prepend Node 24 to `PATH`:
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v24.18.0/bin:$PATH"
+node --version   # expect v24.x
+```
+
+If Node 24 is not installed yet: `source ~/.nvm/nvm.sh && nvm install 24`.
+
+### Dependencies
+
+There is **no committed `package-lock.json`**. Use:
+
+```bash
+npm install --legacy-peer-deps
+```
+
+(`eslint@10` vs `eslint-plugin-import` peer conflict otherwise blocks install.)
+
+After install, if Vite fails with missing esbuild binary, run `npm rebuild esbuild` or re-run install with scripts allowed.
+
+### Environment (`.env`)
+
+Copy `env.example.txt` → `.env` and fill **required** keys (see `.cursor/rules/deployment.mdc`):
+
+- `OPENAI_API_KEY`
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+
+Optional for async batch jobs: `REDIS_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`.
+
+**After changing `.env`, restart dev servers** — `tsx watch` does not reload env vars on file change.
+
+There is no local Supabase stack in this repo (migrations live in hosted Supabase project `arcane`, applied via Dashboard/MCP). Docker Compose under `src/docker-compose.yml` is optional for local Redis only.
+
+### Dev servers
+
+| Command            | What runs                                                              |
+| ------------------ | ---------------------------------------------------------------------- |
+| `npm run dev`      | API (:3000) + Vite client (:5173) + debug (:5174) + prompt-lab (:5175) |
+| `npm run dev:full` | Same + BullMQ worker (needed for `?async=1` translate/analyze)         |
+
+Start in **tmux** (long-running). Vite clients wait on `tcp:127.0.0.1:3000` before binding.
+
+Verify before UI debugging:
+
+```bash
+curl -s http://localhost:3000/api/health   # expect status healthy when Supabase reachable
+curl -s http://localhost:3000/api/status   # AI configured, config valid
+```
+
+Primary UI entry: **http://localhost:5173** (proxies `/api` → 3000).
+
+### Lint / test / build
+
+Standard commands from `package.json` — no extra Cloud setup:
+
+```bash
+npm run lint:all          # eslint + stylelint + typecheck
+npm run build             # client + debug + prompt-lab + server tsc
+node --import tsx --test $(git ls-files '*.test.ts')   # unit tests (188+)
+```
+
+### Gotchas
+
+- Port 3000 busy → `npm run kill-port`
+- `/api/health` `down` + `fetch failed` → bad/missing Supabase URL or network; fix `.env` and restart
+- Public catalog/news work without login; author workspace (`/projects/*`) needs auth
+- Async batch endpoints return **503** without Redis + worker (`npm run dev:full`)
