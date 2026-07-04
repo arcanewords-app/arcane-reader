@@ -80,13 +80,25 @@ describe('chapterTranslationCoverage', () => {
     );
   });
 
-  it('resolveChapterStatusAfterTranslation: partial after incomplete edit', () => {
+  it('resolveChapterStatusAfterTranslation: partial when incomplete edit', () => {
     const paragraphs = [para('1', 'A', 'B'), para('2', 'C', '')];
     assert.equal(
       resolveChapterStatusAfterTranslation({
         paragraphs,
         runEditing: true,
         editingPhase: 'after_edit',
+      }),
+      'partial'
+    );
+  });
+
+  it('resolveChapterStatusAfterTranslation: partial when translation looks truncated', () => {
+    const paragraphs = [para('1', 'x'.repeat(200), 'y'.repeat(40))];
+    assert.equal(
+      resolveChapterStatusAfterTranslation({
+        paragraphs,
+        runEditing: false,
+        editingPhase: 'none',
       }),
       'partial'
     );

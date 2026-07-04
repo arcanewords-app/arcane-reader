@@ -39,7 +39,13 @@ import {
   mergeJsonParagraphsToMarkedText,
   filterJsonParagraphsToChunk,
   tryParseTranslationParagraphsJson,
+  collectExpectedParagraphMarkerIds,
+  normalizeParagraphId,
 } from '../utils/para-markers.js';
+import {
+  getDuplicateParagraphKeys,
+  normalizeParagraphKey,
+} from '../../shared/paragraphTranslationMap.js';
 import { resolveTranslateLlmDefaults } from '../../shared/openaiModelAdapter.js';
 import { resolveTranslateChunkingMode } from '../translate-chunking-policy.js';
 import type { TranslateExecutionMode } from '../../shared/translate-execution-modes.js';
@@ -662,6 +668,37 @@ export class TranslateStage {
           `No paragraphs matched chunk after filter (${path}): expected chunk markers only`
         );
       }
+
+      const duplicateIds = getDuplicateParagraphKeys(
+        filtered.map((p) => ({ id: p.id ?? '' })).filter((row) => row.id.trim().length > 0)
+      );
+      if (duplicateIds.length > 0) {
+        log.warn(`TranslateStage: chunk ${chunk.id} duplicate paragraph ids in JSON`, {
+          event: 'translation.duplicate_paragraph_ids',
+          chunkId: chunk.id,
+          duplicateIds,
+          path,
+        });
+      }
+
+      const expectedIds = collectExpectedParagraphMarkerIds(chunk.content);
+      if (expectedIds.size > 0) {
+        const expectedBare = new Set([...expectedIds].map((id) => normalizeParagraphKey(id)));
+        const returnedBare = new Set(
+          filtered
+            .map((p) => {
+              const norm = normalizeParagraphId(p.id);
+              return norm ? normalizeParagraphKey(norm) : null;
+            })
+            .filter((k): k is string => k !== null && k.length > 0)
+        );
+        if (returnedBare.size < expectedBare.size && duplicateIds.length === 0) {
+          throw new Error(
+            `Chunk JSON missing paragraph ids (${path}): expected ${expectedBare.size}, got ${returnedBare.size}`
+          );
+        }
+      }
+
       const merged = mergeJsonParagraphsToMarkedText(filtered);
       if (!merged || merged.trim().length === 0) {
         throw new Error(`Empty translation paragraphs (${path})`);

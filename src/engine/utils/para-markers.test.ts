@@ -12,6 +12,7 @@ import {
   collectExpectedParagraphMarkerIds,
   filterJsonParagraphsToChunk,
   tryParseTranslationParagraphsJson,
+  mergeJsonParagraphsToMarkedText,
 } from './para-markers.js';
 
 describe('isSeparatorParagraph', () => {
@@ -135,6 +136,34 @@ describe('tryParseTranslationParagraphsJson', () => {
     assert.ok(out);
     assert.equal(out!.split('--para:').length - 1, 106);
     assert.match(out!, /--para:auto_105--Paragraph 105\./);
+  });
+
+  it('collapses duplicate ids in JSON unwrap', () => {
+    const paraId = 'e03cdd57-48d5-4b35-82eb-e98e224d6270';
+    const part1 = 'Part one.';
+    const part2 = 'Part two.';
+    const json = JSON.stringify({
+      paragraphs: [
+        { id: `--para:${paraId}--`, translated: part1 },
+        { id: `--para:${paraId}--`, translated: part2 },
+      ],
+    });
+    const out = tryParseTranslationParagraphsJson(json);
+    assert.ok(out);
+    assert.equal(out!.split('--para:').length - 1, 1);
+    assert.match(out!, new RegExp(`${part1}\\n\\n${part2}`));
+  });
+});
+
+describe('mergeJsonParagraphsToMarkedText', () => {
+  it('collapses duplicate marker ids into one block', () => {
+    const paraId = 'e03cdd57-48d5-4b35-82eb-e98e224d6270';
+    const out = mergeJsonParagraphsToMarkedText([
+      { id: `--para:${paraId}--`, translated: 'Alpha.' },
+      { id: `--para:${paraId}--`, translated: 'Beta.' },
+    ]);
+    assert.equal(out.split('--para:').length - 1, 1);
+    assert.match(out, /--para:e03cdd57-48d5-4b35-82eb-e98e224d6270--Alpha\.\n\nBeta\./);
   });
 });
 

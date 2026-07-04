@@ -36,6 +36,11 @@ import {
   resolveChapterStatusAfterTranslation,
 } from '../shared/chapterTranslationCoverage.js';
 import {
+  syncEditedMarkersToParagraphs,
+  syncTranslationJSONToParagraphs,
+  logSuspectTruncationsAfterSync,
+} from '../shared/paragraphSync.js';
+import {
   parseParagraphMarkers,
   PARA_MARKER_PREFIX,
   PARA_MARKER_SUFFIX,
@@ -1316,6 +1321,7 @@ export function logTranslationCoverageIfIncomplete(
       'Translation incomplete: not all paragraphs filled'
     );
   }
+  logSuspectTruncationsAfterSync(projectId, chapterId, paragraphs);
   return coverage;
 }
 
@@ -1506,34 +1512,6 @@ function parseEditedTextByMarkers(text: string): Array<{ id: string; text: strin
 }
 
 /**
- * Map parsed marker-based edits to paragraphs by id. Keeps separators and missing ids unchanged.
- */
-function syncEditedMarkersToParagraphs(
-  originalParagraphs: Paragraph[],
-  parsed: Array<{ id: string; text: string }>
-): Paragraph[] {
-  const isSeparatorParagraph = (p: Paragraph): boolean => {
-    const t = p.originalText.trim();
-    if (!t.length) return false;
-    return /^[\s*\-_=~#]+$/.test(t);
-  };
-  const byId = new Map(parsed.map((x) => [x.id, x.text]));
-  const now = new Date().toISOString();
-  return originalParagraphs.map((p) => {
-    if (isSeparatorParagraph(p)) return p;
-    const text = byId.get(p.id);
-    if (text === undefined) return p;
-    return {
-      ...p,
-      translatedText: text,
-      status: 'edited' as const,
-      editedAt: now,
-      editedBy: 'ai' as const,
-    };
-  });
-}
-
-/**
  * Sync translated chunks to paragraph structure (mechanical sync stage)
  * Uses saved translatedChunks instead of splitting text
  * Follows the same logic as syncTranslationToParagraphs but works with pre-parsed chunks
@@ -1708,132 +1686,6 @@ export function syncTranslationChunksToParagraphs(
     logger.error(
       { emptyCount, translatedChunksLength: chunksToUse.length },
       'Translation received but not applied to any paragraph'
-    );
-  }
-
-  return result;
-}
-
-/**
- * Sync translated JSON structure to paragraph structure
- * Uses paragraph markers (--para:{id}--) to map translations to paragraphs
- */
-function syncTranslationJSONToParagraphs(
-  originalParagraphs: Paragraph[],
-  translationJSON: { paragraphs: Array<{ id: string; translated: string }> },
-  partialTranslation: boolean = false
-): Paragraph[] {
-  if (!originalParagraphs || originalParagraphs.length === 0) {
-    logger.warn('syncTranslationJSONToParagraphs: no original paragraphs');
-    return [];
-  }
-
-  if (!translationJSON || !translationJSON.paragraphs || translationJSON.paragraphs.length === 0) {
-    logger.warn('syncTranslationJSONToParagraphs: no translated paragraphs in JSON');
-    return originalParagraphs;
-  }
-
-  const now = new Date().toISOString();
-
-  // Helper function to check if paragraph is a separator
-  const isSeparatorParagraph = (p: Paragraph): boolean => {
-    const text = p.originalText.trim();
-    if (text.length === 0) return false;
-    // Check if paragraph contains only separator characters (repeated)
-    const separatorPattern = /^[\s*\-_=~#]+$/;
-    return separatorPattern.test(text);
-  };
-
-  // Helper function to check if paragraph has valid translation
-  const hasValidTranslation = (p: Paragraph): boolean => {
-    const text = p.translatedText?.trim() || '';
-    if (text.length === 0) return false;
-    if (text.startsWith('❌') || isChunkError(text)) return false;
-    return true;
-  };
-
-  logger.debug(
-    {
-      originalCount: originalParagraphs.length,
-      jsonParagraphsCount: translationJSON.paragraphs.length,
-    },
-    `JSON sync: ${originalParagraphs.length} original, ${translationJSON.paragraphs.length} translated paragraphs`
-  );
-
-  // Create map of translations by paragraph ID
-  const translationMap = new Map<string, string>();
-  for (const tp of translationJSON.paragraphs) {
-    // Extract paragraph ID from marker format: --para:{id}--
-    let paraId = tp.id;
-    if (paraId.startsWith('--para:') && paraId.endsWith('--')) {
-      paraId = paraId.slice(7, -2); // Remove --para: and --
-    }
-
-    // Also handle case where ID is already extracted or auto-generated
-    if (paraId && tp.translated && tp.translated.trim().length > 0) {
-      translationMap.set(paraId, tp.translated.trim());
-    }
-  }
-
-  logger.debug(
-    { translationMapSize: translationMap.size },
-    `Translation map created: ${translationMap.size} paragraphs`
-  );
-
-  // Map translations to original paragraphs
-  const result = originalParagraphs.map((original) => {
-    // Skip separator paragraphs - they don't need translation
-    if (isSeparatorParagraph(original)) {
-      return original; // Keep separator paragraph as-is, don't try to translate it
-    }
-
-    // If partial translation mode, preserve existing valid translations
-    if (partialTranslation && hasValidTranslation(original)) {
-      return original;
-    }
-
-    // Try to find translation by paragraph ID
-    const translation = translationMap.get(original.id);
-    if (translation) {
-      return {
-        ...original,
-        translatedText: translation,
-        status: 'translated' as const,
-        editedAt: now,
-        editedBy: 'ai' as const,
-      };
-    }
-
-    // If no translation found, keep original
-    return original;
-  });
-
-  // Statistics
-  const translatedCount = result.filter((p) => hasValidTranslation(p)).length;
-  const preservedCount = originalParagraphs.filter((p) => hasValidTranslation(p)).length;
-  const newTranslations = translatedCount - preservedCount;
-  const emptyCount = originalParagraphs.length - preservedCount;
-
-  logger.debug(
-    { translatedCount, total: originalParagraphs.length, preservedCount, newTranslations },
-    `JSON sync done: ${translatedCount}/${originalParagraphs.length} paragraphs have translation`
-  );
-
-  if (newTranslations < emptyCount && !partialTranslation) {
-    const missingCount = emptyCount - newTranslations;
-    logger.warn(
-      { newTranslations, emptyCount, missingCount },
-      'Not all paragraphs received translation in JSON sync'
-    );
-  }
-
-  if (translatedCount === 0 && translationJSON.paragraphs.length > 0 && !partialTranslation) {
-    logger.error(
-      {
-        jsonParagraphsCount: translationJSON.paragraphs.length,
-        translationMapSize: translationMap.size,
-      },
-      'Critical: entire translation lost during JSON sync'
     );
   }
 

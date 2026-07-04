@@ -132,7 +132,9 @@ Order of attempts on `result.translatedText`:
 
 Subset translate (`paragraphIds`): merge synced paragraphs back into full chapter list.
 
-**Recovery:** `POST .../translate/sync` — manual chunk → paragraph sync.
+**Duplicate paragraph ids:** when the model returns multiple JSON rows (or marker blocks) with the same `--para:{id}--`, sync helpers in `src/shared/paragraphSync.ts` **concatenate** parts with `\n\n` instead of last-wins overwrite. Engine logs `translation.duplicate_paragraph_ids`; sync logs `paragraph_sync.duplicate_ids_merged`. Suspect truncation (translated length ≪ original) logs `translation.truncated_suspect` and may set chapter status `partial`.
+
+**Recovery:** `POST .../translate/sync` — manual chunk → paragraph sync (only helps when `translatedChunks` still hold full text; re-translate if paragraphs were already saved truncated).
 
 ### 6. Persistence fields
 

@@ -4,6 +4,7 @@
  */
 
 import { isChunkError } from './chunkErrors.js';
+import { detectSuspectTruncations } from './paragraphTranslationMap.js';
 
 export interface ParagraphCoverageInput {
   id: string;
@@ -72,6 +73,9 @@ export function resolveChapterStatusAfterTranslation(opts: {
 }): 'completed' | 'draft' | 'partial' {
   const coverage = getTranslationCoverage(opts.paragraphs);
   if (!coverage.isComplete) {
+    return 'partial';
+  }
+  if (detectSuspectTruncations(opts.paragraphs).length > 0) {
     return 'partial';
   }
   if (opts.runEditing && opts.editingPhase === 'after_translate') {

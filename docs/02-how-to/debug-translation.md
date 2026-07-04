@@ -121,6 +121,13 @@ LOG_LEVEL=debug npm run dev:full
 - See plan: [[../05-plans/engine-pipeline-improvements]]
 - Recovery: `POST .../translate/sync` (manual chunk → paragraph sync)
 
+### Part of a paragraph missing after translate
+
+- Symptom: one paragraph is much shorter than the source; chapter may show status `partial` despite `paragraphs.updated` success
+- Debug: filter logs by `traceId`, look for `translation.duplicate_paragraph_ids`, `paragraph_sync.duplicate_ids_merged`, or `translation.truncated_suspect`
+- Cause: LLM split one paragraph into multiple JSON rows with the same id (fixed by concat-at-sync) or truncated/wrong-id output (may need re-translate)
+- Recovery: re-run translate on the chapter; manual `translate/sync` does not restore text already lost in saved paragraphs
+
 ### Cancel not stopping
 
 - `POST .../translate/cancel` or job cancel endpoint

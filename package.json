@@ -38,6 +38,8 @@
     "test:glossary-manager": "node --import tsx --test src/engine/glossary/glossary-manager.test.ts",
     "test:stage-prompt-flow": "node --import tsx --test src/engine/pipeline/stage-prompt-flow.test.ts",
     "test:para-markers": "node --import tsx --test src/engine/utils/para-markers.test.ts",
+    "test:paragraph-translation-map": "node --import tsx --test src/shared/paragraphTranslationMap.test.ts",
+    "test:paragraph-sync": "node --import tsx --test src/shared/paragraphSync.test.ts",
     "test:ai-replace": "node --import tsx --test src/engine/prompts/ai-replace.test.ts",
     "test:ai-replace-estimate": "node --import tsx --test src/shared/aiReplaceEstimate.test.ts",
     "test:scraper-chapter": "node --import tsx --test src/shared/scraperChapter.test.ts",

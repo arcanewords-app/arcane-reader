@@ -3,6 +3,11 @@
  * Format: --para:{id}--{text}
  */
 
+import {
+  buildParagraphTranslationMap,
+  normalizeParagraphKey,
+} from '../../shared/paragraphTranslationMap.js';
+
 export const PARA_MARKER_PREFIX = '--para:';
 export const PARA_MARKER_SUFFIX = '--';
 
@@ -198,9 +203,33 @@ export function mergeJsonParagraphsToMarkedText(paras: JsonParagraphRow[]): stri
     return normalized.map((p) => p.translated).join('\n\n');
   }
 
-  return normalized
-    .map((p) => (p.markerId ? `${p.markerId}${p.translated}` : p.translated))
-    .join('\n\n');
+  const markerOrder: string[] = [];
+  const seenKeys = new Set<string>();
+  const rowsForMap: Array<{ id: string; text: string }> = [];
+  const noMarkerTexts: string[] = [];
+
+  for (const p of normalized) {
+    if (!p.markerId) {
+      noMarkerTexts.push(p.translated);
+      continue;
+    }
+    rowsForMap.push({ id: p.markerId, text: p.translated });
+    const key = normalizeParagraphKey(p.markerId);
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      markerOrder.push(p.markerId);
+    }
+  }
+
+  const { map } = buildParagraphTranslationMap(rowsForMap);
+  const collapsedMarked = markerOrder
+    .map((markerId) => {
+      const text = map.get(normalizeParagraphKey(markerId));
+      return text ? `${markerId}${text}` : null;
+    })
+    .filter((block): block is string => block !== null);
+
+  return [...collapsedMarked, ...noMarkerTexts].join('\n\n');
 }
 
 export function jsonParagraphsHaveMarkers(paras: JsonParagraphRow[]): boolean {
