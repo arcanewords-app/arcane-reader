@@ -134,3 +134,8 @@ export function roleToAccountTier(role: UserRole): AccountTierId | null {
   if (role === 'admin') return null;
   return role as AccountTierId;
 }
+
+/** Whether the user can request a higher account tier (mailto / upgrade CTA). */
+export function canRequestTierUpgrade(role: UserRole): boolean {
+  return role === 'user' || role === 'author' || role === 'author_plus';
+}

@@ -1437,7 +1437,10 @@
     "roleUser": "Карыстальнік",
     "upgradeButton": "Павысіць узровень",
     "upgradeHint": "Напішыце нам, каб запытаць павышэнне ўзроўню акаўнта.",
-    "upgradeMailSubject": "Запыт на павышэнне ўзроўню акаўнта"
+    "upgradeMailSubject": "Запыт на павышэнне ўзроўню акаўнта",
+    "tiersLink": "Узроўні",
+    "maxTierReached": "У вас максімальны ўзровень аўтара.",
+    "cardUpgradeTitle": "Павышэнне ўзроўню"
   },
   "publication": {
     "untitled": "Без назвы",

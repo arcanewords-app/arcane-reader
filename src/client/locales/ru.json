@@ -1437,7 +1437,10 @@
     "roleUser": "Пользователь",
     "upgradeButton": "Повысить уровень",
     "upgradeHint": "Напишите нам, чтобы запросить повышение уровня аккаунта.",
-    "upgradeMailSubject": "Запрос на повышение уровня аккаунта"
+    "upgradeMailSubject": "Запрос на повышение уровня аккаунта",
+    "tiersLink": "Уровни",
+    "maxTierReached": "У вас максимальный уровень автора.",
+    "cardUpgradeTitle": "Повышение уровня"
   },
   "publication": {
     "untitled": "Без названия",

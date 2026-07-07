@@ -6,15 +6,15 @@ import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
 import { useUserRole } from '../hooks/useUserRole';
-import { Button } from '../components/ui';
-import { RoleComparisonTable } from '../components/AccountTiers';
+import { Button, Icon } from '../components/ui';
 import { UpgradeRequestActions } from '../components/UpgradeRequest';
+import { canRequestTierUpgrade } from '../../shared/accountTiers';
 import type { ReaderSettings } from '../types';
 import type { UserRole } from '../../types/roles';
 import { DEFAULT_READER_SETTINGS, LEGACY_FONT_MAP } from '../types';
 import { TranslatorPseudonymsSection } from '../components/TranslatorPseudonym/TranslatorPseudonymsSection';
 import '../components/TranslatorPseudonym/TranslatorPseudonymsSection.css';
-import '../components/AccountTiers/RoleComparisonTable.css';
+import './ProfilePage.css';
 
 type ProfileTab = 'reading' | 'settings' | 'profile';
 
@@ -26,6 +26,8 @@ const ROLE_LABEL_KEYS: Record<UserRole, string> = {
   super_author: 'profile.roleSuperAuthor',
   admin: 'profile.roleAdmin',
 };
+
+const ACCENT_ROLE_BADGES = new Set<UserRole>(['author', 'author_plus', 'super_author']);
 
 function getInitials(email: string): string {
   const part = email.split('@')[0];
@@ -45,6 +47,8 @@ export function ProfilePage() {
     ...DEFAULT_READER_SETTINGS,
   }));
   const [readerSettingsLoaded, setReaderSettingsLoaded] = useState(false);
+
+  const showUpgrade = user != null && canRequestTierUpgrade(role);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,46 +146,67 @@ export function ProfilePage() {
         {activeTab === 'profile' && (
           <div class="profile-section profile-section-profile">
             <h2 class="profile-section-title">{t('profile.profileTitle')}</h2>
-            <div class="profile-avatar-section">
-              <div class="profile-avatar-preview">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" class="profile-avatar-img" />
-                ) : (
-                  <span class="profile-avatar-initials">
-                    {user ? getInitials(user.email) : '?'}
-                  </span>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                class="profile-avatar-input"
-                onChange={handleAvatarUpload}
-                disabled={avatarUploading || !user}
-              />
-              <button
-                type="button"
-                class="profile-avatar-btn"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={avatarUploading || !user}
-              >
-                {avatarUploading ? t('common.loading') : t('profile.uploadAvatar')}
-              </button>
-              {user && <p class="profile-email">{user.email}</p>}
+            <div class="profile-cards">
               {user && (
-                <div class="profile-role-block">
-                  <span class="profile-role-label">{t('profile.roleLabel')}</span>
-                  <span class="profile-role-badge">{t(ROLE_LABEL_KEYS[role])}</span>
+                <div class="profile-card">
+                  <div class="profile-identity">
+                    <div class="profile-avatar-preview">
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="" class="profile-avatar-img" />
+                      ) : (
+                        <span class="profile-avatar-initials">{getInitials(user.email)}</span>
+                      )}
+                    </div>
+                    <div class="profile-identity-meta">
+                      <p class="profile-email">{user.email}</p>
+                      <div class="profile-role-row">
+                        <span
+                          class={`profile-role-badge${ACCENT_ROLE_BADGES.has(role) ? ' profile-role-badge--accent' : ''}`}
+                        >
+                          {t(ROLE_LABEL_KEYS[role])}
+                        </span>
+                        <button
+                          type="button"
+                          class="profile-tiers-link"
+                          onClick={() => route('/account-tiers')}
+                        >
+                          <Icon name="workspace_premium" size="sm" />
+                          {t('profile.tiersLink')}
+                        </button>
+                      </div>
+                      {role === 'super_author' && (
+                        <p class="profile-max-tier">{t('profile.maxTierReached')}</p>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    class="profile-avatar-input"
+                    onChange={handleAvatarUpload}
+                    disabled={avatarUploading}
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    loading={avatarUploading}
+                  >
+                    {t('profile.uploadAvatar')}
+                  </Button>
                 </div>
               )}
-              {user && !isAtLeast('admin') && (
-                <div class="profile-upgrade-block">
+
+              {showUpgrade && (
+                <div class="profile-card profile-card-upgrade">
+                  <h3 class="profile-card-upgrade-title">{t('profile.cardUpgradeTitle')}</h3>
                   <p class="profile-upgrade-hint">{t('profile.upgradeHint')}</p>
                   <UpgradeRequestActions
                     showCompareTiers={false}
                     mailSubject={t('profile.upgradeMailSubject')}
-                    userEmail={user.email}
+                    userEmail={user!.email}
                     requestUpgradeLabel={t('profile.upgradeButton')}
                   />
                   <Button variant="secondary" size="sm" onClick={() => route('/account-tiers')}>
@@ -189,12 +214,13 @@ export function ProfilePage() {
                   </Button>
                 </div>
               )}
-              {user && (
-                <div class="profile-tiers-section">
-                  <RoleComparisonTable currentRole={role} compact />
+
+              {user && isAtLeast('author') && (
+                <div class="profile-card">
+                  <TranslatorPseudonymsSection inCard />
                 </div>
               )}
-              {user && isAtLeast('author') && <TranslatorPseudonymsSection />}
+
               {user && !isAtLeast('author') && (
                 <p class="profile-pseudonym-hint">{t('translatorPseudonym.authorOnlyHint')}</p>
               )}

@@ -4,6 +4,13 @@
   border-top: 1px solid var(--border);
 }
 
+.translator-pseudonyms-section--in-card {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  width: 100%;
+}
+
 .translator-pseudonyms-section--compact {
   margin-top: var(--space-md);
   padding-top: var(--space-md);
@@ -11,11 +18,12 @@
 
 .translator-pseudonyms-header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
   margin-bottom: var(--space-sm);
+  width: 100%;
 }
 
 .translator-pseudonyms-title {
@@ -23,11 +31,22 @@
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.translator-pseudonyms-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .translator-pseudonyms-counter {
   font-size: var(--text-sm);
   color: var(--text-dim);
+  white-space: nowrap;
 }
 
 .translator-pseudonyms-hint {
@@ -40,6 +59,8 @@
 .translator-pseudonyms-empty {
   margin: 0 0 var(--space-md);
   color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
 }
 
 .translator-pseudonyms-grid {
@@ -47,6 +68,7 @@
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-md);
   margin-bottom: var(--space-md);
+  width: 100%;
 }
 
 .translator-pseudonyms-card-wrap {
@@ -61,10 +83,6 @@
   gap: var(--space-sm);
 }
 
-.translator-pseudonyms-create-btn {
-  margin-bottom: var(--space-sm);
-}
-
 .translator-pseudonyms-limit-hint {
   margin: 0 0 var(--space-md);
   font-size: var(--text-sm);
@@ -75,6 +93,7 @@
   margin-top: var(--space-md);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  width: 100%;
 }
 
 .translator-pseudonyms-hidden summary {
@@ -90,6 +109,7 @@
   background: color-mix(in srgb, var(--error) 12%, transparent);
   color: var(--error);
   font-size: var(--text-sm);
+  width: 100%;
 }
 
 .translator-pseudonyms-loading {

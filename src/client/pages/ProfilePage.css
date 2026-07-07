@@ -85,20 +85,61 @@
   color: var(--text-secondary);
 }
 
-.profile-avatar-section {
-  padding: 2rem;
+.profile-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 600px;
+}
+
+.profile-card {
+  padding: var(--space-lg);
   background: var(--bg-card);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1rem;
+  gap: var(--space-md);
+}
+
+.profile-card-upgrade {
+  gap: var(--space-sm);
+}
+
+.profile-card-upgrade-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.profile-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .profile-identity {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.profile-identity-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
 }
 
 .profile-avatar-preview {
   width: 96px;
   height: 96px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--bg-tertiary);
   display: flex;
@@ -124,43 +165,19 @@
   display: none;
 }
 
-.profile-avatar-btn {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: var(--accent);
-  color: var(--accent-contrast, #fff);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: opacity var(--duration-normal) var(--ease-standard);
-}
-
-.profile-avatar-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.profile-avatar-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .profile-email {
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 0.9375rem;
+  font-weight: 500;
   margin: 0;
+  word-break: break-word;
 }
 
-.profile-role-block {
+.profile-role-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.profile-role-label {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
 }
 
 .profile-role-badge {
@@ -175,13 +192,41 @@
   border: 1px solid var(--border);
 }
 
-.profile-upgrade-block {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.profile-role-badge--accent {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-tertiary));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.profile-tiers-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  min-height: 32px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--duration-normal) var(--ease-standard);
+}
+
+.profile-tiers-link:hover {
+  color: var(--accent);
+}
+
+.profile-tiers-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.profile-max-tier {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-dim);
 }
 
 .profile-upgrade-hint {
@@ -190,18 +235,16 @@
   margin: 0;
 }
 
-.profile-upgrade-block .btn {
+.profile-card-upgrade .btn,
+.profile-card-upgrade .upgrade-request-actions__buttons {
   align-self: flex-start;
 }
 
-.profile-tiers-section {
-  margin-top: 1.5rem;
-  width: 100%;
-  max-width: 56rem;
-}
-
-.profile-section-profile .profile-avatar-section {
-  max-width: 56rem;
+.profile-pseudonym-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -236,7 +279,7 @@
   .profile-section-title {
     font-size: var(--text-lg);
   }
-  .profile-avatar-section {
+  .profile-card {
     padding: var(--space-lg);
   }
   .profile-avatar-preview {
@@ -246,11 +289,7 @@
   .profile-avatar-initials {
     font-size: 1.5rem;
   }
-}
-
-.profile-pseudonym-hint {
-  margin-top: var(--space-lg);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
+  .profile-tiers-link {
+    min-height: 44px;
+  }
 }

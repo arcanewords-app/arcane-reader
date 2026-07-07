@@ -1273,7 +1273,10 @@
     "roleUser": "Użytkownik",
     "upgradeButton": "Podnieś poziom",
     "upgradeHint": "Skontaktuj się z nami, aby poprosić o podwyższenie poziomu konta.",
-    "upgradeMailSubject": "Prośba o podwyższenie poziomu konta"
+    "upgradeMailSubject": "Prośba o podwyższenie poziomu konta",
+    "tiersLink": "Poziomy konta",
+    "maxTierReached": "Masz najwyższy poziom autora.",
+    "cardUpgradeTitle": "Podwyższenie poziomu"
   },
   "publication": {
     "untitled": "Bez tytułu",

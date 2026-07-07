@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicEntity } from '../../types';
 import { api, ApiError } from '../../api/client';
 import { MAX_TRANSLATOR_PSEUDONYMS_PER_USER } from '../../../shared/translatorPseudonyms';
-import { Modal, Button, ConfirmModal } from '../ui';
+import { Modal, Button, ConfirmModal, Icon } from '../ui';
 import { AdminEntityFormFields } from '../Admin/AdminEntityFormFields';
 import { EntityCard } from '../EntityCard/EntityCard';
 import './TranslatorPseudonymsSection.css';
@@ -146,11 +146,14 @@ export function TranslatorPseudonymFormModal({
 
 interface TranslatorPseudonymsSectionProps {
   compact?: boolean;
+  /** Inside a profile card — no outer border/margin */
+  inCard?: boolean;
   onListChange?: (entities: PublicEntity[]) => void;
 }
 
 export function TranslatorPseudonymsSection({
   compact = false,
+  inCard = false,
   onListChange,
 }: TranslatorPseudonymsSectionProps) {
   const { t } = useTranslation();
@@ -216,18 +219,26 @@ export function TranslatorPseudonymsSection({
 
   return (
     <div
-      class={`translator-pseudonyms-section${compact ? ' translator-pseudonyms-section--compact' : ''}`}
+      class={`translator-pseudonyms-section${compact ? ' translator-pseudonyms-section--compact' : ''}${inCard ? ' translator-pseudonyms-section--in-card' : ''}`}
     >
       <div class="translator-pseudonyms-header">
         <h3 class="translator-pseudonyms-title">{t('translatorPseudonym.sectionTitle')}</h3>
-        <span class="translator-pseudonyms-counter">
-          {t('translatorPseudonym.counter', {
-            count: active.length,
-            max: MAX_TRANSLATOR_PSEUDONYMS_PER_USER,
-          })}
-        </span>
+        <div class="translator-pseudonyms-header__actions">
+          <span class="translator-pseudonyms-counter">
+            {t('translatorPseudonym.counter', {
+              count: active.length,
+              max: MAX_TRANSLATOR_PSEUDONYMS_PER_USER,
+            })}
+          </span>
+          <Button variant="secondary" size="sm" onClick={openCreate} disabled={atLimit}>
+            <Icon name="add" size="sm" />
+            {t('translatorPseudonym.create')}
+          </Button>
+        </div>
       </div>
-      <p class="translator-pseudonyms-hint">{t('translatorPseudonym.emptyHint')}</p>
+      {atLimit && (
+        <p class="translator-pseudonyms-limit-hint">{t('translatorPseudonym.limitReached')}</p>
+      )}
 
       {error && (
         <div class="translator-pseudonyms-error" role="alert">
@@ -253,19 +264,6 @@ export function TranslatorPseudonymsSection({
             </div>
           ))}
         </div>
-      )}
-
-      <Button
-        variant="primary"
-        size="sm"
-        onClick={openCreate}
-        disabled={atLimit}
-        class="translator-pseudonyms-create-btn"
-      >
-        {t('translatorPseudonym.create')}
-      </Button>
-      {atLimit && (
-        <p class="translator-pseudonyms-limit-hint">{t('translatorPseudonym.limitReached')}</p>
       )}
 
       {hidden.length > 0 && (

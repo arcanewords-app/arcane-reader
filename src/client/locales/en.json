@@ -1438,7 +1438,10 @@
     "roleUser": "User",
     "upgradeButton": "Upgrade level",
     "upgradeHint": "Contact us to request an account level upgrade.",
-    "upgradeMailSubject": "Request for account level upgrade"
+    "upgradeMailSubject": "Request for account level upgrade",
+    "tiersLink": "Account tiers",
+    "maxTierReached": "You have the highest author tier.",
+    "cardUpgradeTitle": "Upgrade account level"
   },
   "publication": {
     "untitled": "Untitled",
