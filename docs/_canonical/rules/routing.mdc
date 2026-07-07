@@ -171,6 +171,10 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | POST | `/api/user/profile/avatar` | user+ | Upload avatar (multipart: avatar) |
 | GET | `/api/user/reader-settings` | user+ | User reader settings |
 | PUT | `/api/user/reader-settings` | user+ | Update user reader settings |
+| GET | `/api/user/translator-pseudonyms` | author+ | List own translator pseudonyms (query: `includeHidden`) |
+| POST | `/api/user/translator-pseudonyms` | author+ | Create translator pseudonym (multipart: name, description?, photo?) |
+| PATCH | `/api/user/translator-pseudonyms/:id` | author+ | Update own translator pseudonym |
+| POST | `/api/user/translator-pseudonyms/:id/hide` | author+ | Soft-hide own translator pseudonym |
 | GET | `/api/user/publications` | author+ | User's publications |
 
 ### Translation request board (requireAuth + requireRole('author'))

@@ -4,22 +4,23 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 
 ## Start here
 
-| Need                      | Where                                                                                                                               |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Which agent owns the task | [`.cursor/rules/team-orchestrator.mdc`](.cursor/rules/team-orchestrator.mdc) (agent-requested when implementing)                    |
-| Code style, PR checklist  | [`.cursor/rules/core.mdc`](.cursor/rules/core.mdc)                                                                                  |
-| Module map, data flow     | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc)                                                                  |
-| Route map (SSOT)          | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc)                                                                            |
-| Security policies         | [`.cursor/rules/security.mdc`](.cursor/rules/security.mdc) + [`.cursor/skills/security/SKILL.md`](.cursor/skills/security/SKILL.md) |
-| All domain rules          | [`.cursor/rules/`](.cursor/rules/)                                                                                                  |
-| Local dev, vault, grep    | [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md)                                                            |
-| UI patterns & UX recipes  | [`.cursor/skills/ui/PATTERNS.md`](.cursor/skills/ui/PATTERNS.md) — filters, chips, toolbars                                         |
-| News posts, announcements | [`.cursor/skills/news-content/SKILL.md`](.cursor/skills/news-content/SKILL.md) — technical-startup voice                            |
-| Obsidian vault (MCP)      | [`.cursor/skills/obsidian-mcp/SKILL.md`](.cursor/skills/obsidian-mcp/SKILL.md) — Obsidian must be running                           |
-| Trello boards (MCP)       | [`.cursor/skills/trello-mcp/SKILL.md`](.cursor/skills/trello-mcp/SKILL.md) — credentials in `~/.cursor/mcp.json`                    |
-| Prod/staging logs (MCP)   | [`.cursor/skills/axiom-mcp/SKILL.md`](.cursor/skills/axiom-mcp/SKILL.md) — OAuth via official Axiom MCP                             |
-| Local dev debug (curl)    | [`.cursor/skills/debug-local/SKILL.md`](.cursor/skills/debug-local/SKILL.md) — `/api/debug/query` on localhost:3000                 |
-| npm audit, deps, Node     | [`.cursor/skills/dependency-maintenance/SKILL.md`](.cursor/skills/dependency-maintenance/SKILL.md) — CVE triage, phased updates     |
+| Need                      | Where                                                                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Which agent owns the task | [`.cursor/rules/team-orchestrator.mdc`](.cursor/rules/team-orchestrator.mdc) (agent-requested when implementing)                                                 |
+| Code style, PR checklist  | [`.cursor/rules/core.mdc`](.cursor/rules/core.mdc)                                                                                                               |
+| Module map, data flow     | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc)                                                                                               |
+| Route map (SSOT)          | [`.cursor/rules/routing.mdc`](.cursor/rules/routing.mdc)                                                                                                         |
+| Security policies         | [`.cursor/rules/security.mdc`](.cursor/rules/security.mdc) + [`.cursor/skills/security/SKILL.md`](.cursor/skills/security/SKILL.md)                              |
+| Supabase SQL migrations   | [`.cursor/rules/supabase.mdc`](.cursor/rules/supabase.mdc) — **only** `supabase/migrations/` (gitignored); history in [`supabase/README.md`](supabase/README.md) |
+| All domain rules          | [`.cursor/rules/`](.cursor/rules/)                                                                                                                               |
+| Local dev, vault, grep    | [`.cursor/skills/local-dev/SKILL.md`](.cursor/skills/local-dev/SKILL.md)                                                                                         |
+| UI patterns & UX recipes  | [`.cursor/skills/ui/PATTERNS.md`](.cursor/skills/ui/PATTERNS.md) — filters, chips, toolbars                                                                      |
+| News posts, announcements | [`.cursor/skills/news-content/SKILL.md`](.cursor/skills/news-content/SKILL.md) — technical-startup voice                                                         |
+| Obsidian vault (MCP)      | [`.cursor/skills/obsidian-mcp/SKILL.md`](.cursor/skills/obsidian-mcp/SKILL.md) — Obsidian must be running                                                        |
+| Trello boards (MCP)       | [`.cursor/skills/trello-mcp/SKILL.md`](.cursor/skills/trello-mcp/SKILL.md) — credentials in `~/.cursor/mcp.json`                                                 |
+| Prod/staging logs (MCP)   | [`.cursor/skills/axiom-mcp/SKILL.md`](.cursor/skills/axiom-mcp/SKILL.md) — OAuth via official Axiom MCP                                                          |
+| Local dev debug (curl)    | [`.cursor/skills/debug-local/SKILL.md`](.cursor/skills/debug-local/SKILL.md) — `/api/debug/query` on localhost:3000                                              |
+| npm audit, deps, Node     | [`.cursor/skills/dependency-maintenance/SKILL.md`](.cursor/skills/dependency-maintenance/SKILL.md) — CVE triage, phased updates                                  |
 
 **Workflow:** orchestrator → read active [`.cursor/agents/<domain>/AGENT.md`](.cursor/agents/) + [`.cursor/skills/<domain>/SKILL.md`](.cursor/skills/) → follow domain `.mdc` rules.
 

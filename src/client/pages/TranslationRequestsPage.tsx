@@ -213,6 +213,8 @@ export function TranslationRequestsPage() {
           setError(t('requestBoard.errors.selfAssign'));
         } else if (err.code === 'REQUEST_CLOSED') {
           setError(t('requestBoard.errors.requestClosed'));
+        } else if (err.code === 'INVALID_TRANSLATOR_PSEUDONYM') {
+          setError(t('translatorPseudonym.publishRequired'));
         } else {
           setError(t('requestBoard.errors.interestFailed'));
         }
@@ -223,6 +225,39 @@ export function TranslationRequestsPage() {
       setInterestLoadingId(null);
       setPickerRequestId(null);
     }
+  };
+
+  const handleTakeWork = async (requestId: string) => {
+    setError(null);
+    try {
+      const mine = await api.getTranslatorPseudonyms();
+      if (mine.length === 1) {
+        setInterestLoadingId(requestId);
+        await api.createTranslationRequestInterest(requestId, mine[0].id);
+        setSuccess(t('requestBoard.interestCreated'));
+        await reload();
+        return;
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'INTEREST_EXISTS') {
+          setError(t('requestBoard.errors.interestExists'));
+          return;
+        }
+        if (err.code === 'SELF_ASSIGN') {
+          setError(t('requestBoard.errors.selfAssign'));
+          return;
+        }
+        if (err.code === 'REQUEST_CLOSED') {
+          setError(t('requestBoard.errors.requestClosed'));
+          return;
+        }
+      }
+      // Fall through to picker on other errors (e.g. no pseudonyms yet)
+    } finally {
+      setInterestLoadingId(null);
+    }
+    setPickerRequestId(requestId);
   };
 
   const openCreateProject = (item: BoardTranslationRequest) => {
@@ -541,7 +576,7 @@ export function TranslationRequestsPage() {
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => setPickerRequestId(item.id)}
+                      onClick={() => handleTakeWork(item.id)}
                       loading={interestLoadingId === item.id}
                     >
                       {t('requestBoard.takeWork')}
@@ -692,6 +727,8 @@ export function TranslationRequestsPage() {
         onClose={() => setPickerRequestId(null)}
         kind="translator"
         mode="single"
+        translatorScope="mine"
+        allowCreate
         onSelect={handleTranslatorPick}
       />
 

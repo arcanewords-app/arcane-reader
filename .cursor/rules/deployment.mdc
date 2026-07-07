@@ -78,7 +78,7 @@ npm run start:worker # separate process for queues
 
 ## Supabase
 
-- Apply SQL from `docs/supabase-migrations/` and `docs/migrations/` as needed for your environment.
+- **Migrations:** write and keep SQL in `supabase/migrations/` only (gitignored). See `@.cursor/rules/supabase.mdc`. Committed history: `@supabase/README.md`. Do not add new files under `docs/migrations/` or `docs/supabase-migrations/`.
 - Edge functions / cron (e.g. token daily reset): see `docs/archive/SUPABASE_EDGE_FUNCTIONS.md` — verify against production before relying on archive steps.
 
 ## When changing deployment

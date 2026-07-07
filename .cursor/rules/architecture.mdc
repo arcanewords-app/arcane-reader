@@ -28,6 +28,7 @@ Frontend (Preact) → Express API → Supabase / Storage
 | `@src/api/schemas/` | Zod request validation |
 | `@src/shared/cacheContract.ts` | Redis key prefixes and TTL |
 | `@src/worker.ts` | BullMQ worker (async analysis/translate jobs) |
+| `supabase/migrations/` | Local SQL migrations (gitignored); history in `supabase/README.md`; rule: `@.cursor/rules/supabase.mdc` |
 
 ## Key entry points
 

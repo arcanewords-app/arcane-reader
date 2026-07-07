@@ -247,3 +247,10 @@
     font-size: 1.5rem;
   }
 }
+
+.profile-pseudonym-hint {
+  margin-top: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

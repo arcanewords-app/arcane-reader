@@ -15,7 +15,6 @@ import { Card, Button, Modal, Input, LoadingSpinner, Icon, AlertModal, ConfirmMo
 import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
 import { formatLanguagePairLabel } from '../constants/translationLanguages';
 import { api, ApiError, clearCatalogLocalCache } from '../api/client';
-import { authService } from '../services/authService';
 import { isChunkError } from '../../shared/chunkErrors';
 import {
   invalidateProject,
@@ -46,7 +45,7 @@ export function ProjectInfo({
   onOpenSettings,
 }: ProjectInfoProps) {
   const { t } = useTranslation();
-  const { role } = useUserRole();
+  const { role, user } = useUserRole();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCopyChaptersModal, setShowCopyChaptersModal] = useState(false);
   const [showProjectActionsMenu, setShowProjectActionsMenu] = useState(false);
@@ -97,6 +96,17 @@ export function ProjectInfo({
   const [showTranslatorPicker, setShowTranslatorPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [savingEntities, setSavingEntities] = useState(false);
+
+  const isOwnedTranslatorEntity = useCallback(
+    (entity: PublicEntity | null | undefined) =>
+      entity != null &&
+      user != null &&
+      entity.ownerUserId === user.id &&
+      (entity.entityStatus ?? 'active') === 'active',
+    [user]
+  );
+
+  const hasPublishableTranslator = isOwnedTranslatorEntity(translatorEntity);
 
   useEffect(() => {
     let cancelled = false;
@@ -270,12 +280,32 @@ export function ProjectInfo({
     [tagEntities, saveEntityMetadata]
   );
 
-  const openPublishModal = useCallback(() => {
+  const openPublishModal = useCallback(async () => {
     setPublishTitle(project.metadata?.title ?? project.name);
     setPublishDescription(project.metadata?.description ?? '');
     setBuildExportsOnPublish(false);
+
+    if (!isOwnedTranslatorEntity(translatorEntity)) {
+      try {
+        const mine = await api.getTranslatorPseudonyms();
+        if (mine.length === 1) {
+          setTranslatorEntity(mine[0]);
+          await saveEntityMetadata({ translatorEntityId: mine[0].id });
+        }
+      } catch {
+        // Non-blocking: user can pick in modal
+      }
+    }
+
     setShowPublishModal(true);
-  }, [project.metadata?.title, project.metadata?.description, project.name]);
+  }, [
+    project.metadata?.title,
+    project.metadata?.description,
+    project.name,
+    translatorEntity,
+    isOwnedTranslatorEntity,
+    saveEntityMetadata,
+  ]);
 
   // Helper: chapter has valid translation (works with Chapter or ChapterListItem)
   const hasValidTranslation = (
@@ -318,6 +348,13 @@ export function ProjectInfo({
   };
 
   const handlePublish = useCallback(async () => {
+    if (!hasPublishableTranslator) {
+      setErrorModal({
+        title: t('projectInfo.publishError'),
+        message: t('translatorPseudonym.publishRequired'),
+      });
+      return;
+    }
     setPublishing(true);
     try {
       const pub = await api.publishProject(project.id, {
@@ -325,9 +362,6 @@ export function ProjectInfo({
         title: publishTitle.trim() || undefined,
         description: publishDescription.trim() || undefined,
         authorDisplay: authorEntity ? undefined : (project.metadata?.authors?.[0] ?? undefined),
-        translatorDisplay: translatorEntity
-          ? undefined
-          : (authService.getCachedUser()?.email ?? undefined),
         authorEntityId: project.metadata?.authorEntityId ?? undefined,
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
         tagEntityIds: project.metadata?.tagEntityIds ?? undefined,
@@ -368,11 +402,11 @@ export function ProjectInfo({
     project.metadata?.sourceUrl,
     project.metadata?.authors,
     authorEntity,
-    translatorEntity,
     publishTitle,
     publishDescription,
     buildExportsOnPublish,
     stats.translated,
+    hasPublishableTranslator,
     t,
   ]);
 
@@ -409,6 +443,13 @@ export function ProjectInfo({
   }, [publication, project.id, t]);
 
   const handleUpdatePublication = useCallback(async () => {
+    if (!hasPublishableTranslator) {
+      setErrorModal({
+        title: t('projectInfo.publishError'),
+        message: t('translatorPseudonym.publishRequired'),
+      });
+      return;
+    }
     setUpdatingPublication(true);
     try {
       const pub = await api.publishProject(project.id, {
@@ -416,9 +457,6 @@ export function ProjectInfo({
         title: publication?.title ?? project.metadata?.title ?? project.name,
         description: project.metadata?.description ?? undefined,
         authorDisplay: authorEntity ? undefined : (project.metadata?.authors?.[0] ?? undefined),
-        translatorDisplay: translatorEntity
-          ? undefined
-          : (authService.getCachedUser()?.email ?? undefined),
         coverImageUrl: project.metadata?.coverImageUrl ?? undefined,
         authorEntityId: project.metadata?.authorEntityId ?? undefined,
         translatorEntityId: project.metadata?.translatorEntityId ?? undefined,
@@ -450,7 +488,7 @@ export function ProjectInfo({
     publication?.sourceUrl,
     project.name,
     authorEntity,
-    translatorEntity,
+    hasPublishableTranslator,
     t,
   ]);
 
@@ -1489,6 +1527,11 @@ export function ProjectInfo({
                 {translatorEntity ? (
                   <div class="entity-section__card-wrap">
                     <EntityCard entity={translatorEntity} compact />
+                    {translatorEntity && !isOwnedTranslatorEntity(translatorEntity) && (
+                      <span class="entity-section__legacy-badge">
+                        {t('translatorPseudonym.legacyBadge')}
+                      </span>
+                    )}
                     <button
                       type="button"
                       class="entity-section__remove"
@@ -1597,6 +1640,8 @@ export function ProjectInfo({
           onClose={() => setShowTranslatorPicker(false)}
           kind="translator"
           mode="single"
+          translatorScope="mine"
+          allowCreate
           selectedIds={translatorEntity ? [translatorEntity.id] : []}
           onSelect={handleTranslatorSelect}
         />
@@ -1737,7 +1782,7 @@ export function ProjectInfo({
                   variant="secondary"
                   size="sm"
                   onClick={handleUpdatePublication}
-                  disabled={updatingPublication}
+                  disabled={updatingPublication || !hasPublishableTranslator}
                 >
                   {updatingPublication ? t('common.loading') : t('projectInfo.updatePublication')}
                 </Button>
@@ -2038,7 +2083,11 @@ export function ProjectInfo({
             <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={handlePublish} loading={publishing}>
+            <Button
+              onClick={handlePublish}
+              loading={publishing}
+              disabled={!hasPublishableTranslator}
+            >
               {t('projectInfo.publish')}
             </Button>
           </>
@@ -2047,6 +2096,18 @@ export function ProjectInfo({
         <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           {t('projectInfo.publishModalHint')}
         </p>
+        {!hasPublishableTranslator && (
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--warning)',
+              fontSize: '0.9rem',
+            }}
+            role="status"
+          >
+            {t('translatorPseudonym.publishRequired')}
+          </p>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <Input
             label={t('projectInfo.publishTitleLabel')}

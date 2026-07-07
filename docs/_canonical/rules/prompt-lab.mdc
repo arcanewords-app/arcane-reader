@@ -9,8 +9,7 @@ Dev-only sub-application for testing translation prompts in isolation. **Not ava
 | `src/prompt-lab/` | Server: ephemeral runner, Supabase CRUD, API routes |
 | `src/prompt-lab-app/` | Preact SPA — workbench UI (`components/`, `panels/`, `styles/`) |
 | `src/shared/llmModels.ts` | Shared model list (main app settings + Prompt Lab meta) |
-| `docs/migrations/prompt_lab_tables.sql` | Supabase tables (`prompt_lab_*`) |
-| `docs/migrations/prompt_lab_review.sql` | `display_name` on runs + `prompt_lab_evaluations` |
+| `supabase/migrations/*_prompt_lab_*.sql` | Supabase tables (`prompt_lab_*`) — see `@.cursor/rules/supabase.mdc` |
 
 ## UI components (prompt-lab-app)
 
@@ -48,8 +47,9 @@ npm run dev:full     # + worker
 
 ## Supabase
 
-Apply `docs/migrations/prompt_lab_tables.sql` before using save texts/runs/prompts features.
-Apply `docs/migrations/prompt_lab_review.sql` for Review tab (run names + evaluations).
+New Prompt Lab schema migrations: `supabase/migrations/YYYYMMDDHHMMSS_prompt_lab_*.sql` only (`@.cursor/rules/supabase.mdc`). Legacy copies may exist under gitignored `docs/migrations/` — do not add new files there.
+
+Typical files (local, under `supabase/migrations/`): `*_prompt_lab_tables.sql` (tables), `*_prompt_lab_review.sql` (`display_name` on runs + `prompt_lab_evaluations`).
 
 Uses `SUPABASE_SERVICE_ROLE_KEY` server-side (dev-only routes).
 

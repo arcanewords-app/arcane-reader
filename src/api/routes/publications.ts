@@ -44,7 +44,10 @@ import {
   getPublishedNewsPostByIdOrSlug,
   getActiveAnnouncementForUser,
   dismissAnnouncement,
+  assertOwnedActiveTranslatorPseudonym,
 } from '../../services/supabaseDatabase.js';
+
+import { INVALID_TRANSLATOR_PSEUDONYM_CODE } from '../../shared/translatorPseudonyms.js';
 
 import type { UserRole } from '../../types/roles.js';
 import { requireAuth, optionalAuth, requireRole } from '../../middleware/auth.js';
@@ -296,6 +299,24 @@ export function registerPublicationRoutes(app: Application, deps: RouteDeps): vo
           });
         }
         const { metadata: metadataUpdates } = parsed.data;
+
+        if (Object.prototype.hasOwnProperty.call(metadataUpdates, 'translatorEntityId')) {
+          const rawTranslatorId = metadataUpdates.translatorEntityId;
+          if (rawTranslatorId != null && typeof rawTranslatorId === 'string') {
+            try {
+              await assertOwnedActiveTranslatorPseudonym(req.user.id, rawTranslatorId);
+            } catch (err) {
+              const code = (err as Error & { code?: string }).code;
+              if (code === INVALID_TRANSLATOR_PSEUDONYM_CODE) {
+                return res.status(400).json({
+                  error: 'Invalid translator pseudonym',
+                  code: INVALID_TRANSLATOR_PSEUDONYM_CODE,
+                });
+              }
+              throw err;
+            }
+          }
+        }
 
         const updatedMetadata = { ...(project.metadata || {}), ...metadataUpdates };
         const updatedProject = await updateProject(
@@ -1386,8 +1407,15 @@ export function registerPublicationRoutes(app: Application, deps: RouteDeps): vo
         const authorEntityId = body.authorEntityId ?? project?.metadata?.authorEntityId;
         const translatorEntityId = body.translatorEntityId ?? project?.metadata?.translatorEntityId;
 
+        if (!translatorEntityId) {
+          return res.status(400).json({
+            error: 'Translator pseudonym is required for publication',
+            code: 'TRANSLATOR_PSEUDONYM_REQUIRED',
+          });
+        }
+
         let authorDisplay = body.authorDisplay;
-        let translatorDisplay = body.translatorDisplay ?? req.user!.email;
+        let translatorDisplay = body.translatorDisplay;
 
         if (authorEntityId) {
           try {
@@ -1403,10 +1431,20 @@ export function registerPublicationRoutes(app: Application, deps: RouteDeps): vo
 
         if (translatorEntityId) {
           try {
-            const translatorEntity = await getPublicEntityById(translatorEntityId);
-            if (translatorEntity) translatorDisplay = translatorEntity.name;
-          } catch {
-            // Keep existing translatorDisplay if entity fetch fails
+            const translatorEntity = await assertOwnedActiveTranslatorPseudonym(
+              userId,
+              translatorEntityId
+            );
+            translatorDisplay = translatorEntity.name;
+          } catch (err) {
+            const code = (err as Error & { code?: string }).code;
+            if (code === INVALID_TRANSLATOR_PSEUDONYM_CODE) {
+              return res.status(400).json({
+                error: 'Invalid translator pseudonym',
+                code: INVALID_TRANSLATOR_PSEUDONYM_CODE,
+              });
+            }
+            throw err;
           }
         }
 

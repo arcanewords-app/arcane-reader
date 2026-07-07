@@ -66,6 +66,8 @@ export interface PublicEntity {
   description?: string;
   photoUrl?: string | null;
   createdBy?: string | null;
+  ownerUserId?: string | null;
+  entityStatus?: 'active' | 'blocked';
   createdAt: string;
   updatedAt: string;
 }

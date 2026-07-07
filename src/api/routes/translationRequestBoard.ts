@@ -40,6 +40,13 @@ function interestErrorResponse(error: unknown, res: import('express').Response):
     res.status(400).json({ error: 'Invalid translator entity', code: 'INVALID_TRANSLATOR' });
     return true;
   }
+  if (code === 'INVALID_TRANSLATOR_PSEUDONYM') {
+    res.status(400).json({
+      error: 'Invalid translator pseudonym',
+      code: 'INVALID_TRANSLATOR_PSEUDONYM',
+    });
+    return true;
+  }
   return false;
 }
 

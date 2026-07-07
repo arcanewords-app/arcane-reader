@@ -1147,6 +1147,27 @@
     "projectsTitle": "My projects",
     "openProfile": "Open profile"
   },
+  "translatorPseudonym": {
+    "sectionTitle": "My translator pseudonyms",
+    "counter": "{{count}} of {{max}}",
+    "create": "Create pseudonym",
+    "createTitle": "Create pseudonym",
+    "editTitle": "Edit pseudonym",
+    "edit": "Edit",
+    "hide": "Hide",
+    "hiddenSection": "Hidden pseudonyms",
+    "hideConfirm": "The pseudonym will disappear from the picker. Published works will keep this name.",
+    "limitReached": "Limit reached (3 pseudonyms)",
+    "empty": "You have no pseudonyms yet",
+    "emptyHint": "Create a pseudonym — it will appear in the catalog as the translator name",
+    "publishRequired": "Select a translator pseudonym before publishing",
+    "legacyBadge": "Previously assigned translator",
+    "authorOnlyHint": "Translator pseudonyms are available with the Author role",
+    "nameRequired": "Enter a pseudonym name",
+    "saveFailed": "Failed to save pseudonym",
+    "loadFailed": "Failed to load pseudonyms",
+    "hideFailed": "Failed to hide pseudonym"
+  },
   "entityPicker": {
     "titleAuthor": "Select author",
     "titleTranslator": "Select translator",

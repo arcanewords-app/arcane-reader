@@ -1727,6 +1727,49 @@ export const api = {
     return fetchJson<{ usageCount: number }>(`/api/admin/entities/${id}/usage`);
   },
 
+  // === Author translator pseudonyms ===
+
+  async getTranslatorPseudonyms(params?: { includeHidden?: boolean }): Promise<PublicEntity[]> {
+    const q = new URLSearchParams();
+    if (params?.includeHidden) q.set('includeHidden', '1');
+    const query = q.toString();
+    return fetchJson<PublicEntity[]>(`/api/user/translator-pseudonyms${query ? `?${query}` : ''}`);
+  },
+
+  async createTranslatorPseudonym(data: {
+    name: string;
+    description?: string;
+    photo?: File;
+  }): Promise<PublicEntity> {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    if (data.description) formData.append('description', data.description);
+    if (data.photo) formData.append('photo', data.photo);
+    return fetchFormData<PublicEntity>('/api/user/translator-pseudonyms', formData, {
+      method: 'POST',
+    });
+  },
+
+  async updateTranslatorPseudonym(
+    id: string,
+    data: { name?: string; description?: string; photo?: File; removePhoto?: boolean }
+  ): Promise<PublicEntity> {
+    const formData = new FormData();
+    if (data.name !== undefined) formData.append('name', data.name);
+    if (data.description !== undefined) formData.append('description', data.description);
+    if (data.photo) formData.append('photo', data.photo);
+    if (data.removePhoto) formData.append('removePhoto', 'true');
+    return fetchFormData<PublicEntity>(`/api/user/translator-pseudonyms/${id}`, formData, {
+      method: 'PATCH',
+    });
+  },
+
+  async hideTranslatorPseudonym(id: string): Promise<PublicEntity> {
+    return fetchJson<PublicEntity>(`/api/user/translator-pseudonyms/${id}/hide`, {
+      method: 'POST',
+    });
+  },
+
   // === News & Announcements ===
 
   async getNewsPosts(params?: {

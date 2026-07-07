@@ -38,4 +38,5 @@ PR checklist:
 
 - New/changed route → `@.cursor/rules/routing.mdc` + `@src/client/AppRouter.tsx` + `@src/server.ts`
 - New env var → `@env.example.txt` + `@.cursor/rules/deployment.mdc`
+- New/changed DB schema → `@.cursor/rules/supabase.mdc` — SQL only in `supabase/migrations/` + row in `@supabase/README.md`
 - Plan completed → archive plan note (`status: archived`) and update `@docs/project-status.md`

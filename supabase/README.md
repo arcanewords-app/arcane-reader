@@ -1,6 +1,9 @@
 # Supabase migrations (Arcane Reader)
 
-Migrations in this folder are applied to project `arcane` (`ugcnqejiiybaatcqxmgn`) via Supabase Dashboard or MCP `apply_migration`.
+**Local SQL files:** `supabase/migrations/` (gitignored). **Agent rule:** `@.cursor/rules/supabase.mdc`.  
+This README is the committed migration history when `.sql` files are not in git.
+
+Migrations are applied to project `arcane` (`ugcnqejiiybaatcqxmgn`) via Supabase Dashboard or MCP `apply_migration`.
 
 ## Manual dashboard step (not SQL)
 
@@ -24,6 +27,8 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260622200000_search_rpc_translated_chapter_title.sql`   | Search RPC: return `chapter_translated_title` for display title                                               |
 | `20260627120000_publications_source_url.sql`               | `publications.source_url`; recreate `publications_list_with_counts` view                                      |
 | `20260628120000_catalog_translation_request_interests.sql` | Author interests on translation requests + RLS                                                                |
+| `20260628201245_translator_pseudonyms.sql` (remote)        | `owner_user_id`, `status` on `public_entities`; author pseudonym RLS + limit trigger                          |
+| `20260707200000_translator_pseudonym_limit_three.sql`      | Align pseudonym limit trigger to max **3** (via Supabase MCP)                                                 |
 
 ## Accepted remaining advisor WARNs
 

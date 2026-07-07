@@ -157,6 +157,8 @@ const { data } = await client
 
 ## Migration Workflow
 
+See `@.cursor/rules/supabase.mdc` for location and naming rules.
+
 1. Write SQL in `supabase/migrations/YYYYMMDDHHMMSS_description.sql`
 2. Apply via Supabase MCP `apply_migration` or Dashboard
 3. Smoke-test affected RPC/views as `authenticated` and `anon` (`SET ROLE` or PostgREST)

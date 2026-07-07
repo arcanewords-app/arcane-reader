@@ -1,0 +1,57 @@
+---
+description: Supabase SQL migrations — single local folder, naming, apply workflow
+globs: supabase/**/*,docs/migrations/**/*,docs/supabase-migrations/**/*
+alwaysApply: false
+---
+
+# Supabase migrations
+
+## Location (MUST)
+
+**All new SQL migration files go only in:**
+
+```
+supabase/migrations/
+```
+
+- **SSOT for local migration files** — one folder, no exceptions.
+- The folder is **gitignored** (`.gitignore` → `supabase/migrations/`). Files live on disk for agents and humans; they are not committed.
+- **Do not create** migration SQL in:
+  - `supabase/` root (e.g. `supabase/20260707_*.sql`)
+  - `docs/migrations/`
+  - `docs/supabase-migrations/`
+  - random paths under `docs/` or `scripts/`
+
+Legacy files under `docs/migrations/` or `docs/supabase-migrations/` are historical only — **do not add new files there**. When touching Prompt Lab schema, add new files under `supabase/migrations/` (see `@.cursor/rules/prompt-lab.mdc`).
+
+## Naming (MUST)
+
+```
+supabase/migrations/YYYYMMDDHHMMSS_short_snake_description.sql
+```
+
+- Timestamp: UTC, 14 digits (`YYYYMMDDHHMMSS`).
+- Suffix: short `snake_case` slug (e.g. `translator_pseudonyms`, `prompt_lab_tables`).
+- One logical change per file when possible.
+
+## Workflow
+
+1. **Write** SQL in `supabase/migrations/YYYYMMDDHHMMSS_*.sql`.
+2. **Apply** via Supabase MCP `apply_migration`, Dashboard SQL Editor, or `supabase db push` (if CLI linked).
+3. **Document** in `@supabase/README.md` — add a row to the migration history table (filename, date, one-line summary). This is the committed audit trail when `.sql` files are gitignored.
+4. **Align app code** — `@src/storage/types.ts`, `@src/services/supabaseDatabase.ts`, RLS-sensitive routes.
+5. **Security** — follow `@.cursor/rules/security.mdc` and `@.cursor/skills/security/SKILL.md` (RLS `WITH CHECK`, `REVOKE`, `search_path`, trigger grants).
+
+## Agents (MUST)
+
+- Before creating migration SQL, read this rule.
+- Never commit migration `.sql` files — they stay in the gitignored folder.
+- If MCP or Dashboard already applied a migration, still add the matching `.sql` under `supabase/migrations/` for local reference and update `supabase/README.md`.
+- Do not duplicate the same migration under multiple paths.
+
+## Related
+
+- Migration history (committed): `@supabase/README.md`
+- Security / RLS: `@.cursor/rules/security.mdc`
+- Deploy env (not migration paths): `@.cursor/rules/deployment.mdc`
+- Types SSOT: `@src/storage/types.ts`

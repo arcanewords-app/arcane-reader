@@ -12,7 +12,8 @@ import { UpgradeRequestActions } from '../components/UpgradeRequest';
 import type { ReaderSettings } from '../types';
 import type { UserRole } from '../../types/roles';
 import { DEFAULT_READER_SETTINGS, LEGACY_FONT_MAP } from '../types';
-import './ProfilePage.css';
+import { TranslatorPseudonymsSection } from '../components/TranslatorPseudonym/TranslatorPseudonymsSection';
+import '../components/TranslatorPseudonym/TranslatorPseudonymsSection.css';
 import '../components/AccountTiers/RoleComparisonTable.css';
 
 type ProfileTab = 'reading' | 'settings' | 'profile';
@@ -192,6 +193,10 @@ export function ProfilePage() {
                 <div class="profile-tiers-section">
                   <RoleComparisonTable currentRole={role} compact />
                 </div>
+              )}
+              {user && isAtLeast('author') && <TranslatorPseudonymsSection />}
+              {user && !isAtLeast('author') && (
+                <p class="profile-pseudonym-hint">{t('translatorPseudonym.authorOnlyHint')}</p>
               )}
             </div>
           </div>

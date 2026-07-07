@@ -37,6 +37,12 @@ import {
   type ProjectSearchMatchBase,
 } from '../shared/projectSearch.js';
 import { defaultStageModelsForRole, roleHasPremiumModelAccess } from '../shared/modelAccess.js';
+import {
+  createInvalidTranslatorPseudonymError,
+  createPseudonymLimitError,
+  isOwnedActiveTranslatorPseudonym,
+  MAX_TRANSLATOR_PSEUDONYMS_PER_USER,
+} from '../shared/translatorPseudonyms.js';
 import type { UserRole } from '../types/roles.js';
 import type { ProjectMetadata } from '../storage/types.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -4154,6 +4160,8 @@ interface PublicEntityRow {
   description: string | null;
   photo_url: string | null;
   created_by: string | null;
+  owner_user_id: string | null;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -4213,6 +4221,7 @@ function transformPublicationFromDB(row: PublicationRow): {
 }
 
 function transformPublicEntityFromDB(row: PublicEntityRow): PublicEntity {
+  const entityStatus = row.status === 'blocked' ? 'blocked' : ('active' as const);
   return {
     id: row.id,
     kind: row.kind,
@@ -4220,6 +4229,8 @@ function transformPublicEntityFromDB(row: PublicEntityRow): PublicEntity {
     description: row.description ?? undefined,
     photoUrl: row.photo_url,
     createdBy: row.created_by,
+    ownerUserId: row.owner_user_id,
+    entityStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -4244,6 +4255,7 @@ export async function createPublicEntity(
     description: data.description?.trim() || null,
     photo_url: data.photoUrl ?? null,
     created_by: data.createdBy ?? null,
+    status: 'active',
   };
 
   const { data: row, error } = await client
@@ -4281,6 +4293,8 @@ export async function listPublicEntities(options?: {
   if (options?.search?.trim()) {
     query = query.ilike('name', `%${options.search.trim()}%`);
   }
+
+  query = query.eq('status', 'active');
 
   const { data, error } = await query;
   if (error) {
@@ -4349,6 +4363,189 @@ export async function deletePublicEntity(id: string, token: string): Promise<voi
   if (error) {
     throw new Error(`Failed to delete public entity: ${error.message}`);
   }
+}
+
+export async function countActiveTranslatorPseudonymsForUser(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('public_entities')
+    .select('*', { count: 'exact', head: true })
+    .eq('kind', 'translator')
+    .eq('owner_user_id', userId)
+    .eq('status', 'active');
+
+  if (error) {
+    throw new Error(`Failed to count translator pseudonyms: ${error.message}`);
+  }
+  return count ?? 0;
+}
+
+export async function listTranslatorPseudonymsForUser(
+  userId: string,
+  options?: { includeHidden?: boolean }
+): Promise<PublicEntity[]> {
+  let query = supabase
+    .from('public_entities')
+    .select('*')
+    .eq('kind', 'translator')
+    .eq('owner_user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (!options?.includeHidden) {
+    query = query.eq('status', 'active');
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Failed to list translator pseudonyms: ${error.message}`);
+  }
+
+  return (data || []).map((row) => transformPublicEntityFromDB(row as PublicEntityRow));
+}
+
+export async function getTranslatorPseudonymForUser(
+  userId: string,
+  entityId: string
+): Promise<PublicEntity | null> {
+  const { data, error } = await supabase
+    .from('public_entities')
+    .select('*')
+    .eq('id', entityId)
+    .eq('kind', 'translator')
+    .eq('owner_user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to get translator pseudonym: ${error.message}`);
+  }
+  if (!data) return null;
+  return transformPublicEntityFromDB(data as PublicEntityRow);
+}
+
+export async function assertOwnedActiveTranslatorPseudonym(
+  userId: string,
+  entityId: string
+): Promise<PublicEntity> {
+  const entity = await getPublicEntityById(entityId);
+  if (!isOwnedActiveTranslatorPseudonym(entity, userId)) {
+    throw createInvalidTranslatorPseudonymError();
+  }
+  return entity!;
+}
+
+export async function createTranslatorPseudonymForUser(
+  userId: string,
+  data: {
+    name: string;
+    description?: string;
+    photoUrl?: string | null;
+  },
+  token: string
+): Promise<PublicEntity> {
+  validateToken(token);
+  const activeCount = await countActiveTranslatorPseudonymsForUser(userId);
+  if (activeCount >= MAX_TRANSLATOR_PSEUDONYMS_PER_USER) {
+    throw createPseudonymLimitError(activeCount);
+  }
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const payload = {
+    kind: 'translator' as const,
+    name: data.name.trim(),
+    description: data.description?.trim() || null,
+    photo_url: data.photoUrl ?? null,
+    created_by: userId,
+    owner_user_id: userId,
+    status: 'active',
+  };
+
+  const { data: row, error } = await client
+    .from('public_entities')
+    .insert(payload)
+    .select('*')
+    .single();
+
+  if (error || !row) {
+    throw new Error(`Failed to create translator pseudonym: ${error?.message || 'Unknown error'}`);
+  }
+
+  return transformPublicEntityFromDB(row as PublicEntityRow);
+}
+
+export async function updateTranslatorPseudonymForUser(
+  userId: string,
+  entityId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    photoUrl?: string | null;
+  }
+): Promise<PublicEntity> {
+  const existing = await getTranslatorPseudonymForUser(userId, entityId);
+  if (!existing) {
+    throw createInvalidTranslatorPseudonymError();
+  }
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (data.name !== undefined) payload.name = data.name.trim();
+  if (data.description !== undefined) payload.description = data.description?.trim() || null;
+  if (data.photoUrl !== undefined) payload.photo_url = data.photoUrl;
+
+  const { data: row, error } = await client
+    .from('public_entities')
+    .update(payload)
+    .eq('id', entityId)
+    .eq('owner_user_id', userId)
+    .eq('kind', 'translator')
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to update translator pseudonym: ${error.message}`);
+  }
+  if (!row) {
+    throw createInvalidTranslatorPseudonymError();
+  }
+
+  return transformPublicEntityFromDB(row as PublicEntityRow);
+}
+
+export async function hideTranslatorPseudonymForUser(
+  userId: string,
+  entityId: string
+): Promise<PublicEntity> {
+  const existing = await getTranslatorPseudonymForUser(userId, entityId);
+  if (!existing) {
+    throw createInvalidTranslatorPseudonymError();
+  }
+
+  const { createServiceRoleClient } = await import('./supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: row, error } = await client
+    .from('public_entities')
+    .update({
+      status: 'blocked',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', entityId)
+    .eq('owner_user_id', userId)
+    .eq('kind', 'translator')
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to hide translator pseudonym: ${error.message}`);
+  }
+  if (!row) {
+    throw createInvalidTranslatorPseudonymError();
+  }
+
+  return transformPublicEntityFromDB(row as PublicEntityRow);
 }
 
 /**
@@ -6965,6 +7162,9 @@ export async function createTranslationRequestInterest(
     const err = new Error('Invalid translator entity');
     (err as Error & { code?: string }).code = 'INVALID_TRANSLATOR';
     throw err;
+  }
+  if (!isOwnedActiveTranslatorPseudonym(entity, userId)) {
+    throw createInvalidTranslatorPseudonymError();
   }
 
   const existing = await getTranslationRequestInterestForUser(requestId, userId, token);

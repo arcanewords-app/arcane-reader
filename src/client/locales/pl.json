@@ -1108,6 +1108,27 @@
     "projectsTitle": "Moje projekty",
     "openProfile": "Otwórz profil"
   },
+  "translatorPseudonym": {
+    "sectionTitle": "Moje pseudonimy tłumacza",
+    "counter": "{{count}} z {{max}}",
+    "create": "Utwórz pseudonim",
+    "createTitle": "Utwórz pseudonim",
+    "editTitle": "Edytuj pseudonim",
+    "edit": "Edytuj",
+    "hide": "Ukryj",
+    "hiddenSection": "Ukryte pseudonimy",
+    "hideConfirm": "Pseudonim zniknie z listy wyboru. Opublikowane prace zachowają tę nazwę.",
+    "limitReached": "Osiągnięto limit (3 pseudonimy)",
+    "empty": "Nie masz jeszcze pseudonimów",
+    "emptyHint": "Utwórz pseudonim — pojawi się w katalogu jako nazwa tłumacza",
+    "publishRequired": "Wybierz pseudonim tłumacza przed publikacją",
+    "legacyBadge": "Wcześniej przypisany tłumacz",
+    "authorOnlyHint": "Pseudonimy tłumacza są dostępne z rolą Autor",
+    "nameRequired": "Wpisz nazwę pseudonimu",
+    "saveFailed": "Nie udało się zapisać pseudonimu",
+    "loadFailed": "Nie udało się załadować pseudonimów",
+    "hideFailed": "Nie udało się ukryć pseudonimu"
+  },
   "entityPicker": {
     "titleAuthor": "Wybierz autora",
     "titleTranslator": "Wybierz tłumacza",

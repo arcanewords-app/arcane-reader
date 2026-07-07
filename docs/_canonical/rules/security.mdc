@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Security Rules
 
-How-to and checklists: `@.cursor/skills/security/SKILL.md`. Auth roles: `@.cursor/rules/auth.mdc`.
+How-to and checklists: `@.cursor/skills/security/SKILL.md`. Auth roles: `@.cursor/rules/auth.mdc`. Migration paths: `@.cursor/rules/supabase.mdc`.
 
 ## Access control (MUST)
 

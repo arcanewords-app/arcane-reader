@@ -19,4 +19,34 @@ export const tokenUsageHistoryQuerySchema = z.object({
 
 export type ProfileUpdateBody = z.infer<typeof profileUpdateBodySchema>;
 export type TokenUsageQuery = z.infer<typeof tokenUsageQuerySchema>;
-export type TokenUsageHistoryQuery = z.infer<typeof tokenUsageHistoryQuerySchema>;
+export const translatorPseudonymListQuerySchema = z.object({
+  includeHidden: z
+    .enum(['0', '1', 'true', 'false'])
+    .optional()
+    .transform((v) => v === '1' || v === 'true'),
+});
+
+export const translatorPseudonymCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+});
+
+export const translatorPseudonymUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform((value) => (value !== undefined && value.length > 0 ? value : null)),
+  photoUrl: z.string().trim().url().max(2048).nullable().optional(),
+});
+
+export type TranslatorPseudonymListQuery = z.infer<typeof translatorPseudonymListQuerySchema>;
+export type TranslatorPseudonymCreateBody = z.infer<typeof translatorPseudonymCreateSchema>;
+export type TranslatorPseudonymUpdateBody = z.infer<typeof translatorPseudonymUpdateSchema>;

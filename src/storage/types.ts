@@ -195,6 +195,8 @@ export interface GlossaryEntry {
 
 export type PublicEntityKind = 'tag' | 'author' | 'translator';
 
+export type PublicEntityModerationStatus = 'active' | 'blocked';
+
 export interface PublicEntity {
   id: string;
   kind: PublicEntityKind;
@@ -202,6 +204,10 @@ export interface PublicEntity {
   description?: string;
   photoUrl?: string | null;
   createdBy?: string | null;
+  /** Owner for author-created translator pseudonyms. */
+  ownerUserId?: string | null;
+  /** active = in picker/catalog; blocked = soft-hidden pseudonym. */
+  entityStatus?: PublicEntityModerationStatus;
   createdAt: string;
   updatedAt: string;
 }
