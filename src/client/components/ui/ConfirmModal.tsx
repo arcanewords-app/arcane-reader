@@ -13,7 +13,9 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: 'danger' | 'default';
   loading?: boolean;
-  /** Stack above glossary / large modals (z-index 2000). */
+  /** Stacking layer above parent modals. Default nested (z-index 2000). */
+  layer?: 'nested' | 'stacked';
+  /** @deprecated Prefer `layer`. Extra overlay class when needed (e.g. error-modal-overlay). */
   overlayClassName?: string;
 }
 
@@ -27,7 +29,8 @@ export function ConfirmModal({
   cancelLabel,
   variant = 'default',
   loading = false,
-  overlayClassName = 'nested-modal',
+  layer = 'nested',
+  overlayClassName = '',
 }: ConfirmModalProps) {
   const { t } = useTranslation();
 
@@ -55,6 +58,7 @@ export function ConfirmModal({
       onClose={onClose}
       title={title}
       closeButtonDisabled={loading}
+      layer={layer}
       overlayClassName={overlayClassName}
       footer={
         <>

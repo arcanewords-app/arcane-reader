@@ -13,6 +13,8 @@ interface TranslatorPseudonymFormModalProps {
   onClose: () => void;
   editingEntity: PublicEntity | null;
   onSaved: (entity: PublicEntity) => void;
+  /** Stacking above EntityPickerModal when opened inline. */
+  layer?: 'base' | 'stacked';
 }
 
 export function TranslatorPseudonymFormModal({
@@ -20,6 +22,7 @@ export function TranslatorPseudonymFormModal({
   onClose,
   editingEntity,
   onSaved,
+  layer = 'base',
 }: TranslatorPseudonymFormModalProps) {
   const { t } = useTranslation();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -106,6 +109,7 @@ export function TranslatorPseudonymFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      layer={layer}
       title={
         editingEntity ? t('translatorPseudonym.editTitle') : t('translatorPseudonym.createTitle')
       }

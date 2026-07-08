@@ -44,11 +44,16 @@
   }
 }
 
-/* Tablet: can use grid with smaller gap */
+/* Tablet: grid with narrower sidebar column */
 @media (min-width: 768px) and (max-width: 1023px) {
   .project-page-container,
   .chapter-page-container {
-    display: block; /* Keep block on tablet for now */
+    display: grid;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    gap: 1.25rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 

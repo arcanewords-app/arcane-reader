@@ -5,6 +5,7 @@ import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { EntityChip } from './EntityChip';
 import { PublicationStatusBadge } from './PublicationStatusBadge';
 import { trackEvent } from '../../utils/analytics';
+import '../../styles/components/card-content-popup.css';
 import './PublicationCard.css';
 
 /** Card accepts both list item and full publication (e.g. from "My works" API). */
@@ -151,7 +152,7 @@ export function PublicationCard({
               >
                 <p class="publication-card-description">{publication.description}</p>
                 {showDescTooltip && (
-                  <div class="publication-card-tooltip" role="tooltip">
+                  <div class="card-content-popup" role="tooltip">
                     {publication.description}
                   </div>
                 )}

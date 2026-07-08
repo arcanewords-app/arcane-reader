@@ -3,6 +3,13 @@ import { useEffect, useCallback } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import './Modal.css';
 
+export type ModalLayer = 'base' | 'nested' | 'stacked';
+
+const MODAL_LAYER_CLASS: Record<Exclude<ModalLayer, 'base'>, string> = {
+  nested: 'modal-overlay--nested',
+  stacked: 'modal-overlay--stacked',
+};
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +22,8 @@ interface ModalProps {
   className?: string;
   /** Optional class for the overlay (e.g. error-modal-overlay for confirm/error modals) */
   overlayClassName?: string;
+  /** Stacking layer above other modals. See Modal.css modal-overlay--nested/stacked. */
+  layer?: ModalLayer;
   /** When 'error', uses error-modal-header/body/footer structure (for confirm dialogs, alerts) */
   variant?: 'default' | 'large' | 'toc' | 'error';
   preventClose?: boolean; // Prevent closing on overlay click or Escape
@@ -34,6 +43,7 @@ export function Modal({
   size = 'default',
   className = '',
   overlayClassName = '',
+  layer = 'base',
   variant,
   preventClose = false,
   closeOnBackdropClick = true,
@@ -100,7 +110,8 @@ export function Modal({
     'modal-overlay',
     'active',
     isLarge && 'glossary-modal-overlay',
-    className.includes('nested') && 'nested-modal',
+    layer !== 'base' && MODAL_LAYER_CLASS[layer],
+    className.includes('nested') && 'modal-overlay--nested',
     className === 'email-confirmation-modal' && 'email-confirmation-modal-overlay',
     overlayClassName,
   ]

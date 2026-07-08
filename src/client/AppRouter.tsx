@@ -37,6 +37,7 @@ import { AnnouncementBanner } from './components/AnnouncementBanner';
 import { AuthModal, EmailConfirmationModal } from './components/Auth';
 import { LoadingSpinner } from './components/ui';
 import { api } from './api/client';
+import { isMobileViewport } from './utils/viewport';
 import { ProfilePage, ProjectsPage, CatalogPage, AdminEntitiesPage } from './pages';
 import { AuthorGate } from './components/Auth/AuthorGate';
 import { AdminGate } from './components/Auth/AdminGate';
@@ -236,15 +237,15 @@ export function AppRouter() {
       .catch(() => setSystemStatus(null));
   }, []);
 
-  // Handle window resize - close sidebar on desktop
+  // Handle window resize - close drawer sidebar when leaving mobile
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 768) {
+      if (!isMobileViewport()) {
         setSidebarOpen(false);
       }
     };
 
-    if (window.innerWidth > 768) {
+    if (!isMobileViewport()) {
       setSidebarOpen(false);
     }
 
@@ -295,7 +296,7 @@ export function AppRouter() {
   };
 
   const handleMenuToggle = () => {
-    if (window.innerWidth <= 768) {
+    if (isMobileViewport()) {
       setSidebarOpen((prev) => !prev);
     }
   };
@@ -410,7 +411,7 @@ export function AppRouter() {
                 />
               )}
 
-              <main>
+              <main class={hasSidebar ? 'main-with-sidebar' : ''}>
                 <Router
                   onChange={(e: { url: string }) => {
                     if (e.url === '/cabinet' || e.url.startsWith('/cabinet/')) {

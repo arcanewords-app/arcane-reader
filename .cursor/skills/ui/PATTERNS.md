@@ -166,7 +166,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 **Behavior:** Icon + label button → direct `window.open` to Boosty in a new tab. Hidden when URL is missing.
 
-**Specs:** `Icon local_cafe` + label; mobile icon-only 44px; warm hover on `.header-support-btn` (warning tint, not primary).
+**Specs:** `Icon local_cafe` + label; mobile and tablet (≤1023px) icon-only 44px; warm hover on `.header-support-btn` (warning tint, not primary).
 
 **Env:** `VITE_SUPPORT_BOOSTY_URL` (https only; append `?locale=ru_RU` for Russian Boosty UI). See `env.example.txt`.
 

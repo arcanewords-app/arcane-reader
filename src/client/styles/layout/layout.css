@@ -87,6 +87,34 @@ main {
 }
 
 /* =============================================================
+   TABLET+ STYLES (≥768px) — static sidebar column
+   ============================================================= */
+
+@media (min-width: 768px) {
+  .sidebar {
+    position: static;
+    left: auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: calc(100vh - var(--header-height-tablet));
+    padding: 0.75rem 1rem 1rem;
+    box-shadow: none;
+    border-right: none;
+    overflow-y: visible;
+    overflow-x: hidden;
+    background: transparent;
+    box-sizing: border-box;
+    align-self: stretch;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+/* =============================================================
    TABLET STYLES (768px - 1023px)
    ============================================================= */
 
@@ -95,27 +123,12 @@ main {
     width: var(--container-width-tablet);
     max-width: var(--container-width-tablet);
     padding: var(--main-padding-tablet);
-    /* На планшете остаемся с block (без grid) для безопасности */
     display: block;
   }
 
-  .sidebar {
-    top: var(--header-height-tablet);
-    height: calc(100vh - var(--header-height-tablet));
-    width: var(--sidebar-width-tablet);
-  }
-
-  .sidebar.mobile-open {
-    top: 0;
-    height: 100vh;
-  }
-
-  .sidebar-overlay {
-    top: var(--header-height-tablet);
-  }
-
-  .sidebar-overlay.active {
-    top: 0;
+  main.main-with-sidebar {
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -133,28 +146,13 @@ main {
     box-sizing: border-box;
   }
 
-  /* Grid layout only when sidebar is present - handled by pages themselves */
-
-  .sidebar {
-    position: static;
-    left: auto;
+  main.main-with-sidebar {
     width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    height: auto;
-    min-height: calc(100vh - 88px);
-    padding: 0.75rem 1rem 1rem;
-    box-shadow: none;
-    border-right: none;
-    overflow-y: visible;
-    overflow-x: hidden;
-    background: transparent;
-    box-sizing: border-box;
-    align-self: stretch;
+    max-width: min(var(--container-width-desktop), 100vw);
   }
 
-  .sidebar-overlay {
-    display: none !important;
+  .sidebar {
+    min-height: calc(100vh - 88px);
   }
 }
 

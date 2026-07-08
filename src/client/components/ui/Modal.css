@@ -26,6 +26,18 @@
   visibility: visible;
 }
 
+/* Modal stack layers (SSOT). base = 1000 (.modal-overlay). error = 10000 (.error-modal-overlay). */
+.modal-overlay--nested,
+.nested-modal {
+  z-index: 2000;
+  backdrop-filter: blur(12px);
+}
+
+.modal-overlay--stacked {
+  z-index: 3000;
+  backdrop-filter: blur(12px);
+}
+
 .modal {
   background: var(--bg-card);
   border: 1px solid var(--border);

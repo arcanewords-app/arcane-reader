@@ -138,7 +138,14 @@ export function EntityPickerModal({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title={t(titleKey)} size="large" footer={footer}>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={t(titleKey)}
+        size="large"
+        layer="nested"
+        footer={footer}
+      >
         <div class="entity-picker-modal">
           {loading && (
             <div class="entity-picker-modal__loading">
@@ -217,6 +224,7 @@ export function EntityPickerModal({
         onClose={() => setShowCreateForm(false)}
         editingEntity={null}
         onSaved={handleCreated}
+        layer="stacked"
       />
     </>
   );

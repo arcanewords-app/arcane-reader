@@ -6,6 +6,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import { Button, Icon } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
+import { isMobileViewport } from '../utils/viewport';
 import { setSavedLocale, type AppLocale } from '../i18n';
 import { SupportMenu } from './Header/SupportMenu';
 import './Header.css';
@@ -40,7 +41,7 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+      setIsMobile(isMobileViewport());
     };
 
     const syncPath = (path: string) => {

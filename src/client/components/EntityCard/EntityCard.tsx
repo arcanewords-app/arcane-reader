@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'preact/hooks';
 import type { PublicEntity } from '../../types';
+import '../../styles/components/card-content-popup.css';
 import './EntityCard.css';
 
 interface EntityCardProps {
@@ -56,7 +57,7 @@ export function EntityCard({ entity, compact = true, onClick, className = '' }: 
       </div>
       <span class="entity-card__name">{entity.name}</span>
       {hasDescription && showPopup && (
-        <div class="entity-card__popup" role="tooltip">
+        <div class="card-content-popup" role="tooltip">
           {entity.description}
         </div>
       )}

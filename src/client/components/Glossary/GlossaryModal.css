@@ -7,12 +7,6 @@
   backdrop-filter: blur(8px);
 }
 
-/* Nested Modal (above glossary) */
-.nested-modal {
-  z-index: 2000;
-  backdrop-filter: blur(12px);
-}
-
 .modal.glossary-modal {
   width: var(--modal-width-mobile);
   max-width: var(--modal-max-width-mobile);

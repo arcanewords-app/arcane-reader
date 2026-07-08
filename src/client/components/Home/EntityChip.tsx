@@ -2,6 +2,7 @@ import { useState, useCallback } from 'preact/hooks';
 import { route } from 'preact-router';
 import type { PublicEntity } from '../../types';
 import { api } from '../../api/client';
+import '../../styles/components/card-content-popup.css';
 import './EntityChip.css';
 
 interface EntityChipProps {
@@ -84,7 +85,7 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
           {label}
         </button>
         {showPopup && hasDescription && (
-          <div class="entity-chip-popup" role="tooltip">
+          <div class="card-content-popup" role="tooltip">
             {entity!.description}
           </div>
         )}
