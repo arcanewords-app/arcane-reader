@@ -4,7 +4,7 @@ status: active
 domain: infra
 stale: false
 created: 2026-05-16
-updated: 2026-06-28
+updated: 2026-07-08
 canonical: .cursor/rules/routing.mdc
 source_archive: ../archive/SEO_GOOGLE_INDEXING_PLAN.md
 ---
@@ -30,6 +30,7 @@ Complete indexing setup after technical SEO implementation.
 - [x] Client hooks: `usePageMeta` (publications + news), `useStaticPageMeta` (info pages)
 - [x] Static page meta SSOT: `src/shared/staticPageMeta.ts`
 - [x] Baseline audits: [`seo-audit-2026-06-01.md`](seo-audit-2026-06-01.md) (archived), [`seo-audit-2026-06-28.md`](seo-audit-2026-06-28.md)
+- [x] Yandex Webmaster verification file: `public/yandex_3d5cc7aa18d6250e.html` (copied to `dist/client` on build)
 
 ## Open tasks (human-ops)
 
@@ -53,6 +54,25 @@ Follow these steps in [Google Search Console](https://search.google.com/search-c
 - [ ] URL inspection: `/`, `/catalog`, sample `/p/*`, sample `/news/*`
 - [ ] PageSpeed Insights sample (optional)
 - [ ] GA4 measurement ID in production (optional)
+
+## Yandex Webmaster (human-ops)
+
+Verification file in repo: `public/yandex_3d5cc7aa18d6250e.html` → `https://<PUBLIC_URL>/yandex_3d5cc7aa18d6250e.html` after deploy.
+
+Follow these steps in [Yandex Webmaster](https://webmaster.yandex.ru/):
+
+1. **Add site** — URL prefix `https://arcane-reader.vercel.app` (or custom domain when live).
+2. **Verify ownership** — HTML file in site root (`yandex_3d5cc7aa18d6250e.html`). Before clicking Verify, confirm:
+   - `curl -sI https://<PUBLIC_URL>/yandex_3d5cc7aa18d6250e.html` → **200**
+   - `curl -s https://<PUBLIC_URL>/yandex_3d5cc7aa18d6250e.html` → body contains `Verification: 3d5cc7aa18d6250e`
+   - If verification fails, use Yandex **Server response check** (Tools) and compare page content; simplify file to plain `Verification: 3d5cc7aa18d6250e` if needed.
+3. **Submit sitemap** — `https://<PUBLIC_URL>/sitemap.xml` (same as Google).
+4. **Optional:** request re-crawl of `/`, one `/p/*`, one `/news/*`.
+
+- [ ] Register site in Yandex Webmaster
+- [ ] Verify ownership (HTML file)
+- [ ] Submit sitemap URL
+- [ ] Re-crawl sample URLs (optional)
 
 ## Author content
 

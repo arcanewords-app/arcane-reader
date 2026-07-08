@@ -370,6 +370,10 @@ Implemented in [src/server.ts](src/server.ts). Audits: `.cursor/skills/seo/SKILL
 |------|--------|
 | `/robots.txt`, `/api/robots` | Allow `/`; disallow `/profile`, `/translation-requests`, `/projects`, `/admin`; `Sitemap:` absolute URL |
 | `/sitemap.xml`, `/api/sitemap` | Also [api/sitemap.ts](api/sitemap.ts) on Vercel |
+| `/google16d698644e51469e.html` | Google Search Console ownership verification (`public/` → `dist/client`) |
+| `/yandex_3d5cc7aa18d6250e.html` | Yandex Webmaster ownership verification (`public/` → `dist/client`) |
+| `/google16d698644e51469e.html` | Google Search Console ownership verification (`public/` → `dist/client`) |
+| `/yandex_3d5cc7aa18d6250e.html` | Yandex Webmaster ownership verification (`public/` → `dist/client`) |
 
 ### Sitemap contents and limits
 

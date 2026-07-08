@@ -36,6 +36,8 @@ AEO/GEO buzzwords = same bar as SEO: useful content + crawlable technical base.
 | Default head | `index.html` |
 | Route map + SEO notes | `routing.mdc` (SEO section) |
 | GSC ops plan | `docs/05-plans/seo-search-console.md` |
+| Search engine verification files | `public/google16d698644e51469e.html` (Google), `public/yandex_3d5cc7aa18d6250e.html` (Yandex); copied to `dist/client` on Vite build |
+| Search engine verification files | `public/google16d698644e51469e.html` (Google), `public/yandex_3d5cc7aa18d6250e.html` (Yandex); copied to `dist/client` on Vite build |
 
 ## Agent workflow
 
