@@ -42,6 +42,14 @@ supabase/migrations/YYYYMMDDHHMMSS_short_snake_description.sql
 4. **Align app code** — `@src/storage/types.ts`, `@src/services/supabaseDatabase.ts`, RLS-sensitive routes.
 5. **Security** — follow `@.cursor/rules/security.mdc` and `@.cursor/skills/security/SKILL.md` (RLS `WITH CHECK`, `REVOKE`, `search_path`, trigger grants).
 
+## Heavy RPC (`statement_timeout`)
+
+- Supabase role **`authenticated`**: default **8s** — do **not** change globally (`ALTER ROLE authenticated`).
+- Batch/loop RPC over `chapters` or `paragraphs`: add to the heavy registry in `supabase/migrations/` (see `@supabase/README.md` **Heavy RPC policy**).
+- Write-tier timeout: **120s**. Read/search-tier: **60s**.
+- Prefer `ALTER FUNCTION ... SET statement_timeout = '120s'` (idempotent registry `DO` block) over `CREATE OR REPLACE` when only timeout/`search_path` changes.
+- New heavy RPC: update registry migration + `@supabase/README.md` table in the same task.
+
 ## Agents (MUST)
 
 - Before creating migration SQL, read this rule.
