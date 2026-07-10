@@ -20,6 +20,9 @@ import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal, LoadingSpinner, Icon } from '../ui';
 import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
+import { clearBrowserSelection, formatReportPrefill } from '../../utils/readingSelection';
+import { useReadingTextSelection } from '../../hooks/useReadingTextSelection';
+import { ReadingSelectionReportButton } from './ReadingSelectionReportButton';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import './ReadingMode.css';
 
@@ -147,6 +150,8 @@ export function ReadingMode({
   const [shareCopied, setShareCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDescription, setReportDescription] = useState('');
+  const [reportPrefilledFromSelection, setReportPrefilledFromSelection] = useState(false);
+  const [reportSelectionTruncated, setReportSelectionTruncated] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
@@ -217,10 +222,26 @@ export function ReadingMode({
   const markedThisSessionRef = useRef<Set<string>>(new Set());
   const lastParagraphRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const reportTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const currentParagraphIndexRef = useRef(0);
   const hasAppliedInitialScrollRef = useRef(false);
 
   const currentChapter = chapters[currentChapterIndex];
+
+  const selectionTrackingEnabled =
+    isPublicationMode &&
+    isAuthenticated &&
+    !!currentChapter &&
+    !showReportModal &&
+    !showSettings &&
+    !showTOC &&
+    !showGlossary;
+
+  const { selectionState, captureCurrentSelection, clearSelection } = useReadingTextSelection({
+    enabled: selectionTrackingEnabled,
+    containerRef: contentRef,
+    resetKey: currentChapter?.id,
+  });
 
   useEffect(() => {
     const handleAuthChanged = (e: CustomEvent<AuthChangedDetail>) => {
@@ -1064,6 +1085,8 @@ export function ReadingMode({
       setTimeout(() => {
         setShowReportModal(false);
         setReportDescription('');
+        setReportPrefilledFromSelection(false);
+        setReportSelectionTruncated(false);
         setReportSuccess(false);
       }, 1500);
     } catch (err) {
@@ -1073,12 +1096,52 @@ export function ReadingMode({
     }
   }, [publicationId, currentChapter, reportDescription, t]);
 
-  const handleOpenReportModal = useCallback(() => {
+  const handleOpenReportModal = useCallback(
+    (prefillText?: string) => {
+      setReportError(null);
+      setReportSuccess(false);
+
+      const captured = prefillText ?? captureCurrentSelection();
+      if (captured) {
+        setReportDescription(formatReportPrefill(captured));
+        setReportPrefilledFromSelection(true);
+        setReportSelectionTruncated(selectionState?.wasTruncated ?? false);
+      } else {
+        setReportDescription('');
+        setReportPrefilledFromSelection(false);
+        setReportSelectionTruncated(false);
+      }
+
+      clearSelection();
+      clearBrowserSelection();
+      setShowReportModal(true);
+    },
+    [captureCurrentSelection, clearSelection, selectionState?.wasTruncated]
+  );
+
+  const handleCaptureSelectionForReport = useCallback(() => {
+    captureCurrentSelection();
+  }, [captureCurrentSelection]);
+
+  useEffect(() => {
+    if (!showReportModal) return;
+    requestAnimationFrame(() => {
+      const textarea = reportTextareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      const len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    });
+  }, [showReportModal]);
+
+  const handleCloseReportModal = useCallback(() => {
+    if (reportSubmitting) return;
+    setShowReportModal(false);
     setReportError(null);
-    setReportSuccess(false);
     setReportDescription('');
-    setShowReportModal(true);
-  }, []);
+    setReportPrefilledFromSelection(false);
+    setReportSelectionTruncated(false);
+  }, [reportSubmitting]);
 
   const handleSelectChapter = useCallback(
     (index: number) => {
@@ -1189,7 +1252,8 @@ export function ReadingMode({
           {isPublicationMode && currentChapter && isAuthenticated && (
             <button
               class="reading-mode-header-btn"
-              onClick={handleOpenReportModal}
+              onPointerDown={handleCaptureSelectionForReport}
+              onClick={() => handleOpenReportModal()}
               title={t('readingMode.reportTranslation')}
             >
               <Icon name="flag" />
@@ -1282,6 +1346,13 @@ export function ReadingMode({
         </div>
       </div>
 
+      {selectionTrackingEnabled && selectionState && (
+        <ReadingSelectionReportButton
+          rect={selectionState.rect}
+          onReport={() => handleOpenReportModal(selectionState.text)}
+        />
+      )}
+
       {/* Bottom Navigation - prev/next in row, centered */}
       <div ref={footerRef} class="reading-mode-footer">
         <button
@@ -1355,19 +1426,13 @@ export function ReadingMode({
       <Modal
         className="reading-report-modal"
         isOpen={showReportModal}
-        onClose={() => {
-          if (!reportSubmitting) {
-            setShowReportModal(false);
-            setReportError(null);
-            setReportDescription('');
-          }
-        }}
+        onClose={handleCloseReportModal}
         title={t('readingMode.reportTranslation')}
         footer={
           <div class="reading-report-modal-footer">
             <button
               class="reading-report-cancel-btn"
-              onClick={() => setShowReportModal(false)}
+              onClick={handleCloseReportModal}
               disabled={reportSubmitting}
             >
               {t('common.cancel')}
@@ -1403,7 +1468,13 @@ export function ReadingMode({
           <label class="reading-report-modal-label" for="report-description">
             {t('readingMode.reportDescriptionLabel')}
           </label>
+          {reportPrefilledFromSelection && (
+            <p class="reading-report-modal-prefill-hint">
+              {t('readingMode.reportSelectedFragment')}
+            </p>
+          )}
           <textarea
+            ref={reportTextareaRef}
             id="report-description"
             class="reading-report-modal-textarea"
             value={reportDescription}
@@ -1413,7 +1484,11 @@ export function ReadingMode({
             maxLength={5000}
             disabled={reportSubmitting}
           />
-          <p class="reading-report-modal-hint">{t('readingMode.reportHint')}</p>
+          <p class="reading-report-modal-hint">
+            {reportSelectionTruncated
+              ? `${t('readingMode.reportHint')} ${t('readingMode.reportSelectionTruncated')}`
+              : t('readingMode.reportHint')}
+          </p>
           {reportError && <p class="reading-report-modal-error">{reportError}</p>}
         </div>
       </Modal>
