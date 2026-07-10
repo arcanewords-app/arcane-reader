@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { Project, ProjectWithChapterList } from '../../types';
-import { Modal, Button, AlertModal, ConfirmModal, Icon } from '../ui';
-import { chapterDisplayTitle, chapterMatchesListSearch } from '../../../shared/chapterTitle';
+import { Modal, Button, AlertModal, ConfirmModal } from '../ui';
+import { ChapterPickerPanel } from './ChapterPickerPanel';
 import { api, ApiError } from '../../api/client';
 import './CopyChaptersModal.css';
 
@@ -21,9 +21,9 @@ export function BulkDeleteChaptersModal({
 }: BulkDeleteChaptersModalProps) {
   const { t } = useTranslation();
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
-  const [search, setSearch] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pickerResetKey, setPickerResetKey] = useState(0);
   const [successModal, setSuccessModal] = useState<{ title: string; message: string } | null>(null);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
@@ -31,12 +31,6 @@ export function BulkDeleteChaptersModal({
     () => [...project.chapters].sort((a, b) => a.number - b.number),
     [project.chapters]
   );
-
-  const filteredChapters = useMemo(() => {
-    const query = search.trim();
-    if (!query) return chaptersSorted;
-    return chaptersSorted.filter((chapter) => chapterMatchesListSearch(chapter, query));
-  }, [chaptersSorted, search]);
 
   const selectedTranslatingCount = useMemo(() => {
     const idSet = new Set(selectedChapterIds);
@@ -57,19 +51,9 @@ export function BulkDeleteChaptersModal({
   useEffect(() => {
     if (!isOpen) return;
     setSelectedChapterIds([]);
-    setSearch('');
     setShowConfirm(false);
+    setPickerResetKey((k) => k + 1);
   }, [isOpen]);
-
-  const toggleChapter = useCallback((chapterId: string) => {
-    setSelectedChapterIds((prev) =>
-      prev.includes(chapterId) ? prev.filter((id) => id !== chapterId) : [...prev, chapterId]
-    );
-  }, []);
-
-  const selectAllFiltered = useCallback(() => {
-    setSelectedChapterIds(filteredChapters.map((c) => c.id));
-  }, [filteredChapters]);
 
   const handleDelete = useCallback(async () => {
     if (selectedChapterIds.length === 0) return;
@@ -125,75 +109,13 @@ export function BulkDeleteChaptersModal({
       >
         <p class="copy-chapters-hint">{t('bulkDeleteChapters.hint')}</p>
 
-        <input
-          type="search"
-          class="copy-chapters-search"
-          placeholder={t('chapterList.searchPlaceholder')}
-          value={search}
-          disabled={busy || chaptersSorted.length === 0}
-          onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+        <ChapterPickerPanel
+          chapters={chaptersSorted}
+          selectedIds={selectedChapterIds}
+          onSelectedIdsChange={setSelectedChapterIds}
+          disabled={busy}
+          resetKey={pickerResetKey}
         />
-
-        <div class="copy-chapters-selection-row">
-          <button
-            type="button"
-            class="copy-chapters-link-btn"
-            onClick={selectAllFiltered}
-            disabled={filteredChapters.length === 0 || busy}
-          >
-            {t('chapter.selectAll')}
-          </button>
-          <button
-            type="button"
-            class="copy-chapters-link-btn copy-chapters-link-btn-dim"
-            onClick={() => setSelectedChapterIds([])}
-            disabled={busy}
-          >
-            {t('chapter.deselectAll')}
-          </button>
-          <span class="copy-chapters-selected-count">
-            {t('bulkDeleteChapters.selectedCount', { count: selectedChapterIds.length })}
-          </span>
-        </div>
-
-        <div class="copy-chapters-list">
-          {chaptersSorted.length === 0 ? (
-            <p class="copy-chapters-empty">{t('chapterList.noChapters')}</p>
-          ) : filteredChapters.length === 0 ? (
-            <p class="copy-chapters-empty">{t('chapterList.noResults')}</p>
-          ) : (
-            filteredChapters.map((chapter, index) => {
-              const checked = selectedChapterIds.includes(chapter.id);
-              const isLast = index === filteredChapters.length - 1;
-              const isTranslating = chapter.status === 'translating';
-              return (
-                <label
-                  key={chapter.id}
-                  class="copy-chapters-item"
-                  style={{ borderBottom: isLast ? 'none' : undefined }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={busy}
-                    onChange={() => toggleChapter(chapter.id)}
-                    style={{ accentColor: 'var(--accent)', flexShrink: 0 }}
-                  />
-                  <span class="copy-chapters-item-number">{chapter.number}</span>
-                  <span class="copy-chapters-item-title">{chapterDisplayTitle(chapter)}</span>
-                  {isTranslating && (
-                    <span
-                      class="copy-chapters-item-status is-translating"
-                      title={t('chapterList.filterPending')}
-                    >
-                      <Icon name="translate" size="sm" />
-                    </span>
-                  )}
-                </label>
-              );
-            })
-          )}
-        </div>
       </Modal>
 
       <ConfirmModal

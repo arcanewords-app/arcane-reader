@@ -46,6 +46,7 @@ import {
 } from '../../storage/database.js';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { handleServiceError } from '../../middleware/serviceHealth.js';
+import { respondRouteError } from '../../middleware/routeDebugError.js';
 import { isChunkError } from '../../shared/chunkErrors.js';
 import { resolveChapterStatusAfterTranslation } from '../../shared/chapterTranslationCoverage.js';
 
@@ -1227,7 +1228,11 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         res.json({ success: true });
       } catch (error) {
         if (handleServiceError(error, req, res)) return;
-        res.status(500).json({ error: 'Failed to delete chapter' });
+        respondRouteError(req, res, error, {
+          event: 'chapter.delete.failed',
+          fallbackMessage: 'Failed to delete chapter',
+          statusCode: 500,
+        });
       }
     }
   );
@@ -1344,7 +1349,11 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         if (coded.code === 'INVALID_CHAPTER_IDS') {
           return res.status(400).json({ error: coded.message, code: 'INVALID_CHAPTER_IDS' });
         }
-        res.status(500).json({ error: 'Failed to delete chapters' });
+        respondRouteError(req, res, error, {
+          event: 'chapters.bulk_delete.failed',
+          fallbackMessage: 'Failed to delete chapters',
+          statusCode: 500,
+        });
       }
     }
   );
