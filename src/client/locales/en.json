@@ -191,6 +191,14 @@
     "chaptersHint": "Select chapters to copy to another project with the same target language.",
     "selectedCount": "Selected: {{count}}"
   },
+  "bulkDeleteChapters": {
+    "modalTitle": "Delete chapters",
+    "hint": "Select chapters to delete. Remaining chapters will be renumbered automatically.",
+    "selectedCount": "Selected: {{count}}",
+    "deleteButton": "Delete ({{count}})",
+    "deleteAllWarning": "All chapters in this project will be deleted.",
+    "inProgressWarning": "{{count}} selected chapter(s) are currently being processed — deletion will stop those tasks."
+  },
   "uploadTranslation": {
     "title": "Upload ready-made translation",
     "button": "Upload translation",
@@ -743,6 +751,7 @@
     "originalTitlePlaceholder": "Click to add the original title...",
     "errorSaveOriginalTitle": "Failed to save title",
     "copyChapters": "Copy chapters",
+    "deleteChapters": "Delete chapters…",
     "cloneProject": "Clone",
     "cloneProjectModalTitle": "Clone project",
     "cloneProjectHint": "Creates a full copy: chapters, translation, glossary, and settings. Catalog publication is not copied.",
@@ -1185,6 +1194,7 @@
       "entities": "Catalog",
       "news": "News",
       "publications": "Publications",
+      "projects": "Projects",
       "users": "Users"
     },
     "deniedTitle": "Admin access required",
@@ -1275,6 +1285,40 @@
         "published": "Published",
         "draft": "Draft",
         "unpublished": "Unpublished"
+      }
+    },
+    "projects": {
+      "subtitle": "Browse and moderate all translation projects.",
+      "listTitle": "Projects",
+      "statusFilter": "Publication status",
+      "searchPlaceholder": "Search by project or publication title",
+      "empty": "No projects found.",
+      "loadFailed": "Failed to load projects.",
+      "owner": "Owner: {{email}}",
+      "openCatalog": "Open in catalog",
+      "copyId": "Copy ID",
+      "idCopied": "Project ID copied.",
+      "copyIdFailed": "Failed to copy project ID.",
+      "unpublish": "Unpublish",
+      "unpublishTitle": "Unpublish project",
+      "unpublishMessage": "Remove \"{{title}}\" from the public catalog?",
+      "unpublished": "Project unpublished.",
+      "unpublishFailed": "Failed to unpublish project.",
+      "delete": "Delete",
+      "deleteTitle": "Delete project",
+      "deleteMessage": "Permanently delete \"{{name}}\" and all {{count}} chapters? This cannot be undone.",
+      "deleteMessagePublished": "Permanently delete \"{{name}}\" ({{count}} chapters)? It will be removed from the catalog. This cannot be undone.",
+      "deleted": "Project deleted.",
+      "deleteFailed": "Failed to delete project.",
+      "notFound": "Project not found.",
+      "chapters": "{{count}} chapters",
+      "translated": "{{count}} translated",
+      "updatedAt": "Updated {{date}}",
+      "publicationStatus": {
+        "published": "Published",
+        "draft": "Draft",
+        "unpublished": "Unpublished",
+        "none": "No publication"
       }
     },
     "translationRequests": {

@@ -41,6 +41,8 @@ import type {
   PublicationStatus,
   PublicationWithChapters,
   AdminPublicationListItem,
+  AdminProjectListItem,
+  AdminProjectPublicationFilter,
   AdminUserListItem,
   CatalogTranslationRequest,
   AdminCatalogTranslationRequest,
@@ -1947,6 +1949,35 @@ export const api = {
   async adminUnpublishPublication(id: string): Promise<{ ok: boolean }> {
     return fetchJson<{ ok: boolean }>(`/api/admin/publications/${id}/unpublish`, {
       method: 'POST',
+    });
+  },
+
+  async getAdminProjects(params?: {
+    search?: string;
+    publicationStatus?: AdminProjectPublicationFilter;
+    targetLanguage?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AdminProjectListItem[]> {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.publicationStatus) query.set('publicationStatus', params.publicationStatus);
+    if (params?.targetLanguage) query.set('targetLanguage', params.targetLanguage);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return fetchJson<AdminProjectListItem[]>(`/api/admin/projects${qs ? `?${qs}` : ''}`);
+  },
+
+  async adminUnpublishProject(id: string): Promise<{ ok: boolean }> {
+    return fetchJson<{ ok: boolean }>(`/api/admin/projects/${id}/unpublish`, {
+      method: 'POST',
+    });
+  },
+
+  async adminDeleteProject(id: string): Promise<{ ok: boolean }> {
+    return fetchJson<{ ok: boolean }>(`/api/admin/projects/${id}`, {
+      method: 'DELETE',
     });
   },
 

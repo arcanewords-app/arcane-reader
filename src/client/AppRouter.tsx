@@ -46,6 +46,7 @@ import { NewsPage } from './pages/NewsPage';
 import { NewsDetailPage } from './pages/NewsDetailPage';
 import { AdminNewsPage } from './pages/AdminNewsPage';
 import { AdminPublicationsPage } from './pages/AdminPublicationsPage';
+import { AdminProjectsPage } from './pages/AdminProjectsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { TranslationRequestsPage } from './pages/TranslationRequestsPage';
 import { AdminRedirect, AdminEntitiesRedirect } from './pages/AdminRedirect';
@@ -443,6 +444,7 @@ export function AppRouter() {
                   <AdminGate path="/admin/entities/:kind" component={AdminEntitiesPage} />
                   <AdminGate path="/admin/news" component={AdminNewsPage} />
                   <AdminGate path="/admin/publications" component={AdminPublicationsPage} />
+                  <AdminGate path="/admin/projects" component={AdminProjectsPage} />
                   <AdminGate path="/admin/users" component={AdminUsersPage} />
                   {/* More specific /projects/* routes first — preact-router uses first-match */}
                   <AuthorGate

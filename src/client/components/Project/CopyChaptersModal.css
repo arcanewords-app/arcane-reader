@@ -4,6 +4,33 @@
   font-size: 0.9rem;
 }
 
+.copy-chapters-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.copy-chapters-search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.copy-chapters-item-status {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--text-dim);
+}
+
+.copy-chapters-item-status.is-translating {
+  color: var(--accent);
+}
+
 .copy-chapters-selection-row {
   display: flex;
   flex-wrap: wrap;

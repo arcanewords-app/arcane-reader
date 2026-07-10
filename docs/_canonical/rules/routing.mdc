@@ -46,6 +46,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin/entities/:kind` | admin+ | AdminEntitiesPage | Global entities by kind: `tag`, `author`, `translator` (AdminGate) |
 | `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
 | `/admin/publications` | admin+ | AdminPublicationsPage | Catalog publication moderation (AdminGate) |
+| `/admin/projects` | admin+ | AdminProjectsPage | All user projects: list, unpublish, delete (AdminGate) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
@@ -270,6 +271,9 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | POST | `/api/admin/announcements/from-news/:newsId` | Create alert prefilled from news |
 | GET | `/api/admin/publications` | List all publications (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |
 | POST | `/api/admin/publications/:id/unpublish` | Force unpublish publication |
+| GET | `/api/admin/projects` | List all projects (query: `search`, `publicationStatus`, `targetLanguage`, `limit`, `offset`) |
+| POST | `/api/admin/projects/:id/unpublish` | Force unpublish project's publication |
+| DELETE | `/api/admin/projects/:id` | Force delete project (cascade chapters, glossary, publication) |
 | GET | `/api/admin/translation-requests` | List translation requests (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |
 | PATCH | `/api/admin/translation-requests/:id` | Update request (`status`, `adminNotes`, `linkedPublicationId`) |
 | DELETE | `/api/admin/translation-requests/:id` | Delete request (only `rejected` or `fulfilled`; 409 otherwise) |

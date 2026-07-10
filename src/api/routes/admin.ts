@@ -10,6 +10,7 @@ import {
   announcementUpdateSchema,
   announcementFromNewsSchema,
   adminPublicationsListQuerySchema,
+  adminProjectsListQuerySchema,
   adminUsersListQuerySchema,
   adminUserRoleUpdateSchema,
   adminTranslationRequestsListQuerySchema,
@@ -34,6 +35,9 @@ import {
   deleteAnnouncementAlert,
   listPublicationsAdmin,
   unpublishPublicationAdmin,
+  listProjectsAdmin,
+  unpublishProjectAdmin,
+  deleteProjectAdmin,
   listUsersAdmin,
   updateUserRoleAdmin,
   countAdminUsersWithRole,
@@ -56,6 +60,7 @@ import { buildRedisKey, redisDelMany } from '../../services/redisCache.js';
 import {
   invalidatePublicationCaches,
   invalidatePublicationListCaches,
+  invalidateUserProjectCaches,
   invalidatePublicEntitiesCaches,
   invalidateNewsCaches,
   invalidateAnnouncementCaches,
@@ -572,6 +577,96 @@ export function registerAdminRoutes(app: Application, deps: RouteDeps): void {
       }
     }
   );
+
+  app.get('/api/admin/projects', requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const parsed = adminProjectsListQuerySchema.safeParse(
+        normalizeQueryRecord(req.query as Record<string, unknown>)
+      );
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const { search, publicationStatus, targetLanguage, limit, offset } = parsed.data;
+      const list = await listProjectsAdmin({
+        search,
+        publicationStatus,
+        targetLanguage,
+        limit: limit ?? 50,
+        offset: offset ?? 0,
+      });
+      res.json(list);
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Failed to list admin projects');
+      res.status(500).json({ error: 'Failed to list projects' });
+    }
+  });
+
+  app.post(
+    '/api/admin/projects/:id/unpublish',
+    requireAuth,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        const projectId = requireRouteParam(req.params.id, 'id');
+        const result = await unpublishProjectAdmin(projectId);
+        if (!result) {
+          return res.status(404).json({ error: 'Project or publication not found' });
+        }
+        req.log?.info(
+          {
+            event: 'admin.project.unpublish',
+            projectId,
+            publicationId: result.publicationId,
+            adminId: req.user?.id,
+          },
+          'Admin unpublished project'
+        );
+        await invalidatePublicationCaches(result.publicationId, result.publicationId);
+        if (result.slug) {
+          await invalidatePublicationCaches(result.slug);
+        }
+        await invalidatePublicationListCaches();
+        res.json({ ok: true });
+      } catch (error) {
+        if (handleServiceError(error, req, res)) return;
+        req.log?.error({ err: error }, 'Failed to admin unpublish project');
+        res.status(500).json({ error: 'Failed to unpublish project' });
+      }
+    }
+  );
+
+  app.delete('/api/admin/projects/:id', requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const projectId = requireRouteParam(req.params.id, 'id');
+      const result = await deleteProjectAdmin(projectId);
+      if (!result.deleted) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      req.log?.info(
+        { event: 'admin.project.delete', projectId, adminId: req.user?.id },
+        'Admin deleted project'
+      );
+      if (result.userId) {
+        await invalidateUserProjectCaches(result.userId, projectId);
+      }
+      if (result.publicationId) {
+        await invalidatePublicationCaches(result.publicationId, result.publicationId);
+        if (result.publicationSlug) {
+          await invalidatePublicationCaches(result.publicationSlug);
+        }
+        await invalidatePublicationListCaches();
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      req.log?.error({ err: error }, 'Failed to admin delete project');
+      res.status(500).json({ error: 'Failed to delete project' });
+    }
+  });
 
   app.get('/api/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
     try {

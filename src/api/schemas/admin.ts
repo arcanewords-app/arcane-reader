@@ -61,6 +61,17 @@ export const adminUserRoleUpdateSchema = z.object({
   role: z.enum(['user', 'author', 'author_plus', 'super_author', 'admin']),
 });
 
+const adminProjectPublicationStatuses = ['draft', 'published', 'unpublished', 'none'] as const;
+
+export const adminProjectsListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  publicationStatus: z.enum(adminProjectPublicationStatuses).optional(),
+  targetLanguage: z.string().trim().max(10).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
 export type AdminPublicationsListQuery = z.infer<typeof adminPublicationsListQuerySchema>;
 export type AdminUsersListQuery = z.infer<typeof adminUsersListQuerySchema>;
 export type AdminUserRoleUpdateBody = z.infer<typeof adminUserRoleUpdateSchema>;
+export type AdminProjectsListQuery = z.infer<typeof adminProjectsListQuerySchema>;

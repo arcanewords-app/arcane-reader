@@ -181,6 +181,14 @@
     "chaptersHint": "Wybierz rozdziały do skopiowania do innego projektu z tym samym językiem docelowym.",
     "selectedCount": "Wybrano: {{count}}"
   },
+  "bulkDeleteChapters": {
+    "modalTitle": "Usuń rozdziały",
+    "hint": "Wybierz rozdziały do usunięcia. Pozostałe rozdziały zostaną automatycznie ponumerowane.",
+    "selectedCount": "Wybrano: {{count}}",
+    "deleteButton": "Usuń ({{count}})",
+    "deleteAllWarning": "Wszystkie rozdziały w tym projekcie zostaną usunięte.",
+    "inProgressWarning": "{{count}} wybranych rozdziałów jest obecnie przetwarzanych — usunięcie zatrzyma te zadania."
+  },
   "uploadTranslation": {
     "title": "Prześlij gotowe tłumaczenie",
     "button": "Prześlij tłumaczenie",
@@ -709,6 +717,7 @@
     "originalTitlePlaceholder": "Kliknij, aby dodać oryginalny tytuł...",
     "errorSaveOriginalTitle": "Nie udało się zapisać tytułu",
     "copyChapters": "Kopiuj rozdziały",
+    "deleteChapters": "Usuń rozdziały…",
     "cloneProject": "Klonuj",
     "cloneProjectModalTitle": "Klonuj projekt",
     "cloneProjectHint": "Tworzy pełną kopię: rozdziały, tłumaczenie, słownik i ustawienia. Publikacja w katalogu nie jest kopiowana.",
@@ -1196,7 +1205,42 @@
       "entities": "Katalog",
       "news": "Aktualności",
       "publications": "Publikacje",
+      "projects": "Projekty",
       "users": "Użytkownicy"
+    },
+    "projects": {
+      "subtitle": "Przeglądaj i moderuj wszystkie projekty tłumaczeń.",
+      "listTitle": "Projekty",
+      "statusFilter": "Status publikacji",
+      "searchPlaceholder": "Szukaj po nazwie projektu lub publikacji",
+      "empty": "Nie znaleziono projektów.",
+      "loadFailed": "Nie udało się załadować projektów.",
+      "owner": "Właściciel: {{email}}",
+      "openCatalog": "Otwórz w katalogu",
+      "copyId": "Kopiuj ID",
+      "idCopied": "ID projektu skopiowane.",
+      "copyIdFailed": "Nie udało się skopiować ID projektu.",
+      "unpublish": "Wycofaj publikację",
+      "unpublishTitle": "Wycofaj publikację projektu",
+      "unpublishMessage": "Usunąć „{{title}}” z publicznego katalogu?",
+      "unpublished": "Projekt wycofany z publikacji.",
+      "unpublishFailed": "Nie udało się wycofać projektu z publikacji.",
+      "delete": "Usuń",
+      "deleteTitle": "Usuń projekt",
+      "deleteMessage": "Trwale usunąć „{{name}}” i wszystkie {{count}} rozdziały? Tej operacji nie można cofnąć.",
+      "deleteMessagePublished": "Trwale usunąć „{{name}}” ({{count}} rozdziały)? Zostanie usunięty z katalogu. Tej operacji nie można cofnąć.",
+      "deleted": "Projekt usunięty.",
+      "deleteFailed": "Nie udało się usunąć projektu.",
+      "notFound": "Nie znaleziono projektu.",
+      "chapters": "{{count}} rozdziałów",
+      "translated": "{{count}} przetłumaczonych",
+      "updatedAt": "Zaktualizowano {{date}}",
+      "publicationStatus": {
+        "published": "Opublikowane",
+        "draft": "Szkic",
+        "unpublished": "Wycofane",
+        "none": "Bez publikacji"
+      }
     },
     "news": {
       "statusFilter": "Status",

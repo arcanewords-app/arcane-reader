@@ -741,6 +741,25 @@ export interface AdminPublicationListItem extends PublicationListItem {
   userId: string;
 }
 
+export interface AdminProjectListItem {
+  id: string;
+  name: string;
+  userId: string;
+  ownerEmail: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  chapterCount: number;
+  translatedCount: number;
+  createdAt: string;
+  updatedAt: string;
+  publicationId: string | null;
+  publicationStatus: PublicationStatus | null;
+  publicationTitle: string | null;
+  publicationSlug: string | null;
+}
+
+export type AdminProjectPublicationFilter = PublicationStatus | 'none';
+
 export interface AdminUserListItem {
   id: string;
   email: string;

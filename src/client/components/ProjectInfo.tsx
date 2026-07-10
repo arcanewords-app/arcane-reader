@@ -25,6 +25,7 @@ import {
 import { useUserRole } from '../hooks/useUserRole';
 import { getProjectLimitForRole, isUnlimitedProjectLimit } from '../../config/projectLimits';
 import { CopyChaptersModal } from './Project/CopyChaptersModal';
+import { BulkDeleteChaptersModal } from './Project/BulkDeleteChaptersModal';
 import '../components/ChapterView/ReaderSettings.css';
 import './ProjectInfo.css';
 
@@ -48,6 +49,7 @@ export function ProjectInfo({
   const { role, user } = useUserRole();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCopyChaptersModal, setShowCopyChaptersModal] = useState(false);
+  const [showBulkDeleteChaptersModal, setShowBulkDeleteChaptersModal] = useState(false);
   const [showProjectActionsMenu, setShowProjectActionsMenu] = useState(false);
   const projectActionsMenuRef = useRef<HTMLDivElement>(null);
   const [showCloneModal, setShowCloneModal] = useState(false);
@@ -832,6 +834,20 @@ export function ProjectInfo({
                 >
                   <Icon name="drive_file_move" size="sm" />
                   <span>{t('projectInfo.copyChapters')}</span>
+                </button>
+                <hr class="project-actions-separator" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="project-actions-item project-actions-item-danger"
+                  disabled={project.chapters.length === 0}
+                  onClick={() => {
+                    setShowProjectActionsMenu(false);
+                    setShowBulkDeleteChaptersModal(true);
+                  }}
+                >
+                  <Icon name="delete_sweep" size="sm" />
+                  <span>{t('projectInfo.deleteChapters')}</span>
                 </button>
                 <button
                   type="button"
@@ -2044,6 +2060,13 @@ export function ProjectInfo({
       <CopyChaptersModal
         isOpen={showCopyChaptersModal}
         onClose={() => setShowCopyChaptersModal(false)}
+        project={project}
+        onSuccess={onRefreshProject}
+      />
+
+      <BulkDeleteChaptersModal
+        isOpen={showBulkDeleteChaptersModal}
+        onClose={() => setShowBulkDeleteChaptersModal(false)}
         project={project}
         onSuccess={onRefreshProject}
       />

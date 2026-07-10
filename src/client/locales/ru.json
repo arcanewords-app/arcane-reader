@@ -191,6 +191,14 @@
     "chaptersHint": "Выберите главы для копирования в другой проект с той же целевой локалью.",
     "selectedCount": "Выбрано: {{count}}"
   },
+  "bulkDeleteChapters": {
+    "modalTitle": "Удалить главы",
+    "hint": "Выберите главы для удаления. Номера оставшихся глав пересчитаются автоматически.",
+    "selectedCount": "Выбрано: {{count}}",
+    "deleteButton": "Удалить ({{count}})",
+    "deleteAllWarning": "Будут удалены все главы проекта.",
+    "inProgressWarning": "{{count}} выбранных глав сейчас обрабатываются — удаление остановит эти задачи."
+  },
   "uploadTranslation": {
     "title": "Загрузить готовый перевод",
     "button": "Загрузить перевод",
@@ -741,6 +749,7 @@
     "originalTitlePlaceholder": "Нажмите, чтобы указать оригинальное название...",
     "errorSaveOriginalTitle": "Ошибка сохранения названия",
     "copyChapters": "Копировать главы",
+    "deleteChapters": "Удалить главы…",
     "cloneProject": "Клонировать",
     "cloneProjectModalTitle": "Клонировать проект",
     "cloneProjectHint": "Создаётся полная копия: главы, перевод, глоссарий и настройки. Публикация в каталоге не копируется.",
@@ -1184,6 +1193,7 @@
       "entities": "Каталог",
       "news": "Новости",
       "publications": "Публикации",
+      "projects": "Проекты",
       "users": "Пользователи"
     },
     "deniedTitle": "Требуется доступ администратора",
@@ -1274,6 +1284,40 @@
         "published": "Опубликовано",
         "draft": "Черновик",
         "unpublished": "Снято"
+      }
+    },
+    "projects": {
+      "subtitle": "Просмотр и модерация всех проектов перевода.",
+      "listTitle": "Проекты",
+      "statusFilter": "Статус публикации",
+      "searchPlaceholder": "Поиск по названию проекта или публикации",
+      "empty": "Проекты не найдены.",
+      "loadFailed": "Не удалось загрузить проекты.",
+      "owner": "Владелец: {{email}}",
+      "openCatalog": "Открыть в каталоге",
+      "copyId": "Копировать ID",
+      "idCopied": "ID проекта скопирован.",
+      "copyIdFailed": "Не удалось скопировать ID проекта.",
+      "unpublish": "Снять с публикации",
+      "unpublishTitle": "Снять с публикации",
+      "unpublishMessage": "Убрать «{{title}}» из публичного каталога?",
+      "unpublished": "Проект снят с публикации.",
+      "unpublishFailed": "Не удалось снять проект с публикации.",
+      "delete": "Удалить",
+      "deleteTitle": "Удалить проект",
+      "deleteMessage": "Безвозвратно удалить «{{name}}» и все {{count}} глав? Это действие нельзя отменить.",
+      "deleteMessagePublished": "Безвозвратно удалить «{{name}}» ({{count}} глав)? Проект будет убран из каталога. Это действие нельзя отменить.",
+      "deleted": "Проект удалён.",
+      "deleteFailed": "Не удалось удалить проект.",
+      "notFound": "Проект не найден.",
+      "chapters": "{{count}} глав",
+      "translated": "{{count}} переведено",
+      "updatedAt": "Обновлён {{date}}",
+      "publicationStatus": {
+        "published": "Опубликовано",
+        "draft": "Черновик",
+        "unpublished": "Снято",
+        "none": "Без публикации"
       }
     },
     "translationRequests": {
