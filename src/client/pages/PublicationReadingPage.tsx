@@ -38,20 +38,15 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [progressLoaded, setProgressLoaded] = useState(false);
 
   const syncAuthProgress = useCallback(async () => {
-    setProgressLoaded(false);
     const user = await authService.getCurrentUser();
     setIsAuthenticated(!!user);
-    if (!user || !chapterId) {
+    if (!user) {
       setReadChapterIds(new Set());
       setLastReadChapterId(null);
       setLastReadParagraphIndex(0);
-      setProgressLoaded(true);
       return;
     }
-    if (!publicationId) {
-      setProgressLoaded(true);
-      return;
-    }
+    if (!publicationId) return;
     try {
       const result = await api.getReadProgress(publicationId);
       setReadChapterIds(new Set(result.chapterIds));
@@ -59,10 +54,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
     } catch {
       // Ignore progress sync errors on public reader page.
-    } finally {
-      setProgressLoaded(true);
     }
-  }, [chapterId, publicationId]);
+  }, [publicationId]);
 
   useEffect(() => {
     if (!publicationId) {
@@ -127,7 +120,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       .getPublicationChapter(publicationId, chapterId)
       .then((result) => {
         if (!cancelled) {
-          setInitialChapterContent({ [result.id]: result.translatedText });
+          setInitialChapterContent((prev) => ({ ...prev, [result.id]: result.translatedText }));
         }
       })
       .catch(() => {});
@@ -136,17 +129,27 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     };
   }, [publicationId, chapterId, data]);
 
-  // Check auth and load read progress for authenticated users
+  // Check auth and load read progress for authenticated users (once per publication mount)
   useEffect(() => {
+    if (!publicationId) return;
     let cancelled = false;
-    syncAuthProgress().catch(() => {});
+    setProgressLoaded(false);
+    syncAuthProgress()
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setProgressLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [publicationId, syncAuthProgress]);
+
+  useEffect(() => {
     const handleAuthChanged = () => {
-      if (cancelled) return;
       syncAuthProgress().catch(() => {});
     };
     window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     return () => {
-      cancelled = true;
       window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     };
   }, [syncAuthProgress]);
@@ -230,7 +233,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
 
   if (!publicationId) return null;
 
-  const waitingForProgress = chapterId && !progressLoaded;
+  const waitingForProgress = !progressLoaded;
   if (loading || waitingForProgress) {
     return (
       <div class="publication-reading-placeholder">

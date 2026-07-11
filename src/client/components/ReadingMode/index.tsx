@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import type {
   Project,
   ProjectWithChapterList,
@@ -24,6 +25,7 @@ import { clearBrowserSelection, formatReportPrefill } from '../../utils/readingS
 import { useReadingTextSelection } from '../../hooks/useReadingTextSelection';
 import { ReadingSelectionReportButton } from './ReadingSelectionReportButton';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
+import { buildReadingChapterUrl } from '../../utils/readingRoutes';
 import './ReadingMode.css';
 
 /** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
@@ -46,7 +48,7 @@ interface ReadingModeProps {
   initialChapterId?: string;
   /** Preloaded chapter content (chapterId -> text) for initial chapter when opening via direct link. */
   initialChapterContent?: Record<string, string>;
-  onExit: () => void;
+  onExit: (currentChapterId?: string) => void;
   /** Called when user has read chapter (scrolled to 85%+ and pressed Next, or last chapter scrolled to 85%+). Auth only. */
   onChapterRead?: (chapterId: string) => void;
   /** Called to save reading position (chapter + paragraph index). Auth only. */
@@ -228,6 +230,39 @@ export function ReadingMode({
 
   const currentChapter = chapters[currentChapterIndex];
 
+  const syncChapterUrl = useCallback(
+    (targetChapterId: string, replace = false) => {
+      const url = buildReadingChapterUrl({
+        isPublicationMode,
+        publicationPath,
+        publicationId,
+        projectId: project?.id,
+        chapterId: targetChapterId,
+      });
+      if (!url) return;
+      if (typeof window !== 'undefined' && window.location.pathname === url) return;
+      route(url, replace);
+    },
+    [isPublicationMode, publicationPath, publicationId, project?.id]
+  );
+
+  const navigateToChapterIndex = useCallback(
+    (newIndex: number) => {
+      if (newIndex < 0 || newIndex >= chapters.length || newIndex === currentChapterIndex) return;
+      const targetChapter = chapters[newIndex];
+      if (!targetChapter) return;
+
+      const ch = chapters[currentChapterIndex];
+      if (ch && onSavePosition && isPublicationMode) {
+        onSavePosition(ch.id, currentParagraphIndexRef.current);
+      }
+
+      setCurrentChapterIndex(newIndex);
+      syncChapterUrl(targetChapter.id);
+    },
+    [chapters, currentChapterIndex, onSavePosition, isPublicationMode, syncChapterUrl]
+  );
+
   const selectionTrackingEnabled =
     isPublicationMode &&
     isAuthenticated &&
@@ -298,6 +333,11 @@ export function ReadingMode({
       }
     }
   }, [isPublicationMode, publicationChapters, initialChapterId]);
+
+  // Reset scroll-restore guard when URL chapter changes (e.g. browser Back)
+  useEffect(() => {
+    hasAppliedInitialScrollRef.current = false;
+  }, [initialChapterId]);
 
   // Project mode: filter chapters from project (ChapterListItem - lightweight)
   useEffect(() => {
@@ -969,16 +1009,13 @@ export function ReadingMode({
     if (ch && onSavePosition && isPublicationMode) {
       onSavePosition(ch.id, currentParagraphIndexRef.current);
     }
-    onExit();
+    onExit(ch?.id);
   }, [chapters, currentChapterIndex, onSavePosition, isPublicationMode, onExit]);
 
   const handlePrevChapter = useCallback(() => {
-    const ch = chapters[currentChapterIndex];
-    if (ch && onSavePosition && isPublicationMode) {
-      onSavePosition(ch.id, currentParagraphIndexRef.current);
-    }
-    setCurrentChapterIndex((prev) => (prev > 0 ? prev - 1 : prev));
-  }, [chapters, currentChapterIndex, onSavePosition, isPublicationMode]);
+    if (currentChapterIndex <= 0) return;
+    navigateToChapterIndex(currentChapterIndex - 1);
+  }, [currentChapterIndex, navigateToChapterIndex]);
 
   const handleNextChapter = useCallback(() => {
     const ch = chapters[currentChapterIndex];
@@ -991,11 +1028,9 @@ export function ReadingMode({
       markedThisSessionRef.current.add(ch.id);
       onChapterRead(ch.id);
     }
-    if (ch && onSavePosition && isPublicationMode) {
-      onSavePosition(ch.id, currentParagraphIndexRef.current);
-    }
-    setCurrentChapterIndex((prev) => (prev < chapters.length - 1 ? prev + 1 : prev));
-  }, [chapters, currentChapterIndex, onChapterRead, onSavePosition, isPublicationMode]);
+    if (currentChapterIndex >= chapters.length - 1) return;
+    navigateToChapterIndex(currentChapterIndex + 1);
+  }, [chapters, currentChapterIndex, onChapterRead, navigateToChapterIndex]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -1038,22 +1073,25 @@ export function ReadingMode({
     const currentChapter = chapters[currentChapterIndex];
     if (!currentChapter) return;
 
-    let url: string;
-    if (isPublicationMode && publicationId) {
-      const path = publicationPath ?? publicationId;
-      url = `${window.location.origin}/p/${path}/chapters/${currentChapter.id}/reading`;
-    } else if (project) {
-      const params = new URLSearchParams();
-      params.set('project', project.id);
-      params.set('chapter', currentChapter.id);
-      params.set('reading', 'true');
-      url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-    } else {
-      return;
-    }
-    setShareLink(url);
+    const path = buildReadingChapterUrl({
+      isPublicationMode,
+      publicationPath,
+      publicationId,
+      projectId: project?.id,
+      chapterId: currentChapter.id,
+    });
+    if (!path) return;
+
+    setShareLink(`${window.location.origin}${path}`);
     setShowShareModal(true);
-  }, [isPublicationMode, publicationId, publicationPath, project, chapters, currentChapterIndex]);
+  }, [
+    isPublicationMode,
+    publicationPath,
+    publicationId,
+    project?.id,
+    chapters,
+    currentChapterIndex,
+  ]);
 
   const handleCopyShareLink = useCallback(async () => {
     if (!shareLink) return;
@@ -1145,15 +1183,15 @@ export function ReadingMode({
 
   const handleSelectChapter = useCallback(
     (index: number) => {
-      const ch = chapters[currentChapterIndex];
-      if (ch && onSavePosition && isPublicationMode) {
-        onSavePosition(ch.id, currentParagraphIndexRef.current);
+      if (index === currentChapterIndex) {
+        setShowTOC(false);
+        return;
       }
-      setCurrentChapterIndex(index);
+      navigateToChapterIndex(index);
       setShowTOC(false);
       window.scrollTo(0, 0);
     },
-    [chapters, currentChapterIndex, onSavePosition, isPublicationMode]
+    [currentChapterIndex, navigateToChapterIndex]
   );
 
   if (chapters.length === 0) {

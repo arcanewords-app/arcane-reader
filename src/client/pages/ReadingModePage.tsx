@@ -5,6 +5,7 @@ import type { ProjectWithChapterList } from '../types';
 import { getProject } from '../store/projects';
 import { ReadingMode } from '../components/ReadingMode';
 import { PageLoading } from '../components/ui';
+import { getFirstAuthorReadingChapterId } from '../utils/readingRoutes';
 
 interface ReadingModePageProps {
   projectId: string;
@@ -38,9 +39,17 @@ export function ReadingModePage({ projectId, chapterId }: ReadingModePageProps) 
     }
   };
 
-  const handleExit = () => {
-    if (chapterId) {
-      route(`/projects/${projectId}/chapters/${chapterId}`);
+  useEffect(() => {
+    if (!project || chapterId) return;
+    const firstId = getFirstAuthorReadingChapterId(project);
+    if (firstId) {
+      route(`/projects/${projectId}/chapters/${firstId}/reading`, true);
+    }
+  }, [project, chapterId, projectId]);
+
+  const handleExit = (currentChapterId?: string) => {
+    if (currentChapterId) {
+      route(`/projects/${projectId}/chapters/${currentChapterId}`);
     } else {
       route(`/projects/${projectId}`);
     }

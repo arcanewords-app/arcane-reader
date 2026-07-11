@@ -51,10 +51,18 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
 | `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph (e.g. from project search) |
-| `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate) |
-| `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode, first chapter (AuthorGate) |
+| `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate). `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push) without page reload |
+| `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode entry without chapter — replace-redirects to first available chapter URL |
 | `/p/:publicationId` | guest+ | PublicationPage | Public publication page |
-| `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication |
+| `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Reload restores chapter from URL; auth users restore paragraph when URL chapter matches `lastReadChapterId` |
+
+### Reading mode URL sync
+
+- **Chapter navigation** (next/prev, TOC, keyboard): `ReadingMode` calls `preact-router` `route()` to update `:chapterId` in the path (history **push**). No full page reload.
+- **Browser Back/Forward**: `initialChapterId` from URL drives `currentChapterIndex`; cached chapter text stays in component state.
+- **Share / F5**: URL reflects the chapter being read.
+- **Author exit**: returns to chapter editor for the **current** chapter (not the entry URL).
+- **Scroll position within chapter**: not in URL; persisted via `PATCH /api/publications/:id/reading-position` (auth) only.
 
 ### Access Levels
 
