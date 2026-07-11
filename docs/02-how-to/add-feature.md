@@ -55,3 +55,4 @@ Standard path for a new API-backed UI feature. Follow rules: [[../_canonical/rul
 - [ ] `npm run lint` && `npm run typecheck`
 - [ ] Cache invalidation on writes
 - [ ] No secrets in logs ([[../_canonical/rules/logging]])
+- [ ] Shareable UI state synced to URL per [[../_canonical/rules/spa-navigation]]

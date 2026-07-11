@@ -1,0 +1,97 @@
+---
+description: SPA URL sync — addressable UI state without page reload
+globs: src/client/**
+alwaysApply: false
+---
+
+# SPA Navigation & URL Sync
+
+Policy for keeping the **address bar** aligned with what the user sees. Applies to all Preact client work.
+
+## Principle
+
+| Layer | Role |
+|-------|------|
+| **URL** (path + query) | Canonical, shareable, reloadable view |
+| **Router props** | `chapterId`, path params from `preact-router` |
+| **`history.state`** | Ephemeral hints only — never chapter text, lists, or large payloads (~640KB limit) |
+| **API / localStorage** | Scroll position, drafts, preferences when not shareable |
+
+**Address-bar drift:** UI shows view A but URL shows view B → broken F5, share, and Back. Fix by syncing shareable state to the URL on every navigation path.
+
+## Stack
+
+- Router: `preact-router` in `@src/client/AppRouter.tsx`
+- Prefer `route(url)` and `route(url, true)` over raw `history.pushState` / `replaceState` so `Router onChange` fires and analytics (`arcane:route-change`) stay correct
+- Route map SSOT: `@.cursor/rules/routing.mdc`
+
+## push vs replace
+
+| User action | API | Example |
+|-------------|-----|---------|
+| Navigate to a distinct view | `route(url)` — **push** | Reading: next chapter |
+| Canonicalize entry URL (no extra history entry) | `route(url, true)` — **replace** | `/projects/:id/reading` → first chapter |
+| Refine current view in place | `route(url, true)` or `history.replaceState` | Catalog filter chips; debug filters |
+
+Use **push** when the user expects Back to undo (chapter, page, tab as route). Use **replace** for in-place refinements or one-shot redirects.
+
+## Path vs query
+
+| Use path segment | Use query param |
+|------------------|-----------------|
+| Entity identity (`:chapterId`, `:projectId`) | Filters (`filter`, `author`, `tag`) |
+| Distinct routes in sitemap / SEO | Search prefill (`search`) |
+| Reading / editing contexts | Scroll target (`paragraph`) |
+
+Add new path segments to `routing.mdc`, `AppRouter.tsx`, and server SPA fallback in the same PR.
+
+## Implementation recipe
+
+1. **Decide** if state is shareable (another person should reproduce the view from a link).
+2. **Add** `buildXxxUrl()` in `src/client/utils/` (see `@src/client/utils/readingRoutes.ts`, `buildCatalogUrl` in `HomePage.tsx`).
+3. **On every mutation** (button, keyboard, TOC): save side effects first (e.g. reading position), then `route(url)` with guard:
+
+   ```typescript
+   if (window.location.pathname !== url) route(url);
+   ```
+
+4. **Derive UI** from URL: router props (`chapterId`) or `URLSearchParams` on mount; re-sync on `popstate` and/or `arcane:route-change`.
+5. **Optional optimistic local state** for instant UI; URL remains source of truth (see `lastInitialChapterIdRef` in `ReadingMode`).
+6. **Avoid full-page spinner** when only a route param changes — fetch page-level data once per mount (see `PublicationReadingPage` `progressLoaded`).
+
+## Back / Forward
+
+- `preact-router` updates props on `popstate`; child reads `initialChapterId` / query and syncs index
+- Reset ephemeral guards when URL identity changes (e.g. `hasAppliedInitialScrollRef` on `initialChapterId` change)
+- Do not call `route()` again when reacting to Back — URL already changed
+
+## Do not sync to URL
+
+- Modal open/closed (glossary, settings, share dialog)
+- Scroll offset within a view (unless explicit product requirement)
+- Unsaved form drafts
+- Transient loading / error flags
+
+**Exception:** authenticated reading position uses `PATCH /api/publications/:id/reading-position`, not URL.
+
+## Reference implementations
+
+| Feature | Files | Pattern |
+|---------|-------|---------|
+| Reading chapters | `ReadingMode/index.tsx`, `readingRoutes.ts` | Path push on prev/next/TOC |
+| Catalog filters | `HomePage.tsx` | Query via `route(buildCatalogUrl(...))` |
+| Chapter editor | `ChapterPage.tsx` | Path + `?search=`, `?paragraph=` |
+| Admin tabs | `AppRouter.tsx` | Separate paths per section |
+| Debug filters | `debug-app/hooks/useUrlSync.ts` | Query + `replaceState` (dev only) |
+
+Human docs: `@docs/03-explanation/addressable-ui-state.md`, `@docs/02-how-to/sync-url-with-ui-state.md`.
+
+## PR checklist (navigation / filters / tabs)
+
+- [ ] Shareable state written to URL on every code path that changes the view
+- [ ] F5 restores the same view
+- [ ] Browser Back returns to previous view without stale UI
+- [ ] Share/copy link matches visible view
+- [ ] No full-page loading flash on intra-route param change
+- [ ] `routing.mdc` updated if path or query contract changed
+- [ ] No large data in `history.state`

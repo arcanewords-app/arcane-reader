@@ -13,6 +13,17 @@ import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
 import { ChapterTocModal } from '../components/ChapterTocModal';
+import {
+  buildPublicationPageUrl,
+  getPublicationPathFromPathname,
+  isPublicationCatalogPath,
+  parsePublicationChapterQueryFromUrl,
+  sanitizePublicationChapterQueryForAuth,
+  type PublicationChapterListQuery,
+  type PublicationChapterOrder,
+  type PublicationReadFilter,
+  type PublicationTranslationFilter,
+} from '../utils/publicationRoutes';
 import './PublicationPage.css';
 
 interface PublicationPageProps {
@@ -30,12 +41,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
   const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [chapterSearch, setChapterSearch] = useState('');
-  const [translationFilter, setTranslationFilter] = useState<'translated' | 'all' | 'untranslated'>(
-    'translated'
+  const initialChapterListQuery = parsePublicationChapterQueryFromUrl();
+  const [chapterSearch, setChapterSearch] = useState(initialChapterListQuery.q);
+  const [translationFilter, setTranslationFilter] = useState<PublicationTranslationFilter>(
+    initialChapterListQuery.translation
   );
-  const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'read'>('all');
-  const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('asc');
+  const [chapterFilter, setChapterFilter] = useState<PublicationReadFilter>(
+    initialChapterListQuery.read
+  );
+  const [chapterOrder, setChapterOrder] = useState<PublicationChapterOrder>(
+    initialChapterListQuery.order
+  );
   const [downloading, setDownloading] = useState<'epub' | 'fb2' | null>(null);
   const [buildingExports, setBuildingExports] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -53,6 +69,87 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const PUB_ITEM_HEIGHT = 50;
   const PUB_VIRTUAL_BUFFER = 6;
   const PUB_VIRTUAL_THRESHOLD = 50;
+
+  const chapterListQueryRef = useRef<PublicationChapterListQuery>(initialChapterListQuery);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getPublicationPath = useCallback(() => {
+    if (typeof window === 'undefined') return publicationId ?? '';
+    return (
+      getPublicationPathFromPathname(window.location.pathname) ?? data?.slug ?? publicationId ?? ''
+    );
+  }, [data?.slug, publicationId]);
+
+  const applyChapterListQuery = useCallback(
+    (query: PublicationChapterListQuery, options?: { syncUrl?: boolean }) => {
+      const sanitized = sanitizePublicationChapterQueryForAuth(query, isAuthenticated);
+      chapterListQueryRef.current = sanitized;
+      setChapterSearch(sanitized.q);
+      setTranslationFilter(sanitized.translation);
+      setChapterFilter(sanitized.read);
+      setChapterOrder(sanitized.order);
+
+      if (options?.syncUrl === false) return;
+      const pubPath = getPublicationPath();
+      if (!pubPath) return;
+      const url = buildPublicationPageUrl(pubPath, sanitized);
+      const current = window.location.pathname + window.location.search;
+      if (current !== url) {
+        route(url, true);
+      }
+    },
+    [isAuthenticated, getPublicationPath]
+  );
+
+  const handleChapterSearchChange = useCallback(
+    (value: string) => {
+      setChapterSearch(value);
+      const next = { ...chapterListQueryRef.current, q: value };
+      chapterListQueryRef.current = next;
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = setTimeout(() => {
+        const pubPath = getPublicationPath();
+        if (!pubPath) return;
+        const sanitized = sanitizePublicationChapterQueryForAuth(next, isAuthenticated);
+        const url = buildPublicationPageUrl(pubPath, sanitized);
+        const current = window.location.pathname + window.location.search;
+        if (current !== url) {
+          route(url, true);
+        }
+      }, 300);
+    },
+    [getPublicationPath, isAuthenticated]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      if (!isPublicationCatalogPath(window.location.pathname)) return;
+      const parsed = sanitizePublicationChapterQueryForAuth(
+        parsePublicationChapterQueryFromUrl(),
+        isAuthenticated
+      );
+      applyChapterListQuery(parsed, { syncUrl: false });
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    window.addEventListener('arcane:route-change', syncFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+      window.removeEventListener('arcane:route-change', syncFromUrl);
+    };
+  }, [isAuthenticated, applyChapterListQuery]);
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+    if (chapterListQueryRef.current.read === 'all') return;
+    applyChapterListQuery({ ...chapterListQueryRef.current, read: 'all' });
+  }, [isAuthenticated, applyChapterListQuery]);
 
   const syncAuthProgress = useCallback(async () => {
     const user = await authService.getCurrentUser();
@@ -532,7 +629,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     class="publication-page-chapter-search"
                     placeholder={t('toc.searchPlaceholder')}
                     value={chapterSearch}
-                    onInput={(e: Event) => setChapterSearch((e.target as HTMLInputElement).value)}
+                    onInput={(e: Event) =>
+                      handleChapterSearchChange((e.target as HTMLInputElement).value)
+                    }
                   />
                   {showContinueReading && lastReadChapterId && (
                     <button
@@ -553,14 +652,18 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   <button
                     type="button"
                     class={chapterOrder === 'asc' ? 'active' : ''}
-                    onClick={() => setChapterOrder('asc')}
+                    onClick={() =>
+                      applyChapterListQuery({ ...chapterListQueryRef.current, order: 'asc' })
+                    }
                   >
                     <Icon name="arrow_upward" size="sm" /> {t('publication.orderFromStart')}
                   </button>
                   <button
                     type="button"
                     class={chapterOrder === 'desc' ? 'active' : ''}
-                    onClick={() => setChapterOrder('desc')}
+                    onClick={() =>
+                      applyChapterListQuery({ ...chapterListQueryRef.current, order: 'desc' })
+                    }
                   >
                     <Icon name="arrow_downward" size="sm" /> {t('publication.orderFromEnd')}
                   </button>
@@ -570,21 +673,36 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     <button
                       type="button"
                       class={translationFilter === 'translated' ? 'active' : ''}
-                      onClick={() => setTranslationFilter('translated')}
+                      onClick={() =>
+                        applyChapterListQuery({
+                          ...chapterListQueryRef.current,
+                          translation: 'translated',
+                        })
+                      }
                     >
                       <Icon name="translate" size="sm" /> {t('publication.filterTranslated')}
                     </button>
                     <button
                       type="button"
                       class={translationFilter === 'all' ? 'active' : ''}
-                      onClick={() => setTranslationFilter('all')}
+                      onClick={() =>
+                        applyChapterListQuery({
+                          ...chapterListQueryRef.current,
+                          translation: 'all',
+                        })
+                      }
                     >
                       <Icon name="grid_view" size="sm" /> {t('publication.filterAll')}
                     </button>
                     <button
                       type="button"
                       class={translationFilter === 'untranslated' ? 'active' : ''}
-                      onClick={() => setTranslationFilter('untranslated')}
+                      onClick={() =>
+                        applyChapterListQuery({
+                          ...chapterListQueryRef.current,
+                          translation: 'untranslated',
+                        })
+                      }
                     >
                       <Icon name="block" size="sm" /> {t('publication.filterUntranslated')}
                     </button>
@@ -595,21 +713,27 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     <button
                       type="button"
                       class={chapterFilter === 'all' ? 'active' : ''}
-                      onClick={() => setChapterFilter('all')}
+                      onClick={() =>
+                        applyChapterListQuery({ ...chapterListQueryRef.current, read: 'all' })
+                      }
                     >
                       <Icon name="grid_view" size="sm" /> {t('publication.filterAll')}
                     </button>
                     <button
                       type="button"
                       class={chapterFilter === 'unread' ? 'active' : ''}
-                      onClick={() => setChapterFilter('unread')}
+                      onClick={() =>
+                        applyChapterListQuery({ ...chapterListQueryRef.current, read: 'unread' })
+                      }
                     >
                       <Icon name="mark_email_unread" size="sm" /> {t('publication.filterUnread')}
                     </button>
                     <button
                       type="button"
                       class={chapterFilter === 'read' ? 'active' : ''}
-                      onClick={() => setChapterFilter('read')}
+                      onClick={() =>
+                        applyChapterListQuery({ ...chapterListQueryRef.current, read: 'read' })
+                      }
                     >
                       <Icon name="check_circle" size="sm" /> {t('publication.filterRead')}
                     </button>

@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-06-24
+updated: 2026-07-11
 ---
 
 # Project status
@@ -18,6 +18,8 @@ Update this file when completing plans or shipping major features.
 
 - Preact SPA + Express API + Supabase (auth, DB, storage)
 - Public catalog (`/`, `/catalog`) and publication reading (`/p/:id`)
+- Reading mode: chapter URL sync on prev/next/TOC (`route()` push); reload/share/back work — [[03-explanation/addressable-ui-state]], policy [[_canonical/rules/spa-navigation]]
+- Profile tabs + publication chapter filters synced to URL query (Phase 1) — `profileRoutes.ts`, `publicationRoutes.ts`
 - Author workspace: projects, chapters, glossary (incl. merge suggestions)
 - 3-stage pipeline: analyze → translate → edit
 - Engine as-is docs: [[03-explanation/engine-pipeline]], [[03-explanation/engine-glossary-and-prompts]], [[03-explanation/engine-integration-boundary]]
@@ -46,6 +48,7 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
+| [[05-plans/app-wide-url-sync-rollout]]    | SPA URL sync: Phase 1 done (profile, publication filters); Phase 2–3 pending                       |
 
 ## Known tech debt
 

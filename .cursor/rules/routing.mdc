@@ -39,7 +39,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/terms` | guest+ | TermsPage | Terms of service |
 | `/news` | guest+ | NewsPage | News feed list |
 | `/news/:slugOrId` | guest+ | NewsDetailPage | Single news post |
-| `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar |
+| `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar. Query: `tab=reading` (default, omitted) \| `settings` \| `profile` |
 | `/translation-requests` | author+ | TranslationRequestsPage | Author board: open requests, interests, create project (AuthorGate) |
 | `/projects` | author+ | ProjectsPage | Projects grid (AuthorGate) |
 | `/admin/entities` | admin+ | AdminEntitiesRedirect | Redirect to `/admin/entities/tag` |
@@ -53,10 +53,12 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph (e.g. from project search) |
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate). `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push) without page reload |
 | `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode entry without chapter — replace-redirects to first available chapter URL |
-| `/p/:publicationId` | guest+ | PublicationPage | Public publication page |
+| `/p/:publicationId` | guest+ | PublicationPage | Public publication page. Query (chapter list): `q` (search), `translation=translated\|all\|untranslated` (default translated), `read=all\|unread\|read` (default all; auth only for unread/read filter UI), `order=asc\|desc` (default asc) |
 | `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Reload restores chapter from URL; auth users restore paragraph when URL chapter matches `lastReadChapterId` |
 
 ### Reading mode URL sync
+
+See also `@.cursor/rules/spa-navigation.mdc` for the general SPA policy (push vs replace, path vs query, PR checklist).
 
 - **Chapter navigation** (next/prev, TOC, keyboard): `ReadingMode` calls `preact-router` `route()` to update `:chapterId` in the path (history **push**). No full page reload.
 - **Browser Back/Forward**: `initialChapterId` from URL drives `currentChapterIndex`; cached chapter text stays in component state.

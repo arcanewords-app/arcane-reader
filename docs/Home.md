@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-06-06
+updated: 2026-07-11
 ---
 
 # Arcane Reader — Documentation
@@ -20,20 +20,21 @@ updated: 2026-06-06
 
 ## Canonical rules (`.cursor/rules/`)
 
-| Rule                               | Topic                             |
-| ---------------------------------- | --------------------------------- |
-| [[_canonical/rules/core]]          | Code style, structure             |
-| [[_canonical/rules/architecture]]  | System architecture               |
-| [[_canonical/rules/api]]           | Express API, Zod, 503             |
-| [[_canonical/rules/routing]]       | **Route map (SSOT)**              |
-| [[_canonical/rules/cache]]         | Redis invalidation                |
-| [[_canonical/rules/auth]]          | Roles, JWT                        |
-| [[_canonical/rules/engine]]        | Translation pipeline              |
-| [[_canonical/rules/client]]        | Preact UI                         |
-| [[_canonical/rules/design-system]] | Tokens, icons, a11y               |
-| [[_canonical/rules/deployment]]    | Env, Vercel, worker               |
-| [[_canonical/rules/logging]]       | Pino, req.log, levels             |
-| [[_canonical/rules/local-dev]]     | Local dev, vault, search commands |
+| Rule                                | Topic                             |
+| ----------------------------------- | --------------------------------- |
+| [[_canonical/rules/core]]           | Code style, structure             |
+| [[_canonical/rules/architecture]]   | System architecture               |
+| [[_canonical/rules/api]]            | Express API, Zod, 503             |
+| [[_canonical/rules/routing]]        | **Route map (SSOT)**              |
+| [[_canonical/rules/cache]]          | Redis invalidation                |
+| [[_canonical/rules/auth]]           | Roles, JWT                        |
+| [[_canonical/rules/engine]]         | Translation pipeline              |
+| [[_canonical/rules/client]]         | Preact UI                         |
+| [[_canonical/rules/spa-navigation]] | SPA URL sync, addressable state   |
+| [[_canonical/rules/design-system]]  | Tokens, icons, a11y               |
+| [[_canonical/rules/deployment]]     | Env, Vercel, worker               |
+| [[_canonical/rules/logging]]        | Pino, req.log, levels             |
+| [[_canonical/rules/local-dev]]      | Local dev, vault, search commands |
 
 If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code + rules win**.
 
@@ -67,6 +68,7 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 - [[02-how-to/run-locally]]
 - [[02-how-to/obsidian-vault]]
 - [[02-how-to/add-feature]]
+- [[02-how-to/sync-url-with-ui-state]]
 - [[02-how-to/debug-translation]]
 - [[02-how-to/prompt-lab]]
 - [[02-how-to/observability-axiom]]

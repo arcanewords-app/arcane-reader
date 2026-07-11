@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
@@ -13,10 +13,15 @@ import type { ReaderSettings } from '../types';
 import type { UserRole } from '../../types/roles';
 import { DEFAULT_READER_SETTINGS, LEGACY_FONT_MAP } from '../types';
 import { TranslatorPseudonymsSection } from '../components/TranslatorPseudonym/TranslatorPseudonymsSection';
+import {
+  buildProfileUrl,
+  getRawProfileTabFromUrl,
+  isProfileTab,
+  parseProfileTabFromUrl,
+  type ProfileTab,
+} from '../utils/profileRoutes';
 import '../components/TranslatorPseudonym/TranslatorPseudonymsSection.css';
 import './ProfilePage.css';
-
-type ProfileTab = 'reading' | 'settings' | 'profile';
 
 const ROLE_LABEL_KEYS: Record<UserRole, string> = {
   guest: 'profile.roleUser',
@@ -41,7 +46,7 @@ export function ProfilePage() {
   const { user, role, isAtLeast } = useUserRole();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>('reading');
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => parseProfileTabFromUrl());
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => ({
     ...DEFAULT_READER_SETTINGS,
@@ -49,6 +54,40 @@ export function ProfilePage() {
   const [readerSettingsLoaded, setReaderSettingsLoaded] = useState(false);
 
   const showUpgrade = user != null && canRequestTierUpgrade(role);
+
+  useEffect(() => {
+    const raw = getRawProfileTabFromUrl();
+    if (raw && !isProfileTab(raw)) {
+      route(buildProfileUrl('reading'), true);
+      setActiveTab('reading');
+    }
+  }, []);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      if (window.location.pathname !== '/profile') return;
+      setActiveTab(parseProfileTabFromUrl());
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    window.addEventListener('arcane:route-change', syncFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+      window.removeEventListener('arcane:route-change', syncFromUrl);
+    };
+  }, []);
+
+  const handleTabClick = useCallback(
+    (tab: ProfileTab) => {
+      if (tab === activeTab) return;
+      const url = buildProfileUrl(tab);
+      if (window.location.pathname + window.location.search !== url) {
+        route(url);
+      }
+      setActiveTab(tab);
+    },
+    [activeTab]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +151,7 @@ export function ProfilePage() {
             key={tab.id}
             type="button"
             class={`profile-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabClick(tab.id)}
           >
             {t(tab.labelKey)}
           </button>

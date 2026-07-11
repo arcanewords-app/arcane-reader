@@ -11,6 +11,7 @@ description: Preact UI patterns for Arcane Reader — components, tokens, i18n, 
 - New pages, modals, forms, reading/editor UI
 - Styling, responsive layout, accessibility fixes
 - Adding or changing client routes (with `AppRouter.tsx` + `routing.mdc`)
+- **Tabs, filters, in-app navigation** — read `@.cursor/rules/spa-navigation.mdc` and `@docs/02-how-to/sync-url-with-ui-state.md`
 - **Filters, toolbars, chips, badges** — read [PATTERNS.md](./PATTERNS.md) first
 
 ## Domain Knowledge

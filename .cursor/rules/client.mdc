@@ -37,6 +37,8 @@ alwaysApply: false
 
 - `preact-router`. Routes in `@src/client/AppRouter.tsx`.
 - If client routes/navigation change, sync `@.cursor/rules/routing.mdc` in the same change.
+- **Shareable UI state** (chapter, tab, filter): sync to URL without page reload — see `@.cursor/rules/spa-navigation.mdc`.
+- **Shareable UI state** (chapter, tab, filter): sync to URL without page reload — see `@.cursor/rules/spa-navigation.mdc`.
 
 ## UI Change Checklist (Required for `src/client/**`)
 
