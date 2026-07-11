@@ -60,3 +60,4 @@ Read and follow: [`.cursor/skills/engine/SKILL.md`](../../skills/engine/SKILL.md
 - [ ] Text Blocks use presets from `text-block-presets.ts`
 - [ ] No HTTP or direct DB access from engine code
 - [ ] Logging via `log` from `src/engine/logger.js` (not `req.log`) per `logging.mdc`
+- [ ] Pure logic changed → add/update co-located `*.test.ts` per `testing.mdc`

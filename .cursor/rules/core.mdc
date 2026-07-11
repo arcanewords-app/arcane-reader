@@ -10,7 +10,7 @@ alwaysApply: true
 - TypeScript strict. Preact (use `preact`, not `react`).
 - Functional components. Named exports.
 - 2 spaces, LF. See `.editorconfig`.
-- Run `npm run lint` and `npm run typecheck` before committing.
+- Run `npm run lint`, `npm run typecheck`, and `npm run test` before pushing (pre-push hook enforces `lint:all` + `test`).
 
 ## Structure
 
@@ -36,7 +36,9 @@ On every meaningful change:
 
 PR checklist:
 
+- `npm run lint:all` and `npm run test` pass
 - New/changed route → `@.cursor/rules/routing.mdc` + `@src/client/AppRouter.tsx` + `@src/server.ts`
+- Pure logic in `engine/` or `shared/` → co-located `*.test.ts` per `@.cursor/rules/testing.mdc`
 - New env var → `@env.example.txt` + `@.cursor/rules/deployment.mdc`
 - New/changed DB schema → `@.cursor/rules/supabase.mdc` — SQL only in `supabase/migrations/` + row in `@supabase/README.md`
 - Plan completed → archive plan note (`status: archived`) and update `@docs/project-status.md`

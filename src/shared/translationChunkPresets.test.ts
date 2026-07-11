@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import {
   DEFAULT_TRANSLATION_CHUNK_SIZE,
   ONE_SHOT_FALLBACK_CHUNK_SIZE,

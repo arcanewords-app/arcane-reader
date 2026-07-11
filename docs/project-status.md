@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-07-11
+updated: 2026-07-12
 ---
 
 # Project status
@@ -22,7 +22,7 @@ Update this file when completing plans or shipping major features.
 - Profile tabs + publication chapter filters synced to URL query (Phase 1) — `profileRoutes.ts`, `publicationRoutes.ts`
 - Project search deep links (`/projects/:id?search=`, chapter `?search=&paragraph=`) — `projectRoutes.ts` (Phase 2)
 - Guest reading paragraph URL (`/p/.../reading?paragraph=N`) — `readingRoutes.ts` (Phase 3)
-- Shared `useUrlSync` hook + `catalogRoutes.ts`; route builder unit tests (`npm run test:url-routes`)
+- Shared `useUrlSync` hook + `catalogRoutes.ts`; route builder unit tests (`npm run test -- src/client/utils/urlRoutes.test.ts`)
 - Author workspace: projects, chapters, glossary (incl. merge suggestions)
 - 3-stage pipeline: analyze → translate → edit
 - Engine as-is docs: [[03-explanation/engine-pipeline]], [[03-explanation/engine-glossary-and-prompts]], [[03-explanation/engine-integration-boundary]]
@@ -50,10 +50,12 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
 | [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
+| [[05-plans/testing-baseline]]             | Coverage baseline + mock-first strategy (Q3 waves 0–2)                                             |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
 
 ## Known tech debt
 
+- **No dedicated test environment** — automated tests are mock-first; live integration/E2E deferred to Q4 2026+ (see [[05-plans/testing-baseline]])
 - Large legacy docs in `docs/archive/` — treat as stale; use `.cursor/rules/` + code
 - Publication reading settings not persisted (defaults to dark) — see reader-theme plan
 - Stage 3 chunk alignment still open — see [[05-plans/engine-pipeline-improvements]]; archive E2E superseded by [[03-explanation/engine-integration-boundary]]

@@ -42,7 +42,7 @@ npm run build           # required after dependency changes
 1. **Baseline first** — capture `audit:prod`, `audit:all`, `deps:outdated` (compare to `@docs/02-how-to/dependency-audit-baseline.md`).
 2. **One major per PR** — do not combine Express + Zod + Vite in one diff.
 3. **Order:** patch/minor → dev security chain → prod runtime majors → UI/build majors.
-4. **Gate:** `npm run lint:all && npm run build` + domain smoke (see below).
+4. **Gate:** `npm run lint:all && npm run test && npm run build` + domain smoke (see below).
 5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters. Root [`f:/arcane/.npmrc`](f:/arcane/.npmrc) uses `legacy-peer-deps=true` for `madge` + `eslint-plugin-import` peer gaps; root `eslint@^10` satisfies hoisted import plugin.
 
 ## Node.js SSOT (mandatory trio)
@@ -70,13 +70,13 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 
 ## Domain smoke tests (after P0–P2 changes)
 
-| Domain  | Package examples                             | Verify                                                 |
-| ------- | -------------------------------------------- | ------------------------------------------------------ |
-| Engine  | `openai`                                     | `npm run test:openai-model-adapter`; one translate job |
-| API     | `express`, `multer`                          | Chapter/glossary/avatar upload endpoints               |
-| Backend | `bullmq`, `ioredis`, `@supabase/supabase-js` | `dev:full` + worker job                                |
-| UI dev  | `vite`, `eslint`, `@preact/*`                | `npm run build`, client loads                          |
-| Deploy  | `@vercel/node`                               | Vercel preview deploy                                  |
+| Domain  | Package examples                             | Verify                                   |
+| ------- | -------------------------------------------- | ---------------------------------------- |
+| Engine  | `openai`                                     | `npm run test`; one translate job        |
+| API     | `express`, `multer`                          | Chapter/glossary/avatar upload endpoints |
+| Backend | `bullmq`, `ioredis`, `@supabase/supabase-js` | `dev:full` + worker job                  |
+| UI dev  | `vite`, `eslint`, `@preact/*`                | `npm run build`, client loads            |
+| Deploy  | `@vercel/node`                               | Vercel preview deploy                    |
 
 ## P4 backlog (defer — separate PRs)
 

@@ -142,7 +142,7 @@ Whitelist: `src/engine/language.ts` — 7 pairs (`en|ko|zh→ru`, `en|ko|zh|ru�
 3. **Edit** — cast `Ли Мин [f]` without Han characters; Reference Glossary target-only; no Chinese source section.
 4. **Translate-only** — per-chunk bilingual glossary matched on source script.
 
-Automated flow checks: `npm run test:stage-prompt-flow`.
+Automated flow checks: `npm run test -- src/engine/pipeline/stage-prompt-flow.test.ts`.
 
 ## TranslationPipeline API
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { filterGlossaryForChunk } from '../glossary/glossary-filter.js';
 import { GlossaryManager } from '../glossary/glossary-manager.js';
 import type { Glossary } from '../types/glossary.js';

@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-05-16
+updated: 2026-07-12
 canonical: docs/project-status.md
 ---
 
@@ -101,10 +101,11 @@ Details and tech debt: [[project-status]].
 
 ### P2 — Ops and platform
 
-| ID     | Theme             | Plan                                 | Open work (summary)                          |
-| ------ | ----------------- | ------------------------------------ | -------------------------------------------- |
-| **O1** | Token limits ops  | [[05-plans/tokenization-follow-ups]] | Daily reset cron/RPC; admin unlimited paths  |
-| **O2** | Production worker | [[_canonical/rules/deployment]]      | Document/run BullMQ worker beside Vercel API |
+| ID     | Theme             | Plan                                 | Open work (summary)                                  |
+| ------ | ----------------- | ------------------------------------ | ---------------------------------------------------- |
+| **O1** | Token limits ops  | [[05-plans/tokenization-follow-ups]] | Daily reset cron/RPC; admin unlimited paths          |
+| **O2** | Production worker | [[_canonical/rules/deployment]]      | Document/run BullMQ worker beside Vercel API         |
+| **T1** | Testing coverage  | [[05-plans/testing-baseline]]        | Q3: waves 0–2 mock-first; Q4+ mocked integration/E2E |
 
 ### P3 — Backlog (archive review required)
 
@@ -179,6 +180,7 @@ Flexible session order for the next 4–6 weeks:
 
 | Date       | Change                                                                         |
 | ---------- | ------------------------------------------------------------------------------ |
+| 2026-07-12 | T1 testing coverage: mock-first strategy, Q3 waves 0–2, Q4+ mocked integration |
 | 2026-05-31 | Engine as-is documentation split (3 explanation notes); plans/archive triage   |
 | 2026-05-16 | Initial roadmap after rules + Obsidian vault + archive triage + 6 active plans |
 

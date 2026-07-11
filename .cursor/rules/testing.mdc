@@ -1,0 +1,89 @@
+---
+description: Unit test policies, Vitest runner, gates, and co-location. Read when writing or reviewing *.test.ts, vitest config, or test infrastructure.
+globs: "**/*.test.ts,vitest.config.ts,stryker.conf.json"
+alwaysApply: false
+---
+
+# Testing Policy
+
+## Runner and layout
+
+- **Runner:** Vitest (`npm run test` fast suite; `npm run test:slow` for tiktoken-heavy tests; `npm run test:all` for both). SSOT config: `@vitest.config.ts`, `@vitest.slow.config.ts`, how-to: `@.cursor/skills/testing/SKILL.md`.
+- **File naming:** co-located `foo.test.ts` next to `foo.ts` (not `.spec.ts`).
+- **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
+- **No ad-hoc scripts:** do not add `scripts/test-*.ts`; put tests under `src/**/*.test.ts`.
+
+## Test environment
+
+**Current state:** no dedicated test environment (no isolated Supabase / Redis / BullMQ stack for CI).
+
+**Default:** mock external boundaries for **all** test types — unit, integration, component, system/E2E. Tests must not require prod/staging `.env` credentials.
+
+| Term in Arcane | Means |
+|----------------|-------|
+| Integration test | **Mocked integration** — supertest + `vi.mock` services, not live DB |
+| Component test | Testing Library + mocked `fetch` / API client, not real backend |
+| System / E2E test | Playwright + `page.route()` / API mocks, not full stack against staging |
+
+**Quarter scope:**
+
+- **Q3 2026 (current):** unit tests + mocked smoke (waves 0–2 in coverage plan). No live DB, Redis, worker, or Playwright gates.
+- **Q4 2026+ (future):** expanded mocked integration (supertest, Testing Library, Playwright) — still mock-first until test env exists.
+- **Future prerequisite:** dedicated test environment — only then revisit live integration; not planned for Q3.
+
+See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement_plan_926cfce7.plan.md`.
+
+## When to write tests
+
+| Situation | Action |
+|-----------|--------|
+| Bug fix in pure logic (`engine/`, `shared/`, utils) | Add regression test in co-located `*.test.ts` |
+| New SSOT module in `engine/` or `shared/` | Unit test covering main branches |
+| Zod/query helpers in `src/api/` | Test normalization and schema parsing |
+| Preact page layout / styling | Skip unit tests unless extracting pure helpers |
+| Route handler with Supabase calls | **Q3:** extract + unit test helpers; mocked middleware (`req`/`res`/`next`). **Q4+:** mocked supertest routes (still no live DB until test env) |
+| Live LLM / OpenAI API | **Never** — mock provider (see `@src/engine/providers/openai.completejson.test.ts`) |
+| Live Supabase / Redis / BullMQ | **Never** until dedicated test environment exists |
+
+## Test types in Arcane
+
+| Type | Q3 approach | Q4+ (still mock-first) | Blocked until test env |
+|------|-------------|------------------------|------------------------|
+| Unit | pure logic, co-located | same | — |
+| Mocked integration | `validateRoute` middleware, mocked `supabaseDatabase` | supertest + service mocks | — |
+| Component | pure hook helpers only | Testing Library + mocked `fetch` | live DOM + real API |
+| System/E2E | — | Playwright + API mocks / route interception | live full stack |
+
+## Layer boundaries
+
+| Layer | Allowed in tests | Forbidden |
+|-------|------------------|-----------|
+| `src/engine/**` | Pure pipeline, glossary, prompts, mocked LLM | HTTP, Supabase, `req.log` |
+| `src/shared/**` | Pure utilities, business rules | DB, Redis |
+| `src/api/**` | `validateRoute` helpers, Zod; mocked middleware (Q3) | Full Express app without mocks |
+| `src/client/**` | URL builders, pure hook helpers | Full component render without Testing Library + mocks (Q4+) |
+
+## Gates
+
+- Before **push:** `npm run lint:all` and `npm run test` (enforced via `.husky/pre-push` after setup).
+- Before **commit:** pre-commit runs lint-staged only (fast).
+- **Coverage:** monitor with `npm run test:coverage`; `coverage.include` is `src/**/*.ts` (excludes `src/client/**` until Q4+); no CI thresholds yet; `coverage/` is gitignored.
+
+## Coverage policy
+
+- Track trend, not absolute %.
+- Prioritize `engine/` and `shared/` pure modules over UI pages.
+- Do not add coverage thresholds until baseline is documented in `@docs/05-plans/testing-baseline.md`.
+
+## Documentation workflow
+
+When changing runner, gates, or test conventions:
+
+1. Update this rule (`testing.mdc`) and `@.cursor/skills/testing/SKILL.md`.
+2. Mirror to `@docs/_canonical/rules/testing.mdc`.
+3. Update `@AGENTS.md` commands table if scripts change.
+
+## Agent routing
+
+- Test infrastructure, migration, coverage baseline → **Testing** utility agent (`@.cursor/agents/testing/AGENT.md`).
+- Feature code + tests → domain agent (Engine/API/Backend/UI) + **verifier** runs `lint:all` + `test`.

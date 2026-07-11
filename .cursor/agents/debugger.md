@@ -25,6 +25,14 @@ When debugging **local** translation/API issues and `npm run dev` or `dev:full` 
 
 For **production/staging**, use `@.cursor/skills/axiom-mcp/SKILL.md` instead of `/api/debug/*`.
 
+## Test failures
+
+When debugging **Vitest** or pre-push test failures:
+
+1. Read `@.cursor/skills/testing/SKILL.md` and `PATTERNS.md`
+2. Reproduce: `npx vitest run path/to/failing.test.ts`
+3. Fix minimal root cause; do not disable tests without user approval
+
 ## Deliverables
 
 For each issue, provide:

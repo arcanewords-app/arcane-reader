@@ -79,22 +79,26 @@ npm run kill-port
 
 ## A. Local dev (npm)
 
-| Task                     | Command                          |
-| ------------------------ | -------------------------------- |
-| Install deps (monorepo)  | `cd f:\arcane && npm install`    |
-| Install deps (reader)    | `npm install` in `arcane-reader` |
-| API + Vite UI            | `npm run dev`                    |
-| API + UI + BullMQ worker | `npm run dev:full`               |
-| Worker only              | `npm run worker`                 |
-| Server only              | `npm run dev:server`             |
-| Client only              | `npm run dev:client`             |
-| Free port 3000           | `npm run kill-port`              |
-| Force restart API        | `npm run dev:force`              |
-| Lint + typecheck         | `npm run lint:all`               |
-| ESLint                   | `npm run lint`                   |
-| Typecheck                | `npm run typecheck`              |
-| Format                   | `npm run format`                 |
-| Production build         | `npm run build`                  |
+| Task                     | Command                              |
+| ------------------------ | ------------------------------------ |
+| Install deps (monorepo)  | `cd f:\arcane && npm install`        |
+| Install deps (reader)    | `npm install` in `arcane-reader`     |
+| API + Vite UI            | `npm run dev`                        |
+| API + UI + BullMQ worker | `npm run dev:full`                   |
+| Worker only              | `npm run worker`                     |
+| Server only              | `npm run dev:server`                 |
+| Client only              | `npm run dev:client`                 |
+| Free port 3000           | `npm run kill-port`                  |
+| Force restart API        | `npm run dev:force`                  |
+| Lint + typecheck         | `npm run lint:all`                   |
+| Unit tests               | `npm run test`                       |
+| Tests (watch)            | `npm run test:watch`                 |
+| Coverage report          | `npm run test:coverage`              |
+| Focused test run         | `npx vitest run src/engine/glossary` |
+| ESLint                   | `npm run lint`                       |
+| Typecheck                | `npm run typecheck`                  |
+| Format                   | `npm run format`                     |
+| Production build         | `npm run build`                      |
 
 **Node:** `.nvmrc` pins **24**. On Windows use [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 24`, `nvm use 24`. Restart the terminal after install so `PATH` picks up `C:\nvm4w\nodejs`. Keep `.nvmrc`, `package.json` `engines.node`, and `@types/node` in sync (see `@.cursor/skills/dependency-maintenance/SKILL.md`).
 

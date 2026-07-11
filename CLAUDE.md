@@ -12,6 +12,7 @@ TypeScript (strict), Preact, Express, Supabase (PostgreSQL, Auth, Storage), Redi
 npm run dev          # API + Vite client
 npm run dev:full     # + BullMQ worker
 npm run lint:all     # lint + typecheck
+npm run test         # Vitest unit tests
 npm run typecheck
 ```
 

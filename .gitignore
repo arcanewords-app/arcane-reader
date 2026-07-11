@@ -35,6 +35,8 @@ npm-debug.log*
 
 # Cache
 .cache/
+coverage/
+reports/
 *.tsbuildinfo
 
 # Local debug persistence (dev only)

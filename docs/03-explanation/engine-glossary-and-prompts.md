@@ -126,7 +126,7 @@ Two independent settings combine at runtime:
 
 `getEditorSystemPrompt(preset, focus, target)` prepends the focus overlay, then appends the style block, then **gender agreement** (see below). User prompt: chunk-filtered `toEditPromptText` (target forms only) + `toEditCastPromptText` (always, up to 25 chapter characters) + style notes + translated text (no source).
 
-**Re-edit workflow:** run `stages: ['editing']` on an existing translation with `editingFocus: 'fix_problems'` (optionally `editingStylePreset: 'minimal'`) — only Stage 3 tokens, no re-translate. Compare prompt combos: `npm run test:editing-prompts`.
+**Re-edit workflow:** run `stages: ['editing']` on an existing translation with `editingFocus: 'fix_problems'` (optionally `editingStylePreset: 'minimal'`) — only Stage 3 tokens, no re-translate. Prompt combo tests: `npm run test -- src/engine/prompts/editing-prompt-combos.test.ts`.
 
 ### Gender agreement
 

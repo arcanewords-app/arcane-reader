@@ -54,3 +54,4 @@ Read and follow: [`.cursor/skills/api/SKILL.md`](../../skills/api/SKILL.md)
 - [ ] `routing.mdc` updated for new/changed/removed routes
 - [ ] Auth level documented (`requireRole`, `optionalAuth`)
 - [ ] Logs via `req.log` (English, structured)
+- [ ] Pure helpers changed → add/update co-located `*.test.ts` per `testing.mdc`

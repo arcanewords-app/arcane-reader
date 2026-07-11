@@ -63,3 +63,4 @@ Read and follow: [`.cursor/skills/ui/SKILL.md`](../../skills/ui/SKILL.md)
 - [ ] Touch targets ≥ 44px on mobile/tablet
 - [ ] If routes changed: `routing.mdc` + `AppRouter.tsx` updated in same task
 - [ ] Reusable UX shipped → consider entry in [PATTERNS.md](../../skills/ui/PATTERNS.md)
+- [ ] Pure utils/hooks extracted → co-located `*.test.ts` per `testing.mdc`

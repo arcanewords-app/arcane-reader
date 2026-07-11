@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import type { Glossary } from '../types/glossary.js';
 import { GlossaryManager } from './glossary-manager.js';
 
@@ -116,5 +116,19 @@ describe('GlossaryManager edit prompt formatting', () => {
   it('toCastPromptText regression: bilingual cast for translate', () => {
     const castText = GlossaryManager.toCastPromptText(zhRuGlossary.characters);
     assert.ok(castText.includes('李明 → Ли Мин [f]'));
+  });
+
+  it('addCharacter increases glossary and can round-trip to prompt', () => {
+    const manager = new GlossaryManager(makeGlossary());
+    manager.addCharacter({
+      originalName: '王五',
+      translatedName: 'Ван У',
+      gender: 'male',
+      description: 'side character',
+      isMainCharacter: false,
+    });
+    assert.equal(manager.characterCount, 1);
+    const text = manager.toPromptText({ targetLanguageLabel: 'Russian' });
+    assert.ok(text.includes('王五 → Ван У'));
   });
 });

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import {
   getTranslationCoverage,
   hasValidParagraphTranslation,
@@ -39,7 +39,31 @@ describe('chapterTranslationCoverage', () => {
     assert.deepEqual(coverage.missingParagraphIds, ['2']);
   });
 
-  it('rejects chunk error translations', () => {
+  it('resolveChapterStatusAfterTranslation: completed after full edit', () => {
+    const paragraphs = [para('1', 'A', 'B'), para('2', 'C', 'D')];
+    assert.equal(
+      resolveChapterStatusAfterTranslation({
+        paragraphs,
+        runEditing: true,
+        editingPhase: 'after_edit',
+      }),
+      'completed'
+    );
+  });
+
+  it('resolveChapterStatusAfterTranslation: partial when no translations at all', () => {
+    const paragraphs = [para('1', 'A', ''), para('2', 'C', '')];
+    assert.equal(
+      resolveChapterStatusAfterTranslation({
+        paragraphs,
+        runEditing: false,
+        editingPhase: 'none',
+      }),
+      'partial'
+    );
+  });
+
+  it('hasValidParagraphTranslation rejects chunk error marker', () => {
     const p = para('1', 'Hi', '[ERROR] chunk failed');
     assert.equal(hasValidParagraphTranslation(p), false);
   });

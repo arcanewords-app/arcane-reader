@@ -588,7 +588,7 @@ Scraping may be **technically feasible** while **legally restricted** by copyrig
 **Done when:**
 
 - [x] Fixture tests export valid `ParseResult` for chapters 1–5 (no network)
-- [x] `npm run test:scraper` passes
+- [x] `npm run test -- src/services/web-scraper` passes (or focused path)
 - [x] `npm run typecheck` includes scraper package
 - [x] Live CLI smoke on Royal Road (Mother of Learning ch.1)
 
@@ -625,7 +625,7 @@ Reader UI/API/worker scrape path was built then **removed**. Not the current arc
 
 - [x] `npm run dev:scraper` → scrape RR/syosetu with stage timeline (no Redis)
 - [x] `rg scraper arcane-reader/src` → 0 matches
-- [x] `npm run test:scraper` passes
+- [x] `npm run test -- src/services/web-scraper` passes (or focused path)
 
 ### Out of scope (MVP)
 
