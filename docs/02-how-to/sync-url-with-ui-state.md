@@ -5,7 +5,7 @@ domain: client
 canonical: .cursor/rules/spa-navigation.mdc
 stale: false
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-12
 ---
 
 # How to sync URL with UI state
@@ -41,7 +41,7 @@ export function buildReadingChapterUrl(params: {
 }
 ```
 
-Catalog example: `buildCatalogUrl()` in `src/client/pages/HomePage.tsx`.
+Catalog example: `buildCatalogUrl()` in `src/client/utils/catalogRoutes.ts`. When the user is already on `/` or `/catalog`, builders keep the current path segment so query-only navigation does not remount `HomePage`.
 
 ## 3. Update URL on every navigation path
 
@@ -64,27 +64,19 @@ Use `route(url, true)` for replace when canonicalizing an entry URL (see `Readin
 
 **Path params:** page receives `chapterId` from `preact-router`; pass to child as `initialChapterId`.
 
-**Query params:** read on mount and on history events:
+**Query params:** read on mount and on history events. Prefer `useUrlSync` + route builders (see `catalogRoutes.ts`, `profileRoutes.ts`):
 
 ```typescript
-// HomePage.tsx pattern
-function getFilterFromUrl(): CatalogFilter {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('filter') === 'mine' ? 'mine' : 'all';
-}
-
-useEffect(() => {
-  const syncFromUrl = () => {
-    setFilter(getFilterFromUrl()); /* ... */
-  };
-  syncFromUrl();
-  window.addEventListener('popstate', syncFromUrl);
-  window.addEventListener('arcane:route-change', syncFromUrl);
-  return () => {
-    /* cleanup */
-  };
-}, []);
+// HomePage.tsx — catalog filters via useUrlSync
+const { state, setState } = useUrlSync({
+  parse: () => sanitizeCatalogUrlStateForAuth(parseCatalogUrlState(), isAuthor),
+  build: buildCatalogUrlFromState, // pathname-aware: / or /catalog
+  pathnameGuard: () => isCatalogPath(window.location.pathname),
+  historyMode: 'push',
+});
 ```
+
+Legacy manual listener pattern (if not using `useUrlSync`):
 
 Sync index/state when URL identity changes; use a ref to avoid resetting on unrelated parent re-renders (`lastInitialChapterIdRef` in `ReadingMode`).
 
@@ -93,6 +85,8 @@ Sync index/state when URL identity changes; use a ref to avoid resetting on unre
 When only `:chapterId` (or query) changes, do **not** re-fetch page-level data that does not depend on the new param.
 
 `PublicationReadingPage` loads read progress **once per publication mount** (`progressLoaded`), not on every `chapterId` change — prevents a full-page spinner when flipping chapters.
+
+`HomePage` splits `initialLoading` (first mount) from `refreshing` (tab/filter refetch) so switching «Мои работы» on `/` does not flash a full-page spinner.
 
 ## 6. Update routing docs
 

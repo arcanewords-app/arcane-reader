@@ -99,8 +99,9 @@ export function useProjectSearch({
   }, [isOpen, initialQuery]);
 
   useEffect(() => {
+    if (!isOpen) return;
     onDebouncedQueryChange?.(debouncedQuery);
-  }, [debouncedQuery, onDebouncedQueryChange]);
+  }, [isOpen, debouncedQuery, onDebouncedQueryChange]);
 
   const debouncedParsedChapterFrom = parseChapterBound(debouncedChapterFrom);
   const debouncedParsedChapterTo = parseChapterBound(debouncedChapterTo);

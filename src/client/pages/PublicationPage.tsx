@@ -24,6 +24,7 @@ import {
   type PublicationReadFilter,
   type PublicationTranslationFilter,
 } from '../utils/publicationRoutes';
+import { buildCatalogEntityFilterUrl } from '../utils/catalogRoutes';
 import { useUrlSyncListeners } from '../hooks/useUrlSync';
 import './PublicationPage.css';
 
@@ -463,7 +464,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     entity={authorEntity}
                     compact
                     onClick={() => {
-                      route(`/catalog?author=${authorEntity.id}`);
+                      route(buildCatalogEntityFilterUrl('author', authorEntity.id));
                     }}
                   />
                 </div>
@@ -483,7 +484,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     entity={translatorEntity}
                     compact
                     onClick={() => {
-                      route(`/catalog?translator=${translatorEntity.id}`);
+                      route(buildCatalogEntityFilterUrl('translator', translatorEntity.id));
                     }}
                   />
                 </div>
@@ -505,7 +506,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   key={entity.id}
                   entity={entity}
                   onClick={() => {
-                    route(`/catalog?tag=${entity.id}`);
+                    route(buildCatalogEntityFilterUrl('tag', entity.id));
                   }}
                 />
               ))}

@@ -13,6 +13,7 @@ import {
   buildCatalogUrlFromState,
   isCatalogPath,
   parseCatalogUrlState,
+  sanitizeCatalogUrlStateForAuth,
 } from '../utils/catalogRoutes';
 import { useUrlSync } from '../hooks/useUrlSync';
 import './HomePage.css';
@@ -21,10 +22,20 @@ export function HomePage() {
   const { t } = useTranslation();
   const { user, isAtLeast } = useUserRole();
   const isAuthor = !!authService.getToken() && isAtLeast('author');
+  const hasToken = !!authService.getToken();
+  const authReady = user !== null || !hasToken;
   const [showSuggestLoginPrompt, setShowSuggestLoginPrompt] = useState(false);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
-  const { state: catalogUrlState, setState: setCatalogUrlState } = useUrlSync({
-    parse: parseCatalogUrlState,
+  const parseCatalogForAuth = useCallback(
+    () => sanitizeCatalogUrlStateForAuth(parseCatalogUrlState(), isAuthor),
+    [isAuthor]
+  );
+  const {
+    state: catalogUrlState,
+    setState: setCatalogUrlState,
+    replaceUrl,
+  } = useUrlSync({
+    parse: parseCatalogForAuth,
     build: buildCatalogUrlFromState,
     pathnameGuard: () => isCatalogPath(window.location.pathname),
     historyMode: 'push',
@@ -45,7 +56,9 @@ export function HomePage() {
   const [readingHistoryMap, setReadingHistoryMap] = useState<
     Record<string, { lastReadChapterId: string | null }>
   >({});
-  const [loading, setLoading] = useState(true);
+  const hasLoadedOnceRef = useRef(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const languageCodes = useMemo(() => {
@@ -120,7 +133,9 @@ export function HomePage() {
 
   const loadData = useCallback(() => {
     const loadId = ++loadIdRef.current;
-    setLoading(true);
+    const isRefresh = hasLoadedOnceRef.current;
+    if (isRefresh) setRefreshing(true);
+    else setInitialLoading(true);
     setError(null);
 
     const prefetchEntities = (list: (PublicationListItem | Publication)[]) => {
@@ -178,7 +193,9 @@ export function HomePage() {
         })
         .finally(() => {
           if (loadIdRef.current !== loadId) return;
-          setLoading(false);
+          hasLoadedOnceRef.current = true;
+          setInitialLoading(false);
+          setRefreshing(false);
         });
     } else {
       api
@@ -202,7 +219,9 @@ export function HomePage() {
         })
         .finally(() => {
           if (loadIdRef.current !== loadId) return;
-          setLoading(false);
+          hasLoadedOnceRef.current = true;
+          setInitialLoading(false);
+          setRefreshing(false);
         });
     }
   }, [filter, isAuthor, entityFilter]);
@@ -233,8 +252,19 @@ export function HomePage() {
   }, [entityFilter]);
 
   useEffect(() => {
+    if (!authReady) return;
+    if (filter === 'mine' && !isAuthor) return;
     loadData();
-  }, [loadData]);
+  }, [authReady, filter, isAuthor, loadData]);
+
+  useEffect(() => {
+    if (!authReady || isAuthor) return;
+    const fromUrl = parseCatalogUrlState();
+    const sanitized = sanitizeCatalogUrlStateForAuth(fromUrl, false);
+    if (sanitized.filter === fromUrl.filter) return;
+    setCatalogUrlState(sanitized, { syncUrl: false });
+    replaceUrl(sanitized);
+  }, [authReady, isAuthor, setCatalogUrlState, replaceUrl]);
 
   useEffect(() => {
     if (!hasCompleteWorks && completeOnly) {
@@ -275,7 +305,7 @@ export function HomePage() {
   const showMyWorksTab = isAuthor;
   const isMineTab = filter === 'mine';
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div class="home-page">
         <div class="home-loading">
@@ -285,7 +315,7 @@ export function HomePage() {
     );
   }
 
-  if (error) {
+  if (error && publications.length === 0) {
     return (
       <div class="home-page">
         <div class="home-error">
@@ -376,8 +406,18 @@ export function HomePage() {
         )}
       </div>
 
+      {error && publications.length > 0 && (
+        <div class="home-refresh-error">
+          <p>{t('home.error')}</p>
+          <button type="button" class="page-back-btn" onClick={loadData}>
+            {t('common.retry')}
+          </button>
+        </div>
+      )}
+
       {publications.length === 0 ? (
-        <div class="home-empty">
+        <div class={`home-empty${refreshing ? ' home-empty--refreshing' : ''}`}>
+          {refreshing && <LoadingSpinner size="md" text={t('home.loading')} />}
           <div class="home-empty-icon">
             <Icon name="menu_book" />
           </div>
@@ -501,7 +541,12 @@ export function HomePage() {
               )}
             </div>
           ) : (
-            <div class="home-grid">
+            <div class={`home-grid${refreshing ? ' home-grid--refreshing' : ''}`}>
+              {refreshing && (
+                <div class="home-grid-refresh-overlay" aria-busy="true">
+                  <LoadingSpinner size="md" />
+                </div>
+              )}
               {filteredPublications.map((pub) => (
                 <PublicationCard
                   key={pub.id}

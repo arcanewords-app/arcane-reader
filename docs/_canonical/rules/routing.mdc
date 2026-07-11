@@ -31,7 +31,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | Path | Access | Component | Description |
 |------|--------|-----------|-------------|
 | `/` | guest+ | CatalogPage (HomePage) | Main catalog, tabs: All / My works |
-| `/catalog` | guest+ | CatalogPage | Same as `/`. Query: `filter=mine`, `author`, `translator`, `tag` (entity IDs for filtering) |
+| `/catalog` | guest+ | CatalogPage | Same as `/`. Query: `filter=mine`, `author`, `translator`, `tag` (entity IDs for filtering). In-app tab/filter sync preserves current path (`/` or `/catalog`) to avoid remount |
 | `/about` | guest+ | AboutPage | About Arcane |
 | `/account-tiers` | guest+ | AccountTiersPage | Account level comparison (reader / author tiers) |
 | `/contact` | guest+ | ContactPage | Contact info |

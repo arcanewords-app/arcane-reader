@@ -11,16 +11,29 @@ export type UseUrlSyncOptions<T> = {
   initialState?: T;
 };
 
+export function urlSyncStateEquals<T>(prev: T, next: T): boolean {
+  if (Object.is(prev, next)) return true;
+  if (typeof prev === 'object' && prev !== null && typeof next === 'object' && next !== null) {
+    return JSON.stringify(prev) === JSON.stringify(next);
+  }
+  return false;
+}
+
 export function useUrlSync<T>(options: UseUrlSyncOptions<T>) {
-  const { parse, build, pathnameGuard, historyMode = 'replace', initialState } = options;
-  const [state, setStateInternal] = useState<T>(() => initialState ?? parse());
+  const { initialState } = options;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  const [state, setStateInternal] = useState<T>(() => initialState ?? options.parse());
   const stateRef = useRef(state);
   stateRef.current = state;
 
   const syncFromUrl = useCallback(() => {
+    const { parse, pathnameGuard } = optionsRef.current;
     if (pathnameGuard && !pathnameGuard()) return;
-    setStateInternal(parse());
-  }, [parse, pathnameGuard]);
+    const next = parse();
+    setStateInternal((prev) => (urlSyncStateEquals(prev, next) ? prev : next));
+  }, []);
 
   useEffect(() => {
     syncFromUrl();
@@ -32,31 +45,26 @@ export function useUrlSync<T>(options: UseUrlSyncOptions<T>) {
     };
   }, [syncFromUrl]);
 
-  const setState = useCallback(
-    (next: T | ((prev: T) => T), opts?: { syncUrl?: boolean }) => {
-      const resolved =
-        typeof next === 'function' ? (next as (prev: T) => T)(stateRef.current) : next;
-      setStateInternal(resolved);
-      if (opts?.syncUrl === false) return;
-      if (pathnameGuard && !pathnameGuard()) return;
-      const url = build(resolved);
-      const current = window.location.pathname + window.location.search;
-      if (current === url) return;
-      route(url, historyMode === 'replace');
-    },
-    [build, pathnameGuard, historyMode]
-  );
+  const setState = useCallback((next: T | ((prev: T) => T), opts?: { syncUrl?: boolean }) => {
+    const { build, pathnameGuard, historyMode = 'replace' } = optionsRef.current;
+    const resolved = typeof next === 'function' ? (next as (prev: T) => T)(stateRef.current) : next;
+    setStateInternal((prev) => (urlSyncStateEquals(prev, resolved) ? prev : resolved));
+    if (opts?.syncUrl === false) return;
+    if (pathnameGuard && !pathnameGuard()) return;
+    const url = build(resolved);
+    const current = window.location.pathname + window.location.search;
+    if (current === url) return;
+    route(url, historyMode === 'replace');
+  }, []);
 
-  const replaceUrl = useCallback(
-    (next: T) => {
-      if (pathnameGuard && !pathnameGuard()) return;
-      const url = build(next);
-      const current = window.location.pathname + window.location.search;
-      if (current === url) return;
-      route(url, true);
-    },
-    [build, pathnameGuard]
-  );
+  const replaceUrl = useCallback((next: T) => {
+    const { build, pathnameGuard } = optionsRef.current;
+    if (pathnameGuard && !pathnameGuard()) return;
+    const url = build(next);
+    const current = window.location.pathname + window.location.search;
+    if (current === url) return;
+    route(url, true);
+  }, []);
 
   return { state, setState, syncFromUrl, replaceUrl };
 }

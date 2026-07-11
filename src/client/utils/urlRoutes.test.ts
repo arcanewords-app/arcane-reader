@@ -3,9 +3,11 @@ import { describe, it } from 'node:test';
 import {
   buildCatalogUrl,
   buildCatalogUrlFromState,
+  getCatalogBasePath,
   parseCatalogEntityFilterFromUrl,
   parseCatalogFilterFromUrl,
   parseCatalogUrlState,
+  sanitizeCatalogUrlStateForAuth,
 } from './catalogRoutes.js';
 import { buildProfileUrl, parseProfileTabFromUrl } from './profileRoutes.js';
 import {
@@ -127,12 +129,20 @@ describe('projectRoutes', () => {
 });
 
 describe('catalogRoutes', () => {
-  it('omits default catalog filter', () => {
-    assert.equal(buildCatalogUrl('all', {}), '/catalog');
-    assert.equal(buildCatalogUrl('mine', { author: 'a1' }), '/catalog?filter=mine&author=a1');
+  it('omits default catalog filter on /catalog base', () => {
+    assert.equal(buildCatalogUrl('all', {}, '/catalog'), '/catalog');
+    assert.equal(
+      buildCatalogUrl('mine', { author: 'a1' }, '/catalog'),
+      '/catalog?filter=mine&author=a1'
+    );
   });
 
-  it('round-trips catalog state', () => {
+  it('preserves / base path for in-catalog navigation', () => {
+    assert.equal(buildCatalogUrl('mine', {}, '/'), '/?filter=mine');
+    assert.equal(buildCatalogUrl('all', {}, '/'), '/');
+  });
+
+  it('round-trips catalog state on /catalog', () => {
     withPathAndSearch('/catalog', '?filter=mine&tag=t1', () => {
       const state = parseCatalogUrlState();
       assert.equal(state.filter, 'mine');
@@ -146,6 +156,18 @@ describe('catalogRoutes', () => {
       assert.equal(entity.translator, undefined);
       assert.equal(entity.tag, undefined);
     });
+  });
+
+  it('strips guest mine filter', () => {
+    const state = { filter: 'mine' as const, entityFilter: {} };
+    const sanitized = sanitizeCatalogUrlStateForAuth(state, false);
+    assert.equal(sanitized.filter, 'all');
+  });
+
+  it('getCatalogBasePath preserves / vs /catalog', () => {
+    assert.equal(getCatalogBasePath('/'), '/');
+    assert.equal(getCatalogBasePath('/catalog'), '/catalog');
+    assert.equal(getCatalogBasePath('/projects'), '/catalog');
   });
 });
 

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'preact/hooks';
 import { route } from 'preact-router';
 import type { PublicEntity } from '../../types';
 import { api } from '../../api/client';
+import { buildCatalogEntityFilterUrl } from '../../utils/catalogRoutes';
 import '../../styles/components/card-content-popup.css';
 import './EntityChip.css';
 
@@ -51,7 +52,7 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
     (e: Event) => {
       if (entityId) {
         e.stopPropagation();
-        route(`/catalog?${routeParam}=${entityId}`);
+        route(buildCatalogEntityFilterUrl(routeParam, entityId));
       }
     },
     [entityId, routeParam]
@@ -61,7 +62,7 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
     (e: KeyboardEvent) => {
       if (entityId && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
-        route(`/catalog?${routeParam}=${entityId}`);
+        route(buildCatalogEntityFilterUrl(routeParam, entityId));
       }
     },
     [entityId, routeParam]

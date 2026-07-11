@@ -48,7 +48,7 @@ Add new path segments to `routing.mdc`, `AppRouter.tsx`, and server SPA fallback
 ## Implementation recipe
 
 1. **Decide** if state is shareable (another person should reproduce the view from a link).
-2. **Add** `buildXxxUrl()` in `src/client/utils/` (see `@src/client/utils/readingRoutes.ts`, `buildCatalogUrl` in `HomePage.tsx`).
+2. **Add** `buildXxxUrl()` in `src/client/utils/` (see `@src/client/utils/readingRoutes.ts`, `buildCatalogUrl` in `catalogRoutes.ts`).
 3. **On every mutation** (button, keyboard, TOC): save side effects first (e.g. reading position), then `route(url)` with guard:
 
    ```typescript
@@ -83,7 +83,7 @@ Add new path segments to `routing.mdc`, `AppRouter.tsx`, and server SPA fallback
 | Publication filters | `PublicationPage.tsx`, `publicationRoutes.ts` | `useUrlSyncListeners` + debounced replace |
 | Project search | `ProjectPage.tsx`, `projectRoutes.ts` | `?search=` opens modal; chapter `?search=&paragraph=` |
 | Reading chapters | `ReadingMode/index.tsx`, `readingRoutes.ts` | Path push; `?paragraph=N` for guest scroll |
-| Catalog filters | `HomePage.tsx`, `catalogRoutes.ts` | `useUrlSync` push |
+| Catalog filters | `HomePage.tsx`, `catalogRoutes.ts` | `useUrlSync` push; preserves `/` vs `/catalog` on in-catalog navigation |
 | Chapter editor | `ChapterPage.tsx`, `projectRoutes.ts` | Path + `?search=`, `?paragraph=` (UUID) |
 | Admin tabs | `AppRouter.tsx` | Separate paths per section |
 | Debug filters | `debug-app/hooks/useUrlSync.ts` | Query + `replaceState` (dev only) |
