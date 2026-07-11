@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { Modal, Button, LoadingSpinner, Icon } from '../ui';
 import { api } from '../../api/client';
+import { buildChapterEditorUrl } from '../../utils/projectRoutes';
 import './ReportsModal.css';
 
 export interface TranslationReport {
@@ -55,8 +56,11 @@ export function ReportsModal({ isOpen, onClose, projectId, onReportsChange }: Re
   const handleGoToChapter = (chapterId: string, description?: string) => {
     onClose();
     const searchQuery = description?.trim().slice(0, 60) ?? '';
-    const searchParam = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : '';
-    route(`/projects/${projectId}/chapters/${chapterId}${searchParam}`);
+    route(
+      buildChapterEditorUrl(projectId, chapterId, {
+        search: searchQuery || undefined,
+      })
+    );
   };
 
   const handleUpdateStatus = async (reportId: string, status: 'reviewed' | 'resolved') => {

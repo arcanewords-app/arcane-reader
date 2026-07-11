@@ -78,9 +78,13 @@ Add new path segments to `routing.mdc`, `AppRouter.tsx`, and server SPA fallback
 
 | Feature | Files | Pattern |
 |---------|-------|---------|
-| Reading chapters | `ReadingMode/index.tsx`, `readingRoutes.ts` | Path push on prev/next/TOC |
-| Catalog filters | `HomePage.tsx` | Query via `route(buildCatalogUrl(...))` |
-| Chapter editor | `ChapterPage.tsx` | Path + `?search=`, `?paragraph=` |
+| Shared URL hook | `hooks/useUrlSync.ts`, `utils/catalogRoutes.ts` | `useUrlSync` + route builders in `utils/` |
+| Profile tabs | `ProfilePage.tsx`, `profileRoutes.ts` | `useUrlSync` push |
+| Publication filters | `PublicationPage.tsx`, `publicationRoutes.ts` | `useUrlSyncListeners` + debounced replace |
+| Project search | `ProjectPage.tsx`, `projectRoutes.ts` | `?search=` opens modal; chapter `?search=&paragraph=` |
+| Reading chapters | `ReadingMode/index.tsx`, `readingRoutes.ts` | Path push; `?paragraph=N` for guest scroll |
+| Catalog filters | `HomePage.tsx`, `catalogRoutes.ts` | `useUrlSync` push |
+| Chapter editor | `ChapterPage.tsx`, `projectRoutes.ts` | Path + `?search=`, `?paragraph=` (UUID) |
 | Admin tabs | `AppRouter.tsx` | Separate paths per section |
 | Debug filters | `debug-app/hooks/useUrlSync.ts` | Query + `replaceState` (dev only) |
 

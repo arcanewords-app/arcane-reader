@@ -45,6 +45,7 @@
     "test:scraper-chapter": "node --import tsx --test src/shared/scraperChapter.test.ts",
     "seed:news": "tsx scripts/seed-news-from-drafts.ts",
     "test:simple-markdown": "node --import tsx --test src/client/utils/simpleMarkdown.test.ts",
+    "test:url-routes": "node --import tsx --test src/client/utils/urlRoutes.test.ts",
     "test:openai-model-adapter": "node --import tsx --test src/shared/openaiModelAdapter.test.ts",
     "test:resolve-execution-options": "node --import tsx --test src/engine/pipeline/resolve-execution-options.test.ts",
     "format": "prettier --write .",

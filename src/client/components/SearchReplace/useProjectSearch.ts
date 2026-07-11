@@ -30,6 +30,10 @@ export interface UseProjectSearchOptions {
   chapters: ChapterListItem[];
   textBlockTypes?: TextBlockType[];
   onRefresh?: () => void | Promise<void>;
+  /** Pre-fill find query (e.g. from `/projects/:id?search=`). */
+  initialQuery?: string;
+  /** Called when debounced query changes (parent may sync URL). */
+  onDebouncedQueryChange?: (query: string) => void;
 }
 
 export function useProjectSearch({
@@ -39,6 +43,8 @@ export function useProjectSearch({
   chapters,
   textBlockTypes = [],
   onRefresh,
+  initialQuery = '',
+  onDebouncedQueryChange,
 }: UseProjectSearchOptions) {
   const [query, setQuery] = useState('');
   const [replace, setReplace] = useState('');
@@ -82,6 +88,19 @@ export function useProjectSearch({
 
   const abortRef = useRef<AbortController | null>(null);
   const requestGenRef = useRef(0);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    const justOpened = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (justOpened && initialQuery.trim()) {
+      setQuery(initialQuery.trim());
+    }
+  }, [isOpen, initialQuery]);
+
+  useEffect(() => {
+    onDebouncedQueryChange?.(debouncedQuery);
+  }, [debouncedQuery, onDebouncedQueryChange]);
 
   const debouncedParsedChapterFrom = parseChapterBound(debouncedChapterFrom);
   const debouncedParsedChapterTo = parseChapterBound(debouncedChapterTo);

@@ -227,6 +227,8 @@ export function ReadingMode({
   const reportTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const currentParagraphIndexRef = useRef(0);
   const hasAppliedInitialScrollRef = useRef(false);
+  const paragraphUrlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedParagraphUrlRef = useRef(-1);
 
   const currentChapter = chapters[currentChapterIndex];
 
@@ -240,10 +242,40 @@ export function ReadingMode({
         chapterId: targetChapterId,
       });
       if (!url) return;
-      if (typeof window !== 'undefined' && window.location.pathname === url) return;
+      if (
+        typeof window !== 'undefined' &&
+        window.location.pathname + window.location.search === url
+      ) {
+        return;
+      }
+      lastSyncedParagraphUrlRef.current = -1;
       route(url, replace);
     },
     [isPublicationMode, publicationPath, publicationId, project?.id]
+  );
+
+  const syncParagraphUrl = useCallback(
+    (paragraphIndex: number) => {
+      if (!isPublicationMode || !currentChapter || paragraphIndex <= 0) return;
+      if (lastSyncedParagraphUrlRef.current === paragraphIndex) return;
+      const url = buildReadingChapterUrl({
+        isPublicationMode,
+        publicationPath,
+        publicationId,
+        projectId: project?.id,
+        chapterId: currentChapter.id,
+        paragraphIndex,
+      });
+      if (!url) return;
+      const current = window.location.pathname + window.location.search;
+      if (current === url) {
+        lastSyncedParagraphUrlRef.current = paragraphIndex;
+        return;
+      }
+      lastSyncedParagraphUrlRef.current = paragraphIndex;
+      route(url, true);
+    },
+    [isPublicationMode, publicationPath, publicationId, project?.id, currentChapter]
   );
 
   const navigateToChapterIndex = useCallback(
@@ -523,10 +555,9 @@ export function ReadingMode({
     onSavePosition(currentChapter.id, 0);
   }, [currentChapterIndex, isPublicationMode, currentChapter?.id, onSavePosition]);
 
-  // Scroll-based paragraph position tracking: find topmost paragraph below the header on each scroll.
-  // More accurate than IntersectionObserver (works with any paragraph size, accounts for header).
+  // Scroll-based paragraph position tracking (publication mode): update ref and sync URL.
   useEffect(() => {
-    if (!onSavePosition || !isPublicationMode || !contentRef.current) return;
+    if (!isPublicationMode || !contentRef.current) return;
     const container = contentRef.current;
 
     const updateParagraphIndex = () => {
@@ -538,10 +569,15 @@ export function ReadingMode({
       const paragraphs = container.querySelectorAll<HTMLElement>('[data-paragraph-index]');
       for (const p of paragraphs) {
         const pRect = p.getBoundingClientRect();
-        // First paragraph whose bottom edge is below the header = topmost readable paragraph
         if (pRect.bottom > readableTop) {
           const idx = parseInt(p.dataset.paragraphIndex ?? '-1', 10);
-          if (idx >= 0) currentParagraphIndexRef.current = idx;
+          if (idx >= 0) {
+            currentParagraphIndexRef.current = idx;
+            if (paragraphUrlDebounceRef.current) clearTimeout(paragraphUrlDebounceRef.current);
+            paragraphUrlDebounceRef.current = setTimeout(() => {
+              syncParagraphUrl(idx);
+            }, 400);
+          }
           break;
         }
       }
@@ -553,16 +589,16 @@ export function ReadingMode({
       rafId = requestAnimationFrame(updateParagraphIndex);
     };
 
-    // Run once immediately to capture position if user hasn't scrolled yet
     updateParagraphIndex();
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       container.removeEventListener('scroll', handleScroll);
       cancelAnimationFrame(rafId);
+      if (paragraphUrlDebounceRef.current) clearTimeout(paragraphUrlDebounceRef.current);
     };
   }, [
-    onSavePosition,
     isPublicationMode,
+    syncParagraphUrl,
     currentChapterIndex,
     chapterContentMap,
     chapterContentLoading,
@@ -707,7 +743,6 @@ export function ReadingMode({
   useEffect(() => {
     const skip =
       !isPublicationMode ||
-      !onSavePosition ||
       initialParagraphIndex === undefined ||
       initialParagraphIndex <= 0 ||
       !currentChapter ||
@@ -717,15 +752,13 @@ export function ReadingMode({
       if (SCROLL_RESTORE_DEBUG && initialParagraphIndex !== undefined) {
         const reason = !isPublicationMode
           ? '!isPublicationMode'
-          : !onSavePosition
-            ? '!onSavePosition'
-            : initialParagraphIndex <= 0
-              ? 'initialParagraphIndex<=0'
-              : !currentChapter
-                ? '!currentChapter'
-                : currentChapter.id !== initialChapterId
-                  ? 'chapterId mismatch'
-                  : 'hasAppliedInitialScrollRef';
+          : initialParagraphIndex <= 0
+            ? 'initialParagraphIndex<=0'
+            : !currentChapter
+              ? '!currentChapter'
+              : currentChapter.id !== initialChapterId
+                ? 'chapterId mismatch'
+                : 'hasAppliedInitialScrollRef';
         console.log('[ReadingMode:scroll] Effect skipped', {
           reason,
           initialParagraphIndex,
@@ -1089,6 +1122,7 @@ export function ReadingMode({
       publicationId,
       projectId: project?.id,
       chapterId: currentChapter.id,
+      paragraphIndex: currentParagraphIndexRef.current,
     });
     if (!path) return;
 

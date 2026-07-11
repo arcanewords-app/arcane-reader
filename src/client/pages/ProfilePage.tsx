@@ -20,6 +20,7 @@ import {
   parseProfileTabFromUrl,
   type ProfileTab,
 } from '../utils/profileRoutes';
+import { useUrlSync } from '../hooks/useUrlSync';
 import '../components/TranslatorPseudonym/TranslatorPseudonymsSection.css';
 import './ProfilePage.css';
 
@@ -46,7 +47,12 @@ export function ProfilePage() {
   const { user, role, isAtLeast } = useUserRole();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>(() => parseProfileTabFromUrl());
+  const { state: activeTab, setState: setActiveTab } = useUrlSync<ProfileTab>({
+    parse: parseProfileTabFromUrl,
+    build: buildProfileUrl,
+    pathnameGuard: () => window.location.pathname === '/profile',
+    historyMode: 'push',
+  });
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => ({
     ...DEFAULT_READER_SETTINGS,
@@ -59,34 +65,16 @@ export function ProfilePage() {
     const raw = getRawProfileTabFromUrl();
     if (raw && !isProfileTab(raw)) {
       route(buildProfileUrl('reading'), true);
-      setActiveTab('reading');
+      setActiveTab('reading', { syncUrl: false });
     }
-  }, []);
-
-  useEffect(() => {
-    const syncFromUrl = () => {
-      if (window.location.pathname !== '/profile') return;
-      setActiveTab(parseProfileTabFromUrl());
-    };
-    syncFromUrl();
-    window.addEventListener('popstate', syncFromUrl);
-    window.addEventListener('arcane:route-change', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-      window.removeEventListener('arcane:route-change', syncFromUrl);
-    };
-  }, []);
+  }, [setActiveTab]);
 
   const handleTabClick = useCallback(
     (tab: ProfileTab) => {
       if (tab === activeTab) return;
-      const url = buildProfileUrl(tab);
-      if (window.location.pathname + window.location.search !== url) {
-        route(url);
-      }
       setActiveTab(tab);
     },
-    [activeTab]
+    [activeTab, setActiveTab]
   );
 
   useEffect(() => {

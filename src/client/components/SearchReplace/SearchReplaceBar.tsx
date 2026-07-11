@@ -42,6 +42,10 @@ export function SearchReplaceBar({
   const [debouncedFind, setDebouncedFind] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);
 
+  useEffect(() => {
+    setFind(initialFind);
+  }, [initialFind]);
+
   // Debounce find input
   useEffect(() => {
     const trimmed = find.trim().slice(0, MAX_FIND_LENGTH);

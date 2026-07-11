@@ -10,6 +10,11 @@ import { GlossaryModal } from '../components/Glossary';
 import { ReportsModal } from '../components/Reports';
 import { LoadingSpinner } from '../components/ui';
 import { api } from '../api/client';
+import {
+  buildChapterEditorUrl,
+  isProjectChapterEditorPath,
+  parseChapterEditorQueryFromUrl,
+} from '../utils/projectRoutes';
 
 interface ChapterPageProps {
   projectId: string;
@@ -26,6 +31,30 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [showReports, setShowReports] = useState(false);
   const [reportsCount, setReportsCount] = useState(0);
   const prevProjectIdRef = useRef<string | null>(null);
+  const initialEditorQuery = parseChapterEditorQueryFromUrl();
+  const [editorSearchQuery, setEditorSearchQuery] = useState(initialEditorQuery.search);
+  const [editorParagraphId, setEditorParagraphId] = useState(initialEditorQuery.paragraph);
+  const editorSearchQueryRef = useRef(editorSearchQuery);
+
+  useEffect(() => {
+    editorSearchQueryRef.current = editorSearchQuery;
+  }, [editorSearchQuery]);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      if (!isProjectChapterEditorPath(window.location.pathname)) return;
+      const parsed = parseChapterEditorQueryFromUrl();
+      setEditorSearchQuery(parsed.search);
+      setEditorParagraphId(parsed.paragraph);
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    window.addEventListener('arcane:route-change', syncFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+      window.removeEventListener('arcane:route-change', syncFromUrl);
+    };
+  }, [projectId, chapterId]);
 
   useEffect(() => {
     const projectIdChanged = prevProjectIdRef.current !== projectId;
@@ -214,29 +243,29 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const chapterListItem = sortedChapters.find((c) => c.id === chapterId);
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
 
-  const searchFromUrl =
-    typeof window !== 'undefined'
-      ? (new URLSearchParams(window.location.search).get('search') ?? '')
-      : '';
-  const paragraphFromUrl =
-    typeof window !== 'undefined'
-      ? (new URLSearchParams(window.location.search).get('paragraph') ?? '')
-      : '';
-
   if (!chapterListItem) {
     route(`/projects/${projectId}`);
     return null;
   }
 
+  const navigateToChapter = (targetChapterId: string) => {
+    const search = editorSearchQueryRef.current.trim();
+    route(
+      buildChapterEditorUrl(projectId, targetChapterId, {
+        search: search || undefined,
+      })
+    );
+  };
+
   const handlePrevChapter = () => {
     if (chapterIndex > 0) {
-      route(`/projects/${projectId}/chapters/${sortedChapters[chapterIndex - 1].id}`);
+      navigateToChapter(sortedChapters[chapterIndex - 1].id);
     }
   };
 
   const handleNextChapter = () => {
     if (chapterIndex < sortedChapters.length - 1) {
-      route(`/projects/${projectId}/chapters/${sortedChapters[chapterIndex + 1].id}`);
+      navigateToChapter(sortedChapters[chapterIndex + 1].id);
     }
   };
 
@@ -304,8 +333,8 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           onChapterUpdate={handleChapterUpdate}
           onEnterReadingMode={handleEnterReadingMode}
           onSettingsChange={handleSettingsChange}
-          initialSearchQuery={searchFromUrl}
-          initialParagraphId={paragraphFromUrl}
+          initialSearchQuery={editorSearchQuery}
+          initialParagraphId={editorParagraphId}
           onRefreshProject={handleRefreshProject}
         />
       </section>
@@ -317,9 +346,13 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           projectId={project.id}
           entries={project.glossary}
           chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
-          onNavigateToChapter={(chapterId) => {
+          onNavigateToChapter={(navChapterId, searchTerm) => {
             setShowGlossary(false);
-            route(`/projects/${project.id}/chapters/${chapterId}`);
+            route(
+              buildChapterEditorUrl(project.id, navChapterId, {
+                search: searchTerm,
+              })
+            );
           }}
           onUpdate={handleRefreshProject}
         />

@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { useSignal } from '@preact/signals';
 import type { ProjectWithChapterList, ProjectSettings } from '../types';
 import { getProject } from '../store/projects';
 import { trackEvent } from '../utils/analytics';
+import {
+  buildChapterEditorUrl,
+  buildProjectPageUrl,
+  getProjectIdFromOverviewPath,
+  isProjectOverviewPath,
+  parseProjectSearchFromUrl,
+} from '../utils/projectRoutes';
+import { useUrlSync } from '../hooks/useUrlSync';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
 import { GlossaryModal } from '../components/Glossary';
@@ -26,6 +34,45 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const [showReports, setShowReports] = useState(false);
   const [reportsCount, setReportsCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const initialSearch = parseProjectSearchFromUrl();
+  const [projectSearchOpen, setProjectSearchOpen] = useState(() => initialSearch.trim().length > 0);
+  const { state: projectSearchQuery, setState: setProjectSearchQuery } = useUrlSync({
+    parse: parseProjectSearchFromUrl,
+    build: (q) => buildProjectPageUrl(projectId, q),
+    pathnameGuard: () =>
+      isProjectOverviewPath(window.location.pathname) &&
+      getProjectIdFromOverviewPath(window.location.pathname) === projectId,
+    historyMode: 'replace',
+    initialState: initialSearch,
+  });
+  const projectSearchQueryRef = useRef(projectSearchQuery);
+
+  useEffect(() => {
+    projectSearchQueryRef.current = projectSearchQuery;
+  }, [projectSearchQuery]);
+
+  useEffect(() => {
+    if (projectSearchQuery.trim()) {
+      setProjectSearchOpen(true);
+    }
+  }, [projectSearchQuery]);
+
+  const handleProjectSearchQueryChange = useCallback(
+    (query: string) => {
+      setProjectSearchQuery(query);
+    },
+    [setProjectSearchQuery]
+  );
+
+  const handleProjectSearchOpenChange = useCallback(
+    (open: boolean) => {
+      setProjectSearchOpen(open);
+      if (!open && projectSearchQueryRef.current.trim()) {
+        setProjectSearchQuery('');
+      }
+    },
+    [setProjectSearchQuery]
+  );
 
   useEffect(() => {
     loadProject();
@@ -174,6 +221,10 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
         isMobileOpen={sidebarOpen}
         settingsOpen={settingsOpen}
         onSettingsOpenChange={setSettingsOpen}
+        projectSearchOpen={projectSearchOpen}
+        onProjectSearchOpenChange={handleProjectSearchOpenChange}
+        initialProjectSearchQuery={projectSearchQuery}
+        onProjectSearchQueryChange={handleProjectSearchQueryChange}
       />
       <section class="content">
         <ProjectInfo
@@ -193,9 +244,13 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           projectId={project.id}
           entries={project.glossary}
           chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
-          onNavigateToChapter={(chapterId) => {
+          onNavigateToChapter={(chapterId, searchTerm) => {
             setShowGlossary(false);
-            route(`/projects/${project.id}/chapters/${chapterId}`);
+            route(
+              buildChapterEditorUrl(project.id, chapterId, {
+                search: searchTerm,
+              })
+            );
           }}
           onUpdate={handleRefreshProject}
         />

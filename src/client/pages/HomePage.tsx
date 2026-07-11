@@ -9,45 +9,13 @@ import { PublicationCard } from '../components/Home/PublicationCard';
 import { CatalogFilterToolbar } from '../components/Home/CatalogFilterToolbar';
 import { LoadingSpinner, Input, Icon, Button, Modal } from '../components/ui';
 import { SuggestTranslationModal } from '../components/TranslationRequests/SuggestTranslationModal';
+import {
+  buildCatalogUrlFromState,
+  isCatalogPath,
+  parseCatalogUrlState,
+} from '../utils/catalogRoutes';
+import { useUrlSync } from '../hooks/useUrlSync';
 import './HomePage.css';
-
-type CatalogFilter = 'all' | 'mine';
-
-function getFilterFromUrl(): CatalogFilter {
-  if (typeof window === 'undefined') return 'all';
-  const params = new URLSearchParams(window.location.search);
-  return params.get('filter') === 'mine' ? 'mine' : 'all';
-}
-
-function getEntityFilterFromUrl(): {
-  author?: string;
-  translator?: string;
-  tag?: string;
-} {
-  if (typeof window === 'undefined') return {};
-  const params = new URLSearchParams(window.location.search);
-  const author = params.get('author') || undefined;
-  const translator = params.get('translator') || undefined;
-  const tag = params.get('tag') || undefined;
-  return { author, translator, tag };
-}
-
-function buildCatalogUrl(
-  filter: CatalogFilter,
-  entityFilter: {
-    author?: string;
-    translator?: string;
-    tag?: string;
-  }
-): string {
-  const params = new URLSearchParams();
-  if (filter === 'mine') params.set('filter', 'mine');
-  if (entityFilter.author) params.set('author', entityFilter.author);
-  if (entityFilter.translator) params.set('translator', entityFilter.translator);
-  if (entityFilter.tag) params.set('tag', entityFilter.tag);
-  const q = params.toString();
-  return q ? `/catalog?${q}` : '/catalog';
-}
 
 export function HomePage() {
   const { t } = useTranslation();
@@ -55,8 +23,14 @@ export function HomePage() {
   const isAuthor = !!authService.getToken() && isAtLeast('author');
   const [showSuggestLoginPrompt, setShowSuggestLoginPrompt] = useState(false);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
-  const [filter, setFilter] = useState<CatalogFilter>(getFilterFromUrl);
-  const [entityFilter, setEntityFilter] = useState(getEntityFilterFromUrl);
+  const { state: catalogUrlState, setState: setCatalogUrlState } = useUrlSync({
+    parse: parseCatalogUrlState,
+    build: buildCatalogUrlFromState,
+    pathnameGuard: () => isCatalogPath(window.location.pathname),
+    historyMode: 'push',
+  });
+  const filter = catalogUrlState.filter;
+  const entityFilter = catalogUrlState.entityFilter;
   const [entityFilterNames, setEntityFilterNames] = useState<{
     author?: string;
     translator?: string;
@@ -141,25 +115,6 @@ export function HomePage() {
     completeOnly,
     orderAsc,
   ]);
-
-  // Sync filter and entity params from URL (browser back/forward, route changes)
-  useEffect(() => {
-    const syncFromUrl = () => {
-      setFilter(getFilterFromUrl());
-      setEntityFilter(getEntityFilterFromUrl());
-    };
-    syncFromUrl();
-    window.addEventListener('popstate', syncFromUrl);
-    const handleRouteChange = () => {
-      const path = window.location.pathname;
-      if (path === '/' || path === '/catalog') syncFromUrl();
-    };
-    window.addEventListener('arcane:route-change', handleRouteChange);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-      window.removeEventListener('arcane:route-change', handleRouteChange);
-    };
-  }, []);
 
   const loadIdRef = useRef(0);
 
@@ -288,27 +243,25 @@ export function HomePage() {
   }, [hasCompleteWorks, completeOnly]);
 
   const switchToAll = useCallback(() => {
-    setFilter('all');
-    route(buildCatalogUrl('all', entityFilter));
-  }, [entityFilter]);
+    setCatalogUrlState((prev) => ({ ...prev, filter: 'all' }));
+  }, [setCatalogUrlState]);
 
   const switchToMine = useCallback(() => {
-    setFilter('mine');
-    route(buildCatalogUrl('mine', entityFilter));
-  }, [entityFilter]);
+    setCatalogUrlState((prev) => ({ ...prev, filter: 'mine' }));
+  }, [setCatalogUrlState]);
 
   const clearEntityFilter = useCallback(() => {
-    setEntityFilter({});
-    route(buildCatalogUrl(filter, {}));
-  }, [filter]);
+    setCatalogUrlState((prev) => ({ ...prev, entityFilter: {} }));
+  }, [setCatalogUrlState]);
 
   const clearEntityFilterByKey = useCallback(
     (key: 'author' | 'translator' | 'tag') => {
-      const next = { ...entityFilter, [key]: undefined };
-      setEntityFilter(next);
-      route(buildCatalogUrl(filter, next));
+      setCatalogUrlState((prev) => ({
+        ...prev,
+        entityFilter: { ...prev.entityFilter, [key]: undefined },
+      }));
     },
-    [entityFilter, filter]
+    [setCatalogUrlState]
   );
 
   const handleRead = useCallback((path: string, chapterId?: string) => {

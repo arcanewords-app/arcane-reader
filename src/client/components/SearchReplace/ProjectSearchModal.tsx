@@ -10,6 +10,7 @@ import { AiReplaceUpgradeModal } from './AiReplaceUpgradeModal';
 import { ReplacePreviewModal } from './ReplacePreviewModal';
 import { AiReplaceSetupModal } from './AiReplaceSetupModal';
 import { useProjectSearch } from './useProjectSearch';
+import { buildChapterEditorUrl } from '../../utils/projectRoutes';
 import './ProjectSearchModal.css';
 
 interface ProjectSearchModalProps {
@@ -20,6 +21,8 @@ interface ProjectSearchModalProps {
   chapters: ChapterListItem[];
   textBlockTypes?: TextBlockType[];
   onRefresh?: () => void | Promise<void>;
+  initialQuery?: string;
+  onDebouncedQueryChange?: (query: string) => void;
 }
 
 export function ProjectSearchModal({
@@ -30,6 +33,8 @@ export function ProjectSearchModal({
   chapters,
   textBlockTypes = [],
   onRefresh,
+  initialQuery = '',
+  onDebouncedQueryChange,
 }: ProjectSearchModalProps) {
   const { t } = useTranslation();
   const { isAtLeast } = useUserRole();
@@ -45,6 +50,8 @@ export function ProjectSearchModal({
     chapters,
     textBlockTypes,
     onRefresh,
+    initialQuery,
+    onDebouncedQueryChange,
   });
 
   const requestClose = useCallback(() => {
@@ -70,13 +77,15 @@ export function ProjectSearchModal({
 
   const handleOpenParagraph = useCallback(
     (m: ProjectSearchMatch) => {
-      const params = new URLSearchParams();
-      if (search.debouncedQuery) params.set('search', search.debouncedQuery);
-      params.set('paragraph', m.paragraphId);
-      const qs = params.toString();
-      route(`/projects/${projectId}/chapters/${m.chapterId}${qs ? `?${qs}` : ''}`);
+      route(
+        buildChapterEditorUrl(projectId, m.chapterId, {
+          search: search.debouncedQuery || undefined,
+          paragraph: m.paragraphId,
+        })
+      );
+      onClose();
     },
-    [projectId, search.debouncedQuery]
+    [projectId, search.debouncedQuery, onClose]
   );
 
   const handleReplaceSelected = useCallback(() => {

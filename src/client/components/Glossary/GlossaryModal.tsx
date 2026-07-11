@@ -24,7 +24,7 @@ interface GlossaryModalProps {
   /** Optional: list of chapters (number → id, title) for pills and navigation */
   chapters?: ChapterRef[];
   /** Optional: when user confirms, navigate to this chapter (modal will close from parent) */
-  onNavigateToChapter?: (chapterId: string) => void;
+  onNavigateToChapter?: (chapterId: string, searchTerm?: string) => void;
 }
 
 const typeIcons: Record<GlossaryEntryType, string> = {
@@ -157,7 +157,7 @@ export function GlossaryModal({
 }: GlossaryModalProps) {
   const { t } = useTranslation();
 
-  const handleChapterClick = (num: number) => {
+  const handleChapterClick = (num: number, searchTerm?: string) => {
     if (!onNavigateToChapter || !chapters?.length) return;
     const ch = chapters.find((c) => c.number === num);
     if (!ch) return;
@@ -165,12 +165,13 @@ export function GlossaryModal({
       chapterId: ch.id,
       number: num,
       title: ch.title ? ch.title : String(num),
+      searchTerm: searchTerm?.trim() || undefined,
     });
   };
 
   const confirmGoToChapter = () => {
     if (!pendingChapter || !onNavigateToChapter) return;
-    onNavigateToChapter(pendingChapter.chapterId);
+    onNavigateToChapter(pendingChapter.chapterId, pendingChapter.searchTerm);
     setPendingChapter(null);
   };
 
@@ -202,6 +203,7 @@ export function GlossaryModal({
     chapterId: string;
     number: number;
     title: string;
+    searchTerm?: string;
   } | null>(null);
 
   type MergeSuggestionItem = { entryIds: string[]; reason: string; suggestedPrimaryId?: string };
@@ -941,7 +943,9 @@ export function GlossaryModal({
                                     })}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleChapterClick(num);
+                                      const term =
+                                        entry.translated?.trim() || entry.original?.trim() || '';
+                                      handleChapterClick(num, term || undefined);
                                     }}
                                   >
                                     {num}
@@ -1199,8 +1203,8 @@ export function GlossaryModal({
           chapters={chapters}
           typeIcons={typeIcons}
           typeLabels={typeLabels}
-          onRequestNavigateToChapter={(chapterId, num, title) =>
-            setPendingChapter({ chapterId, number: num, title })
+          onRequestNavigateToChapter={(chapterId, num, title, searchTerm) =>
+            setPendingChapter({ chapterId, number: num, title, searchTerm })
           }
           onNavigateToChapter={onNavigateToChapter}
           onUpdate={() => {
@@ -1881,8 +1885,13 @@ interface EditGlossaryModalProps {
   typeIcons: Record<GlossaryEntryType, string>;
   typeLabels: Record<GlossaryEntryType, string>;
   /** Opens confirmation modal; parent handles actual navigation on confirm */
-  onRequestNavigateToChapter?: (chapterId: string, num: number, title: string) => void;
-  onNavigateToChapter?: (chapterId: string) => void;
+  onRequestNavigateToChapter?: (
+    chapterId: string,
+    num: number,
+    title: string,
+    searchTerm?: string
+  ) => void;
+  onNavigateToChapter?: (chapterId: string, searchTerm?: string) => void;
   onUpdate: () => void;
   onDelete: (entry: GlossaryEntry) => void;
 }
@@ -1907,6 +1916,7 @@ function EditGlossaryModal({
     chapterId: string;
     num: number;
     title: string;
+    searchTerm?: string;
   } | null>(null);
 
   const handleChapterClick = (num: number) => {
@@ -1914,16 +1924,17 @@ function EditGlossaryModal({
     const ch = chapters.find((c) => c.number === num);
     if (!ch) return;
     const title = ch.title ? ch.title : String(num);
+    const searchTerm = entry.translated?.trim() || entry.original?.trim() || undefined;
     if (onRequestNavigateToChapter) {
-      onRequestNavigateToChapter(ch.id, num, title);
+      onRequestNavigateToChapter(ch.id, num, title, searchTerm);
     } else if (onNavigateToChapter) {
-      setGoToChapterConfirm({ chapterId: ch.id, num, title });
+      setGoToChapterConfirm({ chapterId: ch.id, num, title, searchTerm });
     }
   };
 
   const handleConfirmGoToChapter = () => {
     if (!goToChapterConfirm || !onNavigateToChapter) return;
-    onNavigateToChapter(goToChapterConfirm.chapterId);
+    onNavigateToChapter(goToChapterConfirm.chapterId, goToChapterConfirm.searchTerm);
     setGoToChapterConfirm(null);
   };
 

@@ -7,6 +7,13 @@ import type { GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { ReadingMode } from '../components/ReadingMode';
 import { LoadingSpinner } from '../components/ui';
+import {
+  buildReadingChapterUrl,
+  getRawReadingParagraphFromUrl,
+  hasReadingParagraphQueryInUrl,
+  parseReadingParagraphFromUrl,
+  resolveReadingParagraphIndex,
+} from '../utils/readingRoutes';
 import './PublicationReadingPage.css';
 
 interface PublicationReadingPageProps {
@@ -128,6 +135,25 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       cancelled = true;
     };
   }, [publicationId, chapterId, data]);
+
+  // Canonicalize invalid `?paragraph=` values (non-numeric or <= 0)
+  useEffect(() => {
+    if (!publicationId || !chapterId) return;
+    const raw = getRawReadingParagraphFromUrl();
+    if (raw == null || raw === '') return;
+    const parsed = parseReadingParagraphFromUrl();
+    if (parsed !== undefined && parsed > 0) return;
+    const pubPath = data?.slug ?? publicationId;
+    const url = buildReadingChapterUrl({
+      isPublicationMode: true,
+      publicationPath: pubPath,
+      publicationId,
+      chapterId,
+    });
+    if (url && window.location.pathname + window.location.search !== url) {
+      route(url, true);
+    }
+  }, [publicationId, chapterId, data?.slug]);
 
   // Check auth and load read progress for authenticated users (once per publication mount)
   useEffect(() => {
@@ -284,8 +310,14 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     );
   }
 
-  const initialParagraphIndex =
-    chapterId && chapterId === lastReadChapterId ? lastReadParagraphIndex : undefined;
+  const initialParagraphIndex = resolveReadingParagraphIndex({
+    isAuthenticated,
+    urlHasParagraph: hasReadingParagraphQueryInUrl(),
+    urlParagraphIndex: parseReadingParagraphFromUrl(),
+    apiChapterId: lastReadChapterId,
+    currentChapterId: chapterId,
+    apiParagraphIndex: lastReadParagraphIndex,
+  });
 
   return (
     <ReadingMode

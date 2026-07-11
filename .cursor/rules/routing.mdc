@@ -49,12 +49,12 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin/projects` | admin+ | AdminProjectsPage | All user projects: list, unpublish, delete (AdminGate) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
-| `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate) |
-| `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph (e.g. from project search) |
+| `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate). Query: `search` — pre-fill project-wide find modal (omit when empty) |
+| `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph UUID (e.g. from project search) |
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate). `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push) without page reload |
 | `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode entry without chapter — replace-redirects to first available chapter URL |
 | `/p/:publicationId` | guest+ | PublicationPage | Public publication page. Query (chapter list): `q` (search), `translation=translated\|all\|untranslated` (default translated), `read=all\|unread\|read` (default all; auth only for unread/read filter UI), `order=asc\|desc` (default asc) |
-| `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Reload restores chapter from URL; auth users restore paragraph when URL chapter matches `lastReadChapterId` |
+| `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Query: `paragraph` — numeric 0-based segment index (omit when 0); guests restore scroll on F5 via URL; auth users use API `reading-position` unless explicit `?paragraph=` share link |
 
 ### Reading mode URL sync
 

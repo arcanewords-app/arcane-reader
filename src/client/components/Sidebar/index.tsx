@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { ChapterList } from './ChapterList';
 import { ProcessChapters } from './ProcessChapters';
@@ -34,6 +34,13 @@ interface SidebarProps {
   /** Controlled settings modal (optional). */
   settingsOpen?: boolean;
   onSettingsOpenChange?: (open: boolean) => void;
+  /** Controlled project search modal (optional — e.g. ProjectPage URL sync). */
+  projectSearchOpen?: boolean;
+  onProjectSearchOpenChange?: (open: boolean) => void;
+  /** Pre-fill project search from URL (`/projects/:id?search=`). */
+  initialProjectSearchQuery?: string;
+  /** Called when debounced search query changes (parent may sync URL). */
+  onProjectSearchQueryChange?: (query: string) => void;
 }
 
 export function Sidebar({
@@ -52,6 +59,10 @@ export function Sidebar({
   isMobileOpen = false,
   settingsOpen: controlledSettingsOpen,
   onSettingsOpenChange,
+  projectSearchOpen: controlledProjectSearchOpen,
+  onProjectSearchOpenChange,
+  initialProjectSearchQuery = '',
+  onProjectSearchQueryChange,
 }: SidebarProps) {
   const { t } = useTranslation();
   const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
@@ -64,6 +75,17 @@ export function Sidebar({
     }
   };
   const [showProjectSearch, setShowProjectSearch] = useState(false);
+  const projectSearchIsOpen = controlledProjectSearchOpen ?? showProjectSearch;
+  const setProjectSearchIsOpen = useCallback(
+    (open: boolean) => {
+      if (onProjectSearchOpenChange) {
+        onProjectSearchOpenChange(open);
+      } else {
+        setShowProjectSearch(open);
+      }
+    },
+    [onProjectSearchOpenChange]
+  );
   const [triggerJobsFetch, setTriggerJobsFetch] = useState(0);
 
   if (!project) {
@@ -156,7 +178,7 @@ export function Sidebar({
         {/* Find in project */}
         <Button
           variant="secondary"
-          onClick={() => setShowProjectSearch(true)}
+          onClick={() => setProjectSearchIsOpen(true)}
           className="sidebar-action"
         >
           <Icon name="search" size="sm" /> {t('searchReplace.findInProject', 'Find in project')}
@@ -217,13 +239,15 @@ export function Sidebar({
       )}
 
       <ProjectSearchModal
-        isOpen={showProjectSearch}
-        onClose={() => setShowProjectSearch(false)}
+        isOpen={projectSearchIsOpen}
+        onClose={() => setProjectSearchIsOpen(false)}
         projectId={project.id}
         isOriginalReadingMode={project.settings?.originalReadingMode ?? false}
         chapters={project.chapters}
         textBlockTypes={project.settings?.textBlockTypes ?? []}
         onRefresh={onRefreshProject}
+        initialQuery={initialProjectSearchQuery}
+        onDebouncedQueryChange={onProjectSearchQueryChange}
       />
     </>
   );

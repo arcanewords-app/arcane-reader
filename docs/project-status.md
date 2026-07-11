@@ -20,6 +20,9 @@ Update this file when completing plans or shipping major features.
 - Public catalog (`/`, `/catalog`) and publication reading (`/p/:id`)
 - Reading mode: chapter URL sync on prev/next/TOC (`route()` push); reload/share/back work — [[03-explanation/addressable-ui-state]], policy [[_canonical/rules/spa-navigation]]
 - Profile tabs + publication chapter filters synced to URL query (Phase 1) — `profileRoutes.ts`, `publicationRoutes.ts`
+- Project search deep links (`/projects/:id?search=`, chapter `?search=&paragraph=`) — `projectRoutes.ts` (Phase 2)
+- Guest reading paragraph URL (`/p/.../reading?paragraph=N`) — `readingRoutes.ts` (Phase 3)
+- Shared `useUrlSync` hook + `catalogRoutes.ts`; route builder unit tests (`npm run test:url-routes`)
 - Author workspace: projects, chapters, glossary (incl. merge suggestions)
 - 3-stage pipeline: analyze → translate → edit
 - Engine as-is docs: [[03-explanation/engine-pipeline]], [[03-explanation/engine-glossary-and-prompts]], [[03-explanation/engine-integration-boundary]]
@@ -48,7 +51,6 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
-| [[05-plans/app-wide-url-sync-rollout]]    | SPA URL sync: Phase 1 done (profile, publication filters); Phase 2–3 pending                       |
 
 ## Known tech debt
 

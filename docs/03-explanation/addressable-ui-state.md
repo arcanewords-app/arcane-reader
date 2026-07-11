@@ -79,7 +79,7 @@ Arcane Reader uses **SPA navigation** for in-app chapter and catalog changes.
 | Reader font/theme               | User preference             | User/project settings API                      |
 | Glossary modal                  | Transient overlay           | Component state                                |
 
-Guests reloading mid-chapter get the correct **chapter** from URL but start at the top of the chapter (acceptable v1). Optional v2: `?paragraph=` — see [[05-plans/app-wide-url-sync-rollout]].
+Guests reloading mid-chapter get the correct **chapter** from URL; **paragraph** restores via `?paragraph=N` (numeric segment index). Auth users use API `reading-position` unless an explicit `?paragraph=` share link is present.
 
 ## Other patterns in the codebase
 

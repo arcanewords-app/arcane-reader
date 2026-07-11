@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 domain: client
 canonical: .cursor/rules/spa-navigation.mdc
 stale: false
@@ -23,8 +23,9 @@ flowchart TD
   phase0 --> readingDone [Reading mode - DONE]
   phase1 --> profile [Profile tabs - DONE]
   phase1 --> pubFilters [Publication page filters - DONE]
-  phase2 --> projectSearch [Project search deep link]
-  phase3 --> paragraphGuest ["Guest ?paragraph= reader"]
+  phase2 --> projectSearch [Project search deep link - DONE]
+  phase3 --> paragraphGuest ["Guest ?paragraph= reader - DONE"]
+  phase3 --> useUrlSync [useUrlSync hook - DONE]
 ```
 
 ---
@@ -86,9 +87,11 @@ Shipped 2026-07-11: `profileRoutes.ts`, `publicationRoutes.ts`, `ProfilePage`, `
 
 ---
 
-## Phase 2 — Author workspace
+## Phase 2 — Author workspace (DONE)
 
-### 2.1 Project search modal deep link
+Shipped 2026-07-11: `projectRoutes.ts`, project/chapter search URL sync, glossary deep links.
+
+### 2.1 Project search modal deep link (DONE)
 
 |                  |                                                                             |
 | ---------------- | --------------------------------------------------------------------------- |
@@ -100,9 +103,9 @@ Shipped 2026-07-11: `profileRoutes.ts`, `publicationRoutes.ts`, `ProfilePage`, `
 
 ---
 
-## Phase 3 — Optional refinements
+## Phase 3 — Optional refinements (DONE except 3.3 E2E)
 
-### 3.1 Guest reader paragraph in URL
+### 3.1 Guest reader paragraph in URL (DONE)
 
 |                  |                                                                   |
 | ---------------- | ----------------------------------------------------------------- |
@@ -112,16 +115,11 @@ Shipped 2026-07-11: `profileRoutes.ts`, `publicationRoutes.ts`, `ProfilePage`, `
 | **Risk**         | Low — optional query; omit when N=0                               |
 | **Acceptance**   | F5 mid-chapter scrolls to same paragraph for guests               |
 
-### 3.2 Shared `useUrlSync` hook (client)
+### 3.2 Shared `useUrlSync` hook (client) (DONE)
 
-|                |                                                                                                             |
-| -------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Problem**    | Duplicated `URLSearchParams` + `popstate` boilerplate                                                       |
-| **Proposed**   | Extract pattern from `HomePage.tsx` + `debug-app/hooks/useUrlSync.ts` into `src/client/hooks/useUrlSync.ts` |
-| **Risk**       | Medium — adopt after 2–3 more screens use query sync                                                        |
-| **Acceptance** | Profile + catalog use shared hook; tests for parse/serialize round-trip                                     |
+Shipped: `src/client/hooks/useUrlSync.ts`, `catalogRoutes.ts`, unit tests `urlRoutes.test.ts`.
 
-### 3.3 Playwright E2E
+### 3.3 Playwright E2E (DEFERRED)
 
 |           |                                                           |
 | --------- | --------------------------------------------------------- |

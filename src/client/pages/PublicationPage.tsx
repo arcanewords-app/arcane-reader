@@ -24,6 +24,7 @@ import {
   type PublicationReadFilter,
   type PublicationTranslationFilter,
 } from '../utils/publicationRoutes';
+import { useUrlSyncListeners } from '../hooks/useUrlSync';
 import './PublicationPage.css';
 
 interface PublicationPageProps {
@@ -80,6 +81,20 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     );
   }, [data?.slug, publicationId]);
 
+  const replaceChapterListUrl = useCallback(
+    (query: PublicationChapterListQuery) => {
+      const pubPath = getPublicationPath();
+      if (!pubPath) return;
+      const sanitized = sanitizePublicationChapterQueryForAuth(query, isAuthenticated);
+      const url = buildPublicationPageUrl(pubPath, sanitized);
+      const current = window.location.pathname + window.location.search;
+      if (current !== url) {
+        route(url, true);
+      }
+    },
+    [getPublicationPath, isAuthenticated]
+  );
+
   const applyChapterListQuery = useCallback(
     (query: PublicationChapterListQuery, options?: { syncUrl?: boolean }) => {
       const sanitized = sanitizePublicationChapterQueryForAuth(query, isAuthenticated);
@@ -90,15 +105,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       setChapterOrder(sanitized.order);
 
       if (options?.syncUrl === false) return;
-      const pubPath = getPublicationPath();
-      if (!pubPath) return;
-      const url = buildPublicationPageUrl(pubPath, sanitized);
-      const current = window.location.pathname + window.location.search;
-      if (current !== url) {
-        route(url, true);
-      }
+      replaceChapterListUrl(sanitized);
     },
-    [isAuthenticated, getPublicationPath]
+    [isAuthenticated, replaceChapterListUrl]
   );
 
   const handleChapterSearchChange = useCallback(
@@ -108,17 +117,11 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       chapterListQueryRef.current = next;
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
       searchDebounceRef.current = setTimeout(() => {
-        const pubPath = getPublicationPath();
-        if (!pubPath) return;
         const sanitized = sanitizePublicationChapterQueryForAuth(next, isAuthenticated);
-        const url = buildPublicationPageUrl(pubPath, sanitized);
-        const current = window.location.pathname + window.location.search;
-        if (current !== url) {
-          route(url, true);
-        }
+        replaceChapterListUrl(sanitized);
       }, 300);
     },
-    [getPublicationPath, isAuthenticated]
+    [isAuthenticated, replaceChapterListUrl]
   );
 
   useEffect(() => {
@@ -127,23 +130,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     };
   }, []);
 
-  useEffect(() => {
-    const syncFromUrl = () => {
-      if (!isPublicationCatalogPath(window.location.pathname)) return;
-      const parsed = sanitizePublicationChapterQueryForAuth(
-        parsePublicationChapterQueryFromUrl(),
-        isAuthenticated
-      );
-      applyChapterListQuery(parsed, { syncUrl: false });
-    };
-    syncFromUrl();
-    window.addEventListener('popstate', syncFromUrl);
-    window.addEventListener('arcane:route-change', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-      window.removeEventListener('arcane:route-change', syncFromUrl);
-    };
+  const syncChapterListFromUrl = useCallback(() => {
+    const parsed = sanitizePublicationChapterQueryForAuth(
+      parsePublicationChapterQueryFromUrl(),
+      isAuthenticated
+    );
+    applyChapterListQuery(parsed, { syncUrl: false });
   }, [isAuthenticated, applyChapterListQuery]);
+
+  useUrlSyncListeners(syncChapterListFromUrl, () =>
+    isPublicationCatalogPath(window.location.pathname)
+  );
 
   useEffect(() => {
     if (isAuthenticated) return;
