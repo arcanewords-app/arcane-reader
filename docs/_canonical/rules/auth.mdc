@@ -12,6 +12,32 @@ alwaysApply: false
 - Middleware: `@src/middleware/auth.ts` — `requireAuth`, `optionalAuth`, `requireRole(...)`.
 - Role types and hierarchy: `@src/types/roles.ts` (`isAtLeastRole`).
 
+## JWT TTL (Supabase project settings)
+
+- **Access JWT** lifetime is configured in **Supabase Dashboard** → Authentication → Settings → JWT expiry (not in this repo).
+- Supabase default: **3600 s (1 h)**. Verify prod/staging values in the dashboard before changing client behavior.
+- **Refresh token** lifetime and rotation: Supabase Dashboard only.
+- Client stores `expires_at` in `localStorage` (`arcane_auth_expires`) via `@src/client/services/authService.ts`.
+
+Optional: increase JWT expiry (e.g. **14400 s / 4 h**) for long reading sessions after deploying proactive client refresh.
+
+## Client session lifecycle
+
+- Tokens in `localStorage` (`arcane_auth_token`, `arcane_auth_refresh`, `arcane_user`, `arcane_auth_expires`).
+- **Reactive refresh:** `401` on API calls → `POST /api/auth/refresh` (deduped in `@src/client/api/client.ts`).
+- **Proactive refresh:** `authService.startSessionKeeper()` in `AppRouter` — checks every 60 s and on `visibilitychange`; refreshes when `< 5 min` to expiry (`ensureFreshSession`, silent — no `AUTH_CHANGED`).
+- Silent refresh on token renewal avoids remounting `ReadingMode` / resetting reader theme.
+
+## Reader-safe 401
+
+On reading routes (`/p/*/chapters/*/reading`, `*/reading`):
+
+- **Do not** hard-redirect to `/?login=required`.
+- Open `AuthModal` in place via `openAuthModal({ redirect })`; preserve URL for post-login return.
+- `ReadingMode` keeps current `readerSettings` / CSS vars on transient auth loss; cleanup `data-reader-*` only on component unmount.
+
+On protected workspace routes (`/projects/*`, `/profile`, `/admin/*`): redirect guests to `/?login=required` as before.
+
 ## Roles (low → high)
 
 `guest` < `user` < `author` < `author_plus` < `super_author` < `admin`
@@ -47,3 +73,4 @@ Enforcement: `PUT /api/projects/:id/settings`, `getStageModel` in `@src/services
 
 - Update `@src/middleware/auth.ts`, affected routes in `@src/server.ts`, and client gates if paths change.
 - Update route map in `@.cursor/rules/routing.mdc` if access levels change.
+- Update `@src/client/services/authService.ts` and `@src/client/api/client.ts` if refresh or 401 handling changes.

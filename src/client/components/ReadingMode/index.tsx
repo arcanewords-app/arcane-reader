@@ -281,9 +281,6 @@ export function ReadingMode({
   useEffect(() => {
     const handleAuthChanged = (e: CustomEvent<AuthChangedDetail>) => {
       setIsAuthenticated(e.detail.authenticated);
-      if (!e.detail.authenticated) {
-        setReaderSettingsLoaded(false);
-      }
     };
     window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
     return () => {
@@ -671,6 +668,19 @@ export function ReadingMode({
       root.style.removeProperty('--reader-bg');
       root.style.removeProperty('--reader-text');
     }
+
+    return () => {
+      root.removeAttribute('data-reader-font');
+      root.removeAttribute('data-reader-theme');
+      root.removeAttribute('data-reader-indent');
+      root.removeAttribute('data-reader-align');
+      root.style.removeProperty('--reader-font-size');
+      root.style.removeProperty('--reader-line-height');
+      root.style.removeProperty('--reader-paragraph-spacing');
+      root.style.removeProperty('--reader-container-width');
+      root.style.removeProperty('--reader-bg');
+      root.style.removeProperty('--reader-text');
+    };
   }, [readerSettings]);
 
   // Scroll content area to top when chapter changes (skip when resuming to saved position)

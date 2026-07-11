@@ -9,6 +9,11 @@ const TOKEN_KEY = 'arcane_auth_token';
 const REFRESH_KEY = 'arcane_auth_refresh';
 const USER_KEY = 'arcane_user';
 const EXPIRES_KEY = 'arcane_auth_expires';
+
+/** Refresh access token this many seconds before expiry (Supabase default JWT TTL: 3600s). */
+const REFRESH_THRESHOLD_SEC = 300;
+const SESSION_KEEPER_INTERVAL_MS = 60_000;
+
 export const AUTH_CHANGED_EVENT = 'arcane:auth-changed';
 export const USER_UPDATED_EVENT = 'arcane:user-updated';
 export const OPEN_AUTH_EVENT = 'arcane:open-auth';
@@ -23,6 +28,19 @@ export type OpenAuthDetail = {
   mode?: 'login' | 'register';
   redirect?: string;
 };
+
+export type RefreshOptions = {
+  /** Skip AUTH_CHANGED when only renewing tokens (same user). */
+  silent?: boolean;
+};
+
+let sessionKeeperInterval: ReturnType<typeof setInterval> | null = null;
+let sessionKeeperVisibilityHandler: (() => void) | null = null;
+let ensureFreshSessionPromise: Promise<boolean> | null = null;
+
+export function isReadingRoute(path: string): boolean {
+  return /^\/p\/[^/]+\/chapters\/[^/]+\/reading\/?$/.test(path) || /\/reading\/?$/.test(path);
+}
 
 export function openAuthModal(detail?: OpenAuthDetail): void {
   if (detail?.redirect) {
@@ -116,7 +134,7 @@ export const authService = {
    * Refresh session using refresh_token. Returns true if successful.
    * Uses raw fetch to avoid circular 401 handling in API client.
    */
-  async refresh(): Promise<boolean> {
+  async refresh(options?: RefreshOptions): Promise<boolean> {
     const refreshToken = localStorage.getItem(REFRESH_KEY);
     if (!refreshToken) return false;
 
@@ -137,10 +155,71 @@ export const authService = {
       if (data.session.expires_at) {
         localStorage.setItem(EXPIRES_KEY, String(data.session.expires_at));
       }
-      dispatchAuthChanged(this.getCachedUser());
+      if (!options?.silent) {
+        dispatchAuthChanged(this.getCachedUser());
+      }
       return true;
     } catch {
       return false;
+    }
+  },
+
+  getExpiresAt(): number | null {
+    const raw = localStorage.getItem(EXPIRES_KEY);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  },
+
+  shouldRefreshSoon(thresholdSec = REFRESH_THRESHOLD_SEC): boolean {
+    const expiresAt = this.getExpiresAt();
+    if (!expiresAt) return false;
+    const secondsLeft = expiresAt - Math.floor(Date.now() / 1000);
+    return secondsLeft < thresholdSec;
+  },
+
+  async ensureFreshSession(): Promise<boolean> {
+    if (!this.isAuthenticated()) return false;
+    if (!this.shouldRefreshSoon()) return true;
+
+    if (ensureFreshSessionPromise) return ensureFreshSessionPromise;
+
+    ensureFreshSessionPromise = this.refresh({ silent: true }).finally(() => {
+      ensureFreshSessionPromise = null;
+    });
+    return ensureFreshSessionPromise;
+  },
+
+  startSessionKeeper(): void {
+    if (typeof window === 'undefined') return;
+    this.stopSessionKeeper();
+
+    const tick = () => {
+      if (document.visibilityState === 'visible' && this.isAuthenticated()) {
+        void this.ensureFreshSession();
+      }
+    };
+
+    sessionKeeperInterval = setInterval(tick, SESSION_KEEPER_INTERVAL_MS);
+
+    sessionKeeperVisibilityHandler = () => {
+      if (!document.hidden) {
+        void this.ensureFreshSession();
+      }
+    };
+    document.addEventListener('visibilitychange', sessionKeeperVisibilityHandler);
+
+    void this.ensureFreshSession();
+  },
+
+  stopSessionKeeper(): void {
+    if (sessionKeeperInterval) {
+      clearInterval(sessionKeeperInterval);
+      sessionKeeperInterval = null;
+    }
+    if (sessionKeeperVisibilityHandler) {
+      document.removeEventListener('visibilitychange', sessionKeeperVisibilityHandler);
+      sessionKeeperVisibilityHandler = null;
     }
   },
 
@@ -148,6 +227,8 @@ export const authService = {
    * Logout user
    */
   async logout(): Promise<void> {
+    this.stopSessionKeeper();
+
     // Clear local storage first
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
@@ -205,8 +286,8 @@ export const authService = {
         },
       });
 
-      // On 401, try refresh and retry once
-      if (response.status === 401 && (await this.refresh())) {
+      // On 401, try refresh and retry once (silent — same user, no UI remount)
+      if (response.status === 401 && (await this.refresh({ silent: true }))) {
         const newToken = localStorage.getItem(TOKEN_KEY);
         if (newToken) {
           response = await fetch('/api/auth/me', {

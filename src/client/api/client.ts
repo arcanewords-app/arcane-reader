@@ -3,7 +3,12 @@
  * Typed fetch wrapper for REST API communication
  */
 
-import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
+import {
+  AUTH_CHANGED_EVENT,
+  authService,
+  isReadingRoute,
+  openAuthModal,
+} from '../services/authService';
 import {
   CACHE_PREFIX,
   CACHE_TTL,
@@ -95,27 +100,31 @@ const REFRESH_URL = '/api/auth/refresh';
  * Clears auth storage, dispatches event for app to handle, and redirects if needed
  */
 function handleAuthError(response: Response): void {
-  if (response.status === 401) {
-    // Clear auth storage
-    authService.clearStorage();
+  if (response.status !== 401) return;
 
-    // Dispatch custom event to notify app about auth error
-    // This allows App.tsx to update state and show login without full page reload
-    window.dispatchEvent(
-      new CustomEvent(AUTH_ERROR_EVENT, {
-        detail: { message: 'Токен истек. Пожалуйста, войдите снова.' },
-      })
-    );
+  const pathname = window.location.pathname;
+  const onReadingRoute = isReadingRoute(pathname);
 
-    // Redirect to login page if not already there
-    if (window.location.pathname !== '/') {
-      window.location.href = '/?login=required';
-    } else {
-      // Update URL to include login=required parameter
-      const url = new URL(window.location.href);
-      url.searchParams.set('login', 'required');
-      window.history.replaceState({}, '', url.toString());
-    }
+  if (onReadingRoute) {
+    openAuthModal({ redirect: pathname + window.location.search });
+  }
+
+  authService.clearStorage();
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_ERROR_EVENT, {
+      detail: { message: 'Токен истек. Пожалуйста, войдите снова.' },
+    })
+  );
+
+  if (onReadingRoute) return;
+
+  if (pathname !== '/') {
+    window.location.href = '/?login=required';
+  } else {
+    const url = new URL(window.location.href);
+    url.searchParams.set('login', 'required');
+    window.history.replaceState({}, '', url.toString());
   }
 }
 
@@ -301,7 +310,7 @@ if (typeof window !== 'undefined') {
 
 async function tryRefresh(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
-  refreshPromise = authService.refresh();
+  refreshPromise = authService.refresh({ silent: true });
   try {
     return await refreshPromise;
   } finally {

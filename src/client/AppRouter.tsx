@@ -136,6 +136,18 @@ export function AppRouter() {
     syncAuthState();
   }, [syncAuthState]);
 
+  // Proactively refresh JWT before expiry while user is active (reading sessions, etc.)
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      authService.startSessionKeeper();
+    } else {
+      authService.stopSessionKeeper();
+    }
+    return () => {
+      authService.stopSessionKeeper();
+    };
+  }, [isAuthenticated]);
+
   // Open AuthModal when URL has ?login=required (e.g. after redirect from /profile or /projects)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

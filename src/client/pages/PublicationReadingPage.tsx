@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../api/client';
-import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
+import { AUTH_CHANGED_EVENT, authService, type AuthChangedDetail } from '../services/authService';
 import type { GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { ReadingMode } from '../components/ReadingMode';
@@ -145,14 +145,30 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   }, [publicationId, syncAuthProgress]);
 
   useEffect(() => {
-    const handleAuthChanged = () => {
-      syncAuthProgress().catch(() => {});
+    const handleAuthChanged = (e: CustomEvent<AuthChangedDetail>) => {
+      const { authenticated } = e.detail;
+      setIsAuthenticated(authenticated);
+      if (!authenticated) {
+        setReadChapterIds(new Set());
+        setLastReadChapterId(null);
+        setLastReadParagraphIndex(0);
+        return;
+      }
+      if (!publicationId) return;
+      api
+        .getReadProgress(publicationId)
+        .then((result) => {
+          setReadChapterIds(new Set(result.chapterIds));
+          setLastReadChapterId(result.lastReadChapterId ?? null);
+          setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
+        })
+        .catch(() => {});
     };
-    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
     return () => {
-      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged as EventListener);
     };
-  }, [syncAuthProgress]);
+  }, [publicationId]);
 
   const handleChapterRead = useCallback(
     (chapterId: string) => {
