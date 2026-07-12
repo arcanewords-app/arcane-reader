@@ -12,7 +12,7 @@ import type { ReplacePreviewItem } from './ReplacePreviewModal';
 
 const PROJECT_SEARCH_DEBOUNCE_MS = 600;
 
-function parseChapterBound(value: string): number | undefined {
+export function parseChapterBound(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   const n = Number(trimmed);

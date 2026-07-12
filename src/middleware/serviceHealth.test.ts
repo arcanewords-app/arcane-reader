@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'vitest';
+import { describe, it, vi } from 'vitest';
+
+vi.mock('../services/supabaseClient.js', () => ({
+  supabase: {},
+  createClientWithToken: vi.fn(),
+}));
+
 import {
   isHealthExemptPath,
   isPublicReadRoute,
@@ -7,6 +13,8 @@ import {
 } from '../services/healthCircuitBreaker.js';
 import { shouldAwaitRecoveryProbe } from '../services/healthSnapshotStore.js';
 import type { HealthCheckResult } from '../services/serviceHealth.js';
+import { handleServiceError, isSupabaseError } from './serviceHealth.js';
+import type { Request, Response } from 'express';
 
 describe('isHealthExemptPath', () => {
   it('exempts status and health', () => {
@@ -70,5 +78,39 @@ describe('resolveSupabaseStatusForBreaker', () => {
       async () => null
     );
     assert.equal(status, 'degraded');
+  });
+});
+
+describe('isSupabaseError', () => {
+  it('detects infrastructure error codes', () => {
+    assert.equal(isSupabaseError({ code: 'ECONNREFUSED', message: 'connect' }), true);
+    assert.equal(isSupabaseError({ message: 'fetch failed to supabase' }), true);
+    assert.equal(isSupabaseError({ name: 'PostgrestError', message: 'db' }), true);
+    assert.equal(isSupabaseError(new Error('validation failed')), false);
+  });
+});
+
+describe('handleServiceError', () => {
+  it('sends 503 for infrastructure errors', () => {
+    let statusCode = 200;
+    let body: unknown;
+    const res = {
+      status(code: number) {
+        statusCode = code;
+        return this;
+      },
+      json(payload: unknown) {
+        body = payload;
+        return this;
+      },
+    } as Response;
+    const handled = handleServiceError(
+      { code: 'ETIMEDOUT', message: 'timeout' },
+      {} as Request,
+      res
+    );
+    assert.equal(handled, true);
+    assert.equal(statusCode, 503);
+    assert.equal((body as { code: string }).code, 'SERVICE_UNAVAILABLE');
   });
 });

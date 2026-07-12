@@ -1,6 +1,5 @@
 import type { Application, Request, Response } from 'express';
 import fs from 'fs';
-import path from 'path';
 import {
   listPublicationsPublic,
   getPublicationWithChapters,
@@ -10,6 +9,7 @@ import {
 import { logger } from '../../logger.js';
 import { buildRobotsTxt } from '../../shared/robotsTxt.js';
 import { STATIC_PAGE_META, staticPageDocumentTitle } from '../../shared/staticPageMeta.js';
+import { escapeHtml, escapeMetaContent, resolveIndexPath } from '../../shared/seoHtml.js';
 import { requireRouteParam } from '../validateRoute.js';
 
 export type SeoRouteDeps = {
@@ -30,24 +30,6 @@ const STATIC_SEO_PATHS = [
   '/news',
   '/account-tiers',
 ];
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-/** Escape string for use in HTML meta content attribute (quotes, ampersands) */
-function escapeMetaContent(s: string): string {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
 
 /** Absolute site origin; respects X-Forwarded-* behind Vercel/reverse proxies. */
 function getPublicBaseUrl(req: Request): string {
@@ -288,12 +270,6 @@ function injectOrganizationJsonLd(html: string, baseUrl: string): string {
     `<script type="application/ld+json">${JSON.stringify(org)}</script>\n    ` +
     `<script type="application/ld+json">${JSON.stringify(website)}</script>`;
   return html.replace('</head>', `    ${jsonLd}\n  </head>`);
-}
-
-function resolveIndexPath(clientPath: string, publicPath: string): string {
-  return fs.existsSync(path.join(clientPath, 'index.html'))
-    ? path.join(clientPath, 'index.html')
-    : path.join(publicPath, 'index.html');
 }
 
 /**

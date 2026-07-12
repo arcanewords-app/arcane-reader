@@ -12,7 +12,7 @@ const isCoverageRun = process.argv.includes('--coverage');
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
     testTimeout: isCoverageRun ? 120_000 : 10_000,
     exclude: ['**/node_modules/**', ...SLOW_TEST_FILES],
@@ -27,6 +27,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src/client'),
+      react: 'preact/compat',
+      'react-dom': 'preact/compat',
+      'react/jsx-runtime': 'preact/jsx-runtime',
+      'react/jsx-dev-runtime': 'preact/jsx-dev-runtime',
     },
   },
 });

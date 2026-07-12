@@ -6,14 +6,14 @@ updated: 2026-07-12
 
 # Testing coverage baseline
 
-Measured after **APP_SCOPE expansion** (backend + client SPA; waves 0–2 complete).
+Measured after **Wave 3 phased expansion** (sprints 3A–3H: shared, api, services, engine, client, middleware).
 
 ## APP_SCOPE (unified)
 
 Single scope for unit tests, coverage, and Stryker `mutate`:
 
-- **include:** `src/**/*.ts`
-- **exclude:** `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`
+- **include:** `src/**/*.ts`, `src/**/*.test.tsx`
+- **exclude:** `*.test.ts`, `*.test.tsx`, `src/debug-app/**`, `src/prompt-lab-app/**`
 
 Lab apps are dev tools, not production app. SSOT: `vitest.config.ts`, `stryker.conf.json`.
 
@@ -25,9 +25,9 @@ Arcane Reader has **no dedicated test environment** (isolated Supabase / Redis /
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **Q3 2026** (current) | Mock-first unit tests + mutation on APP_SCOPE; phased waves by folder. No live DB/Redis/worker gates.                       |
 | **Q4 2026+** (future) | **Live integration only** — real Supabase, Redis, worker against a dedicated test stack. **Blocked** until test env exists. |
-| **Not planned**       | Mocked supertest, Testing Library gates, Playwright with API mocks as Q4 work                                               |
+| **Not planned**       | Mocked supertest, Playwright with API mocks as Q4 work                                                                      |
 
-Detailed wave plan: `.cursor/plans/coverage_improvement_plan_926cfce7.plan.md`. Policy SSOT: [[_canonical/rules/testing]].
+Policy SSOT: [[_canonical/rules/testing]].
 
 ### Q4 prerequisite (live data only)
 
@@ -39,119 +39,104 @@ Detailed wave plan: `.cursor/plans/coverage_improvement_plan_926cfce7.plan.md`. 
 
 Until dedicated test environment is provisioned, Q4 integration work is **paused**.
 
-## Test suite (2026-07-12)
+## Test suite (2026-07-12, post wave 3)
 
 | Metric                           | Value                                                              |
 | -------------------------------- | ------------------------------------------------------------------ |
-| Test files                       | **45** (42 fast + 3 slow)                                          |
-| Tests                            | **275** (258 fast + 17 slow tiktoken)                              |
-| Fast suite (`npm run test`)      | ~12 s                                                              |
+| Test files                       | **80** (77 fast + 3 slow)                                          |
+| Tests                            | **400** (383 fast + 17 slow tiktoken)                              |
+| Fast suite (`npm run test`)      | ~17 s                                                              |
 | Slow suite (`npm run test:slow`) | ~100 s                                                             |
-| Full suite (`npm run test:all`)  | ~112 s                                                             |
+| Full suite (`npm run test:all`)  | ~117 s                                                             |
 | CI                               | `npm run test:coverage` (fast suite; excludes tiktoken slow files) |
 
-**CI install:** GitHub Actions runs `npm ci` on the standalone repo. After adding Vitest/Stryker deps, regenerate [`package-lock.json`](../package-lock.json) with `npm install --no-workspaces` inside `arcane-reader/` (not monorepo root). See [dependency-audit-baseline.md](../02-how-to/dependency-audit-baseline.md).
+Component smoke: `happy-dom` + `@testing-library/preact` (RequireRole); Preact JSX aliases in `vitest.config.ts`.
 
 ## Inventory: tested vs untested
 
-| Metric                        | Value                          |
-| ----------------------------- | ------------------------------ |
-| Source files in APP_SCOPE     | **277**                        |
-| With co-located `*.test.ts`   | **38** (**14%**)               |
-| **Without unit test**         | **239** (**86%**)              |
-| Files at **0%** line coverage | **179** (**65%** of APP_SCOPE) |
+| Metric                         | Value                          |
+| ------------------------------ | ------------------------------ |
+| Source files in APP_SCOPE      | **281**                        |
+| With co-located `*.test.ts(x)` | **75** (**27%**)               |
+| **Without unit test**          | **205** (**73%**)              |
+| Files at **0%** line coverage  | **144** (**51%** of APP_SCOPE) |
 
 Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:coverage`).
 
 ### Client breakdown
 
-| Folder               | Source files | Co-located tests                  |
-| -------------------- | ------------ | --------------------------------- |
-| `client/utils/`      | 18           | 2 (`urlRoutes`, `simpleMarkdown`) |
-| `client/hooks/`      | 9            | 1 (`useUrlSync`)                  |
-| `client/components/` | 16           | **0**                             |
-| `client/pages/`      | 1            | **0**                             |
-| `client/api/`        | 1            | **0**                             |
+| Folder               | Source files | Co-located tests (approx.)                             |
+| -------------------- | ------------ | ------------------------------------------------------ |
+| `client/utils/`      | 19           | 8 (+ `tokenLimitStatus`)                               |
+| `client/hooks/`      | 9            | 1 (`useUrlSync` partial)                               |
+| `client/components/` | 16+          | 3 (`chapterPickerShared`, bulk replace, `RequireRole`) |
+| `client/pages/`      | 1            | **0**                                                  |
+| `client/api/`        | 1            | **0**                                                  |
 
 ## Overall coverage (v8, APP_SCOPE)
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric          | Coverage                  |
-| --------------- | ------------------------- |
-| Lines           | **11.42%** (1837 / 16076) |
-| Statements      | **11.16%** (1977 / 17710) |
-| Functions       | **13.35%** (363 / 2719)   |
-| Branches        | **9.46%** (1258 / 13297)  |
-| Uncovered lines | **14 239**                |
+| Metric          | Coverage (prev → now)   |
+| --------------- | ----------------------- |
+| Lines           | **16.84%** (was 11.42%) |
+| Statements      | **16.50%** (was 11.16%) |
+| Functions       | **20.47%** (was 13.35%) |
+| Branches        | **14.15%** (was 9.46%)  |
+| Uncovered lines | **13 371** (was 14 239) |
 
-> **Note:** Pre–wave-0 baseline (~35% lines) counted only files reachable by test imports. APP_SCOPE includes routes, `server.ts`, `supabaseDatabase.ts`, and `client/**` — lower % but no blind zones.
+> APP_SCOPE includes routes, `server.ts`, `supabaseDatabase.ts`, and `client/**` — trend up after wave 3 sprints.
 
 ## By area (folder rollup)
 
 | Area                      | Files | 0% files | With test | Lines % (approx.) |
 | ------------------------- | ----- | -------- | --------- | ----------------- |
-| `src/shared/`             | 39    | 17       | 19        | **62%**           |
-| `src/engine/`             | 68    | 20       | 12        | **40%**           |
-| `src/client/`             | 54    | 47       | 3         | **9%**            |
-| `src/api/`                | 28    | 24       | 1         | **2%**            |
-| `src/services/`           | 39    | 32       | 1         | **1%**            |
-| `src/middleware/`         | 5     | 5        | 1         | **0%**            |
+| `src/shared/`             | 40    | 9        | 31        | **~79%**          |
+| `src/engine/`             | 68    | 15       | 22        | **~49%**          |
+| `src/client/`             | 56    | 38       | 10        | **~16%**          |
+| `src/api/`                | 28    | 20       | 4         | **~6%**           |
+| `src/services/`           | 40    | 26       | 5         | **~5%**           |
+| `src/middleware/`         | 5     | 4        | 1         | **~8%**           |
 | `server.ts` + `worker.ts` | 2     | 2        | 0         | **0%**            |
 
 ### Top uncovered files (0% lines, by size)
 
-| File                                                  | Lines |
-| ----------------------------------------------------- | ----- |
-| `services/supabaseDatabase.ts`                        | 2264  |
-| `api/routes/chapters.ts`                              | 1111  |
-| `api/routes/publications.ts`                          | 625   |
-| `client/api/client.ts`                                | 549   |
-| `api/chapterTranslation.ts`                           | 457   |
-| `api/routes/admin.ts`                                 | 373   |
-| `api/routes/projects.ts`                              | 325   |
-| `api/routes/glossary.ts`                              | 302   |
-| `api/routes/user.ts`                                  | 229   |
-| `services/import/epub.ts`                             | 229   |
-| `client/components/SearchReplace/useProjectSearch.ts` | 216   |
-| `client/hooks/useBatchChapterTranslation.ts`          | 188   |
+| File                                         | Lines |
+| -------------------------------------------- | ----- |
+| `services/supabaseDatabase.ts`               | ~7400 |
+| `api/routes/chapters.ts`                     | 1111  |
+| `api/routes/publications.ts`                 | 625   |
+| `client/api/client.ts`                       | 549   |
+| `api/routes/admin.ts`                        | 373   |
+| `api/routes/projects.ts`                     | 325   |
+| `api/routes/glossary.ts`                     | 302   |
+| `api/routes/user.ts`                         | 229   |
+| `services/import/epub.ts`                    | 229   |
+| `client/hooks/useBatchChapterTranslation.ts` | 188   |
 
 **Q3 approach for large files:** extract pure helpers → unit test with mocks. **Q4:** live route/DB tests when test env exists.
 
-## Phased unit-test waves (Q3)
+## Wave 3 deliverables (completed 2026-07-12)
 
-| Wave  | Zone                                               | Focus                                                      | Target                             |
-| ----- | -------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------- |
-| **1** | `engine/`, `shared/`, `client/utils` + `hooks`     | pure logic, co-located tests                               | ≥ 80 files with tests (~30% scope) |
-| **2** | `api/` helpers, `middleware/`, `services/` extract | Zod, validateRoute, extracted DB helpers                   | services helpers ≥ 25% lines       |
-| **3** | `client/components/`                               | jsdom + Testing Library + mocked `fetch` (mock-first)      | component smoke on critical flows  |
-| **4** | `api/routes/`, `server.ts`, `worker.ts`            | extract validation/rules → unit; live tests deferred to Q4 | route helpers covered              |
+| Sprint | Deliverables                                                                                             |
+| ------ | -------------------------------------------------------------------------------------------------------- |
+| **3A** | shared quick wins: chunkErrors, chapterTitle, evaluation-normalize, critic-fingerprint, cacheContract, … |
+| **3B** | routeParams, routeHelpers pure, chapterTranslation sync                                                  |
+| **3C** | `supabaseTransforms` extract + tests; glossaryImportExport, authErrors                                   |
+| **3D** | engine: language, edit-chunking, chunker-core, declension, registry, text-blocks                         |
+| **3E** | projectSearch, client utils, chapterPickerShared, bulkReplaceChunked                                     |
+| **3F** | isSupabaseError, `seoHtml` extract, cacheInvalidation                                                    |
+| **3G** | stage-1/3 LLM mocks; `tokenLimitStatus`, `parseChapterBound` extract                                     |
+| **3H** | RequireRole component smoke (happy-dom)                                                                  |
 
 ## Mutation testing (Stryker)
 
-Config: `stryker.conf.json` — APP_SCOPE mutate, `vitest.related: false`, `incremental: true`, manual/nightly only (not CI).
-
-Commands:
+Config: `stryker.conf.json` — APP_SCOPE mutate, manual/nightly only (not CI).
 
 ```bash
-npm run test:mutation   # full APP_SCOPE (hours; use incremental)
-npx stryker run --mutate src/engine/glossary/glossary-filter.ts   # smoke
-npx stryker run --mutate "src/shared/**/*.ts"   # per-zone
+npm run test:mutation
+npx stryker run --mutate "src/shared/**/*.ts"
 ```
-
-Report: `reports/mutation/mutation.html` (gitignored). Sandbox: `.stryker-tmp/` (gitignored).
-
-### Baseline scores
-
-| Run              | Scope                                   | Mutation score (total) | Covered code        | Killed / survived / no cov                                                 |
-| ---------------- | --------------------------------------- | ---------------------- | ------------------- | -------------------------------------------------------------------------- |
-| 2026-07-12 smoke | `glossary-filter.ts`                    | **57.93%**             | **65.12%**          | 84 / 45 / 16                                                               |
-| 2026-07-12 zone  | `src/shared/**` (3261 mutants, ~29 min) | **38.18%** (shared)    | **54.41%** (shared) | 1222 / 1043 / 973                                                          |
-| Full APP_SCOPE   | `npm run test:mutation`                 | —                      | —                   | manual/nightly; expect low total % (many NoCoverage on 239 untested files) |
-
-> Full APP_SCOPE first run expects **low total score** (many NoCoverage on untested files). Track **mutation score (covered code)** per zone. Zone runs: `npx stryker run --mutate "src/engine/**/*.ts"`, etc.
-
-`stryker.conf.json` ignores `docs/**`, `.cursor/**` (Windows sandbox EPERM fix).
 
 ## Wave completion (Q3)
 
@@ -160,7 +145,7 @@ Report: `reports/mutation/mutation.html` (gitignored). Sandbox: `.stryker-tmp/` 
 | 0 — Infra            | Done           | APP_SCOPE, CI coverage, `test:slow` / `test:all`, Stryker config, inventory script |
 | 1 — Shared + API     | Done           | validateRoute, paragraphSync, glossary-manager, etc.                               |
 | 2 — Engine smoke     | Done           | translation-pipeline mock, stage-2, Zod schemas                                    |
-| 3 — Phased expansion | **Active**     | waves 1–4 above; client in coverage                                                |
+| 3 — Phased expansion | **Done**       | sprints 3A–3H (this baseline)                                                      |
 | 4 — Live integration | **Blocked Q4** | requires dedicated test environment                                                |
 
 ## Policy

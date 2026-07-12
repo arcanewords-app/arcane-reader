@@ -1,12 +1,10 @@
 import { useState, useCallback } from 'preact/hooks';
 import { authService } from '../services/authService';
 import { useTokenUsageContext } from '../contexts/TokenUsageContext';
+import { checkTokenLimitStatus, type TokenLimitCheckResult } from '../utils/tokenLimitStatus.js';
 
-const WARNING_THRESHOLD = 0.8; // 80%
-/** tokensLimit < 0 means unlimited (e.g. admin) */
-const isUnlimited = (limit: number) => limit < 0;
-
-export type TokenLimitCheckResult = 'ok' | 'warn' | 'block';
+export type { TokenLimitCheckResult } from '../utils/tokenLimitStatus.js';
+export { checkTokenLimitStatus } from '../utils/tokenLimitStatus.js';
 
 export interface TokenLimitWarningState {
   isOpen: boolean;
@@ -30,21 +28,16 @@ export function useTokenLimitCheck() {
 
   const checkBeforeTranslate = useCallback(
     (estimatedTokens: number, onProceed: () => void): TokenLimitCheckResult => {
-      if (!tokenUsage || !authService.isAuthenticated()) {
+      const status = checkTokenLimitStatus(
+        tokenUsage,
+        estimatedTokens,
+        authService.isAuthenticated()
+      );
+      if (status === 'ok') {
         onProceed();
         return 'ok';
       }
-      if (isUnlimited(tokenUsage.tokensLimit)) {
-        onProceed();
-        return 'ok';
-      }
-      const effectiveUsed = tokenUsage.tokensUsed + (tokenUsage.tokensBlocked ?? 0);
-      const tokensAfter = effectiveUsed + estimatedTokens;
-      const willExceed = tokensAfter > tokenUsage.tokensLimit;
-      const percentageAfter = (tokensAfter / tokenUsage.tokensLimit) * 100;
-      const shouldWarn = percentageAfter >= WARNING_THRESHOLD * 100;
-
-      if (willExceed) {
+      if (status === 'block') {
         setWarningState({
           isOpen: true,
           estimatedTokens,
@@ -53,17 +46,13 @@ export function useTokenLimitCheck() {
         });
         return 'block';
       }
-      if (shouldWarn) {
-        setWarningState({
-          isOpen: true,
-          estimatedTokens,
-          willExceed: false,
-          onProceed,
-        });
-        return 'warn';
-      }
-      onProceed();
-      return 'ok';
+      setWarningState({
+        isOpen: true,
+        estimatedTokens,
+        willExceed: false,
+        onProceed,
+      });
+      return 'warn';
     },
     [tokenUsage]
   );
