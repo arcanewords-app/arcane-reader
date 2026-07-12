@@ -15,8 +15,8 @@ function mockProvider(editedContent: string): ILLMProvider {
       finishReason: 'stop',
       model: 'mock',
     }),
-    completeJSON: async () => ({
-      data: {},
+    completeJSON: async <T>() => ({
+      data: {} as T,
       tokensUsed: { prompt: 1, completion: 1, total: 2 },
     }),
     isAvailable: async () => true,

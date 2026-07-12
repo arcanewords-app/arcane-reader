@@ -8,6 +8,19 @@ import {
 } from './engine-integration.js';
 import { isProjectLanguagePairLocked } from './projectLanguagePair.js';
 import type { Project } from '../storage/database.js';
+import type { Chapter } from '../storage/types.js';
+
+function minimalChapter(overrides: Partial<Chapter> = {}): Chapter {
+  return {
+    id: 'ch-1',
+    number: 1,
+    title: 'Ch1',
+    originalText: '',
+    paragraphs: [],
+    status: 'pending',
+    ...overrides,
+  };
+}
 
 function mockProject(overrides: Partial<Project> = {}): Project {
   return {
@@ -18,7 +31,7 @@ function mockProject(overrides: Partial<Project> = {}): Project {
     targetLanguage: 'ru',
     settings: {},
     glossary: [],
-    chapters: [{ id: 'ch-1', number: 1, title: 'Ch1', status: 'pending' }],
+    chapters: [minimalChapter()],
     metadata: {},
     createdAt: '',
     updatedAt: '',
@@ -86,7 +99,7 @@ describe('language pair helpers', () => {
     assert.equal(
       isProjectLanguagePairLocked(
         mockProject({
-          chapters: [{ id: 'ch-1', number: 1, title: 'Ch1', status: 'analyzed' }],
+          chapters: [minimalChapter({ status: 'analyzed' })],
         })
       ),
       true
