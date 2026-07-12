@@ -1,48 +1,97 @@
 import assert from 'node:assert/strict';
-import { afterEach, describe, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, vi } from 'vitest';
+import { resetInFlightRequests } from '../transport/fetchDeduped.js';
+import { userScopedCache } from '../cache/memoryCache.js';
 
-const { mockFetchJson, mockFetchJsonDeduped } = vi.hoisted(() => ({
-  mockFetchJson: vi.fn(),
-  mockFetchJsonDeduped: vi.fn(),
+vi.mock('../../services/authService.js', () => ({
+  authService: {
+    getToken: () => 'test-token',
+    getCachedUser: () => ({ id: 'u1' }),
+    refresh: vi.fn(async () => false),
+    clearStorage: vi.fn(),
+  },
+  isReadingRoute: () => false,
+  openAuthModal: vi.fn(),
 }));
 
-vi.mock('../transport/fetchJson.js', () => ({
-  fetchJson: (...args: unknown[]) => mockFetchJson(...args),
-}));
-
-vi.mock('../transport/fetchDeduped.js', () => ({
-  fetchJsonDeduped: (...args: unknown[]) => mockFetchJsonDeduped(...args),
+vi.mock('../cache/invalidation.js', () => ({
+  emitCacheInvalidation: vi.fn(),
 }));
 
 import { userApi } from './user.js';
 
+function stubFetchJson(data: unknown, status = 200) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: status >= 200 && status < 300,
+      status,
+      text: async () => (status === 204 ? '' : JSON.stringify(data)),
+      json: async () => data,
+    } as Response)
+  );
+}
+
 describe('userApi', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
+  beforeEach(() => {
+    resetInFlightRequests();
+    userScopedCache.readerSettings.clear();
+    userScopedCache.readingHistory.clear();
   });
 
-  it('getProfile calls fetchJson with profile endpoint', async () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    resetInFlightRequests();
+  });
+
+  it('getProfile calls fetch with profile endpoint', async () => {
     const profile = { id: 'u1', email: 'a@b.com', role: 'author', avatarUrl: null };
-    mockFetchJson.mockResolvedValue(profile);
+    stubFetchJson(profile);
 
     const result = await userApi.getProfile();
     assert.deepEqual(result, profile);
-    assert.equal(mockFetchJson.mock.calls[0]?.[0], '/api/user/profile');
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    assert.equal(url, '/api/user/profile');
   });
 
-  it('getTokenUsage calls fetchJsonDeduped with default endpoint', async () => {
+  it('getTokenUsage calls fetch with default endpoint', async () => {
     const usage = { tokensUsed: 100, tokensLimit: 50000, tokensRemaining: 49900 };
-    mockFetchJsonDeduped.mockResolvedValue(usage);
+    stubFetchJson(usage);
 
     const result = await userApi.getTokenUsage();
     assert.deepEqual(result, usage);
-    assert.equal(mockFetchJsonDeduped.mock.calls[0]?.[0], '/api/user/token-usage');
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    assert.equal(url, '/api/user/token-usage');
   });
 
   it('getTokenUsage passes date query when provided', async () => {
-    mockFetchJsonDeduped.mockResolvedValue({});
+    stubFetchJson({});
 
     await userApi.getTokenUsage('2026-07-12');
-    assert.equal(mockFetchJsonDeduped.mock.calls[0]?.[0], '/api/user/token-usage?date=2026-07-12');
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    assert.equal(url, '/api/user/token-usage?date=2026-07-12');
+  });
+
+  it('getTokenUsageHistory calls fetch with days query', async () => {
+    const history = { days: [{ date: '2026-07-12', tokensUsed: 100 }] };
+    stubFetchJson(history);
+
+    const result = await userApi.getTokenUsageHistory(30);
+    assert.deepEqual(result, history);
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    assert.equal(url, '/api/user/token-usage/history?days=30');
+  });
+
+  it('updateUserReaderSettings sends PUT and caches result', async () => {
+    const settings = { fontSize: 18 };
+    stubFetchJson(settings);
+
+    const result = await userApi.updateUserReaderSettings({ fontSize: 18 });
+    assert.deepEqual(result, settings);
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    assert.equal(url, '/api/user/reader-settings');
+    assert.equal(init.method, 'PUT');
+    assert.equal(init.body, JSON.stringify({ fontSize: 18 }));
   });
 });

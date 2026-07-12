@@ -129,6 +129,24 @@ describe('runAsyncImportJob', () => {
     invalidateProjectAndRelatedCaches.mockResolvedValue(undefined);
   });
 
+  it('EPUB initial parse errors set job error', async () => {
+    parseEpubLazy.mockResolvedValue({
+      metadata: {},
+      warnings: [],
+      errors: ['bad OPF'],
+      chapterCount: 0,
+      chapterIterator: chapterIterator([]),
+    });
+
+    const store = createInMemoryImportJobStore(baseJob());
+    await runAsyncImportJob(baseParams(store));
+
+    const finalJob = await store.getJob('job-1');
+    expect(finalJob?.status).toBe('error');
+    expect(finalJob?.errors).toEqual(['bad OPF']);
+    expect(importChaptersBatch).not.toHaveBeenCalled();
+  });
+
   it('EPUB happy path completes job and imports chapters', async () => {
     parseEpubLazy.mockResolvedValue({
       metadata: { title: 'Book' },
@@ -195,6 +213,125 @@ describe('runAsyncImportJob', () => {
 
     const finalJob = await store.getJob('job-1');
     expect(finalJob?.status).toBe('canceled');
+  });
+
+  it('FB2 happy path completes and flushes chapters', async () => {
+    parseFile.mockResolvedValue({
+      format: 'fb2',
+      metadata: { title: 'FB2 Book' },
+      chapters: [
+        { title: 'Ch 1', content: 'one' },
+        { title: 'Ch 2', content: 'two' },
+      ],
+      warnings: [],
+      errors: [],
+    });
+
+    const store = createInMemoryImportJobStore(baseJob({ format: 'fb2', filename: 'book.fb2' }));
+    await runAsyncImportJob(
+      baseParams(store, {
+        extension: 'fb2',
+        filename: 'book.fb2',
+        buffer: Buffer.from('fb2'),
+      })
+    );
+
+    const finalJob = await store.getJob('job-1');
+    expect(finalJob?.status).toBe('completed');
+    expect(finalJob?.phase).toBe('finalizing');
+    expect(importChaptersBatch).toHaveBeenCalled();
+    expect(updateProject).toHaveBeenCalled();
+  });
+
+  it('CSV zero chapters sets job error', async () => {
+    parseFile.mockResolvedValue({
+      format: 'csv',
+      metadata: {},
+      chapters: [],
+      warnings: [],
+      errors: [],
+    });
+
+    const store = createInMemoryImportJobStore(baseJob({ format: 'csv', filename: 'book.csv' }));
+    await runAsyncImportJob(
+      baseParams(store, {
+        extension: 'csv',
+        filename: 'book.csv',
+        buffer: Buffer.from('csv'),
+      })
+    );
+
+    const finalJob = await store.getJob('job-1');
+    expect(finalJob?.status).toBe('error');
+    expect(finalJob?.errors).toContain('Файл не содержит глав');
+  });
+
+  it('cancels job mid FB2 loop', async () => {
+    parseFile.mockResolvedValue({
+      format: 'fb2',
+      metadata: {},
+      chapters: [
+        { title: 'Ch 1', content: 'one' },
+        { title: 'Ch 2', content: 'two' },
+        { title: 'Ch 3', content: 'three' },
+      ],
+      warnings: [],
+      errors: [],
+    });
+
+    const store = createInMemoryImportJobStore(baseJob({ format: 'fb2', filename: 'book.fb2' }));
+    store.isCancelRequested = vi.fn(async (jobId) => {
+      const job = await store.getJob(jobId);
+      return (job?.current ?? 0) >= 1;
+    });
+
+    await runAsyncImportJob(
+      baseParams(store, {
+        extension: 'fb2',
+        filename: 'book.fb2',
+        buffer: Buffer.from('fb2'),
+      })
+    );
+
+    const finalJob = await store.getJob('job-1');
+    expect(finalJob?.status).toBe('canceled');
+  });
+
+  it('completes when cache invalidation fails', async () => {
+    parseEpubLazy.mockResolvedValue({
+      metadata: {},
+      warnings: [],
+      errors: [],
+      chapterCount: 1,
+      chapterIterator: chapterIterator([{ title: 'Ch 1', content: 'one' }]),
+    });
+    invalidateProjectAndRelatedCaches.mockRejectedValue(new Error('redis down'));
+
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const store = createInMemoryImportJobStore(baseJob());
+    await runAsyncImportJob(baseParams(store, { log }));
+
+    const finalJob = await store.getJob('job-1');
+    expect(finalJob?.status).toBe('completed');
+    expect(log.warn).toHaveBeenCalled();
+  });
+
+  it('sets processing phase before parse', async () => {
+    parseEpubLazy.mockResolvedValue({
+      metadata: {},
+      warnings: [],
+      errors: [],
+      chapterCount: 1,
+      chapterIterator: chapterIterator([{ title: 'Ch 1', content: 'one' }]),
+    });
+
+    const store = createInMemoryImportJobStore(baseJob());
+    await runAsyncImportJob(baseParams(store));
+
+    expect(store.updateJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({ status: 'processing', phase: 'parsing' })
+    );
   });
 
   it('FB2 parse errors set job error', async () => {

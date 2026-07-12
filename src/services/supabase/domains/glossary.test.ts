@@ -20,6 +20,7 @@ import {
   deleteGlossaryEntry,
   getGlossaryEntry,
   importGlossaryEntriesBatch,
+  updateGlossaryEntry,
 } from './glossary.js';
 
 function chainable(result: { data: unknown; error: unknown }) {
@@ -66,6 +67,11 @@ describe('getGlossaryEntry', () => {
     const entry = await getGlossaryEntry('proj-1', 'g1', 'token');
     assert.equal(entry?.original, 'Alice');
     assert.equal(entry?.translated, 'Алиса');
+  });
+
+  it('returns null when row is missing despite no error code', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    assert.equal(await getGlossaryEntry('proj-1', 'g1', 'token'), null);
   });
 });
 
@@ -231,6 +237,22 @@ describe('addGlossaryEntry', () => {
     assert.equal(entry?.original, 'Carol');
     assert.equal(entry?.translated, 'Кэрол');
   });
+
+  it('throws when insert fails', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'projects') {
+        return chainable({ data: { id: 'proj-1' }, error: null });
+      }
+      if (table === 'glossary_entries') {
+        return chainable({ data: null, error: { message: 'insert fail' } });
+      }
+      return chainable({ data: null, error: null });
+    });
+    await assert.rejects(
+      () => addGlossaryEntry('proj-1', glossaryEntryInput, 'token'),
+      /Failed to add glossary entry/
+    );
+  });
 });
 
 describe('deleteGlossaryEntry', () => {
@@ -247,6 +269,19 @@ describe('deleteGlossaryEntry', () => {
     );
     const ok = await deleteGlossaryEntry('proj-1', 'g1', 'token');
     assert.equal(ok, true);
+  });
+
+  it('throws when delete fails', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'delete fail' },
+      })
+    );
+    await assert.rejects(
+      () => deleteGlossaryEntry('proj-1', 'g1', 'token'),
+      /Failed to delete glossary entry/
+    );
   });
 });
 
@@ -270,5 +305,126 @@ describe('deleteGlossaryEntriesBulk', () => {
     );
     const count = await deleteGlossaryEntriesBulk('proj-1', ['g1', 'g2'], 'token');
     assert.equal(count, 2);
+  });
+
+  it('throws when bulk delete fails', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'bulk fail' },
+      })
+    );
+    await assert.rejects(
+      () => deleteGlossaryEntriesBulk('proj-1', ['g1'], 'token'),
+      /Failed to bulk delete glossary entries/
+    );
+  });
+});
+
+describe('updateGlossaryEntry', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns undefined when entry not found', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    const result = await updateGlossaryEntry('proj-1', 'missing', { translated: 'X' }, 'token');
+    assert.equal(result, undefined);
+  });
+
+  it('updates entry and merges imageUrl into imageUrls', async () => {
+    const selectChain = chainable({
+      data: {
+        id: 'g1',
+        project_id: 'proj-1',
+        type: 'character',
+        original: 'Alice',
+        translated: 'Алиса',
+        image_urls: ['https://old.test/a.png'],
+      },
+      error: null,
+    });
+    const updateChain = chainable({
+      data: {
+        id: 'g1',
+        project_id: 'proj-1',
+        type: 'character',
+        original: 'Alice',
+        translated: 'Алиса V.',
+        image_urls: ['https://new.test/b.png', 'https://old.test/a.png'],
+        mentioned_in_chapters: [],
+      },
+      error: null,
+    });
+    const projectChain = chainable({ data: null, error: null });
+    let call = 0;
+    mockFrom.mockImplementation((table: string) => {
+      call += 1;
+      if (table === 'glossary_entries' && call === 1) return selectChain;
+      if (table === 'glossary_entries' && call === 2) return updateChain;
+      if (table === 'projects') return projectChain;
+      return chainable({ data: null, error: null });
+    });
+
+    const result = await updateGlossaryEntry(
+      'proj-1',
+      'g1',
+      { translated: 'Алиса V.', imageUrl: 'https://new.test/b.png' },
+      'token'
+    );
+    assert.equal(result?.translated, 'Алиса V.');
+  });
+
+  it('returns undefined on PGRST116 update error', async () => {
+    const selectChain = chainable({
+      data: {
+        id: 'g1',
+        project_id: 'proj-1',
+        type: 'character',
+        original: 'Alice',
+        translated: 'Алиса',
+        image_urls: [],
+      },
+      error: null,
+    });
+    const updateChain = chainable({
+      data: null,
+      error: { code: 'PGRST116', message: 'not found' },
+    });
+    let call = 0;
+    mockFrom.mockImplementation((table: string) => {
+      call += 1;
+      if (table === 'glossary_entries' && call === 1) return selectChain;
+      if (table === 'glossary_entries') return updateChain;
+      return chainable({ data: null, error: null });
+    });
+    const result = await updateGlossaryEntry('proj-1', 'g1', { translated: 'X' }, 'token');
+    assert.equal(result, undefined);
+  });
+
+  it('throws on non-PGRST116 update error', async () => {
+    const selectChain = chainable({
+      data: {
+        id: 'g1',
+        project_id: 'proj-1',
+        type: 'character',
+        original: 'Alice',
+        translated: 'Алиса',
+        image_urls: [],
+      },
+      error: null,
+    });
+    const updateChain = chainable({ data: null, error: { message: 'update fail' } });
+    let call = 0;
+    mockFrom.mockImplementation((table: string) => {
+      call += 1;
+      if (table === 'glossary_entries' && call === 1) return selectChain;
+      if (table === 'glossary_entries') return updateChain;
+      return chainable({ data: null, error: null });
+    });
+    await assert.rejects(
+      () => updateGlossaryEntry('proj-1', 'g1', { translated: 'X' }, 'token'),
+      /Failed to update glossary entry/
+    );
   });
 });

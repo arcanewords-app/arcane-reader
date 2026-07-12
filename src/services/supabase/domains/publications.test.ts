@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, vi } from 'vitest';
 
-const { mockFrom, mockGetProject } = vi.hoisted(() => ({
+const { mockFrom, mockGetProject, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockGetProject: vi.fn(),
+  mockRpc: vi.fn().mockResolvedValue({ data: [], error: null }),
 }));
 
 vi.mock('../../supabaseClient.js', () => ({
   supabase: { from: mockFrom },
   createClientWithToken: vi.fn(() => ({ from: mockFrom })),
-  createServiceRoleClient: vi.fn(() => ({ from: mockFrom, rpc: vi.fn() })),
+  createServiceRoleClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
 
 vi.mock('./projects.js', () => ({
@@ -21,9 +22,11 @@ vi.mock('../../../utils/tokenValidation.js', () => ({
 }));
 
 import {
+  assertOwnedActiveTranslatorPseudonym,
   countActiveTranslatorPseudonymsForUser,
   createOrUpdatePublication,
   createPublicEntity,
+  createTranslatorPseudonymForUser,
   getPublicationById,
   getPublicationBySlugOrId,
   getPublicationChapterContent,
@@ -97,6 +100,36 @@ describe('listPublicationsPublic', () => {
     assert.equal(list[0]?.id, 'pub-1');
     assert.equal(list[0]?.translatedChapterCount, 3);
   });
+
+  it('throws when list query fails without fallback trigger', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'permission denied for table' },
+      })
+    );
+    await assert.rejects(() => listPublicationsPublic(), /Failed to list publications/);
+  });
+
+  it('falls back to publications table when view is missing', async () => {
+    const viewChain = chainable({
+      data: null,
+      error: { message: 'relation "publications_list_with_counts" does not exist' },
+    });
+    const fallbackChain = chainable({
+      data: [pubRow],
+      error: null,
+    });
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      return call === 1 ? viewChain : fallbackChain;
+    });
+
+    const list = await listPublicationsPublic({ limit: 10, offset: 0 });
+    assert.equal(list.length, 1);
+    assert.equal(list[0]?.id, 'pub-1');
+  });
 });
 
 describe('getPublicationBySlugOrId', () => {
@@ -113,6 +146,27 @@ describe('getPublicationBySlugOrId', () => {
     );
     const pub = await getPublicationBySlugOrId('novel-slug');
     assert.equal(pub?.slug, 'novel-slug');
+  });
+
+  it('returns null when slug publication not found', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { code: 'PGRST116', message: 'not found' },
+      })
+    );
+    const pub = await getPublicationBySlugOrId('missing-slug');
+    assert.equal(pub, null);
+  });
+
+  it('throws when slug lookup fails with non-not-found error', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'db fail' },
+      })
+    );
+    await assert.rejects(() => getPublicationBySlugOrId('bad-slug'), /Failed to get publication/);
   });
 
   it('delegates uuid to getPublicationById', async () => {
@@ -526,6 +580,88 @@ describe('createOrUpdatePublication', () => {
     assert.equal(pub.status, 'published');
     assert.equal(updateChain.update.mock.calls.length, 1);
   });
+
+  it('throws when insert fails', async () => {
+    mockGetProject.mockResolvedValue(projectFixture);
+    const existingSelectChain = chainable({
+      data: null,
+      error: { code: 'PGRST116', message: 'not found' },
+    });
+    const slugChain = chainable({ data: null, error: null });
+    const insertChain = chainable({
+      data: null,
+      error: { message: 'insert fail' },
+    });
+    let pubCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table !== 'publications') throw new Error(`unexpected table ${table}`);
+      pubCall += 1;
+      if (pubCall === 1) return existingSelectChain;
+      if (pubCall === 2) return slugChain;
+      return insertChain;
+    });
+
+    await assert.rejects(
+      () => createOrUpdatePublication('proj-1', 'user-1', 'token', { status: 'draft' }),
+      /Failed to create publication/
+    );
+  });
+
+  it('throws when update fails', async () => {
+    mockGetProject.mockResolvedValue(projectFixture);
+    const existingSelectChain = chainable({
+      data: { id: 'pub-1', published_at: '2026-01-01T00:00:00Z' },
+      error: null,
+    });
+    const slugChain = chainable({ data: null, error: null });
+    const updateChain = chainable({
+      data: null,
+      error: { message: 'update fail' },
+    });
+    let pubCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table !== 'publications') throw new Error(`unexpected table ${table}`);
+      pubCall += 1;
+      if (pubCall === 1) return existingSelectChain;
+      if (pubCall === 2) return slugChain;
+      return updateChain;
+    });
+
+    await assert.rejects(
+      () => createOrUpdatePublication('proj-1', 'user-1', 'token', { status: 'published' }),
+      /Failed to update publication/
+    );
+  });
+
+  it('resolves slug conflict by appending numeric suffix', async () => {
+    mockGetProject.mockResolvedValue(projectFixture);
+    const existingSelectChain = chainable({
+      data: null,
+      error: { code: 'PGRST116', message: 'not found' },
+    });
+    const slugTakenChain = chainable({ data: { id: 'other-pub' }, error: null });
+    const slugFreeChain = chainable({ data: null, error: null });
+    const insertChain = chainable({
+      data: { ...pubRow, status: 'draft', slug: 'my-novel-1' },
+      error: null,
+    });
+    let pubCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table !== 'publications') throw new Error(`unexpected table ${table}`);
+      pubCall += 1;
+      if (pubCall === 1) return existingSelectChain;
+      if (pubCall === 2) return slugTakenChain;
+      if (pubCall === 3) return slugFreeChain;
+      return insertChain;
+    });
+
+    const pub = await createOrUpdatePublication('proj-1', 'user-1', 'token', {
+      status: 'draft',
+      title: 'My Novel',
+    });
+    assert.equal(pub.slug, 'my-novel-1');
+    assert.equal(insertChain.insert.mock.calls.length, 1);
+  });
 });
 
 describe('getPublicationChapterContent', () => {
@@ -619,5 +755,78 @@ describe('syncPublicationTranslationStatus', () => {
       () => syncPublicationTranslationStatus('proj-1', 'user-1', 'token', 'complete'),
       /Failed to sync publication translation status/
     );
+  });
+});
+
+describe('assertOwnedActiveTranslatorPseudonym', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns entity when user owns active translator pseudonym', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: translatorRow,
+        error: null,
+      })
+    );
+    const entity = await assertOwnedActiveTranslatorPseudonym('user-1', 'ent-t1');
+    assert.equal(entity.id, 'ent-t1');
+  });
+
+  it('throws INVALID_TRANSLATOR_PSEUDONYM when entity is not owned', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: { ...translatorRow, owner_user_id: 'other-user' },
+        error: null,
+      })
+    );
+    await assert.rejects(
+      () => assertOwnedActiveTranslatorPseudonym('user-1', 'ent-t1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'INVALID_TRANSLATOR_PSEUDONYM');
+        return true;
+      }
+    );
+  });
+});
+
+describe('createTranslatorPseudonymForUser', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws PSEUDONYM_LIMIT when user is at cap', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: null,
+        count: 3,
+      })
+    );
+    await assert.rejects(
+      () => createTranslatorPseudonymForUser('user-1', { name: 'Alias' }, 'token'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'PSEUDONYM_LIMIT');
+        return true;
+      }
+    );
+  });
+
+  it('inserts translator pseudonym when under limit', async () => {
+    const countChain = chainable({ data: null, error: null, count: 1 });
+    const insertChain = chainable({
+      data: translatorRow,
+      error: null,
+    });
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      return call === 1 ? countChain : insertChain;
+    });
+
+    const entity = await createTranslatorPseudonymForUser('user-1', { name: 'Alias' }, 'token');
+    assert.equal(entity.name, 'Translator Alias');
+    assert.equal(insertChain.insert.mock.calls.length, 1);
   });
 });

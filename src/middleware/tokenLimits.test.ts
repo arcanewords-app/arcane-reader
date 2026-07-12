@@ -2,26 +2,40 @@ import assert from 'node:assert/strict';
 import { afterEach, describe, it, vi } from 'vitest';
 import { TOKEN_LIMITS } from '../config/tokenLimits.js';
 
-const { mockFrom, mockValidateToken } = vi.hoisted(() => ({
+const { mockFrom, mockValidateToken, mockRpc, mockRedisDelMany } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockValidateToken: vi.fn(),
+  mockRpc: vi.fn(),
+  mockRedisDelMany: vi.fn(),
 }));
 
 vi.mock('../services/supabaseClient.js', () => ({
-  createClientWithToken: vi.fn(() => ({ from: mockFrom })),
+  createClientWithToken: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
+  createServiceRoleClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
+}));
+
+vi.mock('../services/redisCache.js', () => ({
+  buildRedisKey: (...parts: string[]) => parts.join(':'),
+  redisDelMany: (...args: unknown[]) => mockRedisDelMany(...args),
 }));
 
 vi.mock('../utils/tokenValidation.js', () => ({
   validateToken: (...args: unknown[]) => mockValidateToken(...args),
 }));
 
-import { checkTokenLimit, getUserTokenUsage } from './tokenLimits.js';
+import {
+  checkTokenLimit,
+  getTokenUsageHistory,
+  getUserTokenUsage,
+  incrementTokenUsage,
+  reserveTokens,
+} from './tokenLimits.js';
 
 const VALID_TOKEN = 'header.payload.signature';
 
-function chainable(result: { data: unknown; error: unknown }) {
+function chainable(result: { data: unknown; error: unknown }, extraMethods: string[] = []) {
   const chain: Record<string, unknown> = {};
-  for (const m of ['select', 'eq', 'single']) {
+  for (const m of ['select', 'eq', 'single', 'gte', 'order', 'upsert', ...extraMethods]) {
     chain[m] = vi.fn(() => chain);
   }
   chain.then = (resolve: (v: typeof result) => void) => resolve(result);
@@ -191,5 +205,87 @@ describe('checkTokenLimit', () => {
 
     assert.equal(check.allowed, true);
     assert.equal(check.remaining, -1);
+  });
+});
+
+describe('getTokenUsageHistory', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('maps history records with role limit', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: [
+          { date: '2026-07-12', tokens_used: 12000 },
+          { date: '2026-07-11', tokens_used: 8000 },
+        ],
+        error: null,
+      })
+    );
+
+    const history = await getTokenUsageHistory('user-1', VALID_TOKEN, 7, 'author');
+
+    assert.deepEqual(history, [
+      { date: '2026-07-12', tokensUsed: 12000, tokensLimit: TOKEN_LIMITS.ROLE_DAILY_LIMITS.author },
+      { date: '2026-07-11', tokensUsed: 8000, tokensLimit: TOKEN_LIMITS.ROLE_DAILY_LIMITS.author },
+    ]);
+  });
+
+  it('throws on database error', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'db down' },
+      })
+    );
+
+    await assert.rejects(
+      () => getTokenUsageHistory('user-1', VALID_TOKEN),
+      /Failed to get token usage history/
+    );
+  });
+});
+
+describe('reserveTokens', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns early when tokensToReserve is zero', async () => {
+    await reserveTokens('user-1', VALID_TOKEN, 0);
+    assert.equal(mockFrom.mock.calls.length, 0);
+    assert.equal(mockValidateToken.mock.calls.length, 0);
+  });
+
+  it('upserts increased tokens_blocked', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: { tokens_used: 1000, tokens_blocked: 500, tokens_by_stage: { translation: 1000 } },
+        error: null,
+      })
+    );
+
+    await reserveTokens('user-1', VALID_TOKEN, 2000);
+
+    const upsertCall = mockFrom.mock.results[0]?.value?.upsert as ReturnType<typeof vi.fn>;
+    assert.equal(upsertCall.mock.calls[0]?.[0]?.tokens_blocked, 2500);
+    assert.equal(mockRedisDelMany.mock.calls.length, 1);
+  });
+});
+
+describe('incrementTokenUsage', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('uses atomic RPC when available', async () => {
+    mockRpc.mockResolvedValue({ error: null });
+
+    await incrementTokenUsage('user-1', VALID_TOKEN, 1500, { translation: 1500 });
+
+    assert.equal(mockRpc.mock.calls[0]?.[0], 'increment_token_usage_atomic');
+    assert.equal(mockRedisDelMany.mock.calls.length, 1);
+    assert.equal(mockFrom.mock.calls.length, 0);
   });
 });

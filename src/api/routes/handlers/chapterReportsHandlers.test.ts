@@ -29,6 +29,7 @@ vi.mock('../../routeHelpers.js', () => ({
   projectReportsCountCacheKey: (projectId: string) => `reports-count:${projectId}`,
 }));
 
+import { handleServiceError } from '../../../middleware/serviceHealth.js';
 import {
   handleDeleteReport,
   handleGetReportsCount,
@@ -66,6 +67,7 @@ function mockReq(overrides: Record<string, unknown> = {}) {
 describe('chapterReportsHandlers', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.mocked(handleServiceError).mockReturnValue(false);
   });
 
   it('handleGetReportsCount returns count json', async () => {
@@ -95,5 +97,81 @@ describe('chapterReportsHandlers', () => {
     const res = mockRes();
     await handleDeleteReport(mockReq() as never, res as never);
     assert.deepEqual(res.body, { success: true });
+  });
+
+  describe('error branches', () => {
+    it('handleGetReportsCount returns 500 on unexpected error', async () => {
+      mockGetCount.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleGetReportsCount(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+      assert.deepEqual(res.body, { error: 'Failed to get reports count' });
+    });
+
+    it('handleGetReportsCount delegates to handleServiceError', async () => {
+      mockGetCount.mockRejectedValue(new Error('supabase down'));
+      vi.mocked(handleServiceError).mockReturnValue(true);
+      const res = mockRes();
+      await handleGetReportsCount(mockReq() as never, res as never);
+      assert.equal(vi.mocked(handleServiceError).mock.calls.length, 1);
+    });
+
+    it('handleListReports returns 500 on unexpected error', async () => {
+      mockGetReports.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleListReports(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+      assert.deepEqual(res.body, { error: 'Failed to get reports' });
+    });
+
+    it('handleListReports delegates to handleServiceError', async () => {
+      mockGetReports.mockRejectedValue(new Error('supabase down'));
+      vi.mocked(handleServiceError).mockReturnValue(true);
+      const res = mockRes();
+      await handleListReports(mockReq() as never, res as never);
+      assert.equal(vi.mocked(handleServiceError).mock.calls.length, 1);
+    });
+
+    it('handlePatchReportStatus returns 400 on validation failure', async () => {
+      const res = mockRes();
+      await handlePatchReportStatus(
+        mockReq({ body: { status: 'invalid-status' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+      assert.equal((res.body as { error: string }).error, 'Validation failed');
+    });
+
+    it('handlePatchReportStatus returns 400 on domain error', async () => {
+      mockUpdateStatus.mockRejectedValue(new Error('Report not found'));
+      const res = mockRes();
+      await handlePatchReportStatus(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 400);
+      assert.equal((res.body as { error: string }).error, 'Report not found');
+    });
+
+    it('handlePatchReportStatus delegates to handleServiceError', async () => {
+      mockUpdateStatus.mockRejectedValue(new Error('redis down'));
+      vi.mocked(handleServiceError).mockReturnValue(true);
+      const res = mockRes();
+      await handlePatchReportStatus(mockReq() as never, res as never);
+      assert.equal(vi.mocked(handleServiceError).mock.calls.length, 1);
+    });
+
+    it('handleDeleteReport returns 400 on domain error', async () => {
+      mockDeleteReport.mockRejectedValue(new Error('Cannot delete report'));
+      const res = mockRes();
+      await handleDeleteReport(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 400);
+      assert.equal((res.body as { error: string }).error, 'Cannot delete report');
+    });
+
+    it('handleDeleteReport delegates to handleServiceError', async () => {
+      mockDeleteReport.mockRejectedValue(new Error('supabase down'));
+      vi.mocked(handleServiceError).mockReturnValue(true);
+      const res = mockRes();
+      await handleDeleteReport(mockReq() as never, res as never);
+      assert.equal(vi.mocked(handleServiceError).mock.calls.length, 1);
+    });
   });
 });

@@ -61,5 +61,37 @@ describe('buildEditExecutionPreview', () => {
       translatedText: '',
     });
     assert.equal(preview.estimatedChunks, 0);
+    assert.ok(preview.hints.some((h) => h.includes('Add draft text')));
+  });
+
+  it('one_shot single_shot adds full-draft hint', () => {
+    const preview = buildEditExecutionPreview({
+      executionMode: 'one_shot',
+      modelId: 'gpt-5.4-mini',
+      translatedText: repeatChar('a', 5000),
+    });
+    assert.ok(preview.hints.some((h) => h.includes('one API request')));
+  });
+
+  it('one_shot large chunks adds fallback chunk hint', () => {
+    const preview = buildEditExecutionPreview({
+      executionMode: 'one_shot',
+      modelId: 'gpt-4.1-mini',
+      translatedText: repeatParagraphs('中', 20, 600),
+    });
+    assert.equal(preview.chunkSizeTier, 'large');
+    assert.ok(preview.hints.some((h) => h.includes('large chunks')));
+  });
+
+  it('applies style and focus overrides', () => {
+    const preview = buildEditExecutionPreview({
+      executionMode: 'chunked',
+      modelId: 'gpt-4.1-mini',
+      translatedText: repeatChar('a', 2000),
+      stylePresetOverride: 'literary',
+      focusOverride: 'elevate',
+    });
+    assert.equal(preview.editingStylePreset, 'literary');
+    assert.equal(preview.editingFocus, 'elevate');
   });
 });

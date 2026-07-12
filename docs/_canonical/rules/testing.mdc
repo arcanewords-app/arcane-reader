@@ -17,7 +17,7 @@ alwaysApply: false
 
 Same scope for unit tests, coverage, and Stryker `mutate`:
 
-- `src/**/*.ts` minus `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`
+- `src/**/*.ts` minus `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`, `src/debug/**`, `src/prompt-lab/**`
 - Includes **backend + client SPA** (~277 source files)
 
 SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testing-baseline.md`.

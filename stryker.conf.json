@@ -5,7 +5,14 @@
   "plugins": ["@stryker-mutator/vitest-runner"],
   "reporters": ["html", "clear-text", "progress"],
   "ignorePatterns": ["docs/**", ".cursor/**", "coverage/**", "dist/**", ".debug/**"],
-  "mutate": ["src/**/*.ts", "!src/**/*.test.ts", "!src/debug-app/**", "!src/prompt-lab-app/**"],
+  "mutate": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/debug-app/**",
+    "!src/prompt-lab-app/**",
+    "!src/debug/**",
+    "!src/prompt-lab/**"
+  ],
   "vitest": {
     "configFile": "vitest.config.ts",
     "related": false

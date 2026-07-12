@@ -461,4 +461,45 @@ describe('userRouteHandlers', () => {
       assert.equal(res.statusCode, 401);
     });
   });
+
+  describe('error branches', () => {
+    it('handleGetTokenUsageHistory returns 500 on unexpected error', async () => {
+      mocks.getTokenUsageHistory.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleGetTokenUsageHistory(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleGetReadingHistory delegates to handleServiceError', async () => {
+      mocks.getUserReadingHistory.mockRejectedValue(new Error('supabase down'));
+      mocks.handleServiceError.mockReturnValue(true);
+      const res = mockRes();
+      await handleGetReadingHistory(mockReq() as never, res as never);
+      assert.equal(mocks.handleServiceError.mock.calls.length, 1);
+    });
+
+    it('handleListUserTranslationRequests returns 500 on unexpected error', async () => {
+      mocks.listCatalogTranslationRequestsByUser.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleListUserTranslationRequests(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleUpdateUserReaderSettings returns 500 on unexpected error', async () => {
+      mocks.updateUserReaderSettings.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleUpdateUserReaderSettings(
+        mockReq({ body: { fontSize: 18 } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleUpdateTranslatorPseudonym returns 400 on validation failure', async () => {
+      mocks.getTranslatorPseudonymForUser.mockResolvedValue({ id: 'pseudo-1', name: 'Old' });
+      const res = mockRes();
+      await handleUpdateTranslatorPseudonym(mockReq({ body: { name: '' } }) as never, res as never);
+      assert.equal(res.statusCode, 400);
+    });
+  });
 });

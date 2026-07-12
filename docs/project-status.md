@@ -41,17 +41,17 @@ Update this file when completing plans or shipping major features.
 
 ## Active plans (`05-plans/`)
 
-| Plan                                      | Domain                                                                                             |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                        |
-| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                 |
-| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                           |
-| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                           |
-| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
-| [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
-| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
-| [[05-plans/testing-baseline]]             | Coverage **41.8%** lines (Wave 4 done); mock-first strategy; Q4 live integration blocked           |
-| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
+| Plan                                      | Domain                                                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                               |
+| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                        |
+| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                                  |
+| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                                  |
+| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                                    |
+| [[05-plans/seo-search-console]]           | GSC submission                                                                                            |
+| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                           |
+| [[05-plans/testing-baseline]]             | Coverage **65%** lines / **55%** branches (Wave 5 done); mock-first strategy; Q4 live integration blocked |
+| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred        |
 
 ## Known tech debt
 

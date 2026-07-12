@@ -41,10 +41,28 @@ import {
   logSuspectTruncationsAfterSync,
 } from '../shared/paragraphSync.js';
 import {
-  parseParagraphMarkers,
-  PARA_MARKER_PREFIX,
-  PARA_MARKER_SUFFIX,
-} from '../engine/utils/para-markers.js';
+  buildMarkedTextFromParagraphs,
+  parseEditedTextByMarkers,
+} from './chapters/helpers/paragraphMarkers.js';
+import {
+  formatStageModelInfo,
+  isAnalysisOnlyRun,
+  needsExistingTranslatedTextForEditing,
+  phase1StagesIncludeAnalysis,
+  resolvePhase1IncludeGlossaryInTranslation,
+  resolvePhase1Stages,
+  shouldRunTwoPhaseEditing,
+  shouldTranslateChapterTitles,
+} from './chapters/helpers/translationStageDispatch.js';
+import {
+  isValidPhase2TranslationText,
+  validateTranslationPipelineResult,
+} from './chapters/helpers/translationResultValidation.js';
+import {
+  resolveExistingTranslatedTextForPipeline,
+  resolveTranslationSubsetPlan,
+} from './chapters/helpers/translationSubset.js';
+import { splitTranslatedTextToChunks } from './chapters/helpers/translatedTextChunks.js';
 import { createTraceId, runWithDebugContextAsync } from '../debug/context.js';
 import { logger } from '../logger.js';
 import {
@@ -329,78 +347,32 @@ async function performTranslationInner(
       'Starting arcane-engine TranslationPipeline'
     );
 
-    // Helper function to check if paragraph has valid translation
-    const hasValidTranslation = (p: Paragraph): boolean => {
-      const text = p.translatedText?.trim() || '';
-      if (text.length === 0) return false;
-      // Ignore error messages
-      if (text.startsWith('❌') || isChunkError(text)) return false;
-      return true;
+    const subsetPlan = resolveTranslationSubsetPlan(chapterWithOriginal, {
+      paragraphIds,
+      translateOnlyEmpty,
+    });
+    const chapterToTranslate = {
+      ...chapterWithOriginal,
+      originalText: subsetPlan.chapterOriginalText,
     };
+    const paragraphsToTranslate = subsetPlan.paragraphsToTranslate;
+    const translateSubsetOnly = subsetPlan.translateSubsetOnly;
 
-    // Add paragraph markers to text before translation
-    // Format: --para:{paragraphId}--{text}
-    const addParagraphMarkers = (text: string, paragraphs: Paragraph[]): string => {
-      const textParagraphs = text
-        .split(/\n\s*\n/)
-        .map((p) => p.trim())
-        .filter((p) => p.length > 0);
-
-      // Match text paragraphs with database paragraphs
-      let paraIndex = 0;
-      const markedParagraphs: string[] = [];
-
-      for (const textPara of textParagraphs) {
-        // Try to find matching paragraph by comparing original text
-        let matchedPara: Paragraph | undefined;
-
-        if (paraIndex < paragraphs.length) {
-          // Try exact match first
-          if (paragraphs[paraIndex].originalText.trim() === textPara) {
-            matchedPara = paragraphs[paraIndex];
-            paraIndex++;
-          } else {
-            // Try to find by similarity
-            for (let i = 0; i < paragraphs.length; i++) {
-              if (paragraphs[i].originalText.trim() === textPara) {
-                matchedPara = paragraphs[i];
-                paraIndex = i + 1;
-                break;
-              }
-            }
-          }
-        }
-
-        if (matchedPara) {
-          markedParagraphs.push(`--para:${matchedPara.id}--${textPara}`);
-        } else {
-          // If no match found, use auto-generated marker
-          markedParagraphs.push(`--para:auto_${markedParagraphs.length}--${textPara}`);
-        }
-      }
-
-      return markedParagraphs.join('\n\n');
-    };
-
-    // Determine which paragraphs to translate: selected IDs, empty only, or full chapter
-    let chapterToTranslate = chapterWithOriginal;
-    let paragraphsToTranslate = chapterWithOriginal.paragraphs || [];
-    let translateSubsetOnly = false; // true when we merge synced subset back into full paragraphs
-
-    if (paragraphIds?.length) {
-      const idSet = new Set(paragraphIds);
-      paragraphsToTranslate = (chapterWithOriginal.paragraphs || []).filter((p) => idSet.has(p.id));
-      if (paragraphsToTranslate.length === 0) {
-        logger.info({ projectId, chapterId }, 'No selected paragraphs to translate');
-        await updateChapter(projectId, chapterId, { status: 'completed' }, token, {
-          useServiceRole: true,
-        });
-        return;
-      }
-      const textToTranslate = mergeParagraphsToText(paragraphsToTranslate, 'originalText');
-      const markedText = addParagraphMarkers(textToTranslate, paragraphsToTranslate);
-      chapterToTranslate = { ...chapterWithOriginal, originalText: markedText };
-      translateSubsetOnly = true;
+    if (subsetPlan.skipReason === 'no_selected_paragraphs') {
+      logger.info({ projectId, chapterId }, 'No selected paragraphs to translate');
+      await updateChapter(projectId, chapterId, { status: 'completed' }, token, {
+        useServiceRole: true,
+      });
+      return;
+    }
+    if (subsetPlan.skipReason === 'no_empty_paragraphs') {
+      logger.info({ projectId, chapterId }, 'No empty paragraphs to translate; skipping');
+      await updateChapter(projectId, chapterId, { status: 'completed' }, token, {
+        useServiceRole: true,
+      });
+      return;
+    }
+    if (translateSubsetOnly) {
       logger.info(
         {
           projectId,
@@ -412,49 +384,22 @@ async function performTranslationInner(
       );
     } else if (translateOnlyEmpty) {
       const paragraphs = chapterWithOriginal.paragraphs || [];
-      const emptyParagraphs = paragraphs.filter((p) => !hasValidTranslation(p));
-
-      if (emptyParagraphs.length === 0) {
-        logger.info({ projectId, chapterId }, 'No empty paragraphs to translate; skipping');
-        await updateChapter(projectId, chapterId, { status: 'completed' }, token, {
-          useServiceRole: true,
-        });
-        return;
-      }
-
-      const textToTranslate = mergeParagraphsToText(emptyParagraphs, 'originalText');
-      const textLength = textToTranslate.length;
-      const wordCount = textToTranslate.split(/\s+/).length;
-
+      const textLength = mergeParagraphsToText(paragraphsToTranslate, 'originalText').length;
+      const wordCount = mergeParagraphsToText(paragraphsToTranslate, 'originalText').split(
+        /\s+/
+      ).length;
       logger.info(
         {
           projectId,
           chapterId,
-          emptyCount: emptyParagraphs.length,
+          emptyCount: paragraphsToTranslate.length,
           totalParagraphs: paragraphs.length,
           textLength,
           wordCount,
-          skipCount: paragraphs.length - emptyParagraphs.length,
+          skipCount: paragraphs.length - paragraphsToTranslate.length,
         },
-        `Partial translation: ${emptyParagraphs.length} of ${paragraphs.length} paragraphs (~${wordCount} words)`
+        `Partial translation: ${paragraphsToTranslate.length} of ${paragraphs.length} paragraphs (~${wordCount} words)`
       );
-
-      const markedText = addParagraphMarkers(textToTranslate, emptyParagraphs);
-      paragraphsToTranslate = emptyParagraphs;
-
-      chapterToTranslate = {
-        ...chapterWithOriginal,
-        originalText: markedText,
-      };
-    } else {
-      const markedText = addParagraphMarkers(
-        chapterWithOriginal.originalText,
-        chapterWithOriginal.paragraphs || []
-      );
-      chapterToTranslate = {
-        ...chapterWithOriginal,
-        originalText: markedText,
-      };
     }
 
     // Create project-specific config
@@ -482,32 +427,23 @@ async function performTranslationInner(
     }
 
     // Two-phase when both translation and editing: save draft after stage 2, then run stage 3 (refactor 2.1)
-    const runEditing =
-      (stages === 'all' || (Array.isArray(stages) && stages.includes('editing'))) &&
-      (stages === 'all' || (Array.isArray(stages) && stages.includes('translation')));
-    const phase1Stages: TranslationStages = runEditing
-      ? stages === 'all'
-        ? ['analysis', 'translation']
-        : Array.isArray(stages)
-          ? (stages.filter((s) => s !== 'editing') as ('analysis' | 'translation')[])
-          : ['analysis', 'translation']
-      : stages;
+    const runEditing = shouldRunTwoPhaseEditing(stages);
+    const phase1Stages = resolvePhase1Stages(stages, runEditing);
 
     let result;
     try {
-      const needsExistingText =
-        Array.isArray(stages) && stages.includes('editing') && !stages.includes('translation');
+      const needsExistingText = needsExistingTranslatedTextForEditing(stages);
       // When runEditing (two-phase): phase 1 gets stages ['analysis','translation']; pipeline cannot
       // infer willRunEditing from runStages. Pass includeGlossaryInTranslation explicitly: when
       // editing will run, default false (omit glossary, 3500 chunks); else default true.
-      const phase1IncludeGlossaryInTranslation =
-        project.settings?.includeGlossaryInTranslation ?? (runEditing ? false : true);
+      const phase1IncludeGlossaryInTranslation = resolvePhase1IncludeGlossaryInTranslation(
+        project.settings?.includeGlossaryInTranslation,
+        runEditing
+      );
       result = await translateChapterWithPipeline(projectConfig, project, chapterToTranslate, {
         stages: phase1Stages,
         existingTranslatedText: needsExistingText
-          ? chapterWithOriginal.paragraphs?.length
-            ? buildMarkedTextFromParagraphs(chapterWithOriginal.paragraphs)
-            : chapterWithOriginal.translatedText?.trim() || undefined
+          ? resolveExistingTranslatedTextForPipeline(chapterWithOriginal)
           : undefined,
         isCancelled,
         includeGlossaryInAnalysis: project.settings?.includeGlossaryInAnalysis ?? true,
@@ -593,7 +529,7 @@ async function performTranslationInner(
     }
 
     // stages = ['analysis'] only: save glossary, don't update chapter translation
-    if (Array.isArray(stages) && stages.length === 1 && stages[0] === 'analysis') {
+    if (isAnalysisOnlyRun(stages)) {
       if (result.glossaryUpdates?.length) {
         for (const entry of result.glossaryUpdates) {
           await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
@@ -651,17 +587,9 @@ async function performTranslationInner(
     }
 
     // Validate translation result
-    const isValidTranslationResult =
-      result.translatedText &&
-      result.translatedText.trim().length > 0 &&
-      !isChunkError(result.translatedText);
-
-    const hasValidTokens = result.tokensUsed > 0 || result.duration > 0;
-
-    if (!isValidTranslationResult || (!hasValidTokens && result.duration === 0)) {
-      const errorMessage = !isValidTranslationResult
-        ? 'Translation empty or contains error'
-        : 'Translation finished with no tokens used (possible error)';
+    const validation = validateTranslationPipelineResult(result);
+    if (!validation.valid) {
+      const errorMessage = validation.errorMessage ?? 'Translation validation failed';
 
       logger.warn(
         {
@@ -674,20 +602,11 @@ async function performTranslationInner(
         `Validation failed: ${errorMessage}`
       );
 
-      const modelInfoOnError =
-        stages === 'all'
-          ? `${analysisModel}/${translationModel}/${editingModel}`
-          : Array.isArray(stages)
-            ? stages
-                .map((s) =>
-                  s === 'analysis'
-                    ? analysisModel
-                    : s === 'translation'
-                      ? translationModel
-                      : editingModel
-                )
-                .join('/')
-            : editingModel;
+      const modelInfoOnError = formatStageModelInfo(stages, {
+        analysis: analysisModel,
+        translation: translationModel,
+        editing: editingModel,
+      });
 
       await updateChapter(
         projectId,
@@ -763,21 +682,7 @@ async function performTranslationInner(
 
     // Prepare text-based chunks as fallback
     if (!parsedJSON) {
-      // Helper function to check if a chunk is a separator
-      const isSeparatorChunk = (text: string): boolean => {
-        const trimmed = text.trim();
-        if (trimmed.length === 0) return false;
-        // Check if chunk contains only separator characters (repeated)
-        const separatorPattern = /^[\s*\-_=~#]+$/;
-        return separatorPattern.test(trimmed);
-      };
-
-      translatedChunks = result.translatedText
-        .split(/\n\s*\n/)
-        .map((chunk) => chunk.trim())
-        .filter((chunk) => chunk.length > 0)
-        // Filter out separator chunks (e.g., ***, ---, etc.)
-        .filter((chunk) => !isSeparatorChunk(chunk));
+      translatedChunks = splitTranslatedTextToChunks(result.translatedText);
 
       logger.debug(
         { projectId, chapterId, chunksCount: translatedChunks.length },
@@ -794,7 +699,7 @@ async function performTranslationInner(
     const originalParagraphsForSync = translateSubsetOnly
       ? paragraphsToTranslate
       : currentChapter.paragraphs;
-    const partialSync = translateOnlyEmpty && !translateSubsetOnly;
+    const partialSync = subsetPlan.partialSync;
 
     let syncedParagraphs: Paragraph[];
 
@@ -841,20 +746,11 @@ async function performTranslationInner(
     }
 
     // Create model info string based on stages run (analysis-only already returned above)
-    const modelInfo =
-      stages === 'all'
-        ? `${analysisModel}/${translationModel}/${editingModel}`
-        : Array.isArray(stages)
-          ? stages
-              .map((s) =>
-                s === 'analysis'
-                  ? analysisModel
-                  : s === 'translation'
-                    ? translationModel
-                    : editingModel
-              )
-              .join('/')
-          : editingModel;
+    const modelInfo = formatStageModelInfo(stages, {
+      analysis: analysisModel,
+      translation: translationModel,
+      editing: editingModel,
+    });
 
     // Prepare translatedChunks for saving (use from parsedJSON or text-based chunks)
     const chunksToSave =
@@ -863,9 +759,7 @@ async function performTranslationInner(
         : translatedChunks;
 
     const nowIso = new Date().toISOString();
-    const ranAnalysis =
-      (typeof phase1Stages === 'string' && phase1Stages === 'all') ||
-      (Array.isArray(phase1Stages) && phase1Stages.includes('analysis'));
+    const ranAnalysis = phase1StagesIncludeAnalysis(phase1Stages);
 
     if (runEditing) {
       const phase1Status = resolveChapterStatusAfterTranslation({
@@ -937,11 +831,7 @@ async function performTranslationInner(
         throw phase2Error;
       }
 
-      const isValidPhase2 =
-        result2.translatedText &&
-        result2.translatedText.trim().length > 0 &&
-        !isChunkError(result2.translatedText);
-      if (!isValidPhase2) {
+      if (!isValidPhase2TranslationText(result2.translatedText)) {
         logger.warn(
           { projectId, chapterId, preview: result2.translatedText?.slice(0, 80) },
           'Editing returned invalid text; keeping draft'
@@ -1194,11 +1084,12 @@ async function performTranslationInner(
       );
     }
 
-    const translateTitles =
-      options?.translateChapterTitles !== false &&
-      !options?.deferChapterTitleTranslation &&
-      (stages === 'all' || (Array.isArray(stages) && stages.includes('translation')));
-    if (translateTitles) {
+    if (
+      shouldTranslateChapterTitles(stages, {
+        translateChapterTitles: options?.translateChapterTitles,
+        deferChapterTitleTranslation: options?.deferChapterTitleTranslation,
+      })
+    ) {
       const chapterAfter = await getChapter(projectId, chapterId, token, { useServiceRole: true });
       const bodyOk =
         chapterAfter &&
@@ -1487,28 +1378,6 @@ export function syncTranslationToParagraphs(
   }
 
   return result;
-}
-
-/** Paragraph marker format used for editing stage: --para:{id}-- */
-
-/**
- * Build a single text with paragraph markers for the editing stage.
- * Each paragraph becomes "--para:{id}--{text}". After editing, parse with parseParagraphMarkers.
- */
-function buildMarkedTextFromParagraphs(paragraphs: Paragraph[]): string {
-  if (!paragraphs?.length) return '';
-  const sorted = [...paragraphs].sort((a, b) => a.index - b.index);
-  return sorted
-    .map((p) => {
-      const text = (p.translatedText ?? p.originalText ?? '').trim();
-      return `${PARA_MARKER_PREFIX}${p.id}${PARA_MARKER_SUFFIX}${text}`;
-    })
-    .join('\n\n');
-}
-
-/** @deprecated Use parseParagraphMarkers from engine/utils/para-markers */
-function parseEditedTextByMarkers(text: string): Array<{ id: string; text: string }> {
-  return parseParagraphMarkers(text);
 }
 
 /**

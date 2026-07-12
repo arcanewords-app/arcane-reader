@@ -1290,5 +1290,72 @@ describe('publicationRouteHandlers', () => {
       );
       assert.deepEqual(res.body, { id: 'pub-1', projectId: 'proj-1' });
     });
+
+    it('returns null when publication missing', async () => {
+      mockGetPublicationByProjectId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleGetProjectPublication(
+        mockReq({ params: { projectId: 'proj-1' } }) as never,
+        res as never
+      );
+      assert.equal(res.body, null);
+    });
+  });
+
+  describe('error branches', () => {
+    it('handleListPublications returns 500 on unexpected error', async () => {
+      mockListPublicationsPublic.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleListPublications(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleListPublications delegates to handleServiceError', async () => {
+      mockListPublicationsPublic.mockRejectedValue(new Error('supabase down'));
+      mockHandleServiceError.mockReturnValue(true);
+      const res = mockRes();
+      await handleListPublications(mockReq() as never, res as never);
+      assert.equal(mockHandleServiceError.mock.calls.length, 1);
+    });
+
+    it('handleGetPublication returns 500 on unexpected error', async () => {
+      mockGetPublicationBySlugOrId.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleGetPublication(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleGetUserPublications returns 500 on unexpected error', async () => {
+      mockGetUserPublications.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleGetUserPublications(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handlePublishProject returns 400 when createOrUpdatePublication fails', async () => {
+      mockGetProject.mockResolvedValue({ id: 'proj-1', metadata: {} });
+      mockCreateOrUpdatePublication.mockRejectedValue(new Error('Publish failed'));
+      const res = mockRes();
+      await handlePublishProject(
+        mockReq({
+          params: { projectId: 'proj-1' },
+          body: { translatorEntityId: 'trans-1', title: 'Book' },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+      assert.equal((res.body as { error: string }).error, 'Publish failed');
+    });
+
+    it('handleReportPublication returns 500 on unexpected error', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', projectId: 'proj-1' });
+      mockCreateTranslationReport.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleReportPublication(
+        mockReq({ body: { chapterId: 'ch-1', description: 'Typo' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 500);
+    });
   });
 });

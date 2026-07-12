@@ -537,5 +537,58 @@ describe('glossaryRouteHandlers', () => {
       );
       assert.equal(res.statusCode, 400);
     });
+
+    it('returns 404 when project not found', async () => {
+      mocks.getProject.mockResolvedValue(null);
+      const res = mockRes();
+      await handleImportGlossary(
+        mockReq({ file: { buffer: Buffer.from('data'), originalname: 'glossary.csv' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 404);
+    });
+  });
+
+  describe('error branches', () => {
+    it('handleGetGlossary returns 500 on unexpected error', async () => {
+      mocks.getProject.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleGetGlossary(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleGetGlossary delegates to handleServiceError', async () => {
+      mocks.getProject.mockRejectedValue(new Error('supabase down'));
+      mocks.handleServiceError.mockReturnValue(true);
+      const res = mockRes();
+      await handleGetGlossary(mockReq() as never, res as never);
+      assert.equal(mocks.handleServiceError.mock.calls.length, 1);
+    });
+
+    it('handleExportGlossary returns 404 when project missing', async () => {
+      mocks.getProject.mockResolvedValue(null);
+      const res = mockRes();
+      await handleExportGlossary(mockReq({ query: { format: 'csv' } }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('handleCreateGlossaryEntry returns 500 on unexpected error', async () => {
+      mocks.getProject.mockResolvedValue({ id: 'proj-1', glossary: [] });
+      mocks.addGlossaryEntry.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleCreateGlossaryEntry(
+        mockReq({ body: { original: 'Bob', translated: 'Боб', type: 'character' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleDeleteGlossaryEntry returns 500 on unexpected error', async () => {
+      mocks.getProject.mockResolvedValue({ id: 'proj-1', glossary: sampleGlossary });
+      mocks.deleteGlossaryEntry.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleDeleteGlossaryEntry(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
   });
 });

@@ -795,4 +795,43 @@ describe('adminRouteHandlers', () => {
       assert.equal(res.statusCode, 404);
     });
   });
+
+  describe('error branches', () => {
+    it('handleCreatePublicEntity delegates to handleServiceError', async () => {
+      mocks.createPublicEntity.mockRejectedValue(new Error('supabase down'));
+      mocks.handleServiceError.mockReturnValue(true);
+      const res = mockRes();
+      await handleCreatePublicEntity(
+        mockReq({ body: { kind: 'author', name: 'Jane' } }) as never,
+        res as never
+      );
+      assert.equal(mocks.handleServiceError.mock.calls.length, 1);
+    });
+
+    it('handleListAdminNews returns 500 on unexpected error', async () => {
+      mocks.listNewsPostsAdmin.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleListAdminNews(mockReq({ query: {} }) as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleUnpublishPublicationAdmin returns 500 on unexpected error', async () => {
+      mocks.unpublishPublicationAdmin.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleUnpublishPublicationAdmin(
+        mockReq({ params: { id: 'pub-1' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleUpdateAdminTranslationRequest returns 400 on validation failure', async () => {
+      const res = mockRes();
+      await handleUpdateAdminTranslationRequest(
+        mockReq({ params: { id: 'tr-1' }, body: { status: 'not-a-status' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+    });
+  });
 });

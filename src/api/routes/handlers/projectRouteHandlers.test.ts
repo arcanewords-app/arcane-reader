@@ -645,6 +645,18 @@ describe('projectRouteHandlers', () => {
       assert.equal(res.statusCode, 404);
     });
 
+    it('returns 404 when refetch after update fails', async () => {
+      const project = makeProject();
+      mockGetProject.mockResolvedValueOnce(project).mockResolvedValueOnce(null);
+      mockUpdateProject.mockResolvedValue(project);
+      const res = mockRes();
+      await handleUpdateProjectSettings(
+        mockReq({ body: { temperature: 0.5 } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 404);
+    });
+
     it('returns 400 on validation failure', async () => {
       const res = mockRes();
       await handleUpdateProjectSettings(
@@ -740,6 +752,43 @@ describe('projectRouteHandlers', () => {
       await handleUpdateReaderSettings(mockReq() as never, res as never);
       assert.equal(res.statusCode, 404);
       assert.deepEqual(res.body, { error: 'Project not found' });
+    });
+  });
+
+  describe('error branches', () => {
+    it('handleGetProject delegates to handleServiceError', async () => {
+      mockGetProject.mockRejectedValue(new Error('supabase down'));
+      mockHandleServiceError.mockReturnValue(true);
+      const res = mockRes();
+      await handleGetProject(mockReq() as never, res as never);
+      assert.equal(mockHandleServiceError.mock.calls.length, 1);
+    });
+
+    it('handleCreateProject returns 500 on unexpected error', async () => {
+      mockCreateProject.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleCreateProject(
+        mockReq({
+          body: { name: 'My Novel', sourceLanguage: 'en', targetLanguage: 'ru' },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleSearchProject returns 500 on unexpected error', async () => {
+      mockGetProject.mockResolvedValue(makeProject());
+      mockSearchParagraphsInProject.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleSearchProject(mockReq({ query: { q: 'hero' } }) as never, res as never);
+      assert.equal(res.statusCode, 500);
+    });
+
+    it('handleRenameProject returns 500 on unexpected error', async () => {
+      mockUpdateProject.mockRejectedValue(new Error('db fail'));
+      const res = mockRes();
+      await handleRenameProject(mockReq({ body: { name: 'Renamed' } }) as never, res as never);
+      assert.equal(res.statusCode, 500);
     });
   });
 });

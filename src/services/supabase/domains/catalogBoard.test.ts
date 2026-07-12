@@ -1,10 +1,20 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, vi } from 'vitest';
 
-const { mockUserFrom, mockServiceFrom, mockGetUserById } = vi.hoisted(() => ({
+const {
+  mockUserFrom,
+  mockServiceFrom,
+  mockGetUserById,
+  mockGetPublicEntityById,
+  mockCreateProject,
+  mockGetProject,
+} = vi.hoisted(() => ({
   mockUserFrom: vi.fn(),
   mockServiceFrom: vi.fn(),
   mockGetUserById: vi.fn(),
+  mockGetPublicEntityById: vi.fn(),
+  mockCreateProject: vi.fn(),
+  mockGetProject: vi.fn(),
 }));
 
 vi.mock('../../supabaseClient.js', () => ({
@@ -19,9 +29,20 @@ vi.mock('../../../utils/tokenValidation.js', () => ({
   validateToken: vi.fn(),
 }));
 
+vi.mock('./publications.js', () => ({
+  getPublicEntityById: (...args: unknown[]) => mockGetPublicEntityById(...args),
+}));
+
+vi.mock('./projects.js', () => ({
+  getProject: (...args: unknown[]) => mockGetProject(...args),
+  createProject: (...args: unknown[]) => mockCreateProject(...args),
+}));
+
 import {
   countPendingCatalogTranslationRequests,
   createCatalogTranslationRequest,
+  createProjectFromCatalogRequest,
+  createTranslationRequestInterest,
   deleteCatalogTranslationRequestAdmin,
   ensureProfileForAuthUser,
   getCatalogTranslationRequestById,
@@ -108,6 +129,22 @@ describe('ensureProfileForAuthUser', () => {
     const payload = insertChain.insert.mock.calls[0]?.[0] as { id: string; email: string };
     assert.equal(payload.id, 'user-1');
     assert.equal(payload.email, 'user@example.com');
+  });
+
+  it('throws when profile check fails', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'profile check fail' },
+      })
+    );
+    await assert.rejects(() => ensureProfileForAuthUser('user-1'), /Failed to check profile/);
+  });
+
+  it('throws when auth user not found', async () => {
+    mockServiceFrom.mockReturnValue(chainable({ data: null, error: null }));
+    mockGetUserById.mockResolvedValue({ data: { user: null }, error: { message: 'missing' } });
+    await assert.rejects(() => ensureProfileForAuthUser('user-1'), /User not found/);
   });
 });
 
@@ -413,6 +450,19 @@ describe('updateCatalogTranslationRequestAdmin', () => {
     assert.equal(result?.id, 'req-1');
     assert.equal(mockServiceFrom.mock.calls[0]?.[0], 'catalog_translation_requests');
   });
+
+  it('throws when update fails with non-not-found error', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'update fail' },
+      })
+    );
+    await assert.rejects(
+      () => updateCatalogTranslationRequestAdmin('req-1', { status: 'accepted' }),
+      /Failed to update catalog translation request/
+    );
+  });
 });
 
 describe('deleteCatalogTranslationRequestAdmin', () => {
@@ -464,5 +514,303 @@ describe('deleteCatalogTranslationRequestAdmin', () => {
     const deleted = await deleteCatalogTranslationRequestAdmin('req-1');
     assert.equal(deleted, true);
     assert.equal(deleteChain.delete.mock.calls.length, 1);
+  });
+
+  it('throws DELETE_FORBIDDEN for accepted request', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { id: 'req-1', status: 'accepted' },
+        error: null,
+      })
+    );
+    await assert.rejects(
+      () => deleteCatalogTranslationRequestAdmin('req-1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'DELETE_FORBIDDEN');
+        return true;
+      }
+    );
+  });
+
+  it('throws when delete query fails', async () => {
+    const fetchChain = chainable({
+      data: { id: 'req-1', status: 'fulfilled' },
+      error: null,
+    });
+    const deleteChain = chainable({ data: null, error: { message: 'delete fail' } });
+    let serviceCall = 0;
+    mockServiceFrom.mockImplementation(() => {
+      serviceCall += 1;
+      return serviceCall === 1 ? fetchChain : deleteChain;
+    });
+    await assert.rejects(
+      () => deleteCatalogTranslationRequestAdmin('req-1'),
+      /Failed to delete catalog translation request/
+    );
+  });
+});
+
+const translatorEntity = {
+  id: 'ent-t1',
+  kind: 'translator' as const,
+  name: 'Translator Alias',
+  description: null,
+  photoUrl: null,
+  createdBy: 'user-1',
+  ownerUserId: 'user-1',
+  entityStatus: 'active' as const,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+};
+
+describe('createTranslationRequestInterest', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws NOT_FOUND when request does not exist', async () => {
+    mockServiceFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await assert.rejects(
+      () => createTranslationRequestInterest('missing', 'user-1', 'token', 'ent-t1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'NOT_FOUND');
+        return true;
+      }
+    );
+  });
+
+  it('throws REQUEST_CLOSED when request is not open', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { ...requestRow, status: 'rejected' },
+        error: null,
+      })
+    );
+    await assert.rejects(
+      () => createTranslationRequestInterest('req-1', 'user-1', 'token', 'ent-t1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'REQUEST_CLOSED');
+        return true;
+      }
+    );
+  });
+
+  it('throws SELF_ASSIGN when user owns the request', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: requestRow,
+        error: null,
+      })
+    );
+    await assert.rejects(
+      () => createTranslationRequestInterest('req-1', 'user-1', 'token', 'ent-t1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'SELF_ASSIGN');
+        return true;
+      }
+    );
+  });
+
+  it('throws INVALID_TRANSLATOR when entity is missing or wrong kind', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { ...requestRow, user_id: 'user-owner' },
+        error: null,
+      })
+    );
+    mockGetPublicEntityById.mockResolvedValue(null);
+    mockUserFrom.mockReturnValue(chainable({ data: null, error: null }));
+
+    await assert.rejects(
+      () => createTranslationRequestInterest('req-1', 'user-1', 'token', 'ent-t1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'INVALID_TRANSLATOR');
+        return true;
+      }
+    );
+  });
+
+  it('throws INTEREST_EXISTS when active interest already present', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { ...requestRow, user_id: 'user-owner' },
+        error: null,
+      })
+    );
+    mockGetPublicEntityById.mockResolvedValue(translatorEntity);
+    mockUserFrom.mockReturnValue(
+      chainable({
+        data: {
+          id: 'interest-1',
+          request_id: 'req-1',
+          user_id: 'user-1',
+          translator_entity_id: 'ent-t1',
+          project_id: null,
+          status: 'interested',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+        error: null,
+      })
+    );
+
+    await assert.rejects(
+      () => createTranslationRequestInterest('req-1', 'user-1', 'token', 'ent-t1'),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'INTEREST_EXISTS');
+        return true;
+      }
+    );
+  });
+
+  it('inserts interest when request is open and translator is valid', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { ...requestRow, user_id: 'user-owner' },
+        error: null,
+      })
+    );
+    mockGetPublicEntityById.mockResolvedValue(translatorEntity);
+    const existingInterestChain = chainable({ data: null, error: null });
+    const insertChain = chainable({
+      data: {
+        id: 'interest-1',
+        request_id: 'req-1',
+        user_id: 'user-1',
+        translator_entity_id: 'ent-t1',
+        project_id: null,
+        status: 'interested',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+      error: null,
+    });
+    let userCall = 0;
+    mockUserFrom.mockImplementation(() => {
+      userCall += 1;
+      return userCall === 1 ? existingInterestChain : insertChain;
+    });
+
+    const interest = await createTranslationRequestInterest('req-1', 'user-1', 'token', 'ent-t1');
+    assert.equal(interest.id, 'interest-1');
+    assert.equal(interest.translatorName, 'Translator Alias');
+    assert.equal(insertChain.insert.mock.calls.length, 1);
+  });
+});
+
+describe('createProjectFromCatalogRequest', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws NOT_FOUND when catalog request is missing', async () => {
+    mockServiceFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await assert.rejects(
+      () =>
+        createProjectFromCatalogRequest(
+          {
+            name: 'Project',
+            catalogTranslationRequestId: 'missing',
+            translatorEntityId: 'ent-t1',
+          },
+          'user-1',
+          'token'
+        ),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'NOT_FOUND');
+        return true;
+      }
+    );
+  });
+
+  it('throws INVALID_TRANSLATOR when translator entity is missing', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { ...requestRow, user_id: 'user-owner' },
+        error: null,
+      })
+    );
+    mockUserFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await assert.rejects(
+      () =>
+        createProjectFromCatalogRequest(
+          {
+            name: 'Project',
+            catalogTranslationRequestId: 'req-1',
+          },
+          'user-1',
+          'token'
+        ),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'INVALID_TRANSLATOR');
+        return true;
+      }
+    );
+  });
+
+  it('creates project and links interest for open request', async () => {
+    mockServiceFrom.mockReturnValue(
+      chainable({
+        data: { ...requestRow, user_id: 'user-owner' },
+        error: null,
+      })
+    );
+    mockGetPublicEntityById.mockResolvedValue(translatorEntity);
+    const interestSelectChain = chainable({ data: null, error: null });
+    const interestInsertChain = chainable({
+      data: {
+        id: 'interest-1',
+        request_id: 'req-1',
+        user_id: 'user-1',
+        translator_entity_id: 'ent-t1',
+        project_id: null,
+        status: 'interested',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+      error: null,
+    });
+    const interestUpdateChain = chainable({
+      data: {
+        id: 'interest-1',
+        request_id: 'req-1',
+        user_id: 'user-1',
+        translator_entity_id: 'ent-t1',
+        project_id: 'proj-new',
+        status: 'working',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+      error: null,
+    });
+    let userCall = 0;
+    mockUserFrom.mockImplementation(() => {
+      userCall += 1;
+      if (userCall <= 2) return interestSelectChain;
+      if (userCall === 3) return interestInsertChain;
+      return interestUpdateChain;
+    });
+    mockCreateProject.mockResolvedValue({
+      id: 'proj-new',
+      name: 'Project',
+      sourceLanguage: 'en',
+      targetLanguage: 'ru',
+      chapters: [],
+      glossary: [],
+    });
+
+    const project = await createProjectFromCatalogRequest(
+      {
+        name: 'Project',
+        catalogTranslationRequestId: 'req-1',
+        translatorEntityId: 'ent-t1',
+      },
+      'user-1',
+      'token'
+    );
+
+    assert.equal(project.id, 'proj-new');
+    assert.equal(project.metadata?.catalogTranslationRequestId, 'req-1');
+    assert.equal(mockCreateProject.mock.calls.length, 1);
   });
 });

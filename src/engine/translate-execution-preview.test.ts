@@ -75,4 +75,35 @@ describe('buildTranslateExecutionPreview', () => {
     assert.equal(preview.chunkingMode, 'chunked');
     assert.equal(preview.estimatedChunks, 1);
   });
+
+  it('one_shot single_shot adds full-chapter hint', () => {
+    const preview = buildTranslateExecutionPreview({
+      executionMode: 'one_shot',
+      modelId: 'gpt-5.4-mini',
+      sourceText: repeatChar('a', 5000),
+      targetLanguage: 'ru',
+    });
+    assert.ok(preview.hints.some((h) => h.includes('one API request')));
+  });
+
+  it('chunked mode adds standard chunk hint', () => {
+    const preview = buildTranslateExecutionPreview({
+      executionMode: 'chunked',
+      modelId: 'gpt-4.1-mini',
+      sourceText: repeatChar('a', 5000),
+      targetLanguage: 'ru',
+    });
+    assert.ok(preview.hints.some((h) => h.includes('Standard chunks')));
+  });
+
+  it('one_shot large chunks adds gpt-5.4-mini upgrade hint for gpt-4.1-mini', () => {
+    const preview = buildTranslateExecutionPreview({
+      executionMode: 'one_shot',
+      modelId: 'gpt-4.1-mini',
+      sourceText: repeatParagraphs('中', 20, 600),
+      targetLanguage: 'ru',
+    });
+    assert.equal(preview.chunkSizeTier, 'large');
+    assert.ok(preview.hints.some((h) => h.includes('gpt-5.4-mini')));
+  });
 });

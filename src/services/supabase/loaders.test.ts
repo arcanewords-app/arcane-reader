@@ -14,6 +14,7 @@ vi.mock('../supabaseClient.js', () => ({
 import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../../shared/cacheContract.js';
 import {
   getGlossaryCountForProject,
+  getProjectForPublicationExport,
   loadChaptersForProject,
   loadChaptersForProjectLightweight,
   loadGlossaryForProject,
@@ -269,6 +270,16 @@ describe('getGlossaryCountForProject', () => {
     const count = await getGlossaryCountForProject('proj-1');
     assert.equal(count, 0);
   });
+
+  it('returns 0 when count is null', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: null,
+      })
+    );
+    assert.equal(await getGlossaryCountForProject('proj-1'), 0);
+  });
 });
 
 describe('loadChaptersForProject', () => {
@@ -483,5 +494,64 @@ describe('loadParagraphsForChapterIds', () => {
     assert.equal(result.get('ch-1')?.length, 2);
     assert.equal(result.get('ch-1')?.[0]?.id, 'p-1a');
     assert.equal(result.get('ch-2')?.[0]?.id, 'p-2a');
+  });
+
+  it('throws when paragraph query fails', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'paragraph fail' },
+      })
+    );
+    const client = { from: mockFrom } as never;
+    await assert.rejects(
+      () => loadParagraphsForChapterIds(client, ['ch-1']),
+      /Failed to load paragraphs/
+    );
+  });
+
+  it('paginates when first batch is full', async () => {
+    const fullBatch = Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => ({
+      ...paragraphRow,
+      chapter_id: 'ch-1',
+      id: `p-${i}`,
+      index: i,
+    }));
+    const tailBatch = [
+      {
+        ...paragraphRow,
+        chapter_id: 'ch-1',
+        id: 'p-last',
+        index: POSTGREST_MAX_ROWS,
+      },
+    ];
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      return chainable({
+        data: call === 1 ? fullBatch : tailBatch,
+        error: null,
+      });
+    });
+    const client = { from: mockFrom } as never;
+    const result = await loadParagraphsForChapterIds(client, ['ch-1']);
+    assert.equal(result.get('ch-1')?.length, POSTGREST_MAX_ROWS + 1);
+  });
+});
+
+describe('getProjectForPublicationExport', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns null when project query fails', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'not found' },
+      })
+    );
+    const project = await getProjectForPublicationExport('proj-missing');
+    assert.equal(project, null);
   });
 });

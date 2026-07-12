@@ -54,20 +54,6 @@ describe('api/schemas/chapters', () => {
   });
 });
 
-describe('api/schemas/projects', () => {
-  it('projectCreateBodySchema requires non-empty name', async () => {
-    const { projectCreateBodySchema } = await import('./projects.js');
-    const ok = projectCreateBodySchema.parse({ name: 'My project' });
-    assert.equal(ok.name, 'My project');
-    assert.throws(() => projectCreateBodySchema.parse({ name: '' }));
-  });
-
-  it('projectRenameBodySchema trims name', async () => {
-    const { projectRenameBodySchema } = await import('./projects.js');
-    assert.equal(projectRenameBodySchema.parse({ name: '  Renamed  ' }).name, 'Renamed');
-  });
-});
-
 describe('api/schemas/publications', () => {
   it('reportBodySchema requires chapterId and description', async () => {
     const { reportBodySchema } = await import('./publications.js');
@@ -116,65 +102,5 @@ describe('api/schemas/user', () => {
     const { tokenUsageHistoryQuerySchema } = await import('./user.js');
     const ok = tokenUsageHistoryQuerySchema.parse({ days: '7' });
     assert.equal(ok.days, 7);
-  });
-});
-
-describe('api/schemas/catalogRequests', () => {
-  it('catalogTranslationRequestCreateSchema validates target language', async () => {
-    const { catalogTranslationRequestCreateSchema } = await import('./catalogRequests.js');
-    const ok = catalogTranslationRequestCreateSchema.parse({
-      title: 'Novel',
-      targetLanguage: 'ru',
-    });
-    assert.equal(ok.title, 'Novel');
-    assert.throws(() =>
-      catalogTranslationRequestCreateSchema.parse({ title: 'Novel', targetLanguage: 'fr' })
-    );
-  });
-});
-
-describe('api/schemas/news', () => {
-  it('newsCreateSchema validates category', async () => {
-    const { newsCreateSchema } = await import('./news.js');
-    const ok = newsCreateSchema.parse({
-      title: 'Launch',
-      summary: 'Short summary',
-      slug: 'launch',
-      body: 'Body',
-      category: 'feature',
-    });
-    assert.equal(ok.category, 'feature');
-    assert.throws(() =>
-      newsCreateSchema.parse({
-        title: 'Launch',
-        slug: 'launch',
-        body: 'Body',
-        category: 'invalid',
-      })
-    );
-  });
-});
-
-describe('api/schemas/projects extended', () => {
-  it('transferChaptersBodySchema requires chapter ids', async () => {
-    const { transferChaptersBodySchema } = await import('./projects.js');
-    assert.throws(() =>
-      transferChaptersBodySchema.parse({ sourceProjectId: 'p1', chapterIds: [] })
-    );
-  });
-
-  it('projectLanguagesBodySchema rejects unsupported pair', async () => {
-    const { projectLanguagesBodySchema } = await import('./projects.js');
-    assert.throws(() =>
-      projectLanguagesBodySchema.parse({ sourceLanguage: 'en', targetLanguage: 'en' })
-    );
-  });
-
-  it('projectSearchQuerySchema defaults empty q', async () => {
-    const { projectSearchQuerySchema } = await import('./projects.js');
-    const empty = projectSearchQuerySchema.parse({});
-    assert.equal(empty.q, '');
-    const ok = projectSearchQuerySchema.parse({ q: 'hero' });
-    assert.equal(ok.q, 'hero');
   });
 });

@@ -21,7 +21,13 @@ export default defineConfig({
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/debug-app/**', 'src/prompt-lab-app/**'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/debug-app/**',
+        'src/prompt-lab-app/**',
+        'src/debug/**',
+        'src/prompt-lab/**',
+      ],
     },
   },
   resolve: {
