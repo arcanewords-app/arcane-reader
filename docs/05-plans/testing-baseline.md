@@ -50,6 +50,8 @@ Until dedicated test environment is provisioned, Q4 integration work is **paused
 | Full suite (`npm run test:all`)  | ~112 s                                                             |
 | CI                               | `npm run test:coverage` (fast suite; excludes tiktoken slow files) |
 
+**CI install:** GitHub Actions runs `npm ci` on the standalone repo. After adding Vitest/Stryker deps, regenerate [`package-lock.json`](../package-lock.json) with `npm install --no-workspaces` inside `arcane-reader/` (not monorepo root). See [dependency-audit-baseline.md](../02-how-to/dependency-audit-baseline.md).
+
 ## Inventory: tested vs untested
 
 | Metric                        | Value                          |

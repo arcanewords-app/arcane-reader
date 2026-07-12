@@ -1,35 +1,58 @@
 # Dependency audit baseline
 
-Last updated: 2026-06-28 (Wave 6 — final dependency backlog).
+Last updated: 2026-07-12 (lockfile CI sync + dev audit overrides).
 
 ## npm audit --omit=dev (production)
 
 - **0 vulnerabilities**
 - Runtime: `express@5`, `openai@6`, Node 24, `typescript@6` (dev/build only)
+- Scripts use `npm audit --omit=dev --no-workspaces` so monorepo parent hoisting does not skew counts
 
 ## npm audit (all, dev included)
 
-- **12 vulnerabilities** (7 high, 5 moderate) after `npm audit fix` (no `--force`)
-- Remaining: dev toolchain chains (esbuild/vite transitive, etc.) — triage P1, no force without approval
+- **0 vulnerabilities** (standalone `arcane-reader` with `--no-workspaces`)
+- Previously **12** (6 high, 6 moderate) in `@vercel/node` / Stryker transitive chains (2026-06-28 baseline)
 
-## npm outdated (2026-06-28 post Wave 6)
+### Transitive overrides (tech debt until Vercel upstream)
 
-- **Only major left:** `@types/node` 26 — defer until Node 26 LTS + SSOT trio
-- All other tracked majors done (`typescript` 6, `concurrently` 10, `wait-on` 9)
+Scoped `overrides` in `package.json` — **not** global `ajv` / `minimatch` / `path-to-regexp` (breaks ESLint 10 and Express 5 `router`):
 
-## Monorepo install notes
+| Override target           | Packages                                               | Reason                                                          |
+| ------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
+| `@vercel/node`            | `undici@6.27.0`, `path-to-regexp@6.3.0`                | Deploy runtime; Express keeps `path-to-regexp@8.x` via `router` |
+| `@vercel/python-analysis` | `js-yaml@4.2.0`, `minimatch@10.2.5`, `smol-toml@1.7.0` | Vercel build-utils chain                                        |
+| `@vercel/static-config`   | `ajv@8.20.0`                                           | Static config validation                                        |
+| `@stryker-mutator/core`   | `ajv@8.20.0`                                           | Mutation testing only                                           |
+| Global                    | `js-yaml@4.2.0`, `qs@6.15.3`, `smol-toml@1.7.0`        | stylelint/cosmiconfig, express/stryker                          |
 
-- Run `npm install` from **`f:/arcane`** (workspace root), not only `arcane-reader/`
-- [`f:/arcane/.npmrc`](f:/arcane/.npmrc): `legacy-peer-deps=true` — required for `madge@8` (TS 6 peer metadata) and `eslint-plugin-import@2.32` (ESLint 10 peer not published yet)
-- [`f:/arcane/package.json`](f:/arcane/package.json): root `eslint@^10` — hoisted `eslint-plugin-import` resolves `require('eslint')` from monorepo root
+**Reject:** `npm audit fix --force` (downgrades `@vercel/node` to v4).
+
+## Standalone lockfile (CI)
+
+GitHub Actions runs `npm ci` on the **standalone** `arcane-reader` repo. Regenerate lockfile from package directory:
+
+```bash
+cd arcane-reader
+npm install --no-workspaces
+# or lockfile only:
+npm install --package-lock-only --no-workspaces
+```
+
+Do **not** rely on monorepo root `f:/arcane/package-lock.json` for CI — Vitest/Stryker entries must live in `arcane-reader/package-lock.json`.
+
+## npm outdated (2026-07-12)
+
+- **Patch applied:** `@vercel/node` `5.8.23`
+- **Deferred:** `@types/node` 26 — until Node 26 LTS + SSOT trio
 
 ## Node SSOT
 
-| File                          | Value  |
-| ----------------------------- | ------ |
-| `.nvmrc`                      | `24`   |
-| `package.json` `engines.node` | `24.x` |
-| `@types/node`                 | `^24`  |
+| File                            | Value      |
+| ------------------------------- | ---------- |
+| `.nvmrc`                        | `24`       |
+| `package.json` `engines.node`   | `24.x`     |
+| `package.json` `packageManager` | `npm@11.x` |
+| `@types/node`                   | `^24`      |
 
 ## Completed migration waves
 
@@ -48,11 +71,18 @@ Last updated: 2026-06-28 (Wave 6 — final dependency backlog).
 | SEO routes → `src/api/routes/seo.ts`                     | Done   |
 | `wait-on` 9 + `concurrently` 10 (dev scripts)            | Done   |
 | `typescript` 6 + tsconfig (no `baseUrl`, `types: node`)  | Done   |
-| Skill + dependency-audit agent                           | Done   |
+| Vitest + Stryker + CI lockfile sync                      | Done   |
+| Dev audit overrides (`@vercel/node` 5.8.23)              | Done   |
 
-## Express 5 types trial (archived)
+## Local smoke (post override)
 
-Pre-migration trial with `@types/express@5` on unmigrated code: ~266 `tsc` errors from raw `req.params` / `req.query`. Resolved via `validateRoute.ts`, router extraction, `Express.Request` global augmentation. See archived plan `docs/05-plans/express-5-migration.md`.
+After dependency changes affecting deploy:
+
+- `GET /`, `/catalog` — SSR meta HTML
+- `GET /api/health` — `status: healthy`
+- `GET /robots.txt`, `/sitemap.xml`
+
+Vercel preview deploy recommended after `@vercel/node` / overrides changes.
 
 ## Major backlog (npm outdated)
 
