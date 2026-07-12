@@ -6,7 +6,7 @@ updated: 2026-07-12
 
 # Testing coverage baseline
 
-Measured after **Wave 3** (sprints 3A–3H), **supabaseDatabase decomposition**, **routes/client split**, and **import metadata wiring** (2026-07-12).
+Measured after **Wave 3** (sprints 3A–3H), **supabaseDatabase decomposition**, **routes/client split**, **import metadata wiring**, and **chapter import routes split** (2026-07-12).
 
 ## APP_SCOPE (unified)
 
@@ -39,12 +39,12 @@ Policy SSOT: [[_canonical/rules/testing]].
 
 Until dedicated test environment is provisioned, Q4 integration work is **paused**.
 
-## Test suite (2026-07-12, post import metadata wiring)
+## Test suite (2026-07-12, post chapter import routes split)
 
 | Metric                           | Value                                                              |
 | -------------------------------- | ------------------------------------------------------------------ |
-| Test files                       | **108** (105 fast + 3 slow)                                        |
-| Tests                            | **490** (473 fast + 17 slow tiktoken)                              |
+| Test files                       | **109** (106 fast + 3 slow)                                        |
+| Tests                            | **497** (480 fast + 17 slow tiktoken)                              |
 | Fast suite (`npm run test`)      | ~29 s                                                              |
 | Slow suite (`npm run test:slow`) | ~100 s                                                             |
 | Full suite (`npm run test:all`)  | ~130 s                                                             |
@@ -57,7 +57,7 @@ Component smoke: `happy-dom` + `@testing-library/preact` (RequireRole); Preact J
 | Metric                         | Value                            |
 | ------------------------------ | -------------------------------- |
 | Source files in APP_SCOPE      | **303**                          |
-| With co-located `*.test.ts(x)` | **103** (**~34%**)               |
+| With co-located `*.test.ts(x)` | **104** (**~34%**)               |
 | **Without unit test**          | **~200** (**~66%**)              |
 | Files at **0%** line coverage  | **~140** (**~46%** of APP_SCOPE) |
 
@@ -79,11 +79,11 @@ Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage
 
 | Metric          | Coverage (prev → now)     |
 | --------------- | ------------------------- |
-| Lines           | **18.92%** (was 18.77%)   |
-| Statements      | **18.55%** (was 18.42%)   |
-| Functions       | **23.46%** (was 23.35%)   |
-| Branches        | **16.70%** (was 16.55%)   |
-| Uncovered lines | **~13 075** (was ~13 109) |
+| Lines           | **19.39%** (was 18.92%)   |
+| Statements      | **18.99%** (was 18.55%)   |
+| Functions       | **23.49%** (was 23.46%)   |
+| Branches        | **16.96%** (was 16.70%)   |
+| Uncovered lines | **~12 998** (was ~13 075) |
 
 > `supabaseDatabase.ts` is now a **20-line facade**; logic lives in `src/services/supabase/domains/*` with co-located mock tests.
 
@@ -105,7 +105,9 @@ Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage
 | ------------------------------------------- | ------------ |
 | `services/supabase/domains/projects.ts`     | ~1628        |
 | `services/supabase/domains/publications.ts` | ~1066        |
-| `api/routes/chapters.ts`                    | ~3060        |
+| `api/routes/chapters.ts`                    | ~2165        |
+| `api/routes/chapterImport.ts`               | ~503         |
+| `api/chapters/helpers/asyncImportJob.ts`    | ~452         |
 | `client/api/client.ts`                      | ~35 (facade) |
 
 **Q3 approach:** extract + domain split + mock unit tests. Track A/B + `resolveImportMetadataUpdate` wiring completed 2026-07-12. **Q4:** live integration (`tests/integration/supabase/`).
@@ -113,8 +115,14 @@ Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage
 ## Import metadata wiring (completed 2026-07-12)
 
 - `resolveImportMetadataUpdate` in `api/chapters/helpers/importPipeline.ts` (merge + cover upload + changed-check)
-- 4 duplicate metadata blocks in `chapters.ts` replaced; full `flushImportBatch` / `appendRecentChapterSnapshot` wiring
-- `chapters.ts`: ~3127 → **~3062** lines (−65)
+- 4 duplicate metadata blocks in import routes replaced; full `flushImportBatch` / `appendRecentChapterSnapshot` wiring
+- `chapters.ts`: ~3127 → **~3062** lines (−65) before import split
+
+## Chapter import routes split (completed 2026-07-12)
+
+- `registerChapterImportRoutes` in `api/routes/chapterImport.ts` (4 routes: async import, job poll/cancel, sync POST)
+- `runAsyncImportJob` in `api/chapters/helpers/asyncImportJob.ts` — testable background runner (`asyncImportJob.test.ts`, 7 cases)
+- `chapters.ts`: ~3062 → **~2165** lines (−897)
 
 ## Wave 3 deliverables (completed 2026-07-12)
 
