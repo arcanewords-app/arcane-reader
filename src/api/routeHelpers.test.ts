@@ -138,6 +138,8 @@ describe('routeHelpers pure functions', () => {
   it('toPublicTranslateJob and toPublicAnalysisJob compute progress', () => {
     const translateJob = {
       jobId: 'trl_1',
+      projectId: 'p1',
+      userId: 'u1',
       status: 'processing',
       current: 1,
       total: 4,
@@ -148,11 +150,14 @@ describe('routeHelpers pure functions', () => {
       totalTokensUsed: 0,
       sourceLanguage: 'en',
       targetLanguage: 'ru',
+      cancelRequested: false,
     } as TranslateJobState;
     assert.equal(toPublicTranslateJob(translateJob).progress, 25);
 
     const analysisJob = {
       jobId: 'ana_1',
+      projectId: 'p1',
+      userId: 'u1',
       status: 'processing',
       current: 3,
       total: 3,
@@ -163,6 +168,7 @@ describe('routeHelpers pure functions', () => {
       totalTokensUsed: 0,
       sourceLanguage: 'en',
       targetLanguage: 'ru',
+      cancelRequested: false,
     } as AnalysisJobState;
     assert.equal(toPublicAnalysisJob(analysisJob).progress, 100);
   });

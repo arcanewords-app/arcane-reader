@@ -14,7 +14,7 @@ describe('declension', () => {
   });
 
   it('declineName returns genitive for Russian male name', () => {
-    const forms = declineName('Иван', 'male', 'ru');
+    const forms = declineName('Иван', 'male');
     assert.ok(forms.genitive.length > 0);
   });
 

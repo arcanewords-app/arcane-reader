@@ -274,3 +274,79 @@ export function transformGlossaryEntryFromDB(row: Record<string, unknown>): Glos
 export function escapeIlike(s: string): string {
   return s.replace(/[%_\\]/g, '\\$&');
 }
+
+/** Lightweight project list item from DB row + aggregate counts */
+export interface ProjectListItemDB {
+  id: string;
+  name: string;
+  type?: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  chapterCount: number;
+  translatedCount: number;
+  glossaryCount: number;
+  originalReadingMode?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: unknown;
+}
+
+export function transformProjectListItemFromDB(
+  row: Record<string, unknown>,
+  counts: {
+    chapterCount: number;
+    translatedCount: number;
+    glossaryCount: number;
+  }
+): ProjectListItemDB {
+  const p = row as Record<string, unknown> & {
+    id: string;
+    name: string;
+    type?: string;
+    source_language?: string;
+    target_language?: string;
+    settings?: ProjectSettings;
+    created_at?: string;
+    updated_at?: string;
+    metadata?: unknown;
+  };
+  const settings = (p.settings as ProjectSettings) || getDefaultProjectSettings();
+  return {
+    id: p.id,
+    name: p.name,
+    type: p.type || 'text',
+    sourceLanguage: (p.source_language as string) || 'en',
+    targetLanguage: (p.target_language as string) || 'ru',
+    chapterCount: counts.chapterCount,
+    translatedCount: counts.translatedCount,
+    glossaryCount: counts.glossaryCount,
+    originalReadingMode: settings?.originalReadingMode ?? false,
+    createdAt: p.created_at ?? '',
+    updatedAt: p.updated_at ?? '',
+    metadata: p.metadata || undefined,
+  };
+}
+
+/** Chapter list item for project overview (no paragraphs loaded) */
+export function transformChapterListItemFromDB(row: Record<string, unknown>): ChapterListItem {
+  const ch = row as Record<string, unknown> & {
+    id: string;
+    number: number;
+    title: string;
+    translated_title?: string | null;
+    status: string;
+    translation_meta?: Chapter['translationMeta'];
+  };
+  const meta = ch.translation_meta;
+  const hasTranslation =
+    ch.status === 'completed' || ch.status === 'draft' || ch.status === 'partial';
+  return {
+    id: ch.id,
+    number: ch.number,
+    title: ch.title,
+    translatedTitle: ch.translated_title?.trim() || undefined,
+    status: ch.status as ChapterStatus,
+    hasTranslation,
+    translationMeta: meta,
+  };
+}

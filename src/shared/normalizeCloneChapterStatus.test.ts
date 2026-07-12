@@ -25,7 +25,13 @@ describe('normalizeCloneChapterStatus', () => {
   it('maps translating without translation to analyzed when analysis exists', () => {
     const chapter = makeChapter({
       status: 'translating',
-      translationMeta: { lastAnalysisAt: '2026-01-01T00:00:00Z' },
+      translationMeta: {
+        tokensUsed: 0,
+        duration: 0,
+        model: 'test',
+        translatedAt: '2026-01-01T00:00:00Z',
+        lastAnalysisAt: '2026-01-01T00:00:00Z',
+      },
     });
     assert.equal(normalizeCloneChapterStatus(chapter), 'analyzed');
   });

@@ -23,11 +23,9 @@ describe('EditStage smoke', () => {
         finishReason: 'stop',
         model: 'mock',
       }),
-      completeJSON: async () => ({
-        content: {},
+      completeJSON: async <T>() => ({
+        data: {} as T,
         tokensUsed: { prompt: 1, completion: 1, total: 2 },
-        finishReason: 'stop',
-        model: 'mock',
       }),
       isAvailable: async () => true,
       estimateTokens: (text) => Math.ceil(text.length / 4),

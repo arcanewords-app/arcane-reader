@@ -14,13 +14,13 @@ describe('AnalyzeStage smoke', () => {
         finishReason: 'stop',
         model: 'mock',
       }),
-      completeJSON: async () => ({
+      completeJSON: async <T>() => ({
         data: {
           characters: [],
           locations: [],
           terms: [],
           chapterSummary: 'summary',
-        },
+        } as T,
         tokensUsed: { prompt: 10, completion: 20, total: 30 },
       }),
       isAvailable: async () => true,
