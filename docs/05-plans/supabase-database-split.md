@@ -41,8 +41,14 @@ domains/publications ← getGlossaryForPublication orchestrates pub + loaders
 
 `check:circular` must pass before commit (`npm run check:circular`).
 
-## Next (post-split)
+## routes/client split (completed 2026-07-12)
 
-- Route handlers (`api/routes/chapters.ts`, …) — extract validation, mock domain modules
-- `client/api/client.ts` — cache keys, ApiError extract
+| Track | Deliverables                                                                                                                                         |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A** | `api/chapters/helpers/*` (stages, token limit, import pipeline, mark translated, job polling) + `chapterReports.ts`; domain imports in `chapters.ts` |
+| **B** | `client/api/errors`, `cache/*`, `transport/*`, `domains/*`; thin `client.ts` facade                                                                  |
+
+## Next (post routes/client split)
+
+- Further shrink `api/routes/chapters.ts` (cover/metadata import wiring, optional handler extract)
 - Q4: live Supabase integration when test env exists

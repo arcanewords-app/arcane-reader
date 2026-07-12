@@ -1,7 +1,6 @@
 import type { Application } from 'express';
 import type express from 'express';
 import {
-  reportStatusSchema,
   chapterBulkIdsBodySchema,
   chapterIdsBodySchema,
   translateBatchBodySchema,
@@ -15,29 +14,26 @@ import {
 } from '../schemas/index.js';
 import {
   getProject,
+  updateProject,
   duplicateChaptersInProject,
   bulkDeleteChapters,
-  updateProject,
+  verifyChapterAccess,
+  getChapterStatusRow,
+  resetStuckChaptersForRecovery,
+} from '../../services/supabase/domains/projects.js';
+import {
   importChaptersBatch,
   updateChapter,
   getChapter,
-  verifyChapterAccess,
   deleteChapter,
   updateChapterNumber,
-  updateChapterStatus,
   updateChaptersOrder,
   markChaptersAsTranslatedBatch,
-  addGlossaryEntry,
-  updateGlossaryEntry,
-  updateParagraph,
-  resetStuckChaptersForRecovery,
-  getChapterStatusRow,
-  getTranslationReportsCountByProject,
-  getTranslationReportsByProject,
-  updateTranslationReportStatus,
-  deleteTranslationReport,
   type MarkTranslatedBatchResult,
-} from '../../services/supabaseDatabase.js';
+} from '../../services/supabase/domains/chapters.js';
+import { addGlossaryEntry, updateGlossaryEntry } from '../../services/supabase/domains/glossary.js';
+import { updateParagraph } from '../../services/supabase/domains/paragraphs.js';
+import { updateChapterStatus } from '../../services/supabase/domains/readerProgress.js';
 import {
   getChapterStats,
   mergeParagraphsToText,
@@ -47,7 +43,6 @@ import {
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { handleServiceError } from '../../middleware/serviceHealth.js';
 import { respondRouteError } from '../../middleware/routeDebugError.js';
-import { isChunkError } from '../../shared/chunkErrors.js';
 import { resolveChapterStatusAfterTranslation } from '../../shared/chapterTranslationCoverage.js';
 
 import { createTraceId, runWithDebugContextAsync } from '../../debug/context.js';
@@ -86,7 +81,6 @@ import {
 } from '../../services/chapterQueue.js';
 import { uploadFile, generateUniqueFilename } from '../../services/storage.js';
 
-import { redisDelMany } from '../../services/redisCache.js';
 import { invalidateProjectAndRelatedCaches } from '../../services/cacheInvalidation.js';
 import {
   performTranslation,
@@ -118,9 +112,23 @@ import {
   MARK_TRANSLATED_BATCH_CHUNK_SIZE,
   ANALYSIS_JOB_TTL_SECONDS,
   TRANSLATE_JOB_TTL_SECONDS,
-  projectReportsCountCacheKey,
   SERVER_START_TIME_MS,
 } from '../routeHelpers.js';
+import { parseTranslationStages } from '../chapters/helpers/translationStages.js';
+import { resolveEffectiveOriginalText } from '../chapters/helpers/effectiveOriginalText.js';
+import { buildTokenLimit429Response } from '../chapters/helpers/tokenLimitResponse.js';
+import { isPreferAsync } from '../chapters/helpers/preferAsync.js';
+import { validationFailedResponse } from '../chapters/helpers/validationResponse.js';
+import { buildMarkTranslatedParagraphs } from '../chapters/helpers/markTranslated.js';
+import { buildAnalysisChapterUpdate } from '../chapters/helpers/analysisUpdate.js';
+import {
+  appendChapterCountWarning,
+  buildMultiChapterImportResponse,
+  flushImportBatch,
+  shouldUpdateProjectType,
+} from '../chapters/helpers/importPipeline.js';
+import { isJobOwnedByUser, setJobPollingNoStoreHeaders } from '../chapters/helpers/jobPolling.js';
+import { computeTranslationTextLength } from '../chapters/helpers/paragraphTranslation.js';
 import type { RouteDeps } from './deps.js';
 
 export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
@@ -272,8 +280,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
               });
 
               const detectedType = getProjectTypeFromFormat('epub');
-              const needsTypeUpdate =
-                !project.type || (project.type === 'text' && detectedType !== 'text');
+              const needsTypeUpdate = shouldUpdateProjectType(project.type, detectedType);
               if (isFirstChapter && needsTypeUpdate) {
                 await updateProject(projectId, { type: detectedType }, userId, token, {
                   useServiceRole: true,
@@ -341,7 +348,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                 const shouldFlushBatch = pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE;
 
                 if (shouldFlushBatch) {
-                  await importChaptersBatch(projectId, pendingBatch, token, {
+                  await flushImportBatch(importChaptersBatch, projectId, pendingBatch, token, {
                     useServiceRole: true,
                   });
                   const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
@@ -391,7 +398,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                 }
               }
               if (pendingBatch.length > 0) {
-                await importChaptersBatch(projectId, pendingBatch, token, {
+                await flushImportBatch(importChaptersBatch, projectId, pendingBatch, token, {
                   useServiceRole: true,
                 });
                 const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
@@ -481,8 +488,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
               });
 
               const detectedType = getProjectTypeFromFormat(parseResult.format);
-              const needsTypeUpdate =
-                !project.type || (project.type === 'text' && detectedType !== 'text');
+              const needsTypeUpdate = shouldUpdateProjectType(project.type, detectedType);
               if (isFirstChapter && needsTypeUpdate) {
                 await updateProject(projectId, { type: detectedType }, userId, token, {
                   useServiceRole: true,
@@ -547,7 +553,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                   chapterNumber === parseResult.chapters.length;
 
                 if (shouldFlushBatch) {
-                  await importChaptersBatch(projectId, pendingBatch, token, {
+                  await flushImportBatch(importChaptersBatch, projectId, pendingBatch, token, {
                     useServiceRole: true,
                   });
                   const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
@@ -652,13 +658,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
       const job = await deps.importJobStore.getJob(requireRouteParam(req.params.jobId, 'jobId'));
       if (!job) return res.status(404).json({ error: 'Import job not found' });
-      if (job.userId !== req.user.id || job.projectId !== requireRouteParam(req.params.id, 'id')) {
+      if (!isJobOwnedByUser(job, req.user.id, requireRouteParam(req.params.id, 'id'))) {
         return res.status(404).json({ error: 'Import job not found' });
       }
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Surrogate-Control', 'no-store');
+      setJobPollingNoStoreHeaders(res);
       const compact = req.query.compact === '1' || req.query.compact === 'true';
       res.json(toPublicImportJob(job, { compact }));
     }
@@ -673,7 +676,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
       const job = await deps.importJobStore.getJob(requireRouteParam(req.params.jobId, 'jobId'));
       if (!job) return res.status(404).json({ error: 'Import job not found' });
-      if (job.userId !== req.user.id || job.projectId !== requireRouteParam(req.params.id, 'id')) {
+      if (!isJobOwnedByUser(job, req.user.id, requireRouteParam(req.params.id, 'id'))) {
         return res.status(404).json({ error: 'Import job not found' });
       }
       if (job.status === 'completed' || job.status === 'error' || job.status === 'canceled') {
@@ -760,8 +763,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
           const detectedType = getProjectTypeFromFormat('epub');
           const isFirstChapter = project.chapters.length === 0;
-          const needsTypeUpdate =
-            !project.type || (project.type === 'text' && detectedType !== 'text');
+          const needsTypeUpdate = shouldUpdateProjectType(project.type, detectedType);
 
           if (isFirstChapter && needsTypeUpdate) {
             await updateProject(
@@ -811,13 +813,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
             }
           }
 
-          const CHAPTER_COUNT_WARN_THRESHOLD = 500;
-          const chapterCountWarnings = [...lazyResult.warnings];
-          if (lazyResult.chapterCount > CHAPTER_COUNT_WARN_THRESHOLD) {
-            chapterCountWarnings.push(
-              `Файл содержит ${lazyResult.chapterCount} глав. Рекомендуется разбить на части для лучшей производительности.`
-            );
-          }
+          const chapterCountWarnings = appendChapterCountWarning(
+            [...lazyResult.warnings],
+            lazyResult.chapterCount
+          );
 
           const importedRows: Array<{
             sourceIndex: number;
@@ -872,18 +871,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
             }
             res.json(fullChapter);
           } else {
-            res.json({
-              chapters: importedRows.map((row) => ({
-                id: row.chapterId,
-                number: row.number,
-                title: row.title,
-                originalText: '',
-                status: 'pending' as const,
-                paragraphs: [],
-              })),
-              count: importedRows.length,
-              warnings: chapterCountWarnings.length > 0 ? chapterCountWarnings : undefined,
-            });
+            res.json(buildMultiChapterImportResponse(importedRows, chapterCountWarnings));
           }
           return;
         }
@@ -915,8 +903,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const detectedType = getProjectTypeFromFormat(parseResult.format);
         const isFirstChapter = project.chapters.length === 0;
-        const needsTypeUpdate =
-          !project.type || (project.type === 'text' && detectedType !== 'text');
+        const needsTypeUpdate = shouldUpdateProjectType(project.type, detectedType);
 
         if (isFirstChapter && needsTypeUpdate) {
           await updateProject(
@@ -1008,13 +995,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           });
         }
 
-        const CHAPTER_COUNT_WARN_THRESHOLD = 500;
-        const chapterCountWarnings = [...(parseResult.warnings || [])];
-        if (parseResult.chapters.length > CHAPTER_COUNT_WARN_THRESHOLD) {
-          chapterCountWarnings.push(
-            `Файл содержит ${parseResult.chapters.length} глав. Рекомендуется разбить на части для лучшей производительности.`
-          );
-        }
+        const chapterCountWarnings = appendChapterCountWarning(
+          [...(parseResult.warnings || [])],
+          parseResult.chapters.length
+        );
 
         const importedRows: Array<{
           sourceIndex: number;
@@ -1250,10 +1234,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterBulkIdsBodySchema.safeParse(req.body ?? {});
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
 
         const token = requireToken(req);
@@ -1315,10 +1296,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterBulkIdsBodySchema.safeParse(req.body ?? {});
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
 
         const token = requireToken(req);
@@ -1715,21 +1693,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         );
 
         const now = new Date().toISOString();
-
-        // Copy originalText → translatedText for each paragraph (1:1)
-        const updatedParagraphs = chapter.paragraphs.map((p) => ({
-          ...p,
-          translatedText: p.originalText,
-          status: 'translated' as const,
-          editedBy: 'user' as const,
-          editedAt: now,
-        }));
-
-        const mergedText = mergeParagraphsToText(updatedParagraphs, 'translatedText');
-        // Keep 1:1 mapping: chunks[i] = paragraph[i].translatedText (for auto-recovery consistency)
-        const chunks = [...updatedParagraphs]
-          .sort((a, b) => a.index - b.index)
-          .map((p) => p.translatedText || '');
+        const { updatedParagraphs, mergedText, chunks } = buildMarkTranslatedParagraphs(
+          chapter.paragraphs,
+          now
+        );
 
         req.log?.debug(
           {
@@ -1815,10 +1782,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterIdsBodySchema.safeParse(req.body || {});
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const chapterIds = Array.from(new Set(parsed.data.chapterIds));
         const continueOnError = parsed.data.options?.continueOnError ?? true;
@@ -1902,10 +1866,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterIdsBodySchema.safeParse(req.body || {});
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const { chapterIds, languagePair: languagePairOverride } = parsed.data;
         warnLanguageOverrideWithGlossary(req, project, languagePairOverride);
@@ -1916,12 +1877,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         for (const chapterId of chapterIds) {
           const chapter = await getChapter(projectId, chapterId, token);
           if (!chapter) continue;
-          const effectiveOriginalText =
-            chapter.originalText && chapter.originalText.trim().length > 0
-              ? chapter.originalText.trim()
-              : chapter.paragraphs && chapter.paragraphs.length > 0
-                ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
-                : '';
+          const effectiveOriginalText = resolveEffectiveOriginalText(chapter);
           if (!effectiveOriginalText) continue;
           chaptersWithText.push({ ...chapter, originalText: effectiveOriginalText });
         }
@@ -1948,24 +1904,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           req.user!.role
         );
         if (!limitCheck.allowed) {
-          const now = new Date();
-          const resetTime = new Date(
-            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
-          );
-          return res.status(429).json({
-            error: 'Token limit exceeded',
-            message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
-            currentUsage: limitCheck.currentUsage,
-            limit: limitCheck.limit,
-            estimatedTokens,
-            resetAt: resetTime.toISOString(),
-          });
+          return res.status(429).json(buildTokenLimit429Response(limitCheck, estimatedTokens));
         }
 
-        const preferAsync =
-          req.get('Prefer')?.toLowerCase().includes('respond-async') ||
-          req.query?.async === '1' ||
-          req.query?.async === 'true';
+        const preferAsync = isPreferAsync(req);
 
         if (preferAsync) {
           const userId = req.user!.id;
@@ -2086,35 +2028,16 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           const existingChapter = await getChapter(projectId, chResult.chapterId, token, {
             useServiceRole: true,
           });
-          const preserveStatus =
-            existingChapter?.status === 'completed' ||
-            existingChapter?.status === 'draft' ||
-            existingChapter?.status === 'partial';
-          const preservedSource = existingChapter?.translationMeta?.source;
-          await updateChapter(
-            projectId,
-            chResult.chapterId,
-            {
-              status: preserveStatus ? existingChapter!.status : 'analyzed',
-              translationMeta: {
-                ...(existingChapter?.translationMeta || {}),
-                tokensUsed: chResult.tokensUsed,
-                tokensByStage: {
-                  ...(existingChapter?.translationMeta?.tokensByStage || {}),
-                  analysis: chResult.tokensUsed,
-                  translation: existingChapter?.translationMeta?.tokensByStage?.translation ?? 0,
-                  editing: existingChapter?.translationMeta?.tokensByStage?.editing ?? 0,
-                },
-                duration: result.totalDuration,
-                model: analysisModel,
-                translatedAt: existingChapter?.translationMeta?.translatedAt ?? nowIso,
-                lastAnalysisAt: nowIso,
-                ...(preservedSource ? { source: preservedSource } : {}),
-              },
-            },
-            token,
-            { useServiceRole: true }
-          );
+          const chapterUpdate = buildAnalysisChapterUpdate({
+            existingChapter,
+            chResult,
+            totalDuration: result.totalDuration,
+            analysisModel,
+            nowIso,
+          });
+          await updateChapter(projectId, chResult.chapterId, chapterUpdate, token, {
+            useServiceRole: true,
+          });
         }
 
         try {
@@ -2202,10 +2125,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
       ) {
         return res.status(404).json({ error: 'Analysis job not found' });
       }
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Surrogate-Control', 'no-store');
+      setJobPollingNoStoreHeaders(res);
       const compact = req.query.compact === '1' || req.query.compact === 'true';
       res.json(toPublicAnalysisJob(job, { compact }));
     }
@@ -2285,10 +2205,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = translateBatchBodySchema.safeParse(req.body || {});
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const {
           chapterIds,
@@ -2299,26 +2216,13 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         } = parsed.data;
         warnLanguageOverrideWithGlossary(req, project, languagePairOverride);
         const jobLanguageFields = effectiveJobLanguageFields(project, languagePairOverride);
-        const validStage = (s: string): s is 'analysis' | 'translation' | 'editing' =>
-          s === 'analysis' || s === 'translation' || s === 'editing';
-        let stages: TranslationStages = 'all';
-        if (Array.isArray(stagesRaw) && stagesRaw.length > 0) {
-          const arr = stagesRaw.filter(validStage);
-          if (arr.length > 0) stages = [...new Set(arr)];
-        } else if (stagesRaw === 'all') {
-          stages = 'all';
-        }
+        const stages: TranslationStages = parseTranslationStages(stagesRaw);
 
         const chaptersToTranslate: Chapter[] = [];
         for (const chapterId of chapterIds) {
           const chapter = await getChapter(projectId, chapterId, token);
           if (!chapter) continue;
-          const effectiveOriginalText =
-            chapter.originalText && chapter.originalText.trim().length > 0
-              ? chapter.originalText.trim()
-              : chapter.paragraphs && chapter.paragraphs.length > 0
-                ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
-                : '';
+          const effectiveOriginalText = resolveEffectiveOriginalText(chapter);
           if (!effectiveOriginalText) continue;
           if (chapter.status === 'translating') continue;
           chaptersToTranslate.push({ ...chapter, originalText: effectiveOriginalText });
@@ -2347,24 +2251,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           req.user.role
         );
         if (!limitCheck.allowed) {
-          const now = new Date();
-          const resetTime = new Date(
-            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
-          );
-          return res.status(429).json({
-            error: 'Token limit exceeded',
-            message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
-            currentUsage: limitCheck.currentUsage,
-            limit: limitCheck.limit,
-            estimatedTokens,
-            resetAt: resetTime.toISOString(),
-          });
+          return res.status(429).json(buildTokenLimit429Response(limitCheck, estimatedTokens));
         }
 
-        const preferAsync =
-          req.get('Prefer')?.toLowerCase().includes('respond-async') ||
-          req.query?.async === '1' ||
-          req.query?.async === 'true';
+        const preferAsync = isPreferAsync(req);
 
         if (preferAsync) {
           const userId = req.user.id;
@@ -2470,10 +2360,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
       ) {
         return res.status(404).json({ error: 'Translate job not found' });
       }
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Surrogate-Control', 'no-store');
+      setJobPollingNoStoreHeaders(res);
       const compact = req.query.compact === '1' || req.query.compact === 'true';
       res.json(toPublicTranslateJob(job, { compact }));
     }
@@ -2592,12 +2479,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         }
 
         // Use chapter.originalText if set; otherwise derive from paragraphs (e.g. after "mark as translated" which clears chapter.originalText but keeps paragraph.originalText)
-        const effectiveOriginalText =
-          chapter.originalText && chapter.originalText.trim().length > 0
-            ? chapter.originalText.trim()
-            : chapter.paragraphs && chapter.paragraphs.length > 0
-              ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
-              : '';
+        const effectiveOriginalText = resolveEffectiveOriginalText(chapter);
         if (!effectiveOriginalText) {
           return res.status(400).json({
             error: 'No source text',
@@ -2609,10 +2491,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsedBody = chapterTranslateBodySchema.safeParse(req.body || {});
         if (!parsedBody.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsedBody.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsedBody.error));
         }
         const {
           translateOnlyEmpty = false,
@@ -2622,34 +2501,13 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           languagePair: languagePairOverride,
         } = parsedBody.data;
         warnLanguageOverrideWithGlossary(req, project, languagePairOverride);
-        const validStage = (s: string): s is 'analysis' | 'translation' | 'editing' =>
-          s === 'analysis' || s === 'translation' || s === 'editing';
-        let stages: TranslationStages = 'all';
-        if (Array.isArray(stagesRaw) && stagesRaw.length > 0) {
-          const arr = stagesRaw.filter(validStage);
-          if (arr.length > 0) stages = [...new Set(arr)];
-        } else if (stagesRaw === 'all') {
-          stages = 'all';
-        }
+        const stages: TranslationStages = parseTranslationStages(stagesRaw);
 
-        const hasValidTranslation = (p: { translatedText?: string | null }) => {
-          const t = p.translatedText?.trim() || '';
-          if (!t.length) return false;
-          if (t.startsWith('❌') || isChunkError(t)) return false;
-          return true;
-        };
-
-        // Text length for token estimate: selected paragraphs, or empty only, or full chapter
-        let textLength = chapterForTranslation.originalText.length;
-        if (paragraphIds?.length && chapterForTranslation.paragraphs?.length) {
-          const idSet = new Set(paragraphIds);
-          textLength = chapterForTranslation.paragraphs
-            .filter((p) => idSet.has(p.id))
-            .reduce((sum, p) => sum + p.originalText.length, 0);
-        } else if (translateOnlyEmpty && chapterForTranslation.paragraphs?.length) {
-          const empty = chapterForTranslation.paragraphs.filter((p) => !hasValidTranslation(p));
-          textLength = empty.reduce((sum, p) => sum + p.originalText.length, 0);
-        }
+        const textLength = computeTranslationTextLength(
+          chapterForTranslation.originalText.length,
+          chapterForTranslation.paragraphs,
+          { paragraphIds, translateOnlyEmpty }
+        );
 
         const hasTranslatedText =
           !!chapterForTranslation.translatedText &&
@@ -2725,20 +2583,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
             token
           );
 
-          // Calculate reset time (next midnight UTC)
-          const now = new Date();
-          const resetTime = new Date(
-            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
-          );
-
-          return res.status(429).json({
-            error: 'Token limit exceeded',
-            message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
-            currentUsage: limitCheck.currentUsage,
-            limit: limitCheck.limit,
-            estimatedTokens,
-            resetAt: resetTime.toISOString(),
-          });
+          return res.status(429).json(buildTokenLimit429Response(limitCheck, estimatedTokens));
         }
 
         // Update status to translating
@@ -2844,10 +2689,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsedBody = chapterCriticBodySchema.safeParse(req.body || {});
         if (!parsedBody.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsedBody.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsedBody.error));
         }
 
         const { force = false } = parsedBody.data;
@@ -2900,18 +2742,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           req.user.role
         );
         if (!limitCheck.allowed) {
-          const now = new Date();
-          const resetTime = new Date(
-            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
-          );
-          return res.status(429).json({
-            error: 'Token limit exceeded',
-            message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
-            currentUsage: limitCheck.currentUsage,
-            limit: limitCheck.limit,
-            estimatedTokens,
-            resetAt: resetTime.toISOString(),
-          });
+          return res.status(429).json(buildTokenLimit429Response(limitCheck, estimatedTokens));
         }
 
         let report;
@@ -2966,90 +2797,6 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
         if (handleServiceError(error, req, res)) return;
         req.log?.error({ err: error }, 'Chapter critic failed');
         res.status(500).json({ error: 'Failed to run translation review' });
-      }
-    }
-  );
-  app.get(
-    '/api/projects/:id/reports-count',
-    requireAuth,
-    requireRole('author'),
-    async (req, res) => {
-      try {
-        const userId = req.user!.id;
-        const token = requireToken(req);
-        const projectId = requireRouteParam(req.params.id, 'id');
-
-        const count = await getTranslationReportsCountByProject(projectId, userId, token);
-        res.json({ count });
-      } catch (error) {
-        if (handleServiceError(error, req, res)) return;
-        res.status(500).json({ error: 'Failed to get reports count' });
-      }
-    }
-  );
-
-  app.get('/api/projects/:id/reports', requireAuth, requireRole('author'), async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const token = requireToken(req);
-      const projectId = requireRouteParam(req.params.id, 'id');
-
-      const reports = await getTranslationReportsByProject(projectId, userId, token);
-      res.json(reports);
-    } catch (error) {
-      if (handleServiceError(error, req, res)) return;
-      res.status(500).json({ error: 'Failed to get reports' });
-    }
-  });
-
-  app.patch(
-    '/api/projects/:id/reports/:reportId',
-    requireAuth,
-    requireRole('author'),
-    async (req, res) => {
-      try {
-        const userId = req.user!.id;
-        const token = requireToken(req);
-        const projectId = requireRouteParam(req.params.id, 'id');
-        const reportId = requireRouteParam(req.params.reportId, 'reportId');
-
-        const parsed = reportStatusSchema.safeParse(req.body);
-        if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
-        }
-
-        await updateTranslationReportStatus(projectId, reportId, userId, token, parsed.data.status);
-        await redisDelMany([projectReportsCountCacheKey(projectId)]);
-        res.json({ success: true });
-      } catch (error) {
-        if (handleServiceError(error, req, res)) return;
-        const msg = error instanceof Error ? error.message : 'Failed to update report';
-        res.status(400).json({ error: msg });
-      }
-    }
-  );
-
-  app.delete(
-    '/api/projects/:id/reports/:reportId',
-    requireAuth,
-    requireRole('author'),
-    async (req, res) => {
-      try {
-        const userId = req.user!.id;
-        const token = requireToken(req);
-        const projectId = requireRouteParam(req.params.id, 'id');
-        const reportId = requireRouteParam(req.params.reportId, 'reportId');
-
-        await deleteTranslationReport(projectId, reportId, userId, token);
-        await redisDelMany([projectReportsCountCacheKey(projectId)]);
-        res.json({ success: true });
-      } catch (error) {
-        if (handleServiceError(error, req, res)) return;
-        const msg = error instanceof Error ? error.message : 'Failed to delete report';
-        res.status(400).json({ error: msg });
       }
     }
   );
@@ -3113,10 +2860,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterTitleBodySchema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const { title } = parsed.data;
 
@@ -3180,10 +2924,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterNumberBodySchema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const { number } = parsed.data;
 
@@ -3252,10 +2993,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chapterStatusBodySchema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const { status } = parsed.data;
 
@@ -3306,10 +3044,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
 
         const parsed = chaptersOrderBodySchema.safeParse(req.body || {});
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const { ids } = parsed.data;
 
@@ -3347,10 +3082,7 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
       try {
         const parsed = paragraphUpdateBodySchema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.flatten().fieldErrors,
-          });
+          return res.status(400).json(validationFailedResponse(parsed.error));
         }
         const { translatedText, status } = parsed.data;
 

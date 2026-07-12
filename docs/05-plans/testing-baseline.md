@@ -6,7 +6,7 @@ updated: 2026-07-12
 
 # Testing coverage baseline
 
-Measured after **Wave 3** (sprints 3A–3H) and **supabaseDatabase decomposition** (phases 1–5).
+Measured after **Wave 3** (sprints 3A–3H), **supabaseDatabase decomposition**, and **routes/client split** (Track A+B, 2026-07-12).
 
 ## APP_SCOPE (unified)
 
@@ -39,27 +39,27 @@ Policy SSOT: [[_canonical/rules/testing]].
 
 Until dedicated test environment is provisioned, Q4 integration work is **paused**.
 
-## Test suite (2026-07-12, post supabase split)
+## Test suite (2026-07-12, post routes/client split)
 
 | Metric                           | Value                                                              |
 | -------------------------------- | ------------------------------------------------------------------ |
-| Test files                       | **92** (89 fast + 3 slow)                                          |
-| Tests                            | **430** (413 fast + 17 slow tiktoken)                              |
-| Fast suite (`npm run test`)      | ~16 s                                                              |
+| Test files                       | **108** (105 fast + 3 slow)                                        |
+| Tests                            | **485** (468 fast + 17 slow tiktoken)                              |
+| Fast suite (`npm run test`)      | ~29 s                                                              |
 | Slow suite (`npm run test:slow`) | ~100 s                                                             |
-| Full suite (`npm run test:all`)  | ~117 s                                                             |
+| Full suite (`npm run test:all`)  | ~130 s                                                             |
 | CI                               | `npm run test:coverage` (fast suite; excludes tiktoken slow files) |
 
 Component smoke: `happy-dom` + `@testing-library/preact` (RequireRole); Preact JSX aliases in `vitest.config.ts`.
 
 ## Inventory: tested vs untested
 
-| Metric                         | Value                          |
-| ------------------------------ | ------------------------------ |
-| Source files in APP_SCOPE      | **303**                        |
-| With co-located `*.test.ts(x)` | **87** (**29%**)               |
-| **Without unit test**          | **216** (**71%**)              |
-| Files at **0%** line coverage  | **151** (**50%** of APP_SCOPE) |
+| Metric                         | Value                            |
+| ------------------------------ | -------------------------------- |
+| Source files in APP_SCOPE      | **303**                          |
+| With co-located `*.test.ts(x)` | **103** (**~34%**)               |
+| **Without unit test**          | **~200** (**~66%**)              |
+| Files at **0%** line coverage  | **~140** (**~46%** of APP_SCOPE) |
 
 Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:coverage`).
 
@@ -71,19 +71,19 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 | `client/hooks/`      | 9            | 1 (`useUrlSync` partial)                               |
 | `client/components/` | 16+          | 3 (`chapterPickerShared`, bulk replace, `RequireRole`) |
 | `client/pages/`      | 1            | **0**                                                  |
-| `client/api/`        | 1            | **0**                                                  |
+| `client/api/`        | 20+          | **16** (errors, cache, transport, domains)             |
 
 ## Overall coverage (v8, APP_SCOPE)
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric          | Coverage (prev → now)   |
-| --------------- | ----------------------- |
-| Lines           | **17.71%** (was 16.84%) |
-| Statements      | **17.35%** (was 16.50%) |
-| Functions       | **21.57%** (was 20.47%) |
-| Branches        | **15.36%** (was 14.15%) |
-| Uncovered lines | **13 261** (was 13 371) |
+| Metric          | Coverage (prev → now)    |
+| --------------- | ------------------------ |
+| Lines           | **18.77%** (was 17.71%)  |
+| Statements      | **18.42%** (was 17.35%)  |
+| Functions       | **23.35%** (was 21.57%)  |
+| Branches        | **16.55%** (was 15.36%)  |
+| Uncovered lines | **~13 109** (was 13 261) |
 
 > `supabaseDatabase.ts` is now a **20-line facade**; logic lives in `src/services/supabase/domains/*` with co-located mock tests.
 
@@ -93,25 +93,22 @@ Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage
 | ------------------------- | ----- | -------- | --------- | ----------------- |
 | `src/shared/`             | 40    | 9        | 31        | **~79%**          |
 | `src/engine/`             | 68    | 15       | 22        | **~49%**          |
-| `src/client/`             | 56    | 38       | 10        | **~16%**          |
-| `src/api/`                | 28    | 20       | 4         | **~6%**           |
+| `src/api/`                | 40+   | ~25      | 14+       | **~12%**          |
+| `src/client/`             | 70+   | ~45      | 26+       | **~22%**          |
 | `src/services/`           | 52+   | ~35      | 12+       | **~8%**           |
 | `src/middleware/`         | 5     | 4        | 1         | **~8%**           |
 | `server.ts` + `worker.ts` | 2     | 2        | 0         | **0%**            |
 
 ### Top uncovered files (0% lines, by size)
 
-| File                                        | Lines |
-| ------------------------------------------- | ----- |
-| `services/supabase/domains/projects.ts`     | ~1628 |
-| `services/supabase/domains/publications.ts` | ~1066 |
-| `api/routes/chapters.ts`                    | 1111  |
-| `services/supabase/domains/chapters.ts`     | ~816  |
-| `services/supabase/domains/catalogBoard.ts` | ~687  |
-| `api/routes/publications.ts`                | 625   |
-| `client/api/client.ts`                      | 549   |
+| File                                        | Lines        |
+| ------------------------------------------- | ------------ |
+| `services/supabase/domains/projects.ts`     | ~1628        |
+| `services/supabase/domains/publications.ts` | ~1066        |
+| `api/routes/chapters.ts`                    | ~3100        |
+| `client/api/client.ts`                      | ~35 (facade) |
 
-**Q3 approach:** extract + domain split + mock unit tests. See [supabase-database-split.md](supabase-database-split.md). **Q4:** live integration (`tests/integration/supabase/`).
+**Q3 approach:** extract + domain split + mock unit tests. Track A (`api/chapters/helpers/*`) and Track B (`client/api/*`) completed 2026-07-12. **Q4:** live integration (`tests/integration/supabase/`).
 
 ## Wave 3 deliverables (completed 2026-07-12)
 

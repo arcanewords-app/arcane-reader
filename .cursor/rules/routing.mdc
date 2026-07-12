@@ -461,6 +461,7 @@ Async analysis and translate jobs require a separate Worker process and Redis (R
 - `src/client/AppRouter.tsx` - frontend routes
 - `src/client/components/Auth/AdminGate.tsx` - admin role gate
 - `src/server.ts` - API routes
+- `src/api/routes/index.ts` - registers route modules (`chapters.ts`, `chapterReports.ts`, …)
 - `src/worker.ts` - BullMQ worker entry point
 - `src/services/chapterQueue.ts` - BullMQ queues (analysis, translate)
 - `src/middleware/auth.ts` - requireAuth, optionalAuth, requireRole
