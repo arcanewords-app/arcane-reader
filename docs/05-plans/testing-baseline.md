@@ -6,7 +6,7 @@ updated: 2026-07-12
 
 # Testing coverage baseline
 
-Measured after **Wave 3** (sprints 3A–3H), **supabaseDatabase decomposition**, and **routes/client split** (Track A+B, 2026-07-12).
+Measured after **Wave 3** (sprints 3A–3H), **supabaseDatabase decomposition**, **routes/client split**, and **import metadata wiring** (2026-07-12).
 
 ## APP_SCOPE (unified)
 
@@ -39,12 +39,12 @@ Policy SSOT: [[_canonical/rules/testing]].
 
 Until dedicated test environment is provisioned, Q4 integration work is **paused**.
 
-## Test suite (2026-07-12, post routes/client split)
+## Test suite (2026-07-12, post import metadata wiring)
 
 | Metric                           | Value                                                              |
 | -------------------------------- | ------------------------------------------------------------------ |
 | Test files                       | **108** (105 fast + 3 slow)                                        |
-| Tests                            | **485** (468 fast + 17 slow tiktoken)                              |
+| Tests                            | **490** (473 fast + 17 slow tiktoken)                              |
 | Fast suite (`npm run test`)      | ~29 s                                                              |
 | Slow suite (`npm run test:slow`) | ~100 s                                                             |
 | Full suite (`npm run test:all`)  | ~130 s                                                             |
@@ -77,13 +77,13 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric          | Coverage (prev → now)    |
-| --------------- | ------------------------ |
-| Lines           | **18.77%** (was 17.71%)  |
-| Statements      | **18.42%** (was 17.35%)  |
-| Functions       | **23.35%** (was 21.57%)  |
-| Branches        | **16.55%** (was 15.36%)  |
-| Uncovered lines | **~13 109** (was 13 261) |
+| Metric          | Coverage (prev → now)     |
+| --------------- | ------------------------- |
+| Lines           | **18.92%** (was 18.77%)   |
+| Statements      | **18.55%** (was 18.42%)   |
+| Functions       | **23.46%** (was 23.35%)   |
+| Branches        | **16.70%** (was 16.55%)   |
+| Uncovered lines | **~13 075** (was ~13 109) |
 
 > `supabaseDatabase.ts` is now a **20-line facade**; logic lives in `src/services/supabase/domains/*` with co-located mock tests.
 
@@ -105,10 +105,16 @@ Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage
 | ------------------------------------------- | ------------ |
 | `services/supabase/domains/projects.ts`     | ~1628        |
 | `services/supabase/domains/publications.ts` | ~1066        |
-| `api/routes/chapters.ts`                    | ~3100        |
+| `api/routes/chapters.ts`                    | ~3060        |
 | `client/api/client.ts`                      | ~35 (facade) |
 
-**Q3 approach:** extract + domain split + mock unit tests. Track A (`api/chapters/helpers/*`) and Track B (`client/api/*`) completed 2026-07-12. **Q4:** live integration (`tests/integration/supabase/`).
+**Q3 approach:** extract + domain split + mock unit tests. Track A/B + `resolveImportMetadataUpdate` wiring completed 2026-07-12. **Q4:** live integration (`tests/integration/supabase/`).
+
+## Import metadata wiring (completed 2026-07-12)
+
+- `resolveImportMetadataUpdate` in `api/chapters/helpers/importPipeline.ts` (merge + cover upload + changed-check)
+- 4 duplicate metadata blocks in `chapters.ts` replaced; full `flushImportBatch` / `appendRecentChapterSnapshot` wiring
+- `chapters.ts`: ~3127 → **~3062** lines (−65)
 
 ## Wave 3 deliverables (completed 2026-07-12)
 

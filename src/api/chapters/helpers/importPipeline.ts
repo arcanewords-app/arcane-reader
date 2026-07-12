@@ -5,6 +5,7 @@
 import type { ProjectType } from '../../../storage/database.js';
 import { getProjectTypeFromFormat } from '../../../services/import/project-type.js';
 import type { ImportFormat } from '../../../services/import/types.js';
+import type { StorageBucket } from '../../../services/storage.js';
 
 function buildCoverStoragePath(projectId: string, mimeType: string): string {
   const ext = mimeType.split('/')[1] || 'jpg';
@@ -38,11 +39,23 @@ export interface CoverImageLike {
 }
 
 export type UploadFileFn = (
-  bucket: string,
+  bucket: StorageBucket,
   path: string,
   data: Buffer,
-  options: { contentType: string }
+  options?: { contentType?: string }
 ) => Promise<{ publicUrl: string }>;
+
+export type CoverPathBuilder = (projectId: string, mimeType: string) => string;
+
+function defaultCoverPathBuilder(projectId: string, mimeType: string): string {
+  return buildCoverStoragePath(projectId, mimeType);
+}
+
+function isCoverImageLike(value: unknown): value is CoverImageLike {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as CoverImageLike;
+  return Buffer.isBuffer(candidate.data) && typeof candidate.mimeType === 'string';
+}
 
 /** Whether first-chapter import should set project type from file format. */
 export function shouldUpdateProjectType(
@@ -75,20 +88,68 @@ export async function applyCoverImageToMetadata(
   metadata: Record<string, unknown>,
   coverImage: CoverImageLike,
   projectId: string,
-  uploadFileFn: UploadFileFn
+  uploadFileFn: UploadFileFn,
+  options?: {
+    buildCoverPath?: CoverPathBuilder;
+    onCoverError?: (err: unknown) => void;
+    onCoverSaved?: (storagePath: string) => void;
+  }
 ): Promise<Record<string, unknown>> {
+  const buildCoverPath = options?.buildCoverPath ?? defaultCoverPathBuilder;
   const updated = { ...metadata };
   try {
-    const storagePath = buildCoverStoragePath(projectId, coverImage.mimeType);
+    const storagePath = buildCoverPath(projectId, coverImage.mimeType);
     const uploadResult = await uploadFileFn('images', storagePath, coverImage.data, {
       contentType: coverImage.mimeType,
     });
     updated.coverImageUrl = uploadResult.publicUrl;
-  } catch {
-    // Caller logs cover upload failures.
+    options?.onCoverSaved?.(storagePath);
+  } catch (err) {
+    options?.onCoverError?.(err);
   }
   delete updated.coverImage;
   return updated;
+}
+
+export interface ResolveImportMetadataOptions {
+  onCoverError?: (err: unknown) => void;
+  onCoverSaved?: (storagePath: string) => void;
+  buildCoverPath?: CoverPathBuilder;
+}
+
+function toMetadataRecord(value: object | undefined): Record<string, unknown> | undefined {
+  return value as Record<string, unknown> | undefined;
+}
+
+/** Merge parsed book metadata, optionally upload cover; null if no update needed. */
+export async function resolveImportMetadataUpdate(
+  projectMetadata: object | undefined,
+  parsedMetadata: object | undefined,
+  projectId: string,
+  uploadFileFn: UploadFileFn,
+  options?: ResolveImportMetadataOptions
+): Promise<Record<string, unknown> | null> {
+  const parsed = toMetadataRecord(parsedMetadata);
+  if (!parsed || Object.keys(parsed).length === 0) {
+    return null;
+  }
+
+  const before = toMetadataRecord(projectMetadata);
+  let merged = mergeImportMetadata(before, parsed);
+  const coverImage = parsed.coverImage;
+  if (isCoverImageLike(coverImage)) {
+    merged = await applyCoverImageToMetadata(merged, coverImage, projectId, uploadFileFn, {
+      buildCoverPath: options?.buildCoverPath,
+      onCoverError: options?.onCoverError,
+      onCoverSaved: options?.onCoverSaved,
+    });
+  }
+
+  if (!importMetadataChanged(before, merged)) {
+    return null;
+  }
+
+  return merged;
 }
 
 export function appendChapterCountWarning(
@@ -112,6 +173,16 @@ export async function flushImportBatch(
 ): Promise<ImportChapterBatchRow[]> {
   if (batch.length === 0) return [];
   return importChaptersBatchFn(projectId, batch, token, options);
+}
+
+export function buildRecentChapterSnapshotEntries(
+  firstChapterNumber: number,
+  titles: string[]
+): Array<{ number: number; title: string }> {
+  return titles.map((title, index) => ({
+    number: firstChapterNumber + index,
+    title,
+  }));
 }
 
 export function appendRecentChapterSnapshot(

@@ -123,13 +123,20 @@ import { buildMarkTranslatedParagraphs } from '../chapters/helpers/markTranslate
 import { buildAnalysisChapterUpdate } from '../chapters/helpers/analysisUpdate.js';
 import {
   appendChapterCountWarning,
+  appendRecentChapterSnapshot,
   buildMultiChapterImportResponse,
+  buildRecentChapterSnapshotEntries,
   flushImportBatch,
+  resolveImportMetadataUpdate,
   shouldUpdateProjectType,
+  type CoverPathBuilder,
 } from '../chapters/helpers/importPipeline.js';
 import { isJobOwnedByUser, setJobPollingNoStoreHeaders } from '../chapters/helpers/jobPolling.js';
 import { computeTranslationTextLength } from '../chapters/helpers/paragraphTranslation.js';
 import type { RouteDeps } from './deps.js';
+
+const buildImportCoverPath: CoverPathBuilder = (projectId, mimeType) =>
+  generateUniqueFilename('cover', mimeType.split('/')[1] || 'jpg', projectId);
 
 export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
   app.post(
@@ -287,29 +294,20 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                 });
               }
 
-              if (isFirstChapter && Object.keys(lazyResult.metadata || {}).length > 0) {
-                const updatedMetadata = {
-                  ...project.metadata,
-                  ...lazyResult.metadata,
-                };
-                if (lazyResult.metadata.coverImage) {
-                  try {
-                    const ext = lazyResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
-                    const storagePath = generateUniqueFilename('cover', ext, projectId);
-                    const uploadResult = await uploadFile(
-                      'images',
-                      storagePath,
-                      lazyResult.metadata.coverImage.data,
-                      { contentType: lazyResult.metadata.coverImage.mimeType }
-                    );
-                    updatedMetadata.coverImageUrl = uploadResult.publicUrl;
-                  } catch (coverError) {
-                    req.log?.error({ err: coverError, jobId }, 'Failed to save cover image');
+              if (isFirstChapter) {
+                const metadataUpdate = await resolveImportMetadataUpdate(
+                  project.metadata,
+                  lazyResult.metadata,
+                  projectId,
+                  uploadFile,
+                  {
+                    buildCoverPath: buildImportCoverPath,
+                    onCoverError: (coverError) =>
+                      req.log?.error({ err: coverError, jobId }, 'Failed to save cover image'),
                   }
-                  delete (updatedMetadata as Record<string, unknown>).coverImage;
-                }
-                if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-                  await updateProject(projectId, { metadata: updatedMetadata }, userId, token, {
+                );
+                if (metadataUpdate) {
+                  await updateProject(projectId, { metadata: metadataUpdate }, userId, token, {
                     useServiceRole: true,
                   });
                 }
@@ -352,14 +350,11 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                     useServiceRole: true,
                   });
                   const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
-                  for (let i = 0; i < pendingBatchTitles.length; i++) {
-                    const chapterTitle = pendingBatchTitles[i];
-                    const chapterNo = firstBatchChapterNumber + i;
-                    recentChapters =
-                      recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
-                        ? [...recentChapters.slice(1), { number: chapterNo, title: chapterTitle }]
-                        : [...recentChapters, { number: chapterNo, title: chapterTitle }];
-                  }
+                  recentChapters = appendRecentChapterSnapshot(
+                    recentChapters,
+                    buildRecentChapterSnapshotEntries(firstBatchChapterNumber, pendingBatchTitles),
+                    IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                  );
                   pendingBatch = [];
                   pendingBatchTitles = [];
                 }
@@ -402,14 +397,11 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                   useServiceRole: true,
                 });
                 const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
-                for (let i = 0; i < pendingBatchTitles.length; i++) {
-                  const chapterTitle = pendingBatchTitles[i];
-                  const chapterNo = firstBatchChapterNumber + i;
-                  recentChapters =
-                    recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
-                      ? [...recentChapters.slice(1), { number: chapterNo, title: chapterTitle }]
-                      : [...recentChapters, { number: chapterNo, title: chapterTitle }];
-                }
+                recentChapters = appendRecentChapterSnapshot(
+                  recentChapters,
+                  buildRecentChapterSnapshotEntries(firstBatchChapterNumber, pendingBatchTitles),
+                  IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                );
                 pendingBatch = [];
                 pendingBatchTitles = [];
               }
@@ -495,33 +487,20 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                 });
               }
 
-              if (
-                isFirstChapter &&
-                parseResult.metadata &&
-                Object.keys(parseResult.metadata).length > 0
-              ) {
-                const updatedMetadata = {
-                  ...project.metadata,
-                  ...parseResult.metadata,
-                };
-                if (parseResult.metadata.coverImage) {
-                  try {
-                    const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
-                    const storagePath = generateUniqueFilename('cover', ext, projectId);
-                    const uploadResult = await uploadFile(
-                      'images',
-                      storagePath,
-                      parseResult.metadata.coverImage.data,
-                      { contentType: parseResult.metadata.coverImage.mimeType }
-                    );
-                    updatedMetadata.coverImageUrl = uploadResult.publicUrl;
-                  } catch (coverError) {
-                    req.log?.error({ err: coverError, jobId }, 'Failed to save cover image');
+              if (isFirstChapter) {
+                const metadataUpdate = await resolveImportMetadataUpdate(
+                  project.metadata,
+                  parseResult.metadata,
+                  projectId,
+                  uploadFile,
+                  {
+                    buildCoverPath: buildImportCoverPath,
+                    onCoverError: (coverError) =>
+                      req.log?.error({ err: coverError, jobId }, 'Failed to save cover image'),
                   }
-                  delete (updatedMetadata as Record<string, unknown>).coverImage;
-                }
-                if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-                  await updateProject(projectId, { metadata: updatedMetadata }, userId, token, {
+                );
+                if (metadataUpdate) {
+                  await updateProject(projectId, { metadata: metadataUpdate }, userId, token, {
                     useServiceRole: true,
                   });
                 }
@@ -557,14 +536,11 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
                     useServiceRole: true,
                   });
                   const firstBatchChapterNumber = chapterNumber - pendingBatchTitles.length + 1;
-                  for (let i = 0; i < pendingBatchTitles.length; i++) {
-                    const chapterTitle = pendingBatchTitles[i];
-                    const chapterNo = firstBatchChapterNumber + i;
-                    recentChapters =
-                      recentChapters.length >= IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
-                        ? [...recentChapters.slice(1), { number: chapterNo, title: chapterTitle }]
-                        : [...recentChapters, { number: chapterNo, title: chapterTitle }];
-                  }
+                  recentChapters = appendRecentChapterSnapshot(
+                    recentChapters,
+                    buildRecentChapterSnapshotEntries(firstBatchChapterNumber, pendingBatchTitles),
+                    IMPORT_JOB_MAX_CHAPTERS_SNAPSHOT
+                  );
                   pendingBatch = [];
                   pendingBatchTitles = [];
                 }
@@ -774,42 +750,22 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
             );
           }
 
-          if (
-            isFirstChapter &&
-            lazyResult.metadata &&
-            Object.keys(lazyResult.metadata).length > 0
-          ) {
-            const updatedMetadata = {
-              ...project.metadata,
-              ...lazyResult.metadata,
-            };
-            if (lazyResult.metadata.coverImage) {
-              try {
-                const ext = lazyResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
-                const storagePath = generateUniqueFilename(
-                  'cover',
-                  ext,
-                  requireRouteParam(req.params.id, 'id')
-                );
-                const uploadResult = await uploadFile(
-                  'images',
-                  storagePath,
-                  lazyResult.metadata.coverImage!.data,
-                  { contentType: lazyResult.metadata.coverImage!.mimeType }
-                );
-                updatedMetadata.coverImageUrl = uploadResult.publicUrl;
-              } catch (coverError) {
-                req.log?.error({ err: coverError }, 'Failed to save cover image');
+          const projectId = requireRouteParam(req.params.id, 'id');
+
+          if (isFirstChapter) {
+            const metadataUpdate = await resolveImportMetadataUpdate(
+              project.metadata,
+              lazyResult.metadata,
+              projectId,
+              uploadFile,
+              {
+                buildCoverPath: buildImportCoverPath,
+                onCoverError: (coverError) =>
+                  req.log?.error({ err: coverError }, 'Failed to save cover image'),
               }
-              delete (updatedMetadata as Record<string, unknown>).coverImage;
-            }
-            if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-              await updateProject(
-                requireRouteParam(req.params.id, 'id'),
-                { metadata: updatedMetadata },
-                req.user.id,
-                token
-              );
+            );
+            if (metadataUpdate) {
+              await updateProject(projectId, { metadata: metadataUpdate }, req.user.id, token);
             }
           }
 
@@ -829,8 +785,9 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           for await (const parsedChapter of lazyResult.chapterIterator) {
             pendingBatch.push({ title: parsedChapter.title, originalText: parsedChapter.content });
             if (pendingBatch.length >= IMPORT_CHAPTER_BATCH_SIZE) {
-              const rows = await importChaptersBatch(
-                requireRouteParam(req.params.id, 'id'),
+              const rows = await flushImportBatch(
+                importChaptersBatch,
+                projectId,
                 pendingBatch,
                 token
               );
@@ -839,14 +796,15 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
             }
           }
           if (pendingBatch.length > 0) {
-            const rows = await importChaptersBatch(
-              requireRouteParam(req.params.id, 'id'),
+            const rows = await flushImportBatch(
+              importChaptersBatch,
+              projectId,
               pendingBatch,
               token
             );
             importedRows.push(...rows);
           }
-          await invalidateUserProjectCaches(req.user.id, requireRouteParam(req.params.id, 'id'));
+          await invalidateUserProjectCaches(req.user.id, projectId);
 
           if (importedRows.length === 0) {
             return res.status(400).json({
@@ -922,57 +880,32 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
           );
         }
 
-        if (
-          isFirstChapter &&
-          parseResult.metadata &&
-          Object.keys(parseResult.metadata).length > 0
-        ) {
-          const updatedMetadata = {
-            ...project.metadata,
-            ...parseResult.metadata,
-          };
+        const projectId = requireRouteParam(req.params.id, 'id');
 
-          if (parseResult.metadata.coverImage) {
-            try {
-              const ext = parseResult.metadata.coverImage.mimeType.split('/')[1] || 'jpg';
-              const storagePath = generateUniqueFilename(
-                'cover',
-                ext,
-                requireRouteParam(req.params.id, 'id')
-              );
-
-              const uploadResult = await uploadFile(
-                'images',
-                storagePath,
-                parseResult.metadata.coverImage.data,
-                {
-                  contentType: parseResult.metadata.coverImage.mimeType,
-                }
-              );
-
-              updatedMetadata.coverImageUrl = uploadResult.publicUrl;
-              req.log?.info(
-                { event: 'cover.saved', storagePath },
-                'Cover saved to Supabase Storage'
-              );
-            } catch (coverError) {
-              req.log?.error({ err: coverError }, 'Failed to save cover image');
+        if (isFirstChapter) {
+          const metadataUpdate = await resolveImportMetadataUpdate(
+            project.metadata,
+            parseResult.metadata,
+            projectId,
+            uploadFile,
+            {
+              buildCoverPath: buildImportCoverPath,
+              onCoverError: (coverError) =>
+                req.log?.error({ err: coverError }, 'Failed to save cover image'),
+              onCoverSaved: (storagePath) =>
+                req.log?.info(
+                  { event: 'cover.saved', storagePath },
+                  'Cover saved to Supabase Storage'
+                ),
             }
-            delete (updatedMetadata as Record<string, unknown>).coverImage;
-          }
-
-          if (JSON.stringify(updatedMetadata) !== JSON.stringify(project.metadata || {})) {
-            await updateProject(
-              requireRouteParam(req.params.id, 'id'),
-              { metadata: updatedMetadata },
-              req.user.id,
-              token
-            );
+          );
+          if (metadataUpdate) {
+            await updateProject(projectId, { metadata: metadataUpdate }, req.user.id, token);
             req.log?.info(
               {
                 event: 'project.metadata.updated',
-                projectId: requireRouteParam(req.params.id, 'id'),
-                title: parseResult.metadata.title,
+                projectId,
+                title: parseResult.metadata?.title,
               },
               'Project metadata updated'
             );
@@ -1014,14 +947,10 @@ export function registerChapterRoutes(app: Application, deps: RouteDeps): void {
               title: parsedChapter.title,
               originalText: parsedChapter.content,
             }));
-          const rows = await importChaptersBatch(
-            requireRouteParam(req.params.id, 'id'),
-            chunk,
-            token
-          );
+          const rows = await flushImportBatch(importChaptersBatch, projectId, chunk, token);
           importedRows.push(...rows);
         }
-        await invalidateUserProjectCaches(req.user.id, requireRouteParam(req.params.id, 'id'));
+        await invalidateUserProjectCaches(req.user.id, projectId);
 
         if (importedRows.length === 1) {
           const fullChapter = await getChapter(

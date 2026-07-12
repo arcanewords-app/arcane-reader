@@ -4,9 +4,11 @@ import {
   appendRecentChapterSnapshot,
   applyCoverImageToMetadata,
   buildMultiChapterImportResponse,
+  buildRecentChapterSnapshotEntries,
   flushImportBatch,
   importMetadataChanged,
   mergeImportMetadata,
+  resolveImportMetadataUpdate,
   shouldUpdateProjectType,
 } from './importPipeline.js';
 
@@ -73,5 +75,62 @@ describe('importPipeline', () => {
     expect(result.coverImageUrl).toBe('https://cdn/cover.jpg');
     expect(result.coverImage).toBeUndefined();
     expect(upload).toHaveBeenCalled();
+  });
+
+  it('resolveImportMetadataUpdate returns null when parsed metadata empty', async () => {
+    const upload = vi.fn();
+    expect(await resolveImportMetadataUpdate({ title: 'Old' }, undefined, 'p1', upload)).toBeNull();
+    expect(await resolveImportMetadataUpdate({ title: 'Old' }, {}, 'p1', upload)).toBeNull();
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('resolveImportMetadataUpdate returns null when merge yields no diff', async () => {
+    const upload = vi.fn();
+    expect(
+      await resolveImportMetadataUpdate({ title: 'Same' }, { title: 'Same' }, 'p1', upload)
+    ).toBeNull();
+  });
+
+  it('resolveImportMetadataUpdate applies cover and returns merged metadata', async () => {
+    const upload = vi.fn().mockResolvedValue({ publicUrl: 'https://cdn/cover.jpg' });
+    const onCoverSaved = vi.fn();
+    const result = await resolveImportMetadataUpdate(
+      { title: 'Old' },
+      {
+        title: 'New',
+        coverImage: { data: Buffer.from('img'), mimeType: 'image/png' },
+      },
+      'proj-1',
+      upload,
+      {
+        buildCoverPath: (id, mime) => `${id}/custom.${mime.split('/')[1]}`,
+        onCoverSaved,
+      }
+    );
+    expect(result?.title).toBe('New');
+    expect(result?.coverImageUrl).toBe('https://cdn/cover.jpg');
+    expect(result?.coverImage).toBeUndefined();
+    expect(onCoverSaved).toHaveBeenCalledWith('proj-1/custom.png');
+  });
+
+  it('resolveImportMetadataUpdate calls onCoverError when upload throws', async () => {
+    const upload = vi.fn().mockRejectedValue(new Error('upload failed'));
+    const onCoverError = vi.fn();
+    const result = await resolveImportMetadataUpdate(
+      {},
+      { coverImage: { data: Buffer.from('x'), mimeType: 'image/jpeg' } },
+      'p1',
+      upload,
+      { onCoverError }
+    );
+    expect(onCoverError).toHaveBeenCalled();
+    expect(result?.coverImage).toBeUndefined();
+  });
+
+  it('buildRecentChapterSnapshotEntries maps batch titles to numbers', () => {
+    expect(buildRecentChapterSnapshotEntries(3, ['A', 'B'])).toEqual([
+      { number: 3, title: 'A' },
+      { number: 4, title: 'B' },
+    ]);
   });
 });

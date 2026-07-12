@@ -50,5 +50,5 @@ domains/publications ← getGlossaryForPublication orchestrates pub + loaders
 
 ## Next (post routes/client split)
 
-- Further shrink `api/routes/chapters.ts` (cover/metadata import wiring, optional handler extract)
+- Optional `chapterImport.ts` — extract async job + sync POST handlers (~600 lines)
 - Q4: live Supabase integration when test env exists
