@@ -4,7 +4,7 @@
   "description": "Web UI for Arcane novel translator",
   "type": "module",
   "main": "dist/server.js",
-  "packageManager": "npm@10.x",
+  "packageManager": "npm@11.x",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\" \"npm run dev:prompt-lab:wait\"",
     "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\" \"npm run dev:prompt-lab:wait\" \"npm run worker\"",
@@ -44,8 +44,8 @@
     "docs:deps": "tsx scripts/gen-dep-graph.ts",
     "check:circular": "tsx scripts/gen-dep-graph.ts --circular-only",
     "check:graphviz": "tsx scripts/gen-dep-graph.ts --check-graphviz",
-    "audit:all": "npm audit",
-    "audit:prod": "npm audit --omit=dev",
+    "audit:all": "npm audit --no-workspaces",
+    "audit:prod": "npm audit --omit=dev --no-workspaces",
     "deps:outdated": "npm outdated",
     "prepare": "husky"
   },
@@ -59,6 +59,26 @@
   "license": "MIT",
   "engines": {
     "node": "24.x"
+  },
+  "overrides": {
+    "js-yaml": "4.2.0",
+    "qs": "6.15.3",
+    "smol-toml": "1.7.0",
+    "@vercel/node": {
+      "path-to-regexp": "6.3.0",
+      "undici": "6.27.0"
+    },
+    "@vercel/python-analysis": {
+      "js-yaml": "4.2.0",
+      "minimatch": "10.2.5",
+      "smol-toml": "1.7.0"
+    },
+    "@vercel/static-config": {
+      "ajv": "8.20.0"
+    },
+    "@stryker-mutator/core": {
+      "ajv": "8.20.0"
+    }
   },
   "dependencies": {
     "@axiomhq/js": "^1.7.0",
@@ -97,7 +117,7 @@
     "@types/express": "^5.0.6",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.0.0",
-    "@vercel/node": "^5.8.22",
+    "@vercel/node": "^5.8.23",
     "@vitest/coverage-v8": "^4.1.10",
     "concurrently": "^10.0.3",
     "dompurify": "^3.4.11",
