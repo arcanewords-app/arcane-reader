@@ -53,3 +53,128 @@ describe('api/schemas/chapters', () => {
     assert.throws(() => chapterTitleBodySchema.parse({ title: '   ' }));
   });
 });
+
+describe('api/schemas/projects', () => {
+  it('projectCreateBodySchema requires non-empty name', async () => {
+    const { projectCreateBodySchema } = await import('./projects.js');
+    const ok = projectCreateBodySchema.parse({ name: 'My project' });
+    assert.equal(ok.name, 'My project');
+    assert.throws(() => projectCreateBodySchema.parse({ name: '' }));
+  });
+
+  it('projectRenameBodySchema trims name', async () => {
+    const { projectRenameBodySchema } = await import('./projects.js');
+    assert.equal(projectRenameBodySchema.parse({ name: '  Renamed  ' }).name, 'Renamed');
+  });
+});
+
+describe('api/schemas/publications', () => {
+  it('reportBodySchema requires chapterId and description', async () => {
+    const { reportBodySchema } = await import('./publications.js');
+    const ok = reportBodySchema.parse({ chapterId: 'ch-1', description: 'Typo' });
+    assert.equal(ok.chapterId, 'ch-1');
+    assert.throws(() => reportBodySchema.parse({ chapterId: '', description: 'x' }));
+  });
+});
+
+describe('api/schemas/admin', () => {
+  it('publicEntityCreateSchema validates kind and name', async () => {
+    const { publicEntityCreateSchema } = await import('./admin.js');
+    const ok = publicEntityCreateSchema.parse({ kind: 'author', name: 'Jane' });
+    assert.equal(ok.kind, 'author');
+    assert.throws(() => publicEntityCreateSchema.parse({ kind: 'author', name: '' }));
+  });
+});
+
+describe('api/schemas/glossary', () => {
+  it('glossaryMergeBodySchema requires at least two entry ids', async () => {
+    const { glossaryMergeBodySchema } = await import('./glossary.js');
+    assert.throws(() => glossaryMergeBodySchema.parse({ entryIds: ['a'] }));
+    const ok = glossaryMergeBodySchema.parse({ entryIds: ['a', 'b'] });
+    assert.deepEqual(ok.entryIds, ['a', 'b']);
+  });
+
+  it('glossaryCreateBodySchema requires original', async () => {
+    const { glossaryCreateBodySchema } = await import('./glossary.js');
+    const ok = glossaryCreateBodySchema.parse({ original: 'Alice' });
+    assert.equal(ok.type, 'term');
+    assert.throws(() => glossaryCreateBodySchema.parse({ original: '' }));
+  });
+});
+
+describe('api/schemas/auth', () => {
+  it('loginBodySchema requires email and password', async () => {
+    const { loginBodySchema } = await import('./auth.js');
+    const ok = loginBodySchema.parse({ email: 'a@b.com', password: 'secret' });
+    assert.equal(ok.email, 'a@b.com');
+    assert.throws(() => loginBodySchema.parse({ email: 'bad', password: 'x' }));
+  });
+});
+
+describe('api/schemas/user', () => {
+  it('tokenUsageHistoryQuerySchema coerces days', async () => {
+    const { tokenUsageHistoryQuerySchema } = await import('./user.js');
+    const ok = tokenUsageHistoryQuerySchema.parse({ days: '7' });
+    assert.equal(ok.days, 7);
+  });
+});
+
+describe('api/schemas/catalogRequests', () => {
+  it('catalogTranslationRequestCreateSchema validates target language', async () => {
+    const { catalogTranslationRequestCreateSchema } = await import('./catalogRequests.js');
+    const ok = catalogTranslationRequestCreateSchema.parse({
+      title: 'Novel',
+      targetLanguage: 'ru',
+    });
+    assert.equal(ok.title, 'Novel');
+    assert.throws(() =>
+      catalogTranslationRequestCreateSchema.parse({ title: 'Novel', targetLanguage: 'fr' })
+    );
+  });
+});
+
+describe('api/schemas/news', () => {
+  it('newsCreateSchema validates category', async () => {
+    const { newsCreateSchema } = await import('./news.js');
+    const ok = newsCreateSchema.parse({
+      title: 'Launch',
+      summary: 'Short summary',
+      slug: 'launch',
+      body: 'Body',
+      category: 'feature',
+    });
+    assert.equal(ok.category, 'feature');
+    assert.throws(() =>
+      newsCreateSchema.parse({
+        title: 'Launch',
+        slug: 'launch',
+        body: 'Body',
+        category: 'invalid',
+      })
+    );
+  });
+});
+
+describe('api/schemas/projects extended', () => {
+  it('transferChaptersBodySchema requires chapter ids', async () => {
+    const { transferChaptersBodySchema } = await import('./projects.js');
+    assert.throws(() =>
+      transferChaptersBodySchema.parse({ sourceProjectId: 'p1', chapterIds: [] })
+    );
+  });
+
+  it('projectLanguagesBodySchema rejects unsupported pair', async () => {
+    const { projectLanguagesBodySchema } = await import('./projects.js');
+    assert.throws(() =>
+      projectLanguagesBodySchema.parse({ sourceLanguage: 'en', targetLanguage: 'en' })
+    );
+  });
+
+  it('projectSearchQuerySchema defaults empty q', async () => {
+    const { projectSearchQuerySchema } = await import('./projects.js');
+    const empty = projectSearchQuerySchema.parse({});
+    assert.equal(empty.q, '');
+    const ok = projectSearchQuerySchema.parse({ q: 'hero' });
+    assert.equal(ok.q, 'hero');
+  });
+});

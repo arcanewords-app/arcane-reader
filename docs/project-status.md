@@ -50,7 +50,7 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
 | [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
-| [[05-plans/testing-baseline]]             | Coverage baseline + mock-first strategy (Q3 waves 0–2)                                             |
+| [[05-plans/testing-baseline]]             | Coverage **41.8%** lines (Wave 4 done); mock-first strategy; Q4 live integration blocked           |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
 
 ## Known tech debt

@@ -32,6 +32,7 @@ import type { ImportJobState } from '../services/importJobStore.js';
 import type { AnalysisJobState } from '../services/analysisJobStore.js';
 import type { TranslateJobState } from '../services/translateJobStore.js';
 import type { Project } from '../storage/database.js';
+import { redisDelByPattern, redisDelMany } from '../services/redisCache.js';
 import {
   clearTranslationProgress,
   decodeMultipartFilename,
@@ -40,6 +41,12 @@ import {
   generateImportJobId,
   generateTranslateJobId,
   getTranslationProgress,
+  invalidateAnnouncementCaches,
+  invalidateNewsCaches,
+  invalidatePublicationCaches,
+  invalidatePublicationListCaches,
+  invalidatePublicEntitiesCaches,
+  invalidateUserProjectCaches,
   isLanguagePairOverride,
   publicationCacheKey,
   publicationsListCacheKey,
@@ -50,6 +57,7 @@ import {
   toPublicTranslateJob,
   translationCancelKey,
   userProjectCacheKey,
+  warnLanguageOverrideWithGlossary,
 } from './routeHelpers.js';
 
 function mockProject(overrides: Partial<Project> = {}): Project {
@@ -86,6 +94,7 @@ function mockImportJob(overrides: Partial<ImportJobState> = {}): ImportJobState 
 describe('routeHelpers pure functions', () => {
   afterEach(() => {
     clearTranslationProgress('proj-1', 'ch-1');
+    vi.clearAllMocks();
   });
 
   it('translationCancelKey joins project and chapter ids', () => {
@@ -207,5 +216,63 @@ describe('routeHelpers pure functions', () => {
     assert.equal(sanitizeFilename('Моя книга.pdf'), 'Moya_kniga.pdf');
     assert.equal(sanitizeFilename('bad<>name.txt'), 'badname.txt');
     assert.equal(sanitizeFilename(''), 'export');
+  });
+
+  it('invalidateUserProjectCaches deletes user keys with optional project key', async () => {
+    await invalidateUserProjectCaches('u1', 'p1');
+    assert.equal(vi.mocked(redisDelMany).mock.calls.length, 1);
+    const keys = vi.mocked(redisDelMany).mock.calls[0]?.[0] as string[];
+    assert.equal(keys.length, 2);
+    assert.match(keys[0]!, /u1/);
+    assert.match(keys[1]!, /p1/);
+  });
+
+  it('invalidatePublicationCaches deletes publication keys and optional chapter pattern', async () => {
+    await invalidatePublicationCaches('pub-slug', 'pub-id');
+    assert.equal(vi.mocked(redisDelMany).mock.calls.length, 1);
+    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 1);
+  });
+
+  it('invalidatePublicationListCaches deletes list pattern', async () => {
+    await invalidatePublicationListCaches();
+    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 1);
+  });
+
+  it('invalidatePublicEntitiesCaches includes entity id when provided', async () => {
+    await invalidatePublicEntitiesCaches('entity-1');
+    const keys = vi.mocked(redisDelMany).mock.calls[0]?.[0] as string[];
+    assert.equal(keys.length, 5);
+    assert.match(keys[4]!, /entity-1/);
+  });
+
+  it('invalidateNewsCaches deletes patterns and optional post key', async () => {
+    await invalidateNewsCaches('post-slug');
+    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 2);
+    assert.equal(vi.mocked(redisDelMany).mock.calls.length, 1);
+  });
+
+  it('invalidateAnnouncementCaches deletes announcement pattern', async () => {
+    await invalidateAnnouncementCaches();
+    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 1);
+  });
+
+  it('warnLanguageOverrideWithGlossary logs when override with glossary', () => {
+    const warn = vi.fn();
+    const req = { log: { warn } };
+    const project = mockProject({
+      glossary: [{ id: 'g1', type: 'term', original: 'x', translated: 'y' } as never],
+    });
+    warnLanguageOverrideWithGlossary(req as never, project, {
+      sourceLanguage: 'ko',
+      targetLanguage: 'ru',
+    });
+    assert.equal(warn.mock.calls.length, 1);
+  });
+
+  it('warnLanguageOverrideWithGlossary is silent without override or glossary', () => {
+    const warn = vi.fn();
+    const req = { log: { warn } };
+    warnLanguageOverrideWithGlossary(req as never, mockProject(), undefined);
+    assert.equal(warn.mock.calls.length, 0);
   });
 });

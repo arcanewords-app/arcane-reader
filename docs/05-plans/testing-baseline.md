@@ -6,7 +6,7 @@ updated: 2026-07-12
 
 # Testing coverage baseline
 
-Measured after **Wave 3** (sprints 3A–3H), **supabaseDatabase decomposition**, **routes/client split**, **import metadata wiring**, and **chapter import routes split** (2026-07-12).
+Measured after **Wave 4** (sprints 4A–4H), **route handler extraction**, and **domain mock expansion** (2026-07-12).
 
 ## APP_SCOPE (unified)
 
@@ -39,15 +39,15 @@ Policy SSOT: [[_canonical/rules/testing]].
 
 Until dedicated test environment is provisioned, Q4 integration work is **paused**.
 
-## Test suite (2026-07-12, post chapter import routes split)
+## Test suite (2026-07-12, post Wave 4)
 
 | Metric                           | Value                                                              |
 | -------------------------------- | ------------------------------------------------------------------ |
-| Test files                       | **109** (106 fast + 3 slow)                                        |
-| Tests                            | **497** (480 fast + 17 slow tiktoken)                              |
-| Fast suite (`npm run test`)      | ~29 s                                                              |
+| Test files                       | **172** fast (+ 3 slow tiktoken)                                   |
+| Tests                            | **1231** fast (+ 17 slow)                                          |
+| Fast suite (`npm run test`)      | ~20 s                                                              |
 | Slow suite (`npm run test:slow`) | ~100 s                                                             |
-| Full suite (`npm run test:all`)  | ~130 s                                                             |
+| Full suite (`npm run test:all`)  | ~120 s                                                             |
 | CI                               | `npm run test:coverage` (fast suite; excludes tiktoken slow files) |
 
 Component smoke: `happy-dom` + `@testing-library/preact` (RequireRole); Preact JSX aliases in `vitest.config.ts`.
@@ -56,10 +56,10 @@ Component smoke: `happy-dom` + `@testing-library/preact` (RequireRole); Preact J
 
 | Metric                         | Value                            |
 | ------------------------------ | -------------------------------- |
-| Source files in APP_SCOPE      | **303**                          |
-| With co-located `*.test.ts(x)` | **104** (**~34%**)               |
-| **Without unit test**          | **~200** (**~66%**)              |
-| Files at **0%** line coverage  | **~140** (**~46%** of APP_SCOPE) |
+| Source files in APP_SCOPE      | **349**                          |
+| With co-located `*.test.ts(x)` | **166** (**~48%**)               |
+| **Without unit test**          | **~183** (**~52%**)              |
+| Files at **0%** line coverage  | **~115** (**~33%** of APP_SCOPE) |
 
 Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:coverage`).
 
@@ -67,7 +67,7 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 | Folder               | Source files | Co-located tests (approx.)                             |
 | -------------------- | ------------ | ------------------------------------------------------ |
-| `client/utils/`      | 19           | 8 (+ `tokenLimitStatus`)                               |
+| `client/utils/`      | 19           | 11                                                     |
 | `client/hooks/`      | 9            | 1 (`useUrlSync` partial)                               |
 | `client/components/` | 16+          | 3 (`chapterPickerShared`, bulk replace, `RequireRole`) |
 | `client/pages/`      | 1            | **0**                                                  |
@@ -77,52 +77,74 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric          | Coverage (prev → now)     |
-| --------------- | ------------------------- |
-| Lines           | **19.39%** (was 18.92%)   |
-| Statements      | **18.99%** (was 18.55%)   |
-| Functions       | **23.49%** (was 23.46%)   |
-| Branches        | **16.96%** (was 16.70%)   |
-| Uncovered lines | **~12 998** (was ~13 075) |
+| Metric          | Coverage (Wave 3 → Wave 4) |
+| --------------- | -------------------------- |
+| Lines           | **41.80%** (was 19.39%)    |
+| Statements      | **40.28%** (was 18.99%)    |
+| Functions       | **41.73%** (was 23.49%)    |
+| Branches        | **32.46%** (was 16.96%)    |
+| Uncovered lines | **~9 537** (was ~12 998)   |
 
-> `supabaseDatabase.ts` is now a **20-line facade**; logic lives in `src/services/supabase/domains/*` with co-located mock tests.
+> **Wave 4 milestone:** line coverage **≥40%** reached via route handler extraction + domain mock tests (no CI thresholds).
 
 ## By area (folder rollup)
 
-| Area                      | Files | 0% files | With test | Lines % (approx.) |
-| ------------------------- | ----- | -------- | --------- | ----------------- |
-| `src/shared/`             | 40    | 9        | 31        | **~79%**          |
-| `src/engine/`             | 68    | 15       | 22        | **~49%**          |
-| `src/api/`                | 40+   | ~25      | 14+       | **~12%**          |
-| `src/client/`             | 70+   | ~45      | 26+       | **~22%**          |
-| `src/services/`           | 52+   | ~35      | 12+       | **~8%**           |
-| `src/middleware/`         | 5     | 4        | 1         | **~8%**           |
-| `server.ts` + `worker.ts` | 2     | 2        | 0         | **0%**            |
+| Area                      | Files | Lines % (approx.) | Notes                                    |
+| ------------------------- | ----- | ----------------- | ---------------------------------------- |
+| `src/shared/`             | 40    | **~85%**          | near ceiling                             |
+| `src/api/`                | 54+   | **~64%**          | handler extraction in `routes/handlers/` |
+| `src/engine/`             | 68    | **~52%**          | pure utils + stage mocks                 |
+| `src/services/`           | 62+   | **~28%**          | domains + loaders expanded               |
+| `src/client/`             | 77+   | **~29%**          | utils + api domains                      |
+| `src/middleware/`         | 5     | **~23%**          | auth + tokenLimits extracts              |
+| `server.ts` + `worker.ts` | 2     | **0%**            | out of Wave 4 scope                      |
 
-### Top uncovered files (0% lines, by size)
+### Top uncovered files (by remaining gap)
 
-| File                                        | Lines        |
-| ------------------------------------------- | ------------ |
-| `services/supabase/domains/projects.ts`     | ~1628        |
-| `services/supabase/domains/publications.ts` | ~1066        |
-| `api/routes/chapters.ts`                    | ~2165        |
-| `api/routes/chapterImport.ts`               | ~503         |
-| `api/chapters/helpers/asyncImportJob.ts`    | ~452         |
-| `client/api/client.ts`                      | ~35 (facade) |
+| File                                         | Lines % | Notes                          |
+| -------------------------------------------- | ------- | ------------------------------ |
+| `services/engine-integration.ts`             | ~4%     | LLM wiring; low ROI for mocks  |
+| `api/chapterTranslation.ts`                  | ~25%    | pipeline; partial pure extract |
+| `services/supabase/domains/projects.ts`      | ~43%    | expanded in 4B                 |
+| `client/hooks/useBatchChapterTranslation.ts` | 0%      | UI integration                 |
+| `services/import/epub.ts`                    | ~1%     | binary parse                   |
+| `server.ts` / `worker.ts`                    | 0%      | entrypoints (not in scope)     |
 
-**Q3 approach:** extract + domain split + mock unit tests. Track A/B + `resolveImportMetadataUpdate` wiring completed 2026-07-12. **Q4:** live integration (`tests/integration/supabase/`).
+**Q3 approach:** extract + domain split + mock unit tests. **Wave 4:** route handlers → `api/routes/handlers/*` with co-located tests. **Q4:** live integration (`tests/integration/supabase/`).
 
-## Import metadata wiring (completed 2026-07-12)
+## Route handler extraction (completed Wave 4)
 
-- `resolveImportMetadataUpdate` in `api/chapters/helpers/importPipeline.ts` (merge + cover upload + changed-check)
-- 4 duplicate metadata blocks in import routes replaced; full `flushImportBatch` / `appendRecentChapterSnapshot` wiring
-- `chapters.ts`: ~3127 → **~3062** lines (−65) before import split
+Thin route registration files; logic in testable handlers:
 
-## Chapter import routes split (completed 2026-07-12)
+| Route file                 | Handler module                        | Handlers | Test coverage (lines, approx.) |
+| -------------------------- | ------------------------------------- | -------- | ------------------------------ |
+| `routes/projects.ts`       | `handlers/projectRouteHandlers`       | 15       | ~69%                           |
+| `routes/publications.ts`   | `handlers/publicationRouteHandlers`   | 27       | ~79%                           |
+| `routes/chapters.ts`       | `handlers/chapterRouteHandlers`       | 25       | ~90%                           |
+| `routes/user.ts`           | `handlers/userRouteHandlers`          | 14       | ~70%                           |
+| `routes/glossary.ts`       | `handlers/glossaryRouteHandlers`      | 12       | ~71%                           |
+| `routes/admin.ts`          | `handlers/adminRouteHandlers`         | 26       | ~77%                           |
+| `routes/auth.ts`           | `handlers/authHandlers`               | 8        | ~78%                           |
+| `routes/chapterImport.ts`  | `handlers/chapterImportRouteHandlers` | 4        | ~27%                           |
+| `routes/chapterReports.ts` | `handlers/chapterReportsHandlers`     | 4        | ~71%                           |
+| `routes/seo.ts`            | `handlers/seoHelpers` (pure)          | 9        | ~63%                           |
 
-- `registerChapterImportRoutes` in `api/routes/chapterImport.ts` (4 routes: async import, job poll/cancel, sync POST)
-- `runAsyncImportJob` in `api/chapters/helpers/asyncImportJob.ts` — testable background runner (`asyncImportJob.test.ts`, 7 cases)
-- `chapters.ts`: ~3062 → **~2165** lines (−897)
+Also: `handlers/translatorPseudonymErrorResponse`, `routes/helpers/interestErrorResponse`.
+
+## Wave 4 deliverables (completed 2026-07-12)
+
+| Sprint | Deliverables                                                                                 |
+| ------ | -------------------------------------------------------------------------------------------- |
+| **4A** | translationReports, glossaryCopy, shared 0% files, routeHelpers invalidate*                  |
+| **4B** | projects domain mock tests (assertCanAddProject, CRUD, reader settings, clone, bulk)         |
+| **4C** | publications + catalogBoard domain tests                                                     |
+| **4D** | admin, glossary, readerProgress domain tests                                                 |
+| **4E** | loaders + expand chapters/paragraphs/news partial tests                                      |
+| **4F** | novel-agent, concurrency, leading-context, title-translate, editor normalize                 |
+| **4G** | client utils (11 files), middleware auth/tokenLimits extracts                                |
+| **4H** | chapterTranslation extract, Zod schema packs, route handler extraction (projects → chapters) |
+
+Supporting: analysis/translate/import job stores, client api domains, schemas expansion.
 
 ## Wave 3 deliverables (completed 2026-07-12)
 
@@ -157,15 +179,16 @@ npm run test:mutation
 npx stryker run --mutate "src/shared/**/*.ts"
 ```
 
-## Wave completion (Q3)
+## Wave completion (Q3 + Q4)
 
-| Wave                 | Status         | Deliverables                                                                       |
-| -------------------- | -------------- | ---------------------------------------------------------------------------------- |
-| 0 — Infra            | Done           | APP_SCOPE, CI coverage, `test:slow` / `test:all`, Stryker config, inventory script |
-| 1 — Shared + API     | Done           | validateRoute, paragraphSync, glossary-manager, etc.                               |
-| 2 — Engine smoke     | Done           | translation-pipeline mock, stage-2, Zod schemas                                    |
-| 3 — Phased expansion | **Done**       | sprints 3A–3H (this baseline)                                                      |
-| 4 — Live integration | **Blocked Q4** | requires dedicated test environment                                                |
+| Wave                  | Status         | Deliverables                                                                       |
+| --------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| 0 — Infra             | Done           | APP_SCOPE, CI coverage, `test:slow` / `test:all`, Stryker config, inventory script |
+| 1 — Shared + API      | Done           | validateRoute, paragraphSync, glossary-manager, etc.                               |
+| 2 — Engine smoke      | Done           | translation-pipeline mock, stage-2, Zod schemas                                    |
+| 3 — Phased expansion  | Done           | sprints 3A–3H                                                                      |
+| **4 — 40% milestone** | **Done**       | sprints 4A–4H; line coverage **41.8%**                                             |
+| 5 — Live integration  | **Blocked Q4** | requires dedicated test environment                                                |
 
 ## Policy
 

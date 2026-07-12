@@ -1,22 +1,319 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, vi } from 'vitest';
 
-const mockRpc = vi.fn();
+const { mockFrom, mockRpc, mockValidateToken } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
+  mockValidateToken: vi.fn(),
+}));
 
 vi.mock('../../supabaseClient.js', () => ({
   createClientWithToken: vi.fn(() => ({
+    from: mockFrom,
     rpc: mockRpc,
   })),
   createServiceRoleClient: vi.fn(() => ({
+    from: mockFrom,
     rpc: mockRpc,
   })),
 }));
 
 vi.mock('../../../utils/tokenValidation.js', () => ({
-  validateToken: vi.fn(),
+  validateToken: (...args: unknown[]) => mockValidateToken(...args),
 }));
 
-import { importChaptersBatch } from './chapters.js';
+const mockLoadParagraphsForChapter = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+
+vi.mock('../loaders.js', () => ({
+  loadParagraphsForChapter: (...args: unknown[]) => mockLoadParagraphsForChapter(...args),
+}));
+
+import {
+  deleteChapter,
+  getChapter,
+  importChaptersBatch,
+  markChaptersAsTranslatedBatch,
+  renumberChapters,
+  updateChapter,
+} from './chapters.js';
+
+type ChainMethod = ReturnType<typeof vi.fn>;
+
+function chainable(result: { data: unknown; error: unknown; count?: number }) {
+  const chain = {} as Record<string, ChainMethod> & {
+    then: (resolve: (v: typeof result) => void) => void;
+  };
+  for (const m of ['select', 'eq', 'order', 'limit', 'single', 'update', 'delete', 'insert']) {
+    chain[m] = vi.fn(() => chain);
+  }
+  chain.then = (resolve: (v: typeof result) => void) => resolve(result);
+  return chain;
+}
+
+const chapterRow = {
+  id: 'ch-1',
+  project_id: 'proj-1',
+  number: 1,
+  title: 'Chapter 1',
+  translated_title: null,
+  original_text: 'Hello.',
+  translated_text: null,
+  translated_chunks: null,
+  status: 'pending',
+  translation_meta: null,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
+
+const paragraphFixture = {
+  id: 'p-1',
+  index: 0,
+  originalText: 'Hello.',
+  translatedText: undefined,
+  status: 'pending' as const,
+};
+
+describe('getChapter', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns undefined when chapter not found (PGRST116)', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { code: 'PGRST116', message: 'not found' },
+      })
+    );
+
+    const chapter = await getChapter('proj-1', 'missing', 'token');
+    assert.equal(chapter, undefined);
+  });
+
+  it('throws when chapter query fails with non-not-found error', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { code: 'XX000', message: 'db fail' },
+      })
+    );
+
+    await assert.rejects(() => getChapter('proj-1', 'ch-1', 'token'), /Failed to get chapter/);
+  });
+
+  it('returns chapter with paragraphs from loader', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: chapterRow,
+        error: null,
+      })
+    );
+    mockLoadParagraphsForChapter.mockResolvedValue([paragraphFixture]);
+
+    const chapter = await getChapter('proj-1', 'ch-1', 'token');
+    assert.equal(chapter?.id, 'ch-1');
+    assert.equal(chapter?.paragraphs.length, 1);
+    assert.equal(mockLoadParagraphsForChapter.mock.calls[0]?.[0], 'ch-1');
+  });
+
+  it('downgrades completed chapter to partial when coverage is incomplete', async () => {
+    const completedRow = { ...chapterRow, status: 'completed' };
+    const chapterSelectChain = chainable({ data: completedRow, error: null });
+    const statusUpdateChain = chainable({ data: null, error: null });
+    let fromCall = 0;
+    mockFrom.mockImplementation(() => {
+      fromCall += 1;
+      return fromCall === 1 ? chapterSelectChain : statusUpdateChain;
+    });
+    mockLoadParagraphsForChapter.mockResolvedValue([
+      {
+        ...paragraphFixture,
+        translatedText: 'Привет.',
+        status: 'translated',
+      },
+      {
+        id: 'p-2',
+        index: 1,
+        originalText: 'World.',
+        translatedText: undefined,
+        status: 'pending',
+      },
+    ]);
+
+    const chapter = await getChapter('proj-1', 'ch-1', 'token');
+    assert.equal(chapter?.status, 'partial');
+    assert.equal(statusUpdateChain.update.mock.calls.length, 1);
+  });
+});
+
+describe('updateChapter', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns undefined when chapter not found (PGRST116)', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { code: 'PGRST116', message: 'not found' },
+      })
+    );
+
+    const chapter = await updateChapter('proj-1', 'missing', { title: 'New' }, 'token');
+    assert.equal(chapter, undefined);
+  });
+
+  it('throws when chapter update fails with non-not-found error', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { code: 'XX000', message: 'update fail' },
+      })
+    );
+
+    await assert.rejects(
+      () => updateChapter('proj-1', 'ch-1', { title: 'New' }, 'token'),
+      /Failed to update chapter/
+    );
+  });
+
+  it('updates chapter fields and reloads paragraphs', async () => {
+    const updateChain = chainable({
+      data: { ...chapterRow, title: 'Updated title' },
+      error: null,
+    });
+    const projectUpdateChain = chainable({ data: null, error: null });
+    let fromCall = 0;
+    mockFrom.mockImplementation(() => {
+      fromCall += 1;
+      return fromCall === 1 ? updateChain : projectUpdateChain;
+    });
+    mockLoadParagraphsForChapter.mockResolvedValue([paragraphFixture]);
+
+    const chapter = await updateChapter('proj-1', 'ch-1', { title: 'Updated title' }, 'token');
+    assert.equal(chapter?.title, 'Updated title');
+    assert.equal(mockLoadParagraphsForChapter.mock.calls.length, 1);
+  });
+
+  it('updates paragraph translations when paragraphs provided', async () => {
+    const updateChain = chainable({ data: chapterRow, error: null });
+    const paragraphUpdateChain = chainable({ data: null, error: null });
+    const projectUpdateChain = chainable({ data: null, error: null });
+    let fromCall = 0;
+    mockFrom.mockImplementation(() => {
+      fromCall += 1;
+      if (fromCall === 1) return updateChain;
+      if (fromCall === 2) return paragraphUpdateChain;
+      return projectUpdateChain;
+    });
+    mockLoadParagraphsForChapter.mockResolvedValue([
+      {
+        ...paragraphFixture,
+        translatedText: 'Привет.',
+        status: 'translated',
+      },
+    ]);
+
+    const chapter = await updateChapter(
+      'proj-1',
+      'ch-1',
+      {
+        paragraphs: [
+          {
+            ...paragraphFixture,
+            translatedText: 'Привет.',
+            status: 'translated',
+          },
+        ],
+      },
+      'token'
+    );
+
+    assert.equal(paragraphUpdateChain.update.mock.calls.length, 1);
+    assert.equal(chapter?.paragraphs[0]?.translatedText, 'Привет.');
+  });
+});
+
+describe('deleteChapter', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns false when chapter not found', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { code: 'PGRST116', message: 'not found' },
+      })
+    );
+
+    const deleted = await deleteChapter('proj-1', 'missing', 'token');
+    assert.equal(deleted, false);
+    assert.equal(mockRpc.mock.calls.length, 0);
+  });
+
+  it('deletes chapter, renumbers, and updates project', async () => {
+    const getChain = chainable({ data: chapterRow, error: null });
+    const deleteChain = chainable({ data: null, error: null });
+    const projectUpdateChain = chainable({ data: null, error: null });
+    let fromCall = 0;
+    mockFrom.mockImplementation(() => {
+      fromCall += 1;
+      if (fromCall === 1) return getChain;
+      if (fromCall === 2) return deleteChain;
+      return projectUpdateChain;
+    });
+    mockLoadParagraphsForChapter.mockResolvedValue([paragraphFixture]);
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    const deleted = await deleteChapter('proj-1', 'ch-1', 'token');
+    assert.equal(deleted, true);
+    assert.equal(deleteChain.delete.mock.calls.length, 1);
+    assert.equal(mockRpc.mock.calls[0]?.[0], 'renumber_chapters_atomic');
+  });
+
+  it('throws when delete query fails', async () => {
+    const getChain = chainable({ data: chapterRow, error: null });
+    const deleteChain = chainable({
+      data: null,
+      error: { message: 'delete fail' },
+    });
+    let fromCall = 0;
+    mockFrom.mockImplementation(() => {
+      fromCall += 1;
+      return fromCall === 1 ? getChain : deleteChain;
+    });
+    mockLoadParagraphsForChapter.mockResolvedValue([paragraphFixture]);
+
+    await assert.rejects(
+      () => deleteChapter('proj-1', 'ch-1', 'token'),
+      /Failed to delete chapter/
+    );
+  });
+});
+
+describe('renumberChapters', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls renumber_chapters_atomic RPC', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await renumberChapters('proj-1', 'token');
+    assert.equal(mockRpc.mock.calls[0]?.[0], 'renumber_chapters_atomic');
+    assert.deepEqual(mockRpc.mock.calls[0]?.[1], { p_project_id: 'proj-1' });
+  });
+
+  it('throws when RPC fails', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'rpc fail' },
+    });
+
+    await assert.rejects(() => renumberChapters('proj-1', 'token'), /Failed to renumber chapters/);
+  });
+});
 
 describe('importChaptersBatch', () => {
   afterEach(() => {
@@ -53,5 +350,18 @@ describe('importChaptersBatch', () => {
     assert.equal(result[0]?.chapterId, 'ch-new');
     assert.equal(result[0]?.paragraphsCount, 3);
     assert.equal(mockRpc.mock.calls[0]?.[0], 'import_chapters_batch');
+  });
+});
+
+describe('markChaptersAsTranslatedBatch', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns empty summary for empty chapter ids', async () => {
+    const result = await markChaptersAsTranslatedBatch('proj-1', [], 'token');
+    assert.equal(result.summary.total, 0);
+    assert.deepEqual(result.results, []);
+    assert.equal(mockRpc.mock.calls.length, 0);
   });
 });

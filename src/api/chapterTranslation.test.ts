@@ -39,9 +39,11 @@ vi.mock('../logger.js', () => ({
 import type { Paragraph } from '../storage/database.js';
 import {
   logTranslationCoverageIfIncomplete,
+  mergeGlossaryAppearanceForChapter,
   syncTranslationChunksToParagraphs,
   syncTranslationToParagraphs,
 } from './chapterTranslation.js';
+import { getGlossaryEntry, updateGlossaryEntry } from '../services/supabaseDatabase.js';
 
 const PARA_A = '0226e941-e174-461d-8945-9503b50aa761';
 const PARA_B = 'e03cdd57-48d5-4b35-82eb-e98e224d6270';
@@ -137,5 +139,38 @@ describe('chapterTranslation sync helpers', () => {
     assert.equal(coverage.isComplete, false);
     assert.equal(coverage.translatedCount, 1);
     expect(logger.warn).toHaveBeenCalled();
+  });
+});
+
+describe('mergeGlossaryAppearanceForChapter', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('merges chapter number into mentionedInChapters', async () => {
+    vi.mocked(getGlossaryEntry).mockResolvedValue({
+      id: 'g1',
+      type: 'character',
+      original: 'Alice',
+      translated: 'Алиса',
+      mentionedInChapters: [1],
+    } as never);
+    vi.mocked(updateGlossaryEntry).mockResolvedValue(undefined);
+
+    await mergeGlossaryAppearanceForChapter('proj-1', ['g1'], 3, 'token', {
+      chapterId: 'ch-1',
+    });
+
+    assert.equal(vi.mocked(updateGlossaryEntry).mock.calls.length, 1);
+    const updates = vi.mocked(updateGlossaryEntry).mock.calls[0]?.[2] as {
+      mentionedInChapters?: number[];
+    };
+    assert.deepEqual(updates.mentionedInChapters, [1, 3]);
+  });
+
+  it('skips missing glossary entries', async () => {
+    vi.mocked(getGlossaryEntry).mockResolvedValue(null);
+    await mergeGlossaryAppearanceForChapter('proj-1', ['missing'], 2, 'token', {});
+    assert.equal(vi.mocked(updateGlossaryEntry).mock.calls.length, 0);
   });
 });

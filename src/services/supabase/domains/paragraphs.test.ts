@@ -13,7 +13,14 @@ vi.mock('../../../utils/tokenValidation.js', () => ({
   validateToken: vi.fn(),
 }));
 
-import { searchParagraphsInProject } from './paragraphs.js';
+const mockSyncChapterTranslatedTextFromDb = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('./chapters.js', () => ({
+  syncChapterTranslatedTextFromDb: (...args: unknown[]) =>
+    mockSyncChapterTranslatedTextFromDb(...args),
+}));
+
+import { bulkUpdateParagraphs, searchParagraphsInProject } from './paragraphs.js';
 
 describe('searchParagraphsInProject', () => {
   afterEach(() => {
@@ -60,5 +67,17 @@ describe('searchParagraphsInProject', () => {
       () => searchParagraphsInProject('proj-1', 'test', 'both', 'token'),
       /Search failed/
     );
+  });
+});
+
+describe('bulkUpdateParagraphs', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns empty result for empty updates without DB calls', async () => {
+    const result = await bulkUpdateParagraphs('proj-1', [], 'token');
+    assert.deepEqual(result, { succeeded: [], failed: [] });
+    assert.equal(mockRpc.mock.calls.length, 0);
   });
 });

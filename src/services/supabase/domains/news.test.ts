@@ -13,13 +13,14 @@ vi.mock('../../supabaseClient.js', () => ({
   })),
 }));
 
-import { getActiveAnnouncementForUser } from './news.js';
+import { getActiveAnnouncementForUser, listPublishedNewsPosts } from './news.js';
 
 function chainable(rows: unknown[]) {
   const chain = {
     select: vi.fn(() => chain),
     eq: vi.fn(() => chain),
     order: vi.fn(() => chain),
+    range: vi.fn(() => chain),
     then: (resolve: (v: unknown) => void) => resolve({ data: rows, error: null }),
   };
   return chain;
@@ -69,5 +70,17 @@ describe('getActiveAnnouncementForUser', () => {
     assert.equal(result?.message, 'Hello readers');
 
     vi.useRealTimers();
+  });
+});
+
+describe('listPublishedNewsPosts', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns empty array when no posts', async () => {
+    mockFrom.mockReturnValue(chainable([]));
+    const posts = await listPublishedNewsPosts({ limit: 5 });
+    assert.deepEqual(posts, []);
   });
 });
