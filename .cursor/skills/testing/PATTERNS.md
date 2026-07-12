@@ -2,6 +2,15 @@
 
 Exemplar tests in this repo — match these patterns before inventing new ones.
 
+## APP_SCOPE
+
+Unit tests, coverage, and Stryker mutation share the same scope:
+
+- `src/**/*.ts` minus `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`
+- Includes backend + client SPA (~277 source files)
+
+Inventory: `node scripts/gen-test-inventory.mjs` after `npm run test:coverage`.
+
 ## Engine — pure logic
 
 **Exemplar:** `@src/engine/glossary/glossary-filter.test.ts`

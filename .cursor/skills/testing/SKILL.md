@@ -1,7 +1,7 @@
 ---
 name: testing
 description: Vitest unit tests, mocking, coverage, and test gates for Arcane Reader. Use when writing, reviewing, or migrating tests.
-paths: '**/*.test.ts,vitest.config.ts'
+paths: '**/*.test.ts,vitest.config.ts,stryker.conf.json'
 ---
 
 # Testing Skill
@@ -26,6 +26,9 @@ Read `@.cursor/rules/testing.mdc` for policies. Layer recipes: `PATTERNS.md` in 
 | Watch mode       | `npm run test:watch`                                              |
 | Coverage report  | `npm run test:coverage`                                           |
 | Mutation (smoke) | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts` |
+| Mutation (full)  | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)        |
+| Mutation (zone)  | `npx stryker run --mutate "src/shared/**/*.ts"`                   |
+| Inventory        | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)     |
 | Focused run      | `npx vitest run src/engine/glossary`                              |
 | Single file      | `npx vitest run src/shared/paragraphSync.test.ts`                 |
 | Pre-push gate    | `npm run lint:all && npm run test`                                |
@@ -84,10 +87,10 @@ Arcane has **no dedicated test environment**. Even integration, component, and s
 
 **Quarter scope:**
 
-- **Q3 2026:** unit + mocked smoke only (waves 0–2). Middleware tests with mock `req`/`res`/`next`.
-- **Q4 2026+:** supertest, Testing Library, Playwright — **always mocked** until test env exists. See `PATTERNS.md` § Future.
+- **Q3 2026:** mock-first unit tests + mutation on APP_SCOPE (backend + client); phased waves by folder.
+- **Q4 2026+:** **live integration only** (real Supabase / Redis / worker on dedicated test stack). **Blocked** until test env exists. Mocked supertest / Playwright gates are **not** planned.
 
-Live Supabase / Redis / BullMQ in automated tests: **blocked** until dedicated test environment is provisioned.
+Live Supabase / Redis / BullMQ in **unit** tests: **never**. In Q4 integration tests: **only** on dedicated test environment.
 
 ## Layer quick reference
 
@@ -105,7 +108,7 @@ Live Supabase / Redis / BullMQ in automated tests: **blocked** until dedicated t
 - Tests without assertions
 - Duplicating large prompt strings without referencing production factories (`createEditorPrompt`, `resolvePrompts`)
 - Adding `scripts/test-*.ts` instead of `src/**/*.test.ts`
-- Component tests without `@testing-library/preact` + mocked API (Q4+ only)
+- Component tests without `@testing-library/preact` + mocked API (wave 3)
 - Live Supabase, Redis, or BullMQ in any automated test
 - E2E against staging/prod as CI gate
 
@@ -115,7 +118,8 @@ Live Supabase / Redis / BullMQ in automated tests: **blocked** until dedicated t
 
 - `include: ['src/**/*.test.ts']`
 - `environment: 'node'` (default)
-- `testTimeout: 120_000` for tiktoken-heavy preview tests
+- Slow tiktoken tests: `npm run test:slow` (excluded from `test` and `test:coverage`)
+- Coverage APP_SCOPE: `src/**/*.ts` minus `*.test.ts`, `debug-app`, `prompt-lab-app` (includes `client/**`)
 - Coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary` — **no thresholds**
 
 ## Verification after changes
@@ -132,4 +136,4 @@ For test-only PRs, **verifier** runs `npm run test` + `npm run lint:all`.
 - Agent profile: `@.cursor/agents/testing/AGENT.md`
 - Policy: `@.cursor/rules/testing.mdc`
 - Human guide: `@docs/02-how-to/run-tests.md`
-- Mutation testing (Q4+ / manual): `npm run test:mutation` — manual/nightly only
+- Mutation testing (manual/nightly): `npm run test:mutation` — APP_SCOPE; not in CI

@@ -30,10 +30,10 @@ You own **unit test quality and test infrastructure** for Arcane Reader — not 
 
 - Feature implementation without explicit test request → domain agent first
 - Production code changes unless required to make code testable (extract pure helper)
-- **Q3 scope:** waves 0–2 only — unit + mocked smoke; no supertest/Playwright gates
-- **Q4+ deferred:** supertest, Testing Library, Playwright (document patterns in `PATTERNS.md`; implement when scheduled)
-- **Never (until test env):** live Supabase, Redis, BullMQ worker in automated tests
-- Live LLM in tests
+- **Q3 scope:** APP_SCOPE unit + mutation (backend + client); phased waves; mock-first
+- **Q4+ blocked:** live integration only (real Supabase / Redis / worker) — requires dedicated test env
+- **Not planned:** mocked supertest / Playwright gates
+- **Never in unit tests:** live Supabase, Redis, BullMQ worker, live LLM
 
 **Do not duplicate:** full test pattern catalog — use `@.cursor/skills/testing/PATTERNS.md`.
 

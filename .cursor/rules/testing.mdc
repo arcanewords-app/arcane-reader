@@ -11,25 +11,31 @@ alwaysApply: false
 - **Runner:** Vitest (`npm run test` fast suite; `npm run test:slow` for tiktoken-heavy tests; `npm run test:all` for both). SSOT config: `@vitest.config.ts`, `@vitest.slow.config.ts`, how-to: `@.cursor/skills/testing/SKILL.md`.
 - **File naming:** co-located `foo.test.ts` next to `foo.ts` (not `.spec.ts`).
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
-- **No ad-hoc scripts:** do not add `scripts/test-*.ts`; put tests under `src/**/*.test.ts`.
+- **No ad-hoc scripts:** do not add `scripts/test-*.ts` for test cases; put tests under `src/**/*.test.ts`. Inventory helper `scripts/gen-test-inventory.mjs` is allowed.
+
+## APP_SCOPE (unified)
+
+Same scope for unit tests, coverage, and Stryker `mutate`:
+
+- `src/**/*.ts` minus `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`
+- Includes **backend + client SPA** (~277 source files)
+
+SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testing-baseline.md`.
 
 ## Test environment
 
 **Current state:** no dedicated test environment (no isolated Supabase / Redis / BullMQ stack for CI).
 
-**Default:** mock external boundaries for **all** test types — unit, integration, component, system/E2E. Tests must not require prod/staging `.env` credentials.
+**Default (Q3):** mock external boundaries for **all** automated tests. Tests must not require prod/staging `.env` credentials.
 
-| Term in Arcane | Means |
-|----------------|-------|
-| Integration test | **Mocked integration** — supertest + `vi.mock` services, not live DB |
-| Component test | Testing Library + mocked `fetch` / API client, not real backend |
-| System / E2E test | Playwright + `page.route()` / API mocks, not full stack against staging |
+| Term in Arcane (Q3) | Means |
+|---------------------|-------|
+| Unit test | co-located `*.test.ts`; `vi.mock` at DB/LLM/HTTP boundaries |
+| Integration test (Q3) | extract + unit test helpers from routes/services; **not** live DB |
 
-**Quarter scope:**
+**Q4 2026+ (blocked):** **live integration only** — real Supabase, Redis, worker on a dedicated test stack. Mocked supertest / Playwright / Testing Library gates are **not** planned.
 
-- **Q3 2026 (current):** unit tests + mocked smoke (waves 0–2 in coverage plan). No live DB, Redis, worker, or Playwright gates.
-- **Q4 2026+ (future):** expanded mocked integration (supertest, Testing Library, Playwright) — still mock-first until test env exists.
-- **Future prerequisite:** dedicated test environment — only then revisit live integration; not planned for Q3.
+**Prerequisite for Q4:** dedicated test environment. Without it, Q4 integration work is paused.
 
 See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement_plan_926cfce7.plan.md`.
 
@@ -40,40 +46,50 @@ See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement
 | Bug fix in pure logic (`engine/`, `shared/`, utils) | Add regression test in co-located `*.test.ts` |
 | New SSOT module in `engine/` or `shared/` | Unit test covering main branches |
 | Zod/query helpers in `src/api/` | Test normalization and schema parsing |
-| Preact page layout / styling | Skip unit tests unless extracting pure helpers |
-| Route handler with Supabase calls | **Q3:** extract + unit test helpers; mocked middleware (`req`/`res`/`next`). **Q4+:** mocked supertest routes (still no live DB until test env) |
-| Live LLM / OpenAI API | **Never** — mock provider (see `@src/engine/providers/openai.completejson.test.ts`) |
-| Live Supabase / Redis / BullMQ | **Never** until dedicated test environment exists |
+| `src/client/utils`, `hooks` | co-located unit tests; mock `fetch` |
+| Preact component layout | Q3 wave 3: Testing Library + mocked API; extract pure helpers first |
+| Route handler with Supabase calls | **Q3:** extract + unit test helpers. **Q4:** live supertest (test env only) |
+| Live LLM / OpenAI API | **Never** in unit tests — mock provider |
+| Live Supabase / Redis / BullMQ | **Q4 only** on dedicated test environment |
 
 ## Test types in Arcane
 
-| Type | Q3 approach | Q4+ (still mock-first) | Blocked until test env |
-|------|-------------|------------------------|------------------------|
-| Unit | pure logic, co-located | same | — |
-| Mocked integration | `validateRoute` middleware, mocked `supabaseDatabase` | supertest + service mocks | — |
-| Component | pure hook helpers only | Testing Library + mocked `fetch` | live DOM + real API |
-| System/E2E | — | Playwright + API mocks / route interception | live full stack |
+| Type | Q3 | Q4 (test env required) |
+|------|-----|------------------------|
+| Unit | pure logic, co-located, mocked boundaries | same |
+| Integration | extract helpers + mocked middleware | **live** supertest + test DB |
+| Component | pure hooks/utils; optional jsdom + mocked `fetch` | live DOM + test API (optional) |
+| System/E2E | — | full-stack smoke on test stack |
 
 ## Layer boundaries
 
-| Layer | Allowed in tests | Forbidden |
-|-------|------------------|-----------|
+| Layer | Allowed in tests (Q3) | Forbidden |
+|-------|----------------------|-----------|
 | `src/engine/**` | Pure pipeline, glossary, prompts, mocked LLM | HTTP, Supabase, `req.log` |
 | `src/shared/**` | Pure utilities, business rules | DB, Redis |
-| `src/api/**` | `validateRoute` helpers, Zod; mocked middleware (Q3) | Full Express app without mocks |
-| `src/client/**` | URL builders, pure hook helpers | Full component render without Testing Library + mocks (Q4+) |
+| `src/api/**` | `validateRoute` helpers, Zod; mocked middleware | Full Express app without mocks |
+| `src/client/**` | URL builders, pure hook helpers; jsdom + mocked `fetch` for components | Live API without mocks |
+| `src/services/**` | extracted pure helpers with mocks | live `supabaseDatabase` calls |
+
+## Mutation testing (manual)
+
+- Command: `npm run test:mutation` or zone smoke `npx stryker run --mutate <glob>`
+- Scope: APP_SCOPE (same as coverage)
+- **Not** in CI or pre-push; manual/nightly only
+- `thresholds.break: null` — trend metric, not gate
+- Report: `reports/mutation/mutation.html`
 
 ## Gates
 
 - Before **push:** `npm run lint:all` and `npm run test` (enforced via `.husky/pre-push` after setup).
 - Before **commit:** pre-commit runs lint-staged only (fast).
-- **Coverage:** monitor with `npm run test:coverage`; `coverage.include` is `src/**/*.ts` (excludes `src/client/**` until Q4+); no CI thresholds yet; `coverage/` is gitignored.
+- **Coverage:** `npm run test:coverage`; APP_SCOPE includes `src/client/**`; no CI thresholds; `coverage/` gitignored.
 
 ## Coverage policy
 
 - Track trend, not absolute %.
-- Prioritize `engine/` and `shared/` pure modules over UI pages.
-- Do not add coverage thresholds until baseline is documented in `@docs/05-plans/testing-baseline.md`.
+- Prioritize `engine/` and `shared/` pure modules; expand to `client/utils` and extracted service helpers.
+- Baseline documented in `@docs/05-plans/testing-baseline.md`.
 
 ## Documentation workflow
 

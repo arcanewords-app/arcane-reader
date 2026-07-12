@@ -15,20 +15,13 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     environment: 'node',
     testTimeout: isCoverageRun ? 120_000 : 10_000,
-    exclude: isCoverageRun
-      ? ['**/node_modules/**']
-      : ['**/node_modules/**', ...SLOW_TEST_FILES],
+    exclude: ['**/node_modules/**', ...SLOW_TEST_FILES],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
-      exclude: [
-        'src/**/*.test.ts',
-        'src/client/**',
-        'src/debug-app/**',
-        'src/prompt-lab-app/**',
-      ],
+      exclude: ['src/**/*.test.ts', 'src/debug-app/**', 'src/prompt-lab-app/**'],
     },
   },
   resolve: {

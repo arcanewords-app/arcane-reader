@@ -4,21 +4,19 @@
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
   "reporters": ["html", "clear-text", "progress"],
-  "coverageAnalysis": "perTest",
   "ignorePatterns": ["docs/**", ".cursor/**", "coverage/**", "dist/**", ".debug/**"],
-  "mutate": [
-    "src/engine/glossary/glossary-filter.ts",
-    "src/engine/glossary/glossary-manager.ts",
-    "src/shared/chapterTranslationCoverage.ts",
-    "src/shared/paragraphSync.ts",
-    "src/engine/pipeline/resolve-execution-options.ts"
-  ],
+  "mutate": ["src/**/*.ts", "!src/**/*.test.ts", "!src/debug-app/**", "!src/prompt-lab-app/**"],
   "vitest": {
-    "configFile": "vitest.config.ts"
+    "configFile": "vitest.config.ts",
+    "related": false
   },
+  "incremental": true,
+  "incrementalFile": "reports/stryker-incremental.json",
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
   "thresholds": {
     "high": 80,
     "low": 60,
     "break": null
-  }
+  },
+  "timeoutMS": 10000
 }

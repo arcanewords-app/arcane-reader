@@ -37,6 +37,7 @@ npm-debug.log*
 .cache/
 coverage/
 reports/
+.stryker-tmp/
 *.tsbuildinfo
 
 # Local debug persistence (dev only)
