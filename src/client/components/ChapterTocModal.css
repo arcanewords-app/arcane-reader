@@ -198,6 +198,35 @@
   color: var(--reader-accent-text, #fff);
 }
 
+.modal.toc-modal.chapter-toc-modal .reading-toc-mark-read {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.modal.toc-modal.chapter-toc-modal .reading-toc-mark-read:hover {
+  color: var(--success, #22c55e);
+  background: rgb(34, 197, 94, 0.1);
+}
+
+.modal.toc-modal.chapter-toc-modal .reading-toc-mark-read:focus-visible {
+  outline: 2px solid var(--reader-accent, var(--accent));
+  outline-offset: 2px;
+}
+
+.modal.toc-modal.chapter-toc-modal .reading-toc-item.active .reading-toc-mark-read {
+  color: var(--reader-accent-text, #fff);
+}
+
 .modal.toc-modal.chapter-toc-modal .reading-toc-item.last-read {
   border-color: var(--reader-accent, var(--accent));
   background: rgb(157, 111, 255, 0.08);

@@ -20,6 +20,8 @@ interface ChapterTocModalProps {
   title?: string;
   /** Set of chapter IDs marked as read (shows checkmark indicator). */
   readChapterIds?: Set<string>;
+  /** Mark a chapter as read without opening it (auth only). */
+  onMarkChapterRead?: (chapterId: string) => void;
   /** Last read chapter ID — visually highlighted for "Continue from here". */
   lastReadChapterId?: string | null;
 }
@@ -32,6 +34,7 @@ export function ChapterTocModal({
   currentChapterId,
   title,
   readChapterIds,
+  onMarkChapterRead,
   lastReadChapterId,
 }: ChapterTocModalProps) {
   const { t } = useTranslation();
@@ -209,6 +212,20 @@ export function ChapterTocModal({
                     <span class="reading-toc-read" title={t('publication.read')}>
                       <Icon name="check" size="sm" />
                     </span>
+                  )}
+                  {onMarkChapterRead && !isRead && (
+                    <button
+                      type="button"
+                      class="reading-toc-mark-read"
+                      title={t('publication.markRead')}
+                      aria-label={t('publication.markRead')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkChapterRead(chapter.id);
+                      }}
+                    >
+                      <Icon name="check_circle" size="sm" />
+                    </button>
                   )}
                   {isLastRead && (
                     <span class="reading-toc-continue" title={t('profile.continueReading')}>

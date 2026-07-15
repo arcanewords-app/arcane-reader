@@ -166,6 +166,21 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     }
   }, [publicationId]);
 
+  const handleMarkChapterRead = useCallback(
+    (chapterId: string) => {
+      if (!publicationId || !isAuthenticated) return;
+      setReadChapterIds((prev) => new Set([...prev, chapterId]));
+      api.markChapterAsRead(publicationId, chapterId).catch(() => {
+        setReadChapterIds((prev) => {
+          const next = new Set(prev);
+          next.delete(chapterId);
+          return next;
+        });
+      });
+    },
+    [publicationId, isAuthenticated]
+  );
+
   useEffect(() => {
     if (!publicationId) return;
     let cancelled = false;
@@ -879,6 +894,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         onClose={() => setShowToc(false)}
         chapters={translatedChapters}
         readChapterIds={isAuthenticated ? readChapterIds : undefined}
+        onMarkChapterRead={isAuthenticated ? handleMarkChapterRead : undefined}
         lastReadChapterId={isAuthenticated ? lastReadChapterId : undefined}
         onSelectChapter={(chapterId) => {
           setShowToc(false);

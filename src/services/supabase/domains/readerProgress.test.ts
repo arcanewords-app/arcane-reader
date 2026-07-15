@@ -113,6 +113,24 @@ describe('markChapterAsRead', () => {
     assert.deepEqual(payload.read_chapter_ids, ['ch-1', 'ch-2']);
   });
 
+  it('does not overwrite reading position fields on upsert', async () => {
+    const selectChain = chainable({
+      data: { read_chapter_ids: ['ch-1'] },
+      error: null,
+    });
+    const upsertChain = chainable({ data: null, error: null });
+    let calls = 0;
+    mockFrom.mockImplementation(() => {
+      calls += 1;
+      return calls === 1 ? selectChain : upsertChain;
+    });
+
+    await markChapterAsRead('user-1', 'pub-1', 'ch-2', 'token');
+    const payload = upsertChain.upsert.mock.calls[0]?.[0] as Record<string, unknown>;
+    assert.equal('last_read_chapter_id' in payload, false);
+    assert.equal('last_read_paragraph_index' in payload, false);
+  });
+
   it('does not duplicate chapter id when already read', async () => {
     const selectChain = chainable({
       data: { read_chapter_ids: ['ch-1', 'ch-2'] },

@@ -44,8 +44,6 @@ export async function markChapterAsRead(
       user_id: userId,
       publication_id: publicationId,
       read_chapter_ids: readChapterIds,
-      last_read_chapter_id: chapterId,
-      last_read_paragraph_index: 0,
       last_read_at: new Date().toISOString(),
     },
     {

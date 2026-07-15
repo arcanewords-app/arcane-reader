@@ -49,7 +49,7 @@ interface ReadingModeProps {
   /** Preloaded chapter content (chapterId -> text) for initial chapter when opening via direct link. */
   initialChapterContent?: Record<string, string>;
   onExit: (currentChapterId?: string) => void;
-  /** Called when user has read chapter (scrolled to 85%+ and pressed Next, or last chapter scrolled to 85%+). Auth only. */
+  /** Called when user has read a chapter (Next btn, 85% scroll on last chapter, exit/TOC after 85%). Auth only. */
   onChapterRead?: (chapterId: string) => void;
   /** Called to save reading position (chapter + paragraph index). Auth only. */
   onSavePosition?: (chapterId: string, paragraphIndex: number) => void;
@@ -278,11 +278,28 @@ export function ReadingMode({
     [isPublicationMode, publicationPath, publicationId, project?.id, currentChapter]
   );
 
+  /** Explicit "next chapter" intent — footer btn and keyboard. No scroll threshold. */
+  const markCurrentChapterRead = useCallback(() => {
+    const ch = chapters[currentChapterIndex];
+    if (!ch || !onChapterRead) return;
+    if (markedThisSessionRef.current.has(ch.id)) return;
+    markedThisSessionRef.current.add(ch.id);
+    onChapterRead(ch.id);
+  }, [chapters, currentChapterIndex, onChapterRead]);
+
+  /** Implicit leave (exit, TOC, tab close) — requires 85% scroll. */
+  const tryMarkCurrentChapterRead = useCallback(() => {
+    if (!scrolledToEndRef.current) return;
+    markCurrentChapterRead();
+  }, [markCurrentChapterRead]);
+
   const navigateToChapterIndex = useCallback(
     (newIndex: number) => {
       if (newIndex < 0 || newIndex >= chapters.length || newIndex === currentChapterIndex) return;
       const targetChapter = chapters[newIndex];
       if (!targetChapter) return;
+
+      tryMarkCurrentChapterRead();
 
       const ch = chapters[currentChapterIndex];
       if (ch && onSavePosition && isPublicationMode) {
@@ -292,7 +309,14 @@ export function ReadingMode({
       setCurrentChapterIndex(newIndex);
       syncChapterUrl(targetChapter.id);
     },
-    [chapters, currentChapterIndex, onSavePosition, isPublicationMode, syncChapterUrl]
+    [
+      chapters,
+      currentChapterIndex,
+      tryMarkCurrentChapterRead,
+      onSavePosition,
+      isPublicationMode,
+      syncChapterUrl,
+    ]
   );
 
   const selectionTrackingEnabled =
@@ -626,27 +650,42 @@ export function ReadingMode({
     };
   }, [onSavePosition, isPublicationMode, currentChapter?.id]);
 
-  // beforeunload: save position when closing tab (fetch with keepalive)
+  // beforeunload: save position and mark read (when scrolled to end) on tab close
   useEffect(() => {
-    if (!onSavePosition || !isPublicationMode || !publicationId || !currentChapter) return;
+    if (!isPublicationMode || !publicationId || !currentChapter) return;
     const chapterId = currentChapter.id;
     const handler = () => {
       const token = authService.getToken();
       if (!token) return;
       const idx = currentParagraphIndexRef.current;
-      fetch(`/api/publications/${publicationId}/reading-position`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ chapterId, paragraphIndex: idx }),
-        keepalive: true,
-      }).catch(() => {});
+      if (onSavePosition) {
+        fetch(`/api/publications/${publicationId}/reading-position`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ chapterId, paragraphIndex: idx }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+      if (
+        onChapterRead &&
+        scrolledToEndRef.current &&
+        !markedThisSessionRef.current.has(chapterId)
+      ) {
+        markedThisSessionRef.current.add(chapterId);
+        onChapterRead(chapterId);
+        fetch(`/api/publications/${publicationId}/chapters/${chapterId}/read`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          keepalive: true,
+        }).catch(() => {});
+      }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [onSavePosition, isPublicationMode, publicationId, currentChapter?.id]);
+  }, [onSavePosition, onChapterRead, isPublicationMode, publicationId, currentChapter?.id]);
 
   // IntersectionObserver: detect when user has scrolled to 85%+ (last paragraph visible)
   useEffect(() => {
@@ -660,13 +699,9 @@ export function ReadingMode({
         if (!entry || entry.intersectionRatio < 0.85) return;
         scrolledToEndRef.current = true;
 
-        const ch = chapters[currentChapterIndex];
-        if (!ch || markedThisSessionRef.current.has(ch.id)) return;
-
         const isLastChapter = currentChapterIndex >= chapters.length - 1;
         if (isLastChapter) {
-          markedThisSessionRef.current.add(ch.id);
-          onChapterRead(ch.id);
+          markCurrentChapterRead();
         }
       },
       { threshold: 0.85, rootMargin: '0px' }
@@ -681,6 +716,7 @@ export function ReadingMode({
     currentChapterIndex,
     chapterContentMap,
     chapterContentLoading,
+    markCurrentChapterRead,
   ]);
 
   // Apply reader settings as CSS variables
@@ -1048,12 +1084,20 @@ export function ReadingMode({
   }, [currentChapterIndex, chapters.length]);
 
   const handleExit = useCallback(() => {
+    tryMarkCurrentChapterRead();
     const ch = chapters[currentChapterIndex];
     if (ch && onSavePosition && isPublicationMode) {
       onSavePosition(ch.id, currentParagraphIndexRef.current);
     }
     onExit(ch?.id);
-  }, [chapters, currentChapterIndex, onSavePosition, isPublicationMode, onExit]);
+  }, [
+    chapters,
+    currentChapterIndex,
+    tryMarkCurrentChapterRead,
+    onSavePosition,
+    isPublicationMode,
+    onExit,
+  ]);
 
   const handlePrevChapter = useCallback(() => {
     if (currentChapterIndex <= 0) return;
@@ -1061,19 +1105,10 @@ export function ReadingMode({
   }, [currentChapterIndex, navigateToChapterIndex]);
 
   const handleNextChapter = useCallback(() => {
-    const ch = chapters[currentChapterIndex];
-    if (
-      ch &&
-      onChapterRead &&
-      scrolledToEndRef.current &&
-      !markedThisSessionRef.current.has(ch.id)
-    ) {
-      markedThisSessionRef.current.add(ch.id);
-      onChapterRead(ch.id);
-    }
+    markCurrentChapterRead();
     if (currentChapterIndex >= chapters.length - 1) return;
     navigateToChapterIndex(currentChapterIndex + 1);
-  }, [chapters, currentChapterIndex, onChapterRead, navigateToChapterIndex]);
+  }, [chapters.length, currentChapterIndex, markCurrentChapterRead, navigateToChapterIndex]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -1465,6 +1500,7 @@ export function ReadingMode({
         }))}
         currentChapterId={currentChapter?.id}
         readChapterIds={readChapterIds}
+        onMarkChapterRead={onChapterRead}
         onSelectChapter={(chapterId) => {
           const index = chapters.findIndex((ch) => ch.id === chapterId);
           if (index >= 0) {

@@ -200,7 +200,13 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     (chapterId: string) => {
       if (!publicationId) return;
       setReadChapterIds((prev) => new Set([...prev, chapterId]));
-      api.markChapterAsRead(publicationId, chapterId).catch(() => {});
+      api.markChapterAsRead(publicationId, chapterId).catch(() => {
+        setReadChapterIds((prev) => {
+          const next = new Set(prev);
+          next.delete(chapterId);
+          return next;
+        });
+      });
     },
     [publicationId]
   );
