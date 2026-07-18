@@ -22,7 +22,7 @@ export const publicationsApi = {
   async getPublications(params?: {
     limit?: number;
     offset?: number;
-    orderBy?: 'published_at' | 'created_at';
+    orderBy?: 'published_at' | 'created_at' | 'rating';
     orderAsc?: boolean;
     authorEntityId?: string;
     translatorEntityId?: string;
@@ -187,6 +187,33 @@ export const publicationsApi = {
         body: JSON.stringify({ chapterId, description }),
       }
     );
+  },
+
+  async getPublicationRatingStatus(publicationId: string): Promise<{
+    userScore: number | null;
+    eligibility: 'eligible' | 'guest' | 'owner' | 'not_read' | 'not_found';
+  }> {
+    return fetchJsonDeduped(`/api/publications/${publicationId}/rating`);
+  },
+
+  async upsertPublicationRating(publicationId: string, score: number): Promise<{ score: number }> {
+    const result = await fetchJson<{ score: number }>(`/api/publications/${publicationId}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ score }),
+    });
+    emitCacheInvalidation('catalog');
+    publicationCache.withChapters.delete(publicationId);
+    return result;
+  },
+
+  async deletePublicationRating(publicationId: string): Promise<{ success: boolean }> {
+    const result = await fetchJson<{ success: boolean }>(
+      `/api/publications/${publicationId}/rating`,
+      { method: 'DELETE' }
+    );
+    emitCacheInvalidation('catalog');
+    publicationCache.withChapters.delete(publicationId);
+    return result;
   },
 
   /** Get single chapter content for public reading (translated text only). Cached 2 min. */

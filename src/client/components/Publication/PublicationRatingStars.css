@@ -1,0 +1,13 @@
+.publication-rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.publication-rating-stars .is-filled {
+  color: var(--warning);
+}
+
+.publication-rating-stars .is-empty {
+  color: var(--text-dim);
+}

@@ -24,6 +24,9 @@ import {
   handleGetPublicationGlossary,
   handleGetReadProgress,
   handleReportPublication,
+  handleGetPublicationRatingStatus,
+  handleUpsertPublicationRating,
+  handleDeletePublicationRating,
   handleMarkChapterRead,
   handleUpdateReadingPosition,
   handlePublishProject,
@@ -103,6 +106,12 @@ export function registerPublicationRoutes(app: Application, deps: RouteDeps): vo
   app.get('/api/publications/:id/glossary', handleGetPublicationGlossary);
 
   app.get('/api/publications/:id/read-progress', optionalAuth, handleGetReadProgress);
+
+  app.get('/api/publications/:id/rating', optionalAuth, handleGetPublicationRatingStatus);
+
+  app.put('/api/publications/:id/rating', requireAuth, handleUpsertPublicationRating);
+
+  app.delete('/api/publications/:id/rating', requireAuth, handleDeletePublicationRating);
 
   app.post('/api/publications/:id/report', requireAuth, handleReportPublication);
 

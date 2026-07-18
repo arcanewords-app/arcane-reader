@@ -4,6 +4,7 @@ import type { Publication, PublicationListItem, PublicEntity } from '../../types
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { EntityChip } from './EntityChip';
 import { PublicationStatusBadge } from './PublicationStatusBadge';
+import { PublicationRatingMeta } from './PublicationRatingMeta';
 import { trackEvent } from '../../utils/analytics';
 import '../../styles/components/card-content-popup.css';
 import './PublicationCard.css';
@@ -193,6 +194,10 @@ export function PublicationCard({
                     </span>
                   </>
                 )}
+                <PublicationRatingMeta
+                  ratingAvg={publication.ratingAvg}
+                  ratingCount={publication.ratingCount}
+                />
               </div>
             )}
           </div>

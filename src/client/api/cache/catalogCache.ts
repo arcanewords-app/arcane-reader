@@ -9,7 +9,7 @@ import {
 export interface CatalogListParams {
   limit?: number;
   offset?: number;
-  orderBy?: 'published_at' | 'created_at';
+  orderBy?: 'published_at' | 'created_at' | 'rating';
   orderAsc?: boolean;
   authorEntityId?: string;
   translatorEntityId?: string;

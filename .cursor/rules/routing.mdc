@@ -31,7 +31,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | Path | Access | Component | Description |
 |------|--------|-----------|-------------|
 | `/` | guest+ | CatalogPage (HomePage) | Main catalog, tabs: All / My works |
-| `/catalog` | guest+ | CatalogPage | Same as `/`. Query: `filter=mine`, `author`, `translator`, `tag` (entity IDs for filtering). In-app tab/filter sync preserves current path (`/` or `/catalog`) to avoid remount |
+| `/catalog` | guest+ | CatalogPage | Same as `/`. Query: `filter=mine`, `author`, `translator`, `tag` (entity IDs for filtering), `sort=rating` (highest rated; mutually exclusive with date sort in toolbar). In-app tab/filter sync preserves current path (`/` or `/catalog`) to avoid remount |
 | `/about` | guest+ | AboutPage | About Arcane |
 | `/account-tiers` | guest+ | AccountTiersPage | Account level comparison (reader / author tiers) |
 | `/contact` | guest+ | ContactPage | Contact info |
@@ -331,12 +331,15 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/publications` | - | List published publications. Query: `limit`, `offset`, `orderBy`, `orderAsc`, `author`, `translator`, `tag` (entity IDs). Response includes `translatedChapterCount`. |
-| GET | `/api/publications/:id` | - | Get publication |
+| GET | `/api/publications` | - | List published publications. Query: `limit`, `offset`, `orderBy` (`published_at` \| `created_at` \| `rating`), `orderAsc`, `author`, `translator`, `tag` (entity IDs). Response includes `translatedChapterCount`, `ratingAvg`, `ratingCount` (display when count ≥ 5). |
+| GET | `/api/publications/:id` | - | Get publication (includes `ratingAvg`, `ratingCount`, `ratingBayesian`) |
 | GET | `/api/publications/:id/chapters` | - | Publication chapters |
 | GET | `/api/publications/:id/chapters/:chapterId` | - | Chapter content |
 | GET | `/api/publications/:id/glossary` | - | Publication glossary (returns [] when showGlossary=false) |
 | GET | `/api/publications/:id/read-progress` | optional | Read progress (user) |
+| GET | `/api/publications/:id/rating` | optional | User rating status (`userScore`, `eligibility`) |
+| PUT | `/api/publications/:id/rating` | user+ | Upsert 1–5 rating (body: `{ score }`; requires ≥1 read chapter; not owner) |
+| DELETE | `/api/publications/:id/rating` | user+ | Remove own rating |
 | POST | `/api/publications/:id/chapters/:chapterId/read` | user+ | Mark chapter as read |
 | PATCH | `/api/publications/:id/reading-position` | user+ | Update reading position |
 

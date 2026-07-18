@@ -33,6 +33,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260708190000_heavy_rpc_statement_timeout.sql`           | Heavy RPC registry: `ALTER FUNCTION SET statement_timeout` (write 120s, read 60s); fix `search_path` on 3 write RPC     |
 | `20260710220000_fix_renumber_reorder_search_path.sql`      | `renumber_chapters_atomic` / `reorder_chapters`: `public.chapters` + `public.projects` (empty `search_path` regression) |
 | `20260718100000_mark_chapters_as_translated_bulk.sql`      | `mark_chapters_as_translated_batch`: set-based bulk UPDATE; stable reason codes                                         |
+| `20260718120000_publication_ratings.sql`                   | `publication_ratings` table, RLS, denormalized `rating_*` on `publications`, recreate `publications_list_with_counts`   |
 
 ## Heavy RPC policy
 

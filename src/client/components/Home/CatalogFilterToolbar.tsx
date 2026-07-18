@@ -11,6 +11,8 @@ export interface CatalogFilterToolbarProps {
   showCompleteFilter: boolean;
   orderAsc: boolean;
   onOrderAscChange: (value: boolean) => void;
+  sortByRating: boolean;
+  onSortByRatingChange: (value: boolean) => void;
 }
 
 export function CatalogFilterToolbar({
@@ -22,6 +24,8 @@ export function CatalogFilterToolbar({
   showCompleteFilter,
   orderAsc,
   onOrderAscChange,
+  sortByRating,
+  onSortByRatingChange,
 }: CatalogFilterToolbarProps) {
   const { t } = useTranslation();
 
@@ -74,28 +78,41 @@ export function CatalogFilterToolbar({
         </button>
       )}
 
-      <div class="catalog-filter-group catalog-filter-segment" role="group">
-        <button
-          type="button"
-          class={`catalog-filter-segment-btn${!orderAsc ? ' catalog-filter-segment-btn--active' : ''}`}
-          aria-pressed={!orderAsc}
-          aria-label={t('home.orderNewest')}
-          title={t('home.orderNewest')}
-          onClick={() => onOrderAscChange(false)}
-        >
-          <Icon name="arrow_downward" size="sm" />
-        </button>
-        <button
-          type="button"
-          class={`catalog-filter-segment-btn${orderAsc ? ' catalog-filter-segment-btn--active' : ''}`}
-          aria-pressed={orderAsc}
-          aria-label={t('home.orderOldest')}
-          title={t('home.orderOldest')}
-          onClick={() => onOrderAscChange(true)}
-        >
-          <Icon name="arrow_upward" size="sm" />
-        </button>
-      </div>
+      <button
+        type="button"
+        class={`catalog-filter-chip${sortByRating ? ' catalog-filter-chip--active' : ''}`}
+        aria-pressed={sortByRating}
+        aria-label={t('home.orderByRating')}
+        title={t('home.orderByRating')}
+        onClick={() => onSortByRatingChange(!sortByRating)}
+      >
+        <Icon name="star" size="sm" />
+      </button>
+
+      {!sortByRating && (
+        <div class="catalog-filter-group catalog-filter-segment" role="group">
+          <button
+            type="button"
+            class={`catalog-filter-segment-btn${!orderAsc ? ' catalog-filter-segment-btn--active' : ''}`}
+            aria-pressed={!orderAsc}
+            aria-label={t('home.orderNewest')}
+            title={t('home.orderNewest')}
+            onClick={() => onOrderAscChange(false)}
+          >
+            <Icon name="arrow_downward" size="sm" />
+          </button>
+          <button
+            type="button"
+            class={`catalog-filter-segment-btn${orderAsc ? ' catalog-filter-segment-btn--active' : ''}`}
+            aria-pressed={orderAsc}
+            aria-label={t('home.orderOldest')}
+            title={t('home.orderOldest')}
+            onClick={() => onOrderAscChange(true)}
+          >
+            <Icon name="arrow_upward" size="sm" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

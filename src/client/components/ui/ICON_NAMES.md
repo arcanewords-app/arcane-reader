@@ -18,6 +18,10 @@ Reference for control icons in Arcane Reader. Use via `@src/client/components/ui
 
 `person`, `place`, `delete`, `upload_file`, `image`, `warning`, `error`, `schedule`
 
+## Rating
+
+`star`, `star_half`, `star_border`
+
 ## Legacy emoji → icon
 
 Prefer Material Symbols over emoji for controls: `arrow_back`, `menu_book`, `translate`, `delete`, etc. Reject new emoji control icons in PR.

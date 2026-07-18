@@ -25,18 +25,22 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                          | Summary                                        | Reference                            |
-| --------------------------- | ---------------------------------------------- | ------------------------------------ |
-| `catalog-filter-toolbar`    | Icon chips: language, complete, sort segment   | `CatalogFilterToolbar.tsx`           |
-| `filter-icon-chip`          | 44px square chip, icon or short code           | `CatalogFilterToolbar.css`           |
-| `filter-segment-control`    | Connected toggle pair (sort direction)         | `CatalogFilterToolbar.css`           |
-| `responsive-filter-bar`     | Search + toolbar: 2 rows mobile, 1 row tablet+ | `HomePage.css`                       |
-| `entity-filter-chips`       | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
-| `header-locale-control`     | App language: icon + code + dropdown           | `Header.tsx`                         |
-| `header-support-control`    | Support via Boosty: icon + label, direct link  | `Header/SupportMenu.tsx`             |
-| `cover-status-badge`        | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
-| `publication-original-link` | Compact external link to source on `/p/...`    | `PublicationPage.tsx`                |
-| `admin-section-layout`      | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
+| Id                           | Summary                                        | Reference                            |
+| ---------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment   | `CatalogFilterToolbar.tsx`           |
+| `filter-icon-chip`           | 44px square chip, icon or short code           | `CatalogFilterToolbar.css`           |
+| `filter-segment-control`     | Connected toggle pair (sort direction)         | `CatalogFilterToolbar.css`           |
+| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+ | `HomePage.css`                       |
+| `entity-filter-chips`        | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
+| `header-locale-control`      | App language: icon + code + dropdown           | `Header.tsx`                         |
+| `header-support-control`     | Support via Boosty: icon + label, direct link  | `Header/SupportMenu.tsx`             |
+| `cover-status-badge`         | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
+| `publication-original-link`  | Compact external link to source on `/p/...`    | `PublicationPage.tsx`                |
+| `publication-rating-meta`    | Compact ★ avg on catalog card meta row         | `PublicationRatingMeta.tsx`          |
+| `publication-rating-summary` | Full stars + CTA on `/p/:id`                   | `PublicationRatingSummary.tsx`       |
+| `publication-rating-input`   | Modal 1–5 star rating input                    | `RatePublicationModal.tsx`           |
+| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating     | `CatalogFilterToolbar.tsx`           |
+| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
 
 ---
 
@@ -218,6 +222,107 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **a11y:** Visible text label (not icon-only); `focus-visible` outline; external link opens new tab.
 
 **Anti-patterns:** Inline URL in description; icon-only without label; showing on catalog cards (clutters grid).
+
+---
+
+## `publication-rating-meta`
+
+**When:** Show aggregate publication rating on catalog grid cards.
+
+**When not:** Cover overlay; chapter rows; count &lt; display threshold (5); interactive rating.
+
+**Files:**
+
+- [`src/client/components/Home/PublicationRatingMeta.tsx`](../../../src/client/components/Home/PublicationRatingMeta.tsx)
+- [`src/client/components/Home/PublicationCard.tsx`](../../../src/client/components/Home/PublicationCard.tsx) — compose in lang/chapters meta row
+
+**Layout / behavior:**
+
+- Append after chapters with `.publication-card-meta-sep` (`·`).
+- One `Icon star` sm + avg `X.X` (`--text-dim`, same weight as lang badge).
+- Full stats in `title` / `aria-label` only.
+- Not clickable; card click still opens publication.
+
+**i18n:** `rating.avgAria` (avg + count).
+
+**a11y:** Decorative star `aria-hidden`; meaning in parent `aria-label`.
+
+**Anti-patterns:** Stars on cover next to `cover-status-badge`; warning-colored star on card; showing `0.0` / «No ratings».
+
+---
+
+## `publication-rating-summary`
+
+**When:** Publication page hero meta — display avg + allow rate CTA.
+
+**When not:** Catalog cards; author self-rate CTA.
+
+**Files:**
+
+- [`src/client/components/Publication/PublicationRatingSummary.tsx`](../../../src/client/components/Publication/PublicationRatingSummary.tsx)
+- [`src/client/pages/PublicationPage.tsx`](../../../src/client/pages/PublicationPage.tsx) — after tags, before actions
+
+**Layout / behavior:**
+
+- Row: 5 display stars (warning filled / dim empty) + avg + count.
+- CTA chip styled like `.publication-page-toc-btn` opens `publication-rating-input` Modal.
+- Guest → login; ineligible reader → disabled + hint; owner → no CTA.
+
+**i18n:** `rating.summary`, `rating.rate`, `rating.change`, `rating.ownWork`, `rating.readFirst`.
+
+**a11y:** Group labelled; CTA min 44px height on mobile.
+
+**Anti-patterns:** Mixing rate UI into TOC/export actions without separation; emoji stars.
+
+---
+
+## `publication-rating-input`
+
+**When:** Authenticated eligible user sets/changes 1–5 score.
+
+**When not:** Guests; publication owner; users with no reading progress.
+
+**Files:**
+
+- [`src/client/components/Publication/RatePublicationModal.tsx`](../../../src/client/components/Publication/RatePublicationModal.tsx)
+- Uses `Modal` + `Button` from `components/ui/`
+
+**Layout / behavior:**
+
+- Modal: title, 5 star buttons (44px), live label for selected score, Cancel / Save.
+- Trigger from publication page CTA and optional one-shot reader nudge.
+- One score per user×publication (upsert).
+
+**i18n:** `rating.rateTitle`, `rating.scoreLabel1`…`5`, `rating.save`, `rating.remove` (optional).
+
+**a11y:** `role="radiogroup"` / `aria-checked` per star; focus-visible; Escape closes Modal.
+
+**Anti-patterns:** Inline form without Modal on publication page; rating without auth gate.
+
+---
+
+## `catalog-sort-by-rating`
+
+**When:** Catalog needs “highest rated” ordering alongside date sort.
+
+**When not:** As a 3-button segment (violates `filter-segment-control`); as `<Select>`.
+
+**Files:**
+
+- Extend [`CatalogFilterToolbar.tsx`](../../../src/client/components/Home/CatalogFilterToolbar.tsx) / `.css`
+- [`catalogRoutes.ts`](../../../src/client/utils/catalogRoutes.ts) / [`HomePage.tsx`](../../../src/client/pages/HomePage.tsx) URL sync
+
+**Layout / behavior:**
+
+- Icon chip `star` toggles `sort=rating` (Bayesian desc).
+- When active, date segment hidden or disabled.
+- Publications below rating display threshold sort last.
+
+**i18n:** `home.orderByRating`.
+
+**a11y:** `aria-pressed` on chip.
+
+**Anti-patterns:** Mixing Select into filter toolbar; sorting by raw avg without Bayesian/threshold.
 
 ---
 

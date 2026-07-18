@@ -1,4 +1,5 @@
 export type CatalogFilter = 'all' | 'mine';
+export type CatalogSort = 'rating' | null;
 
 export interface CatalogEntityFilter {
   author?: string;
@@ -9,6 +10,7 @@ export interface CatalogEntityFilter {
 export interface CatalogUrlState {
   filter: CatalogFilter;
   entityFilter: CatalogEntityFilter;
+  sort: CatalogSort;
 }
 
 export function parseCatalogFilterFromUrl(): CatalogFilter {
@@ -27,9 +29,14 @@ export function parseCatalogEntityFilterFromUrl(): CatalogEntityFilter {
 }
 
 export function parseCatalogUrlState(): CatalogUrlState {
+  if (typeof window === 'undefined') {
+    return { filter: 'all', entityFilter: {}, sort: null };
+  }
+  const params = new URLSearchParams(window.location.search);
   return {
     filter: parseCatalogFilterFromUrl(),
     entityFilter: parseCatalogEntityFilterFromUrl(),
+    sort: params.get('sort') === 'rating' ? 'rating' : null,
   };
 }
 
@@ -65,18 +72,19 @@ export function buildCatalogUrl(
   entityFilter: CatalogEntityFilter,
   basePath?: string
 ): string {
-  const base = getCatalogBasePath(basePath);
-  const params = new URLSearchParams();
-  if (filter === 'mine') params.set('filter', 'mine');
-  if (entityFilter.author) params.set('author', entityFilter.author);
-  if (entityFilter.translator) params.set('translator', entityFilter.translator);
-  if (entityFilter.tag) params.set('tag', entityFilter.tag);
-  const q = params.toString();
-  return q ? `${base}?${q}` : base;
+  return buildCatalogUrlFromState({ filter, entityFilter, sort: null }, basePath);
 }
 
 export function buildCatalogUrlFromState(state: CatalogUrlState, basePath?: string): string {
-  return buildCatalogUrl(state.filter, state.entityFilter, basePath);
+  const base = getCatalogBasePath(basePath);
+  const params = new URLSearchParams();
+  if (state.filter === 'mine') params.set('filter', 'mine');
+  if (state.entityFilter.author) params.set('author', state.entityFilter.author);
+  if (state.entityFilter.translator) params.set('translator', state.entityFilter.translator);
+  if (state.entityFilter.tag) params.set('tag', state.entityFilter.tag);
+  if (state.sort === 'rating') params.set('sort', 'rating');
+  const q = params.toString();
+  return q ? `${base}?${q}` : base;
 }
 
 export function buildCatalogEntityFilterUrl(
@@ -88,5 +96,5 @@ export function buildCatalogEntityFilterUrl(
   if (entityKind === 'author') entityFilter.author = entityId;
   else if (entityKind === 'translator') entityFilter.translator = entityId;
   else entityFilter.tag = entityId;
-  return buildCatalogUrl('all', entityFilter, basePath);
+  return buildCatalogUrlFromState({ filter: 'all', entityFilter, sort: null }, basePath);
 }

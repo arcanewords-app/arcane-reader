@@ -704,6 +704,11 @@ export interface Publication {
   translationStatus?: TranslationStatus | null;
   /** Optional link to original source work. */
   sourceUrl?: string | null;
+  /** Average 1–5 when ratingCount ≥ display threshold. */
+  ratingAvg?: number | null;
+  /** Number of user ratings. */
+  ratingCount?: number;
+  ratingBayesian?: number | null;
 }
 
 export interface PublicationListItem {
@@ -735,6 +740,11 @@ export interface PublicationListItem {
   translationStatus?: TranslationStatus | null;
   /** Optional link to original source work. */
   sourceUrl?: string | null;
+  /** Average 1–5 when ratingCount ≥ display threshold. */
+  ratingAvg?: number | null;
+  /** Number of user ratings. */
+  ratingCount?: number;
+  ratingBayesian?: number | null;
 }
 
 export interface AdminPublicationListItem extends PublicationListItem {

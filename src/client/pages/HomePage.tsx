@@ -42,6 +42,7 @@ export function HomePage() {
   });
   const filter = catalogUrlState.filter;
   const entityFilter = catalogUrlState.entityFilter;
+  const sortByRating = catalogUrlState.sort === 'rating';
   const [entityFilterNames, setEntityFilterNames] = useState<{
     author?: string;
     translator?: string;
@@ -114,6 +115,11 @@ export function HomePage() {
       });
     }
     return [...list].sort((a, b) => {
+      if (sortByRating) {
+        const ba = a.ratingBayesian ?? -1;
+        const bb = b.ratingBayesian ?? -1;
+        if (bb !== ba) return bb - ba;
+      }
       const ta = new Date(a.publishedAt || 0).getTime();
       const tb = new Date(b.publishedAt || 0).getTime();
       return orderAsc ? ta - tb : tb - ta;
@@ -127,6 +133,7 @@ export function HomePage() {
     targetLanguage,
     completeOnly,
     orderAsc,
+    sortByRating,
   ]);
 
   const loadIdRef = useRef(0);
@@ -201,7 +208,7 @@ export function HomePage() {
       api
         .getPublications({
           limit: 50,
-          orderBy: 'published_at',
+          orderBy: sortByRating ? 'rating' : 'published_at',
           orderAsc: false,
           authorEntityId: entityFilter.author,
           translatorEntityId: entityFilter.translator,
@@ -224,7 +231,7 @@ export function HomePage() {
           setRefreshing(false);
         });
     }
-  }, [filter, isAuthor, entityFilter]);
+  }, [filter, isAuthor, entityFilter, sortByRating]);
 
   // Fetch entity names for active filter chips
   useEffect(() => {
@@ -454,6 +461,10 @@ export function HomePage() {
               showCompleteFilter={hasCompleteWorks}
               orderAsc={orderAsc}
               onOrderAscChange={setOrderAsc}
+              sortByRating={sortByRating}
+              onSortByRatingChange={(active) =>
+                setCatalogUrlState((prev) => ({ ...prev, sort: active ? 'rating' : null }))
+              }
             />
           </div>
           {hasEntityFilter && (

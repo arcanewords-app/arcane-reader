@@ -10,6 +10,7 @@ import {
   publicationsListQuerySchema,
   reportBodySchema,
   readingPositionBodySchema,
+  publicationRatingBodySchema,
   publishBodySchema,
   buildExportsBodySchema,
   publicationDownloadQuerySchema,
@@ -40,6 +41,9 @@ import {
   createTranslationReport,
   listPublicEntities,
   getPublicEntityById,
+  getPublicationRatingStatus,
+  upsertPublicationRating,
+  deletePublicationRating,
   listPublishedNewsPosts,
   getPublishedNewsPostByIdOrSlug,
   getActiveAnnouncementForUser,
@@ -1589,6 +1593,113 @@ export async function handleGetProjectPublication(req: Request, res: Response): 
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to get publication';
+    res.status(500).json({ error: msg });
+  }
+}
+
+export async function handleGetPublicationRatingStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const slugOrId = requireRouteParam(req.params.id, 'id');
+    const pub = await getPublicationBySlugOrId(slugOrId);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    const userId = req.user?.id ?? null;
+    const token = req.token ?? null;
+    const status = await getPublicationRatingStatus(pub.id, userId, token);
+    res.json(status);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const msg = error instanceof Error ? error.message : 'Failed to get rating status';
+    res.status(500).json({ error: msg });
+  }
+}
+
+export async function handleUpsertPublicationRating(req: Request, res: Response): Promise<void> {
+  try {
+    const slugOrId = requireRouteParam(req.params.id, 'id');
+    const pub = await getPublicationBySlugOrId(slugOrId);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    const parsed = publicationRatingBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const token = req.token!;
+    const result = await upsertPublicationRating(pub.id, userId, parsed.data.score, token);
+
+    await invalidatePublicationCaches(pub.id, pub.id);
+    if (pub.slug) {
+      await invalidatePublicationCaches(pub.slug);
+    }
+    await invalidatePublicationListCaches();
+
+    res.json(result);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const { PublicationRatingError } =
+      await import('../../../services/supabase/domains/publicationRatings.js');
+    if (error instanceof PublicationRatingError) {
+      const status =
+        error.code === 'NOT_FOUND'
+          ? 404
+          : error.code === 'OWN_WORK' || error.code === 'NOT_ELIGIBLE'
+            ? 403
+            : 401;
+      res.status(status).json({ error: error.message, code: error.code });
+      return;
+    }
+    const msg = error instanceof Error ? error.message : 'Failed to save rating';
+    res.status(500).json({ error: msg });
+  }
+}
+
+export async function handleDeletePublicationRating(req: Request, res: Response): Promise<void> {
+  try {
+    const slugOrId = requireRouteParam(req.params.id, 'id');
+    const pub = await getPublicationBySlugOrId(slugOrId);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const token = req.token!;
+    await deletePublicationRating(pub.id, userId, token);
+
+    await invalidatePublicationCaches(pub.id, pub.id);
+    if (pub.slug) {
+      await invalidatePublicationCaches(pub.slug);
+    }
+    await invalidatePublicationListCaches();
+
+    res.json({ success: true });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const { PublicationRatingError } =
+      await import('../../../services/supabase/domains/publicationRatings.js');
+    if (error instanceof PublicationRatingError) {
+      const status =
+        error.code === 'NOT_FOUND'
+          ? 404
+          : error.code === 'OWN_WORK' || error.code === 'NOT_ELIGIBLE'
+            ? 403
+            : 401;
+      res.status(status).json({ error: error.message, code: error.code });
+      return;
+    }
+    const msg = error instanceof Error ? error.message : 'Failed to remove rating';
     res.status(500).json({ error: msg });
   }
 }

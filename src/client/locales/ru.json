@@ -1062,6 +1062,7 @@
     "emptyMyWorksHint": "Опубликуйте проект на странице проектов — он появится здесь.",
     "orderNewest": "Сначала новые",
     "orderOldest": "Сначала старые",
+    "orderByRating": "По рейтингу",
     "targetLanguageLabel": "Язык",
     "languageAll": "Все языки",
     "filterByAuthor": "Автор",
@@ -1504,6 +1505,24 @@
     "tiersLink": "Уровни",
     "maxTierReached": "У вас максимальный уровень автора.",
     "cardUpgradeTitle": "Повышение уровня"
+  },
+  "rating": {
+    "avgAria": "{{avg}} из 5, {{count}} оценок",
+    "summary": "Оценка читателей",
+    "rate": "Оценить",
+    "change": "Изменить оценку",
+    "ownWork": "Нельзя оценить свою публикацию",
+    "readFirst": "Прочитайте хотя бы одну главу, чтобы оценить",
+    "rateTitle": "Оценить перевод",
+    "save": "Сохранить",
+    "remove": "Убрать оценку",
+    "yourScore": "Ваша оценка: {{score}}",
+    "count": "{{count}} оценок",
+    "scoreLabel1": "Плохо",
+    "scoreLabel2": "Так себе",
+    "scoreLabel3": "Нормально",
+    "scoreLabel4": "Хорошо",
+    "scoreLabel5": "Отлично"
   },
   "publication": {
     "untitled": "Без названия",

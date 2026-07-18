@@ -31,6 +31,9 @@ export interface PublicationRow {
   show_glossary?: boolean | null;
   translation_status?: string | null;
   source_url?: string | null;
+  rating_avg?: number | string | null;
+  rating_count?: number | null;
+  rating_bayesian?: number | string | null;
 }
 
 export interface PublicationListRow extends PublicationRow {
@@ -74,6 +77,9 @@ export function transformPublicationFromDB(row: PublicationRow): {
   showGlossary: boolean;
   translationStatus: TranslationStatus | null;
   sourceUrl: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
+  ratingBayesian: number | null;
 } {
   const rawStatus = (row as { translation_status?: string | null }).translation_status;
   return {
@@ -101,6 +107,12 @@ export function transformPublicationFromDB(row: PublicationRow): {
     showGlossary: (row as { show_glossary?: boolean | null }).show_glossary !== false,
     translationStatus: isTranslationStatus(rawStatus) ? rawStatus : null,
     sourceUrl: (row as { source_url?: string | null }).source_url ?? null,
+    ratingAvg: row.rating_avg != null && row.rating_avg !== '' ? Number(row.rating_avg) : null,
+    ratingCount: Number(row.rating_count ?? 0),
+    ratingBayesian:
+      row.rating_bayesian != null && row.rating_bayesian !== ''
+        ? Number(row.rating_bayesian)
+        : null,
   };
 }
 

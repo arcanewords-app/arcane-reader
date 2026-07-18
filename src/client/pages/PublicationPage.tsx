@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'preact/hooks'
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
-import { AUTH_CHANGED_EVENT, authService } from '../services/authService';
+import { AUTH_CHANGED_EVENT, authService, openAuthModal } from '../services/authService';
 import { trackEvent } from '../utils/analytics';
 import type { PublicationWithChapters, GlossaryEntry, PublicEntity } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
@@ -13,6 +13,11 @@ import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
 import { ChapterTocModal } from '../components/ChapterTocModal';
+import {
+  PublicationRatingSummary,
+  type PublicationRatingEligibility,
+} from '../components/Publication/PublicationRatingSummary';
+import { RatePublicationModal } from '../components/Publication/RatePublicationModal';
 import {
   buildPublicationPageUrl,
   getPublicationPathFromPathname,
@@ -39,6 +44,9 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [showGlossary, setShowGlossary] = useState(false);
   const [showToc, setShowToc] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [ratingUserScore, setRatingUserScore] = useState<number | null>(null);
+  const [ratingEligibility, setRatingEligibility] = useState<PublicationRatingEligibility>('guest');
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
   const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
   const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
@@ -163,6 +171,14 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       setLastReadChapterId(lastId ?? null);
     } catch {
       // Ignore read progress errors on public page.
+    }
+    try {
+      const status = await api.getPublicationRatingStatus(publicationId);
+      setRatingUserScore(status.userScore);
+      setRatingEligibility(status.eligibility);
+    } catch {
+      setRatingUserScore(null);
+      setRatingEligibility(user ? 'not_read' : 'guest');
     }
   }, [publicationId]);
 
@@ -528,6 +544,14 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
             </div>
           )}
           {langLabel && <p class="publication-page-lang">{langLabel}</p>}
+          <PublicationRatingSummary
+            ratingAvg={pub.ratingAvg}
+            ratingCount={pub.ratingCount}
+            userScore={ratingUserScore}
+            eligibility={ratingEligibility}
+            onRateClick={() => setShowRateModal(true)}
+            onLoginClick={() => openAuthModal()}
+          />
           <div class="publication-page-actions">
             {pub.sourceUrl && (
               <a
@@ -901,6 +925,30 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           route(`/p/${pubPath}/chapters/${chapterId}/reading`);
         }}
       />
+      {publicationId && (
+        <RatePublicationModal
+          isOpen={showRateModal}
+          onClose={() => setShowRateModal(false)}
+          initialScore={ratingUserScore}
+          onSave={async (score) => {
+            const result = await api.upsertPublicationRating(publicationId, score);
+            setRatingUserScore(result.score);
+            setRatingEligibility('eligible');
+            const refreshed = await api.getPublicationWithChapters(publicationId);
+            setData(refreshed);
+          }}
+          onRemove={
+            ratingUserScore != null
+              ? async () => {
+                  await api.deletePublicationRating(publicationId);
+                  setRatingUserScore(null);
+                  const refreshed = await api.getPublicationWithChapters(publicationId);
+                  setData(refreshed);
+                }
+              : undefined
+          }
+        />
+      )}
       <Modal
         isOpen={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}

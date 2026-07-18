@@ -30,6 +30,8 @@ import { useReadingTextSelection } from '../../hooks/useReadingTextSelection';
 import { ReadingSelectionToolbar } from './ReadingSelectionToolbar';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import { buildReadingChapterUrl } from '../../utils/readingRoutes';
+import { RatePublicationModal } from '../Publication/RatePublicationModal';
+import { dismissRatingNudge, isRatingNudgeDismissed } from '../../utils/publicationRatingNudge';
 import './ReadingMode.css';
 
 /** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
@@ -161,6 +163,8 @@ export function ReadingMode({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [rateModalInitialScore, setRateModalInitialScore] = useState<number | null>(null);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
     const raw = project?.settings?.reader;
     if (!raw) return { ...defaultReaderSettings };
@@ -289,7 +293,18 @@ export function ReadingMode({
     if (markedThisSessionRef.current.has(ch.id)) return;
     markedThisSessionRef.current.add(ch.id);
     onChapterRead(ch.id);
-  }, [chapters, currentChapterIndex, onChapterRead]);
+
+    if (!publicationId || !authService.getToken() || isRatingNudgeDismissed(publicationId)) {
+      return;
+    }
+    dismissRatingNudge(publicationId);
+    void api.getPublicationRatingStatus(publicationId).then((status) => {
+      if (status.eligibility === 'eligible' && status.userScore == null) {
+        setRateModalInitialScore(null);
+        setShowRateModal(true);
+      }
+    });
+  }, [chapters, currentChapterIndex, onChapterRead, publicationId]);
 
   /** Implicit leave (exit, TOC, tab close) — requires 85% scroll. */
   const tryMarkCurrentChapterRead = useCallback(() => {
@@ -1631,6 +1646,18 @@ export function ReadingMode({
           publicationId={publicationId}
           chapters={publicationChapters}
           preloadedEntries={publicationGlossaryPreloaded ?? undefined}
+        />
+      )}
+
+      {publicationId && (
+        <RatePublicationModal
+          isOpen={showRateModal}
+          onClose={() => setShowRateModal(false)}
+          initialScore={rateModalInitialScore}
+          onSave={async (score) => {
+            await api.upsertPublicationRating(publicationId, score);
+            setShowRateModal(false);
+          }}
         />
       )}
     </div>

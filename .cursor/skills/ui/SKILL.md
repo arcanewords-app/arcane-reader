@@ -64,7 +64,7 @@ Policies (tokens, a11y, 44px touch) stay in [`design-system.mdc`](../../rules/de
 
 ## Checklist (UI tasks)
 
-- [ ] Checked [PATTERNS.md](./PATTERNS.md) for reusable recipe
+- [ ] Checked [PATTERNS.md](./PATTERNS.md) for reusable recipe (publication ratings → `publication-rating-*`, `catalog-sort-by-rating`)
 - [ ] Primitives from `components/ui/`; tokens from `variables.css`
 - [ ] hover / focus-visible / disabled / loading where applicable
 - [ ] i18n keys in en, ru, be (and pl if touching pl.json)

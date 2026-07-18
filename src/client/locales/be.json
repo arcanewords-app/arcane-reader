@@ -1062,6 +1062,7 @@
     "emptyMyWorksHint": "Апублікуйце праект на старонцы праектаў — ён з'явіцца тут.",
     "orderNewest": "Спачатку новыя",
     "orderOldest": "Спачатку старыя",
+    "orderByRating": "Па рэйтынгу",
     "targetLanguageLabel": "Мова",
     "languageAll": "Усе мовы",
     "filterByAuthor": "Аўтар",
@@ -1504,6 +1505,24 @@
     "tiersLink": "Узроўні",
     "maxTierReached": "У вас максімальны ўзровень аўтара.",
     "cardUpgradeTitle": "Павышэнне ўзроўню"
+  },
+  "rating": {
+    "avgAria": "{{avg}} з 5, {{count}} ацэнак",
+    "summary": "Ацэнка чытачоў",
+    "rate": "Ацаніць",
+    "change": "Змяніць ацэнку",
+    "ownWork": "Нельга ацаніць сваю публікацыю",
+    "readFirst": "Прачытайце хаця б адзін раздзел, каб ацаніць",
+    "rateTitle": "Ацаніць пераклад",
+    "save": "Захаваць",
+    "remove": "Прыбраць ацэнку",
+    "yourScore": "Ваша ацэнка: {{score}}",
+    "count": "{{count}} ацэнак",
+    "scoreLabel1": "Дрэнна",
+    "scoreLabel2": "Так сабе",
+    "scoreLabel3": "Нармальна",
+    "scoreLabel4": "Добра",
+    "scoreLabel5": "Выдатна"
   },
   "publication": {
     "untitled": "Без назвы",

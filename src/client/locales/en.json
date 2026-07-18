@@ -1065,6 +1065,7 @@
     "emptyMyWorksHint": "Publish a project from the projects page — it will appear here.",
     "orderNewest": "Newest first",
     "orderOldest": "Oldest first",
+    "orderByRating": "Highest rated",
     "filterByAuthor": "Author",
     "filterByTranslator": "Translator",
     "filterByTag": "Tag",
@@ -1505,6 +1506,24 @@
     "tiersLink": "Account tiers",
     "maxTierReached": "You have the highest author tier.",
     "cardUpgradeTitle": "Upgrade account level"
+  },
+  "rating": {
+    "avgAria": "{{avg}} out of 5, {{count}} ratings",
+    "summary": "Reader rating",
+    "rate": "Rate",
+    "change": "Change rating",
+    "ownWork": "You cannot rate your own publication",
+    "readFirst": "Read at least one chapter to rate",
+    "rateTitle": "Rate this translation",
+    "save": "Save rating",
+    "remove": "Remove rating",
+    "yourScore": "Your rating: {{score}}",
+    "count": "{{count}} ratings",
+    "scoreLabel1": "Poor",
+    "scoreLabel2": "Fair",
+    "scoreLabel3": "Good",
+    "scoreLabel4": "Very good",
+    "scoreLabel5": "Excellent"
   },
   "publication": {
     "untitled": "Untitled",

@@ -14,7 +14,7 @@ import {
   MAX_TRANSLATOR_PSEUDONYMS_PER_USER,
 } from '../../../shared/translatorPseudonyms.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { PublicEntity, PublicEntityKind , GlossaryEntry } from '../../../storage/database.js';
+import type { PublicEntity, PublicEntityKind, GlossaryEntry } from '../../../storage/database.js';
 import {
   translationStatusFromMetadata,
   type TranslationStatus,
@@ -385,7 +385,7 @@ export async function countPublicationsUsingEntity(entityId: string): Promise<nu
 export async function listPublicationsPublic(options?: {
   limit?: number;
   offset?: number;
-  orderBy?: 'published_at' | 'created_at';
+  orderBy?: 'published_at' | 'created_at' | 'rating';
   orderAsc?: boolean;
   authorEntityId?: string;
   translatorEntityId?: string;
@@ -407,6 +407,9 @@ export async function listPublicationsPublic(options?: {
     updatedAt: string;
     slug: string | null;
     translatedChapterCount: number;
+    ratingAvg: number | null;
+    ratingCount: number;
+    ratingBayesian: number | null;
   }[]
 > {
   const limit = options?.limit ?? 50;
@@ -429,12 +432,18 @@ export async function listPublicationsPublic(options?: {
     query = query.contains('tag_entity_ids', [tagEntityId]);
   }
 
-  const { data, error } = await query
-    .order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
+  if (orderBy === 'rating') {
+    query = query
+      .order('rating_bayesian', { ascending: false, nullsFirst: false })
+      .order('published_at', { ascending: false, nullsFirst: false });
+  } else {
+    query = query.order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
       ascending: orderAsc,
       nullsFirst: false,
-    })
-    .range(offset, offset + limit - 1);
+    });
+  }
+
+  const { data, error } = await query.range(offset, offset + limit - 1);
 
   if (error) {
     // Fallback if view unavailable or anon cannot EXECUTE SECURITY DEFINER helpers in view
@@ -466,7 +475,7 @@ export async function listPublicationsPublic(options?: {
 async function listPublicationsPublicFallback(options: {
   limit?: number;
   offset?: number;
-  orderBy?: 'published_at' | 'created_at';
+  orderBy?: 'published_at' | 'created_at' | 'rating';
   orderAsc?: boolean;
   authorEntityId?: string;
   translatorEntityId?: string;
@@ -485,16 +494,30 @@ async function listPublicationsPublicFallback(options: {
     query = query.eq('translator_entity_id', options.translatorEntityId);
   if (options.tagEntityId) query = query.contains('tag_entity_ids', [options.tagEntityId]);
 
-  const { data, error } = await query
-    .order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
-      ascending: orderAsc,
-      nullsFirst: false,
-    })
-    .range(offset, offset + limit - 1);
+  let rows: PublicationRow[];
+  if (options.orderBy === 'rating') {
+    const { data, error } = await query;
+    if (error) throw new Error(`Failed to list publications: ${error.message}`);
+    rows = [...((data || []) as PublicationRow[])].sort((a, b) => {
+      const ba = a.rating_bayesian != null ? Number(a.rating_bayesian) : -1;
+      const bb = b.rating_bayesian != null ? Number(b.rating_bayesian) : -1;
+      if (bb !== ba) return bb - ba;
+      const pa = a.published_at ? new Date(a.published_at).getTime() : 0;
+      const pb = b.published_at ? new Date(b.published_at).getTime() : 0;
+      return pb - pa;
+    });
+    rows = rows.slice(offset, offset + limit);
+  } else {
+    const { data, error } = await query
+      .order(orderBy === 'published_at' ? 'published_at' : 'created_at', {
+        ascending: orderAsc,
+        nullsFirst: false,
+      })
+      .range(offset, offset + limit - 1);
+    if (error) throw new Error(`Failed to list publications: ${error.message}`);
+    rows = (data || []) as PublicationRow[];
+  }
 
-  if (error) throw new Error(`Failed to list publications: ${error.message}`);
-
-  const rows = (data || []) as PublicationRow[];
   const projectIds = [...new Set(rows.map((r) => r.project_id))];
   const translatedCounts: Record<string, number> = {};
 
