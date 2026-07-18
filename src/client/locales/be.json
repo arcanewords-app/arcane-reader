@@ -1743,7 +1743,14 @@
     "yourRights": "Вашы правы (GDPR)",
     "yourRightsDesc": "Доступ, выпраўленне, выдаленне, абмежаванне апрацоўкі, перанасімасць, пярэчанне. Скарга ў нагляднага органа (ЕС). Кантакт: {{contactEmail}}",
     "contact": "Кантакт",
-    "contactDesc": "Запыты па персанальных даных: {{contactEmail}}"
+    "contactDesc": "Запыты па персанальных даных: {{contactEmail}}",
+    "cookieSettings": "Аналітычныя cookies",
+    "cookieSettingsDesc": "Google Analytics загружаецца толькі пасля вашай згоды. Калі вы адхілілі cookies, мы спытаем зноў праз 30 дзён. Тут можна скінуць выбар — банер з’явіцца пры наступным візіце.",
+    "cookieStatusLabel": "Бягучы выбар",
+    "cookieStatusAccepted": "Прынята",
+    "cookieStatusRejected": "Адхілена (банер схаваны 30 дзён)",
+    "cookieStatusUnset": "Яшчэ не выбрана",
+    "cookieReset": "Скінуць налады cookies"
   },
   "terms": {
     "title": "Умовы выкарыстання",

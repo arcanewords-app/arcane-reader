@@ -1743,7 +1743,14 @@
     "yourRights": "Ваши права (GDPR)",
     "yourRightsDesc": "Доступ, исправление, удаление, ограничение обработки, переносимость, возражение. Жалоба в надзорный орган (ЕС). Контакт: {{contactEmail}}",
     "contact": "Контакт",
-    "contactDesc": "Запросы по персональным данным: {{contactEmail}}"
+    "contactDesc": "Запросы по персональным данным: {{contactEmail}}",
+    "cookieSettings": "Аналитические cookies",
+    "cookieSettingsDesc": "Google Analytics загружается только после вашего согласия. Если вы отклонили cookies, мы спросим снова через 30 дней. Здесь можно сбросить выбор — баннер появится при следующем визите.",
+    "cookieStatusLabel": "Текущий выбор",
+    "cookieStatusAccepted": "Принято",
+    "cookieStatusRejected": "Отклонено (баннер скрыт 30 дней)",
+    "cookieStatusUnset": "Ещё не выбрано",
+    "cookieReset": "Сбросить настройки cookies"
   },
   "terms": {
     "title": "Условия использования",

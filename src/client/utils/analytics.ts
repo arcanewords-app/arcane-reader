@@ -9,6 +9,8 @@ declare global {
 
 let gaInitialized = false;
 
+export type ReadingAnalyticsMode = 'public' | 'author';
+
 function sendWebVitalsToGA(metric: {
   name: string;
   value: number;
@@ -36,6 +38,10 @@ export function initGA(measurementId: string): void {
   if (gaInitialized || typeof window === 'undefined') return;
   gaInitialized = true;
 
+  if (import.meta.env.DEV) {
+    console.info('[analytics] GA4 initialized', measurementId);
+  }
+
   window.dataLayer = window.dataLayer || [];
   window.gtag = function gtag(...args: unknown[]) {
     window.dataLayer?.push(args);
@@ -49,6 +55,7 @@ export function initGA(measurementId: string): void {
 
   window.gtag('config', measurementId, {
     anonymize_ip: true,
+    send_page_view: false,
   });
 }
 
@@ -65,6 +72,54 @@ export function trackEvent(name: string, params?: Record<string, unknown>): void
   if (!window.gtag || !gaInitialized) return;
 
   window.gtag('event', name, params);
+}
+
+export function trackReadingStart(params: {
+  mode: ReadingAnalyticsMode;
+  publicationId?: string;
+  projectId?: string;
+  chapterId: string;
+  chapterNumber: number;
+}): void {
+  trackEvent('reading_start', {
+    mode: params.mode,
+    publication_id: params.publicationId,
+    project_id: params.projectId,
+    chapter_id: params.chapterId,
+    chapter_number: params.chapterNumber,
+  });
+}
+
+export function trackChapterComplete(params: {
+  mode: ReadingAnalyticsMode;
+  publicationId?: string;
+  projectId?: string;
+  chapterId: string;
+  chapterNumber: number;
+}): void {
+  trackEvent('chapter_complete', {
+    mode: params.mode,
+    publication_id: params.publicationId,
+    project_id: params.projectId,
+    chapter_id: params.chapterId,
+    chapter_number: params.chapterNumber,
+  });
+}
+
+export function trackReadingEngagement(params: {
+  mode: ReadingAnalyticsMode;
+  publicationId?: string;
+  projectId?: string;
+  chapterId: string;
+  scrollPercent: number;
+}): void {
+  trackEvent('scroll_depth', {
+    mode: params.mode,
+    publication_id: params.publicationId,
+    project_id: params.projectId,
+    chapter_id: params.chapterId,
+    scroll_percent: params.scrollPercent,
+  });
 }
 
 export function trackAnnouncementView(alert: {

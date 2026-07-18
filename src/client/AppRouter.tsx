@@ -343,6 +343,14 @@ export function AppRouter() {
   const { consent } = useCookieConsent();
   const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
 
+  useEffect(() => {
+    if (import.meta.env.DEV && !measurementId) {
+      console.warn(
+        '[analytics] VITE_GA_MEASUREMENT_ID is not set. GA4 is disabled until the env var is set at build time.'
+      );
+    }
+  }, [measurementId]);
+
   // Initialize GA when user accepts analytics cookies
   useEffect(() => {
     if (consent !== 'accepted' || !measurementId) return;

@@ -1482,7 +1482,14 @@
     "yourRights": "Twoje prawa (RODO)",
     "yourRightsDesc": "Dostęp, sprostowanie, usunięcie, ograniczenie, przenoszenie, sprzeciw. Skarga do organu nadzorczego (UE). Kontakt: {{contactEmail}}",
     "contact": "Kontakt",
-    "contactDesc": "Zapytania o dane osobowe: {{contactEmail}}"
+    "contactDesc": "Zapytania o dane osobowe: {{contactEmail}}",
+    "cookieSettings": "Pliki cookie analityczne",
+    "cookieSettingsDesc": "Google Analytics ładuje się dopiero po Twojej zgodzie. Jeśli odrzuciłeś cookies, zapytamy ponownie po 30 dniach. Tutaj możesz zresetować wybór — baner pojawi się przy następnej wizycie.",
+    "cookieStatusLabel": "Aktualny wybór",
+    "cookieStatusAccepted": "Zaakceptowano",
+    "cookieStatusRejected": "Odrzucono (baner ukryty przez 30 dni)",
+    "cookieStatusUnset": "Jeszcze nie wybrano",
+    "cookieReset": "Resetuj preferencje cookies"
   },
   "terms": {
     "title": "Regulamin",

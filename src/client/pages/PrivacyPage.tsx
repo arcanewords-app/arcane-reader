@@ -2,11 +2,21 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { CONTACT_EMAIL } from '../../shared/contact';
 import { useStaticPageMeta } from '../hooks/useStaticPageMeta';
+import { useCookieConsent } from '../contexts/CookieConsentContext';
+import { Button } from '../components/ui';
 import './InfoPages.css';
 
 export function PrivacyPage() {
   const { t } = useTranslation();
+  const { consent, resetConsent } = useCookieConsent();
   useStaticPageMeta('/privacy');
+
+  const consentStatusLabel =
+    consent === 'accepted'
+      ? t('privacy.cookieStatusAccepted')
+      : consent === 'rejected'
+        ? t('privacy.cookieStatusRejected')
+        : t('privacy.cookieStatusUnset');
 
   return (
     <div class="info-page">
@@ -51,6 +61,17 @@ export function PrivacyPage() {
         <section class="info-section">
           <h2>{t('privacy.localStorage')}</h2>
           <p>{t('privacy.localStorageDesc')}</p>
+        </section>
+
+        <section class="info-section">
+          <h2>{t('privacy.cookieSettings')}</h2>
+          <p>{t('privacy.cookieSettingsDesc')}</p>
+          <p>
+            <strong>{t('privacy.cookieStatusLabel')}:</strong> {consentStatusLabel}
+          </p>
+          <Button variant="secondary" size="sm" onClick={resetConsent}>
+            {t('privacy.cookieReset')}
+          </Button>
         </section>
 
         <section class="info-section">

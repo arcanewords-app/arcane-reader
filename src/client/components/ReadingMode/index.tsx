@@ -32,8 +32,11 @@ import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import { buildReadingChapterUrl } from '../../utils/readingRoutes';
 import { shouldConfirmJumpAhead } from '../../../shared/reading-progress';
 import { RatePublicationModal } from '../Publication/RatePublicationModal';
-import { dismissRatingNudge, isRatingNudgeDismissed } from '../../utils/publicationRatingNudge';
-import './ReadingMode.css';
+import {
+  trackChapterComplete,
+  trackReadingEngagement,
+  trackReadingStart,
+} from '../../utils/analytics';
 
 /** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
 type ReaderChapter =
@@ -242,6 +245,11 @@ export function ReadingMode({
   const hasAppliedInitialScrollRef = useRef(false);
   const paragraphUrlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedParagraphUrlRef = useRef(-1);
+  const readingStartTrackedRef = useRef<Set<string>>(new Set());
+  const scrollDepthTrackedRef = useRef<Set<number>>(new Set());
+
+  const analyticsMode = isPublicationMode ? 'public' : 'author';
+  const analyticsScopeId = isPublicationMode ? publicationId : project?.id;
 
   const currentChapter = chapters[currentChapterIndex];
 
@@ -298,6 +306,13 @@ export function ReadingMode({
     if (markedThisSessionRef.current.has(ch.id)) return;
     markedThisSessionRef.current.add(ch.id);
     onChapterComplete(ch.number);
+    trackChapterComplete({
+      mode: analyticsMode,
+      publicationId,
+      projectId: project?.id,
+      chapterId: ch.id,
+      chapterNumber: ch.number,
+    });
 
     if (!publicationId || !authService.getToken() || isRatingNudgeDismissed(publicationId)) {
       return;
@@ -309,7 +324,61 @@ export function ReadingMode({
         setShowRateModal(true);
       }
     });
-  }, [chapters, currentChapterIndex, onChapterComplete, publicationId]);
+  }, [chapters, currentChapterIndex, onChapterComplete, publicationId, analyticsMode, project?.id]);
+
+  useEffect(() => {
+    if (!currentChapter || !analyticsScopeId) return;
+    const scopeKey = `${analyticsMode}:${analyticsScopeId}`;
+    if (readingStartTrackedRef.current.has(scopeKey)) return;
+    readingStartTrackedRef.current.add(scopeKey);
+    trackReadingStart({
+      mode: analyticsMode,
+      publicationId,
+      projectId: project?.id,
+      chapterId: currentChapter.id,
+      chapterNumber: currentChapter.number,
+    });
+  }, [analyticsMode, analyticsScopeId, currentChapter, publicationId, project?.id]);
+
+  useEffect(() => {
+    scrollDepthTrackedRef.current.clear();
+  }, [currentChapter?.id]);
+
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container || !currentChapter) return;
+
+    const thresholds = [25, 50, 75, 100] as const;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const maxScroll = scrollHeight - clientHeight;
+      if (maxScroll <= 0) return;
+      const percent = Math.round((scrollTop / maxScroll) * 100);
+      for (const threshold of thresholds) {
+        if (percent < threshold || scrollDepthTrackedRef.current.has(threshold)) continue;
+        scrollDepthTrackedRef.current.add(threshold);
+        trackReadingEngagement({
+          mode: analyticsMode,
+          publicationId,
+          projectId: project?.id,
+          chapterId: currentChapter.id,
+          scrollPercent: threshold,
+        });
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [
+    analyticsMode,
+    currentChapter,
+    publicationId,
+    project?.id,
+    chapterContentMap,
+    chapterContentLoading,
+    currentChapterIndex,
+  ]);
 
   const navigateToChapterIndex = useCallback(
     (newIndex: number, options?: { skipJumpConfirm?: boolean }) => {

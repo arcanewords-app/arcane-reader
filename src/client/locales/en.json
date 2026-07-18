@@ -1742,7 +1742,14 @@
     "yourRights": "Your rights (GDPR)",
     "yourRightsDesc": "Access, rectification, erasure, restriction, portability, objection. Right to lodge a complaint with a supervisory authority (EU). Contact: {{contactEmail}}",
     "contact": "Contact",
-    "contactDesc": "Personal data requests: {{contactEmail}}"
+    "contactDesc": "Personal data requests: {{contactEmail}}",
+    "cookieSettings": "Analytics cookies",
+    "cookieSettingsDesc": "We load Google Analytics only after you accept analytics cookies. If you declined, we will ask again after 30 days. You can reset your choice here — the cookie banner will appear on your next visit to any page.",
+    "cookieStatusLabel": "Current choice",
+    "cookieStatusAccepted": "Accepted",
+    "cookieStatusRejected": "Declined (banner hidden for 30 days)",
+    "cookieStatusUnset": "Not chosen yet",
+    "cookieReset": "Reset cookie preference"
   },
   "terms": {
     "title": "Terms of Service",

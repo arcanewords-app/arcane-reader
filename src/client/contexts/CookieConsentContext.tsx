@@ -1,12 +1,13 @@
 import { createContext } from 'preact';
 import { useContext, useState, useCallback } from 'preact/hooks';
-import { getConsent, setConsent, type ConsentStatus } from '../utils/cookieConsent';
+import { getConsent, setConsent, clearConsent, type ConsentStatus } from '../utils/cookieConsent';
 
 type CookieConsentContextValue = {
   consent: ConsentStatus | null;
   hasDecided: boolean;
   acceptConsent: () => void;
   rejectConsent: () => void;
+  resetConsent: () => void;
 };
 
 const CookieConsentContext = createContext<CookieConsentContextValue | null>(null);
@@ -24,6 +25,11 @@ export function CookieConsentProvider({ children }: { children: preact.Component
     setConsentState('rejected');
   }, []);
 
+  const resetConsent = useCallback(() => {
+    clearConsent();
+    setConsentState(null);
+  }, []);
+
   const hasDecided = consent !== null;
 
   const value: CookieConsentContextValue = {
@@ -31,6 +37,7 @@ export function CookieConsentProvider({ children }: { children: preact.Component
     hasDecided,
     acceptConsent,
     rejectConsent,
+    resetConsent,
   };
 
   return <CookieConsentContext.Provider value={value}>{children}</CookieConsentContext.Provider>;

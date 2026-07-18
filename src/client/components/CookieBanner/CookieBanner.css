@@ -5,8 +5,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 1300;
   padding: var(--space-md) var(--space-lg);
+  padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
   box-shadow: 0 -4px 12px rgb(0, 0, 0, 0.08);
@@ -66,4 +67,21 @@
   display: flex;
   gap: var(--space-sm);
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .cookie-banner__content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cookie-banner__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .cookie-banner__actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
 }

@@ -55,14 +55,21 @@ describe('analytics', () => {
     assert.equal(mockOnLCP.mock.calls.length, 1);
   });
 
-  it('initGA configures measurement id once', async () => {
+  it('initGA configures measurement id once with send_page_view false', async () => {
     const { windowStub, dataLayer } = makeWindow();
     vi.stubGlobal('window', windowStub);
     const { initGA } = await import('./analytics.js');
     initGA('G-TEST');
     initGA('G-TEST');
     assert.equal(dataLayer.filter((c) => Array.isArray(c) && c[0] === 'js').length, 1);
-    assert.ok(dataLayer.some((c) => Array.isArray(c) && c[0] === 'config' && c[1] === 'G-TEST'));
+    const config = dataLayer.find(
+      (c) => Array.isArray(c) && c[0] === 'config' && c[1] === 'G-TEST'
+    );
+    assert.ok(config);
+    assert.deepEqual((config as unknown[])[2], {
+      anonymize_ip: true,
+      send_page_view: false,
+    });
   });
 
   it('trackPageView sends page_view after init', async () => {
@@ -112,5 +119,34 @@ describe('analytics', () => {
     setupRouteChangeListener();
     windowStub.dispatchRouteChange('/projects?tab=1');
     assert.ok(dataLayer.some((c) => Array.isArray(c) && c[0] === 'event' && c[1] === 'page_view'));
+  });
+
+  it('tracks reading lifecycle events', async () => {
+    const { windowStub, dataLayer } = makeWindow();
+    vi.stubGlobal('window', windowStub);
+    const { initGA, trackReadingStart, trackChapterComplete, trackReadingEngagement } =
+      await import('./analytics.js');
+    initGA('G-TEST');
+    trackReadingStart({
+      mode: 'public',
+      publicationId: 'pub-1',
+      chapterId: 'ch-1',
+      chapterNumber: 3,
+    });
+    trackChapterComplete({
+      mode: 'public',
+      publicationId: 'pub-1',
+      chapterId: 'ch-1',
+      chapterNumber: 3,
+    });
+    trackReadingEngagement({
+      mode: 'author',
+      projectId: 'proj-1',
+      chapterId: 'ch-2',
+      scrollPercent: 50,
+    });
+    assert.ok(dataLayer.some((c) => Array.isArray(c) && c[1] === 'reading_start'));
+    assert.ok(dataLayer.some((c) => Array.isArray(c) && c[1] === 'chapter_complete'));
+    assert.ok(dataLayer.some((c) => Array.isArray(c) && c[1] === 'scroll_depth'));
   });
 });
