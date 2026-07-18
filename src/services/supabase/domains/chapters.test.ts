@@ -502,7 +502,7 @@ describe('markChaptersAsTranslatedBatch', () => {
     mockRpc.mockResolvedValue({
       data: [
         { chapter_id: 'ch-1', status: 'success' },
-        { chapter_id: 'ch-2', status: 'skipped', reason: 'already translated' },
+        { chapter_id: 'ch-2', status: 'skipped', reason: 'already_translated' },
       ],
       error: null,
     });
@@ -511,7 +511,7 @@ describe('markChaptersAsTranslatedBatch', () => {
     assert.equal(result.summary.total, 2);
     assert.equal(result.summary.success, 1);
     assert.equal(result.summary.skipped, 1);
-    assert.equal(result.results[1]?.reason, 'already translated');
+    assert.equal(result.results[1]?.reason, 'already_translated');
   });
 
   it('throws when RPC fails', async () => {

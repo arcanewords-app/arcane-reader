@@ -801,11 +801,13 @@ export async function handleMarkAsTranslatedBatch(req: Request, res: Response) {
       }
     }
 
-    await invalidateProjectAndRelatedCaches(
-      req.user.id,
-      requireRouteParam(req.params.projectId, 'projectId'),
-      token
-    );
+    if (!parsed.data.options?.skipCacheInvalidation) {
+      await invalidateProjectAndRelatedCaches(
+        req.user.id,
+        requireRouteParam(req.params.projectId, 'projectId'),
+        token
+      );
+    }
     req.log?.info(
       {
         event: 'chapters.mark_translated.batch_completed',

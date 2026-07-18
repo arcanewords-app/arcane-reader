@@ -143,7 +143,19 @@
     "batchButton": "Oznacz jako przetłumaczone ({{count}})",
     "progressTitle": "Oznaczanie rozdziałów jako przetłumaczone",
     "batchChunkProgress": "Rozdziały {{from}}–{{to}} z {{total}}",
-    "progressStatusLabel": "Status"
+    "progressStatusLabel": "Status",
+    "issuesErrorsTitle": "Nie udało się oznaczyć",
+    "issuesSkippedTitle": "Pominięte",
+    "reason": {
+      "already_translated": "Już oznaczono jako przetłumaczone",
+      "no_paragraphs": "Brak akapitów do oznaczenia",
+      "no_source_text": "Brak tekstu źródłowego w akapitach",
+      "translation_in_progress": "Trwa tłumaczenie — poczekaj lub anuluj",
+      "translating": "Trwa tłumaczenie — poczekaj lub anuluj",
+      "chapter_not_found": "Nie znaleziono rozdziału",
+      "not_processed": "Nie przetworzono (przerwano lub błąd sieci)",
+      "unknown": "Nie udało się oznaczyć"
+    }
   },
   "chapterActions": {
     "menuTitle": "Akcje rozdziałów",
@@ -380,6 +392,7 @@
     "appLanguage": "Język aplikacji",
     "appLanguageRu": "Rosyjski",
     "appLanguageEn": "Angielski",
+    "appLanguageBe": "Białoruski",
     "appLanguagePl": "Polski",
     "originalReadingMode": "Tryb czytania oryginału",
     "originalReadingModeDescOn": "Tylko analiza i oryginalny tekst. Tłumaczenie wyłączone.",

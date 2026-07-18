@@ -1,6 +1,6 @@
 /**
  * i18n setup for app UI localization.
- * Default language: Russian (ru). Supported app locales: ru, en, be.
+ * Default language: Russian (ru). Supported app locales: ru, en, be, pl.
  * Resolution order: localStorage (explicit choice) → browser languages → ru.
  */
 
@@ -9,10 +9,11 @@ import { initReactI18next } from 'react-i18next';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
 import be from './locales/be.json';
+import pl from './locales/pl.json';
 
 export const APP_LOCALE_KEY = 'app.locale';
-export type AppLocale = 'ru' | 'en' | 'be';
-export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en', 'be'];
+export type AppLocale = 'ru' | 'en' | 'be' | 'pl';
+export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en', 'be', 'pl'];
 
 function syncHtmlLang(locale: AppLocale): void {
   if (typeof document === 'undefined') return;
@@ -28,7 +29,7 @@ function resolveBrowserLocale(): AppLocale {
   for (const raw of codes) {
     if (!raw) continue;
     const base = raw.split('-')[0].toLowerCase();
-    if (base === 'ru' || base === 'en' || base === 'be') return base;
+    if (base === 'ru' || base === 'en' || base === 'be' || base === 'pl') return base;
   }
   return 'ru';
 }
@@ -36,10 +37,6 @@ function resolveBrowserLocale(): AppLocale {
 function getInitialLocale(): AppLocale {
   if (typeof window === 'undefined') return 'ru';
   const saved = localStorage.getItem(APP_LOCALE_KEY);
-  if (saved === 'pl') {
-    localStorage.setItem(APP_LOCALE_KEY, 'en');
-    return 'en';
-  }
   if (saved && SUPPORTED_LOCALES.includes(saved as AppLocale)) {
     return saved as AppLocale;
   }
@@ -67,6 +64,7 @@ i18n.use(initReactI18next).init({
     ru: { translation: ru },
     en: { translation: en },
     be: { translation: be },
+    pl: { translation: pl },
   },
   lng: initialLocale,
   fallbackLng: 'ru',

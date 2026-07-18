@@ -153,7 +153,19 @@
     "batchButton": "Пазначыць як перакладзеныя ({{count}})",
     "progressTitle": "Пазначэнне раздзелаў як перакладзеных",
     "batchChunkProgress": "Раздзелы {{from}}–{{to}} з {{total}}",
-    "progressStatusLabel": "Статус"
+    "progressStatusLabel": "Статус",
+    "issuesErrorsTitle": "Не ўдалося пазначыць",
+    "issuesSkippedTitle": "Прапушчаны",
+    "reason": {
+      "already_translated": "Ужо пазначана як перакладзеная",
+      "no_paragraphs": "Няма абзацаў для пазначэння",
+      "no_source_text": "Няма зыходнага тэксту ў абзацах",
+      "translation_in_progress": "Ідзе пераклад — пачакайце або адмяніце",
+      "translating": "Ідзе пераклад — пачакайце або адмяніце",
+      "chapter_not_found": "Раздзел не знойдзены",
+      "not_processed": "Не апрацавана (перапынена або збой сеткі)",
+      "unknown": "Не ўдалося пазначыць"
+    }
   },
   "chapterActions": {
     "menuTitle": "Дзеянні з раздзеламі",

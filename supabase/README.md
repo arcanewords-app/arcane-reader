@@ -32,6 +32,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260708180000_import_chapters_batch_timeout.sql`         | `import_chapters_batch`: `SET statement_timeout=120s`, `search_path=''`                                                 |
 | `20260708190000_heavy_rpc_statement_timeout.sql`           | Heavy RPC registry: `ALTER FUNCTION SET statement_timeout` (write 120s, read 60s); fix `search_path` on 3 write RPC     |
 | `20260710220000_fix_renumber_reorder_search_path.sql`      | `renumber_chapters_atomic` / `reorder_chapters`: `public.chapters` + `public.projects` (empty `search_path` regression) |
+| `20260718100000_mark_chapters_as_translated_bulk.sql`      | `mark_chapters_as_translated_batch`: set-based bulk UPDATE; stable reason codes                                         |
 
 ## Heavy RPC policy
 
@@ -39,13 +40,13 @@ Supabase role **`authenticated`** has `statement_timeout = 8s`. Do **not** raise
 
 Batch or loop RPC that touch many `chapters` / `paragraphs` rows must use a **function-level** override. SSOT for names: `supabase/migrations/20260708190000_heavy_rpc_statement_timeout.sql`.
 
-| Function                            | Tier  | Timeout | Notes                                       |
-| ----------------------------------- | ----- | ------- | ------------------------------------------- |
-| `mark_chapters_as_translated_batch` | write | 120s    | UPDATE paragraphs + chapter per id in array |
-| `import_chapters_batch`             | write | 120s    | Insert chapters + split paragraphs          |
-| `reorder_chapters`                  | write | 120s    | Mass UPDATE `chapters.number`               |
-| `renumber_chapters_atomic`          | write | 120s    | Renumber all chapters in project            |
-| `search_paragraphs_in_project`      | read  | 60s     | `pg_trgm` over project paragraphs           |
+| Function                            | Tier  | Timeout | Notes                                                       |
+| ----------------------------------- | ----- | ------- | ----------------------------------------------------------- |
+| `mark_chapters_as_translated_batch` | write | 120s    | Set-based UPDATE paragraphs + chapters; stable reason codes |
+| `import_chapters_batch`             | write | 120s    | Insert chapters + split paragraphs                          |
+| `reorder_chapters`                  | write | 120s    | Mass UPDATE `chapters.number`                               |
+| `renumber_chapters_atomic`          | write | 120s    | Renumber all chapters in project                            |
+| `search_paragraphs_in_project`      | read  | 60s     | `pg_trgm` over project paragraphs                           |
 
 **When adding a new heavy RPC:** append the function name to the registry migration (or a follow-up migration with the same `DO` block pattern) and add a row to this table.
 

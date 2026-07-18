@@ -23,6 +23,7 @@ import { api } from '../../api/client';
 import { estimateBatchTranslationTokensForProject } from '../../config/tokenEstimate';
 import { normalizeEditingFocus, type EditingFocus } from '../../../shared/editing-focus.js';
 import { useBatchChapterTranslation } from '../../hooks/useBatchChapterTranslation';
+import { formatMarkTranslatedBatchReason } from '../../hooks/markTranslatedBatchProgress';
 import { TokenLimitWarning } from '../TokenUsage';
 import { ChapterPickerPanel } from '../Project/ChapterPickerPanel';
 import {
@@ -1098,9 +1099,95 @@ export function ProcessChapters({
               )}
             </div>
             {(() => {
-              const issues = translationProgress.chapters.filter(
-                (ch) => ch.status === 'error' || ch.status === 'skipped'
+              const isMarkBatch = translationProgress.mode === 'mark-translated';
+              const errorChapters = translationProgress.chapters.filter(
+                (ch) => ch.status === 'error'
               );
+              const skippedChapters = translationProgress.chapters.filter(
+                (ch) => ch.status === 'skipped'
+              );
+              const formatReason = (reason?: string) => {
+                if (!reason) return undefined;
+                return isMarkBatch ? formatMarkTranslatedBatchReason(reason, t) : reason;
+              };
+
+              const renderIssueList = (
+                items: typeof errorChapters,
+                variant: 'error' | 'skipped'
+              ) => (
+                <div style={{ maxHeight: '180px', overflowY: 'auto', fontSize: '0.85rem' }}>
+                  {items.map((issue) => {
+                    const reasonText = formatReason(issue.reason);
+                    return (
+                      <div
+                        key={issue.chapterId}
+                        style={{
+                          display: 'flex',
+                          gap: '0.5rem',
+                          marginBottom: '0.4rem',
+                          color: variant === 'error' ? 'var(--error)' : 'var(--text-dim)',
+                        }}
+                      >
+                        <span>
+                          {variant === 'error' ? (
+                            <Icon name="error" size="sm" />
+                          ) : (
+                            <Icon name="skip_next" size="sm" />
+                          )}
+                        </span>
+                        <span style={{ flex: 1 }}>
+                          {issue.title}
+                          {reasonText ? ` — ${reasonText}` : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+
+              if (isMarkBatch) {
+                if (errorChapters.length === 0 && skippedChapters.length === 0) return null;
+                return (
+                  <>
+                    {errorChapters.length > 0 && (
+                      <div
+                        style={{
+                          marginBottom: skippedChapters.length > 0 ? '1rem' : 0,
+                          padding: '0.75rem',
+                          background: 'var(--bg-secondary)',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <div
+                          style={{ marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600 }}
+                        >
+                          {t('markAsTranslated.issuesErrorsTitle')}
+                        </div>
+                        {renderIssueList(errorChapters, 'error')}
+                      </div>
+                    )}
+                    {skippedChapters.length > 0 && (
+                      <div
+                        style={{
+                          marginBottom: '1rem',
+                          padding: '0.75rem',
+                          background: 'var(--bg-secondary)',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <div
+                          style={{ marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600 }}
+                        >
+                          {t('markAsTranslated.issuesSkippedTitle')}
+                        </div>
+                        {renderIssueList(skippedChapters, 'skipped')}
+                      </div>
+                    )}
+                  </>
+                );
+              }
+
+              const issues = [...errorChapters, ...skippedChapters];
               if (issues.length === 0) return null;
               return (
                 <div

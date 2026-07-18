@@ -21,7 +21,7 @@ import { APP_LOCALE_KEY, SUPPORTED_LOCALES, getSavedLocaleSync, setSavedLocale }
 
 describe('i18n constants', () => {
   it('exposes supported locales and storage key', () => {
-    assert.deepEqual(SUPPORTED_LOCALES, ['ru', 'en', 'be']);
+    assert.deepEqual(SUPPORTED_LOCALES, ['ru', 'en', 'be', 'pl']);
     assert.equal(APP_LOCALE_KEY, 'app.locale');
   });
 });
@@ -53,15 +53,20 @@ describe('getSavedLocaleSync', () => {
     assert.equal(getSavedLocaleSync(), 'en');
   });
 
-  it('migrates legacy pl locale to en', () => {
+  it('returns saved pl locale from localStorage', () => {
     storage.set(APP_LOCALE_KEY, 'pl');
-    assert.equal(getSavedLocaleSync(), 'en');
-    assert.equal(storage.get(APP_LOCALE_KEY), 'en');
+    assert.equal(getSavedLocaleSync(), 'pl');
+    assert.equal(storage.get(APP_LOCALE_KEY), 'pl');
   });
 
   it('falls back to browser locale when nothing saved', () => {
     vi.stubGlobal('navigator', { language: 'be-BY', languages: ['be-BY'] });
     assert.equal(getSavedLocaleSync(), 'be');
+  });
+
+  it('resolves pl from browser languages', () => {
+    vi.stubGlobal('navigator', { language: 'pl-PL', languages: ['pl-PL'] });
+    assert.equal(getSavedLocaleSync(), 'pl');
   });
 
   it('defaults to ru for unsupported browser locale', () => {

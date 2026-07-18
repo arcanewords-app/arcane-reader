@@ -153,7 +153,19 @@
     "batchButton": "Пометить как переведённые ({{count}})",
     "progressTitle": "Пометка глав как переведённых",
     "batchChunkProgress": "Главы {{from}}–{{to}} из {{total}}",
-    "progressStatusLabel": "Статус"
+    "progressStatusLabel": "Статус",
+    "issuesErrorsTitle": "Не удалось пометить",
+    "issuesSkippedTitle": "Пропущены",
+    "reason": {
+      "already_translated": "Уже помечена как переведённая",
+      "no_paragraphs": "Нет абзацев для пометки",
+      "no_source_text": "Нет исходного текста в абзацах",
+      "translation_in_progress": "Идёт перевод — дождитесь или отмените",
+      "translating": "Идёт перевод — дождитесь или отмените",
+      "chapter_not_found": "Глава не найдена",
+      "not_processed": "Не обработана (прервано или сбой сети)",
+      "unknown": "Не удалось пометить"
+    }
   },
   "chapterActions": {
     "menuTitle": "Действия с главами",

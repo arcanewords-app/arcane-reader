@@ -7,7 +7,7 @@ import { Button, Icon } from './ui';
 import { TokenUsageIndicator } from './TokenUsage';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import { isMobileViewport } from '../utils/viewport';
-import { setSavedLocale, type AppLocale } from '../i18n';
+import { setSavedLocale, SUPPORTED_LOCALES, type AppLocale } from '../i18n';
 import { SupportMenu } from './Header/SupportMenu';
 import './Header.css';
 
@@ -37,6 +37,7 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
     ru: t('settings.appLanguageRu'),
     en: t('settings.appLanguageEn'),
     be: t('settings.appLanguageBe'),
+    pl: t('settings.appLanguagePl'),
   };
 
   useEffect(() => {
@@ -287,7 +288,7 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
               </Button>
               {localeOpen && (
                 <div class="header-locale-dropdown" role="menu">
-                  {(['ru', 'en', 'be'] as AppLocale[]).map((locale) => (
+                  {SUPPORTED_LOCALES.map((locale) => (
                     <button
                       key={locale}
                       type="button"

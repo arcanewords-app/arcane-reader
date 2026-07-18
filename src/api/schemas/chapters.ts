@@ -15,6 +15,7 @@ export const chapterIdsBodySchema = z.object({
   options: z
     .object({
       continueOnError: z.boolean().optional(),
+      skipCacheInvalidation: z.boolean().optional(),
     })
     .optional(),
 });

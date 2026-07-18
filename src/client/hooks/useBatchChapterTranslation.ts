@@ -171,8 +171,10 @@ export function useBatchChapterTranslation(
                 : null
             );
 
+            const isLastChunk = i + MARK_TRANSLATED_CLIENT_CHUNK_SIZE >= chapterIds.length;
             const response = await api.markChaptersAsTranslatedBatch(projectId, chunkIds, {
               continueOnError: true,
+              skipCacheInvalidation: !isLastChunk,
               signal: controller.signal,
             });
 

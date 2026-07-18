@@ -214,7 +214,11 @@ export const chaptersApi = {
   async markChaptersAsTranslatedBatch(
     projectId: string,
     chapterIds: string[],
-    options?: { continueOnError?: boolean; signal?: AbortSignal }
+    options?: {
+      continueOnError?: boolean;
+      skipCacheInvalidation?: boolean;
+      signal?: AbortSignal;
+    }
   ): Promise<MarkTranslatedBatchResponse> {
     return fetchJson(`/api/projects/${projectId}/chapters/mark-as-translated-batch`, {
       method: 'POST',
@@ -222,6 +226,9 @@ export const chaptersApi = {
         chapterIds,
         options: {
           continueOnError: options?.continueOnError ?? true,
+          ...(options?.skipCacheInvalidation !== undefined
+            ? { skipCacheInvalidation: options.skipCacheInvalidation }
+            : {}),
         },
       }),
       signal: options?.signal,

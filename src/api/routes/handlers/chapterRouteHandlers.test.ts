@@ -237,7 +237,7 @@ vi.mock('../../routeHelpers.js', () => ({
   warnLanguageOverrideWithGlossary: vi.fn(),
   translationCancelKey: vi.fn((p: string, c: string) => `${p}:${c}`),
   translationCancelRegistry: new Map(),
-  MARK_TRANSLATED_BATCH_CHUNK_SIZE: 50,
+  MARK_TRANSLATED_BATCH_CHUNK_SIZE: 100,
   ANALYSIS_JOB_TTL_SECONDS: 3600,
   TRANSLATE_JOB_TTL_SECONDS: 3600,
   SERVER_START_TIME_MS: Date.now(),

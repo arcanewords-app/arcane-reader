@@ -74,7 +74,7 @@ export const IMPORT_CHAPTER_BATCH_SIZE = Math.max(
 );
 export const MARK_TRANSLATED_BATCH_CHUNK_SIZE = Math.max(
   1,
-  Math.min(200, parseInt(process.env.MARK_TRANSLATED_BATCH_CHUNK_SIZE ?? '10', 10) || 10)
+  Math.min(200, parseInt(process.env.MARK_TRANSLATED_BATCH_CHUNK_SIZE ?? '100', 10) || 100)
 );
 export const ANALYSIS_JOB_TTL_SECONDS = parseInt(
   process.env.ANALYSIS_JOB_TTL_SECONDS ?? '3600',

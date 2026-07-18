@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_REQUEST_TIMEOUT_MS = parseInt(
-  process.env.SUPABASE_REQUEST_TIMEOUT_MS ?? '30000',
+  process.env.SUPABASE_REQUEST_TIMEOUT_MS ?? '120000',
   10
 );
 

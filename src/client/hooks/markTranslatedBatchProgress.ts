@@ -35,6 +35,34 @@ export interface BatchProgress {
 /** Client HTTP chunk size — keeps each request under Vercel maxDuration (~300s). */
 export const MARK_TRANSLATED_CLIENT_CHUNK_SIZE = 100;
 
+export function normalizeMarkTranslatedBatchReasonCode(reason: string | undefined): string | null {
+  if (!reason?.trim()) return null;
+  const normalized = reason.trim().toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'translating') return 'translation_in_progress';
+  return normalized;
+}
+
+type MarkTranslatedReasonTranslator = (key: string, defaultValue?: string) => string;
+
+export function formatMarkTranslatedBatchReason(
+  reason: string | undefined,
+  t: MarkTranslatedReasonTranslator
+): string | undefined {
+  const code = normalizeMarkTranslatedBatchReasonCode(reason);
+  if (!code) return undefined;
+
+  const key = `markAsTranslated.reason.${code}`;
+  const translated = t(key, '');
+  if (translated && translated !== key) {
+    return translated;
+  }
+
+  const unknown = t('markAsTranslated.reason.unknown', '');
+  return unknown && unknown !== 'markAsTranslated.reason.unknown'
+    ? unknown
+    : 'Could not mark as translated';
+}
+
 function mapMarkTranslatedResultToChapterStatus(
   item: MarkTranslatedBatchResultItem
 ): Pick<BatchChapterProgressItem, 'status' | 'reason'> {
