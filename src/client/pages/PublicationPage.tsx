@@ -9,6 +9,7 @@ import { usePageMeta } from '../hooks/usePageMeta';
 import { useUserRole } from '../hooks/useUserRole';
 import { BookPlaceholder } from '../components/Dashboard/BookPlaceholder';
 import { PublicationStatusBadge } from '../components/Home/PublicationStatusBadge';
+import { PublicationRatingCoverBadge } from '../components/Home/PublicationRatingCoverBadge';
 import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
 import { PublicationGlossaryModal } from '../components/Glossary';
@@ -508,6 +509,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       <div class="publication-page-content">
         <div class="publication-page-cover">
           {pub.translationStatus && <PublicationStatusBadge status={pub.translationStatus} />}
+          <PublicationRatingCoverBadge ratingAvg={pub.ratingAvg} ratingCount={pub.ratingCount} />
           {pub.coverImageUrl ? (
             <img src={pub.coverImageUrl} alt={title} />
           ) : (

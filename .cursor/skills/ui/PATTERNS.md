@@ -36,7 +36,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 | `header-support-control`     | Support via Boosty: icon + label, direct link   | `Header/SupportMenu.tsx`             |
 | `cover-status-badge`         | Absolute badge on publication cover             | `PublicationStatusBadge.tsx`         |
 | `publication-original-link`  | Compact external link to source on `/p/...`     | `PublicationPage.tsx`                |
-| `publication-rating-meta`    | Compact ★ avg on catalog card meta row          | `PublicationRatingMeta.tsx`          |
+| `cover-rating-badge`         | Compact ★ avg pill on cover top-right           | `PublicationRatingCoverBadge.tsx`    |
 | `publication-rating-summary` | Full stars + CTA on `/p/:id`                    | `PublicationRatingSummary.tsx`       |
 | `publication-rating-input`   | Modal 1–5 star rating input                     | `RatePublicationModal.tsx`           |
 | `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating      | `CatalogFilterToolbar.tsx`           |
@@ -226,29 +226,31 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ---
 
-## `publication-rating-meta`
+## `cover-rating-badge`
 
-**When:** Show aggregate publication rating on catalog grid cards.
+**When:** Show aggregate publication rating on catalog cards and publication page cover (top-right), mirroring `cover-status-badge` on the left.
 
-**When not:** Cover overlay; chapter rows; count &lt; display threshold (5); interactive rating.
+**When not:** Chapter rows; count &lt; display threshold (5); interactive rating; count text on the pill; five-star row on cover.
 
 **Files:**
 
-- [`src/client/components/Home/PublicationRatingMeta.tsx`](../../../src/client/components/Home/PublicationRatingMeta.tsx)
-- [`src/client/components/Home/PublicationCard.tsx`](../../../src/client/components/Home/PublicationCard.tsx) — compose in lang/chapters meta row
+- [`src/client/components/Home/PublicationRatingCoverBadge.tsx`](../../../src/client/components/Home/PublicationRatingCoverBadge.tsx)
+- [`src/client/components/Home/PublicationCard.tsx`](../../../src/client/components/Home/PublicationCard.tsx) — inside `.publication-card-cover`
+- [`src/client/pages/PublicationPage.tsx`](../../../src/client/pages/PublicationPage.tsx) — inside `.publication-page-cover`
 
 **Layout / behavior:**
 
-- Append after chapters with `.publication-card-meta-sep` (`·`).
-- One `Icon star` sm + avg `X.X` (`--text-dim`, same weight as lang badge).
-- Full stats in `title` / `aria-label` only.
-- Not clickable; card click still opens publication.
+- `position: absolute; top/right: var(--space-sm)` on cover container; `pointer-events: none`.
+- Neutral pill (`--bg-tertiary`, border) like `abandoned` status — readable on photos and placeholders.
+- `Icon star` sm in `--warning` + avg `X.X` only; full stats in `title` / `aria-label`.
+- Render independently of lang/chapters meta row.
+- Not clickable; card/cover navigation unchanged.
 
 **i18n:** `rating.avgAria` (avg + count).
 
-**a11y:** Decorative star `aria-hidden`; meaning in parent `aria-label`.
+**a11y:** Meaning in pill `aria-label`; star decorative via `Icon`.
 
-**Anti-patterns:** Stars on cover next to `cover-status-badge`; warning-colored star on card; showing `0.0` / «No ratings».
+**Anti-patterns:** Dim text without pill on cover photo; warning-filled pill background; showing `0.0` or count on pill; duplicating in meta row.
 
 ---
 

@@ -4,7 +4,7 @@ import type { Publication, PublicationListItem, PublicEntity } from '../../types
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { EntityChip } from './EntityChip';
 import { PublicationStatusBadge } from './PublicationStatusBadge';
-import { PublicationRatingMeta } from './PublicationRatingMeta';
+import { PublicationRatingCoverBadge } from './PublicationRatingCoverBadge';
 import { trackEvent } from '../../utils/analytics';
 import '../../styles/components/card-content-popup.css';
 import './PublicationCard.css';
@@ -111,6 +111,10 @@ export function PublicationCard({
       >
         <div class="publication-card-cover">
           {translationStatus && <PublicationStatusBadge status={translationStatus} />}
+          <PublicationRatingCoverBadge
+            ratingAvg={publication.ratingAvg}
+            ratingCount={publication.ratingCount}
+          />
           {coverImageUrl ? (
             <>
               <img
@@ -196,10 +200,6 @@ export function PublicationCard({
                     </span>
                   </>
                 )}
-                <PublicationRatingMeta
-                  ratingAvg={publication.ratingAvg}
-                  ratingCount={publication.ratingCount}
-                />
               </div>
             )}
           </div>
