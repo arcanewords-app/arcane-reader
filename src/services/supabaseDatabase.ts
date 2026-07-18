@@ -16,6 +16,7 @@ export * from './supabase/domains/publications.js';
 export * from './supabase/domains/readerProgress.js';
 export * from './supabase/domains/publicationRatings.js';
 export * from './supabase/domains/translationReports.js';
+export * from './supabase/domains/userQuotes.js';
 export * from './supabase/domains/news.js';
 export * from './supabase/domains/admin.js';
 export * from './supabase/domains/catalogBoard.js';

@@ -39,7 +39,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/terms` | guest+ | TermsPage | Terms of service |
 | `/news` | guest+ | NewsPage | News feed list |
 | `/news/:slugOrId` | guest+ | NewsDetailPage | Single news post |
-| `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar. Query: `tab=reading` (default, omitted) \| `settings` \| `profile` |
+| `/profile` | user+ | ProfilePage | Profile: reading history, settings, avatar. Query: `tab=reading` (default, omitted) \| `quotes` \| `settings` \| `profile` |
 | `/translation-requests` | author+ | TranslationRequestsPage | Author board: open requests, interests, create project (AuthorGate) |
 | `/projects` | author+ | ProjectsPage | Projects grid (AuthorGate) |
 | `/admin/entities` | admin+ | AdminEntitiesRedirect | Redirect to `/admin/entities/tag` |
@@ -175,6 +175,8 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/user/token-usage` | user+ | Token usage (query: date) |
 | GET | `/api/user/token-usage/history` | user+ | Token usage history (query: days) |
 | GET | `/api/user/reading-history` | user+ | Reading history (publications) |
+| GET | `/api/user/quotes` | user+ | Saved quotes list |
+| DELETE | `/api/user/quotes/:quoteId` | user+ | Delete saved quote |
 | GET | `/api/user/translation-requests` | user+ | User's catalog translation requests |
 | POST | `/api/catalog/translation-requests` | user+ | Create catalog translation request (catalog suggest modal) |
 | GET | `/api/user/profile` | user+ | Profile (id, email, role, avatarUrl) |
@@ -342,6 +344,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/publications/:id/rating` | optional | User rating status (`userScore`, `eligibility`) |
 | PUT | `/api/publications/:id/rating` | user+ | Upsert 1–5 rating (body: `{ score }`; requires `lastReadChapterNumber >= 1`; not owner) |
 | DELETE | `/api/publications/:id/rating` | user+ | Remove own rating |
+| POST | `/api/publications/:id/quotes` | user+ | Save quote from reading selection (body: chapterId, chapterNumber, quoteText, anchor offsets) |
 | POST | `/api/publications/:id/chapters/:chapterId/read` | user+ | **Deprecated** — completes chapter via watermark |
 | PATCH | `/api/publications/:id/reading-position` | user+ | **Deprecated** — returns 410 |
 

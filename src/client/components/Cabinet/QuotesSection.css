@@ -1,0 +1,139 @@
+.quotes-section-loading,
+.quotes-section-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-8, 32px) var(--space-4, 16px);
+  text-align: center;
+}
+
+.quotes-section-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-dim);
+}
+
+.quotes-section-empty-text {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.quotes-section-empty-hint {
+  margin: 0;
+  max-width: 36ch;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.quotes-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.quotes-section-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.quotes-section-item:last-child {
+  border-bottom: none;
+}
+
+.quotes-section-item-cover {
+  width: 72px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-card);
+}
+
+.quotes-section-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quotes-section-item-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.quotes-section-item-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quotes-section-item-chapter {
+  margin: var(--space-1, 4px) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.quotes-section-meta-sep {
+  margin: 0 0.35em;
+}
+
+.quotes-section-quote {
+  margin: 0;
+  padding-left: var(--space-3, 12px);
+  border-left: 3px solid var(--accent);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.quotes-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.quotes-section-delete-link {
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.quotes-section-delete-link:hover {
+  color: var(--error);
+}
+
+.quotes-section-delete-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .quotes-section-item {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: var(--space-3, 12px);
+  }
+
+  .quotes-section-item-cover {
+    width: 56px;
+  }
+}

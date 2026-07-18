@@ -1,6 +1,6 @@
-export type ProfileTab = 'reading' | 'settings' | 'profile';
+export type ProfileTab = 'reading' | 'quotes' | 'settings' | 'profile';
 
-const VALID_TABS = new Set<ProfileTab>(['reading', 'settings', 'profile']);
+const VALID_TABS = new Set<ProfileTab>(['reading', 'quotes', 'settings', 'profile']);
 
 const DEFAULT_TAB: ProfileTab = 'reading';
 

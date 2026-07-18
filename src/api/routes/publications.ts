@@ -24,6 +24,7 @@ import {
   handleGetPublicationGlossary,
   handleGetReadProgress,
   handleReportPublication,
+  handleCreatePublicationQuote,
   handleGetPublicationRatingStatus,
   handleUpsertPublicationRating,
   handleDeletePublicationRating,
@@ -120,6 +121,8 @@ export function registerPublicationRoutes(app: Application, deps: RouteDeps): vo
   app.delete('/api/publications/:id/rating', requireAuth, handleDeletePublicationRating);
 
   app.post('/api/publications/:id/report', requireAuth, handleReportPublication);
+
+  app.post('/api/publications/:id/quotes', requireAuth, handleCreatePublicationQuote);
 
   app.post('/api/publications/:id/chapters/:chapterId/read', requireAuth, handleMarkChapterRead);
 

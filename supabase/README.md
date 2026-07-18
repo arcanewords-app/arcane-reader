@@ -35,6 +35,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260718100000_mark_chapters_as_translated_bulk.sql`      | `mark_chapters_as_translated_batch`: set-based bulk UPDATE; stable reason codes                                         |
 | `20260718120000_publication_ratings.sql`                   | `publication_ratings` table, RLS, denormalized `rating_*` on `publications`, recreate `publications_list_with_counts`   |
 | `20260718130000_reading_progress_watermark.sql`            | `last_read_chapter_number` on `user_publication_progress`; migrate from `read_chapter_ids`; deprecate bookmark columns  |
+| `20260719120000_user_quotes.sql`                           | `user_quotes` table for reader-saved publication quotes; RLS (select/insert/delete own rows)                            |
 
 ## Heavy RPC policy
 

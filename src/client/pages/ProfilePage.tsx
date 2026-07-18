@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
+import { QuotesSection } from '../components/Cabinet/QuotesSection';
 import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
 import { api } from '../api/client';
 import { authService } from '../services/authService';
@@ -122,6 +123,7 @@ export function ProfilePage() {
 
   const tabs: { id: ProfileTab; labelKey: string }[] = [
     { id: 'reading', labelKey: 'profile.reading' },
+    { id: 'quotes', labelKey: 'profile.quotes' },
     { id: 'settings', labelKey: 'profile.settings' },
     { id: 'profile', labelKey: 'profile.profile' },
   ];
@@ -151,6 +153,13 @@ export function ProfilePage() {
           <div class="profile-section">
             <h2 class="profile-section-title">{t('profile.readingTitle')}</h2>
             <ReadingHistorySection />
+          </div>
+        )}
+
+        {activeTab === 'quotes' && (
+          <div class="profile-section">
+            <h2 class="profile-section-title">{t('profile.quotesTitle')}</h2>
+            <QuotesSection />
           </div>
         )}
 

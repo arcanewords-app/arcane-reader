@@ -145,4 +145,28 @@ export const userApi = {
     setCached(userScopedCache.readingHistory, userId, data);
     return data;
   },
+
+  async getUserQuotes(): Promise<{
+    items: Array<{
+      id: string;
+      publicationId: string;
+      chapterId: string;
+      chapterNumber: number;
+      quoteText: string;
+      startParagraph: number;
+      startOffset: number;
+      endParagraph: number;
+      endOffset: number;
+      createdAt: string;
+      publicationTitle: string | null;
+      publicationSlug: string | null;
+      coverImageUrl: string | null;
+    }>;
+  }> {
+    return fetchJson('/api/user/quotes');
+  },
+
+  async deleteUserQuote(quoteId: string): Promise<{ success: boolean }> {
+    return fetchJson(`/api/user/quotes/${quoteId}`, { method: 'DELETE' });
+  },
 };

@@ -21,6 +21,16 @@ export const reportBodySchema = z.object({
   description: z.string().trim().min(1),
 });
 
+export const createQuoteBodySchema = z.object({
+  chapterId: z.string().uuid(),
+  chapterNumber: z.number().int().min(1),
+  quoteText: z.string().trim().min(1).max(2000),
+  startParagraph: z.number().int().min(0),
+  startOffset: z.number().int().min(0),
+  endParagraph: z.number().int().min(0),
+  endOffset: z.number().int().min(0),
+});
+
 export const readProgressBodySchema = z.object({
   chapterNumber: z.number().int().min(0),
   mode: z.enum(['complete', 'set']),
@@ -69,4 +79,5 @@ export const publicationRatingBodySchema = z.object({
 export type PublicationRatingBody = z.infer<typeof publicationRatingBodySchema>;
 export type PublicationsListQuery = z.infer<typeof publicationsListQuerySchema>;
 export type ReportBody = z.infer<typeof reportBodySchema>;
+export type CreateQuoteBody = z.infer<typeof createQuoteBodySchema>;
 export type PublishBody = z.infer<typeof publishBodySchema>;

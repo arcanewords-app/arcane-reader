@@ -87,7 +87,9 @@
   /* Reader chrome (header, nav, footer, modals in reading mode) */
   --reader-chrome-bg: #151520;
   --reader-chrome-border: rgb(255, 255, 255, 0.08);
+  --reader-accent: #9d6fff;
   --reader-accent-text: #ffffff;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
   /* Alt background for text blocks (system-message, note, etc.) */
   --reader-bg-alt: rgb(157, 111, 255, 0.12);
 
@@ -219,6 +221,7 @@
   --reader-chrome-bg: #151520;
   --reader-chrome-border: rgb(255, 255, 255, 0.08);
   --reader-accent-text: #ffffff;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
 }
 
 [data-reader-theme='light'] {
@@ -230,6 +233,7 @@
   --reader-chrome-bg: #f0f0f0;
   --reader-chrome-border: rgb(0, 0, 0, 0.1);
   --reader-accent-text: #ffffff;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
 }
 
 [data-reader-theme='sepia'] {
@@ -241,6 +245,7 @@
   --reader-chrome-bg: #ebe0c8;
   --reader-chrome-border: rgb(92, 75, 55, 0.2);
   --reader-accent-text: #ffffff;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
 }
 
 [data-reader-theme='contrast'] {
@@ -252,6 +257,7 @@
   --reader-chrome-bg: #111111;
   --reader-chrome-border: rgb(255, 255, 255, 0.25);
   --reader-accent-text: #000000;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
 }
 
 [data-reader-theme='paper'] {
@@ -263,6 +269,17 @@
   --reader-chrome-bg: #e8e2d0;
   --reader-chrome-border: rgb(40, 40, 42, 0.12);
   --reader-accent-text: #ffffff;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
+}
+
+[data-reader-theme='custom'] {
+  --reader-accent: color-mix(in srgb, var(--reader-text) 55%, var(--reader-bg));
+  --reader-chrome-bg: color-mix(in srgb, var(--reader-bg) 90%, var(--reader-text));
+  --reader-chrome-border: color-mix(in srgb, var(--reader-text) 14%, transparent);
+  --reader-text-dim: color-mix(in srgb, var(--reader-text) 62%, var(--reader-bg));
+  --reader-bg-alt: color-mix(in srgb, var(--reader-accent) 14%, var(--reader-bg));
+  --reader-accent-text: #ffffff;
+  --reader-highlight: color-mix(in srgb, var(--reader-accent) 28%, var(--reader-bg));
 }
 
 /* === Reader Font Families === */

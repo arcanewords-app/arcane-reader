@@ -56,6 +56,7 @@ function withPathAndSearch(pathname: string, search: string, fn: () => void) {
 describe('profileRoutes', () => {
   it('omits default tab from URL', () => {
     assert.equal(buildProfileUrl('reading'), '/profile');
+    assert.equal(buildProfileUrl('quotes'), '/profile?tab=quotes');
     assert.equal(buildProfileUrl('settings'), '/profile?tab=settings');
   });
 

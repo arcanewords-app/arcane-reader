@@ -9,6 +9,7 @@ import {
   exportBodySchema,
   publicationsListQuerySchema,
   reportBodySchema,
+  createQuoteBodySchema,
   readProgressBodySchema,
   publicationRatingBodySchema,
   publishBodySchema,
@@ -39,6 +40,8 @@ import {
   updateReadProgress,
   resetReadProgress,
   createTranslationReport,
+  createUserQuote,
+  UserQuoteError,
   listPublicEntities,
   getPublicEntityById,
   getPublicationRatingStatus,
@@ -1357,6 +1360,48 @@ export async function handleReportPublication(req: Request, res: Response): Prom
     const msg = error instanceof Error ? error.message : 'Failed to submit report';
     const status = msg.includes('wait') ? 429 : msg.includes('not found') ? 404 : 500;
     res.status(status).json({ error: msg });
+  }
+}
+
+export async function handleCreatePublicationQuote(req: Request, res: Response): Promise<void> {
+  try {
+    const slugOrId = requireRouteParam(req.params.id, 'id');
+    const pub = await getPublicationBySlugOrId(slugOrId);
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    const parsed = createQuoteBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const { id } = await createUserQuote(req.user!.id, req.token!, {
+      publicationId: pub.id,
+      chapterId: parsed.data.chapterId,
+      chapterNumber: parsed.data.chapterNumber,
+      quoteText: parsed.data.quoteText,
+      startParagraph: parsed.data.startParagraph,
+      startOffset: parsed.data.startOffset,
+      endParagraph: parsed.data.endParagraph,
+      endOffset: parsed.data.endOffset,
+    });
+
+    res.status(201).json({ success: true, id });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    if (error instanceof UserQuoteError) {
+      const status = error.code === 'NOT_FOUND' ? 404 : error.code === 'LIMIT_REACHED' ? 400 : 400;
+      res.status(status).json({ error: error.message, code: error.code });
+      return;
+    }
+    const msg = error instanceof Error ? error.message : 'Failed to save quote';
+    res.status(500).json({ error: msg });
   }
 }
 

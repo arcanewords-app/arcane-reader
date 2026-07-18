@@ -192,6 +192,27 @@ export const publicationsApi = {
     );
   },
 
+  async createPublicationQuote(
+    publicationId: string,
+    body: {
+      chapterId: string;
+      chapterNumber: number;
+      quoteText: string;
+      startParagraph: number;
+      startOffset: number;
+      endParagraph: number;
+      endOffset: number;
+    }
+  ): Promise<{ success: boolean; id: string }> {
+    return fetchJson<{ success: boolean; id: string }>(
+      `/api/publications/${publicationId}/quotes`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    );
+  },
+
   async getPublicationRatingStatus(publicationId: string): Promise<{
     userScore: number | null;
     eligibility: 'eligible' | 'guest' | 'owner' | 'not_read' | 'not_found';

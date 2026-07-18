@@ -6,6 +6,8 @@ import {
   handleGetTokenUsage,
   handleGetTokenUsageHistory,
   handleGetReadingHistory,
+  handleGetUserQuotes,
+  handleDeleteUserQuote,
   handleCreateCatalogTranslationRequest,
   handleListUserTranslationRequests,
   handleGetProfile,
@@ -23,6 +25,8 @@ export function registerUserRoutes(app: Application, deps: RouteDeps): void {
   app.get('/api/user/token-usage', requireAuth, handleGetTokenUsage);
   app.get('/api/user/token-usage/history', requireAuth, handleGetTokenUsageHistory);
   app.get('/api/user/reading-history', requireAuth, handleGetReadingHistory);
+  app.get('/api/user/quotes', requireAuth, handleGetUserQuotes);
+  app.delete('/api/user/quotes/:quoteId', requireAuth, handleDeleteUserQuote);
   app.post('/api/catalog/translation-requests', requireAuth, handleCreateCatalogTranslationRequest);
   app.get('/api/user/translation-requests', requireAuth, handleListUserTranslationRequests);
   app.get('/api/user/profile', requireAuth, handleGetProfile);

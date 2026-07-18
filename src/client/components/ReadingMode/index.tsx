@@ -20,6 +20,7 @@ import { ReaderSettingsPanel } from '../ChapterView/ReaderSettings';
 import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal, LoadingSpinner, Icon } from '../ui';
+import { ApiError } from '../../api/errors';
 import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
 import {
   clearBrowserSelection,
@@ -28,10 +29,21 @@ import {
 } from '../../utils/readingSelection';
 import { useReadingTextSelection } from '../../hooks/useReadingTextSelection';
 import { ReadingSelectionToolbar } from './ReadingSelectionToolbar';
+import { getAnchorFromSelection } from '../../utils/readingTextAnchors';
+import {
+  loadHighlights,
+  subscribeHighlightsStorage,
+  toggleHighlightForRange,
+  type StoredHighlight,
+} from '../../utils/readingHighlightsStorage';
+import { applyHighlightsToContainer } from '../../utils/readingHighlightRender';
+import { buildProfileUrl } from '../../utils/profileRoutes';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import { buildReadingChapterUrl } from '../../utils/readingRoutes';
 import { shouldConfirmJumpAhead } from '../../../shared/reading-progress';
 import { RatePublicationModal } from '../Publication/RatePublicationModal';
+import { dismissRatingNudge, isRatingNudgeDismissed } from '../../utils/publicationRatingNudge';
+import './ReadingMode.css';
 import {
   trackChapterComplete,
   trackReadingEngagement,
@@ -167,6 +179,9 @@ export function ReadingMode({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [chapterHighlights, setChapterHighlights] = useState<StoredHighlight[]>([]);
+  const [quoteToast, setQuoteToast] = useState<'saved' | 'failed' | 'limit' | null>(null);
+  const [highlightNotice, setHighlightNotice] = useState<'storageFull' | null>(null);
   const [showRateModal, setShowRateModal] = useState(false);
   const [rateModalInitialScore, setRateModalInitialScore] = useState<number | null>(null);
   const [jumpConfirm, setJumpConfirm] = useState<{
@@ -1280,9 +1295,111 @@ export function ReadingMode({
     setReportSelectionTruncated(false);
   }, [reportSubmitting]);
 
+  useEffect(() => {
+    if (!isPublicationMode || !publicationId || !currentChapter || !isAuthenticated) {
+      setChapterHighlights([]);
+      return;
+    }
+    const userId = authService.getCachedUser()?.id;
+    if (!userId) return;
+    setChapterHighlights(loadHighlights(userId, publicationId, currentChapter.id));
+  }, [isPublicationMode, publicationId, currentChapter?.id, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isPublicationMode || !publicationId || !currentChapter) return;
+    const userId = authService.getCachedUser()?.id;
+    if (!userId) return;
+    return subscribeHighlightsStorage(() => {
+      setChapterHighlights(loadHighlights(userId, publicationId, currentChapter.id));
+    });
+  }, [isPublicationMode, publicationId, currentChapter?.id]);
+
+  useEffect(() => {
+    if (!quoteToast && !highlightNotice) return;
+    const timer = window.setTimeout(() => {
+      setQuoteToast(null);
+      setHighlightNotice(null);
+    }, 3200);
+    return () => window.clearTimeout(timer);
+  }, [quoteToast, highlightNotice]);
+
+  const handleSaveQuote = useCallback(async () => {
+    if (!publicationId || !currentChapter || !selectionState || !contentRef.current) return;
+    const anchor = getAnchorFromSelection(contentRef.current, {
+      publicationId,
+      chapterId: currentChapter.id,
+      chapterNumber: currentChapter.number,
+    });
+    if (!anchor) return;
+
+    const quoteText = selectionState.text.trim().slice(0, 2000);
+    if (!quoteText) return;
+
+    try {
+      await api.createPublicationQuote(publicationId, {
+        chapterId: anchor.chapterId,
+        chapterNumber: anchor.chapterNumber,
+        quoteText,
+        startParagraph: anchor.startParagraph,
+        startOffset: anchor.startOffset,
+        endParagraph: anchor.endParagraph,
+        endOffset: anchor.endOffset,
+      });
+      setQuoteToast('saved');
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'LIMIT_REACHED') {
+        setQuoteToast('limit');
+      } else {
+        setQuoteToast('failed');
+      }
+    } finally {
+      clearSelection();
+      clearBrowserSelection();
+    }
+  }, [publicationId, currentChapter, selectionState, clearSelection]);
+
+  const handleToggleHighlight = useCallback(() => {
+    if (!publicationId || !currentChapter || !selectionState || !contentRef.current) return;
+    const userId = authService.getCachedUser()?.id;
+    if (!userId) return;
+
+    const anchor = getAnchorFromSelection(contentRef.current, {
+      publicationId,
+      chapterId: currentChapter.id,
+      chapterNumber: currentChapter.number,
+    });
+    if (!anchor) return;
+
+    const result = toggleHighlightForRange(
+      userId,
+      publicationId,
+      currentChapter.id,
+      anchor,
+      selectionState.text
+    );
+    setChapterHighlights(result.highlights);
+    if (result.storageFull) setHighlightNotice('storageFull');
+    clearSelection();
+    clearBrowserSelection();
+  }, [publicationId, currentChapter, selectionState, clearSelection]);
+
   const selectionActions = useMemo<ReadingSelectionAction[]>(() => {
     if (!selectionState) return [];
     return [
+      {
+        id: 'quote',
+        icon: 'format_quote',
+        labelKey: 'readingMode.addQuoteAction',
+        onClick: () => {
+          void handleSaveQuote();
+        },
+      },
+      {
+        id: 'highlight',
+        icon: 'ink_highlighter',
+        labelKey: 'readingMode.toggleHighlightAction',
+        onClick: handleToggleHighlight,
+      },
       {
         id: 'report',
         icon: 'flag',
@@ -1290,7 +1407,7 @@ export function ReadingMode({
         onClick: () => handleOpenReportModal(selectionState.text),
       },
     ];
-  }, [selectionState, handleOpenReportModal]);
+  }, [selectionState, handleSaveQuote, handleToggleHighlight, handleOpenReportModal]);
 
   const handleJumpConfirm = useCallback(() => {
     if (!jumpConfirm) return;
@@ -1320,6 +1437,40 @@ export function ReadingMode({
     },
     [currentChapterIndex, navigateToChapterIndex]
   );
+
+  const displayText = currentChapter ? (chapterContentMap[currentChapter.id] ?? '') : '';
+  const contentLoaded = currentChapter ? currentChapter.id in chapterContentMap : true;
+  const isLoadingContent = chapterContentLoading || (currentChapter && !contentLoaded);
+
+  const textBlockTypes = useMemo(
+    () =>
+      (project?.settings?.textBlockTypes?.length ?? 0) > 0
+        ? (project?.settings?.textBlockTypes ?? [])
+        : DEFAULT_TEXT_BLOCK_TYPES,
+    [project?.settings?.textBlockTypes]
+  );
+
+  const paragraphElements = useMemo(() => {
+    if (!displayText) return null;
+    const segments = mergeSegmentsWithUnclosedBlocks(displayText);
+    return segments.map((segment, idx) => (
+      <div
+        key={idx}
+        ref={idx === segments.length - 1 ? lastParagraphRef : undefined}
+        class="reading-mode-paragraph"
+        data-paragraph-index={idx}
+        dangerouslySetInnerHTML={{
+          __html: renderTextWithBlocks(segment, textBlockTypes),
+        }}
+      />
+    ));
+  }, [displayText, textBlockTypes]);
+
+  useLayoutEffect(() => {
+    const textContainer = contentRef.current?.querySelector('.reading-mode-text');
+    if (!(textContainer instanceof HTMLElement) || isLoadingContent) return;
+    applyHighlightsToContainer(textContainer, chapterHighlights);
+  }, [chapterHighlights, displayText, isLoadingContent]);
 
   if (chapters.length === 0) {
     return (
@@ -1357,15 +1508,6 @@ export function ReadingMode({
     );
   }
 
-  // Get text: publication/project mode from chapterContentMap (lazy loaded)
-  const getText = (chapter: ReaderChapter): string => {
-    return chapterContentMap[chapter.id] ?? '';
-  };
-
-  const displayText = currentChapter ? getText(currentChapter) : '';
-  // Show loading when content is not yet loaded (avoids flash of "no translation" before fetch starts)
-  const contentLoaded = currentChapter ? currentChapter.id in chapterContentMap : true;
-  const isLoadingContent = chapterContentLoading || (currentChapter && !contentLoaded);
   const headerVisible = menuVisible || isNearTop;
   const footerVisible = menuVisible || isNearBottom;
 
@@ -1481,24 +1623,7 @@ export function ReadingMode({
               <LoadingSpinner size="md" text={t('common.loading')} />
             </div>
           ) : displayText ? (
-            (() => {
-              const textBlockTypes =
-                (project?.settings?.textBlockTypes?.length ?? 0) > 0
-                  ? (project?.settings?.textBlockTypes ?? [])
-                  : DEFAULT_TEXT_BLOCK_TYPES;
-              const segments = mergeSegmentsWithUnclosedBlocks(displayText);
-              return segments.map((segment, idx) => (
-                <div
-                  key={idx}
-                  ref={idx === segments.length - 1 ? lastParagraphRef : undefined}
-                  class="reading-mode-paragraph"
-                  data-paragraph-index={idx}
-                  dangerouslySetInnerHTML={{
-                    __html: renderTextWithBlocks(segment, textBlockTypes),
-                  }}
-                />
-              ));
-            })()
+            paragraphElements
           ) : (
             <p class="reading-mode-empty-text">
               {isPublicationMode
@@ -1513,6 +1638,29 @@ export function ReadingMode({
 
       {selectionTrackingEnabled && selectionState && selectionActions.length > 0 && (
         <ReadingSelectionToolbar rect={selectionState.rect} actions={selectionActions} />
+      )}
+
+      {(quoteToast || highlightNotice) && (
+        <div
+          class={`reading-mode-action-toast${quoteToast === 'failed' || quoteToast === 'limit' || highlightNotice === 'storageFull' ? ' reading-mode-action-toast--error' : ''}`}
+          role="status"
+        >
+          <span>
+            {quoteToast === 'saved' && t('readingMode.quoteSaved')}
+            {quoteToast === 'failed' && t('readingMode.quoteSaveFailed')}
+            {quoteToast === 'limit' && t('readingMode.quoteLimitReached')}
+            {highlightNotice === 'storageFull' && t('readingMode.highlightStorageFull')}
+          </span>
+          {quoteToast === 'saved' && (
+            <button
+              type="button"
+              class="reading-mode-action-toast-link"
+              onClick={() => route(buildProfileUrl('quotes'))}
+            >
+              {t('readingMode.quoteOpenProfile')}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Bottom Navigation - prev/next in row, centered */}

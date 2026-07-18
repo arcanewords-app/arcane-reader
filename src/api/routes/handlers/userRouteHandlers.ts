@@ -13,6 +13,9 @@ import {
   getUserReaderSettings,
   updateUserReaderSettings,
   getUserReadingHistory,
+  listUserQuotes,
+  deleteUserQuote,
+  UserQuoteError,
   createCatalogTranslationRequest,
   listCatalogTranslationRequestsByUser,
   listTranslatorPseudonymsForUser,
@@ -112,6 +115,50 @@ export async function handleGetReadingHistory(req: Request, res: Response): Prom
     if (handleServiceError(error, req, res)) return;
     const errorMessage = error instanceof Error ? error.message : 'Failed to get reading history';
     req.log?.error({ err: error }, 'Error getting reading history');
+    res.status(500).json({ error: errorMessage });
+  }
+}
+
+export async function handleGetUserQuotes(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const items = await listUserQuotes(req.user.id, requireToken(req));
+    res.json({ items });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get quotes';
+    req.log?.error({ err: error }, 'Error getting user quotes');
+    res.status(500).json({ error: errorMessage });
+  }
+}
+
+export async function handleDeleteUserQuote(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const quoteId = requireRouteParam(req.params.quoteId, 'quoteId');
+    const deleted = await deleteUserQuote(req.user.id, requireToken(req), quoteId);
+    if (!deleted) {
+      res.status(404).json({ error: 'Quote not found' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    if (error instanceof UserQuoteError) {
+      res.status(404).json({ error: error.message, code: error.code });
+      return;
+    }
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete quote';
+    req.log?.error({ err: error }, 'Error deleting user quote');
     res.status(500).json({ error: errorMessage });
   }
 }
