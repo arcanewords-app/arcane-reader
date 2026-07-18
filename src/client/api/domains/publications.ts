@@ -83,37 +83,43 @@ export const publicationsApi = {
     return data;
   },
 
-  /** Get read progress for publication (chapter IDs read + last position). Cached 60s. Returns empty for guests. */
-  async getReadProgress(publicationId: string): Promise<{
-    chapterIds: string[];
-    lastReadChapterId?: string;
-    lastReadParagraphIndex?: number;
-  }> {
+  /** Get read progress watermark for publication. Cached 60s. Returns 0 for guests. */
+  async getReadProgress(publicationId: string): Promise<{ lastReadChapterNumber: number }> {
     const cacheKey = getReadProgressCacheKey(publicationId);
     const cached = getCached(publicationCache.readProgress, cacheKey);
     if (cached) return cached;
-    const data = await fetchJsonDeduped<{
-      chapterIds: string[];
-      lastReadChapterId?: string;
-      lastReadParagraphIndex?: number;
-    }>(`/api/publications/${publicationId}/read-progress`);
+    const data = await fetchJsonDeduped<{ lastReadChapterNumber: number }>(
+      `/api/publications/${publicationId}/read-progress`
+    );
     setCached(publicationCache.readProgress, cacheKey, data);
     return data;
   },
 
-  /** Update reading position (auth required). Invalidates read progress cache. */
-  async updateReadingPosition(
+  /** Update read progress watermark (auth required). */
+  async updateReadProgress(
     publicationId: string,
-    chapterId: string,
-    paragraphIndex: number
-  ): Promise<{ success: boolean }> {
+    chapterNumber: number,
+    mode: 'complete' | 'set'
+  ): Promise<{ lastReadChapterNumber: number }> {
     const cacheKey = getReadProgressCacheKey(publicationId);
-    const result = await fetchJson<{ success: boolean }>(
-      `/api/publications/${publicationId}/reading-position`,
+    const result = await fetchJson<{ lastReadChapterNumber: number }>(
+      `/api/publications/${publicationId}/read-progress`,
       {
         method: 'PATCH',
-        body: JSON.stringify({ chapterId, paragraphIndex }),
+        body: JSON.stringify({ chapterNumber, mode }),
       }
+    );
+    publicationCache.readProgress.delete(cacheKey);
+    emitCacheInvalidation('user');
+    return result;
+  },
+
+  /** Reset read progress (auth required). */
+  async resetReadProgress(publicationId: string): Promise<{ lastReadChapterNumber: number }> {
+    const cacheKey = getReadProgressCacheKey(publicationId);
+    const result = await fetchJson<{ lastReadChapterNumber: number }>(
+      `/api/publications/${publicationId}/read-progress`,
+      { method: 'DELETE' }
     );
     publicationCache.readProgress.delete(cacheKey);
     emitCacheInvalidation('user');
@@ -162,16 +168,13 @@ export const publicationsApi = {
     });
   },
 
-  /** Mark chapter as read (auth required). Invalidates read progress cache. */
-  async markChapterAsRead(publicationId: string, chapterId: string): Promise<{ success: boolean }> {
-    const cacheKey = getReadProgressCacheKey(publicationId);
-    const result = await fetchJson<{ success: boolean }>(
-      `/api/publications/${publicationId}/chapters/${chapterId}/read`,
-      { method: 'POST' }
-    );
-    publicationCache.readProgress.delete(cacheKey);
-    emitCacheInvalidation('user');
-    return result;
+  /** @deprecated Use updateReadProgress with mode complete */
+  async markChapterAsRead(
+    publicationId: string,
+    chapterId: string,
+    chapterNumber: number
+  ): Promise<{ lastReadChapterNumber: number }> {
+    return this.updateReadProgress(publicationId, chapterNumber, 'complete');
   },
 
   /** Report translation issue (public, optional auth). */

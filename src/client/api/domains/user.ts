@@ -121,7 +121,8 @@ export const userApi = {
       slug: string | null;
       totalChapters: number;
       readCount: number;
-      lastReadChapterId: string | null;
+      lastReadChapterNumber: number;
+      continueChapterId: string | null;
       lastReadAt: string | null;
     }>;
   }> {
@@ -136,7 +137,8 @@ export const userApi = {
         slug: string | null;
         totalChapters: number;
         readCount: number;
-        lastReadChapterId: string | null;
+        lastReadChapterNumber: number;
+        continueChapterId: string | null;
         lastReadAt: string | null;
       }>;
     }>('/api/user/reading-history');

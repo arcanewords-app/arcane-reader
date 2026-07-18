@@ -201,27 +201,19 @@ describe('readingRoutes', () => {
     });
   });
 
-  it('resolves auth API vs URL paragraph priority', () => {
+  it('resolves URL paragraph for share links only', () => {
     assert.equal(
       resolveReadingParagraphIndex({
-        isAuthenticated: true,
         urlHasParagraph: true,
         urlParagraphIndex: 7,
-        apiChapterId: 'ch1',
-        currentChapterId: 'ch1',
-        apiParagraphIndex: 2,
       }),
       7
     );
     assert.equal(
       resolveReadingParagraphIndex({
-        isAuthenticated: true,
         urlHasParagraph: false,
-        apiChapterId: 'ch1',
-        currentChapterId: 'ch1',
-        apiParagraphIndex: 2,
       }),
-      2
+      undefined
     );
   });
 });

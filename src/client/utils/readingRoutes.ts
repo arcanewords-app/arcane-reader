@@ -20,36 +20,15 @@ export function hasReadingParagraphQueryInUrl(): boolean {
   return raw != null && raw !== '';
 }
 
-/** Auth: explicit `?paragraph=` share link wins; otherwise API position when chapter matches. */
+/** Auth/guest: explicit `?paragraph=` share link only. API paragraph resume deferred. */
 export function resolveReadingParagraphIndex(options: {
-  isAuthenticated: boolean;
   urlHasParagraph: boolean;
   urlParagraphIndex?: number;
-  apiChapterId?: string | null;
-  currentChapterId?: string;
-  apiParagraphIndex?: number;
 }): number | undefined {
-  const {
-    isAuthenticated,
-    urlHasParagraph,
-    urlParagraphIndex,
-    apiChapterId,
-    currentChapterId,
-    apiParagraphIndex,
-  } = options;
+  const { urlHasParagraph, urlParagraphIndex } = options;
 
   if (urlHasParagraph && urlParagraphIndex !== undefined && urlParagraphIndex > 0) {
     return urlParagraphIndex;
-  }
-
-  if (
-    isAuthenticated &&
-    apiChapterId &&
-    currentChapterId === apiChapterId &&
-    apiParagraphIndex !== undefined &&
-    apiParagraphIndex > 0
-  ) {
-    return apiParagraphIndex;
   }
 
   return undefined;

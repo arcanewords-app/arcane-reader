@@ -1524,6 +1524,17 @@
     "scoreLabel4": "Добра",
     "scoreLabel5": "Выдатна"
   },
+  "readingProgress": {
+    "jumpConfirmTitle": "Перапусціць главы?",
+    "jumpConfirmBody": "Пазначыць прачытанымі главы да {{chapter}}?",
+    "jumpConfirmYes": "Так, пазначыць",
+    "jumpConfirmNo": "Не, проста чытаць",
+    "reset": "Скінуць прагрэс",
+    "resetConfirmTitle": "Скінуць прагрэс чытання?",
+    "resetConfirmBody": "Усе адзнакі «прачытана» для гэтай публікацыі будуць выдалены. Гэта немагчыма адмяніць.",
+    "resetConfirmYes": "Скінуць",
+    "lastReadUpTo": "Прачытана да гэтай главы"
+  },
   "publication": {
     "untitled": "Без назвы",
     "unknownAuthor": "Невядомы аўтар",
@@ -1533,10 +1544,12 @@
     "originalLink": "Арыгінал",
     "notFound": "Публікацыя не знойдзена",
     "chapters": "Раздзелы",
+    "continueNextChapter": "Працягнуць: {{chapter}}",
     "continueFromChapter": "Працягнуць з: {{chapter}}",
     "notTranslated": "Няма перакладу",
     "read": "Прачытана",
     "markRead": "Пазначыць прачытанай",
+    "markUpToHere": "Пазначыць прачытанай да гэтай главы",
     "filterAll": "Усе",
     "filterAllWithCount": "Усе ({{count}})",
     "filterTranslated": "Толькі перакладзеныя",

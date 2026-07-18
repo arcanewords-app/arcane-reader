@@ -18,7 +18,7 @@ Readers rate published translations on a 1–5 scale after reading. Aggregates a
 
 - One score per `user × publication` (upsert).
 - Display threshold: **≥ 5** votes before showing avg on cards.
-- Eligibility: authenticated, **≥ 1** chapter in `read_chapter_ids`, not publication owner.
+- Eligibility: authenticated, `lastReadChapterNumber >= 1`, not publication owner.
 - Sort: Bayesian average (prior mean 3.6, C = 5); publications below threshold sort last.
 
 ## Deliverables

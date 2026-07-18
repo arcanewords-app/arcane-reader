@@ -28,8 +28,8 @@ const {
   mockGetPublicationChapterContent,
   mockGetGlossaryForPublication,
   mockGetProjectForPublicationExport,
-  mockMarkChapterAsRead,
-  mockUpdateReadingPosition,
+  mockUpdateReadProgress,
+  mockResetReadProgress,
   mockSyncPublicationTranslationStatus,
   mockGetActiveAnnouncementForUser,
   mockAssertOwnedActiveTranslatorPseudonym,
@@ -76,8 +76,8 @@ const {
   mockGetPublicationChapterContent: vi.fn(),
   mockGetGlossaryForPublication: vi.fn(),
   mockGetProjectForPublicationExport: vi.fn(),
-  mockMarkChapterAsRead: vi.fn(),
-  mockUpdateReadingPosition: vi.fn(),
+  mockUpdateReadProgress: vi.fn(),
+  mockResetReadProgress: vi.fn(),
   mockSyncPublicationTranslationStatus: vi.fn(),
   mockGetActiveAnnouncementForUser: vi.fn(),
   mockAssertOwnedActiveTranslatorPseudonym: vi.fn(),
@@ -151,8 +151,8 @@ vi.mock('../../../services/supabaseDatabase.js', () => ({
   getPublicationChapterContent: mockGetPublicationChapterContent,
   getGlossaryForPublication: mockGetGlossaryForPublication,
   getProjectForPublicationExport: mockGetProjectForPublicationExport,
-  markChapterAsRead: mockMarkChapterAsRead,
-  updateReadingPosition: mockUpdateReadingPosition,
+  updateReadProgress: mockUpdateReadProgress,
+  resetReadProgress: mockResetReadProgress,
   syncPublicationTranslationStatus: (...args: unknown[]) =>
     mockSyncPublicationTranslationStatus(...args),
   getActiveAnnouncementForUser: mockGetActiveAnnouncementForUser,
@@ -274,7 +274,7 @@ function mockCoverFile() {
   };
 }
 
-function mockSupabaseChapterLookup(chapter: { id: string } | null) {
+function mockSupabaseChapterLookup(chapter: { id: string; number?: number } | null) {
   const single = vi.fn().mockResolvedValue({ data: chapter });
   const eqProject = vi.fn().mockReturnValue({ single });
   const eqChapter = vi.fn().mockReturnValue({ eq: eqProject });
@@ -1047,16 +1047,12 @@ describe('publicationRouteHandlers', () => {
     it('returns progress for authenticated user', async () => {
       mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
       mockGetReadProgress.mockResolvedValue({
-        chapterIds: ['ch-1'],
-        lastReadChapterId: 'ch-1',
-        lastReadParagraphIndex: 2,
+        lastReadChapterNumber: 3,
       });
       const res = mockRes();
       await handleGetReadProgress(mockReq() as never, res as never);
       assert.deepEqual(res.body, {
-        chapterIds: ['ch-1'],
-        lastReadChapterId: 'ch-1',
-        lastReadParagraphIndex: 2,
+        lastReadChapterNumber: 3,
       });
     });
   });
@@ -1132,51 +1128,28 @@ describe('publicationRouteHandlers', () => {
 
     it('marks chapter read and clears caches on success', async () => {
       mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', projectId: 'proj-1' });
-      mockSupabaseChapterLookup({ id: 'ch-1' });
-      mockMarkChapterAsRead.mockResolvedValue(undefined);
+      mockSupabaseChapterLookup({ id: 'ch-1', number: 5 });
+      mockUpdateReadProgress.mockResolvedValue({ lastReadChapterNumber: 5 });
       const res = mockRes();
       await handleMarkChapterRead(
         mockReq({ params: { id: 'pub-1', chapterId: 'ch-1' } }) as never,
         res as never
       );
-      assert.deepEqual(res.body, { success: true });
-      assert.equal(mockMarkChapterAsRead.mock.calls.length, 1);
+      assert.deepEqual(res.body, { lastReadChapterNumber: 5 });
+      assert.equal(mockUpdateReadProgress.mock.calls.length, 1);
+      assert.equal(mockUpdateReadProgress.mock.calls[0]?.[2], 5);
       assert.equal(mockRedisDelMany.mock.calls.length, 1);
     });
   });
 
   describe('handleUpdateReadingPosition', () => {
-    it('returns 400 on validation failure', async () => {
-      const res = mockRes();
-      await handleUpdateReadingPosition(
-        mockReq({ body: { chapterId: '' } }) as never,
-        res as never
-      );
-      assert.equal(res.statusCode, 400);
-    });
-
-    it('returns 404 when chapter not in project', async () => {
-      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', projectId: 'proj-1' });
-      mockSupabaseChapterLookup(null);
+    it('returns 410 deprecated', async () => {
       const res = mockRes();
       await handleUpdateReadingPosition(
         mockReq({ body: { chapterId: 'ch-1', paragraphIndex: 0 } }) as never,
         res as never
       );
-      assert.equal(res.statusCode, 404);
-    });
-
-    it('updates reading position on success', async () => {
-      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', projectId: 'proj-1' });
-      mockSupabaseChapterLookup({ id: 'ch-1' });
-      mockUpdateReadingPosition.mockResolvedValue(undefined);
-      const res = mockRes();
-      await handleUpdateReadingPosition(
-        mockReq({ body: { chapterId: 'ch-1', paragraphIndex: 3 } }) as never,
-        res as never
-      );
-      assert.deepEqual(res.body, { success: true });
-      assert.equal(mockUpdateReadingPosition.mock.calls[0]?.[3], 3);
+      assert.equal(res.statusCode, 410);
     });
   });
 

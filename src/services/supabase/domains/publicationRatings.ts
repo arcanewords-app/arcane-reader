@@ -44,7 +44,7 @@ export async function getPublicationRatingStatus(
   }
 
   const progress = await getReadProgress(publicationId, userId, token);
-  const hasRead = progress.chapterIds.length >= 1 || Boolean(progress.lastReadChapterId);
+  const hasRead = progress.lastReadChapterNumber >= 1;
   if (!hasRead) {
     return { userScore: null, eligibility: 'not_read' };
   }

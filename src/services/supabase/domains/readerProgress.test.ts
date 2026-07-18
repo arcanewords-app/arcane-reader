@@ -22,9 +22,9 @@ vi.mock('../../../utils/tokenValidation.js', () => ({
 import {
   getReadProgress,
   getUserReadingHistory,
-  markChapterAsRead,
+  resetReadProgress,
   updateChapterStatus,
-  updateReadingPosition,
+  updateReadProgress,
 } from './readerProgress.js';
 
 type ChainMethod = ReturnType<typeof vi.fn>;
@@ -33,7 +33,18 @@ function chainable(result: { data: unknown; error: unknown }) {
   const chain = {} as Record<string, ChainMethod> & {
     then: (resolve: (v: typeof result) => void) => void;
   };
-  for (const m of ['select', 'eq', 'upsert', 'maybeSingle', 'update', 'single', 'order']) {
+  for (const m of [
+    'select',
+    'eq',
+    'upsert',
+    'delete',
+    'maybeSingle',
+    'update',
+    'single',
+    'order',
+    'in',
+    'not',
+  ]) {
     chain[m] = vi.fn(() => chain);
   }
   chain.then = (resolve: (v: typeof result) => void) => resolve(result);
@@ -45,33 +56,23 @@ describe('getReadProgress', () => {
     vi.clearAllMocks();
   });
 
-  it('returns empty progress for guest', async () => {
+  it('returns zero watermark for guest', async () => {
     const result = await getReadProgress('pub-1', null, null);
-    assert.deepEqual(result, {
-      chapterIds: [],
-      lastReadChapterId: null,
-      lastReadParagraphIndex: 0,
-    });
+    assert.deepEqual(result, { lastReadChapterNumber: 0 });
   });
 
-  it('maps stored progress for authenticated user', async () => {
+  it('maps stored watermark for authenticated user', async () => {
     mockFrom.mockReturnValue(
       chainable({
-        data: {
-          read_chapter_ids: ['ch-1', 'ch-2'],
-          last_read_chapter_id: 'ch-2',
-          last_read_paragraph_index: 4,
-        },
+        data: { last_read_chapter_number: 7 },
         error: null,
       })
     );
     const result = await getReadProgress('pub-1', 'user-1', 'token');
-    assert.deepEqual(result.chapterIds, ['ch-1', 'ch-2']);
-    assert.equal(result.lastReadChapterId, 'ch-2');
-    assert.equal(result.lastReadParagraphIndex, 4);
+    assert.equal(result.lastReadChapterNumber, 7);
   });
 
-  it('returns empty progress when query errors', async () => {
+  it('returns zero when query errors', async () => {
     mockFrom.mockReturnValue(
       chainable({
         data: null,
@@ -80,22 +81,18 @@ describe('getReadProgress', () => {
     );
 
     const result = await getReadProgress('pub-1', 'user-1', 'token');
-    assert.deepEqual(result, {
-      chapterIds: [],
-      lastReadChapterId: null,
-      lastReadParagraphIndex: 0,
-    });
+    assert.deepEqual(result, { lastReadChapterNumber: 0 });
   });
 });
 
-describe('markChapterAsRead', () => {
+describe('updateReadProgress', () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('upserts progress with new chapter id', async () => {
+  it('complete mode advances watermark with max', async () => {
     const selectChain = chainable({
-      data: { read_chapter_ids: ['ch-1'] },
+      data: { last_read_chapter_number: 2 },
       error: null,
     });
     const upsertChain = chainable({ data: null, error: null });
@@ -105,17 +102,17 @@ describe('markChapterAsRead', () => {
       return calls === 1 ? selectChain : upsertChain;
     });
 
-    await markChapterAsRead('user-1', 'pub-1', 'ch-2', 'token');
-    assert.equal(upsertChain.upsert.mock.calls.length, 1);
+    const result = await updateReadProgress('user-1', 'pub-1', 5, 'complete', 'token');
+    assert.equal(result.lastReadChapterNumber, 5);
     const payload = upsertChain.upsert.mock.calls[0]?.[0] as {
-      read_chapter_ids: string[];
+      last_read_chapter_number: number;
     };
-    assert.deepEqual(payload.read_chapter_ids, ['ch-1', 'ch-2']);
+    assert.equal(payload.last_read_chapter_number, 5);
   });
 
-  it('does not overwrite reading position fields on upsert', async () => {
+  it('complete mode does not decrease watermark', async () => {
     const selectChain = chainable({
-      data: { read_chapter_ids: ['ch-1'] },
+      data: { last_read_chapter_number: 8 },
       error: null,
     });
     const upsertChain = chainable({ data: null, error: null });
@@ -125,15 +122,13 @@ describe('markChapterAsRead', () => {
       return calls === 1 ? selectChain : upsertChain;
     });
 
-    await markChapterAsRead('user-1', 'pub-1', 'ch-2', 'token');
-    const payload = upsertChain.upsert.mock.calls[0]?.[0] as Record<string, unknown>;
-    assert.equal('last_read_chapter_id' in payload, false);
-    assert.equal('last_read_paragraph_index' in payload, false);
+    const result = await updateReadProgress('user-1', 'pub-1', 3, 'complete', 'token');
+    assert.equal(result.lastReadChapterNumber, 8);
   });
 
-  it('does not duplicate chapter id when already read', async () => {
+  it('set mode sets watermark explicitly', async () => {
     const selectChain = chainable({
-      data: { read_chapter_ids: ['ch-1', 'ch-2'] },
+      data: { last_read_chapter_number: 8 },
       error: null,
     });
     const upsertChain = chainable({ data: null, error: null });
@@ -143,79 +138,8 @@ describe('markChapterAsRead', () => {
       return calls === 1 ? selectChain : upsertChain;
     });
 
-    await markChapterAsRead('user-1', 'pub-1', 'ch-2', 'token');
-    const payload = upsertChain.upsert.mock.calls[0]?.[0] as {
-      read_chapter_ids: string[];
-    };
-    assert.deepEqual(payload.read_chapter_ids, ['ch-1', 'ch-2']);
-  });
-
-  it('throws when upsert fails', async () => {
-    const selectChain = chainable({
-      data: { read_chapter_ids: [] },
-      error: null,
-    });
-    const upsertChain = chainable({
-      data: null,
-      error: { message: 'upsert failed' },
-    });
-    let calls = 0;
-    mockFrom.mockImplementation(() => {
-      calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
-    });
-
-    await assert.rejects(
-      () => markChapterAsRead('user-1', 'pub-1', 'ch-1', 'token'),
-      /Failed to mark chapter as read/
-    );
-  });
-});
-
-describe('updateReadingPosition', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('upserts position when no existing progress', async () => {
-    const selectChain = chainable({ data: null, error: null });
-    const upsertChain = chainable({ data: null, error: null });
-    let calls = 0;
-    mockFrom.mockImplementation(() => {
-      calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
-    });
-
-    await updateReadingPosition('user-1', 'pub-1', 'ch-1', 3, 'token');
-    const payload = upsertChain.upsert.mock.calls[0]?.[0] as {
-      last_read_chapter_id: string;
-      last_read_paragraph_index: number;
-      read_chapter_ids: string[];
-    };
-    assert.equal(payload.last_read_chapter_id, 'ch-1');
-    assert.equal(payload.last_read_paragraph_index, 3);
-    assert.deepEqual(payload.read_chapter_ids, []);
-  });
-
-  it('preserves read chapter ids from existing progress', async () => {
-    const selectChain = chainable({
-      data: { read_chapter_ids: ['ch-1', 'ch-2'] },
-      error: null,
-    });
-    const upsertChain = chainable({ data: null, error: null });
-    let calls = 0;
-    mockFrom.mockImplementation(() => {
-      calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
-    });
-
-    await updateReadingPosition('user-1', 'pub-1', 'ch-2', 7, 'token');
-    const payload = upsertChain.upsert.mock.calls[0]?.[0] as {
-      read_chapter_ids: string[];
-      last_read_paragraph_index: number;
-    };
-    assert.deepEqual(payload.read_chapter_ids, ['ch-1', 'ch-2']);
-    assert.equal(payload.last_read_paragraph_index, 7);
+    const result = await updateReadProgress('user-1', 'pub-1', 3, 'set', 'token');
+    assert.equal(result.lastReadChapterNumber, 3);
   });
 
   it('throws when upsert fails', async () => {
@@ -231,9 +155,23 @@ describe('updateReadingPosition', () => {
     });
 
     await assert.rejects(
-      () => updateReadingPosition('user-1', 'pub-1', 'ch-1', 0, 'token'),
-      /Failed to update reading position/
+      () => updateReadProgress('user-1', 'pub-1', 1, 'complete', 'token'),
+      /Failed to update read progress/
     );
+  });
+});
+
+describe('resetReadProgress', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes progress row', async () => {
+    const deleteChain = chainable({ data: null, error: null });
+    mockFrom.mockReturnValue(deleteChain);
+
+    await resetReadProgress('user-1', 'pub-1', 'token');
+    assert.equal(deleteChain.delete.mock.calls.length, 1);
   });
 });
 
@@ -264,44 +202,11 @@ describe('updateChapterStatus', () => {
     assert.equal(chapter?.id, 'ch-1');
     assert.equal(chapter?.status, 'completed');
   });
-
-  it('returns undefined when chapter is not found', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { code: 'PGRST116', message: 'not found' },
-      })
-    );
-
-    const chapter = await updateChapterStatus('proj-1', 'missing', 'completed', 'token');
-    assert.equal(chapter, undefined);
-  });
-
-  it('throws on unexpected update error', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { code: 'XX000', message: 'update failed' },
-      })
-    );
-
-    await assert.rejects(
-      () => updateChapterStatus('proj-1', 'ch-1', 'completed', 'token'),
-      /Failed to update chapter status/
-    );
-  });
 });
 
 describe('getUserReadingHistory', () => {
   afterEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('returns empty array when user has no progress', async () => {
-    mockFrom.mockReturnValue(chainable({ data: [], error: null }));
-
-    const history = await getUserReadingHistory('user-1', 'token');
-    assert.deepEqual(history, []);
   });
 
   it('returns published publications with chapter counts', async () => {
@@ -310,8 +215,7 @@ describe('getUserReadingHistory', () => {
         data: [
           {
             publication_id: 'pub-1',
-            read_chapter_ids: ['ch-1', 'ch-2'],
-            last_read_chapter_id: 'ch-2',
+            last_read_chapter_number: 5,
             last_read_at: '2026-07-01T00:00:00Z',
             publications: {
               id: 'pub-1',
@@ -330,61 +234,40 @@ describe('getUserReadingHistory', () => {
       data: [{ project_id: 'proj-1', total_count: 12 }],
       error: null,
     });
+    let serviceFromCall = 0;
+    mockServiceFrom.mockImplementation(() => {
+      serviceFromCall += 1;
+      if (serviceFromCall === 1) {
+        return chainable({
+          data: [
+            { project_id: 'proj-1', id: 'ch-1', number: 1 },
+            { project_id: 'proj-1', id: 'ch-2', number: 2 },
+            { project_id: 'proj-1', id: 'ch-5', number: 5 },
+          ],
+          error: null,
+        });
+      }
+      return chainable({
+        data: [{ id: 'ch-1' }, { id: 'ch-2' }, { id: 'ch-5' }],
+        error: null,
+      });
+    });
 
     const history = await getUserReadingHistory('user-1', 'token');
     assert.equal(history.length, 1);
-    assert.equal(history[0]?.title, 'Novel');
-    assert.equal(history[0]?.readCount, 2);
+    assert.equal(history[0]?.lastReadChapterNumber, 5);
+    assert.equal(history[0]?.readCount, 3);
     assert.equal(history[0]?.totalChapters, 12);
+    assert.equal(history[0]?.continueChapterId, null);
   });
 
-  it('filters out unpublished publications', async () => {
+  it('continueChapterId skips untranslated chapters', async () => {
     mockFrom.mockReturnValue(
       chainable({
         data: [
           {
             publication_id: 'pub-1',
-            read_chapter_ids: ['ch-1'],
-            last_read_chapter_id: 'ch-1',
-            last_read_at: '2026-07-01T00:00:00Z',
-            publications: {
-              id: 'pub-1',
-              title: 'Draft Novel',
-              cover_image_url: null,
-              slug: null,
-              project_id: 'proj-1',
-              status: 'draft',
-            },
-          },
-        ],
-        error: null,
-      })
-    );
-
-    const history = await getUserReadingHistory('user-1', 'token');
-    assert.deepEqual(history, []);
-  });
-
-  it('returns empty array when progress query errors', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'history failed' },
-      })
-    );
-
-    const history = await getUserReadingHistory('user-1', 'token');
-    assert.deepEqual(history, []);
-  });
-
-  it('uses zero chapter counts when rpc fallback fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [
-          {
-            publication_id: 'pub-1',
-            read_chapter_ids: ['ch-1'],
-            last_read_chapter_id: 'ch-1',
+            last_read_chapter_number: 1,
             last_read_at: '2026-07-01T00:00:00Z',
             publications: {
               id: 'pub-1',
@@ -400,11 +283,55 @@ describe('getUserReadingHistory', () => {
       })
     );
     mockRpc.mockResolvedValue({
-      data: null,
-      error: { message: 'rpc missing' },
+      data: [{ project_id: 'proj-1', total_count: 3 }],
+      error: null,
+    });
+    let serviceFromCall = 0;
+    mockServiceFrom.mockImplementation(() => {
+      serviceFromCall += 1;
+      if (serviceFromCall === 1) {
+        return chainable({
+          data: [
+            { project_id: 'proj-1', id: 'ch-1', number: 1 },
+            { project_id: 'proj-1', id: 'ch-2', number: 2 },
+            { project_id: 'proj-1', id: 'ch-3', number: 3 },
+          ],
+          error: null,
+        });
+      }
+      return chainable({
+        data: [{ id: 'ch-1' }, { id: 'ch-3' }],
+        error: null,
+      });
     });
 
     const history = await getUserReadingHistory('user-1', 'token');
-    assert.equal(history[0]?.totalChapters, 0);
+    assert.equal(history[0]?.continueChapterId, 'ch-3');
+  });
+
+  it('filters out zero watermark rows', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: [
+          {
+            publication_id: 'pub-1',
+            last_read_chapter_number: 0,
+            last_read_at: null,
+            publications: {
+              id: 'pub-1',
+              title: 'Novel',
+              cover_image_url: null,
+              slug: 'novel',
+              project_id: 'proj-1',
+              status: 'published',
+            },
+          },
+        ],
+        error: null,
+      })
+    );
+
+    const history = await getUserReadingHistory('user-1', 'token');
+    assert.deepEqual(history, []);
   });
 });

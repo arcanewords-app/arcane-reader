@@ -5,165 +5,82 @@
   align-items: center;
   justify-content: center;
   min-height: 200px;
-  padding: 2rem;
+  padding: var(--space-xl);
 }
 
 .reading-history-empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  opacity: 0.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+  color: var(--text-dim);
+  opacity: 0.7;
 }
 
 .reading-history-empty-text {
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   color: var(--text-primary);
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-sm);
 }
 
 .reading-history-empty-hint {
-  font-size: 0.9375rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   margin: 0;
+  text-align: center;
+  max-width: 28rem;
 }
 
-/* Сетка как у публикаций в каталоге (home-grid) */
-.reading-history-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
+/* History-specific layout on top of publication-card */
 .reading-history-card {
   display: flex;
   flex-direction: column;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.reading-history-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgb(0, 0, 0, 0.2);
-  border-color: var(--accent);
-}
-
-.reading-history-card-cover {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  background: var(--bg-tertiary);
-  overflow: hidden;
+.reading-history-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  line-height: 1.4;
 }
 
-.reading-history-card-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.reading-history-card-placeholder {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.reading-history-card-placeholder.hidden {
-  display: none;
-}
-
-/* Контент как у publication-card-content */
-.reading-history-card-body {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.reading-history-card-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.reading-history-card-progress {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.reading-history-card-date {
-  font-size: 0.8rem;
+.reading-history-meta-sep {
   color: var(--text-dim);
 }
 
-.reading-history-card-actions {
-  margin-top: auto;
-}
-
-.reading-history-btn {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 500;
+.reading-history-reset-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  align-self: center;
+  margin: 0 var(--space-md) var(--space-md);
+  padding: 0.25rem 0.5rem;
+  min-height: 32px;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  background: none;
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: color var(--duration-normal) var(--ease-standard);
 }
 
-.reading-history-btn-continue {
-  background: var(--accent);
-  color: var(--accent-contrast);
+.reading-history-reset-link:hover {
+  color: var(--accent);
 }
 
-.reading-history-btn-continue:hover {
-  filter: brightness(1.1);
-}
-
-@media (max-width: 768px) {
-  .reading-history-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 1rem;
-  }
-  .reading-history-card-cover {
-    aspect-ratio: 3 / 4;
-  }
+.reading-history-reset-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (max-width: 480px) {
-  .reading-history-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  .reading-history-card-cover {
-    aspect-ratio: 4 / 5;
-  }
-  .reading-history-card-body {
-    padding: 0.75rem;
-  }
-  .reading-history-card-title {
-    font-size: 0.95rem;
-  }
-  .reading-history-card-progress,
-  .reading-history-card-date {
-    font-size: 0.8rem;
-  }
-  .reading-history-btn {
+  .reading-history-reset-link {
     min-height: 44px;
-    padding: 0.5rem 1rem;
   }
 }

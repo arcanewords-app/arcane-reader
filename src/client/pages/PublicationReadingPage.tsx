@@ -14,6 +14,7 @@ import {
   parseReadingParagraphFromUrl,
   resolveReadingParagraphIndex,
 } from '../utils/readingRoutes';
+import { advanceWatermarkComplete } from '../../shared/reading-progress';
 import './PublicationReadingPage.css';
 
 interface PublicationReadingPageProps {
@@ -30,6 +31,9 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       description: string | null;
       coverImageUrl: string | null;
       slug: string | null;
+      authorDisplay?: string | null;
+      translatorDisplay?: string | null;
+      targetLanguage?: string | null;
     };
     chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
     glossaryCount: number;
@@ -38,9 +42,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [error, setError] = useState<string | null>(null);
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
   const [initialChapterContent, setInitialChapterContent] = useState<Record<string, string>>({});
-  const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
-  const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
-  const [lastReadParagraphIndex, setLastReadParagraphIndex] = useState(0);
+  const [lastReadChapterNumber, setLastReadChapterNumber] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [progressLoaded, setProgressLoaded] = useState(false);
 
@@ -48,17 +50,13 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     const user = await authService.getCurrentUser();
     setIsAuthenticated(!!user);
     if (!user) {
-      setReadChapterIds(new Set());
-      setLastReadChapterId(null);
-      setLastReadParagraphIndex(0);
+      setLastReadChapterNumber(0);
       return;
     }
     if (!publicationId) return;
     try {
       const result = await api.getReadProgress(publicationId);
-      setReadChapterIds(new Set(result.chapterIds));
-      setLastReadChapterId(result.lastReadChapterId ?? null);
-      setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
+      setLastReadChapterNumber(result.lastReadChapterNumber ?? 0);
     } catch {
       // Ignore progress sync errors on public reader page.
     }
@@ -81,6 +79,9 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
               description: result.description,
               coverImageUrl: result.coverImageUrl,
               slug: result.slug ?? null,
+              authorDisplay: result.authorDisplay,
+              translatorDisplay: result.translatorDisplay,
+              targetLanguage: result.targetLanguage,
             },
             chapters: result.chapters || [],
             glossaryCount: result.glossaryCount ?? 0,
@@ -98,7 +99,6 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     };
   }, [publicationId]);
 
-  // Preload glossary in background when publication has glossary entries
   useEffect(() => {
     if (!publicationId || !data || (data.glossaryCount ?? 0) <= 0) return;
     let cancelled = false;
@@ -113,10 +113,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when publicationId or glossaryCount changes
   }, [publicationId, data?.glossaryCount]);
 
-  // Preload initial chapter content when opening a specific chapter (ensures fetch happens with initial load)
   useEffect(() => {
     if (!publicationId || !data || !chapterId) return;
     const hasTranslation = data.chapters.some((ch) => ch.id === chapterId && ch.hasTranslation);
@@ -136,14 +134,13 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     };
   }, [publicationId, chapterId, data]);
 
-  // Canonicalize invalid `?paragraph=` values (non-numeric or <= 0)
   useEffect(() => {
     if (!publicationId || !chapterId) return;
     const raw = getRawReadingParagraphFromUrl();
     if (raw == null || raw === '') return;
     const parsed = parseReadingParagraphFromUrl();
     if (parsed !== undefined && parsed > 0) return;
-    const pubPath = data?.slug ?? publicationId;
+    const pubPath = data?.publication.slug ?? publicationId;
     const url = buildReadingChapterUrl({
       isPublicationMode: true,
       publicationPath: pubPath,
@@ -153,9 +150,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     if (url && window.location.pathname + window.location.search !== url) {
       route(url, true);
     }
-  }, [publicationId, chapterId, data?.slug]);
+  }, [publicationId, chapterId, data?.publication.slug]);
 
-  // Check auth and load read progress for authenticated users (once per publication mount)
   useEffect(() => {
     if (!publicationId) return;
     let cancelled = false;
@@ -175,18 +171,14 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       const { authenticated } = e.detail;
       setIsAuthenticated(authenticated);
       if (!authenticated) {
-        setReadChapterIds(new Set());
-        setLastReadChapterId(null);
-        setLastReadParagraphIndex(0);
+        setLastReadChapterNumber(0);
         return;
       }
       if (!publicationId) return;
       api
         .getReadProgress(publicationId)
         .then((result) => {
-          setReadChapterIds(new Set(result.chapterIds));
-          setLastReadChapterId(result.lastReadChapterId ?? null);
-          setLastReadParagraphIndex(result.lastReadParagraphIndex ?? 0);
+          setLastReadChapterNumber(result.lastReadChapterNumber ?? 0);
         })
         .catch(() => {});
     };
@@ -196,27 +188,28 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     };
   }, [publicationId]);
 
-  const handleChapterRead = useCallback(
-    (chapterId: string) => {
+  const handleChapterComplete = useCallback(
+    (chapterNumber: number) => {
       if (!publicationId) return;
-      setReadChapterIds((prev) => new Set([...prev, chapterId]));
-      api.markChapterAsRead(publicationId, chapterId).catch(() => {
-        setReadChapterIds((prev) => {
-          const next = new Set(prev);
-          next.delete(chapterId);
-          return next;
-        });
+      setLastReadChapterNumber((prev) => advanceWatermarkComplete(prev, chapterNumber));
+      api.updateReadProgress(publicationId, chapterNumber, 'complete').catch(() => {
+        syncAuthProgress().catch(() => {});
       });
     },
-    [publicationId]
+    [publicationId, syncAuthProgress]
   );
 
-  const handleSavePosition = useCallback(
-    (chId: string, paragraphIndex: number) => {
-      if (!publicationId || !isAuthenticated) return;
-      api.updateReadingPosition(publicationId, chId, paragraphIndex).catch(() => {});
+  const handleSetProgress = useCallback(
+    (chapterNumber: number, mode: 'complete' | 'set') => {
+      if (!publicationId) return;
+      setLastReadChapterNumber((prev) =>
+        mode === 'set' ? chapterNumber : advanceWatermarkComplete(prev, chapterNumber)
+      );
+      api.updateReadProgress(publicationId, chapterNumber, mode).catch(() => {
+        syncAuthProgress().catch(() => {});
+      });
     },
-    [publicationId, isAuthenticated]
+    [publicationId, syncAuthProgress]
   );
 
   const pubPath = data?.publication ? data.publication.slug || data.publication.id : publicationId;
@@ -275,7 +268,6 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       (data?.chapters ?? [])
         .filter((ch) => ch.hasTranslation)
         .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title })),
-
     [data?.chapters]
   );
 
@@ -317,12 +309,8 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   }
 
   const initialParagraphIndex = resolveReadingParagraphIndex({
-    isAuthenticated,
     urlHasParagraph: hasReadingParagraphQueryInUrl(),
     urlParagraphIndex: parseReadingParagraphFromUrl(),
-    apiChapterId: lastReadChapterId,
-    currentChapterId: chapterId,
-    apiParagraphIndex: lastReadParagraphIndex,
   });
 
   return (
@@ -339,9 +327,9 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       }
       initialParagraphIndex={initialParagraphIndex}
       onExit={() => route(`/p/${pubPath}`)}
-      onChapterRead={isAuthenticated ? handleChapterRead : undefined}
-      onSavePosition={isAuthenticated ? handleSavePosition : undefined}
-      readChapterIds={isAuthenticated ? readChapterIds : undefined}
+      onChapterComplete={isAuthenticated ? handleChapterComplete : undefined}
+      onSetProgress={isAuthenticated ? handleSetProgress : undefined}
+      lastReadChapterNumber={isAuthenticated ? lastReadChapterNumber : 0}
     />
   );
 }

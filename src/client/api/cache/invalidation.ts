@@ -19,6 +19,34 @@ export function emitCacheInvalidation(scope: CacheScope): void {
   localStorage.setItem(CACHE_INVALIDATION_KEY, payload);
 }
 
+/** Subscribe to user-scoped cache invalidation (same tab + cross-tab). */
+export function subscribeToUserCacheInvalidation(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  const handler = (raw: string) => {
+    try {
+      const payload = JSON.parse(raw) as { scope?: CacheScope };
+      if (payload.scope === 'user') callback();
+    } catch {
+      // ignore invalid payload
+    }
+  };
+
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== CACHE_INVALIDATION_KEY || !event.newValue) return;
+    handler(event.newValue);
+  };
+  const onChannel = (event: MessageEvent<string>) => handler(event.data);
+
+  window.addEventListener('storage', onStorage);
+  cacheChannel?.addEventListener('message', onChannel);
+
+  return () => {
+    window.removeEventListener('storage', onStorage);
+    cacheChannel?.removeEventListener('message', onChannel);
+  };
+}
+
 function handleInvalidationPayload(raw: string): void {
   try {
     const payload = JSON.parse(raw) as { scope?: CacheScope };

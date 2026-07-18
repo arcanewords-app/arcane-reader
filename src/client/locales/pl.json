@@ -1342,6 +1342,17 @@
     "maxTierReached": "Masz najwyższy poziom autora.",
     "cardUpgradeTitle": "Podwyższenie poziomu"
   },
+  "readingProgress": {
+    "jumpConfirmTitle": "Przeskoczyć rozdziały?",
+    "jumpConfirmBody": "Oznaczyć jako przeczytane rozdziały do {{chapter}}?",
+    "jumpConfirmYes": "Tak, oznacz",
+    "jumpConfirmNo": "Nie, tylko czytaj",
+    "reset": "Resetuj postęp",
+    "resetConfirmTitle": "Zresetować postęp czytania?",
+    "resetConfirmBody": "Wszystkie oznaczenia przeczytania tej publikacji zostaną usunięte. Tej operacji nie można cofnąć.",
+    "resetConfirmYes": "Resetuj",
+    "lastReadUpTo": "Przeczytane do tego rozdziału"
+  },
   "publication": {
     "untitled": "Bez tytułu",
     "unknownAuthor": "Nieznany autor",
@@ -1351,10 +1362,12 @@
     "originalLink": "Oryginał",
     "notFound": "Nie znaleziono publikacji",
     "chapters": "Rozdziały",
+    "continueNextChapter": "Kontynuuj: {{chapter}}",
     "continueFromChapter": "Kontynuuj od: {{chapter}}",
     "notTranslated": "Brak tłumaczenia",
     "read": "Przeczytane",
     "markRead": "Oznacz jako przeczytane",
+    "markUpToHere": "Oznacz jako przeczytane do tego rozdziału",
     "filterAll": "Wszystkie",
     "filterAllWithCount": "Wszystkie ({{count}})",
     "filterTranslated": "Tylko przetłumaczone",

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks'
 import { useTranslation } from 'react-i18next';
 import { Modal, Button, Icon } from './ui';
 import { chapterDisplayTitle } from '../../shared/chapterTitle';
+import { isChapterReadByWatermark } from '../../shared/reading-progress';
 import './ChapterTocModal.css';
 
 export interface ChapterTocItem {
@@ -18,12 +19,10 @@ interface ChapterTocModalProps {
   onSelectChapter: (chapterId: string) => void;
   currentChapterId?: string;
   title?: string;
-  /** Set of chapter IDs marked as read (shows checkmark indicator). */
-  readChapterIds?: Set<string>;
-  /** Mark a chapter as read without opening it (auth only). */
-  onMarkChapterRead?: (chapterId: string) => void;
-  /** Last read chapter ID — visually highlighted for "Continue from here". */
-  lastReadChapterId?: string | null;
+  /** Watermark: chapters with number <= N are read. */
+  lastReadChapterNumber?: number;
+  /** Set progress watermark to chapter number (auth only). */
+  onSetProgressToChapter?: (chapterNumber: number) => void;
 }
 
 export function ChapterTocModal({
@@ -33,16 +32,14 @@ export function ChapterTocModal({
   onSelectChapter,
   currentChapterId,
   title,
-  readChapterIds,
-  onMarkChapterRead,
-  lastReadChapterId,
+  lastReadChapterNumber = 0,
+  onSetProgressToChapter,
 }: ChapterTocModalProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
-  // Virtualization for large chapter lists (same pattern as ChapterList)
   const tocListRef = useRef<HTMLDivElement | null>(null);
   const [tocScrollTop, setTocScrollTop] = useState(0);
   const [tocHeight, setTocHeight] = useState(400);
@@ -51,7 +48,8 @@ export function ChapterTocModal({
   const TOC_BUFFER = 6;
   const TOC_VIRTUAL_THRESHOLD = 50;
 
-  // Reset search and filter when modal closes
+  const hasProgressTracking = lastReadChapterNumber > 0 || !!onSetProgressToChapter;
+
   useEffect(() => {
     if (!isOpen) {
       setSearch('');
@@ -67,17 +65,21 @@ export function ChapterTocModal({
       const numberMatch = String(ch.number).includes(search);
       return titleMatch || numberMatch;
     });
-    if (readChapterIds) {
+    if (hasProgressTracking) {
       if (filter === 'read') {
-        filtered = filtered.filter((ch) => readChapterIds.has(ch.id));
+        filtered = filtered.filter((ch) =>
+          isChapterReadByWatermark(ch.number, lastReadChapterNumber)
+        );
       } else if (filter === 'unread') {
-        filtered = filtered.filter((ch) => !readChapterIds.has(ch.id));
+        filtered = filtered.filter(
+          (ch) => !isChapterReadByWatermark(ch.number, lastReadChapterNumber)
+        );
       }
     }
     return [...filtered].sort((a, b) =>
       order === 'desc' ? b.number - a.number : a.number - b.number
     );
-  }, [chapters, search, order, filter, readChapterIds]);
+  }, [chapters, search, order, filter, lastReadChapterNumber, hasProgressTracking]);
 
   const handleTocScroll = useCallback(() => {
     const el = tocListRef.current;
@@ -89,7 +91,6 @@ export function ChapterTocModal({
     });
   }, []);
 
-  // ResizeObserver for TOC list — runs when modal opens (ref is set)
   useEffect(() => {
     if (!isOpen) return;
     const el = tocListRef.current;
@@ -140,7 +141,7 @@ export function ChapterTocModal({
             {t('publication.orderFromEnd')}
           </button>
         </div>
-        {readChapterIds && (
+        {hasProgressTracking && (
           <div class="toc-filter-btns">
             <button
               type="button"
@@ -193,13 +194,14 @@ export function ChapterTocModal({
 
             const renderItem = (chapter: ChapterTocItem) => {
               const isActive = chapter.id === currentChapterId;
-              const isRead = readChapterIds?.has(chapter.id);
-              const isLastRead = chapter.id === lastReadChapterId;
+              const isRead = isChapterReadByWatermark(chapter.number, lastReadChapterNumber);
+              const isWatermark =
+                chapter.number === lastReadChapterNumber && lastReadChapterNumber > 0;
               return (
                 <button
                   key={chapter.id}
                   type="button"
-                  class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''} ${isLastRead ? 'last-read' : ''}`}
+                  class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''} ${isWatermark ? 'last-read' : ''}`}
                   onClick={() => onSelectChapter(chapter.id)}
                   style={useVirtualization ? { minHeight: TOC_ITEM_HEIGHT + 'px' } : undefined}
                 >
@@ -213,22 +215,22 @@ export function ChapterTocModal({
                       <Icon name="check" size="sm" />
                     </span>
                   )}
-                  {onMarkChapterRead && !isRead && (
+                  {onSetProgressToChapter && !isRead && (
                     <button
                       type="button"
                       class="reading-toc-mark-read"
-                      title={t('publication.markRead')}
-                      aria-label={t('publication.markRead')}
+                      title={t('publication.markUpToHere')}
+                      aria-label={t('publication.markUpToHere')}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onMarkChapterRead(chapter.id);
+                        onSetProgressToChapter(chapter.number);
                       }}
                     >
                       <Icon name="check_circle" size="sm" />
                     </button>
                   )}
-                  {isLastRead && (
-                    <span class="reading-toc-continue" title={t('profile.continueReading')}>
+                  {isWatermark && (
+                    <span class="reading-toc-continue" title={t('readingProgress.lastReadUpTo')}>
                       <Icon name="bookmark" size="sm" />
                     </span>
                   )}

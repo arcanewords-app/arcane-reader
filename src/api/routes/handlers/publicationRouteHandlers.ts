@@ -9,7 +9,7 @@ import {
   exportBodySchema,
   publicationsListQuerySchema,
   reportBodySchema,
-  readingPositionBodySchema,
+  readProgressBodySchema,
   publicationRatingBodySchema,
   publishBodySchema,
   buildExportsBodySchema,
@@ -35,9 +35,9 @@ import {
   getUserPublications,
   getPublicationByProjectId,
   getProjectForPublicationExport,
-  markChapterAsRead,
   getReadProgress,
-  updateReadingPosition,
+  updateReadProgress,
+  resetReadProgress,
   createTranslationReport,
   listPublicEntities,
   getPublicEntityById,
@@ -1312,9 +1312,7 @@ export async function handleGetReadProgress(req: Request, res: Response): Promis
     const token = req.token ?? null;
     const progress = await getReadProgress(publicationId, userId, token);
     res.json({
-      chapterIds: progress.chapterIds,
-      lastReadChapterId: progress.lastReadChapterId ?? undefined,
-      lastReadParagraphIndex: progress.lastReadParagraphIndex,
+      lastReadChapterNumber: progress.lastReadChapterNumber,
     });
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
@@ -1362,6 +1360,68 @@ export async function handleReportPublication(req: Request, res: Response): Prom
   }
 }
 
+async function invalidateReadingProgressCaches(
+  userId: string,
+  publicationId: string
+): Promise<void> {
+  await redisDelMany([
+    readingHistoryCacheKey(userId),
+    buildRedisKey(CACHE_PREFIX.userReadingProgress, userId, publicationId),
+  ]);
+}
+
+export async function handleUpsertReadProgress(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+    const parsed = readProgressBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+    const { chapterNumber, mode } = parsed.data;
+
+    const pub = await getPublicationBySlugOrId(requireRouteParam(req.params.id, 'id'));
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    const progress = await updateReadProgress(userId, pub.id, chapterNumber, mode, token);
+    await invalidateReadingProgressCaches(userId, pub.id);
+    res.json(progress);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const msg = error instanceof Error ? error.message : 'Failed to update read progress';
+    res.status(500).json({ error: msg });
+  }
+}
+
+export async function handleResetReadProgress(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.id;
+    const token = req.token!;
+
+    const pub = await getPublicationBySlugOrId(requireRouteParam(req.params.id, 'id'));
+    if (!pub) {
+      res.status(404).json({ error: 'Publication not found' });
+      return;
+    }
+
+    await resetReadProgress(userId, pub.id, token);
+    await invalidateReadingProgressCaches(userId, pub.id);
+    res.json({ lastReadChapterNumber: 0 });
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const msg = error instanceof Error ? error.message : 'Failed to reset read progress';
+    res.status(500).json({ error: msg });
+  }
+}
+
+/** @deprecated Use PATCH /read-progress with mode complete */
 export async function handleMarkChapterRead(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.user!.id;
@@ -1374,12 +1434,11 @@ export async function handleMarkChapterRead(req: Request, res: Response): Promis
       return;
     }
 
-    // Verify chapter belongs to publication's project
     const { createServiceRoleClient } = await import('../../../services/supabaseClient.js');
     const serviceClient = createServiceRoleClient();
     const { data: chapter } = await serviceClient
       .from('chapters')
-      .select('id')
+      .select('number')
       .eq('id', chapterId)
       .eq('project_id', pub.projectId)
       .single();
@@ -1389,12 +1448,15 @@ export async function handleMarkChapterRead(req: Request, res: Response): Promis
       return;
     }
 
-    await markChapterAsRead(userId, pub.id, chapterId, token);
-    await redisDelMany([
-      readingHistoryCacheKey(userId),
-      buildRedisKey(CACHE_PREFIX.userReadingProgress, userId, pub.id),
-    ]);
-    res.json({ success: true });
+    const progress = await updateReadProgress(
+      userId,
+      pub.id,
+      chapter.number as number,
+      'complete',
+      token
+    );
+    await invalidateReadingProgressCaches(userId, pub.id);
+    res.json(progress);
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Failed to mark chapter as read';
@@ -1402,51 +1464,12 @@ export async function handleMarkChapterRead(req: Request, res: Response): Promis
   }
 }
 
+/** @deprecated Paragraph resume deferred — see ADR reading-progress-watermark */
 export async function handleUpdateReadingPosition(req: Request, res: Response): Promise<void> {
-  try {
-    const userId = req.user!.id;
-    const token = req.token!;
-    const parsed = readingPositionBodySchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({
-        error: 'Validation failed',
-        details: parsed.error.flatten().fieldErrors,
-      });
-      return;
-    }
-    const { chapterId, paragraphIndex = 0 } = parsed.data;
-
-    const pub = await getPublicationBySlugOrId(requireRouteParam(req.params.id, 'id'));
-    if (!pub) {
-      res.status(404).json({ error: 'Publication not found' });
-      return;
-    }
-
-    const { createServiceRoleClient } = await import('../../../services/supabaseClient.js');
-    const serviceClient = createServiceRoleClient();
-    const { data: chapter } = await serviceClient
-      .from('chapters')
-      .select('id')
-      .eq('id', chapterId)
-      .eq('project_id', pub.projectId)
-      .single();
-
-    if (!chapter) {
-      res.status(404).json({ error: 'Chapter not found' });
-      return;
-    }
-
-    await updateReadingPosition(userId, pub.id, chapterId, paragraphIndex, token);
-    await redisDelMany([
-      readingHistoryCacheKey(userId),
-      buildRedisKey(CACHE_PREFIX.userReadingProgress, userId, pub.id),
-    ]);
-    res.json({ success: true });
-  } catch (error) {
-    if (handleServiceError(error, req, res)) return;
-    const msg = error instanceof Error ? error.message : 'Failed to update reading position';
-    res.status(500).json({ error: msg });
-  }
+  res.status(410).json({
+    error: 'Reading position API removed. Use read-progress watermark instead.',
+    code: 'READING_POSITION_DEPRECATED',
+  });
 }
 
 export async function handlePublishProject(req: Request, res: Response): Promise<void> {

@@ -1525,6 +1525,17 @@
     "scoreLabel4": "Very good",
     "scoreLabel5": "Excellent"
   },
+  "readingProgress": {
+    "jumpConfirmTitle": "Skip ahead?",
+    "jumpConfirmBody": "Mark chapters up to {{chapter}} as read?",
+    "jumpConfirmYes": "Yes, mark read",
+    "jumpConfirmNo": "No, just read",
+    "reset": "Reset progress",
+    "resetConfirmTitle": "Reset reading progress?",
+    "resetConfirmBody": "All read marks for this publication will be cleared. This cannot be undone.",
+    "resetConfirmYes": "Reset",
+    "lastReadUpTo": "Read up to this chapter"
+  },
   "publication": {
     "untitled": "Untitled",
     "unknownAuthor": "Unknown author",
@@ -1534,10 +1545,12 @@
     "originalLink": "Original",
     "notFound": "Publication not found",
     "chapters": "Chapters",
+    "continueNextChapter": "Continue: {{chapter}}",
     "continueFromChapter": "Continue from: {{chapter}}",
     "notTranslated": "No translation",
     "read": "Read",
     "markRead": "Mark as read",
+    "markUpToHere": "Mark read up to here",
     "filterAll": "All",
     "filterTranslated": "Translated",
     "filterUnread": "Unread",

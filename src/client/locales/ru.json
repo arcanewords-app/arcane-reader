@@ -1524,6 +1524,17 @@
     "scoreLabel4": "Хорошо",
     "scoreLabel5": "Отлично"
   },
+  "readingProgress": {
+    "jumpConfirmTitle": "Перепрыгнуть главы?",
+    "jumpConfirmBody": "Отметить прочитанными главы до {{chapter}}?",
+    "jumpConfirmYes": "Да, отметить",
+    "jumpConfirmNo": "Нет, просто читать",
+    "reset": "Сбросить прогресс",
+    "resetConfirmTitle": "Сбросить прогресс чтения?",
+    "resetConfirmBody": "Все отметки «прочитано» для этой публикации будут удалены. Это нельзя отменить.",
+    "resetConfirmYes": "Сбросить",
+    "lastReadUpTo": "Прочитано до этой главы"
+  },
   "publication": {
     "untitled": "Без названия",
     "unknownAuthor": "Неизвестный автор",
@@ -1533,10 +1544,12 @@
     "originalLink": "Оригинал",
     "notFound": "Публикация не найдена",
     "chapters": "Главы",
+    "continueNextChapter": "Продолжить: {{chapter}}",
     "continueFromChapter": "Продолжить с: {{chapter}}",
     "notTranslated": "Нет перевода",
     "read": "Прочитано",
     "markRead": "Отметить прочитанным",
+    "markUpToHere": "Отметить прочитанным до этой главы",
     "filterAll": "Все",
     "filterAllWithCount": "Все ({{count}})",
     "filterTranslated": "Только переведённые",

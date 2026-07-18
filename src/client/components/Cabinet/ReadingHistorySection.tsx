@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../../api/client';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
-import { LoadingSpinner } from '../ui';
+import { LoadingSpinner, Modal, Button, Icon } from '../ui';
+import '../Home/PublicationCard.css';
+import '../../pages/HomePage.css';
 import './ReadingHistorySection.css';
 
 export interface ReadingHistoryItem {
@@ -13,7 +15,8 @@ export interface ReadingHistoryItem {
   slug: string | null;
   totalChapters: number;
   readCount: number;
-  lastReadChapterId: string | null;
+  lastReadChapterNumber: number;
+  continueChapterId: string | null;
   lastReadAt: string | null;
 }
 
@@ -21,20 +24,20 @@ export function ReadingHistorySection() {
   const { t } = useTranslation();
   const [items, setItems] = useState<ReadingHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resetTarget, setResetTarget] = useState<ReadingHistoryItem | null>(null);
+
+  const loadHistory = () => {
+    return api
+      .getReadingHistory()
+      .then(({ items: data }) => setItems(data))
+      .catch(() => setItems([]));
+  };
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .getReadingHistory()
-      .then(({ items: data }) => {
-        if (!cancelled) setItems(data);
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    loadHistory().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -42,8 +45,8 @@ export function ReadingHistorySection() {
 
   const handleContinue = (item: ReadingHistoryItem) => {
     const path = item.slug || item.publicationId;
-    if (item.lastReadChapterId) {
-      route(`/p/${path}/chapters/${item.lastReadChapterId}/reading`);
+    if (item.continueChapterId) {
+      route(`/p/${path}/chapters/${item.continueChapterId}/reading`);
     } else {
       route(`/p/${path}`);
     }
@@ -52,6 +55,17 @@ export function ReadingHistorySection() {
   const handleOpen = (item: ReadingHistoryItem) => {
     const path = item.slug || item.publicationId;
     route(`/p/${path}`);
+  };
+
+  const handleReset = async () => {
+    if (!resetTarget) return;
+    try {
+      await api.resetReadProgress(resetTarget.publicationId);
+      setResetTarget(null);
+      await loadHistory();
+    } catch {
+      setResetTarget(null);
+    }
   };
 
   if (loading) {
@@ -65,7 +79,9 @@ export function ReadingHistorySection() {
   if (items.length === 0) {
     return (
       <div class="reading-history-empty">
-        <div class="reading-history-empty-icon">📖</div>
+        <div class="reading-history-empty-icon" aria-hidden="true">
+          <Icon name="menu_book" size="lg" />
+        </div>
         <p class="reading-history-empty-text">{t('profile.noReadingHistory')}</p>
         <p class="reading-history-empty-hint">{t('profile.noReadingHistoryHint')}</p>
       </div>
@@ -73,70 +89,113 @@ export function ReadingHistorySection() {
   }
 
   return (
-    <div class="reading-history-grid">
-      {items.map((item) => (
-        <div
-          key={item.publicationId}
-          class="reading-history-card"
-          role="button"
-          tabIndex={0}
-          onClick={() => handleOpen(item)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleOpen(item);
-            }
-          }}
-        >
-          <div class="reading-history-card-cover">
-            {item.coverImageUrl ? (
-              <img
-                src={item.coverImageUrl}
-                alt={item.title || ''}
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const placeholder = target.parentElement?.querySelector(
-                    '.reading-history-card-placeholder'
-                  );
-                  if (placeholder) {
-                    placeholder.classList.remove('hidden');
+    <>
+      <div class="home-grid">
+        {items.map((item) => {
+          const title = item.title || t('publication.untitled');
+          return (
+            <div key={item.publicationId} class="publication-card reading-history-card">
+              <div
+                class="publication-card-clickable"
+                role="button"
+                tabIndex={0}
+                aria-label={t('home.openPublicationAria', { title })}
+                onClick={() => handleOpen(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleOpen(item);
                   }
                 }}
-              />
-            ) : null}
-            <div class={`reading-history-card-placeholder ${item.coverImageUrl ? 'hidden' : ''}`}>
-              <BookPlaceholder projectName={item.title || item.publicationId} projectType="book" />
-            </div>
-          </div>
-          <div class="reading-history-card-body">
-            <h3 class="reading-history-card-title">{item.title || t('publication.untitled')}</h3>
-            <div class="reading-history-card-progress">
-              {item.readCount} / {item.totalChapters} {t('publication.chapters')}
-            </div>
-            {item.lastReadAt && (
-              <div class="reading-history-card-date">
-                {t('profile.lastRead')}: {formatRelativeDate(item.lastReadAt, t)}
+              >
+                <div class="publication-card-cover">
+                  {item.coverImageUrl ? (
+                    <>
+                      <img
+                        src={item.coverImageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const placeholder = target.parentElement?.querySelector(
+                            '.publication-card-placeholder'
+                          );
+                          if (placeholder) {
+                            placeholder.classList.remove('hidden');
+                          }
+                        }}
+                      />
+                      <div class="publication-card-placeholder hidden">
+                        <BookPlaceholder projectName={title} projectType="book" />
+                      </div>
+                    </>
+                  ) : (
+                    <div class="publication-card-placeholder">
+                      <BookPlaceholder projectName={title} projectType="book" />
+                    </div>
+                  )}
+                </div>
+                <div class="publication-card-content">
+                  <div class="publication-card-main">
+                    <h3 class="publication-card-title">{title}</h3>
+                    <div class="reading-history-meta">
+                      <span>
+                        {item.readCount} / {item.totalChapters} {t('publication.chapters')}
+                      </span>
+                      {item.lastReadAt && (
+                        <>
+                          <span class="reading-history-meta-sep" aria-hidden="true">
+                            ·
+                          </span>
+                          <span>
+                            {t('profile.lastRead')}: {formatRelativeDate(item.lastReadAt, t)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            <div class="reading-history-card-actions">
               <button
                 type="button"
-                class="reading-history-btn reading-history-btn-continue"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleContinue(item);
-                }}
+                class="publication-card-read-btn"
+                onClick={() => handleContinue(item)}
               >
-                {item.lastReadChapterId ? t('profile.continue') : t('profile.open')}
+                {item.continueChapterId ? t('profile.continue') : t('profile.open')}
+              </button>
+              <button
+                type="button"
+                class="reading-history-reset-link"
+                onClick={() => setResetTarget(item)}
+              >
+                <Icon name="restart_alt" size="sm" />
+                {t('readingProgress.reset')}
               </button>
             </div>
-          </div>
-        </div>
-      ))}
-    </div>
+          );
+        })}
+      </div>
+
+      <Modal
+        isOpen={resetTarget != null}
+        onClose={() => setResetTarget(null)}
+        title={t('readingProgress.resetConfirmTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setResetTarget(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={() => void handleReset()}>
+              {t('readingProgress.resetConfirmYes')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('readingProgress.resetConfirmBody')}</p>
+      </Modal>
+    </>
   );
 }
 

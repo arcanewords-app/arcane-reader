@@ -25,22 +25,23 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                           | Summary                                        | Reference                            |
-| ---------------------------- | ---------------------------------------------- | ------------------------------------ |
-| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment   | `CatalogFilterToolbar.tsx`           |
-| `filter-icon-chip`           | 44px square chip, icon or short code           | `CatalogFilterToolbar.css`           |
-| `filter-segment-control`     | Connected toggle pair (sort direction)         | `CatalogFilterToolbar.css`           |
-| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+ | `HomePage.css`                       |
-| `entity-filter-chips`        | Removable URL-driven filter tags               | `HomePage.tsx` / `.home-entity-chip` |
-| `header-locale-control`      | App language: icon + code + dropdown           | `Header.tsx`                         |
-| `header-support-control`     | Support via Boosty: icon + label, direct link  | `Header/SupportMenu.tsx`             |
-| `cover-status-badge`         | Absolute badge on publication cover            | `PublicationStatusBadge.tsx`         |
-| `publication-original-link`  | Compact external link to source on `/p/...`    | `PublicationPage.tsx`                |
-| `publication-rating-meta`    | Compact ★ avg on catalog card meta row         | `PublicationRatingMeta.tsx`          |
-| `publication-rating-summary` | Full stars + CTA on `/p/:id`                   | `PublicationRatingSummary.tsx`       |
-| `publication-rating-input`   | Modal 1–5 star rating input                    | `RatePublicationModal.tsx`           |
-| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating     | `CatalogFilterToolbar.tsx`           |
-| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs   | `components/Admin/`                  |
+| Id                           | Summary                                         | Reference                            |
+| ---------------------------- | ----------------------------------------------- | ------------------------------------ |
+| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment    | `CatalogFilterToolbar.tsx`           |
+| `filter-icon-chip`           | 44px square chip, icon or short code            | `CatalogFilterToolbar.css`           |
+| `filter-segment-control`     | Connected toggle pair (sort direction)          | `CatalogFilterToolbar.css`           |
+| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+  | `HomePage.css`                       |
+| `entity-filter-chips`        | Removable URL-driven filter tags                | `HomePage.tsx` / `.home-entity-chip` |
+| `header-locale-control`      | App language: icon + code + dropdown            | `Header.tsx`                         |
+| `header-support-control`     | Support via Boosty: icon + label, direct link   | `Header/SupportMenu.tsx`             |
+| `cover-status-badge`         | Absolute badge on publication cover             | `PublicationStatusBadge.tsx`         |
+| `publication-original-link`  | Compact external link to source on `/p/...`     | `PublicationPage.tsx`                |
+| `publication-rating-meta`    | Compact ★ avg on catalog card meta row          | `PublicationRatingMeta.tsx`          |
+| `publication-rating-summary` | Full stars + CTA on `/p/:id`                    | `PublicationRatingSummary.tsx`       |
+| `publication-rating-input`   | Modal 1–5 star rating input                     | `RatePublicationModal.tsx`           |
+| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating      | `CatalogFilterToolbar.tsx`           |
+| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs    | `components/Admin/`                  |
+| `reading-history-card`       | Profile reading history: PublicationCard + meta | `ReadingHistorySection.tsx`          |
 
 ---
 
@@ -357,6 +358,35 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **a11y:** `AdminSegmentTabs` uses `aria-current="page"`; segment tabs min-height 44px.
 
 **Do not:** Mix entity kinds in one list; put success/error inside create form.
+
+---
+
+## `reading-history-card`
+
+**When:** Profile or cabinet tab shows publications the user has read, with continue and reset actions.
+
+**When not:** Catalog browse (use `PublicationCard` only); author dashboard project cards.
+
+**Files:**
+
+- [`src/client/components/Cabinet/ReadingHistorySection.tsx`](../../../src/client/components/Cabinet/ReadingHistorySection.tsx)
+- [`src/client/components/Cabinet/ReadingHistorySection.css`](../../../src/client/components/Cabinet/ReadingHistorySection.css)
+- Reuses [`PublicationCard.css`](../../../src/client/components/Home/PublicationCard.css) + [`home-grid`](../../../src/client/pages/HomePage.css)
+
+**Layout:**
+
+- `publication-card` shell; `publication-card-clickable` opens `/p/:id`
+- `publication-card-read-btn` — Continue or Open (full-width primary CTA)
+- `reading-history-reset-link` — secondary text link with `restart_alt` icon (not a second full-width button)
+- `reading-history-meta` — `readCount / totalChapters` and optional last-read date
+
+**Responsive:** `home-grid` breakpoints; reset link `min-height: 44px` on mobile.
+
+**i18n:** `profile.continue`, `profile.open`, `profile.lastRead`, `readingProgress.reset`, `publication.chapters`.
+
+**a11y:** Clickable area has `aria-label`; empty state uses `Icon` not emoji; reset opens confirm `Modal` with `Button` variants.
+
+**Do not:** Style reset as unstyled native `<button>`; make entire card one click target (conflicts with CTA/reset).
 
 ---
 

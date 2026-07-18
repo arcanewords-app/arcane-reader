@@ -54,7 +54,7 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate). `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push) without page reload |
 | `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode entry without chapter — replace-redirects to first available chapter URL |
 | `/p/:publicationId` | guest+ | PublicationPage | Public publication page. Query (chapter list): `q` (search), `translation=translated\|all\|untranslated` (default translated), `read=all\|unread\|read` (default all; auth only for unread/read filter UI), `order=asc\|desc` (default asc) |
-| `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Query: `paragraph` — numeric 0-based segment index (omit when 0); guests restore scroll on F5 via URL; auth users use API `reading-position` unless explicit `?paragraph=` share link |
+| `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Query: `paragraph` — numeric 0-based segment index (omit when 0); guest share links restore scroll via URL only |
 
 ### Reading mode URL sync
 
@@ -64,7 +64,7 @@ See also `@.cursor/rules/spa-navigation.mdc` for the general SPA policy (push vs
 - **Browser Back/Forward**: `initialChapterId` from URL drives `currentChapterIndex`; cached chapter text stays in component state.
 - **Share / F5**: URL reflects the chapter being read.
 - **Author exit**: returns to chapter editor for the **current** chapter (not the entry URL).
-- **Scroll position within chapter**: not in URL; persisted via `PATCH /api/publications/:id/reading-position` (auth) only.
+- **Scroll position within chapter**: optional `?paragraph=` in URL for share/deep links only. Server paragraph bookmark deferred (see ADR reading-progress-watermark).
 
 ### Access Levels
 
@@ -336,12 +336,14 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/publications/:id/chapters` | - | Publication chapters |
 | GET | `/api/publications/:id/chapters/:chapterId` | - | Chapter content |
 | GET | `/api/publications/:id/glossary` | - | Publication glossary (returns [] when showGlossary=false) |
-| GET | `/api/publications/:id/read-progress` | optional | Read progress (user) |
+| GET | `/api/publications/:id/read-progress` | optional | Read progress watermark (`lastReadChapterNumber`) |
+| PATCH | `/api/publications/:id/read-progress` | user+ | Update watermark (`chapterNumber`, `mode`: `complete` \| `set`) |
+| DELETE | `/api/publications/:id/read-progress` | user+ | Reset progress |
 | GET | `/api/publications/:id/rating` | optional | User rating status (`userScore`, `eligibility`) |
-| PUT | `/api/publications/:id/rating` | user+ | Upsert 1–5 rating (body: `{ score }`; requires ≥1 read chapter; not owner) |
+| PUT | `/api/publications/:id/rating` | user+ | Upsert 1–5 rating (body: `{ score }`; requires `lastReadChapterNumber >= 1`; not owner) |
 | DELETE | `/api/publications/:id/rating` | user+ | Remove own rating |
-| POST | `/api/publications/:id/chapters/:chapterId/read` | user+ | Mark chapter as read |
-| PATCH | `/api/publications/:id/reading-position` | user+ | Update reading position |
+| POST | `/api/publications/:id/chapters/:chapterId/read` | user+ | **Deprecated** — completes chapter via watermark |
+| PATCH | `/api/publications/:id/reading-position` | user+ | **Deprecated** — returns 410 |
 
 ### Public metadata entities (public)
 

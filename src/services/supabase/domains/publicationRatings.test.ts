@@ -59,9 +59,7 @@ describe('getPublicationRatingStatus', () => {
   it('returns not_read without progress', async () => {
     mockGetPublicationById.mockResolvedValue({ id: 'p1', userId: 'owner' });
     mockGetReadProgress.mockResolvedValue({
-      chapterIds: [],
-      lastReadChapterId: null,
-      lastReadParagraphIndex: 0,
+      lastReadChapterNumber: 0,
     });
     const status = await getPublicationRatingStatus('p1', 'u2', jwt);
     assert.equal(status.eligibility, 'not_read');
@@ -74,9 +72,7 @@ describe('upsertPublicationRating', () => {
     mockCreateClientWithToken.mockReturnValue({ from: mockFrom });
     mockGetPublicationById.mockResolvedValue({ id: 'p1', userId: 'owner' });
     mockGetReadProgress.mockResolvedValue({
-      chapterIds: ['ch1'],
-      lastReadChapterId: 'ch1',
-      lastReadParagraphIndex: 0,
+      lastReadChapterNumber: 2,
     });
   });
 
@@ -107,9 +103,7 @@ describe('deletePublicationRating', () => {
     mockCreateClientWithToken.mockReturnValue({ from: mockFrom });
     mockGetPublicationById.mockResolvedValue({ id: 'p1', userId: 'owner' });
     mockGetReadProgress.mockResolvedValue({
-      chapterIds: ['ch1'],
-      lastReadChapterId: 'ch1',
-      lastReadParagraphIndex: 0,
+      lastReadChapterNumber: 2,
     });
   });
 

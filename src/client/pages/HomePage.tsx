@@ -16,6 +16,7 @@ import {
   sanitizeCatalogUrlStateForAuth,
 } from '../utils/catalogRoutes';
 import { useUrlSync } from '../hooks/useUrlSync';
+import { subscribeToUserCacheInvalidation } from '../api/cache/invalidation';
 import './HomePage.css';
 
 export function HomePage() {
@@ -55,7 +56,7 @@ export function HomePage() {
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
   const [entityMap, setEntityMap] = useState<Record<string, PublicEntity | null>>({});
   const [readingHistoryMap, setReadingHistoryMap] = useState<
-    Record<string, { lastReadChapterId: string | null }>
+    Record<string, { lastReadChapterNumber: number; continueChapterId: string | null }>
   >({});
   const hasLoadedOnceRef = useRef(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -176,9 +177,15 @@ export function HomePage() {
     const loadHistory = () => {
       historyPromise.then(({ items }) => {
         if (loadIdRef.current !== loadId) return;
-        const map: Record<string, { lastReadChapterId: string | null }> = {};
+        const map: Record<
+          string,
+          { lastReadChapterNumber: number; continueChapterId: string | null }
+        > = {};
         items.forEach((item) => {
-          map[item.publicationId] = { lastReadChapterId: item.lastReadChapterId };
+          map[item.publicationId] = {
+            lastReadChapterNumber: item.lastReadChapterNumber,
+            continueChapterId: item.continueChapterId,
+          };
         });
         setReadingHistoryMap(map);
       });
@@ -263,6 +270,41 @@ export function HomePage() {
     if (filter === 'mine' && !isAuthor) return;
     loadData();
   }, [authReady, filter, isAuthor, loadData]);
+
+  const reloadReadingHistory = useCallback(() => {
+    if (!authService.getToken()) {
+      setReadingHistoryMap({});
+      return;
+    }
+    api
+      .getReadingHistory()
+      .then(({ items }) => {
+        const map: Record<
+          string,
+          { lastReadChapterNumber: number; continueChapterId: string | null }
+        > = {};
+        items.forEach((item) => {
+          map[item.publicationId] = {
+            lastReadChapterNumber: item.lastReadChapterNumber,
+            continueChapterId: item.continueChapterId,
+          };
+        });
+        setReadingHistoryMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reloadReadingHistory();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const unsubCache = subscribeToUserCacheInvalidation(reloadReadingHistory);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      unsubCache();
+    };
+  }, [reloadReadingHistory]);
 
   useEffect(() => {
     if (!authReady || isAuthor) return;

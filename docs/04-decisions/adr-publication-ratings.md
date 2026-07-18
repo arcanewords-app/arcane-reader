@@ -23,7 +23,7 @@ The public catalog lists author-published translations. Readers need a familiar 
 1. **Variant B:** single 1–5 score per publication per user.
 2. **Display threshold:** hide aggregate on cards until `rating_count >= 5`.
 3. **Bayesian average for sort:** `(C * m + sum) / (C + n)` with `m = 3.6`, `C = 5` (same as display threshold).
-4. **Eligibility:** `requireAuth`; at least one chapter in `user_publication_progress.read_chapter_ids`; reject if `user_id === publications.user_id`.
+4. **Eligibility:** `requireAuth`; `lastReadChapterNumber >= 1` in `user_publication_progress`; reject if `user_id === publications.user_id`.
 5. **Storage:** table `publication_ratings`; denormalized `rating_avg`, `rating_count`, `rating_bayesian` on `publications` maintained by trigger; exposed via `publications_list_with_counts`.
 6. **UI:** compact meta on cards; full summary + Modal on `/p/:id`; optional reader nudge once per publication (localStorage dismiss).
 

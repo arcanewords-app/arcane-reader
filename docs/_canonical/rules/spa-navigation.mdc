@@ -72,7 +72,7 @@ Add new path segments to `routing.mdc`, `AppRouter.tsx`, and server SPA fallback
 - Unsaved form drafts
 - Transient loading / error flags
 
-**Exception:** authenticated reading position uses `PATCH /api/publications/:id/reading-position`, not URL.
+**Exception:** paragraph scroll uses `?paragraph=` in URL for share links only. Watermark progress uses `PATCH /api/publications/:id/read-progress`.
 
 ## Reference implementations
 

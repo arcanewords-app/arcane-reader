@@ -16,9 +16,7 @@ export const publicationCache = {
   readProgress: new Map<
     string,
     CacheEntry<{
-      chapterIds: string[];
-      lastReadChapterId?: string;
-      lastReadParagraphIndex?: number;
+      lastReadChapterNumber: number;
     }>
   >(),
   glossary: new Map<string, CacheEntry<GlossaryEntry[]>>(),
@@ -41,7 +39,8 @@ export const userScopedCache = {
         slug: string | null;
         totalChapters: number;
         readCount: number;
-        lastReadChapterId: string | null;
+        lastReadChapterNumber: number;
+        continueChapterId: string | null;
         lastReadAt: string | null;
       }>;
     }>

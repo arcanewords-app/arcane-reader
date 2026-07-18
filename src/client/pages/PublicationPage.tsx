@@ -31,6 +31,8 @@ import {
 } from '../utils/publicationRoutes';
 import { buildCatalogEntityFilterUrl } from '../utils/catalogRoutes';
 import { useUrlSyncListeners } from '../hooks/useUrlSync';
+import { subscribeToUserCacheInvalidation } from '../api/cache/invalidation';
+import { isChapterReadByWatermark, resolveContinueChapter } from '../../shared/reading-progress';
 import './PublicationPage.css';
 
 interface PublicationPageProps {
@@ -48,8 +50,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [ratingUserScore, setRatingUserScore] = useState<number | null>(null);
   const [ratingEligibility, setRatingEligibility] = useState<PublicationRatingEligibility>('guest');
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
-  const [readChapterIds, setReadChapterIds] = useState<Set<string>>(new Set());
-  const [lastReadChapterId, setLastReadChapterId] = useState<string | null>(null);
+  const [lastReadChapterNumber, setLastReadChapterNumber] = useState(0);
+  const [showResetProgressConfirm, setShowResetProgressConfirm] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const initialChapterListQuery = parsePublicationChapterQueryFromUrl();
   const [chapterSearch, setChapterSearch] = useState(initialChapterListQuery.q);
@@ -161,14 +163,12 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     const user = await authService.getCurrentUser();
     setIsAuthenticated(!!user);
     if (!user || !publicationId) {
-      setReadChapterIds(new Set());
-      setLastReadChapterId(null);
+      setLastReadChapterNumber(0);
       return;
     }
     try {
-      const { chapterIds, lastReadChapterId: lastId } = await api.getReadProgress(publicationId);
-      setReadChapterIds(new Set(chapterIds));
-      setLastReadChapterId(lastId ?? null);
+      const { lastReadChapterNumber: watermark } = await api.getReadProgress(publicationId);
+      setLastReadChapterNumber(watermark ?? 0);
     } catch {
       // Ignore read progress errors on public page.
     }
@@ -182,20 +182,27 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     }
   }, [publicationId]);
 
-  const handleMarkChapterRead = useCallback(
-    (chapterId: string) => {
+  const handleSetProgressToChapter = useCallback(
+    (chapterNumber: number) => {
       if (!publicationId || !isAuthenticated) return;
-      setReadChapterIds((prev) => new Set([...prev, chapterId]));
-      api.markChapterAsRead(publicationId, chapterId).catch(() => {
-        setReadChapterIds((prev) => {
-          const next = new Set(prev);
-          next.delete(chapterId);
-          return next;
-        });
+      setLastReadChapterNumber(chapterNumber);
+      api.updateReadProgress(publicationId, chapterNumber, 'set').catch(() => {
+        syncAuthProgress().catch(() => {});
       });
     },
-    [publicationId, isAuthenticated]
+    [publicationId, isAuthenticated, syncAuthProgress]
   );
+
+  const handleResetProgress = useCallback(async () => {
+    if (!publicationId || !isAuthenticated) return;
+    try {
+      await api.resetReadProgress(publicationId);
+      setLastReadChapterNumber(0);
+      setShowResetProgressConfirm(false);
+    } catch {
+      syncAuthProgress().catch(() => {});
+    }
+  }, [publicationId, isAuthenticated, syncAuthProgress]);
 
   useEffect(() => {
     if (!publicationId) return;
@@ -276,6 +283,22 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     };
   }, [syncAuthProgress]);
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        syncAuthProgress().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const unsubCache = subscribeToUserCacheInvalidation(() => {
+      syncAuthProgress().catch(() => {});
+    });
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      unsubCache();
+    };
+  }, [syncAuthProgress]);
+
   const pub = data;
   const meta =
     pub && publicationId
@@ -328,7 +351,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       }
       // Read status filter (auth only)
       if (!isAuthenticated || chapterFilter === 'all') return true;
-      const isRead = readChapterIds.has(ch.id);
+      const isRead = isChapterReadByWatermark(ch.number, lastReadChapterNumber);
       if (chapterFilter === 'read') return isRead;
       if (chapterFilter === 'unread') return !isRead;
       return true;
@@ -344,7 +367,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     chapterFilter,
     chapterOrder,
     isAuthenticated,
-    readChapterIds,
+    lastReadChapterNumber,
   ]);
 
   const handleChapterListScroll = useCallback(() => {
@@ -414,17 +437,25 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const isAuthor = !!user && isAtLeast('author');
   const glossaryCount = pub.glossaryCount ?? 0;
 
-  const lastReadChapter = lastReadChapterId
-    ? chapters.find((ch) => ch.id === lastReadChapterId)
+  const continueChapterRef = resolveContinueChapter(
+    chapters
+      .filter((ch) => ch.hasTranslation)
+      .map((ch) => ({
+        id: ch.id,
+        number: ch.number,
+        hasTranslation: true,
+      })),
+    lastReadChapterNumber
+  );
+  const continueChapter = continueChapterRef
+    ? chapters.find((ch) => ch.id === continueChapterRef.id)
     : null;
-  const showContinueReading =
-    isAuthenticated && lastReadChapterId && lastReadChapter?.hasTranslation;
-  const continueChapterLabel =
-    lastReadChapter && showContinueReading
-      ? lastReadChapter.title?.trim()
-        ? lastReadChapter.title
-        : t('chapterList.defaultChapterTitle', { number: lastReadChapter.number })
-      : '';
+  const showContinueReading = isAuthenticated && !!continueChapter;
+  const continueChapterLabel = continueChapter
+    ? continueChapter.title?.trim()
+      ? continueChapter.title
+      : t('chapterList.defaultChapterTitle', { number: continueChapter.number })
+    : '';
 
   const handleDownload = async (format: 'epub' | 'fb2') => {
     if (!pub) return;
@@ -670,15 +701,15 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                       handleChapterSearchChange((e.target as HTMLInputElement).value)
                     }
                   />
-                  {showContinueReading && lastReadChapterId && (
+                  {showContinueReading && continueChapter && (
                     <button
                       type="button"
                       class="publication-page-continue-from"
-                      onClick={() => route(`/p/${pubPath}/chapters/${lastReadChapterId}/reading`)}
+                      onClick={() => route(`/p/${pubPath}/chapters/${continueChapter.id}/reading`)}
                     >
                       <Icon name="menu_book" size="sm" />
                       <span class="publication-page-continue-from-label">
-                        {t('publication.continueFromChapter', {
+                        {t('publication.continueNextChapter', {
                           chapter: continueChapterLabel,
                         })}
                       </span>
@@ -774,6 +805,15 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     >
                       <Icon name="check_circle" size="sm" /> {t('publication.filterRead')}
                     </button>
+                    {lastReadChapterNumber > 0 && (
+                      <button
+                        type="button"
+                        class="publication-page-reset-progress"
+                        onClick={() => setShowResetProgressConfirm(true)}
+                      >
+                        <Icon name="restart_alt" size="sm" /> {t('readingProgress.reset')}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -818,7 +858,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                         >
                           <ul>
                             {visibleChapters.map((ch) => {
-                              const isRead = readChapterIds.has(ch.id);
+                              const isRead = isChapterReadByWatermark(
+                                ch.number,
+                                lastReadChapterNumber
+                              );
                               return (
                                 <li
                                   key={ch.id}
@@ -841,6 +884,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                       </span>
                                     )}
                                   </span>
+                                  {isAuthenticated && !isRead && ch.hasTranslation && (
+                                    <button
+                                      type="button"
+                                      class="publication-page-chapter-mark-read"
+                                      title={t('publication.markUpToHere')}
+                                      aria-label={t('publication.markUpToHere')}
+                                      onClick={() => handleSetProgressToChapter(ch.number)}
+                                    >
+                                      <Icon name="check_circle" size="sm" />
+                                    </button>
+                                  )}
                                   {ch.hasTranslation ? (
                                     <button
                                       type="button"
@@ -867,7 +921,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                   return (
                     <ul>
                       {visibleChapters.map((ch) => {
-                        const isRead = readChapterIds.has(ch.id);
+                        const isRead = isChapterReadByWatermark(ch.number, lastReadChapterNumber);
                         return (
                           <li key={ch.id}>
                             <span class="publication-page-chapter-title">
@@ -882,6 +936,17 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                 </span>
                               )}
                             </span>
+                            {isAuthenticated && !isRead && ch.hasTranslation && (
+                              <button
+                                type="button"
+                                class="publication-page-chapter-mark-read"
+                                title={t('publication.markUpToHere')}
+                                aria-label={t('publication.markUpToHere')}
+                                onClick={() => handleSetProgressToChapter(ch.number)}
+                              >
+                                <Icon name="check_circle" size="sm" />
+                              </button>
+                            )}
                             {ch.hasTranslation ? (
                               <button
                                 type="button"
@@ -917,9 +982,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         isOpen={showToc}
         onClose={() => setShowToc(false)}
         chapters={translatedChapters}
-        readChapterIds={isAuthenticated ? readChapterIds : undefined}
-        onMarkChapterRead={isAuthenticated ? handleMarkChapterRead : undefined}
-        lastReadChapterId={isAuthenticated ? lastReadChapterId : undefined}
+        lastReadChapterNumber={isAuthenticated ? lastReadChapterNumber : 0}
+        onSetProgressToChapter={isAuthenticated ? handleSetProgressToChapter : undefined}
         onSelectChapter={(chapterId) => {
           setShowToc(false);
           route(`/p/${pubPath}/chapters/${chapterId}/reading`);
@@ -949,6 +1013,23 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
           }
         />
       )}
+      <Modal
+        isOpen={showResetProgressConfirm}
+        onClose={() => setShowResetProgressConfirm(false)}
+        title={t('readingProgress.resetConfirmTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowResetProgressConfirm(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={() => void handleResetProgress()}>
+              {t('readingProgress.resetConfirmYes')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('readingProgress.resetConfirmBody')}</p>
+      </Modal>
       <Modal
         isOpen={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}

@@ -14,7 +14,7 @@ interface PublicationCardProps {
   publication: PublicationListItem | Publication;
   onRead: (path: string, chapterId?: string) => void;
   /** Reading progress for "Continue" button (when user has read this publication). */
-  readingProgress?: { lastReadChapterId: string | null };
+  readingProgress?: { lastReadChapterNumber: number; continueChapterId?: string | null };
   /** Prefetched entities for instant popup on hover. */
   authorEntity?: PublicEntity | null;
   translatorEntity?: PublicEntity | null;
@@ -65,7 +65,9 @@ export function PublicationCard({
   const handleDescMouseLeave = useCallback(() => setShowDescTooltip(false), []);
 
   const pubPath = publication.slug || publication.id;
-  const lastChapterId = readingProgress?.lastReadChapterId ?? undefined;
+  const hasProgress =
+    (readingProgress?.lastReadChapterNumber ?? 0) > 0 && !!readingProgress?.continueChapterId;
+  const continueChapterId = readingProgress?.continueChapterId ?? undefined;
 
   const openPublication = useCallback(() => {
     trackEvent('select_content', {
@@ -90,12 +92,12 @@ export function PublicationCard({
       content_type: 'publication',
       item_id: publication.id,
     });
-    if (lastChapterId) {
-      onRead(pubPath, lastChapterId);
+    if (continueChapterId) {
+      onRead(pubPath, continueChapterId);
     } else {
       onRead(pubPath);
     }
-  }, [publication.id, lastChapterId, onRead, pubPath]);
+  }, [publication.id, continueChapterId, onRead, pubPath]);
 
   return (
     <div class="publication-card">
@@ -204,7 +206,7 @@ export function PublicationCard({
         </div>
       </div>
       <button type="button" class="publication-card-read-btn" onClick={handleReadOrContinueClick}>
-        {lastChapterId ? t('profile.continue') : t('home.read')}
+        {hasProgress ? t('profile.continue') : t('home.read')}
       </button>
     </div>
   );
