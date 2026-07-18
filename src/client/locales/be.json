@@ -150,7 +150,10 @@
     "title": "Пазначыць як перакладзены",
     "button": "Пазначыць як перакладзены",
     "batchTitle": "Пазначыць выбраныя раздзелы як перакладзеныя (без AI)",
-    "batchButton": "Пазначыць як перакладзеныя ({{count}})"
+    "batchButton": "Пазначыць як перакладзеныя ({{count}})",
+    "progressTitle": "Пазначэнне раздзелаў як перакладзеных",
+    "batchChunkProgress": "Раздзелы {{from}}–{{to}} з {{total}}",
+    "progressStatusLabel": "Статус"
   },
   "chapterActions": {
     "menuTitle": "Дзеянні з раздзеламі",
@@ -964,6 +967,7 @@
     "reportSelectedFragment": "Вылучаны фрагмент падставлены — дапішыце, у чым праблема.",
     "reportSelectionTruncated": "Вылучэнне абрэзана да 5000 сімвалаў.",
     "reportSelectionAction": "Паскардзіцца на вылучаны фрагмент",
+    "selectionToolbarLabel": "Дзеянні з вылучаным тэкстам",
     "reportMinLength": "Апісанне павінна змяшчаць мінімум 5 сімвалаў",
     "reportMaxLength": "Апісанне не павінна перавышаць 5000 сімвалаў",
     "reportSubmit": "Адправіць",

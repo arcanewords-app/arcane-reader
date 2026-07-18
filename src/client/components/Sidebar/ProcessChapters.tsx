@@ -311,6 +311,8 @@ export function ProcessChapters({
   const isTranslationComplete =
     translationProgress !== null && translationProgress.current >= translationProgress.total;
 
+  const isMarkTranslatedBatch = translationProgress?.mode === 'mark-translated';
+
   const selectedCompletedCount = selectedChaptersForTranslate.filter(
     (c) => c.status === 'completed'
   ).length;
@@ -749,7 +751,11 @@ export function ProcessChapters({
       <Modal
         isOpen={translationProgress !== null}
         onClose={isTranslationComplete ? handleCloseTranslation : handleCancelTranslation}
-        title={t('projectInfo.translationProgressTitle')}
+        title={
+          isMarkTranslatedBatch
+            ? t('markAsTranslated.progressTitle')
+            : t('projectInfo.translationProgressTitle')
+        }
         className="translation-progress-modal"
         preventClose={!isTranslationComplete}
         footer={
@@ -764,7 +770,11 @@ export function ProcessChapters({
               onClick={handleCancelTranslation}
               disabled={cancelling}
             >
-              {cancelling ? t('chapter.cancellingTranslate') : t('chapter.cancelTranslate')}
+              {cancelling
+                ? t('chapter.cancellingTranslate')
+                : isMarkTranslatedBatch
+                  ? t('common.cancel')
+                  : t('chapter.cancelTranslate')}
             </Button>
           )
         }
@@ -802,46 +812,48 @@ export function ProcessChapters({
                 />
               </div>
             </div>
-            <div
-              style={{
-                marginBottom: '1.5rem',
-                padding: '0.75rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: '8px',
-              }}
-            >
+            {!isMarkTranslatedBatch && (
               <div
                 style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--text-dim)',
-                  marginBottom: '0.5rem',
+                  marginBottom: '1.5rem',
+                  padding: '0.75rem',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '8px',
                 }}
               >
-                {t('projectInfo.translationStagesLabel')}
+                <div
+                  style={{
+                    fontSize: '0.85rem',
+                    color: 'var(--text-dim)',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  {t('projectInfo.translationStagesLabel')}
+                </div>
+                <div class="stages-grid" style={{ gap: '0.5rem' }}>
+                  <div class="stage-toggle active" style={{ cursor: 'default' }}>
+                    <span class="stage-icon">
+                      <Icon name="manage_search" size="sm" />
+                    </span>
+                    <span class="stage-name">{t('projectInfo.stageAnalysis')}</span>
+                  </div>
+                  <span class="stage-arrow">→</span>
+                  <div class="stage-toggle active" style={{ cursor: 'default' }}>
+                    <span class="stage-icon">
+                      <Icon name="translate" size="sm" />
+                    </span>
+                    <span class="stage-name">{t('projectInfo.stageTranslation')}</span>
+                  </div>
+                  <span class="stage-arrow">→</span>
+                  <div class="stage-toggle active" style={{ cursor: 'default' }}>
+                    <span class="stage-icon">
+                      <Icon name="edit" size="sm" />
+                    </span>
+                    <span class="stage-name">{t('projectInfo.stageEditing')}</span>
+                  </div>
+                </div>
               </div>
-              <div class="stages-grid" style={{ gap: '0.5rem' }}>
-                <div class="stage-toggle active" style={{ cursor: 'default' }}>
-                  <span class="stage-icon">
-                    <Icon name="manage_search" size="sm" />
-                  </span>
-                  <span class="stage-name">{t('projectInfo.stageAnalysis')}</span>
-                </div>
-                <span class="stage-arrow">→</span>
-                <div class="stage-toggle active" style={{ cursor: 'default' }}>
-                  <span class="stage-icon">
-                    <Icon name="translate" size="sm" />
-                  </span>
-                  <span class="stage-name">{t('projectInfo.stageTranslation')}</span>
-                </div>
-                <span class="stage-arrow">→</span>
-                <div class="stage-toggle active" style={{ cursor: 'default' }}>
-                  <span class="stage-icon">
-                    <Icon name="edit" size="sm" />
-                  </span>
-                  <span class="stage-name">{t('projectInfo.stageEditing')}</span>
-                </div>
-              </div>
-            </div>
+            )}
             {translationProgress.currentChapter && (
               <div
                 style={{
@@ -858,7 +870,9 @@ export function ProcessChapters({
                     marginBottom: '0.5rem',
                   }}
                 >
-                  {t('projectInfo.currentChapterLabel')}
+                  {isMarkTranslatedBatch
+                    ? t('markAsTranslated.progressStatusLabel')
+                    : t('projectInfo.currentChapterLabel')}
                 </div>
                 <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
                   {translationProgress.currentChapter}

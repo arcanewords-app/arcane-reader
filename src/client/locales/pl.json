@@ -140,7 +140,10 @@
     "title": "Oznacz jako przetłumaczone",
     "button": "Oznacz jako przetłumaczone",
     "batchTitle": "Oznacz wybrane rozdziały jako przetłumaczone (bez AI)",
-    "batchButton": "Oznacz jako przetłumaczone ({{count}})"
+    "batchButton": "Oznacz jako przetłumaczone ({{count}})",
+    "progressTitle": "Oznaczanie rozdziałów jako przetłumaczone",
+    "batchChunkProgress": "Rozdziały {{from}}–{{to}} z {{total}}",
+    "progressStatusLabel": "Status"
   },
   "chapterActions": {
     "menuTitle": "Akcje rozdziałów",
@@ -926,6 +929,7 @@
     "reportSelectedFragment": "Zaznaczony fragment został dodany — opisz, na czym polega problem.",
     "reportSelectionTruncated": "Zaznaczenie zostało skrócone do 5000 znaków.",
     "reportSelectionAction": "Zgłoś zaznaczony fragment",
+    "selectionToolbarLabel": "Akcje dla zaznaczonego tekstu",
     "reportMinLength": "Opis musi zawierać co najmniej 5 znaków",
     "reportMaxLength": "Opis nie może przekraczać 5000 znaków",
     "reportSubmit": "Wyślij",

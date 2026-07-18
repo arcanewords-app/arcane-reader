@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import { Modal, Button, LoadingSpinner, Icon } from '../ui';
+import { Modal, Button, LoadingSpinner, Icon, ConfirmModal } from '../ui';
 import { api } from '../../api/client';
 import { buildChapterEditorUrl } from '../../utils/projectRoutes';
 import './ReportsModal.css';
@@ -76,15 +76,16 @@ export function ReportsModal({ isOpen, onClose, projectId, onReportsChange }: Re
     }
   };
 
-  const handleDelete = async (reportId: string) => {
+  const handleDelete = async (reportId: string): Promise<boolean> => {
     setActionLoading(reportId);
     try {
       await api.deleteReport(projectId, reportId);
       setReports((prev) => prev.filter((r) => r.id !== reportId));
-      setDeleteConfirmId(null);
       onReportsChange?.();
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.retry'));
+      return false;
     } finally {
       setActionLoading(null);
     }
@@ -135,6 +136,7 @@ export function ReportsModal({ isOpen, onClose, projectId, onReportsChange }: Re
         title={t('sidebar.reports')}
         size="large"
         className="reports-modal"
+        preventClose={deleteConfirmId !== null}
       >
         {loading ? (
           <div class="reports-modal-loading">
@@ -238,38 +240,17 @@ export function ReportsModal({ isOpen, onClose, projectId, onReportsChange }: Re
         )}
       </Modal>
 
-      <Modal
+      <ConfirmModal
         isOpen={deleteConfirmId !== null}
         onClose={() => setDeleteConfirmId(null)}
+        onConfirm={() => (deleteConfirmId ? handleDelete(deleteConfirmId) : false)}
         title={t('sidebar.reportDeleteConfirmTitle')}
-        variant="error"
-        className="reports-modal-confirm"
-        closeButtonDisabled={actionLoading !== null}
-        footer={
-          <div class="reports-modal-confirm-actions">
-            <Button
-              variant="secondary"
-              onClick={() => setDeleteConfirmId(null)}
-              disabled={actionLoading !== null}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
-              disabled={actionLoading !== null}
-            >
-              {actionLoading === deleteConfirmId ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                t('sidebar.reportDeleteConfirm')
-              )}
-            </Button>
-          </div>
-        }
-      >
-        <p class="reports-modal-confirm-body">{t('sidebar.reportDeleteConfirmBody')}</p>
-      </Modal>
+        message={t('sidebar.reportDeleteConfirmBody')}
+        confirmLabel={t('sidebar.reportDeleteConfirm')}
+        variant="danger"
+        loading={deleteConfirmId !== null && actionLoading === deleteConfirmId}
+        layer="stacked"
+      />
     </>
   );
 }

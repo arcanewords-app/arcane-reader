@@ -35,6 +35,10 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    // Git Bash / MSYS crash dumps in repo root can lock on Windows and crash Vite's watcher (EBUSY).
+    watch: {
+      ignored: ['**/*.stackdump', '**/*.stackdump.*'],
+    },
     // Proxy API requests to Express server
     proxy: {
       '/api': {

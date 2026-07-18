@@ -150,7 +150,10 @@
     "title": "Mark as translated",
     "button": "Mark as translated",
     "batchTitle": "Mark selected chapters as translated (no AI)",
-    "batchButton": "Mark as translated ({{count}})"
+    "batchButton": "Mark as translated ({{count}})",
+    "progressTitle": "Marking chapters as translated",
+    "batchChunkProgress": "Chapters {{from}}–{{to}} of {{total}}",
+    "progressStatusLabel": "Status"
   },
   "chapterActions": {
     "menuTitle": "Chapter actions",
@@ -966,6 +969,7 @@
     "reportSelectedFragment": "Selected text was added — describe what is wrong.",
     "reportSelectionTruncated": "Selection was trimmed to 5000 characters.",
     "reportSelectionAction": "Report selected text",
+    "selectionToolbarLabel": "Text selection actions",
     "reportMinLength": "Description must be at least 5 characters",
     "reportMaxLength": "Description must not exceed 5000 characters",
     "reportSubmit": "Submit",

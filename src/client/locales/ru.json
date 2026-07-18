@@ -150,7 +150,10 @@
     "title": "Пометить как переведённую",
     "button": "Пометить как переведённую",
     "batchTitle": "Пометить выбранные главы как переведённые (без AI)",
-    "batchButton": "Пометить как переведённые ({{count}})"
+    "batchButton": "Пометить как переведённые ({{count}})",
+    "progressTitle": "Пометка глав как переведённых",
+    "batchChunkProgress": "Главы {{from}}–{{to}} из {{total}}",
+    "progressStatusLabel": "Статус"
   },
   "chapterActions": {
     "menuTitle": "Действия с главами",
@@ -964,6 +967,7 @@
     "reportSelectedFragment": "Выделенный фрагмент подставлен — допишите, в чём проблема.",
     "reportSelectionTruncated": "Выделение обрезано до 5000 символов.",
     "reportSelectionAction": "Пожаловаться на выделенный фрагмент",
+    "selectionToolbarLabel": "Действия с выделенным текстом",
     "reportMinLength": "Описание должно содержать минимум 5 символов",
     "reportMaxLength": "Описание не должно превышать 5000 символов",
     "reportSubmit": "Отправить",

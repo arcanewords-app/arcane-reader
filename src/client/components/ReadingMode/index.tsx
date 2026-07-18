@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'preact/hooks';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import type {
@@ -21,9 +21,13 @@ import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal, LoadingSpinner, Icon } from '../ui';
 import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
-import { clearBrowserSelection, formatReportPrefill } from '../../utils/readingSelection';
+import {
+  clearBrowserSelection,
+  formatReportPrefill,
+  type ReadingSelectionAction,
+} from '../../utils/readingSelection';
 import { useReadingTextSelection } from '../../hooks/useReadingTextSelection';
-import { ReadingSelectionReportButton } from './ReadingSelectionReportButton';
+import { ReadingSelectionToolbar } from './ReadingSelectionToolbar';
 import { DEFAULT_TEXT_BLOCK_TYPES } from '../../constants/text-block-presets';
 import { buildReadingChapterUrl } from '../../utils/readingRoutes';
 import './ReadingMode.css';
@@ -1260,6 +1264,18 @@ export function ReadingMode({
     setReportSelectionTruncated(false);
   }, [reportSubmitting]);
 
+  const selectionActions = useMemo<ReadingSelectionAction[]>(() => {
+    if (!selectionState) return [];
+    return [
+      {
+        id: 'report',
+        icon: 'flag',
+        labelKey: 'readingMode.reportSelectionAction',
+        onClick: () => handleOpenReportModal(selectionState.text),
+      },
+    ];
+  }, [selectionState, handleOpenReportModal]);
+
   const handleSelectChapter = useCallback(
     (index: number) => {
       if (index === currentChapterIndex) {
@@ -1463,11 +1479,8 @@ export function ReadingMode({
         </div>
       </div>
 
-      {selectionTrackingEnabled && selectionState && (
-        <ReadingSelectionReportButton
-          rect={selectionState.rect}
-          onReport={() => handleOpenReportModal(selectionState.text)}
-        />
+      {selectionTrackingEnabled && selectionState && selectionActions.length > 0 && (
+        <ReadingSelectionToolbar rect={selectionState.rect} actions={selectionActions} />
       )}
 
       {/* Bottom Navigation - prev/next in row, centered */}
