@@ -9,12 +9,16 @@ TypeScript (strict), Preact, Express, Supabase (PostgreSQL, Auth, Storage), Redi
 ## Commands
 
 ```bash
-npm run dev          # API + Vite client
-npm run dev:full     # + BullMQ worker
-npm run lint:all     # lint + typecheck
-npm run test         # Vitest unit tests
+npm run dev               # API + Vite client
+npm run dev:full          # + BullMQ worker
+npm run lint:all          # lint + typecheck
+npm run test              # Vitest unit tests (fast)
+npm run test:component    # Testing Library + happy-dom
+npm run test:integration  # mock-integration (createApp + supertest)
 npm run typecheck
 ```
+
+Testing pyramid: `docs/05-plans/testing-strategy.md`.
 
 ## Truth hierarchy
 

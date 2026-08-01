@@ -1,24 +1,30 @@
 ---
 description: Unit test policies, Vitest runner, gates, and co-location. Read when writing or reviewing *.test.ts, vitest config, or test infrastructure.
-globs: "**/*.test.ts,vitest.config.ts,stryker.conf.json"
+globs: "**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.integration.config.ts,stryker.conf.json,tests/**"
 alwaysApply: false
 ---
 
 # Testing Policy
 
+## Strategy SSOT
+
+Pyramid, waves, and module priorities: `@docs/05-plans/testing-strategy.md`.
+Measured coverage numbers: `@docs/05-plans/testing-baseline.md`.
+How-to: `@.cursor/skills/testing/SKILL.md`, patterns: `@.cursor/skills/testing/PATTERNS.md`.
+
 ## Runner and layout
 
-- **Runner:** Vitest (`npm run test` fast suite; `npm run test:slow` for tiktoken-heavy tests; `npm run test:all` for both). SSOT config: `@vitest.config.ts`, `@vitest.slow.config.ts`, how-to: `@.cursor/skills/testing/SKILL.md`.
-- **File naming:** co-located `foo.test.ts` next to `foo.ts` (not `.spec.ts`).
+- **Runner:** Vitest (`npm run test` fast suite; `npm run test:slow` for tiktoken-heavy tests; `npm run test:component`; `npm run test:integration`; `npm run test:all` for unit+slow+component+integration+contract). SSOT configs: `@vitest.config.ts`, `@vitest.slow.config.ts`, `@vitest.component.config.ts`, `@vitest.integration.config.ts`.
+- **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract/e2e live under `tests/`.
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
-- **No ad-hoc scripts:** do not add `scripts/test-*.ts` for test cases; put tests under `src/**/*.test.ts`. Inventory helper `scripts/gen-test-inventory.mjs` is allowed.
+- **No ad-hoc scripts:** do not add `scripts/test-*.ts` for test cases; put tests under `src/**/*.test.ts` or `tests/`. Inventory helper `scripts/gen-test-inventory.mjs` is allowed.
 
 ## APP_SCOPE (unified)
 
 Same scope for unit tests, coverage, and Stryker `mutate`:
 
 - `src/**/*.ts` minus `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`, `src/debug/**`, `src/prompt-lab/**`
-- Includes **backend + client SPA** (~277 source files)
+- Includes **backend + client SPA**
 
 SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testing-baseline.md`.
 
@@ -26,18 +32,18 @@ SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testi
 
 **Current state:** no dedicated test environment (no isolated Supabase / Redis / BullMQ stack for CI).
 
-**Default (Q3):** mock external boundaries for **all** automated tests. Tests must not require prod/staging `.env` credentials.
+**Default (Q3):** mock external boundaries for unit, component, and mock-integration tests. Tests must not require prod/staging `.env` credentials.
 
 | Term in Arcane (Q3) | Means |
 |---------------------|-------|
 | Unit test | co-located `*.test.ts`; `vi.mock` at DB/LLM/HTTP boundaries |
-| Integration test (Q3) | extract + unit test helpers from routes/services; **not** live DB |
+| Component test | `@testing-library/preact` + happy-dom; mocked `fetch` / hooks |
+| Integration test (mock) | `createApp()` + supertest; mocked Supabase/Redis/LLM |
+| Integration test (live) | **Q4 only** — real test stack |
 
-**Q4 2026+ (blocked):** **live integration only** — real Supabase, Redis, worker on a dedicated test stack. Mocked supertest / Playwright / Testing Library gates are **not** planned.
+**Q4 2026+ (blocked):** live integration + Playwright E2E on a dedicated test stack. Without test env, Wave 10 work is paused.
 
-**Prerequisite for Q4:** dedicated test environment. Without it, Q4 integration work is paused.
-
-See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement_plan_926cfce7.plan.md`.
+See `@docs/05-plans/testing-strategy.md`.
 
 ## When to write tests
 
@@ -46,10 +52,11 @@ See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement
 | Bug fix in pure logic (`engine/`, `shared/`, utils) | Add regression test in co-located `*.test.ts` |
 | New SSOT module in `engine/` or `shared/` | Unit test covering main branches |
 | Zod/query helpers in `src/api/` | Test normalization and schema parsing |
-| `src/client/utils`, `hooks` | co-located unit tests; mock `fetch` |
-| Preact component layout | Q3 wave 3: Testing Library + mocked API; extract pure helpers first |
-| Route handler with Supabase calls | **Q3:** extract + unit test helpers. **Q4:** live supertest (test env only) |
-| Live LLM / OpenAI API | **Never** in unit tests — mock provider |
+| `src/client/utils`, `hooks` | co-located unit / hook tests; mock `fetch` |
+| Preact component / gate | Testing Library + mocked API (`npm run test:component`) |
+| Route chain (HTTP → handler → service) | Mock-integration under `tests/integration/` |
+| Route handler with Supabase calls | **Q3:** extract + unit test helpers and/or mock-integration. **Q4:** live supertest |
+| Live LLM / OpenAI API | **Never** in unit/component/mock-integration — mock provider |
 | Live Supabase / Redis / BullMQ | **Q4 only** on dedicated test environment |
 
 ## Test types in Arcane
@@ -57,9 +64,12 @@ See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement
 | Type | Q3 | Q4 (test env required) |
 |------|-----|------------------------|
 | Unit | pure logic, co-located, mocked boundaries | same |
-| Integration | extract helpers + mocked middleware | **live** supertest + test DB |
-| Component | pure hooks/utils; optional jsdom + mocked `fetch` | live DOM + test API (optional) |
-| System/E2E | — | full-stack smoke on test stack |
+| Component | Testing Library + mocked `fetch` | optional live DOM + test API |
+| Integration (mock) | `createApp` + supertest + mocked services | keep as fast CI layer |
+| Integration (live) | — | real Supabase / Redis / worker |
+| Snapshot | Wave 8 — presentational UI only | same |
+| Contract | Wave 9 — Zod fixtures under `tests/contracts/` | OpenAPI / Pact after split |
+| System/E2E | stub only | Playwright smoke on test stack |
 
 ## Layer boundaries
 
@@ -67,9 +77,10 @@ See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement
 |-------|----------------------|-----------|
 | `src/engine/**` | Pure pipeline, glossary, prompts, mocked LLM | HTTP, Supabase, `req.log` |
 | `src/shared/**` | Pure utilities, business rules | DB, Redis |
-| `src/api/**` | `validateRoute` helpers, Zod; mocked middleware | Full Express app without mocks |
-| `src/client/**` | URL builders, pure hook helpers; jsdom + mocked `fetch` for components | Live API without mocks |
+| `src/api/**` | `validateRoute` helpers, Zod; mocked middleware | Full Express app without mocks (use `createApp` + mocks in `tests/integration`) |
+| `src/client/**` | URL builders, hooks, components with mocked `fetch` | Live API without mocks |
 | `src/services/**` | extracted pure helpers with mocks | live `supabaseDatabase` calls |
+| `src/createApp.ts` | mock-integration via supertest | listen() in tests |
 
 ## Mutation testing (manual)
 
@@ -84,12 +95,13 @@ See `@docs/05-plans/testing-baseline.md` and `.cursor/plans/coverage_improvement
 - Before **push:** `npm run lint:all` and `npm run test` (enforced via `.husky/pre-push` after setup).
 - Before **commit:** pre-commit runs lint-staged only (fast).
 - **Coverage:** `npm run test:coverage`; APP_SCOPE includes `src/client/**`; no CI thresholds; `coverage/` gitignored.
+- Expand pre-push gradually: add `test:component`, then `test:integration`.
 
 ## Coverage policy
 
 - Track trend, not absolute %.
-- Prioritize `engine/` and `shared/` pure modules; expand to `client/utils` and extracted service helpers.
-- Baseline documented in `@docs/05-plans/testing-baseline.md`.
+- Prioritize `engine/` and `shared/` pure modules; expand to client components/hooks and mock-integration.
+- Baseline: `@docs/05-plans/testing-baseline.md`. Strategy: `@docs/05-plans/testing-strategy.md`.
 
 ## Documentation workflow
 
@@ -97,7 +109,8 @@ When changing runner, gates, or test conventions:
 
 1. Update this rule (`testing.mdc`) and `@.cursor/skills/testing/SKILL.md`.
 2. Mirror to `@docs/_canonical/rules/testing.mdc`.
-3. Update `@AGENTS.md` commands table if scripts change.
+3. Update `@docs/05-plans/testing-strategy.md` / baseline if waves or scripts change.
+4. Update `@AGENTS.md` commands table if scripts change.
 
 ## Agent routing
 

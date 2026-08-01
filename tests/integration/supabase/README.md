@@ -1,6 +1,8 @@
-# Supabase live integration tests (Q4 — blocked)
+# Supabase live integration tests (Q4 / Wave 10 — blocked)
 
 **Status:** paused until dedicated test environment exists.
+
+Mock-integration (supertest + mocked services) lives beside this folder under `tests/integration/api/` and is **not** blocked — see [docs/05-plans/testing-strategy.md](../../../docs/05-plans/testing-strategy.md).
 
 ## Prerequisite
 
@@ -10,7 +12,7 @@ Isolated Supabase stack with:
 - Test JWT users per role
 - Redis + worker optional for job persistence tests
 
-See [docs/05-plans/testing-baseline.md](../../../docs/05-plans/testing-baseline.md) — Q4 live integration policy.
+See [docs/05-plans/testing-baseline.md](../../../docs/05-plans/testing-baseline.md) and [docs/05-plans/testing-strategy.md](../../../docs/05-plans/testing-strategy.md).
 
 ## Planned suite (when unblocked)
 

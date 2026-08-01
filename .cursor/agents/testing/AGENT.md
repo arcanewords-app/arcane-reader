@@ -11,31 +11,32 @@ You own **unit test quality and test infrastructure** for Arcane Reader — not 
 ## When to invoke
 
 - User asks to write, fix, or review tests
-- Vitest migration, `vitest.config.ts`, npm test scripts
+- Vitest migration, vitest configs, npm test scripts
 - Coverage baseline or interpreting `test:coverage` output
 - Pre-push test failures, husky hook setup
-- Test infrastructure docs (`testing.mdc`, `SKILL.md`)
+- Test infrastructure docs (`testing.mdc`, `SKILL.md`, strategy/baseline)
 
 ## Boundaries
 
 **In scope:**
 
-- `src/**/*.test.ts`
-- `vitest.config.ts`, `stryker.conf.json`
-- Test scripts in `package.json` (`test`, `test:watch`, `test:coverage`)
+- `src/**/*.test.ts`, `src/**/*.test.tsx`, `src/**/*.hook.test.ts`
+- `tests/integration/**`, `tests/contracts/**`, `tests/e2e/**` (stubs)
+- `vitest.config.ts`, `vitest.component.config.ts`, `vitest.integration.config.ts`, `vitest.contract.config.ts`, `stryker.conf.json`
+- `src/createApp.ts` (testability extract)
+- Test scripts in `package.json`
 - `.husky/pre-push` test gate
-- `@docs/02-how-to/run-tests.md`, `@docs/05-plans/testing-baseline.md`
+- `@docs/02-how-to/run-tests.md`, `@docs/05-plans/testing-baseline.md`, `@docs/05-plans/testing-strategy.md`
 
 **Out of scope (defer via orchestrator):**
 
 - Feature implementation without explicit test request → domain agent first
-- Production code changes unless required to make code testable (extract pure helper)
-- **Q3 scope:** APP_SCOPE unit + mutation (backend + client); phased waves; mock-first
-- **Q4+ blocked:** live integration only (real Supabase / Redis / worker) — requires dedicated test env
-- **Not planned:** mocked supertest / Playwright gates
-- **Never in unit tests:** live Supabase, Redis, BullMQ worker, live LLM
+- Production code changes unless required to make code testable (extract pure helper / `createApp`)
+- **Q3 scope:** unit + component + mock-integration; mutation on APP_SCOPE; mock-first
+- **Q4+ blocked:** live integration + Playwright E2E — requires dedicated test env
+- **Never in unit/component tests:** live Supabase, Redis, BullMQ worker, live LLM
 
-**Do not duplicate:** full test pattern catalog — use `@.cursor/skills/testing/PATTERNS.md`.
+**Do not duplicate:** full test pattern catalog — use `@.cursor/skills/testing/PATTERNS.md`. Strategy: `@docs/05-plans/testing-strategy.md`.
 
 ## Rules to follow
 
@@ -60,10 +61,10 @@ Read and follow:
 
 ## Checklist
 
-- [ ] Test file co-located as `*.test.ts`
+- [ ] Test file co-located as `*.test.ts` / `*.test.tsx` (or under `tests/` for integration/contract)
 - [ ] Imports from `vitest`; NodeNext `.js` import paths
 - [ ] Matches exemplar pattern in `PATTERNS.md` for the layer
 - [ ] No secrets, no live API keys; external boundaries mocked
 - [ ] Engine tests: no HTTP/Supabase/Redis
-- [ ] `npm run test` passes
-- [ ] If runner/gates changed: `testing.mdc` + `SKILL.md` + `AGENTS.md` updated
+- [ ] `npm run test` passes; new infra also `test:component` / `test:integration` as relevant
+- [ ] If runner/gates changed: `testing.mdc` + `SKILL.md` + strategy/baseline + `AGENTS.md` updated

@@ -41,21 +41,22 @@ Update this file when completing plans or shipping major features.
 
 ## Active plans (`05-plans/`)
 
-| Plan                                      | Domain                                                                                                    |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                               |
-| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                        |
-| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                                  |
-| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                                  |
-| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                                    |
-| [[05-plans/seo-search-console]]           | GSC submission                                                                                            |
-| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                           |
-| [[05-plans/testing-baseline]]             | Coverage **65%** lines / **55%** branches (Wave 5 done); mock-first strategy; Q4 live integration blocked |
-| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred        |
+| Plan                                      | Domain                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                        |
+| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                 |
+| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                           |
+| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                           |
+| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
+| [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
+| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
+| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–10 (component → mock-integration → snapshot → contract → E2E)                |
+| [[05-plans/testing-baseline]]             | Coverage **~65%** lines (2026-08-02); Wave 6–7 infra done; Q4 live E2E blocked                     |
+| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
 
 ## Known tech debt
 
-- **No dedicated test environment** — automated tests are mock-first; live integration/E2E deferred to Q4 2026+ (see [[05-plans/testing-baseline]])
+- **No dedicated test environment** — unit/component/mock-integration are mock-first; live integration/E2E deferred to Q4 (see [[05-plans/testing-strategy]])
 - Large legacy docs in `docs/archive/` — treat as stale; use `.cursor/rules/` + code
 - Publication reading settings not persisted (defaults to dark) — see reader-theme plan
 - Stage 3 chunk alignment still open — see [[05-plans/engine-pipeline-improvements]]; archive E2E superseded by [[03-explanation/engine-integration-boundary]]
