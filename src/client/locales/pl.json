@@ -1369,6 +1369,7 @@
     "resetConfirmTitle": "Zresetować postęp czytania?",
     "resetConfirmBody": "Wszystkie oznaczenia przeczytania tej publikacji zostaną usunięte. Tej operacji nie można cofnąć.",
     "resetConfirmYes": "Resetuj",
+    "resetFailed": "Nie można zresetować postępu. Spróbuj ponownie.",
     "lastReadUpTo": "Przeczytane do tego rozdziału"
   },
   "publication": {

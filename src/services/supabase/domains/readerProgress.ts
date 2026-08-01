@@ -110,14 +110,31 @@ export async function resetReadProgress(
   validateToken(token);
   const client = createClientWithToken(token);
 
-  const { error } = await client
+  const { data: deleted, error } = await client
     .from('user_publication_progress')
     .delete()
     .eq('user_id', userId)
-    .eq('publication_id', publicationId);
+    .eq('publication_id', publicationId)
+    .select('publication_id');
 
   if (error) {
     throw new Error(`Failed to reset read progress: ${error.message}`);
+  }
+
+  // RLS may deny DELETE without error (0 rows). Fall back to watermark = 0 via upsert.
+  if (!deleted?.length) {
+    const { error: upsertError } = await client.from('user_publication_progress').upsert(
+      {
+        user_id: userId,
+        publication_id: publicationId,
+        last_read_chapter_number: 0,
+        last_read_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,publication_id', ignoreDuplicates: false }
+    );
+    if (upsertError) {
+      throw new Error(`Failed to reset read progress: ${upsertError.message}`);
+    }
   }
 }
 

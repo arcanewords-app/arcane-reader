@@ -1,47 +1,22 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../../api/client';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { LoadingSpinner, Modal, Button, Icon } from '../ui';
+import { useReadingHistory, type ReadingHistoryItem } from '../../hooks/useReadingHistory';
 import '../Home/PublicationCard.css';
 import '../../pages/HomePage.css';
 import './ReadingHistorySection.css';
 
-export interface ReadingHistoryItem {
-  publicationId: string;
-  title: string | null;
-  coverImageUrl: string | null;
-  slug: string | null;
-  totalChapters: number;
-  readCount: number;
-  lastReadChapterNumber: number;
-  continueChapterId: string | null;
-  lastReadAt: string | null;
-}
+export type { ReadingHistoryItem };
 
 export function ReadingHistorySection() {
   const { t } = useTranslation();
-  const [items, setItems] = useState<ReadingHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, loading, reload, removeItem } = useReadingHistory();
   const [resetTarget, setResetTarget] = useState<ReadingHistoryItem | null>(null);
-
-  const loadHistory = () => {
-    return api
-      .getReadingHistory()
-      .then(({ items: data }) => setItems(data))
-      .catch(() => setItems([]));
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    loadHistory().finally(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const handleContinue = (item: ReadingHistoryItem) => {
     const path = item.slug || item.publicationId;
@@ -59,13 +34,25 @@ export function ReadingHistorySection() {
 
   const handleReset = async () => {
     if (!resetTarget) return;
+    const publicationId = resetTarget.publicationId;
+    setResetError(null);
+    setResetting(true);
+    removeItem(publicationId);
     try {
-      await api.resetReadProgress(resetTarget.publicationId);
+      await api.resetReadProgress(publicationId);
       setResetTarget(null);
-      await loadHistory();
+      await reload();
     } catch {
-      setResetTarget(null);
+      setResetError(t('readingProgress.resetFailed'));
+      await reload();
+    } finally {
+      setResetting(false);
     }
+  };
+
+  const openResetModal = (item: ReadingHistoryItem) => {
+    setResetError(null);
+    setResetTarget(item);
   };
 
   if (loading) {
@@ -168,7 +155,7 @@ export function ReadingHistorySection() {
               <button
                 type="button"
                 class="reading-history-reset-link"
-                onClick={() => setResetTarget(item)}
+                onClick={() => openResetModal(item)}
               >
                 <Icon name="restart_alt" size="sm" />
                 {t('readingProgress.reset')}
@@ -180,20 +167,27 @@ export function ReadingHistorySection() {
 
       <Modal
         isOpen={resetTarget != null}
-        onClose={() => setResetTarget(null)}
+        onClose={() => {
+          if (!resetting) setResetTarget(null);
+        }}
         title={t('readingProgress.resetConfirmTitle')}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setResetTarget(null)}>
+            <Button variant="secondary" onClick={() => setResetTarget(null)} disabled={resetting}>
               {t('common.cancel')}
             </Button>
-            <Button variant="primary" onClick={() => void handleReset()}>
+            <Button variant="primary" onClick={() => void handleReset()} loading={resetting}>
               {t('readingProgress.resetConfirmYes')}
             </Button>
           </>
         }
       >
         <p>{t('readingProgress.resetConfirmBody')}</p>
+        {resetError && (
+          <p class="reading-history-reset-error" role="alert">
+            {resetError}
+          </p>
+        )}
       </Modal>
     </>
   );

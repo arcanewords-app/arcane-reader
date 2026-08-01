@@ -12,7 +12,12 @@ import {
 } from '../cache/catalogCache.js';
 import { emitCacheInvalidation } from '../cache/invalidation.js';
 import { getReadProgressCacheKey } from '../cache/keys.js';
-import { getCached, setCached, publicationCache } from '../cache/memoryCache.js';
+import {
+  getCached,
+  setCached,
+  publicationCache,
+  invalidateUserReadingHistoryCache,
+} from '../cache/memoryCache.js';
 import { fetchJson } from '../transport/fetchJson.js';
 import { fetchJsonDeduped } from '../transport/fetchDeduped.js';
 import { downloadBlob } from '../transport/downloadBlob.js';
@@ -110,6 +115,7 @@ export const publicationsApi = {
       }
     );
     publicationCache.readProgress.delete(cacheKey);
+    invalidateUserReadingHistoryCache(authService.getCachedUser()?.id);
     emitCacheInvalidation('user');
     return result;
   },
@@ -122,6 +128,7 @@ export const publicationsApi = {
       { method: 'DELETE' }
     );
     publicationCache.readProgress.delete(cacheKey);
+    invalidateUserReadingHistoryCache(authService.getCachedUser()?.id);
     emitCacheInvalidation('user');
     return result;
   },

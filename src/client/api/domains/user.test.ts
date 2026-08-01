@@ -94,4 +94,29 @@ describe('userApi', () => {
     assert.equal(init.method, 'PUT');
     assert.equal(init.body, JSON.stringify({ fontSize: 18 }));
   });
+
+  it('getReadingHistory always fetches from API without TTL cache', async () => {
+    const history = {
+      items: [
+        {
+          publicationId: 'pub-1',
+          title: 'Book',
+          coverImageUrl: null,
+          slug: null,
+          totalChapters: 5,
+          readCount: 1,
+          lastReadChapterNumber: 1,
+          continueChapterId: 'ch-2',
+          lastReadAt: null,
+        },
+      ],
+    };
+    stubFetchJson(history);
+
+    const first = await userApi.getReadingHistory();
+    const second = await userApi.getReadingHistory();
+    assert.deepEqual(first, history);
+    assert.deepEqual(second, history);
+    assert.equal((fetch as ReturnType<typeof vi.fn>).mock.calls.length, 2);
+  });
 });

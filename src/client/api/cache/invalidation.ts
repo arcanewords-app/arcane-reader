@@ -14,6 +14,9 @@ const cacheChannel =
 
 export function emitCacheInvalidation(scope: CacheScope): void {
   if (typeof window === 'undefined') return;
+  if (scope === 'user') {
+    clearUserScopedCaches();
+  }
   const payload = JSON.stringify({ scope, ts: Date.now(), version: CACHE_SCHEMA_VERSION });
   cacheChannel?.postMessage(payload);
   localStorage.setItem(CACHE_INVALIDATION_KEY, payload);

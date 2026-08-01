@@ -7,7 +7,7 @@
   "packageManager": "npm@11.x",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\" \"npm run dev:prompt-lab:wait\"",
-    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\" \"npm run dev:prompt-lab:wait\" \"npm run worker\"",
+    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client:wait\" \"npm run dev:debug:wait\" \"npm run worker\"",
     "dev:server": "tsx watch src/server.ts",
     "dev:client": "vite",
     "dev:client:wait": "wait-on tcp:127.0.0.1:3000 && vite",

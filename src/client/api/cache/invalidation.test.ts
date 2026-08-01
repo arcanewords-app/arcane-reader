@@ -25,6 +25,11 @@ describe('emitCacheInvalidation', () => {
     expect(payload.version).toBe(CACHE_SCHEMA_VERSION);
     expect(typeof payload.ts).toBe('number');
   });
+
+  it('clears user caches synchronously before broadcast', () => {
+    emitCacheInvalidation('user');
+    expect(clearUserScopedCaches).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('invalidation listeners', () => {

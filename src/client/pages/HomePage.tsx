@@ -16,7 +16,7 @@ import {
   sanitizeCatalogUrlStateForAuth,
 } from '../utils/catalogRoutes';
 import { useUrlSync } from '../hooks/useUrlSync';
-import { subscribeToUserCacheInvalidation } from '../api/cache/invalidation';
+import { useReadingHistory } from '../hooks/useReadingHistory';
 import './HomePage.css';
 
 export function HomePage() {
@@ -55,9 +55,7 @@ export function HomePage() {
   const [orderAsc, setOrderAsc] = useState(false);
   const [publications, setPublications] = useState<(PublicationListItem | Publication)[]>([]);
   const [entityMap, setEntityMap] = useState<Record<string, PublicEntity | null>>({});
-  const [readingHistoryMap, setReadingHistoryMap] = useState<
-    Record<string, { lastReadChapterNumber: number; continueChapterId: string | null }>
-  >({});
+  const { readingHistoryMap } = useReadingHistory();
   const hasLoadedOnceRef = useRef(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -168,29 +166,6 @@ export function HomePage() {
       });
     };
 
-    const hasAuth = !!authService.getToken();
-    if (!hasAuth) setReadingHistoryMap({});
-    const historyPromise = hasAuth
-      ? api.getReadingHistory().catch(() => ({ items: [] }))
-      : Promise.resolve({ items: [] });
-
-    const loadHistory = () => {
-      historyPromise.then(({ items }) => {
-        if (loadIdRef.current !== loadId) return;
-        const map: Record<
-          string,
-          { lastReadChapterNumber: number; continueChapterId: string | null }
-        > = {};
-        items.forEach((item) => {
-          map[item.publicationId] = {
-            lastReadChapterNumber: item.lastReadChapterNumber,
-            continueChapterId: item.continueChapterId,
-          };
-        });
-        setReadingHistoryMap(map);
-      });
-    };
-
     if (filter === 'mine' && isAuthor) {
       api
         .getUserPublications()
@@ -199,7 +174,6 @@ export function HomePage() {
           const publishedOnly = list.filter((p) => p.status === 'published');
           setPublications(publishedOnly);
           prefetchEntities(publishedOnly);
-          loadHistory();
         })
         .catch((e) => {
           if (loadIdRef.current !== loadId) return;
@@ -225,7 +199,6 @@ export function HomePage() {
           if (loadIdRef.current !== loadId) return;
           setPublications(list);
           prefetchEntities(list);
-          loadHistory();
         })
         .catch((e) => {
           if (loadIdRef.current !== loadId) return;
@@ -270,41 +243,6 @@ export function HomePage() {
     if (filter === 'mine' && !isAuthor) return;
     loadData();
   }, [authReady, filter, isAuthor, loadData]);
-
-  const reloadReadingHistory = useCallback(() => {
-    if (!authService.getToken()) {
-      setReadingHistoryMap({});
-      return;
-    }
-    api
-      .getReadingHistory()
-      .then(({ items }) => {
-        const map: Record<
-          string,
-          { lastReadChapterNumber: number; continueChapterId: string | null }
-        > = {};
-        items.forEach((item) => {
-          map[item.publicationId] = {
-            lastReadChapterNumber: item.lastReadChapterNumber,
-            continueChapterId: item.continueChapterId,
-          };
-        });
-        setReadingHistoryMap(map);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') reloadReadingHistory();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    const unsubCache = subscribeToUserCacheInvalidation(reloadReadingHistory);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      unsubCache();
-    };
-  }, [reloadReadingHistory]);
 
   useEffect(() => {
     if (!authReady || isAuthor) return;

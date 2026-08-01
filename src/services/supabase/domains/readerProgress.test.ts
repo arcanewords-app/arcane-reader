@@ -166,12 +166,23 @@ describe('resetReadProgress', () => {
     vi.clearAllMocks();
   });
 
-  it('deletes progress row', async () => {
-    const deleteChain = chainable({ data: null, error: null });
+  it('deletes progress row when delete returns rows', async () => {
+    const deleteChain = chainable({ data: [{ publication_id: 'pub-1' }], error: null });
     mockFrom.mockReturnValue(deleteChain);
 
     await resetReadProgress('user-1', 'pub-1', 'token');
     assert.equal(deleteChain.delete.mock.calls.length, 1);
+    assert.equal(deleteChain.select.mock.calls.length, 1);
+    assert.equal(deleteChain.upsert.mock.calls.length, 0);
+  });
+
+  it('falls back to watermark 0 upsert when delete affects no rows', async () => {
+    const deleteChain = chainable({ data: [], error: null });
+    mockFrom.mockReturnValue(deleteChain);
+
+    await resetReadProgress('user-1', 'pub-1', 'token');
+    assert.equal(deleteChain.delete.mock.calls.length, 1);
+    assert.equal(deleteChain.upsert.mock.calls.length, 1);
   });
 });
 

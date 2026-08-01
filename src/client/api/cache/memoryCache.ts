@@ -66,3 +66,12 @@ export function clearUserScopedCaches(): void {
   userScopedCache.readerSettings.clear();
   userScopedCache.readingHistory.clear();
 }
+
+/** Clear in-memory reading history cache for one user (or all users if id omitted). */
+export function invalidateUserReadingHistoryCache(userId?: string): void {
+  if (userId) {
+    userScopedCache.readingHistory.delete(userId);
+  } else {
+    userScopedCache.readingHistory.clear();
+  }
+}

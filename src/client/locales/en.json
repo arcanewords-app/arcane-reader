@@ -1552,6 +1552,7 @@
     "resetConfirmTitle": "Reset reading progress?",
     "resetConfirmBody": "All read marks for this publication will be cleared. This cannot be undone.",
     "resetConfirmYes": "Reset",
+    "resetFailed": "Could not reset reading progress. Try again.",
     "lastReadUpTo": "Read up to this chapter"
   },
   "publication": {

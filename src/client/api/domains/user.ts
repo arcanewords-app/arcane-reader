@@ -7,8 +7,8 @@ import type {
 } from '../../types.js';
 import { authService } from '../../services/authService.js';
 import { emitCacheInvalidation } from '../cache/invalidation.js';
-import { USER_CACHE_TTL_MS, READING_HISTORY_CACHE_TTL_MS } from '../cache/keys.js';
-import { getCached, setCached, userScopedCache } from '../cache/memoryCache.js';
+import { USER_CACHE_TTL_MS } from '../cache/keys.js';
+import { setCached, userScopedCache } from '../cache/memoryCache.js';
 import { fetchJson } from '../transport/fetchJson.js';
 import { fetchJsonDeduped } from '../transport/fetchDeduped.js';
 import { fetchFormData } from '../transport/fetchFormData.js';
@@ -112,7 +112,7 @@ export const userApi = {
     return fetchJsonDeduped(`/api/user/token-usage/history?days=${days}`);
   },
 
-  /** Get user's reading history (publications with progress). Auth required. */
+  /** Get user's reading history (publications with progress). Auth required. Not TTL-cached — use fetchJsonDeduped only. */
   async getReadingHistory(): Promise<{
     items: Array<{
       publicationId: string;
@@ -126,10 +126,7 @@ export const userApi = {
       lastReadAt: string | null;
     }>;
   }> {
-    const userId = authService.getCachedUser()?.id ?? 'guest';
-    const cached = getCached(userScopedCache.readingHistory, userId, READING_HISTORY_CACHE_TTL_MS);
-    if (cached) return cached;
-    const data = await fetchJsonDeduped<{
+    return fetchJsonDeduped<{
       items: Array<{
         publicationId: string;
         title: string | null;
@@ -142,8 +139,6 @@ export const userApi = {
         lastReadAt: string | null;
       }>;
     }>('/api/user/reading-history');
-    setCached(userScopedCache.readingHistory, userId, data);
-    return data;
   },
 
   async getUserQuotes(): Promise<{

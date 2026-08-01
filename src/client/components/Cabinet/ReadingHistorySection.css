@@ -79,6 +79,12 @@
   outline-offset: 2px;
 }
 
+.reading-history-reset-error {
+  margin-top: var(--space-md);
+  color: var(--error);
+  font-size: var(--text-sm);
+}
+
 @media (max-width: 480px) {
   .reading-history-reset-link {
     min-height: 44px;
