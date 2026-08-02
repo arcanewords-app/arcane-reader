@@ -185,6 +185,17 @@ Component/hook presence only — **no** new Zod contract fixtures (schemas large
 
 Batches: product shell (Dashboard, Sidebar ProjectList, page smokes), public news/contact, ReportsModal, admin thin primitives/pages. Monsters and pages >500 still out. See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
 
+### Product shell wave (**done** 2026-08-03)
+
+Component-only product chrome + large page smokes (no contracts, no ProjectInfo/deferred monsters):
+
+| KPI                           | From    | To          |
+| ----------------------------- | ------- | ----------- |
+| Component suite / gaps        | 96 / 24 | **108 / 9** |
+| Component v8 lines (advisory) | ~23%    | **~37%**    |
+
+P0 delivered 12 suites; P1 (TranslationPanel / ParagraphList / ChapterView/index) not needed. See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).

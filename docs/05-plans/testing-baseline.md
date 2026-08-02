@@ -38,16 +38,16 @@ Policy SSOT: [[_canonical/rules/testing]]. Full pyramid: [[05-plans/testing-stra
 
 Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) is in pre-push.
 
-## Test suite (2026-08-02, post component focus wave)
+## Test suite (2026-08-03, post product shell wave)
 
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **96** files / **251** tests (`npm run test:component`)                           |
+| Component suite             | **108** files / **288** tests (`npm run test:component`)                          |
 | Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                          |
 | Contract suite              | **46** files / **75** tests (`npm run test:contract`)                             |
-| Co-located `*.test.tsx`     | **86**                                                                            |
-| Co-located `*.hook.test.ts` | **10**                                                                            |
+| Co-located `*.test.tsx`     | **97**                                                                            |
+| Co-located `*.hook.test.ts` | **11**                                                                            |
 | Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
 Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.config.ts` uses `pool: 'threads'` (Windows fork-runner stability). Unit coverage command does **not** execute `*.test.tsx` (separate config). Integration suite is mock-first (no live Supabase/Redis/LLM).
@@ -65,13 +65,13 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 ### Client breakdown
 
-| Folder               | Coverage notes                                                        |
-| -------------------- | --------------------------------------------------------------------- |
-| `client/utils/`      | Strong + `publicationChapterFilters`                                  |
-| `client/hooks/`      | Wave 6 P0: translation / token / history hooks                        |
-| `client/components/` | Focus wave: dashboard/sidebar/modals + page smokes; monsters deferred |
-| `client/pages/`      | About / Privacy / Terms / Projects smokes                             |
-| `client/api/`        | Domains / cache / transport mostly covered                            |
+| Folder               | Coverage notes                                                                  |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `client/utils/`      | Strong + `publicationChapterFilters`                                            |
+| `client/hooks/`      | Wave 6 P0: translation / token / history hooks                                  |
+| `client/components/` | Product shell: Header/Jobs/ChapterHeader + large page smokes; monsters deferred |
+| `client/pages/`      | About / Privacy / Terms / Projects smokes                                       |
+| `client/api/`        | Domains / cache / transport mostly covered                                      |
 
 ## Overall coverage (v8, APP_SCOPE — unit suite)
 
@@ -209,6 +209,16 @@ Large campaign: +30 component suites (Batches A–C), +18 contract schemas (chap
 | Contract  | enum-sync                                   | 9 / 9                | **9 / 9**               |
 
 Component-only wave (+25 suites): Dashboard, CopyChaptersModal, ProjectList, SupportMenu, ChapterTocModal, Cabinet/Profile/Project/AccountTiers/ReadingMode pages, News/Contact, ReportsModal, Sidebar chrome, admin thin (form fields, photo, publications/users smokes, section/tabs/redirect), Suspense; hooks `useReadingTextSelection`, `useStaticPageMeta`. No new contract fixtures. Layers remain **advisory**.
+
+### Post product shell wave (`test:gaps`, 2026-08-03)
+
+| Layer     | Metric                                      | After component focus | After product shell     |
+| --------- | ------------------------------------------- | --------------------- | ----------------------- |
+| Component | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 96 / 24 / 7     | **130 / 108 / 9 / 7**   |
+| Component | v8 lines (advisory, component suite)        | ~23.32%               | **~36.92%**             |
+| Contract  | schemas with fixtures / total               | 39 / 72               | **39 / 72** (unchanged) |
+
+P0 (+12 suites): ChapterHeader, Header, JobsPanel, TranslatorPseudonymsSection, ChapterPage, PublicationGlossaryModal, ChapterPickerPanel, HomePage, PublicationPage, PublicationReadingPage, TranslationRequestsPage, `useProjectSearch.hook`. P1 editor chrome **skipped** (gaps already ≤12). Leftover gaps: ProjectInfo + ChapterView stack + 3 admin pages + 2 unit-only pure modules. Layers remain **advisory**.
 
 ## Policy
 

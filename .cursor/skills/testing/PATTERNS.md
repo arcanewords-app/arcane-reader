@@ -164,13 +164,17 @@ vi.mock('./useTokenLimitCheck.js', () => ({
 
 **Dashboard / publication cards:** `@src/client/components/Dashboard/Dashboard.test.tsx`, `ProjectCard.test.tsx`, `ProjectGrid.test.tsx`, `@src/client/components/Home/PublicationCard.test.tsx`.
 
-**Sidebar chrome:** `@src/client/components/Sidebar/index.test.tsx` — mock `ChapterList` / `ProcessChapters` / search monsters; `@src/client/components/Sidebar/ProjectList.test.tsx`.
+**Sidebar chrome:** `@src/client/components/Sidebar/index.test.tsx` — mock `ChapterList` / `ProcessChapters` / search monsters; `@src/client/components/Sidebar/ProjectList.test.tsx`, `JobsPanel.test.tsx`.
 
-**Hooks (component suite):** `useUrlSync.hook.test.ts`, `useTokenEstimate.hook.test.ts`, `usePageMeta.hook.test.ts`, `useStaticPageMeta.hook.test.ts`, `useReadingTextSelection.hook.test.ts`.
+**Editor chrome (not ChapterView monster):** `@src/client/components/ChapterView/ChapterHeader.test.tsx`; page shell `@src/client/pages/ChapterPage.test.tsx` mocks `ChapterView` entirely.
+
+**App Header:** `@src/client/components/Header.test.tsx` — guest vs author; mock SupportMenu / TokenUsage as needed.
+
+**Hooks (component suite):** `useUrlSync.hook.test.ts`, `useTokenEstimate.hook.test.ts`, `usePageMeta.hook.test.ts`, `useStaticPageMeta.hook.test.ts`, `useReadingTextSelection.hook.test.ts`, `SearchReplace/useProjectSearch.hook.test.ts`.
 
 **Publication filters (pure):** `@src/client/utils/publicationChapterFilters.test.ts` — prefer extract over mounting `PublicationPage`.
 
-**Page smoke:** `@src/client/pages/AboutPage.test.tsx`, `CabinetPage.test.tsx`, `NewsPage.test.tsx`, `ContactPage.test.tsx`, `AdminPublicationsPage.test.tsx` — mock heavy children/API; assert heading or key region. Do **not** mount `ProjectInfo` / `ReadingMode/index` / deferred monsters.
+**Page smoke (large):** `@src/client/pages/HomePage.test.tsx`, `PublicationPage.test.tsx`, `PublicationReadingPage.test.tsx`, `TranslationRequestsPage.test.tsx` — mock API + heavy cards; stub `ReadingMode`; keep `useUrlSync` state **stable** (new object each render → infinite load loops). Do **not** mount `ProjectInfo` / `ReadingMode/index` / deferred monsters.
 
 ## Services — language pair
 
