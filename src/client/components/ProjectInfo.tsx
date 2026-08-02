@@ -10,9 +10,12 @@ import type {
   PublicEntity,
   TranslationStatus,
 } from '../types';
-import { TRANSLATION_STATUSES } from '../../shared/translation-status';
-import { Card, Button, Modal, Input, LoadingSpinner, Icon, AlertModal, ConfirmModal } from './ui';
-import { EntityCard, TagChip, EntityPickerModal } from './EntityCard';
+import { Card, Button, Modal, Input, Icon, AlertModal, ConfirmModal } from './ui';
+import { EntityCard } from './EntityCard';
+import { ProjectCoverEditor } from './Project/ProjectCoverEditor';
+import { ProjectEntitySection } from './Project/ProjectEntitySection';
+import { ProjectPublicationSection } from './Project/ProjectPublicationSection';
+import { ProjectActionsMenu } from './Project/ProjectActionsMenu';
 import { formatLanguagePairLabel } from '../constants/translationLanguages';
 import { api, ApiError, clearCatalogLocalCache } from '../api/client';
 import { isChunkError } from '../../shared/chunkErrors';
@@ -50,8 +53,6 @@ export function ProjectInfo({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCopyChaptersModal, setShowCopyChaptersModal] = useState(false);
   const [showBulkDeleteChaptersModal, setShowBulkDeleteChaptersModal] = useState(false);
-  const [showProjectActionsMenu, setShowProjectActionsMenu] = useState(false);
-  const projectActionsMenuRef = useRef<HTMLDivElement>(null);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [cloneName, setCloneName] = useState('');
   const [cloning, setCloning] = useState(false);
@@ -64,7 +65,6 @@ export function ProjectInfo({
   const [showDeleteCoverConfirm, setShowDeleteCoverConfirm] = useState(false);
   const [buildingExports, setBuildingExports] = useState(false);
   const [buildExportsOnPublish, setBuildExportsOnPublish] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
   const [deletingCover, setDeletingCover] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
@@ -74,11 +74,6 @@ export function ProjectInfo({
   const [originalTitleDraft, setOriginalTitleDraft] = useState('');
   const [savingOriginalTitle, setSavingOriginalTitle] = useState(false);
   const originalTitleInputRef = useRef<HTMLInputElement>(null);
-  const [editingSourceUrl, setEditingSourceUrl] = useState(false);
-  const [sourceUrlDraft, setSourceUrlDraft] = useState('');
-  const [savingSourceUrl, setSavingSourceUrl] = useState(false);
-  const sourceUrlInputRef = useRef<HTMLInputElement>(null);
-
   // Publication (catalog)
   const [publication, setPublication] = useState<Publication | null>(null);
   const [publicationLoading, setPublicationLoading] = useState(true);
@@ -86,7 +81,6 @@ export function ProjectInfo({
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const [updatingPublication, setUpdatingPublication] = useState(false);
-  const [updatingShowGlossary, setUpdatingShowGlossary] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
 
@@ -237,7 +231,6 @@ export function ProjectInfo({
         setAuthorEntity(entity);
         saveEntityMetadata({ authorEntityId: entity.id });
       }
-      setShowAuthorPicker(false);
     },
     [saveEntityMetadata]
   );
@@ -249,7 +242,6 @@ export function ProjectInfo({
         setTranslatorEntity(entity);
         saveEntityMetadata({ translatorEntityId: entity.id });
       }
-      setShowTranslatorPicker(false);
     },
     [saveEntityMetadata]
   );
@@ -258,7 +250,6 @@ export function ProjectInfo({
     (entities: PublicEntity[]) => {
       setTagEntities(entities);
       saveEntityMetadata({ tagEntityIds: entities.map((e) => e.id) });
-      setShowTagPicker(false);
     },
     [saveEntityMetadata]
   );
@@ -582,62 +573,6 @@ export function ProjectInfo({
     [saveOriginalTitle, cancelEditingOriginalTitle]
   );
 
-  const startEditingSourceUrl = useCallback(() => {
-    setSourceUrlDraft(project.metadata?.sourceUrl ?? '');
-    setEditingSourceUrl(true);
-    setTimeout(() => sourceUrlInputRef.current?.focus(), 0);
-  }, [project.metadata?.sourceUrl]);
-
-  const cancelEditingSourceUrl = useCallback(() => {
-    setEditingSourceUrl(false);
-    setSourceUrlDraft('');
-  }, []);
-
-  const saveSourceUrl = useCallback(async () => {
-    const trimmed = sourceUrlDraft.trim();
-    if (trimmed) {
-      try {
-        new URL(trimmed);
-      } catch {
-        setErrorModal({
-          title: t('projectInfo.errorInvalidSourceUrl'),
-          message: t('projectInfo.errorInvalidSourceUrl'),
-        });
-        return;
-      }
-    }
-    setSavingSourceUrl(true);
-    try {
-      await api.updateProjectMetadata(project.id, {
-        ...project.metadata,
-        sourceUrl: trimmed || undefined,
-      });
-      invalidateProject(project.id);
-      await onRefreshProject();
-      setEditingSourceUrl(false);
-      setSourceUrlDraft('');
-    } catch (error) {
-      setErrorModal({
-        title: t('projectInfo.errorSaveSourceUrl'),
-        message: error instanceof Error ? error.message : t('projectInfo.errorSaveSourceUrl'),
-      });
-    } finally {
-      setSavingSourceUrl(false);
-    }
-  }, [project.id, project.metadata, sourceUrlDraft, onRefreshProject, t]);
-
-  const handleSourceUrlKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        saveSourceUrl();
-      } else if (e.key === 'Escape') {
-        cancelEditingSourceUrl();
-      }
-    },
-    [saveSourceUrl, cancelEditingSourceUrl]
-  );
-
   const settings = project.settings;
 
   const isOriginalReadingMode = settings.originalReadingMode ?? false;
@@ -681,20 +616,6 @@ export function ProjectInfo({
       setRenaming(false);
     }
   };
-
-  useEffect(() => {
-    if (!showProjectActionsMenu) return;
-    const handleClick = (event: MouseEvent) => {
-      if (
-        projectActionsMenuRef.current &&
-        !projectActionsMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowProjectActionsMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showProjectActionsMenu]);
 
   const handleClone = async () => {
     if (!cloneName.trim()) return;
@@ -776,94 +697,17 @@ export function ProjectInfo({
                   )}
             </span>
           </div>
-          <div class="project-actions-menu" ref={projectActionsMenuRef}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowProjectActionsMenu((open) => !open)}
-              aria-expanded={showProjectActionsMenu}
-              aria-haspopup="menu"
-              aria-label={t('projectInfo.projectMenu')}
-              title={t('projectInfo.projectMenu')}
-            >
-              <Icon name="more_vert" size="sm" />
-            </Button>
-            {showProjectActionsMenu && (
-              <div class="project-actions-dropdown" role="menu">
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="project-actions-item"
-                  onClick={() => {
-                    setShowProjectActionsMenu(false);
-                    openRenameModal();
-                  }}
-                >
-                  <Icon name="edit" size="sm" />
-                  <span>{t('projectInfo.renameProject')}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="project-actions-item"
-                  disabled={atProjectLimit}
-                  title={
-                    atProjectLimit
-                      ? t('dashboard.projectLimitReached', {
-                          current: projectCount,
-                          limit: projectLimit,
-                        })
-                      : undefined
-                  }
-                  onClick={() => {
-                    setShowProjectActionsMenu(false);
-                    openCloneModal();
-                  }}
-                >
-                  <Icon name="content_copy" size="sm" />
-                  <span>{t('projectInfo.cloneProject')}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="project-actions-item"
-                  onClick={() => {
-                    setShowProjectActionsMenu(false);
-                    setShowCopyChaptersModal(true);
-                  }}
-                >
-                  <Icon name="drive_file_move" size="sm" />
-                  <span>{t('projectInfo.copyChapters')}</span>
-                </button>
-                <hr class="project-actions-separator" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="project-actions-item project-actions-item-danger"
-                  disabled={project.chapters.length === 0}
-                  onClick={() => {
-                    setShowProjectActionsMenu(false);
-                    setShowBulkDeleteChaptersModal(true);
-                  }}
-                >
-                  <Icon name="delete_sweep" size="sm" />
-                  <span>{t('projectInfo.deleteChapters')}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="project-actions-item project-actions-item-danger"
-                  onClick={() => {
-                    setShowProjectActionsMenu(false);
-                    setShowDeleteModal(true);
-                  }}
-                >
-                  <Icon name="delete" size="sm" />
-                  <span>{t('projectInfo.delete')}</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <ProjectActionsMenu
+            atProjectLimit={atProjectLimit}
+            projectLimit={projectLimit}
+            projectCount={projectCount}
+            hasChapters={project.chapters.length > 0}
+            onRename={openRenameModal}
+            onClone={openCloneModal}
+            onCopyChapters={() => setShowCopyChaptersModal(true)}
+            onBulkDeleteChapters={() => setShowBulkDeleteChaptersModal(true)}
+            onDelete={() => setShowDeleteModal(true)}
+          />
         </div>
 
         <div class="stats">
@@ -905,169 +749,15 @@ export function ProjectInfo({
                 <h3 class="metadata-title">{t('projectInfo.bookInfo')}</h3>
               </div>
               <div class="metadata-content">
-                {/* Cover Image */}
-                <div
-                  class="metadata-cover"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={
-                    project.metadata?.coverImageUrl ? undefined : t('projectInfo.uploadCoverClick')
-                  }
-                  style={{
-                    cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer',
-                    position: 'relative',
-                  }}
-                  onClick={() => {
-                    if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
-                      const input = document.getElementById(
-                        'cover-upload-input'
-                      ) as HTMLInputElement;
-                      input?.click();
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
-                        const input = document.getElementById(
-                          'cover-upload-input'
-                        ) as HTMLInputElement;
-                        input?.click();
-                      }
-                    }
-                  }}
-                >
-                  {project.metadata?.coverImageUrl ? (
-                    <>
-                      <img
-                        src={project.metadata.coverImageUrl}
-                        alt={t('projectInfo.coverAlt')}
-                        class="cover-image"
-                      />
-                      {deletingCover ? (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: '0.5rem',
-                            right: '0.5rem',
-                            background: 'rgba(0, 0, 0, 0.7)',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.5rem',
-                            color: 'white',
-                            fontSize: '0.85rem',
-                          }}
-                        >
-                          ...
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowDeleteCoverConfirm(true);
-                            }}
-                            disabled={deletingCover}
-                            style={{
-                              position: 'absolute',
-                              top: '0.5rem',
-                              right: '0.5rem',
-                              background: 'rgba(255, 255, 255, 0.9)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '4px',
-                              width: '32px',
-                              height: '32px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '1rem',
-                              transition: 'all 0.2s',
-                            }}
-                            title={t('projectInfo.deleteCoverTitle')}
-                          >
-                            <Icon name="delete" size="sm" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const input = document.getElementById(
-                                'cover-upload-input'
-                              ) as HTMLInputElement;
-                              input?.click();
-                            }}
-                            disabled={uploadingCover || deletingCover}
-                            style={{
-                              position: 'absolute',
-                              bottom: '0.5rem',
-                              right: '0.5rem',
-                              background: 'rgba(255, 255, 255, 0.9)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '4px',
-                              padding: '0.375rem 0.75rem',
-                              cursor: 'pointer',
-                              fontSize: '0.85rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              transition: 'all 0.2s',
-                            }}
-                            title={t('projectInfo.replaceCoverTitle')}
-                          >
-                            {uploadingCover ? (
-                              <Icon name="schedule" size="sm" />
-                            ) : (
-                              <Icon name="upload_file" size="sm" />
-                            )}
-                          </button>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        minHeight: '300px',
-                        background: 'var(--bg-hover)',
-                        border: '2px dashed var(--border)',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.75rem',
-                        transition: 'all 0.2s',
-                        cursor: 'pointer',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!uploadingCover && !deletingCover) {
-                          e.currentTarget.style.borderColor = 'var(--accent)';
-                          e.currentTarget.style.background = 'var(--accent-glow)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.background = 'var(--bg-hover)';
-                      }}
-                    >
-                      <div style={{ fontSize: '3rem', opacity: 0.5 }}>
-                        <Icon name="image" size="lg" />
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '0.9rem',
-                          color: 'var(--text-secondary)',
-                          textAlign: 'center',
-                          padding: '0 1rem',
-                        }}
-                      >
-                        {uploadingCover
-                          ? `... ${t('projectInfo.uploadCoverLoading')}`
-                          : t('projectInfo.uploadCoverClick')}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ProjectCoverEditor
+                  projectId={project.id}
+                  coverImageUrl={project.metadata?.coverImageUrl}
+                  variant="book"
+                  deletingCover={deletingCover}
+                  onDeleteRequest={() => setShowDeleteCoverConfirm(true)}
+                  onRefreshProject={onRefreshProject}
+                  onError={(title, message) => setErrorModal({ title, message })}
+                />
 
                 <div class="metadata-details">
                   {/* Translation language pair (project settings) */}
@@ -1278,173 +968,15 @@ export function ProjectInfo({
               class="metadata-content"
               style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}
             >
-              <div
-                class="metadata-cover"
-                role="button"
-                tabIndex={0}
-                aria-label={
-                  project.metadata?.coverImageUrl ? undefined : t('projectInfo.uploadCoverClick')
-                }
-                style={{
-                  position: 'relative',
-                  flexShrink: 0,
-                  cursor: project.metadata?.coverImageUrl ? 'default' : 'pointer',
-                }}
-                onClick={() => {
-                  if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
-                    const input = document.getElementById('cover-upload-input') as HTMLInputElement;
-                    input?.click();
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (!project.metadata?.coverImageUrl && !uploadingCover && !deletingCover) {
-                      const input = document.getElementById(
-                        'cover-upload-input'
-                      ) as HTMLInputElement;
-                      input?.click();
-                    }
-                  }
-                }}
-              >
-                {project.metadata?.coverImageUrl ? (
-                  <>
-                    <img
-                      src={project.metadata.coverImageUrl}
-                      alt={t('projectInfo.coverProjectAlt')}
-                      style={{
-                        width: '100%',
-                        maxWidth: '200px',
-                        height: 'auto',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                      }}
-                    />
-                    {deletingCover ? (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '0.5rem',
-                          right: '0.5rem',
-                          background: 'rgba(0, 0, 0, 0.7)',
-                          borderRadius: '4px',
-                          padding: '0.25rem 0.5rem',
-                          color: 'white',
-                          fontSize: '0.85rem',
-                        }}
-                      >
-                        ...
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteCoverConfirm(true);
-                          }}
-                          disabled={deletingCover}
-                          style={{
-                            position: 'absolute',
-                            top: '0.5rem',
-                            right: '0.5rem',
-                            background: 'rgba(255, 255, 255, 0.9)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '4px',
-                            width: '32px',
-                            height: '32px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1rem',
-                            transition: 'all 0.2s',
-                          }}
-                          title={t('projectInfo.deleteCoverTitle')}
-                        >
-                          <Icon name="delete" size="sm" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const input = document.getElementById(
-                              'cover-upload-input'
-                            ) as HTMLInputElement;
-                            input?.click();
-                          }}
-                          disabled={uploadingCover || deletingCover}
-                          style={{
-                            position: 'absolute',
-                            bottom: '0.5rem',
-                            right: '0.5rem',
-                            background: 'rgba(255, 255, 255, 0.9)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '4px',
-                            padding: '0.375rem 0.75rem',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            transition: 'all 0.2s',
-                          }}
-                          title={t('projectInfo.replaceCoverTitle')}
-                        >
-                          {uploadingCover ? (
-                            <Icon name="schedule" size="sm" />
-                          ) : (
-                            <Icon name="upload_file" size="sm" />
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div
-                    style={{
-                      width: '200px',
-                      height: '300px',
-                      background: 'var(--bg-hover)',
-                      border: '2px dashed var(--border)',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.75rem',
-                      transition: 'all 0.2s',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!uploadingCover && !deletingCover) {
-                        e.currentTarget.style.borderColor = 'var(--accent)';
-                        e.currentTarget.style.background = 'var(--accent-glow)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.background = 'var(--bg-hover)';
-                    }}
-                  >
-                    <div style={{ fontSize: '3rem', opacity: 0.5 }}>
-                      <Icon name="image" size="lg" />
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                        textAlign: 'center',
-                        padding: '0 1rem',
-                      }}
-                    >
-                      {uploadingCover
-                        ? `... ${t('projectInfo.uploadCoverLoading')}`
-                        : t('projectInfo.uploadCoverClick')}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ProjectCoverEditor
+                projectId={project.id}
+                coverImageUrl={project.metadata?.coverImageUrl}
+                variant="compact"
+                deletingCover={deletingCover}
+                onDeleteRequest={() => setShowDeleteCoverConfirm(true)}
+                onRefreshProject={onRefreshProject}
+                onError={(title, message) => setErrorModal({ title, message })}
+              />
               {/* Description - editable, next to cover */}
               <div class="metadata-details" style={{ flex: 1, minWidth: '200px' }}>
                 <div class="metadata-item metadata-description">
@@ -1500,383 +1032,44 @@ export function ProjectInfo({
           </div>
         )}
 
-        {/* Entity Section: Author, Translator, Tags */}
-        <div class="entity-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-          <div class="metadata-header" style={{ marginBottom: '0.75rem' }}>
-            <span class="metadata-icon">
-              <Icon name="person" size="sm" />
-            </span>
-            <h3 class="metadata-title">{t('projectInfo.entitySectionTitle')}</h3>
-          </div>
-          <div class="entity-section__content">
-            <div class="entity-section__row">
-              <span class="entity-section__label">{t('projectInfo.author')}</span>
-              <div class="entity-section__value">
-                {authorEntity ? (
-                  <div class="entity-section__card-wrap">
-                    <EntityCard entity={authorEntity} compact />
-                    <button
-                      type="button"
-                      class="entity-section__remove"
-                      onClick={handleRemoveAuthor}
-                      disabled={savingEntities}
-                      aria-label={t('projectInfo.removeAuthor')}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowAuthorPicker(true)}
-                    disabled={savingEntities}
-                  >
-                    {t('projectInfo.selectAuthor')}
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div class="entity-section__row">
-              <span class="entity-section__label">{t('projectInfo.translator')}</span>
-              <div class="entity-section__value">
-                {translatorEntity ? (
-                  <div class="entity-section__card-wrap">
-                    <EntityCard entity={translatorEntity} compact />
-                    {translatorEntity && !isOwnedTranslatorEntity(translatorEntity) && (
-                      <span class="entity-section__legacy-badge">
-                        {t('translatorPseudonym.legacyBadge')}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      class="entity-section__remove"
-                      onClick={handleRemoveTranslator}
-                      disabled={savingEntities}
-                      aria-label={t('projectInfo.removeTranslator')}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowTranslatorPicker(true)}
-                    disabled={savingEntities}
-                  >
-                    {t('projectInfo.selectTranslator')}
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div class="entity-section__row">
-              <span class="entity-section__label">{t('projectInfo.tags')}</span>
-              <div class="entity-section__value entity-section__tags">
-                {tagEntities.map((entity) => (
-                  <TagChip
-                    key={entity.id}
-                    entity={entity}
-                    removable
-                    onRemove={() => handleRemoveTag(entity)}
-                  />
-                ))}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowTagPicker(true)}
-                  disabled={savingEntities}
-                >
-                  {t('projectInfo.addTags')}
-                </Button>
-              </div>
-            </div>
-            <div class="entity-section__row entity-section__row--translation-status">
-              <span class="entity-section__label">{t('projectInfo.translationStatus.label')}</span>
-              <div class="entity-section__value entity-section__translation-status">
-                <div
-                  class="translation-status-pills"
-                  role="group"
-                  aria-label={t('projectInfo.translationStatus.label')}
-                >
-                  {TRANSLATION_STATUSES.map((status) => {
-                    const isActive = project.metadata?.translationStatus === status;
-                    const optionKey =
-                      status === 'in_progress'
-                        ? 'inProgress'
-                        : status === 'complete'
-                          ? 'complete'
-                          : 'abandoned';
-                    return (
-                      <button
-                        key={status}
-                        type="button"
-                        class={`translation-status-pill${isActive ? ' translation-status-pill--active' : ''}`}
-                        disabled={savingEntities}
-                        aria-pressed={isActive}
-                        onClick={() => {
-                          const next =
-                            project.metadata?.translationStatus === status ? null : status;
-                          saveEntityMetadata({ translationStatus: next });
-                        }}
-                      >
-                        {t(`projectInfo.translationStatus.${optionKey}`)}
-                      </button>
-                    );
-                  })}
-                  {project.metadata?.translationStatus != null && (
-                    <button
-                      type="button"
-                      class="translation-status-clear"
-                      disabled={savingEntities}
-                      onClick={() => saveEntityMetadata({ translationStatus: null })}
-                    >
-                      {t('projectInfo.translationStatus.clear')}
-                    </button>
-                  )}
-                </div>
-                <p class="entity-section__translation-status-hint">
-                  {t('projectInfo.translationStatus.hint')}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <EntityPickerModal
-          isOpen={showAuthorPicker}
-          onClose={() => setShowAuthorPicker(false)}
-          kind="author"
-          mode="single"
-          selectedIds={authorEntity ? [authorEntity.id] : []}
-          onSelect={handleAuthorSelect}
-        />
-        <EntityPickerModal
-          isOpen={showTranslatorPicker}
-          onClose={() => setShowTranslatorPicker(false)}
-          kind="translator"
-          mode="single"
-          translatorScope="mine"
-          allowCreate
-          selectedIds={translatorEntity ? [translatorEntity.id] : []}
-          onSelect={handleTranslatorSelect}
-        />
-        <EntityPickerModal
-          isOpen={showTagPicker}
-          onClose={() => setShowTagPicker(false)}
-          kind="tag"
-          mode="multi"
-          selectedIds={tagEntities.map((e) => e.id)}
-          onSelect={handleTagSelect}
+        <ProjectEntitySection
+          project={project}
+          authorEntity={authorEntity}
+          translatorEntity={translatorEntity}
+          tagEntities={tagEntities}
+          savingEntities={savingEntities}
+          isOwnedTranslatorEntity={isOwnedTranslatorEntity}
+          showAuthorPicker={showAuthorPicker}
+          onShowAuthorPickerChange={setShowAuthorPicker}
+          showTranslatorPicker={showTranslatorPicker}
+          onShowTranslatorPickerChange={setShowTranslatorPicker}
+          showTagPicker={showTagPicker}
+          onShowTagPickerChange={setShowTagPicker}
+          onAuthorSelect={handleAuthorSelect}
+          onTranslatorSelect={handleTranslatorSelect}
+          onTagSelect={handleTagSelect}
+          onRemoveAuthor={handleRemoveAuthor}
+          onRemoveTranslator={handleRemoveTranslator}
+          onRemoveTag={handleRemoveTag}
+          onTranslationStatusChange={(status) => saveEntityMetadata({ translationStatus: status })}
         />
 
-        {/* Hidden file input for cover upload */}
-        {/* Publication (catalog) */}
-        <div class="publication-section" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
-          <div class="metadata-header" style={{ marginBottom: '0.75rem' }}>
-            <span class="metadata-icon">
-              <Icon name="campaign" size="sm" />
-            </span>
-            <h3 class="metadata-title">{t('projectInfo.publicationTitle')}</h3>
-          </div>
-          <div class="metadata-item metadata-source-url" style={{ marginBottom: '0.75rem' }}>
-            <span class="metadata-label">{t('projectInfo.sourceUrlLabel')}</span>
-            {editingSourceUrl ? (
-              <div class="project-description-editor">
-                <input
-                  ref={sourceUrlInputRef}
-                  type="url"
-                  class="form-input"
-                  value={sourceUrlDraft}
-                  onInput={(e) => setSourceUrlDraft((e.target as HTMLInputElement).value)}
-                  onKeyDown={handleSourceUrlKeyDown}
-                  placeholder={t('projectInfo.sourceUrlPlaceholder')}
-                />
-                <div class="project-description-actions">
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    onClick={cancelEditingSourceUrl}
-                    disabled={savingSourceUrl}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    onClick={saveSourceUrl}
-                    disabled={savingSourceUrl}
-                  >
-                    {savingSourceUrl ? '...' : t('common.save')}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div
-                class={`metadata-value description-text editable ${!project.metadata?.sourceUrl ? 'empty' : ''}`}
-                onClick={startEditingSourceUrl}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && startEditingSourceUrl()}
-              >
-                {project.metadata?.sourceUrl
-                  ? project.metadata.sourceUrl
-                  : t('projectInfo.clickToAddSourceUrl')}
-              </div>
-            )}
-          </div>
-          {publicationLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <LoadingSpinner size="sm" text={t('common.loading')} />
-            </div>
-          ) : publication?.status === 'published' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                {t('projectInfo.publicationPublished')}
-              </p>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
-                {t('projectInfo.publicationUpdatesHint')}
-              </p>
-              {stats.glossary > 0 && (
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.5rem',
-                    cursor: 'pointer',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={publication.showGlossary !== false}
-                    disabled={updatingShowGlossary}
-                    onChange={async () => {
-                      if (!publication) return;
-                      const next = publication.showGlossary === false;
-                      setUpdatingShowGlossary(true);
-                      try {
-                        await api.updatePublicationDisplaySettings(publication.id, {
-                          showGlossary: next,
-                        });
-                        setPublication((p) => (p ? { ...p, showGlossary: next } : null));
-                      } catch (error) {
-                        setErrorModal({
-                          title: t('projectInfo.publishError'),
-                          message:
-                            error instanceof Error ? error.message : t('projectInfo.publishError'),
-                        });
-                      } finally {
-                        setUpdatingShowGlossary(false);
-                      }
-                    }}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      marginTop: '2px',
-                      cursor: updatingShowGlossary ? 'wait' : 'pointer',
-                    }}
-                    aria-label={t('projectInfo.showGlossaryToReaders')}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{t('projectInfo.showGlossaryToReaders')}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                      {t('projectInfo.showGlossaryHint')}
-                    </div>
-                  </div>
-                </label>
-              )}
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => window.open(`/p/${publication.slug || publication.id}`, '_blank')}
-                >
-                  {t('projectInfo.publicationView')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleUpdatePublication}
-                  disabled={updatingPublication || !hasPublishableTranslator}
-                >
-                  {updatingPublication ? t('common.loading') : t('projectInfo.updatePublication')}
-                </Button>
-                {stats.translated > 0 && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleBuildExports}
-                    disabled={buildingExports}
-                  >
-                    {buildingExports
-                      ? t('common.loading')
-                      : publication.epubStoragePath || publication.fb2StoragePath
-                        ? t('publication.updateExports')
-                        : t('publication.prepareExports')}
-                  </Button>
-                )}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowUnpublishConfirm(true)}
-                  disabled={unpublishing}
-                >
-                  {unpublishing ? t('common.loading') : t('projectInfo.unpublish')}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                {t('projectInfo.publicationNotPublished')}
-              </p>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={openPublishModal}
-                disabled={stats.chapters === 0}
-              >
-                {t('projectInfo.publish')}
-              </Button>
-              {stats.chapters === 0 && (
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
-                  {t('projectInfo.publishRequiresChapters')}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <input
-          id="cover-upload-input"
-          type="file"
-          accept="image/*"
-          onChange={async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-            setUploadingCover(true);
-            try {
-              const result = await api.uploadProjectCover(project.id, file);
-              invalidateProject(project.id);
-              if (result.project) {
-                await onRefreshProject();
-              } else {
-                await onRefreshProject();
-              }
-            } catch (error) {
-              console.error('Failed to upload cover:', error);
-              setErrorModal({
-                title: t('projectInfo.errorUploadCover'),
-                message: error instanceof Error ? error.message : t('projectInfo.errorUploadCover'),
-              });
-            } finally {
-              setUploadingCover(false);
-              (e.target as HTMLInputElement).value = '';
-            }
-          }}
-          disabled={uploadingCover || deletingCover}
-          style={{ display: 'none' }}
+        <ProjectPublicationSection
+          project={project}
+          publication={publication}
+          publicationLoading={publicationLoading}
+          setPublication={setPublication}
+          stats={stats}
+          hasPublishableTranslator={hasPublishableTranslator}
+          buildingExports={buildingExports}
+          updatingPublication={updatingPublication}
+          unpublishing={unpublishing}
+          onRefreshProject={onRefreshProject}
+          onOpenPublishModal={openPublishModal}
+          onUnpublishRequest={() => setShowUnpublishConfirm(true)}
+          onUpdatePublication={handleUpdatePublication}
+          onBuildExports={handleBuildExports}
+          onError={(title, message) => setErrorModal({ title, message })}
         />
 
         {/* Translation Statistics - hidden in original reading mode */}

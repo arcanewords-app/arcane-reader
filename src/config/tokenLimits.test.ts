@@ -65,7 +65,7 @@ describe('tokenLimits', () => {
 
   it('project estimate helpers delegate to shared estimators', () => {
     const project = {
-      glossary: [{ type: 'term' as const, original: 'Mana', mentionedInChapters: [1] }],
+      glossary: [{ original: 'Mana', translated: 'Мана', mentionedInChapters: [1] }],
       settings: {},
       targetLanguage: 'ru',
     };

@@ -1095,7 +1095,7 @@ describe('updatePublicationDisplaySettings', () => {
     await assert.rejects(
       () =>
         updatePublicationDisplaySettings('pub-1', 'user-1', 'token', {
-          translationStatus: 'ongoing',
+          translationStatus: 'in_progress',
         }),
       /Failed to update publication display settings/
     );

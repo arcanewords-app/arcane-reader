@@ -379,12 +379,12 @@ function richAnalysis(chapterNumber = 1): AnalysisResult {
       { name: 'X', isNew: true, context: 'too short' },
     ],
     foundLocations: [
-      { name: 'Town', isNew: true, context: 'place' },
-      { name: 'Castle', isNew: false, context: 'known place' },
+      { name: 'Town', isNew: true },
+      { name: 'Castle', isNew: false },
     ],
     foundTerms: [
-      { term: 'Mana', isNew: true, context: 'magic' },
-      { term: 'Qi', isNew: false, context: 'known term' },
+      { term: 'Mana', isNew: true, category: 'magic' },
+      { term: 'Qi', isNew: false, category: 'other' },
     ],
     chapterSummary: 'Hero arrives.',
     keyEvents: ['arrival'],
@@ -432,7 +432,6 @@ function richAnalysis(chapterNumber = 1): AnalysisResult {
           translatedName: 'Город',
           description: 'A town',
           type: 'city',
-          firstAppearance: chapterNumber,
         },
       ],
       newTerms: [
@@ -441,7 +440,6 @@ function richAnalysis(chapterNumber = 1): AnalysisResult {
           translatedTerm: 'Мана',
           description: 'Magic power',
           category: 'magic',
-          firstAppearance: chapterNumber,
         },
       ],
       updatedCharacters: [
@@ -467,7 +465,7 @@ function richAnalysis(chapterNumber = 1): AnalysisResult {
           originalTerm: 'Qi',
           description: 'Updated qi',
           translatedTerm: 'Ци',
-          category: 'energy',
+          category: 'other',
         },
       ],
     },
@@ -911,7 +909,7 @@ describe('translateChapterWithPipeline branches', () => {
         ],
         customInstructions: 'Keep formal tone',
         editingStylePreset: 'literary',
-      } as Project['settings'],
+      } as unknown as Project['settings'],
     });
 
     const result = await translateChapterWithPipeline(baseConfig, project, makeChapter(), {
@@ -1066,7 +1064,7 @@ describe('createPipeline settings branches', () => {
         ],
         customInstructions: 'Be concise',
         temperatureByStage: { analysis: 0.1, translation: 0.2, editing: 0.3 },
-      } as Project['settings'],
+      } as unknown as Project['settings'],
     });
     assert.ok(createPipeline(baseConfig, project, undefined, 'admin'));
   });

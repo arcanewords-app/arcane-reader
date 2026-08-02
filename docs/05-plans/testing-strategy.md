@@ -196,6 +196,10 @@ Component-only product chrome + large page smokes (no contracts, no ProjectInfo/
 
 P0 delivered 12 suites; P1 (TranslationPanel / ParagraphList / ChapterView/index) not needed. See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
 
+### Deferred monsters extract (**done** 2026-08-03)
+
+Split/reuse of large client shells so tests can target pieces without mounting monsters. EntityPickerModal undeferred (smoke suite). Glossary / ReadingMode / ChapterList / ProcessChapters shells still deferred; SearchReplaceBar thinned via `useChapterSearchReplace`. Numbers and LOC table: [[05-plans/testing-baseline#Deferred monsters extract wave (2026-08-03)|testing-baseline]].
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).

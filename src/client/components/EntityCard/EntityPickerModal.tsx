@@ -11,6 +11,8 @@ import './EntityPickerModal.css';
 import '../TranslatorPseudonym/TranslatorPseudonymsSection.css';
 
 const INITIAL_TAG_LIMIT = 12;
+/** Stable default — inline `= []` would re-trigger selectedIds sync every render. */
+const EMPTY_SELECTED_IDS: string[] = [];
 
 interface EntityPickerModalProps {
   isOpen: boolean;
@@ -32,7 +34,7 @@ export function EntityPickerModal({
   onClose,
   kind,
   mode,
-  selectedIds = [],
+  selectedIds = EMPTY_SELECTED_IDS,
   onSelect,
   translatorScope = 'public',
   allowCreate = false,

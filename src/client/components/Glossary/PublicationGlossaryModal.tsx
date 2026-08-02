@@ -1,13 +1,19 @@
 import { useState, useMemo, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
-import type { GlossaryEntry, GlossaryEntryType } from '../../types';
-import { Modal, Button, LoadingSpinner, Icon } from '../ui';
-import { api } from '../../api/client';
+import type { GlossaryEntry, GlossaryEntryType } from '../../types.js';
+import { Modal, Button, LoadingSpinner, Icon } from '../ui/index.js';
+import { api } from '../../api/client.js';
+import { glossaryTypeIcons } from './glossaryTypeIcons.js';
+import {
+  filterGlossaryEntriesByTypeAndSearch,
+  type GlossaryTypeFilter,
+} from './glossaryFilterShared.js';
+import { GlossaryTypeFilterBar } from './GlossaryTypeFilterBar.js';
 import './GlossaryModal.css';
 import './PublicationGlossaryModal.css';
 
-type FilterType = 'all' | GlossaryEntryType;
+type FilterType = GlossaryTypeFilter;
 
 export interface PublicationChapterRef {
   id: string;
@@ -24,12 +30,6 @@ interface PublicationGlossaryModalProps {
   /** Preloaded entries (e.g. from parent). When set, modal opens without loading. */
   preloadedEntries?: GlossaryEntry[] | null;
 }
-
-const typeIcons: Record<GlossaryEntryType, string> = {
-  character: 'person',
-  location: 'place',
-  term: 'menu_book',
-};
 
 export function PublicationGlossaryModal({
   isOpen,
@@ -79,16 +79,10 @@ export function PublicationGlossaryModal({
       .finally(() => setLoading(false));
   }, [isOpen, publicationId, retryTrigger, preloadedEntries]);
 
-  const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => {
-      const matchesFilter = filter === 'all' || entry.type === filter;
-      const matchesSearch =
-        !search ||
-        entry.original.toLowerCase().includes(search.toLowerCase()) ||
-        entry.translated.toLowerCase().includes(search.toLowerCase());
-      return matchesFilter && matchesSearch;
-    });
-  }, [entries, filter, search]);
+  const filteredEntries = useMemo(
+    () => filterGlossaryEntriesByTypeAndSearch(entries, filter, search),
+    [entries, filter, search]
+  );
 
   const counts = useMemo(
     () => ({
@@ -191,24 +185,11 @@ export function PublicationGlossaryModal({
                   onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                 />
               </div>
-              <div class="glossary-filters">
-                {(['all', 'character', 'location', 'term'] as FilterType[]).map((f) => (
-                  <button
-                    key={f}
-                    class={`filter-btn ${filter === f ? 'active' : ''}`}
-                    onClick={() => setFilter(f)}
-                  >
-                    {f === 'all' ? (
-                      t('glossary.all')
-                    ) : (
-                      <>
-                        <Icon name={typeIcons[f]} size="sm" /> {typeLabels[f]}
-                      </>
-                    )}
-                    <span>{counts[f]}</span>
-                  </button>
-                ))}
-              </div>
+              <GlossaryTypeFilterBar
+                filter={filter}
+                onFilterChange={(f) => setFilter(f as FilterType)}
+                counts={counts}
+              />
             </div>
 
             <div class="glossary-grid">
@@ -245,7 +226,7 @@ export function PublicationGlossaryModal({
                           />
                         ) : (
                           <div class="glossary-card-placeholder">
-                            <Icon name={typeIcons[entry.type]} />
+                            <Icon name={glossaryTypeIcons[entry.type]} />
                           </div>
                         )}
                         <div class="glossary-card-header-content">
@@ -260,7 +241,7 @@ export function PublicationGlossaryModal({
                           </div>
                           <div class="glossary-card-header-badges">
                             <div class="glossary-card-type-badge" title={typeLabels[entry.type]}>
-                              <Icon name={typeIcons[entry.type]} size="sm" />
+                              <Icon name={glossaryTypeIcons[entry.type]} size="sm" />
                             </div>
                             {entry.firstAppearance != null && (
                               <span
@@ -309,7 +290,8 @@ export function PublicationGlossaryModal({
           <div class="publication-glossary-detail">
             <div class="form-group">
               <span class="form-label">
-                <Icon name={typeIcons[detailEntry.type]} size="sm" /> {typeLabels[detailEntry.type]}
+                <Icon name={glossaryTypeIcons[detailEntry.type]} size="sm" />{' '}
+                {typeLabels[detailEntry.type]}
               </span>
             </div>
             <div class="form-group">

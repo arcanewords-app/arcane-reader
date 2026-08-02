@@ -56,19 +56,19 @@ vi.mock('../supabaseClient.js', () => ({
 }));
 
 vi.mock('../supabaseTransforms.js', () => ({
-  transformChapterFromDB: (...args: unknown[]) => mocks.mockTransformChapter(...args),
-  transformChapterListItemFromDB: (...args: unknown[]) => mocks.mockTransformList(...args),
-  transformGlossaryEntryFromDB: (...args: unknown[]) => mocks.mockTransformGlossary(...args),
-  transformParagraphFromDB: (...args: unknown[]) => mocks.mockTransformParagraph(...args),
-  transformProjectFromDB: (...args: unknown[]) => mocks.mockTransformProject(...args),
+  transformChapterFromDB: mocks.mockTransformChapter,
+  transformChapterListItemFromDB: mocks.mockTransformList,
+  transformGlossaryEntryFromDB: mocks.mockTransformGlossary,
+  transformParagraphFromDB: mocks.mockTransformParagraph,
+  transformProjectFromDB: mocks.mockTransformProject,
 }));
 
 vi.mock('../paragraphLoader.js', () => ({
-  groupParagraphRowsByChapterId: (...args: unknown[]) => mocks.mockGroup(...args),
+  groupParagraphRowsByChapterId: mocks.mockGroup,
 }));
 
 vi.mock('./pure/chapterSync.js', () => ({
-  autoSyncChunksToParagraphs: (...args: unknown[]) => mocks.mockAutoSync(...args),
+  autoSyncChunksToParagraphs: mocks.mockAutoSync,
 }));
 
 vi.mock('../../logger.js', () => ({
@@ -268,7 +268,7 @@ describe('loaders', () => {
         translated_chunks: ['chunk-a'],
       };
       mocks.mockTransformChapter.mockImplementation(
-        (row: Record<string, unknown>, paragraphs: Array<{ translatedText?: string }> = []) => ({
+        (row: Record<string, unknown>, paragraphs: unknown[] = []) => ({
           id: row.id,
           number: row.number,
           title: row.title,

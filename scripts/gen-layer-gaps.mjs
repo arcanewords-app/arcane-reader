@@ -24,7 +24,6 @@ const COMPONENT_DEFERRED = [
   'src/client/components/Sidebar/ProcessChapters.tsx',
   'src/client/components/SearchReplace/SearchReplaceBar.tsx',
   'src/client/components/SearchReplace/ProjectSearchModal.tsx',
-  'src/client/components/EntityCard/EntityPickerModal.tsx',
 ];
 
 /** Zod primitives — not contract gaps. */

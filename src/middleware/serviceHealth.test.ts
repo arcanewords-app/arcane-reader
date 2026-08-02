@@ -13,8 +13,8 @@ vi.mock('../services/supabaseClient.js', () => ({
 
 vi.mock('../services/serviceHealth.js', () => ({
   serviceHealthManager: {
-    reportError: (...args: unknown[]) => reportError(...args),
-    getSupabaseStatus: (...args: unknown[]) => getSupabaseStatus(...args),
+    reportError: (serviceName: string, error: string) => reportError(serviceName, error),
+    getSupabaseStatus: () => getSupabaseStatus(),
   },
 }));
 

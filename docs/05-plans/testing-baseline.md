@@ -220,6 +220,22 @@ Component-only wave (+25 suites): Dashboard, CopyChaptersModal, ProjectList, Sup
 
 P0 (+12 suites): ChapterHeader, Header, JobsPanel, TranslatorPseudonymsSection, ChapterPage, PublicationGlossaryModal, ChapterPickerPanel, HomePage, PublicationPage, PublicationReadingPage, TranslationRequestsPage, `useProjectSearch.hook`. P1 editor chrome **skipped** (gaps already ≤12). Leftover gaps: ProjectInfo + ChapterView stack + 3 admin pages + 2 unit-only pure modules. Layers remain **advisory**.
 
+### Deferred monsters extract wave (2026-08-03)
+
+UI extract/reuse (not a coverage campaign). Deferred list in `scripts/gen-layer-gaps.mjs` → **6** (EntityPickerModal removed after smoke suite).
+
+| Target              | Before → after (approx LOC) | Extract                                                              |
+| ------------------- | --------------------------- | -------------------------------------------------------------------- |
+| `GlossaryModal`     | 2347 → ~1248                | nested modals, `glossaryImportParse`, shared `GlossaryTypeFilterBar` |
+| `ProjectInfo`       | 2288 → ~1481                | Cover / Entity / Publication / Actions panels under `Project/`       |
+| `ReadingMode/index` | 1851 → ~1243                | navigation / scroll / chrome hooks                                   |
+| `ChapterList`       | 1679 → ~1126                | `useChapterUploadQueue` + `UploadQueueModal`                         |
+| `ProcessChapters`   | 1254 → ~571                 | `BatchTranslationProgressModal` + `BatchStageOptions`                |
+| `SearchReplaceBar`  | 368 → ~213                  | `useChapterSearchReplace`                                            |
+| `EntityPickerModal` | 231                         | smoke tests; **out of** `COMPONENT_DEFERRED`                         |
+
+Full shells of Glossary / ReadingMode / ChapterList / ProcessChapters remain deferred from component mount. Prefer extract + unit/hook tests. Layers remain **advisory**.
+
 ## Policy
 
 - Coverage floors active on `test:coverage` only; pre-push = lint + unit + component + integration + contract

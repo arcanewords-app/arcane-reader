@@ -29,6 +29,8 @@ import type {
 } from '../../types';
 import { Card, CountBadge, Modal, Button, Icon } from '../ui';
 import { api } from '../../api/client';
+import { useChapterUploadQueue } from './useChapterUploadQueue.js';
+import { UploadQueueModal } from './UploadQueueModal.js';
 import './ChapterList.css';
 
 type FilterType = 'all' | ChapterStatus;
@@ -64,7 +66,6 @@ export function ChapterList({
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [dragover, setDragover] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [editingNumber, setEditingNumber] = useState<string | null>(null);
   const [editedNumber, setEditedNumber] = useState<number>(0);
   const [savingNumber, setSavingNumber] = useState(false);
@@ -91,88 +92,25 @@ export function ChapterList({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const numberInputRef = useRef<HTMLInputElement>(null);
-  // Queue for normalized uploads
-  type QueueItem = {
-    id: string;
-    file: File;
-    title: string;
-    status: 'pending' | 'uploading' | 'success' | 'error' | 'canceled';
-    error?: string;
-    warnings?: string[];
-    result?: unknown;
-    retries: number;
-    /** Byte-level progress when status is 'uploading' */
-    uploadProgress?: { loaded: number; total: number };
-    /** Phase: sending bytes vs server processing (when loaded===total) */
-    uploadPhase?: 'sending' | 'processing';
-    importJobId?: string;
-    importPhase?: string;
-    importCurrent?: number;
-    importTotal?: number;
-    importCurrentChapterTitle?: string;
-  };
 
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [processing, setProcessing] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const processingRef = useRef(false);
-  const queueRef = useRef<QueueItem[]>([]);
-  const currentAbortRef = useRef<AbortController | null>(null);
-  const activeAbortRef = useRef<Map<string, AbortController>>(new Map());
-  const removalTimeoutsRef = useRef<Record<string, number>>({});
-  const PARALLEL_LIMIT = 3;
-  const IMPORT_POLL_INTERVAL_MIN_MS = 1500;
-  const IMPORT_POLL_INTERVAL_MAX_MS = 8000;
-  const IMPORT_POLL_BACKOFF_FACTOR = 1.5;
-
-  // schedule removal of a queue item after delay (ms)
-  const scheduleRemove = (id: string, delay = 3000) => {
-    // clear existing
-    const existing = removalTimeoutsRef.current[id];
-    if (existing) {
-      clearTimeout(existing);
-    }
-    const tid = window.setTimeout(() => {
-      setQueue((prev) => {
-        const next = prev.filter((it) => it.id !== id) as QueueItem[];
-        queueRef.current = next;
-        return next;
-      });
-      delete removalTimeoutsRef.current[id];
-    }, delay);
-    removalTimeoutsRef.current[id] = tid;
-  };
-
-  const clearRemovalTimeout = (id: string) => {
-    const existing = removalTimeoutsRef.current[id];
-    if (existing) {
-      clearTimeout(existing);
-      delete removalTimeoutsRef.current[id];
-    }
-  };
-
-  // cleanup removal timers on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(removalTimeoutsRef.current).forEach((tid) => clearTimeout(tid));
-      removalTimeoutsRef.current = {};
-    };
-  }, []);
-
-  const generateId = () => `${Date.now().toString(36)}-${Math.round(Math.random() * 1e9)}`;
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  const isJobBasedFormat = (name: string) => {
-    const lower = name.toLowerCase();
-    return lower.endsWith('.epub') || lower.endsWith('.fb2') || lower.endsWith('.csv');
-  };
-  const refreshChaptersSafely = async (reason: string) => {
-    if (!onChaptersUpdate) return;
-    try {
-      await onChaptersUpdate();
-    } catch (err) {
-      console.warn(`Refresh after ${reason} failed`, err);
-    }
-  };
+  const {
+    queue,
+    uploading,
+    processing,
+    showUploadModal,
+    setShowUploadModal,
+    addFiles,
+    cancelQueue,
+    retryItem,
+    removeItem,
+  } = useChapterUploadQueue({
+    projectId,
+    chapterCount: chapters.length,
+    maxFileSize: MAX_FILE_SIZE,
+    onUpload,
+    onChaptersUpdate,
+    onError: (err) => setError(err),
+  });
 
   // Virtualization state for large chapter lists
   const listContainerRef = useRef<HTMLDivElement | null>(null);
@@ -249,52 +187,6 @@ export function ChapterList({
     [chapters, originalReadingMode]
   );
 
-  const addFiles = (fileList: FileList | File[]) => {
-    if (!projectId) {
-      setError({ title: t('chapterList.uploadError'), message: 'No project selected' });
-      return;
-    }
-
-    const supportedFormats = ['.txt', '.epub', '.fb2', '.csv'];
-    const normalizeTitle = (file: File, index: number): string => {
-      const noExt = file.name.replace(/\.[^.]+$/, '');
-      const cleaned = noExt.replace(/^\d+[._\-\s]*/, '').trim();
-      return (
-        cleaned || t('chapterList.defaultChapterTitle', { number: chapters.length + index + 1 })
-      );
-    };
-    const newItems: QueueItem[] = Array.from(fileList).map((file, index) => {
-      const filename = file.name.toLowerCase();
-      const supported = supportedFormats.some((ext) => filename.endsWith(ext));
-      return {
-        id: generateId(),
-        file,
-        title: normalizeTitle(file, index),
-        status: supported ? 'pending' : 'error',
-        error: supported ? undefined : `${t('chapterList.unsupportedFormat')}: ${file.name}`,
-        warnings: [],
-        retries: 0,
-      };
-    });
-
-    // Validate sizes and mark too-large files as error immediately
-    newItems.forEach((it) => {
-      if (it.file.size > MAX_FILE_SIZE) {
-        it.status = 'error';
-        it.error = `${t('chapterList.uploadError')}: ${t('chapterList.fileTooLarge') || 'File too large'}`;
-      }
-    });
-
-    setQueue((q) => {
-      const next = [...q, ...newItems] as QueueItem[];
-      queueRef.current = next;
-      return next;
-    });
-    setShowUploadModal(true);
-    // Start processing if not already
-    setTimeout(() => startProcessing(), 0);
-  };
-
   const handleFileDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragover(false);
@@ -320,335 +212,6 @@ export function ChapterList({
       addFiles(files);
     }
     input.value = ''; // Reset for same file
-  };
-
-  const processOneItem = async (current: QueueItem): Promise<boolean> => {
-    const controller = new AbortController();
-    activeAbortRef.current.set(current.id, controller);
-    currentAbortRef.current = controller;
-
-    setQueue((prev) => {
-      const next = prev.map((it) =>
-        it.id === current.id
-          ? { ...it, status: 'uploading', uploadProgress: undefined, uploadPhase: 'sending' }
-          : it
-      ) as QueueItem[];
-      queueRef.current = next;
-      return next;
-    });
-
-    const onProgress = (loaded: number, total: number) => {
-      const phase = total > 0 && loaded >= total ? 'processing' : 'sending';
-      setQueue((prev) => {
-        const next = prev.map((it) =>
-          it.id === current.id
-            ? { ...it, uploadProgress: { loaded, total }, uploadPhase: phase }
-            : it
-        ) as QueueItem[];
-        queueRef.current = next;
-        return next;
-      });
-    };
-
-    const itemLabel = `${t('chapterList.selectedFile') || 'File'}: ${current.file.name}`;
-
-    try {
-      if (isJobBasedFormat(current.file.name)) {
-        const job = await api.startImportJob(
-          projectId as string,
-          current.file,
-          current.title,
-          controller.signal,
-          onProgress
-        );
-        setQueue((prev) => {
-          const next = prev.map((it) =>
-            it.id === current.id ? { ...it, importJobId: job.jobId, uploadPhase: 'processing' } : it
-          ) as QueueItem[];
-          queueRef.current = next;
-          return next;
-        });
-
-        // Poll job status until terminal state (adaptive interval to reduce API/Redis load)
-        const MAX_IMPORT_POLL_ATTEMPTS = 120;
-        let pollDelayMs = IMPORT_POLL_INTERVAL_MIN_MS;
-        let previousSnapshot = '';
-        let importPollAttempt = 0;
-
-        while (true) {
-          importPollAttempt++;
-          if (importPollAttempt > MAX_IMPORT_POLL_ATTEMPTS) {
-            const msg = t('chapterList.importJobLost');
-            setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id ? { ...it, status: 'error' as const, error: msg } : it
-              ) as QueueItem[];
-              queueRef.current = next;
-              return next;
-            });
-            await refreshChaptersSafely('import timeout');
-            return false;
-          }
-          let state;
-          try {
-            state = await api.getImportJob(projectId as string, job.jobId, controller.signal);
-          } catch (_jobErr) {
-            const msg = t('chapterList.importJobLost');
-            setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id ? { ...it, status: 'error' as const, error: msg } : it
-              ) as QueueItem[];
-              queueRef.current = next;
-              return next;
-            });
-            await refreshChaptersSafely('import error');
-            return false;
-          }
-          const currentSnapshot = `${state.status}|${state.phase}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
-          const hasStateChanged = currentSnapshot !== previousSnapshot;
-          previousSnapshot = currentSnapshot;
-
-          setQueue((prev) => {
-            const next = prev.map((it) =>
-              it.id === current.id
-                ? {
-                    ...it,
-                    uploadPhase: state.status === 'processing' ? 'processing' : it.uploadPhase,
-                    importPhase: state.phase ?? undefined,
-                    importCurrent: state.current,
-                    importTotal: state.total,
-                    importCurrentChapterTitle: state.currentChapterTitle,
-                  }
-                : it
-            ) as QueueItem[];
-            queueRef.current = next;
-            return next;
-          });
-
-          if (state.status === 'completed') {
-            setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id
-                  ? { ...it, status: 'success', result: state, warnings: state.warnings }
-                  : it
-              ) as QueueItem[];
-              queueRef.current = next;
-              return next;
-            });
-            scheduleRemove(current.id, 3000);
-            await refreshChaptersSafely('upload');
-            return true;
-          }
-
-          if (state.status === 'error') {
-            const details = state.errors?.join('\n') || 'Import job failed';
-            setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id
-                  ? {
-                      ...it,
-                      status: 'error',
-                      error: `${itemLabel}\n\n${details}`,
-                      warnings: state.warnings,
-                    }
-                  : it
-              ) as QueueItem[];
-              queueRef.current = next;
-              return next;
-            });
-            await refreshChaptersSafely('import error');
-            return true;
-          }
-
-          if (state.status === 'canceled') {
-            setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id ? { ...it, status: 'canceled', error: 'Canceled' } : it
-              ) as QueueItem[];
-              queueRef.current = next;
-              return next;
-            });
-            scheduleRemove(current.id, 3000);
-            await refreshChaptersSafely('import cancel');
-            return false;
-          }
-
-          if (hasStateChanged) {
-            pollDelayMs = IMPORT_POLL_INTERVAL_MIN_MS;
-          } else {
-            pollDelayMs = Math.min(
-              IMPORT_POLL_INTERVAL_MAX_MS,
-              Math.round(pollDelayMs * IMPORT_POLL_BACKOFF_FACTOR)
-            );
-          }
-
-          await sleep(pollDelayMs);
-        }
-      }
-
-      const result = await onUpload({
-        file: current.file,
-        title: current.title,
-        signal: controller.signal,
-        onProgress,
-      });
-
-      const resultWarnings =
-        result && typeof result === 'object' && 'warnings' in result
-          ? (result as { warnings?: string[] }).warnings
-          : undefined;
-
-      setQueue((prev) => {
-        const next = prev.map((it) =>
-          it.id === current.id ? { ...it, status: 'success', result, warnings: resultWarnings } : it
-        ) as QueueItem[];
-        queueRef.current = next;
-        return next;
-      });
-      scheduleRemove(current.id, 3000);
-
-      await refreshChaptersSafely('upload');
-      return true;
-    } catch (err: unknown) {
-      const errObj = err as {
-        name?: string;
-        message?: string;
-        data?: {
-          details?: string;
-          parseErrors?: string[];
-          error?: string;
-          warnings?: string[];
-        };
-      };
-      if (errObj.name === 'AbortError' || errObj.message === 'Request aborted') {
-        setQueue((prev) => {
-          const next = prev.map((it) =>
-            it.id === current.id ? { ...it, status: 'canceled', error: 'Canceled' } : it
-          ) as QueueItem[];
-          queueRef.current = next;
-          return next;
-        });
-        scheduleRemove(current.id, 3000);
-        await refreshChaptersSafely('abort');
-        return false;
-      }
-
-      const errorDetails =
-        errObj.data?.details || errObj.data?.parseErrors?.join('; ') || errObj.data?.error;
-      const parseErrors = errObj.data?.parseErrors;
-      const warnings = errObj.data?.warnings;
-
-      let detailsText = itemLabel;
-      if (errObj.message) detailsText += `\n\n${errObj.message}`;
-      if (errorDetails) detailsText += `\n\n${errorDetails}`;
-      if (parseErrors && parseErrors.length > 0)
-        detailsText += `\n\nОшибки парсинга:\n${parseErrors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}`;
-
-      setQueue((prev) => {
-        const next = prev.map((it) =>
-          it.id === current.id ? { ...it, status: 'error', error: detailsText, warnings } : it
-        ) as QueueItem[];
-        queueRef.current = next;
-        return next;
-      });
-      return true;
-    } finally {
-      activeAbortRef.current.delete(current.id);
-      if (currentAbortRef.current === controller) {
-        currentAbortRef.current = null;
-      }
-    }
-  };
-
-  const startProcessing = async () => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-    setProcessing(true);
-    setUploading(true);
-
-    try {
-      const inFlight: Promise<boolean>[] = [];
-
-      const maybeStartNext = () => {
-        const pending = queueRef.current.filter((it) => it.status === 'pending');
-        if (pending.length === 0 && inFlight.length === 0) return;
-        while (inFlight.length < PARALLEL_LIMIT) {
-          const next = queueRef.current.find((it) => it.status === 'pending');
-          if (!next) break;
-          const p = processOneItem(next).then((continueProcessing) => {
-            inFlight.splice(inFlight.indexOf(p), 1);
-            if (!continueProcessing) return;
-            maybeStartNext();
-          });
-          inFlight.push(p);
-        }
-      };
-
-      maybeStartNext();
-
-      while (inFlight.length > 0) {
-        await Promise.race(inFlight);
-      }
-    } finally {
-      processingRef.current = false;
-      setProcessing(false);
-      setUploading(false);
-    }
-  };
-
-  const cancelQueue = () => {
-    // Abort all active uploads and mark remaining pending as canceled
-    activeAbortRef.current.forEach((c) => c.abort());
-    activeAbortRef.current.clear();
-    if (currentAbortRef.current) {
-      currentAbortRef.current.abort();
-    }
-    // Determine pending ids first
-    const pendingIds = queueRef.current.filter((it) => it.status === 'pending').map((it) => it.id);
-    setQueue((prev) => {
-      const next = prev.map((it) =>
-        it.status === 'pending' ? { ...it, status: 'canceled' } : it
-      ) as QueueItem[];
-      queueRef.current = next;
-      return next;
-    });
-    // Request server-side cancel for active import jobs
-    if (projectId) {
-      queueRef.current
-        .filter((it) => it.status === 'uploading' && it.importJobId)
-        .forEach((it) => {
-          void api.cancelImportJob(projectId, it.importJobId as string).catch(() => {});
-        });
-      // Some chapters may still be committed right after abort; refresh shortly after cancel.
-      if (onChaptersUpdate) {
-        setTimeout(() => {
-          void refreshChaptersSafely('cancel queue');
-        }, 1200);
-      }
-    }
-    // schedule removal for those canceled items
-    pendingIds.forEach((id) => scheduleRemove(id, 3000));
-  };
-
-  const retryItem = (id: string) => {
-    clearRemovalTimeout(id);
-    setQueue((prev) => {
-      const next = prev.map((it) =>
-        it.id === id ? { ...it, status: 'pending', error: undefined, retries: it.retries + 1 } : it
-      ) as QueueItem[];
-      queueRef.current = next;
-      return next;
-    });
-    setTimeout(() => startProcessing(), 0);
-  };
-
-  const removeItem = (id: string) => {
-    clearRemovalTimeout(id);
-    setQueue((prev) => {
-      const next = prev.filter((it) => it.id !== id) as QueueItem[];
-      queueRef.current = next;
-      return next;
-    });
   };
 
   const getStatusIcon = (status: ChapterStatus) => {
@@ -1548,131 +1111,15 @@ export function ChapterList({
           )}
         </Modal>
 
-        {queue.length > 0 && !showUploadModal && (
-          <div class="upload-queue-mini">
-            <span class="upload-queue-mini-label">
-              {t('chapterList.uploadQueue')} ({queue.length})
-            </span>
-            <Button variant="secondary" size="sm" onClick={() => setShowUploadModal(true)}>
-              {t('chapterList.viewQueue') || 'View'}
-            </Button>
-          </div>
-        )}
-
-        {queue.length > 0 && (
-          <Modal
-            isOpen={showUploadModal}
-            onClose={() => !processing && setShowUploadModal(false)}
-            title={t('chapterList.uploadModalTitle') || t('chapterList.uploadQueue')}
-            className="upload-queue-modal"
-            preventClose={processing}
-            footer={
-              processing ? (
-                <Button variant="secondary" size="sm" onClick={() => cancelQueue()}>
-                  {t('chapterList.cancelQueue') || 'Cancel'}
-                </Button>
-              ) : (
-                <Button variant="primary" size="sm" onClick={() => setShowUploadModal(false)}>
-                  {t('common.close')}
-                </Button>
-              )
-            }
-          >
-            <div class="upload-queue-modal-body">
-              <div class="upload-queue-header">
-                <strong>{t('chapterList.uploadQueue') || 'Upload queue'}</strong>
-                <span class="upload-queue-meta">
-                  {queue.filter((q) => q.status === 'uploading').length > 0
-                    ? `${t('chapterList.uploadSending')}: ${queue.filter((q) => q.status === 'uploading').length}`
-                    : `${t('chapterList.all')}: ${queue.length}`}
-                </span>
-              </div>
-              <div class="upload-queue-list">
-                {queue.map((item) => (
-                  <div key={item.id} class={`queue-item ${item.status}`}>
-                    <div class="queue-item-left">
-                      <span class={`queue-status ${item.status}`}>
-                        {item.status === 'uploading' ? (
-                          <Icon name="schedule" size="sm" />
-                        ) : item.status === 'success' ? (
-                          <Icon name="check_circle" size="sm" />
-                        ) : item.status === 'error' ? (
-                          <Icon name="error" size="sm" />
-                        ) : item.status === 'canceled' ? (
-                          <Icon name="cancel" size="sm" />
-                        ) : (
-                          <Icon name="radio_button_unchecked" size="sm" />
-                        )}
-                      </span>
-                      <span class="queue-name">{item.file.name}</span>
-                    </div>
-                    {item.status === 'uploading' &&
-                      item.uploadProgress &&
-                      item.uploadProgress.total > 0 && (
-                        <div class="queue-item-progress">
-                          <div
-                            class="queue-item-progress-bar"
-                            style={{
-                              width: `${Math.round(
-                                (item.uploadProgress.loaded / item.uploadProgress.total) * 100
-                              )}%`,
-                            }}
-                          />
-                          <span class="queue-item-progress-text">
-                            {item.uploadPhase === 'processing'
-                              ? t('chapterList.uploadProcessing')
-                              : `${t('chapterList.uploadSending')} ${Math.round(
-                                  (item.uploadProgress.loaded / item.uploadProgress.total) * 100
-                                )}%`}
-                          </span>
-                        </div>
-                      )}
-                    {item.status === 'uploading' &&
-                      item.importJobId &&
-                      item.importTotal !== undefined &&
-                      item.importTotal > 0 && (
-                        <div class="queue-item-import-meta">
-                          <span>{`${item.importCurrent || 0}/${item.importTotal}`}</span>
-                          {item.importCurrentChapterTitle && (
-                            <span class="queue-item-import-title">
-                              {item.importCurrentChapterTitle}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    <div class="queue-item-actions">
-                      {item.status === 'error' && (
-                        <>
-                          <Button variant="secondary" size="sm" onClick={() => retryItem(item.id)}>
-                            {t('common.retry') || 'Retry'}
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={() => removeItem(item.id)}>
-                            {t('common.remove') || 'Remove'}
-                          </Button>
-                        </>
-                      )}
-                      {(item.status === 'pending' || item.status === 'canceled') && (
-                        <Button variant="secondary" size="sm" onClick={() => removeItem(item.id)}>
-                          {t('common.remove') || 'Remove'}
-                        </Button>
-                      )}
-                    </div>
-                    {item.error && <pre class="queue-error">{item.error}</pre>}
-                    {item.status === 'success' && item.warnings && item.warnings.length > 0 && (
-                      <div class="queue-warnings">
-                        {item.warnings.map((w, i) => (
-                          <div key={i} class="queue-warning-item">
-                            {w}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Modal>
-        )}
+        <UploadQueueModal
+          queue={queue}
+          processing={processing}
+          showUploadModal={showUploadModal}
+          onShowUploadModal={setShowUploadModal}
+          onCancelQueue={cancelQueue}
+          onRetryItem={retryItem}
+          onRemoveItem={removeItem}
+        />
       </div>
     </Card>
   );

@@ -119,7 +119,7 @@ describe('serviceHealthManager', () => {
         shared: {
           status: 'degraded',
           lastCheck: new Date('2026-01-01T00:00:00Z'),
-          lastHealthy: '2026-01-01T00:00:00Z',
+          lastHealthy: new Date('2026-01-01T00:00:00Z'),
           error: 'slow',
           responseTimeMs: 9000,
         },

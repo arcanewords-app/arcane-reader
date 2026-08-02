@@ -2,6 +2,13 @@
  * Pure helpers extracted from ReadingMode for unit testing.
  */
 
+import type { Chapter } from '../../types';
+
+/** Chapter shape for reader: full Chapter (project) or minimal + loaded content (publication) */
+export type ReaderChapter =
+  | (Chapter & { translatedText?: string })
+  | { id: string; number: number; title: string; translatedText?: string };
+
 /** Resolve chapter list index from URL chapter id; falls back to 0 when missing/invalid. */
 export function resolveChapterIndexById(
   chapters: ReadonlyArray<{ id: string }>,

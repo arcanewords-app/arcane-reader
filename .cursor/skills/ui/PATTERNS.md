@@ -25,23 +25,24 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                           | Summary                                         | Reference                            |
-| ---------------------------- | ----------------------------------------------- | ------------------------------------ |
-| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment    | `CatalogFilterToolbar.tsx`           |
-| `filter-icon-chip`           | 44px square chip, icon or short code            | `CatalogFilterToolbar.css`           |
-| `filter-segment-control`     | Connected toggle pair (sort direction)          | `CatalogFilterToolbar.css`           |
-| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+  | `HomePage.css`                       |
-| `entity-filter-chips`        | Removable URL-driven filter tags                | `HomePage.tsx` / `.home-entity-chip` |
-| `header-locale-control`      | App language: icon + code + dropdown            | `Header.tsx`                         |
-| `header-support-control`     | Support via Boosty: icon + label, direct link   | `Header/SupportMenu.tsx`             |
-| `cover-status-badge`         | Absolute badge on publication cover             | `PublicationStatusBadge.tsx`         |
-| `publication-original-link`  | Compact external link to source on `/p/...`     | `PublicationPage.tsx`                |
-| `cover-rating-badge`         | Compact ★ avg pill on cover top-right           | `PublicationRatingCoverBadge.tsx`    |
-| `publication-rating-summary` | Full stars + CTA on `/p/:id`                    | `PublicationRatingSummary.tsx`       |
-| `publication-rating-input`   | Modal 1–5 star rating input                     | `RatePublicationModal.tsx`           |
-| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating      | `CatalogFilterToolbar.tsx`           |
-| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs    | `components/Admin/`                  |
-| `reading-history-card`       | Profile reading history: PublicationCard + meta | `ReadingHistorySection.tsx`          |
+| Id                           | Summary                                           | Reference                            |
+| ---------------------------- | ------------------------------------------------- | ------------------------------------ |
+| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`           |
+| `filter-icon-chip`           | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`           |
+| `filter-segment-control`     | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`           |
+| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                       |
+| `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip` |
+| `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                         |
+| `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`             |
+| `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`         |
+| `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                |
+| `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`    |
+| `publication-rating-summary` | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`       |
+| `publication-rating-input`   | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`           |
+| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`           |
+| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                  |
+| `reading-history-card`       | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`          |
+| `glossary-type-filter-bar`   | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`          |
 
 ---
 
@@ -301,6 +302,33 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **a11y:** `role="radiogroup"` / `aria-checked` per star; focus-visible; Escape closes Modal.
 
 **Anti-patterns:** Inline form without Modal on publication page; rating without auth gate.
+
+---
+
+## `glossary-type-filter-bar`
+
+**When:** Glossary list (author project or publication reader) needs type chips with live counts.
+
+**When not:** As a full CRUD glossary shell — keep author merge/import/edit in `GlossaryModal`; shared piece is filter chips only.
+
+**Compose:** `GlossaryModal` / `PublicationGlossaryModal` → `<GlossaryTypeFilterBar />` (+ optional `extraFilters` for author-only chips like no-description / auto-detected).
+
+**Files:**
+
+- [`src/client/components/Glossary/GlossaryTypeFilterBar.tsx`](../../../src/client/components/Glossary/GlossaryTypeFilterBar.tsx)
+- [`src/client/components/Glossary/glossaryFilterShared.ts`](../../../src/client/components/Glossary/glossaryFilterShared.ts)
+- [`src/client/components/Glossary/glossaryTypeIcons.ts`](../../../src/client/components/Glossary/glossaryTypeIcons.ts)
+- CSS classes: `.glossary-filters` / `.filter-btn` in `GlossaryModal.css`
+
+**UX rules:**
+
+- Same chip row for author + publication; author adds `extraFilters`, publication does not.
+- Icons via `glossaryTypeIcons` (Material Symbols names).
+- Filter helper: `filterGlossaryEntriesByTypeAndSearch` for type + search (publication); author keeps richer sort/filters in the shell.
+
+**i18n:** `glossary.all`, `glossary.characters`, `glossary.locations`, `glossary.terms`, plus author extras (`glossary.filterNoDescription`, `glossary.filterAutoDetected`).
+
+**Anti-patterns:** Duplicating typeIcons / chip JSX in a second glossary modal; merging author CRUD into publication readonly viewer.
 
 ---
 
