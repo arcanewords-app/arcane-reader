@@ -23,6 +23,8 @@ const mocks = {
   addGlossaryEntry: vi.fn(),
   updateGlossaryEntry: vi.fn(),
   getGlossaryEntry: vi.fn(),
+  updateReadProgress: vi.fn(),
+  upsertPublicationRating: vi.fn(),
 } as const satisfies Record<string, MockFn>;
 
 export type SupabaseMockName = keyof typeof mocks;
@@ -51,6 +53,8 @@ export function resetMocks(): void {
   mocks.addGlossaryEntry.mockResolvedValue(undefined);
   mocks.updateGlossaryEntry.mockResolvedValue(undefined);
   mocks.getGlossaryEntry.mockResolvedValue(null);
+  mocks.updateReadProgress.mockResolvedValue({ lastReadChapterNumber: 0 });
+  mocks.upsertPublicationRating.mockResolvedValue({ score: 1, average: 1, count: 1 });
 }
 
 /** Defaults applied once at load; call resetMocks() in beforeEach. */
@@ -95,5 +99,25 @@ export function createChaptersDomainOverlay(): Record<string, MockFn> {
   return {
     getChapter: mocks.getChapter,
     updateChapter: mocks.updateChapter,
+  };
+}
+
+export function createGlossaryDomainOverlay(): Record<string, MockFn> {
+  return {
+    addGlossaryEntry: mocks.addGlossaryEntry,
+    updateGlossaryEntry: mocks.updateGlossaryEntry,
+    getGlossaryEntry: mocks.getGlossaryEntry,
+  };
+}
+
+export function createReaderProgressDomainOverlay(): Record<string, MockFn> {
+  return {
+    updateReadProgress: mocks.updateReadProgress,
+  };
+}
+
+export function createPublicationRatingsDomainOverlay(): Record<string, MockFn> {
+  return {
+    upsertPublicationRating: mocks.upsertPublicationRating,
   };
 }

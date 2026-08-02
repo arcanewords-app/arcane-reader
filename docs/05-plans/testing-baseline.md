@@ -38,15 +38,15 @@ Policy SSOT: [[_canonical/rules/testing]]. Full pyramid: [[05-plans/testing-stra
 
 Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) is in pre-push.
 
-## Test suite (2026-08-02, post component/contract deepen)
+## Test suite (2026-08-02, post further coverage wave)
 
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **36** files / **89** tests (`npm run test:component`)                            |
-| Mock-integration suite      | **9** files / **44** tests (`npm run test:integration`)                           |
-| Contract suite              | **22** files / **32** tests (`npm run test:contract`)                             |
-| Co-located `*.test.tsx`     | **31**                                                                            |
+| Component suite             | **41** files / **103** tests (`npm run test:component`)                           |
+| Mock-integration suite      | **11** files / **54** tests (`npm run test:integration`)                          |
+| Contract suite              | **28** files / **42** tests (`npm run test:contract`)                             |
+| Co-located `*.test.tsx`     | **36**                                                                            |
 | Co-located `*.hook.test.ts` | **5**                                                                             |
 | Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
@@ -65,24 +65,24 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 ### Client breakdown
 
-| Folder               | Coverage notes                                     |
-| -------------------- | -------------------------------------------------- |
-| `client/utils/`      | Strong + `publicationChapterFilters`               |
-| `client/hooks/`      | Wave 6 P0: translation / token / history hooks     |
-| `client/components/` | Gates, SettingsModal smoke, UI primitives, toolbar |
-| `client/pages/`      | About / Privacy / Terms / Projects smokes          |
-| `client/api/`        | Domains / cache / transport mostly covered         |
+| Folder               | Coverage notes                                               |
+| -------------------- | ------------------------------------------------------------ |
+| `client/utils/`      | Strong + `publicationChapterFilters`                         |
+| `client/hooks/`      | Wave 6 P0: translation / token / history hooks               |
+| `client/components/` | Gates, toolbar, rating/auth/upgrade, ReplacePreview, banners |
+| `client/pages/`      | About / Privacy / Terms / Projects smokes                    |
+| `client/api/`        | Domains / cache / transport mostly covered                   |
 
 ## Overall coverage (v8, APP_SCOPE — unit suite)
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | Coverage (campaign Phases A–C, 2026-08-02) |
-| ---------- | ------------------------------------------ |
-| Lines      | **77.69%**                                 |
-| Statements | **75.64%**                                 |
-| Functions  | **80.36%**                                 |
-| Branches   | **65.28%**                                 |
+| Metric     | Coverage (post further wave, 2026-08-02) |
+| ---------- | ---------------------------------------- |
+| Lines      | **77.69%**                               |
+| Statements | **75.65%**                               |
+| Functions  | **80.39%**                               |
+| Branches   | **65.33%**                               |
 
 ### Coverage floors (active)
 
@@ -173,7 +173,18 @@ npm run test:contract:coverage    # advisory Zod schema v8 only
 | Contract  | schemas with fixtures / total               | 8 / 72            | **15 / 72**           |
 | Contract  | enum-sync covered / targets                 | 4 / 9             | **9 / 9**             |
 
-Deepen delivered CatalogFilterToolbar, status/rating presentational, TokenLimitWarning, LoginForm, RatePublicationModal, RatingSummary, UpgradeScreen, AiReplaceUpgradeModal, ServiceStatusBanner; enum-sync remaining 5 + API fixtures (glossary-create, project-languages, translate-batch, interest-update). Still **advisory** — do **not** fold into unit floors 77/65 or husky.
+### Post further coverage wave (`test:gaps`, 2026-08-02)
+
+| Layer       | Metric                                      | After deepen      | After further wave    |
+| ----------- | ------------------------------------------- | ----------------- | --------------------- |
+| Component   | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 36 / 85 / 7 | **130 / 41 / 80 / 7** |
+| Component   | v8 lines (advisory, component suite)        | ~7.14%            | **~8.38%**            |
+| Contract    | schemas with fixtures / total               | 15 / 72           | **21 / 72**           |
+| Contract    | enum-sync covered / targets                 | 9 / 9             | **9 / 9**             |
+| Unit        | lines / branches (floors 77/65)             | 77.69 / 65.28     | **77.69 / 65.33**     |
+| Integration | suite files / tests                         | 9 / 44            | **11 / 54**           |
+
+Further wave: ReplacePreviewModal, ChapterStatusSelect, AnnouncementBanner, ReadingHistorySection, CriticUpgradeModal; +6 API contract fixtures; unit branch edges (`publication-rating`, `seoHtml`, `importCoverPath`); mock-integration glossary + rating/read-progress. Still **advisory** for layers — do **not** fold into unit floors 77/65 or husky.
 
 ## Policy
 

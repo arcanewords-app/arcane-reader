@@ -154,7 +154,11 @@ vi.mock('./useTokenLimitCheck.js', () => ({
 
 **Presentational + snap:** `@src/client/components/Home/PublicationStatusBadge.test.tsx`, `@src/client/components/Publication/PublicationRatingStars.test.tsx`.
 
-**Auth / upgrade / health:** `LoginForm.test.tsx`, `UpgradeScreen.test.tsx`, `AiReplaceUpgradeModal.test.tsx`, `ServiceStatusBanner.test.tsx` — mock auth / `useUserRole` / `ServiceHealthContext`.
+**Auth / upgrade / health:** `LoginForm.test.tsx`, `UpgradeScreen.test.tsx`, `AiReplaceUpgradeModal.test.tsx`, `CriticUpgradeModal.test.tsx`, `ServiceStatusBanner.test.tsx` — mock auth / `useUserRole` / `ServiceHealthContext`.
+
+**SearchReplace / chapter status:** `@src/client/components/SearchReplace/ReplacePreviewModal.test.tsx` (literal/ai/progress props), `@src/client/components/ChapterView/ChapterStatusSelect.test.tsx` (mock `api.updateChapterStatus`).
+
+**Announcement / reading history:** `@src/client/components/AnnouncementBanner.test.tsx`, `@src/client/components/Cabinet/ReadingHistorySection.test.tsx` — mock contexts / `useReadingHistory`.
 
 **Publication filters (pure):** `@src/client/utils/publicationChapterFilters.test.ts` — prefer extract over mounting `PublicationPage`.
 

@@ -40,6 +40,12 @@ Helper: `tests/contracts/helpers/loadFixture.ts`.
 | `project-languages.valid.json` / `project-languages.invalid-pair.json` | `api/project-languages`                 |
 | `translate-batch.valid.json`                                           | `api/translate-batch`                   |
 | `interest-update.valid.json`                                           | `api/interest-update`                   |
+| `read-progress.complete.valid.json` / `read-progress.set.valid.json`   | `api/read-progress`                     |
+| `publication-rating.valid.json` / `publication-rating.invalid.json`    | `api/publication-rating`                |
+| `paragraph-update.valid.json`                                          | `api/paragraph-update`                  |
+| `project-create.valid.json` / `project-create.invalid-pair.json`       | `api/project-create`                    |
+| `glossary-update.valid.json` / `glossary-update.invalid-type.json`     | `api/glossary-update`                   |
+| `project-ai-replace.valid.json`                                        | `api/project-ai-replace`                |
 | `cache-contract-keys.json`                                             | `shared/cache-contract`                 |
 | `translation-statuses.json`                                            | `shared/translation-status`             |
 

@@ -32,6 +32,18 @@ describe('seoHtml', () => {
     assert.equal(resolveIndexPath(clientPath, publicPath), path.join(publicPath, 'index.html'));
   });
 
+  it('resolveIndexPath prefers client index when present', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'seo-html-'));
+    tmpDirs.push(root);
+    const clientPath = path.join(root, 'client');
+    const publicPath = path.join(root, 'public');
+    fs.mkdirSync(clientPath);
+    fs.mkdirSync(publicPath);
+    fs.writeFileSync(path.join(clientPath, 'index.html'), '<html>client</html>');
+    fs.writeFileSync(path.join(publicPath, 'index.html'), '<html>public</html>');
+    assert.equal(resolveIndexPath(clientPath, publicPath), path.join(clientPath, 'index.html'));
+  });
+
   it('escapeMetaContent escapes ampersands and angle brackets', () => {
     assert.equal(escapeMetaContent('a & b <c>'), 'a &amp; b &lt;c&gt;');
   });

@@ -145,6 +145,20 @@ Gap-driven close of high-ROI presence + enum/schema holes (still advisory; no la
 
 Picks from `reports/layer-gaps.json` (CatalogFilterToolbar, badges/stars, auth/upgrade, ServiceStatusBanner; chapter/glossary/interest/entity/languages enums; glossary-create / project-languages / translate-batch / interest-update). Numbers in [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
 
+### Further coverage wave (**done** 2026-08-02)
+
+Gap-driven P2 + contract increment + unit branch hold + small mock-integration (still advisory layers; no floors):
+
+| KPI                    | From    | To                                       |
+| ---------------------- | ------- | ---------------------------------------- |
+| Component suite / gaps | 36 / 85 | **41 / 80**                              |
+| Schemas with fixtures  | 15 / 72 | **21 / 72**                              |
+| Enum-sync              | 9 / 9   | **9 / 9**                                |
+| Mock-integration       | 9 files | **11** (glossary + rating/read-progress) |
+| Unit floors            | 77 / 65 | still green (~77.69 / ~65.33)            |
+
+Picks: ReplacePreviewModal, ChapterStatusSelect, AnnouncementBanner, ReadingHistorySection, CriticUpgradeModal; read-progress / publication-rating / paragraph-update / project-create / glossary-update / project-ai-replace fixtures. See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).
