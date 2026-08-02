@@ -1,14 +1,24 @@
 /**
  * Mock-integration smoke: createApp() + supertest against /api/status.
- * No live Supabase/Redis required — status handler reads config only.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../../src/createApp.js';
+import type { Application } from 'express';
+import { installAuthMocks } from '../helpers/mockAuth.js';
+import { installRedisCacheMocks } from '../helpers/mockRedis.js';
+import { bootTestApp } from '../helpers/createTestApp.js';
+
+vi.mock('../../../src/middleware/auth.js', () => installAuthMocks());
+vi.mock('../../../src/services/redisCache.js', () => installRedisCacheMocks());
 
 describe('GET /api/status (integration)', () => {
+  let app: Application;
+
+  beforeAll(async () => {
+    app = await bootTestApp();
+  });
+
   it('returns version, storage, and config shape', async () => {
-    const { app } = createApp();
     const res = await request(app).get('/api/status');
 
     expect(res.status).toBe(200);
@@ -24,8 +34,13 @@ describe('GET /api/status (integration)', () => {
 });
 
 describe('POST /api/auth/login (integration)', () => {
+  let app: Application;
+
+  beforeAll(async () => {
+    app = await bootTestApp();
+  });
+
   it('returns 400 when body fails Zod validation', async () => {
-    const { app } = createApp();
     const res = await request(app).post('/api/auth/login').send({});
 
     expect(res.status).toBe(400);

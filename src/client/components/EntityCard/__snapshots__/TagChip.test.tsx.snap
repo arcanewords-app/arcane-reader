@@ -1,0 +1,25 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TagChip > matches snapshot for default chip 1`] = `
+<span
+  class="tag-chip"
+>
+  <span
+    class="tag-chip__label"
+  >
+    Fantasy
+  </span>
+</span>
+`;
+
+exports[`TagChip > matches snapshot when selected 1`] = `
+<span
+  class="tag-chip tag-chip--selected"
+>
+  <span
+    class="tag-chip__label"
+  >
+    Fantasy
+  </span>
+</span>
+`;

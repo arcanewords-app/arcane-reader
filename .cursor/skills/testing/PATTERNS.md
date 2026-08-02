@@ -122,31 +122,37 @@ import { useUserRole } from '../../hooks/useUserRole.js';
 import { AuthorGate } from './AuthorGate.js';
 ```
 
-**Hook exemplar:** `@src/client/hooks/useUserRole.hook.test.ts`, `useReadingHistory.hook.test.ts`
+**Hook exemplars:**
+
+| Hook        | File                                                                            |
+| ----------- | ------------------------------------------------------------------------------- |
+| Role        | `useUserRole.hook.test.ts`                                                      |
+| Token limit | `useTokenLimitCheck.hook.test.ts`                                               |
+| Translate   | `useChapterTranslation.hook.test.ts`                                            |
+| Batch       | `useBatchChapterTranslation.hook.test.ts` + pure `batchTranslationPoll.test.ts` |
+| History     | `useReadingHistory.hook.test.ts`                                                |
 
 ```typescript
 // @vitest-environment happy-dom
 import { renderHook, waitFor } from '@testing-library/preact';
 import { vi } from 'vitest';
 
-vi.mock('../services/authService.js', () => ({
-  authService: { getCachedUser: vi.fn(), getCurrentUser: vi.fn() },
-  AUTH_CHANGED_EVENT: 'arcane:auth-changed',
-  USER_UPDATED_EVENT: 'arcane:user-updated',
+vi.mock('./useTokenLimitCheck.js', () => ({
+  useTokenLimitCheck: () => ({
+    checkBeforeTranslate: (_n: number, onProceed: () => void) => {
+      onProceed();
+      return 'ok';
+    },
+    // ...
+  }),
 }));
 ```
 
-Mock `fetch` for API-backed hooks:
+**SettingsModal smoke:** `@src/client/components/Sidebar/SettingsModal.test.tsx` — mock `react-i18next`, `ProjectLanguagePairFields`, assert title/close/Escape.
 
-```typescript
-vi.stubGlobal(
-  'fetch',
-  vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({ items: [] }),
-  })
-);
-```
+**Publication filters (pure):** `@src/client/utils/publicationChapterFilters.test.ts` — prefer extract over mounting `PublicationPage`.
+
+**Page smoke:** `@src/client/pages/AboutPage.test.tsx` — mock `useStaticPageMeta` + i18n; assert `heading` level 1.
 
 ## Services — language pair
 
@@ -165,36 +171,81 @@ vi.stubGlobal(
 
 ## Integration — mock-first (supertest)
 
-**Exemplar:** `@tests/integration/api/status.test.ts`
+**Exemplar:** `@tests/integration/helpers/createTestApp.ts` (+ `@tests/integration/api/publications.test.ts`)
 
-- Use `createApp()` from `@src/createApp.ts` (no `listen`)
-- Mock external boundaries **before** importing `createApp` when the route hits DB/Redis
-- Prefer public routes (`/api/status`) or validation 400 paths for first smoke
+- `bootTestApp()` after `vi.mock` of auth / redis / supabase domains
+- Auth stub: Bearer + optional `X-Test-Role` (`helpers/mockAuth.ts`)
+- Domain stubs: `helpers/mockSupabase.ts` → `resetMocks()` in `beforeEach`
+- Client chains: `helpers/appFetch.ts` + real `publicationsApi`
+- Worker: call `runTranslateJob` / `runAnalysisJob` directly with mocked DB/LLM
+- Env isolation: import `@tests/integration/setup.ts` via helpers (not Vitest `setupFiles`)
+- Run via `npm run test:integration` (`scripts/test-integration.mjs`)
+
+**Windows wrappers:** unit/component/integration scripts resolve hoisted `vitest.mjs` and set cwd via `realpathSync.native` (drive-letter casing). Prefer `npm run test*` over raw `npx vitest` on this machine.
 
 ```typescript
-import { describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp } from '../../../src/createApp.js';
+vi.mock('../../../src/middleware/auth.js', () => installAuthMocks());
+vi.mock('../../../src/services/redisCache.js', () => installRedisCacheMocks());
+vi.mock('../../../src/services/supabase/domains/publications.js', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, ...createPublicationsDomainOverlay() };
+});
 
-describe('GET /api/status', () => {
-  it('returns version and storage shape', async () => {
-    const { app } = createApp();
-    const res = await request(app).get('/api/status');
+describe('GET /api/publications', () => {
+  let app: Application;
+  beforeAll(async () => {
+    app = await bootTestApp();
+  });
+  it('lists publications', async () => {
+    getSupabaseMock('listPublicationsPublic').mockResolvedValue([]);
+    const res = await request(app).get('/api/publications');
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ version: '0.1.0', storage: 'supabase' });
   });
 });
 ```
 
 Live Supabase integration: `tests/integration/supabase/README.md` — blocked until test env.
 
-## Contract (Wave 9 stub)
+## Contract (Wave 9 Phase 1)
 
-Fixtures under `tests/contracts/fixtures/` + Zod `safeParse` round-trips. See `tests/contracts/README.md`.
+**Exemplars:** `@tests/contracts/api/news-create.contract.test.ts`, `@tests/contracts/client-server/news-enums.contract.test.ts`
+
+```typescript
+import { newsCreateSchema } from '../../../src/api/schemas/news.js';
+import { loadFixture } from '../helpers/loadFixture.js';
+
+it('accepts a valid create body fixture', () => {
+  const parsed = newsCreateSchema.safeParse(loadFixture('news-create.valid.json'));
+  expect(parsed.success).toBe(true);
+});
+```
+
+**Client ↔ server enums:** freeze arrays in `fixtures/*.json`, assert equal to Zod `as const` exports and client union literals.
+
+- Fixtures: `tests/contracts/fixtures/*.json` via `loadFixture`
+- Happy path + 1–2 reject fixtures — do not duplicate full schema unit suites
+- No Pact / live HTTP (Phase 2 after service split)
+- Run: `npm run test:contract` (also in pre-push)
+- See `tests/contracts/README.md`
 
 ## Snapshot (Wave 8)
 
-Vitest `toMatchSnapshot()` only for presentational components without dates/random. Review diffs in PR. Do not snapshot `ReadingMode` or async pages.
+Vitest `toMatchSnapshot()` for **stable presentational** markup only (`ui/*`, `EntityCard`, `TagChip`). Co-located `__snapshots__/` next to the test. Single happy-dom viewport — no breakpoint matrix.
+
+**Exemplar:** `@src/client/components/ui/Button.test.tsx`, `@src/client/components/EntityCard/EntityCard.test.tsx`
+
+```typescript
+it('matches snapshot for primary button', () => {
+  const { container } = render(<Button>Save</Button>);
+  expect(container.firstChild).toMatchSnapshot();
+});
+```
+
+- Snapshot a stable root (`container.firstChild` or `.modal-overlay` for portals) — not `document.body`
+- Pin i18n via `vi.mock('react-i18next')` with fixed `t` keys (see `Badge.test.tsx`, `AlertModal.test.tsx`)
+- Keep behavioral Testing Library assertions; snapshots complement them
+- Review `.snap` diffs in the PR; update snaps intentionally with the UI change
+- Do **not** snapshot: full pages, `ReadingMode/**`, Auth gates, async loaders (`EntityPickerModal`), dates/random
 
 ## Naming convention
 

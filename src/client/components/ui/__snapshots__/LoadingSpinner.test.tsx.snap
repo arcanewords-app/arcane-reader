@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LoadingSpinner > matches snapshot for default inline spinner 1`] = `
+<div
+  aria-label="Loading"
+  aria-live="polite"
+  class="loading-spinner-inline"
+  role="status"
+>
+  <div
+    aria-hidden="true"
+    class="spinner spinner-md"
+  />
+</div>
+`;

@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Card > matches snapshot with title and children 1`] = `
+<div
+  class="card"
+>
+  <div
+    class="card-title"
+  >
+    Chapter
+  </div>
+  <p>
+    Body text
+  </p>
+</div>
+`;

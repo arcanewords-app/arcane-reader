@@ -1,12 +1,12 @@
-# Contract tests (Wave 9)
+# Contract tests (Wave 9 Phase 1)
 
-**Status:** stub infrastructure. Phase 1 uses Zod fixtures inside the monolith; no Pact broker yet.
+**Status:** Phase 1 delivered. Zod fixtures inside the monolith; no Pact broker yet.
 
 ## Goal
 
 Freeze request/response and shared-type boundaries so a future service split does not silently break the SPA ↔ API contract.
 
-## Phase 1 (monolith)
+## Phase 1 (monolith) — delivered
 
 | Contract             | Mechanism                                                             | Location                                           |
 | -------------------- | --------------------------------------------------------------------- | -------------------------------------------------- |
@@ -14,7 +14,25 @@ Freeze request/response and shared-type boundaries so a future service split doe
 | Shared types         | Round-trip fixtures for `src/shared/**` shapes                        | `tests/contracts/shared/*.contract.test.ts`        |
 | Client ↔ server      | Shared JSON fixtures parsed by client domain types and server schemas | `tests/contracts/client-server/*.contract.test.ts` |
 
-Fixtures: `tests/contracts/fixtures/*.json`.
+Helper: `tests/contracts/helpers/loadFixture.ts`.
+
+### Fixture inventory
+
+| Fixture                                                        | Used by                        |
+| -------------------------------------------------------------- | ------------------------------ |
+| `status-response.valid.json`                                   | `api/status-shape`             |
+| `news-create.valid.json` / `news-create.invalid-category.json` | `api/news-create`              |
+| `news-enums.json`                                              | `client-server/news-enums`     |
+| `catalog-request-create.valid.json`                            | `api/catalog-request-create`   |
+| `catalog-request-statuses.json`                                | `client-server/catalog-status` |
+| `publications-list-query.valid.json`                           | `api/publications-list-query`  |
+| `chapter-translate-all.json` / `chapter-translate-stages.json` | `api/chapter-translate`        |
+| `announcement-dismiss.valid.json`                              | `api/announcement-dismiss`     |
+| `project-settings.valid.json`                                  | `api/project-settings`         |
+| `publish-body.valid.json`                                      | `api/publish-body`             |
+| `translation-request-board-query.json`                         | `api/board-query`              |
+| `cache-contract-keys.json`                                     | `shared/cache-contract`        |
+| `translation-statuses.json`                                    | `shared/translation-status`    |
 
 ## Phase 2 (after service split)
 
@@ -26,6 +44,8 @@ Fixtures: `tests/contracts/fixtures/*.json`.
 ```bash
 npm run test:contract
 ```
+
+Included in pre-push (fast, no network).
 
 ## Policy
 

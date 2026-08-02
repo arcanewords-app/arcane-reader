@@ -14,47 +14,9 @@ import {
   type BatchProgress,
   type BatchProgressMode,
 } from './markTranslatedBatchProgress.js';
+import { pollChapterUntilDone } from './batchTranslationPoll.js';
 
 export type { BatchChapterProgressItem, BatchProgress, BatchProgressMode };
-
-const INITIAL_POLL_MS = 1500;
-const MAX_POLL_MS = 12000;
-const MAX_POLL_ATTEMPTS = 90; // ~5 min with backoff
-
-/**
- * Poll chapter status until translation completes or errors. Uses lightweight status endpoint and exponential backoff.
- */
-async function pollChapterUntilDone(
-  projectId: string,
-  chapterId: string,
-  isCancelled: () => boolean,
-  _t: (key: string) => string
-): Promise<{ success: boolean; cancelled?: boolean; partial?: boolean; error?: string }> {
-  let delayMs = INITIAL_POLL_MS;
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    if (isCancelled()) {
-      return { success: false, cancelled: true, error: _t('projectInfo.errorCanceled') };
-    }
-    try {
-      const { status } = await api.getChapterStatus(projectId, chapterId);
-      if (status === 'completed' || status === 'analyzed' || status === 'draft') {
-        return { success: true };
-      }
-      if (status === 'partial') {
-        return { success: true, partial: true };
-      }
-      if (status === 'error') {
-        return { success: false, error: _t('projectInfo.errorTranslation') };
-      }
-      await new Promise((r) => setTimeout(r, delayMs));
-      delayMs = Math.min(delayMs * 1.5, MAX_POLL_MS);
-    } catch (err) {
-      console.error('Poll error:', err);
-      return { success: false, error: _t('projectInfo.errorStatusCheck') };
-    }
-  }
-  return { success: false, error: _t('projectInfo.errorTimeout') };
-}
 
 /**
  * Hook: batch translation of multiple chapters with token limit check and progress.

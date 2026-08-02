@@ -14,16 +14,22 @@ How-to: `@.cursor/skills/testing/SKILL.md`, patterns: `@.cursor/skills/testing/P
 
 ## Runner and layout
 
-- **Runner:** Vitest (`npm run test` fast suite; `npm run test:slow` for tiktoken-heavy tests; `npm run test:component`; `npm run test:integration`; `npm run test:all` for unit+slow+component+integration+contract). SSOT configs: `@vitest.config.ts`, `@vitest.slow.config.ts`, `@vitest.component.config.ts`, `@vitest.integration.config.ts`.
+- **Pin:** Vitest + `@vitest/coverage-v8` exact **`4.0.8`** (no `^`). Do **not** bump to 4.1.x without re-validating on Windows + Node 24 (`vi.mock`, forks, glob/dir entry).
+- **Runner:** Vitest via wrappers where needed:
+  - `npm run test` → `scripts/test-unit.mjs` (native cwd casing + hoisted vitest)
+  - `npm run test:component` → `scripts/test-component.mjs` (explicit file list)
+  - `npm run test:integration` → `scripts/test-integration.mjs` (explicit file list)
+  - Also: `test:slow`, `test:contract`, `test:all`, `test:coverage`
+- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX), `@vitest.integration.config.ts` (forks, **no** `setupFiles`)
 - **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract/e2e live under `tests/`.
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
-- **No ad-hoc scripts:** do not add `scripts/test-*.ts` for test cases; put tests under `src/**/*.test.ts` or `tests/`. Inventory helper `scripts/gen-test-inventory.mjs` is allowed.
+- **Wrappers allowed:** `scripts/test-*.mjs` / `scripts/resolve-vitest.mjs` for runner workarounds only — not for test cases. Put tests under `src/**/*.test.ts(x)` or `tests/`. Inventory helper `scripts/gen-test-inventory.mjs` is allowed.
 
 ## APP_SCOPE (unified)
 
 Same scope for unit tests, coverage, and Stryker `mutate`:
 
-- `src/**/*.ts` minus `*.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`, `src/debug/**`, `src/prompt-lab/**`
+- `src/**/*.ts` minus `*.test.ts` / `*.test.tsx` / `*.hook.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`, `src/debug/**`, `src/prompt-lab/**`
 - Includes **backend + client SPA**
 
 SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testing-baseline.md`.
@@ -45,19 +51,19 @@ SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testi
 
 See `@docs/05-plans/testing-strategy.md`.
 
-## When to write tests
+## Layer obligation (do not substitute)
 
-| Situation | Action |
-|-----------|--------|
-| Bug fix in pure logic (`engine/`, `shared/`, utils) | Add regression test in co-located `*.test.ts` |
-| New SSOT module in `engine/` or `shared/` | Unit test covering main branches |
-| Zod/query helpers in `src/api/` | Test normalization and schema parsing |
-| `src/client/utils`, `hooks` | co-located unit / hook tests; mock `fetch` |
-| Preact component / gate | Testing Library + mocked API (`npm run test:component`) |
-| Route chain (HTTP → handler → service) | Mock-integration under `tests/integration/` |
-| Route handler with Supabase calls | **Q3:** extract + unit test helpers and/or mock-integration. **Q4:** live supertest |
+| Situation | Layer / command |
+|-----------|-----------------|
+| Pure logic / Zod / handlers with mocks | Co-located unit (`npm run test`) |
+| Preact UI / hooks | `npm run test:component` (`*.test.tsx` / `*.hook.test.ts`) |
+| Presentational markup (`ui/*`, EntityCard, TagChip) | `toMatchSnapshot` in component suite — update `.snap` intentionally in the same PR |
+| HTTP middleware order / status wiring / job runner | `tests/integration/**` mock-first (`npm run test:integration`) |
+| Bug fix in pure logic (`engine/`, `shared/`, utils) | Regression in co-located `*.test.ts` |
 | Live LLM / OpenAI API | **Never** in unit/component/mock-integration — mock provider |
 | Live Supabase / Redis / BullMQ | **Q4 only** on dedicated test environment |
+
+Do **not** use unit tests as a substitute for mock-integration wiring checks, or vice versa. Do **not** snapshot full pages, `ReadingMode`, Auth gates, or async-loaded DOM.
 
 ## Test types in Arcane
 
@@ -67,8 +73,8 @@ See `@docs/05-plans/testing-strategy.md`.
 | Component | Testing Library + mocked `fetch` | optional live DOM + test API |
 | Integration (mock) | `createApp` + supertest + mocked services | keep as fast CI layer |
 | Integration (live) | — | real Supabase / Redis / worker |
-| Snapshot | Wave 8 — presentational UI only | same |
-| Contract | Wave 9 — Zod fixtures under `tests/contracts/` | OpenAPI / Pact after split |
+| Snapshot | Presentational `ui/*` / EntityCard / TagChip (`toMatchSnapshot`); no breakpoint matrix | same |
+| Contract | Phase 1 Zod fixtures under `tests/contracts/` (pre-push) | OpenAPI / Pact after split |
 | System/E2E | stub only | Playwright smoke on test stack |
 
 ## Layer boundaries
@@ -87,19 +93,19 @@ See `@docs/05-plans/testing-strategy.md`.
 - Command: `npm run test:mutation` or zone smoke `npx stryker run --mutate <glob>`
 - Scope: APP_SCOPE (same as coverage)
 - **Not** in CI or pre-push; manual/nightly only
-- `thresholds.break: null` — trend metric, not gate
+- `thresholds.high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only, not a merge gate
 - Report: `reports/mutation/mutation.html`
 
 ## Gates
 
-- Before **push:** `npm run lint:all` and `npm run test` (enforced via `.husky/pre-push` after setup).
+- Before **push:** `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` (enforced via `.husky/pre-push`).
 - Before **commit:** pre-commit runs lint-staged only (fast).
-- **Coverage:** `npm run test:coverage`; APP_SCOPE includes `src/client/**`; no CI thresholds; `coverage/` gitignored.
-- Expand pre-push gradually: add `test:component`, then `test:integration`.
+- **Coverage floors:** `npm run test:coverage` enforces `coverage.thresholds` in `@vitest.config.ts` (lines **64**, branches **54** — measured floors). **Not** in pre-push.
+- If a PR drops below floors, fix tests or adjust floors **deliberately** in the same PR (never silent lower).
 
 ## Coverage policy
 
-- Track trend, not absolute %.
+- Floors on `test:coverage` only; track trend above floors.
 - Prioritize `engine/` and `shared/` pure modules; expand to client components/hooks and mock-integration.
 - Baseline: `@docs/05-plans/testing-baseline.md`. Strategy: `@docs/05-plans/testing-strategy.md`.
 
@@ -115,4 +121,4 @@ When changing runner, gates, or test conventions:
 ## Agent routing
 
 - Test infrastructure, migration, coverage baseline → **Testing** utility agent (`@.cursor/agents/testing/AGENT.md`).
-- Feature code + tests → domain agent (Engine/API/Backend/UI) + **verifier** runs `lint:all` + `test`.
+- Feature code + tests → domain agent (Engine/API/Backend/UI) + **verifier** runs `lint:all` + `test` (+ component/integration when those layers change).

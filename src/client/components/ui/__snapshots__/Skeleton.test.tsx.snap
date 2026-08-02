@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Skeleton > matches snapshot for block skeleton 1`] = `
+<div
+  aria-label="Loading"
+  class="skeleton skeleton--block"
+  role="status"
+  style="width: 120px; height: 24px;"
+/>
+`;

@@ -1,0 +1,7 @@
+{
+  "limit": "20",
+  "offset": "0",
+  "orderBy": "published_at",
+  "orderAsc": "false",
+  "tag": "fantasy"
+}

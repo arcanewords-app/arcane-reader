@@ -55,12 +55,14 @@ Quick reference — full cheat sheet: [`.cursor/skills/local-dev/SKILL.md`](.cur
 npm run dev          # API + client
 npm run dev:full     # + BullMQ worker
 npm run lint:all     # lint + typecheck
-npm run test              # Vitest unit tests (fast)
+npm run test              # Vitest unit (scripts/test-unit.mjs; pin 4.0.8)
 npm run test:component    # Testing Library + happy-dom
 npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures
-npm run test:coverage     # coverage report (no thresholds)
+npm run test:coverage     # coverage with floors (lines 64 / branches 54); not in pre-push
 ```
+
+Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`.
 
 Strategy (pyramid): [`docs/05-plans/testing-strategy.md`](docs/05-plans/testing-strategy.md).
 

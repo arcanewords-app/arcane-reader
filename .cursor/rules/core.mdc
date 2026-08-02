@@ -10,7 +10,7 @@ alwaysApply: true
 - TypeScript strict. Preact (use `preact`, not `react`).
 - Functional components. Named exports.
 - 2 spaces, LF. See `.editorconfig`.
-- Run `npm run lint`, `npm run typecheck`, and `npm run test` before pushing (pre-push hook enforces `lint:all` + `test`).
+- Run `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` before pushing (pre-push enforces all five).
 
 ## Structure
 
@@ -36,7 +36,8 @@ On every meaningful change:
 
 PR checklist:
 
-- `npm run lint:all` and `npm run test` pass
+- `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` pass
+- Layer hint: pure logic → unit; Preact UI/hooks → component; HTTP/wiring/jobs → mock-integration; wire shapes → contract (`@.cursor/rules/testing.mdc`)
 - New/changed route → `@.cursor/rules/routing.mdc` + `@src/client/AppRouter.tsx` + `@src/server.ts`
 - Pure logic in `engine/` or `shared/` → co-located `*.test.ts` per `@.cursor/rules/testing.mdc`
 - New env var → `@env.example.txt` + `@.cursor/rules/deployment.mdc`

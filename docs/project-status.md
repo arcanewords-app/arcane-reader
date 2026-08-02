@@ -50,8 +50,8 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
 | [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
-| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–10 (component → mock-integration → snapshot → contract → E2E)                |
-| [[05-plans/testing-baseline]]             | Coverage **~65%** lines (2026-08-02); Wave 6–7 infra done; Q4 live E2E blocked                     |
+| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–7 **done**; next Wave 8 snapshots                                            |
+| [[05-plans/testing-baseline]]             | Coverage **65.5%** lines; component 49 + integration 44 tests; Q4 live E2E blocked                 |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
 
 ## Known tech debt

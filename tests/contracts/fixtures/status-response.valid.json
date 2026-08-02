@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "ready": true,
+  "ai": {
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "configured": true
+  },
+  "config": {
+    "valid": true,
+    "errors": []
+  },
+  "storage": "supabase",
+  "maxFileSizeBytes": 52428800
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "v1",
+  "prefixes": {
+    "authProfile": "auth:profile",
+    "publicationsList": "pub:list",
+    "publication": "pub:by-id",
+    "publicationChapters": "pub:chapters",
+    "publicationChapter": "pub:chapter",
+    "publicationGlossary": "pub:glossary",
+    "publicEntities": "public:entities",
+    "publicEntity": "public:entity",
+    "newsList": "public:news:list",
+    "newsPost": "public:news:post",
+    "announcementsActive": "public:announcements:active",
+    "userProjects": "user:projects:light",
+    "userProject": "user:project:light",
+    "userTokenUsage": "user:token-usage",
+    "userTokenHistory": "user:token-history",
+    "userReadingProgress": "user:read-progress",
+    "userReaderSettings": "user:reader-settings",
+    "userReadingHistory": "user:reading-history",
+    "analysisResult": "analysis:result",
+    "analysisBatchProgress": "analysis:batch:progress",
+    "projectReportsCount": "user:project:reports-count",
+    "serviceHealth": "system:health"
+  }
+}

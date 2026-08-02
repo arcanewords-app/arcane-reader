@@ -1,0 +1,3 @@
+{
+  "statuses": ["pending", "reviewed", "accepted", "rejected", "fulfilled"]
+}

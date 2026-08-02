@@ -1,0 +1,5 @@
+{
+  "categories": ["feature", "discount", "update", "other"],
+  "statuses": ["draft", "published", "archived"],
+  "variants": ["info", "promo", "neutral"]
+}

@@ -1,0 +1,8 @@
+{
+  "translateOnlyEmpty": true,
+  "stages": ["analysis", "translation", "editing"],
+  "languagePair": {
+    "sourceLanguage": "en",
+    "targetLanguage": "ru"
+  }
+}

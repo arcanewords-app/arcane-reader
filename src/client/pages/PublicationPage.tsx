@@ -34,6 +34,7 @@ import { buildCatalogEntityFilterUrl } from '../utils/catalogRoutes';
 import { useUrlSyncListeners } from '../hooks/useUrlSync';
 import { subscribeToUserCacheInvalidation } from '../api/cache/invalidation';
 import { isChapterReadByWatermark, resolveContinueChapter } from '../../shared/reading-progress';
+import { filterAndSortPublicationChapters } from '../utils/publicationChapterFilters';
 import './PublicationPage.css';
 
 interface PublicationPageProps {
@@ -338,38 +339,28 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const hasUntranslatedChapters = chapters.some((ch) => !ch.hasTranslation);
   const showTranslationFilter = hasTranslatedChapters && hasUntranslatedChapters;
 
-  const filteredChapters = useMemo(() => {
-    const filtered = chapters.filter((ch) => {
-      const matchesSearch =
-        !chapterSearch ||
-        (ch.title || '').toLowerCase().includes(chapterSearch.toLowerCase()) ||
-        String(ch.number).includes(chapterSearch);
-      if (!matchesSearch) return false;
-      // Translation filter (only when both types exist; otherwise show all)
-      if (showTranslationFilter) {
-        if (translationFilter === 'translated' && !ch.hasTranslation) return false;
-        if (translationFilter === 'untranslated' && ch.hasTranslation) return false;
-      }
-      // Read status filter (auth only)
-      if (!isAuthenticated || chapterFilter === 'all') return true;
-      const isRead = isChapterReadByWatermark(ch.number, lastReadChapterNumber);
-      if (chapterFilter === 'read') return isRead;
-      if (chapterFilter === 'unread') return !isRead;
-      return true;
-    });
-    return [...filtered].sort((a, b) =>
-      chapterOrder === 'desc' ? b.number - a.number : a.number - b.number
-    );
-  }, [
-    chapters,
-    chapterSearch,
-    showTranslationFilter,
-    translationFilter,
-    chapterFilter,
-    chapterOrder,
-    isAuthenticated,
-    lastReadChapterNumber,
-  ]);
+  const filteredChapters = useMemo(
+    () =>
+      filterAndSortPublicationChapters(chapters, {
+        chapterSearch,
+        showTranslationFilter,
+        translationFilter,
+        chapterFilter,
+        chapterOrder,
+        isAuthenticated,
+        lastReadChapterNumber,
+      }),
+    [
+      chapters,
+      chapterSearch,
+      showTranslationFilter,
+      translationFilter,
+      chapterFilter,
+      chapterOrder,
+      isAuthenticated,
+      lastReadChapterNumber,
+    ]
+  );
 
   const handleChapterListScroll = useCallback(() => {
     const el = chapterListRef.current;

@@ -1,0 +1,38 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Modal > matches snapshot for open shell 1`] = `
+<div
+  aria-label="Close modal"
+  class="modal-overlay active"
+  role="button"
+  tabindex="0"
+>
+  <div
+    class="modal"
+  >
+    <div
+      class="modal-header-row"
+    >
+      <h3
+        class="modal-title"
+      >
+        Hello
+      </h3>
+      <div
+        class="modal-header-actions"
+      >
+        <button
+          aria-label="Close"
+          class="modal-close-btn"
+          type="button"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+    <p>
+      Body
+    </p>
+  </div>
+</div>
+`;

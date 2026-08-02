@@ -1,0 +1,45 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AlertModal > matches snapshot when open with fixed title and message 1`] = `
+<div
+  aria-label="Close modal"
+  class="modal-overlay active error-modal-overlay"
+  role="button"
+  tabindex="0"
+>
+  <div
+    class="modal error-modal error-modal"
+  >
+    <div
+      class="error-modal-header"
+    >
+      <h3>
+        Something went wrong
+      </h3>
+      <button
+        aria-label="Close"
+        class="error-modal-close"
+        type="button"
+      >
+        ×
+      </button>
+    </div>
+    <div
+      class="error-modal-body"
+    >
+      <p>
+        Fixed alert message
+      </p>
+    </div>
+    <div
+      class="error-modal-footer"
+    >
+      <button
+        class="btn btn-primary btn-sm"
+      >
+        common.close
+      </button>
+    </div>
+  </div>
+</div>
+`;

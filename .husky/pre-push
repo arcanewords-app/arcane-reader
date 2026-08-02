@@ -1,3 +1,6 @@
 #!/usr/bin/env sh
 npm run lint:all
 npm run test
+npm run test:component
+npm run test:integration
+npm run test:contract

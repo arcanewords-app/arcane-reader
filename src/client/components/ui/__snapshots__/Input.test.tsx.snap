@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Input > matches snapshot for Select 1`] = `
+<div
+  class="form-group"
+>
+  <label
+    class="form-label"
+    for="lang"
+  >
+    Language
+  </label>
+  <select
+    class="form-select "
+    id="lang"
+  >
+    <option
+      value="en"
+    >
+      English
+    </option>
+    <option
+      value="ru"
+    >
+      Russian
+    </option>
+  </select>
+</div>
+`;
+
+exports[`Input > matches snapshot for labeled input 1`] = `
+<div
+  class="form-group"
+>
+  <label
+    class="form-label"
+    for="name"
+  >
+    Name
+  </label>
+  <input
+    class="form-input "
+    id="name"
+  />
+</div>
+`;

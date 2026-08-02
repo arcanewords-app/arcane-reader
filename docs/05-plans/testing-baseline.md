@@ -6,7 +6,7 @@ updated: 2026-08-02
 
 # Testing coverage baseline
 
-Measured **2026-08-02** (post Wave 5; strategy doc added). Strategy SSOT: [[05-plans/testing-strategy]].
+Measured **2026-08-02** (post Wave 7 mock-integration rollout). Strategy SSOT: [[05-plans/testing-strategy]].
 
 ## APP_SCOPE (unified)
 
@@ -36,89 +36,99 @@ Policy SSOT: [[_canonical/rules/testing]]. Full pyramid: [[05-plans/testing-stra
 | Worker / queues  | live Redis + test DB                |
 | Full-stack smoke | Playwright on test stack (not prod) |
 
-Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) proceeds without it.
+Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) is in pre-push.
 
-## Test suite (2026-08-02)
+## Test suite (2026-08-02, post Wave 9)
 
-| Metric                           | Value                                                              |
-| -------------------------------- | ------------------------------------------------------------------ |
-| Test files (fast suite)          | **210** (+ 3 slow tiktoken excluded from fast)                     |
-| Co-located `*.test.ts` / `.tsx`  | **212** / **1**                                                    |
-| Tests (fast)                     | **2010**                                                           |
-| Fast suite (`npm run test`)      | ~90 s (coverage run)                                               |
-| Slow suite (`npm run test:slow`) | ~100 s                                                             |
-| CI                               | `npm run test:coverage` (fast suite; excludes tiktoken slow files) |
+| Metric                      | Value                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
+| Component suite             | **26** files / **64** tests (`npm run test:component`; +15 snaps)                 |
+| Mock-integration suite      | **9** files / **44** tests (`npm run test:integration`)                           |
+| Contract suite              | **13** files / **18** tests (`npm run test:contract`)                             |
+| Co-located `*.test.tsx`     | **21**                                                                            |
+| Co-located `*.hook.test.ts` | **5**                                                                             |
+| Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
-Component smoke: `happy-dom` + `@testing-library/preact` (`RequireRole`, gates); Preact JSX aliases in `vitest.config.ts`. See `npm run test:component`.
+Component suite: `happy-dom` + `@testing-library/preact`. Unit coverage command does **not** execute `*.test.tsx` (separate config) — client % below understates Wave 6 component coverage. Integration suite is mock-first (no live Supabase/Redis/LLM).
 
 ## Inventory: tested vs untested
 
-| Metric                        | Value                              |
-| ----------------------------- | ---------------------------------- |
-| Source files in coverage map  | **339**                            |
-| With co-located `*.test.ts`   | **203** (**~55%** of walked `.ts`) |
-| Without co-located unit test  | **163**                            |
-| Files at **0%** line coverage | **79** (**~23%**)                  |
+| Metric                        | Value   |
+| ----------------------------- | ------- |
+| Source files in coverage map  | **364** |
+| With co-located `*.test.ts`   | **206** |
+| Without co-located unit test  | **165** |
+| Files at **0%** line coverage | **81**  |
 
 Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:coverage`).
 
 ### Client breakdown
 
-| Folder               | Coverage notes                             |
-| -------------------- | ------------------------------------------ |
-| `client/utils/`      | Strong co-located unit coverage            |
-| `client/hooks/`      | Partial — Wave 6 priority                  |
-| `client/components/` | Mostly untested — Wave 6 component tests   |
-| `client/pages/`      | **0** co-located — Wave 6 P3 smoke         |
-| `client/api/`        | Domains / cache / transport mostly covered |
+| Folder               | Coverage notes                                     |
+| -------------------- | -------------------------------------------------- |
+| `client/utils/`      | Strong + `publicationChapterFilters`               |
+| `client/hooks/`      | Wave 6 P0: translation / token / history hooks     |
+| `client/components/` | Gates, SettingsModal smoke, UI primitives, toolbar |
+| `client/pages/`      | About / Privacy / Terms / Projects smokes          |
+| `client/api/`        | Domains / cache / transport mostly covered         |
 
-## Overall coverage (v8, APP_SCOPE)
+## Overall coverage (v8, APP_SCOPE — unit suite)
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | Coverage (2026-08-02)    |
-| ---------- | ------------------------ |
-| Lines      | **64.73%** (10157/15691) |
-| Statements | **62.73%** (10803/17221) |
-| Functions  | **67.13%** (1757/2617)   |
-| Branches   | **54.53%** (6625/12148)  |
+| Metric     | Coverage (stabilize 2026-08-02) |
+| ---------- | ------------------------------- |
+| Lines      | **64.67%**                      |
+| Statements | **62.70%**                      |
+| Functions  | **66.95%**                      |
+| Branches   | **54.68%**                      |
 
-> Wave 5 milestone (2026-07-12): all metrics ≥55%. Current lines remain ~65%; branches slightly below 55% after new code.
+### Coverage floors (active)
+
+Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
+
+| Metric   | Floor  |
+| -------- | ------ |
+| Lines    | **64** |
+| Branches | **54** |
+
+> Floors are measured integers from the stabilize pass (unit suite excludes `*.test.tsx` / `*.hook.test.ts`). Raise deliberately with coverage gains; never silent lower. Client folder understates Wave 6 component coverage (separate suite).
 
 ## By area (folder rollup, lines %)
 
-| Area                      | Files | Lines %  | Notes                                      |
-| ------------------------- | ----- | -------- | ------------------------------------------ |
-| `src/shared/`             | 42    | **~92%** | near ceiling                               |
-| `src/storage/`            | 3     | **100%** | text-utils                                 |
-| `src/api/`                | 60    | **~75%** | handlers + schemas                         |
-| `src/middleware/`         | 5     | **~76%** | auth, tokenLimits, requestContext          |
-| `src/engine/`             | 69    | **~74%** | stage mocks + openai provider tests        |
-| `src/services/`           | 64    | **~56%** | domains OK; jobs/import weak               |
-| `src/client/`             | 83    | **~47%** | utils/api OK; components/hooks gap         |
-| `server.ts` + `worker.ts` | 2     | **0%**   | entrypoints (createApp extract for Wave 7) |
+| Area                      | Files | Lines %  | Notes                                       |
+| ------------------------- | ----- | -------- | ------------------------------------------- |
+| `src/shared/`             | 42+   | **~90%** | near ceiling                                |
+| `src/storage/`            | 3     | **100%** | text-utils                                  |
+| `src/api/`                | 60+   | **~75%** | handlers + schemas                          |
+| `src/middleware/`         | 5     | **~76%** | auth, tokenLimits, requestContext           |
+| `src/engine/`             | 69+   | **~74%** | stage mocks + openai provider tests         |
+| `src/services/`           | 64+   | **~56%** | domains OK; jobs/import weak                |
+| `src/client/`             | 106   | **~53%** | Wave 6 hooks/helpers; UI via test:component |
+| `server.ts` + `worker.ts` | 2     | **0%**   | entrypoints                                 |
 
 ### Top uncovered files (by remaining gap)
 
-| File                                         | Notes                         |
-| -------------------------------------------- | ----------------------------- |
-| `client/hooks/useBatchChapterTranslation.ts` | Wave 6                        |
-| `services/import/fb2.ts` / `epub.ts`         | binary parse (deferred)       |
-| `services/jobs/runTranslateJob.ts`           | Wave 7 worker integration     |
-| `services/jobs/runAnalysisJob.ts`            | Wave 7 worker integration     |
-| `api/routes/seo.ts`                          | SSR glue; `seoHelpers` tested |
-| `server.ts` / `worker.ts`                    | bootstrap                     |
+| File                                 | Notes                               |
+| ------------------------------------ | ----------------------------------- |
+| `services/import/fb2.ts` / `epub.ts` | binary parse (deferred)             |
+| `services/jobs/runTranslateJob.ts`   | Wave 7 worker integration           |
+| `services/jobs/runAnalysisJob.ts`    | Wave 7 worker integration           |
+| `api/routes/seo.ts`                  | SSR glue; `seoHelpers` tested       |
+| `ReadingMode/index.tsx`              | helpers extracted; full UI deferred |
+| `server.ts` / `worker.ts`            | bootstrap                           |
 
 ## Wave completion
 
-| Wave                     | Status         | Deliverables                                                        |
-| ------------------------ | -------------- | ------------------------------------------------------------------- |
-| 0–5                      | Done           | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks      |
-| **6 — Component**        | **Infra**      | `vitest.component.config.ts`, Testing Library gates/hooks exemplars |
-| **7 — Mock integration** | **Infra**      | `createApp()`, `vitest.integration.config.ts`, supertest smoke      |
-| 8 — Snapshot             | Planned        | See [[05-plans/testing-strategy]]                                   |
-| 9 — Contract             | Stub           | `tests/contracts/README.md`                                         |
-| 10 — Live + E2E          | **Blocked Q4** | requires dedicated test environment; `tests/e2e/README.md`          |
+| Wave                     | Status         | Deliverables                                                                    |
+| ------------------------ | -------------- | ------------------------------------------------------------------------------- |
+| 0–5                      | Done           | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                  |
+| **6 — Component**        | **Done**       | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes       |
+| **7 — Mock integration** | **Done**       | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest 4.0.8 wrappers |
+| **8 — Snapshot**         | **Done**       | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps        |
+| **9 — Contract Phase 1** | **Done**       | Zod fixtures + enum sync; 13 files / 18 tests; pre-push `test:contract`         |
+| 10 — Live + E2E          | **Blocked Q4** | requires dedicated test environment; `tests/e2e/README.md`                      |
 
 ## Mutation testing (Stryker)
 
@@ -129,8 +139,14 @@ npm run test:mutation
 npx stryker run --mutate "src/shared/**/*.ts"
 ```
 
+Stryker `thresholds`: `high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only (not a merge gate). Distinct from Vitest coverage floors above.
+
+## Vitest pin
+
+Exact **`vitest@4.0.8`** + `@vitest/coverage-v8@4.0.8`. Do not bump to 4.1.x without Windows + Node 24 re-validation (`vi.mock`, forks, glob/dir entry).
+
 ## Policy
 
-- No CI thresholds yet — track trend only
-- Re-run baseline after major test additions; update this note
+- Coverage floors active on `test:coverage` only; pre-push = lint + unit + component + integration + contract
+- Re-run baseline after major test additions; update this note (and floors if measured drift is intentional)
 - See [[02-how-to/run-tests]] and `.cursor/rules/testing.mdc`

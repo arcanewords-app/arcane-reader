@@ -1,0 +1,6 @@
+{
+  "title": "Bad category",
+  "summary": "Must reject unknown news category",
+  "body": "",
+  "category": "not-a-category"
+}

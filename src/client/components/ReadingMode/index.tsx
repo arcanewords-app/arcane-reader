@@ -29,6 +29,7 @@ import {
 } from '../../utils/readingSelection';
 import { useReadingTextSelection } from '../../hooks/useReadingTextSelection';
 import { ReadingSelectionToolbar } from './ReadingSelectionToolbar';
+import { resolveChapterIndexById } from './readingModeHelpers.js';
 import { getAnchorFromSelection } from '../../utils/readingTextAnchors';
 import {
   loadHighlights,
@@ -486,7 +487,7 @@ export function ReadingMode({
       const syncFromUrl = lastInitialChapterIdRef.current !== initialChapterId;
       if (syncFromUrl) {
         lastInitialChapterIdRef.current = initialChapterId;
-        const idx = initialChapterId ? list.findIndex((ch) => ch.id === initialChapterId) : 0;
+        const idx = resolveChapterIndexById(list, initialChapterId);
         setCurrentChapterIndex(idx >= 0 ? idx : 0);
       }
     }
@@ -530,10 +531,8 @@ export function ReadingMode({
 
     setChapters(availableChapters);
     if (availableChapters.length > 0) {
-      const chapterIndex = initialChapterId
-        ? availableChapters.findIndex((ch) => ch.id === initialChapterId)
-        : 0;
-      setCurrentChapterIndex(chapterIndex >= 0 ? chapterIndex : 0);
+      const chapterIndex = resolveChapterIndexById(availableChapters, initialChapterId);
+      setCurrentChapterIndex(chapterIndex);
     }
   }, [isPublicationMode, project, initialChapterId, isOriginalReadingMode]);
 

@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EntityCard > matches snapshot for compact placeholder entity 1`] = `
+<div
+  class="entity-card entity-card--compact"
+>
+  <div
+    class="entity-card__avatar"
+  >
+    <div
+      aria-hidden="true"
+      class="entity-card__placeholder"
+    >
+      A
+    </div>
+  </div>
+  <span
+    class="entity-card__name"
+  >
+    Ada Lovelace
+  </span>
+</div>
+`;

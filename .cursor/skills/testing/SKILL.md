@@ -12,33 +12,40 @@ paths: '**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,v
 - Migrating from `node:test` to Vitest
 - Fixing pre-push test failures
 - Running or interpreting coverage (`npm run test:coverage`)
-- Setting up test infrastructure (vitest configs, husky hooks)
+- Setting up test infrastructure (vitest configs, husky hooks, wrappers)
 - Component, mock-integration, contract stubs
 
 Read `@.cursor/rules/testing.mdc` for policies. Pyramid: `@docs/05-plans/testing-strategy.md`. Layer recipes: `PATTERNS.md` in this folder.
 
 ## Commands
 
-| Task              | Command                                                           |
-| ----------------- | ----------------------------------------------------------------- |
-| Run fast tests    | `npm run test` (~unit; excludes tiktoken slow files)              |
-| Run slow tests    | `npm run test:slow` (~100 s; preview/chunking)                    |
-| Component suite   | `npm run test:component`                                          |
-| Mock-integration  | `npm run test:integration`                                        |
-| Contract suite    | `npm run test:contract`                                           |
-| E2E (placeholder) | `npm run test:e2e`                                                |
-| Run full suite    | `npm run test:all`                                                |
-| Watch mode        | `npm run test:watch`                                              |
-| Coverage report   | `npm run test:coverage`                                           |
-| Mutation (smoke)  | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts` |
-| Mutation (full)   | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)        |
-| Mutation (zone)   | `npx stryker run --mutate "src/shared/**/*.ts"`                   |
-| Inventory         | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)     |
-| Focused run       | `npx vitest run src/engine/glossary`                              |
-| Single file       | `npx vitest run src/shared/paragraphSync.test.ts`                 |
-| Pre-push gate     | `npm run lint:all && npm run test`                                |
+| Task              | Command                                                                       |
+| ----------------- | ----------------------------------------------------------------------------- |
+| Run fast tests    | `npm run test` (via `scripts/test-unit.mjs`)                                  |
+| Run slow tests    | `npm run test:slow`                                                           |
+| Component suite   | `npm run test:component` (`scripts/test-component.mjs`)                       |
+| Mock-integration  | `npm run test:integration` (`scripts/test-integration.mjs`)                   |
+| Contract suite    | `npm run test:contract`                                                       |
+| E2E (placeholder) | `npm run test:e2e`                                                            |
+| Run full suite    | `npm run test:all`                                                            |
+| Watch mode        | `npm run test:watch`                                                          |
+| Coverage report   | `npm run test:coverage` (floors: lines 64 / branches 54)                      |
+| Mutation (smoke)  | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`             |
+| Mutation (full)   | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                    |
+| Mutation (zone)   | `npx stryker run --mutate "src/shared/**/*.ts"`                               |
+| Inventory         | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                 |
+| Focused run       | `npm run test -- src/engine/glossary`                                         |
+| Single file       | `npm run test -- src/shared/paragraphSync.test.ts`                            |
+| Pre-push gate     | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract` |
 
 **Emergency bypass** (document reason): `HUSKY=0 git push`
+
+## Pin and Windows notes
+
+- Vitest / `@vitest/coverage-v8` pinned exact **`4.0.8`**. Do not bump to 4.1.x without Windows + Node 24 proof (`vi.mock`, forks, glob).
+- Wrappers normalize cwd via `realpathSync.native` (avoids `f:` vs `F:` → “No test suite found”).
+- Component/integration wrappers pass **explicit file lists** (directory/glob entry flaky on Windows).
+- Integration: `pool: 'forks'`, **no** Vitest `setupFiles` — env isolation via imported `tests/integration/setup.ts`.
 
 ## File template
 
@@ -109,36 +116,51 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 liv
 | Components       | `RequireRole.test.tsx`, gates          | `PATTERNS.md` § Client      |
 | Mock-integration | `tests/integration/api/status.test.ts` | `PATTERNS.md` § Integration |
 
+## Gate table
+
+| Gate             | Command                    | When                                                 |
+| ---------------- | -------------------------- | ---------------------------------------------------- |
+| Lint + types     | `npm run lint:all`         | every push                                           |
+| Unit             | `npm run test`             | every push                                           |
+| Component        | `npm run test:component`   | every push                                           |
+| Mock-integration | `npm run test:integration` | every push                                           |
+| Contract         | `npm run test:contract`    | every push                                           |
+| Coverage floors  | `npm run test:coverage`    | manual / PR when touching coverage; **not** pre-push |
+| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                        |
+
 ## Anti-patterns
 
 - Live LLM or Supabase calls in unit/component tests
 - Tests without assertions
 - Duplicating large prompt strings without referencing production factories (`createEditorPrompt`, `resolvePrompts`)
-- Adding `scripts/test-*.ts` instead of `src/**/*.test.ts` or `tests/`
+- Adding test cases as `scripts/test-*.ts` instead of `src/**/*.test.ts` or `tests/`
+- Substituting unit for mock-integration wiring (or vice versa)
 - Component tests without `@testing-library/preact` + mocked API
 - Live Supabase, Redis, or BullMQ in Q3 automated tests
 - E2E against staging/prod as CI gate
+- Silent lowering of coverage floors
 
 ## Vitest config SSOT
 
 | Config                         | Role                                                            |
 | ------------------------------ | --------------------------------------------------------------- |
-| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE                            |
+| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (64/54)           |
 | `vitest.slow.config.ts`        | Tiktoken-heavy engine tests                                     |
-| `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom                      |
+| `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom, Preact JSX          |
 | `vitest.integration.config.ts` | `tests/integration/**` (excludes live supabase until unblocked) |
 
-Coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary` — **no thresholds**.
+Coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary`, thresholds lines **64** / branches **54**.
 
 ## Verification after changes
 
 ```bash
 npm run test
-npm run lint:all   # when production code also changed
+npm run test:component    # when UI/hooks or infra change
+npm run test:integration  # when HTTP wiring / infra change
+npm run lint:all          # when production code also changed
 ```
 
-For test-only PRs, **verifier** runs `npm run test` + `npm run lint:all`.
-After Wave 6/7 infra changes, also run `npm run test:component` and `npm run test:integration`.
+For test-only PRs, **verifier** runs `lint:all` + the three suite gates when infra changes.
 
 ## Related
 

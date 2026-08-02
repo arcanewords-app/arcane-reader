@@ -2,6 +2,8 @@
 status: active
 created: 2026-08-02
 updated: 2026-08-02
+wave6: done
+wave7: done
 type: plan
 ---
 
@@ -75,39 +77,58 @@ Coverage and mutation share one scope — see `vitest.config.ts` / `stryker.conf
 
 ## Roadmap
 
-### Wave 6 — Component (next rollout)
+### Wave 6 — Component (**done** 2026-08-02)
 
-**Goal:** raise `client/` coverage; cover UI business logic without live API.
+**Goal:** raise `client/` UI coverage via Testing Library; no live API.
 
-Infra: `vitest.component.config.ts`, `src/test/setup-component.ts`, `npm run test:component`.
+Infra: `vitest.component.config.ts`, `src/test/setup-component.ts`, `npm run test:component` (also in pre-push).
 
-| Priority | Targets                                                                                   |
-| -------- | ----------------------------------------------------------------------------------------- |
-| P0       | `useUserRole`, `useChapterTranslation`, `useBatchChapterTranslation`, `useReadingHistory` |
-| P1       | `AuthorGate`, `AdminGate`, `SettingsModal`, ReadingFlow helpers                           |
-| P2       | Publication filters, `ui/Button`/`Modal`/`Input` smoke                                    |
-| P3       | `pages/*` render-without-crash                                                            |
+| Priority | Delivered                                                                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| P0       | `useTokenLimitCheck`, `useChapterTranslation`, `useBatchChapterTranslation` + `batchTranslationPoll` extract, `useReadingHistory` extended |
+| P1       | `UserGate`, `SettingsModal` smoke, `readingModeHelpers`, `ReadingSelectionToolbar`                                                         |
+| P2       | `Button`/`Modal`/`Input` smoke, `filterAndSortPublicationChapters`                                                                         |
+| P3       | About / Privacy / Terms / Projects page smokes                                                                                             |
 
-### Wave 7 — Mock integration
+### Wave 7 — Mock integration (**done** 2026-08-02)
 
 **Goal:** chains (HTTP → handler → mocked service → JSON), not single functions.
 
-Infra: `createApp()`, `vitest.integration.config.ts`, `supertest`, `npm run test:integration`.
+Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integration/helpers/`, `npm run test:integration` (via `scripts/test-integration.mjs`; also in pre-push).
 
-| Suite            | Path                                        |
-| ---------------- | ------------------------------------------- |
-| API              | `tests/integration/api/*.test.ts`           |
-| Client API layer | `tests/integration/client/*.test.ts`        |
-| Worker jobs      | `tests/integration/worker/*.test.ts`        |
-| Live Supabase    | `tests/integration/supabase/` — **blocked** |
+| Suite            | Path                                        | Coverage focus                                       |
+| ---------------- | ------------------------------------------- | ---------------------------------------------------- |
+| API              | `tests/integration/api/*.test.ts`           | public pubs/news, breaker, auth, chapters, translate |
+| Client API layer | `tests/integration/client/*.test.ts`        | `publicationsApi` → `appFetch` → Express             |
+| Worker jobs      | `tests/integration/worker/*.test.ts`        | `runTranslateJob` + `runAnalysisJob` smoke           |
+| Live Supabase    | `tests/integration/supabase/` — **blocked** | —                                                    |
 
-### Wave 8 — Snapshot
+Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **~4.0.8** (4.1.x breaks forks mocks on Node 24 / Windows).
 
-After Wave 6–7 stabilize. Presentational only (`ui/*`, EntityCard). Review snapshot diffs in PR. No full pages.
+**Next:** Wave 10+ (blocked — dedicated test env). Phase 2 contracts (OpenAPI / Pact) deferred until service split.
 
-### Wave 9 — Contract (monolith → future split)
+### Wave 8 — Snapshot (**done** 2026-08-02)
 
-Phase 1 (now): Zod schema + shared fixture JSON in `tests/contracts/`. Phase 2 (after split): OpenAPI / Pact.
+**Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).
+
+| Priority | Delivered                                                                |
+| -------- | ------------------------------------------------------------------------ |
+| P0       | Button, Input/Select, Card, Icon, Badge, EntityCard (+ `__snapshots__/`) |
+| P1       | Skeleton, LoadingSpinner, TagChip, Modal open shell, AlertModal          |
+
+Review `.snap` diffs in PR. No full pages / ReadingMode / Auth gates. Rides `npm run test:component` (pre-push).
+
+### Wave 9 — Contract Phase 1 (**done** 2026-08-02)
+
+**Goal:** freeze SPA ↔ API wire shapes via Zod + JSON fixtures (no live HTTP / Pact).
+
+| Priority | Delivered                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------- |
+| P0       | news create/enums, catalog create/status, publications list query, chapter translate                 |
+| P1       | announcement dismiss, project settings, publish body, board query, cache + translation-status shared |
+| Infra    | `loadFixture`, `api/status-shape`, pre-push `test:contract`                                          |
+
+Phase 2 (after split): OpenAPI / Pact — deferred.
 
 ### Wave 10+ — E2E (blocked)
 
@@ -143,7 +164,7 @@ See [[tests/e2e/README|tests/e2e/README.md]] (repo path).
 | `src/createApp.ts`               | Express app factory (no `listen`)    |
 | `src/test/setup-component.ts`    | i18n + Testing Library cleanup       |
 | `tests/integration/`             | Integration tests                    |
-| `tests/contracts/`               | Contract stubs                       |
+| `tests/contracts/`               | Contract fixtures (Phase 1)          |
 | `tests/e2e/`                     | E2E stubs (blocked)                  |
 | `scripts/gen-test-inventory.mjs` | Inventory after coverage             |
 
@@ -160,7 +181,7 @@ npm run test:all             # unit + slow + component + integration + contract
 npm run test:coverage        # unit coverage
 ```
 
-Pre-push today: `lint:all` + `test`. Expand gradually to include `test:component`, then `test:integration`.
+Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`. Coverage floors on `test:coverage` only (not pre-push).
 
 ## Metrics (orientation, not gates)
 

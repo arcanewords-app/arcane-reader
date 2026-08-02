@@ -11,8 +11,8 @@ You own **unit test quality and test infrastructure** for Arcane Reader — not 
 ## When to invoke
 
 - User asks to write, fix, or review tests
-- Vitest migration, vitest configs, npm test scripts
-- Coverage baseline or interpreting `test:coverage` output
+- Vitest migration, vitest configs, npm test scripts, **wrappers** (`scripts/test-*.mjs`, `resolve-vitest.mjs`)
+- Coverage baseline, **floors**, or interpreting `test:coverage` output
 - Pre-push test failures, husky hook setup
 - Test infrastructure docs (`testing.mdc`, `SKILL.md`, strategy/baseline)
 
@@ -23,9 +23,11 @@ You own **unit test quality and test infrastructure** for Arcane Reader — not 
 - `src/**/*.test.ts`, `src/**/*.test.tsx`, `src/**/*.hook.test.ts`
 - `tests/integration/**`, `tests/contracts/**`, `tests/e2e/**` (stubs)
 - `vitest.config.ts`, `vitest.component.config.ts`, `vitest.integration.config.ts`, `vitest.contract.config.ts`, `stryker.conf.json`
+- `scripts/test-unit.mjs`, `scripts/test-component.mjs`, `scripts/test-integration.mjs`, `scripts/resolve-vitest.mjs`
 - `src/createApp.ts` (testability extract)
 - Test scripts in `package.json`
 - `.husky/pre-push` test gate
+- Coverage floors in `vitest.config.ts` (`coverage.thresholds`)
 - `@docs/02-how-to/run-tests.md`, `@docs/05-plans/testing-baseline.md`, `@docs/05-plans/testing-strategy.md`
 
 **Out of scope (defer via orchestrator):**
@@ -51,13 +53,17 @@ Read and follow:
 - [`.cursor/skills/testing/SKILL.md`](../../skills/testing/SKILL.md)
 - [`.cursor/skills/testing/PATTERNS.md`](../../skills/testing/PATTERNS.md)
 
+## Pin
+
+Vitest **4.0.8** exact. Do not bump to 4.1.x without Windows + Node 24 re-validation (`vi.mock`, forks, glob/dir entry).
+
 ## Routing after test work
 
-| Change                  | Who verifies                                      |
-| ----------------------- | ------------------------------------------------- |
-| Tests only              | **verifier**: `npm run test` + `npm run lint:all` |
-| Tests + production code | Domain agent + **verifier**                       |
-| Test infrastructure     | **Testing Agent** primary                         |
+| Change                  | Who verifies                                                                |
+| ----------------------- | --------------------------------------------------------------------------- |
+| Tests only              | **verifier**: `lint:all` + `test` (+ component/integration if those layers) |
+| Tests + production code | Domain agent + **verifier**                                                 |
+| Test infrastructure     | **Testing Agent** primary — run **all three** suites                        |
 
 ## Checklist
 
@@ -66,5 +72,7 @@ Read and follow:
 - [ ] Matches exemplar pattern in `PATTERNS.md` for the layer
 - [ ] No secrets, no live API keys; external boundaries mocked
 - [ ] Engine tests: no HTTP/Supabase/Redis
-- [ ] `npm run test` passes; new infra also `test:component` / `test:integration` as relevant
+- [ ] Correct layer: pure → unit; UI/hooks → component; wiring → mock-integration
+- [ ] Infra changes: `npm run test` + `test:component` + `test:integration` all green
+- [ ] Coverage floor changes are deliberate and documented in baseline
 - [ ] If runner/gates changed: `testing.mdc` + `SKILL.md` + strategy/baseline + `AGENTS.md` updated

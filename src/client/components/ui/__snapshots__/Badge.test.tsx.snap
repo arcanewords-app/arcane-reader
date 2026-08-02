@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Badge > matches snapshot for CountBadge 1`] = `
+<span
+  class="chapter-count-badge"
+>
+  12
+</span>
+`;
+
+exports[`Badge > matches snapshot for StatusBadge completed 1`] = `
+<span
+  class="chapter-status status-completed"
+>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-sm"
+  >
+    check_circle
+  </span>
+   status.completed
+</span>
+`;

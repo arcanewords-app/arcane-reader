@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Icon > matches snapshot for a known glyph 1`] = `
+<span
+  aria-hidden="true"
+  class="material-symbols-outlined ui-icon ui-icon-sm"
+>
+  check_circle
+</span>
+`;
