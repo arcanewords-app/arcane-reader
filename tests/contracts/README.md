@@ -18,21 +18,30 @@ Helper: `tests/contracts/helpers/loadFixture.ts`.
 
 ### Fixture inventory
 
-| Fixture                                                        | Used by                        |
-| -------------------------------------------------------------- | ------------------------------ |
-| `status-response.valid.json`                                   | `api/status-shape`             |
-| `news-create.valid.json` / `news-create.invalid-category.json` | `api/news-create`              |
-| `news-enums.json`                                              | `client-server/news-enums`     |
-| `catalog-request-create.valid.json`                            | `api/catalog-request-create`   |
-| `catalog-request-statuses.json`                                | `client-server/catalog-status` |
-| `publications-list-query.valid.json`                           | `api/publications-list-query`  |
-| `chapter-translate-all.json` / `chapter-translate-stages.json` | `api/chapter-translate`        |
-| `announcement-dismiss.valid.json`                              | `api/announcement-dismiss`     |
-| `project-settings.valid.json`                                  | `api/project-settings`         |
-| `publish-body.valid.json`                                      | `api/publish-body`             |
-| `translation-request-board-query.json`                         | `api/board-query`              |
-| `cache-contract-keys.json`                                     | `shared/cache-contract`        |
-| `translation-statuses.json`                                    | `shared/translation-status`    |
+| Fixture                                                                | Used by                                 |
+| ---------------------------------------------------------------------- | --------------------------------------- |
+| `status-response.valid.json`                                           | `api/status-shape`                      |
+| `news-create.valid.json` / `news-create.invalid-category.json`         | `api/news-create`                       |
+| `news-enums.json`                                                      | `client-server/news-enums`              |
+| `catalog-request-create.valid.json`                                    | `api/catalog-request-create`            |
+| `catalog-request-statuses.json`                                        | `client-server/catalog-status`          |
+| `chapter-statuses.json`                                                | `client-server/chapter-status`          |
+| `glossary-enums.json`                                                  | `client-server/glossary-enums`          |
+| `catalog-interest-statuses.json`                                       | `client-server/catalog-interest-status` |
+| `public-entity-kinds.json`                                             | `client-server/public-entity-kinds`     |
+| `supported-languages.json`                                             | `client-server/supported-languages`     |
+| `publications-list-query.valid.json`                                   | `api/publications-list-query`           |
+| `chapter-translate-all.json` / `chapter-translate-stages.json`         | `api/chapter-translate`                 |
+| `announcement-dismiss.valid.json`                                      | `api/announcement-dismiss`              |
+| `project-settings.valid.json`                                          | `api/project-settings`                  |
+| `publish-body.valid.json`                                              | `api/publish-body`                      |
+| `translation-request-board-query.json`                                 | `api/board-query`                       |
+| `glossary-create.valid.json` / `glossary-create.invalid-type.json`     | `api/glossary-create`                   |
+| `project-languages.valid.json` / `project-languages.invalid-pair.json` | `api/project-languages`                 |
+| `translate-batch.valid.json`                                           | `api/translate-batch`                   |
+| `interest-update.valid.json`                                           | `api/interest-update`                   |
+| `cache-contract-keys.json`                                             | `shared/cache-contract`                 |
+| `translation-statuses.json`                                            | `shared/translation-status`             |
 
 ## Phase 2 (after service split)
 

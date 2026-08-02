@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
-const glossaryTypeSchema = z.enum(['character', 'location', 'term']);
-const genderSchema = z.enum(['male', 'female', 'neutral', 'unknown']);
+export const glossaryTypes = ['character', 'location', 'term'] as const;
+export const glossaryGenders = ['male', 'female', 'neutral', 'unknown'] as const;
+
+const glossaryTypeSchema = z.enum(glossaryTypes);
+const genderSchema = z.enum(glossaryGenders);
 
 const declensionsSchema = z
   .object({

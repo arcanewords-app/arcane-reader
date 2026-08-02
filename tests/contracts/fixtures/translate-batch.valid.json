@@ -1,0 +1,10 @@
+{
+  "chapterIds": ["ch-1", "ch-2"],
+  "translateOnlyEmpty": true,
+  "translateChapterTitles": true,
+  "languagePair": {
+    "sourceLanguage": "en",
+    "targetLanguage": "ru"
+  },
+  "stages": "all"
+}

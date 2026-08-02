@@ -1,0 +1,4 @@
+{
+  "types": ["character", "location", "term"],
+  "genders": ["male", "female", "neutral", "unknown"]
+}

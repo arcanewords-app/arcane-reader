@@ -133,6 +133,18 @@ Unit has floors + mutation. Component/contract need a **gap finder** (not floors
 
 Script: `scripts/gen-layer-gaps.mjs`. Reuse prior coverage: `npm run test:gaps -- --reuse`. Always exit 0.
 
+### Deepen wave — component + contract (**done** 2026-08-02)
+
+Gap-driven close of high-ROI presence + enum/schema holes (still advisory; no layer floors):
+
+| KPI                    | From    | To                                         |
+| ---------------------- | ------- | ------------------------------------------ |
+| Component suite / gaps | 26 / 95 | **36 / 85** (130 CLIENT_SCOPE, 7 deferred) |
+| Enum-sync              | 4 / 9   | **9 / 9**                                  |
+| Schemas with fixtures  | 8 / 72  | **15 / 72**                                |
+
+Picks from `reports/layer-gaps.json` (CatalogFilterToolbar, badges/stars, auth/upgrade, ServiceStatusBanner; chapter/glossary/interest/entity/languages enums; glossary-create / project-languages / translate-batch / interest-update). Numbers in [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).

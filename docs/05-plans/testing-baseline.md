@@ -38,15 +38,15 @@ Policy SSOT: [[_canonical/rules/testing]]. Full pyramid: [[05-plans/testing-stra
 
 Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) is in pre-push.
 
-## Test suite (2026-08-02, post Wave 9)
+## Test suite (2026-08-02, post component/contract deepen)
 
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **26** files / **64** tests (`npm run test:component`; +15 snaps)                 |
+| Component suite             | **36** files / **89** tests (`npm run test:component`)                            |
 | Mock-integration suite      | **9** files / **44** tests (`npm run test:integration`)                           |
-| Contract suite              | **13** files / **18** tests (`npm run test:contract`)                             |
-| Co-located `*.test.tsx`     | **21**                                                                            |
+| Contract suite              | **22** files / **32** tests (`npm run test:contract`)                             |
+| Co-located `*.test.tsx`     | **31**                                                                            |
 | Co-located `*.hook.test.ts` | **5**                                                                             |
 | Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
@@ -119,14 +119,14 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 
 ## Wave completion
 
-| Wave                     | Status         | Deliverables                                                                    |
-| ------------------------ | -------------- | ------------------------------------------------------------------------------- |
-| 0–5                      | Done           | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                  |
-| **6 — Component**        | **Done**       | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes       |
-| **7 — Mock integration** | **Done**       | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest 4.0.8 wrappers |
-| **8 — Snapshot**         | **Done**       | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps        |
-| **9 — Contract Phase 1** | **Done**       | Zod fixtures + enum sync; 13 files / 18 tests; pre-push `test:contract`         |
-| 10 — Live + E2E          | **Blocked Q4** | requires dedicated test environment; `tests/e2e/README.md`                      |
+| Wave                     | Status         | Deliverables                                                                     |
+| ------------------------ | -------------- | -------------------------------------------------------------------------------- |
+| 0–5                      | Done           | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                   |
+| **6 — Component**        | **Done**       | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes        |
+| **7 — Mock integration** | **Done**       | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest 4.0.8 wrappers  |
+| **8 — Snapshot**         | **Done**       | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps         |
+| **9 — Contract Phase 1** | **Done**       | Zod fixtures + enum sync; deepen → 22 files / 32 tests; pre-push `test:contract` |
+| 10 — Live + E2E          | **Blocked Q4** | requires dedicated test environment; `tests/e2e/README.md`                       |
 
 ## Mutation testing (Stryker)
 
@@ -164,7 +164,16 @@ npm run test:component:coverage   # CLIENT_SCOPE html/json only
 npm run test:contract:coverage    # advisory Zod schema v8 only
 ```
 
-Refresh gap counts after component/contract deepen PRs; do **not** fold into unit floors 77/65.
+### Post deepen wave (`test:gaps`, 2026-08-02)
+
+| Layer     | Metric                                      | Before deepen     | After deepen          |
+| --------- | ------------------------------------------- | ----------------- | --------------------- |
+| Component | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 26 / 95 / 7 | **130 / 36 / 85 / 7** |
+| Component | v8 lines (advisory, component suite)        | —                 | **~7.14%**            |
+| Contract  | schemas with fixtures / total               | 8 / 72            | **15 / 72**           |
+| Contract  | enum-sync covered / targets                 | 4 / 9             | **9 / 9**             |
+
+Deepen delivered CatalogFilterToolbar, status/rating presentational, TokenLimitWarning, LoginForm, RatePublicationModal, RatingSummary, UpgradeScreen, AiReplaceUpgradeModal, ServiceStatusBanner; enum-sync remaining 5 + API fixtures (glossary-create, project-languages, translate-batch, interest-update). Still **advisory** — do **not** fold into unit floors 77/65 or husky.
 
 ## Policy
 

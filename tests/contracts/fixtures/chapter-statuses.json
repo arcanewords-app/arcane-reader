@@ -1,0 +1,3 @@
+{
+  "statuses": ["pending", "translating", "analyzed", "draft", "partial", "completed", "error"]
+}

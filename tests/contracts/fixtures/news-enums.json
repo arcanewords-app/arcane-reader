@@ -1,5 +1,6 @@
 {
   "categories": ["feature", "discount", "update", "other"],
   "statuses": ["draft", "published", "archived"],
-  "variants": ["info", "promo", "neutral"]
+  "variants": ["info", "promo", "neutral"],
+  "minRoles": ["guest", "user", "author", "author_plus", "super_author", "admin"]
 }

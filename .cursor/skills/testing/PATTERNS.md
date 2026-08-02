@@ -150,6 +150,12 @@ vi.mock('./useTokenLimitCheck.js', () => ({
 
 **SettingsModal smoke:** `@src/client/components/Sidebar/SettingsModal.test.tsx` — mock `react-i18next`, `ProjectLanguagePairFields`, assert title/close/Escape.
 
+**Catalog toolbar / chips:** `@src/client/components/Home/CatalogFilterToolbar.test.tsx` — chip toggle + clear; mock i18n; do not mount `HomePage`.
+
+**Presentational + snap:** `@src/client/components/Home/PublicationStatusBadge.test.tsx`, `@src/client/components/Publication/PublicationRatingStars.test.tsx`.
+
+**Auth / upgrade / health:** `LoginForm.test.tsx`, `UpgradeScreen.test.tsx`, `AiReplaceUpgradeModal.test.tsx`, `ServiceStatusBanner.test.tsx` — mock auth / `useUserRole` / `ServiceHealthContext`.
+
 **Publication filters (pure):** `@src/client/utils/publicationChapterFilters.test.ts` — prefer extract over mounting `PublicationPage`.
 
 **Page smoke:** `@src/client/pages/AboutPage.test.tsx` — mock `useStaticPageMeta` + i18n; assert `heading` level 1.
@@ -208,7 +214,7 @@ Live Supabase integration: `tests/integration/supabase/README.md` — blocked un
 
 ## Contract (Wave 9 Phase 1)
 
-**Exemplars:** `@tests/contracts/api/news-create.contract.test.ts`, `@tests/contracts/client-server/news-enums.contract.test.ts`
+**Exemplars:** `@tests/contracts/api/news-create.contract.test.ts`, `@tests/contracts/api/glossary-create.contract.test.ts`, `@tests/contracts/client-server/news-enums.contract.test.ts`, `@tests/contracts/client-server/chapter-status.contract.test.ts`
 
 ```typescript
 import { newsCreateSchema } from '../../../src/api/schemas/news.js';
@@ -220,7 +226,7 @@ it('accepts a valid create body fixture', () => {
 });
 ```
 
-**Client ↔ server enums:** freeze arrays in `fixtures/*.json`, assert equal to Zod `as const` exports and client union literals.
+**Client ↔ server enums:** freeze arrays in `fixtures/*.json`, assert equal to Zod `as const` exports and client union literals. Enum-sync targets (9/9) are listed in `scripts/gen-layer-gaps.mjs` `ENUM_SYNC_TARGETS` — inventory via `npm run test:gaps`.
 
 - Fixtures: `tests/contracts/fixtures/*.json` via `loadFixture`
 - Happy path + 1–2 reject fixtures — do not duplicate full schema unit suites
@@ -230,9 +236,9 @@ it('accepts a valid create body fixture', () => {
 
 ## Snapshot (Wave 8)
 
-Vitest `toMatchSnapshot()` for **stable presentational** markup only (`ui/*`, `EntityCard`, `TagChip`). Co-located `__snapshots__/` next to the test. Single happy-dom viewport — no breakpoint matrix.
+Vitest `toMatchSnapshot()` for **stable presentational** markup only (`ui/*`, `EntityCard`, `TagChip`, status badges, rating stars). Co-located `__snapshots__/` next to the test. Single happy-dom viewport — no breakpoint matrix.
 
-**Exemplar:** `@src/client/components/ui/Button.test.tsx`, `@src/client/components/EntityCard/EntityCard.test.tsx`
+**Exemplar:** `@src/client/components/ui/Button.test.tsx`, `@src/client/components/EntityCard/EntityCard.test.tsx`, `@src/client/components/Home/PublicationStatusBadge.test.tsx`
 
 ```typescript
 it('matches snapshot for primary button', () => {

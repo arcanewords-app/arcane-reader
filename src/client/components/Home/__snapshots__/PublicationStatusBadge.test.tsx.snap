@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PublicationStatusBadge > renders complete status 1`] = `
+<span
+  aria-label="publication.statusBadgeAria.complete"
+  class="publication-status-badge publication-status-badge--complete"
+>
+  publication.statusBadge.complete
+</span>
+`;

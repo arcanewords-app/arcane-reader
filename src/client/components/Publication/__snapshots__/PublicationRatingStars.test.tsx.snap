@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PublicationRatingStars > renders star icons for avg=4 1`] = `
+<span
+  aria-hidden="true"
+  class="publication-rating-stars publication-rating-stars--md"
+>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-md is-filled"
+  >
+    star
+  </span>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-md is-filled"
+  >
+    star
+  </span>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-md is-filled"
+  >
+    star
+  </span>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-md is-filled"
+  >
+    star
+  </span>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-md is-empty"
+  >
+    star_border
+  </span>
+</span>
+`;

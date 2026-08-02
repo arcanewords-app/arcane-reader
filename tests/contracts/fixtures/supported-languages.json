@@ -1,0 +1,4 @@
+{
+  "source": ["en", "ko", "zh", "ru"],
+  "target": ["ru", "be"]
+}
