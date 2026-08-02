@@ -1,27 +1,35 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'preact/hooks';
 import type { ChapterListItem, ProjectSearchMatch, TextBlockType } from '../../types';
 import { api } from '../../api/client';
-import {
-  dedupeParagraphMatches,
-  filterProjectMatches,
-  paragraphMatchKey,
-  replaceInText,
-} from '../../utils/search-utils';
+import { dedupeParagraphMatches, filterProjectMatches } from '../../utils/search-utils';
 import { bulkReplaceParagraphsChunked } from './bulkReplaceChunked';
 import type { ReplacePreviewItem } from './ReplacePreviewModal';
+import {
+  PROJECT_SEARCH_DEBOUNCE_MS,
+  buildLiteralPreviewItems,
+  buildRetryPreviewItems,
+  computeCanAiReplace,
+  computeCanReplace,
+  computeIsDirty,
+  computeIsSearchPending,
+  computeLoadingFlags,
+  countSelectedVisible,
+  filterSelectedMatches,
+  includeKeyInExcluded,
+  isAbortError,
+  mergeSearchMatches,
+  parseChapterBound,
+  searchErrorMessage,
+  searchOptionsChanged,
+  selectionKeysFromMatches,
+  shouldLoadMore,
+  showLargeProjectHint,
+  toggleKeyInSet,
+  translatedMatchesOnly,
+  visibleMatchKeys,
+} from './projectSearchCore';
 
-const PROJECT_SEARCH_DEBOUNCE_MS = 600;
-
-export function parseChapterBound(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const n = Number(trimmed);
-  return Number.isFinite(n) && n > 0 ? n : undefined;
-}
-
-function isAbortError(err: unknown): boolean {
-  return err instanceof DOMException && err.name === 'AbortError';
-}
+export { parseChapterBound } from './projectSearchCore';
 
 export interface UseProjectSearchOptions {
   projectId: string;
@@ -165,23 +173,18 @@ export function useProjectSearch({
 
         if (requestId !== requestGenRef.current) return;
 
-        setRawMatches((prev) => (append ? [...prev, ...result.matches] : result.matches));
+        setRawMatches((prev) => mergeSearchMatches(prev, result.matches, append));
         setHasMore(result.hasMore);
         setNextOffset(result.nextOffset);
 
         if (!append && resetSelection) {
-          const keys = new Set(
-            dedupeParagraphMatches(result.matches).map((m) =>
-              paragraphMatchKey(m.chapterId, m.paragraphId)
-            )
-          );
-          setSelectedKeys(keys);
+          setSelectedKeys(selectionKeysFromMatches(dedupeParagraphMatches(result.matches)));
           setExcludedKeys(new Set());
           setSelectionTouched(false);
         }
       } catch (err) {
         if (isAbortError(err) || requestId !== requestGenRef.current) return;
-        setError(err instanceof Error ? err.message : 'Search failed');
+        setError(searchErrorMessage(err));
         if (!append) setRawMatches([]);
       } finally {
         if (requestId === requestGenRef.current) {
@@ -225,14 +228,11 @@ export function useProjectSearch({
   useEffect(() => {
     if (!isOpen || !debouncedQuery) return;
     const prev = searchOptionsRef.current;
-    if (
-      prev.caseSensitive === caseSensitive &&
-      prev.wholeWord === wholeWord &&
-      prev.isOriginalReadingMode === isOriginalReadingMode
-    ) {
+    const next = { caseSensitive, wholeWord, isOriginalReadingMode };
+    if (!searchOptionsChanged(prev, next)) {
       return;
     }
-    searchOptionsRef.current = { caseSensitive, wholeWord, isOriginalReadingMode };
+    searchOptionsRef.current = next;
     void performSearchRef.current(
       debouncedQuery,
       debouncedParsedChapterFrom,
@@ -256,13 +256,20 @@ export function useProjectSearch({
     }
   }, [isOpen]);
 
-  const isSearchPending =
-    query.trim() !== debouncedQuery ||
-    chapterFrom.trim() !== debouncedChapterFrom ||
-    chapterTo.trim() !== debouncedChapterTo;
+  const isSearchPending = computeIsSearchPending({
+    query,
+    debouncedQuery,
+    chapterFrom,
+    debouncedChapterFrom,
+    chapterTo,
+    debouncedChapterTo,
+  });
 
-  const initialLoading = loading && rawMatches.length === 0;
-  const refreshing = (loading || isSearchPending) && rawMatches.length > 0;
+  const { initialLoading, refreshing } = computeLoadingFlags({
+    loading,
+    isSearchPending,
+    matchCount: rawMatches.length,
+  });
 
   const dedupedMatches = useMemo(() => dedupeParagraphMatches(rawMatches), [rawMatches]);
 
@@ -282,30 +289,26 @@ export function useProjectSearch({
   ]);
 
   const visibleKeys = useMemo(
-    () =>
-      filteredMatches
-        .map((m) => paragraphMatchKey(m.chapterId, m.paragraphId))
-        .filter((k) => !excludedKeys.has(k)),
+    () => visibleMatchKeys(filteredMatches, excludedKeys),
     [filteredMatches, excludedKeys]
   );
 
   const selectedVisibleCount = useMemo(
-    () => visibleKeys.filter((k) => selectedKeys.has(k)).length,
+    () => countSelectedVisible(visibleKeys, selectedKeys),
     [visibleKeys, selectedKeys]
   );
 
   const translatedMatches = useMemo(
-    () => filteredMatches.filter((m) => m.field === 'translated'),
+    () => translatedMatchesOnly(filteredMatches),
     [filteredMatches]
   );
 
   const getSelectedMatches = useCallback(
     (allNonExcluded: boolean) => {
-      return translatedMatches.filter((m) => {
-        const key = paragraphMatchKey(m.chapterId, m.paragraphId);
-        if (excludedKeys.has(key)) return false;
-        if (allNonExcluded) return true;
-        return selectedKeys.has(key);
+      return filterSelectedMatches(translatedMatches, {
+        excludedKeys,
+        selectedKeys,
+        allNonExcluded,
       });
     },
     [translatedMatches, excludedKeys, selectedKeys]
@@ -313,24 +316,11 @@ export function useProjectSearch({
 
   const buildPreviewItems = useCallback(
     (matches: ProjectSearchMatch[]): ReplacePreviewItem[] => {
-      if (!debouncedQuery || !replace.trim() || replace.trim() === debouncedQuery) return [];
-      const items: ReplacePreviewItem[] = [];
-      for (const m of matches) {
-        const after = replaceInText(m.fullText, debouncedQuery, replace, true, caseSensitive);
-        if (after !== m.fullText) {
-          items.push({
-            paragraphId: m.paragraphId,
-            paragraphIndex: m.paragraphIndex,
-            chapterId: m.chapterId,
-            chapterNumber: m.chapterNumber,
-            before: m.fullText,
-            after,
-            find: debouncedQuery,
-            caseSensitive,
-          });
-        }
-      }
-      return items;
+      return buildLiteralPreviewItems(matches, {
+        find: debouncedQuery,
+        replace,
+        caseSensitive,
+      });
     },
     [debouncedQuery, replace, caseSensitive]
   );
@@ -362,21 +352,23 @@ export function useProjectSearch({
     setPreviewSource('literal');
   }, []);
 
-  const canAiReplace =
-    !isOriginalReadingMode &&
-    !!debouncedQuery &&
-    selectedVisibleCount > 0 &&
-    getSelectedMatches(false).length > 0 &&
-    !isSearchPending &&
-    !loading;
+  const canAiReplace = computeCanAiReplace({
+    isOriginalReadingMode,
+    debouncedQuery,
+    selectedVisibleCount,
+    selectedMatchCount: getSelectedMatches(false).length,
+    isSearchPending,
+    loading,
+  });
 
-  const canReplace =
-    !isOriginalReadingMode &&
-    !!debouncedQuery &&
-    replace.trim() !== debouncedQuery &&
-    translatedMatches.length > 0 &&
-    !isSearchPending &&
-    !loading;
+  const canReplace = computeCanReplace({
+    isOriginalReadingMode,
+    debouncedQuery,
+    replace,
+    translatedMatchCount: translatedMatches.length,
+    isSearchPending,
+    loading,
+  });
 
   const runSearch = useCallback(
     (append = false, offset = 0, resetSelection = false) => {
@@ -445,30 +437,16 @@ export function useProjectSearch({
 
   const retryFailed = useCallback(async () => {
     if (pendingRetryUpdates.length === 0) return;
-    const retryItems: ReplacePreviewItem[] = pendingRetryUpdates.map((u) => {
-      const m = translatedMatches.find((x) => x.paragraphId === u.paragraphId);
-      return {
-        paragraphId: u.paragraphId,
-        paragraphIndex: m?.paragraphIndex ?? 0,
-        chapterId: u.chapterId,
-        chapterNumber: m?.chapterNumber ?? 0,
-        before: m?.fullText ?? '',
-        after: u.translatedText,
-        find: debouncedQuery,
-        caseSensitive,
-      };
+    const retryItems = buildRetryPreviewItems(pendingRetryUpdates, translatedMatches, {
+      find: debouncedQuery,
+      caseSensitive,
     });
     await applyReplace(retryItems);
   }, [pendingRetryUpdates, translatedMatches, debouncedQuery, caseSensitive, applyReplace]);
 
   const toggleSelected = useCallback((key: string) => {
     setSelectionTouched(true);
-    setSelectedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setSelectedKeys((prev) => toggleKeyInSet(prev, key));
   }, []);
 
   const selectAllVisible = useCallback(() => {
@@ -483,39 +461,36 @@ export function useProjectSearch({
 
   const excludeKey = useCallback((key: string) => {
     setSelectionTouched(true);
-    setExcludedKeys((prev) => new Set(prev).add(key));
     setSelectedKeys((prev) => {
       const next = new Set(prev);
       next.delete(key);
       return next;
     });
+    setExcludedKeys((prev) => new Set(prev).add(key));
   }, []);
 
   const includeKey = useCallback((key: string) => {
-    setExcludedKeys((prev) => {
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
+    setExcludedKeys((prev) => includeKeyInExcluded(prev, key));
   }, []);
 
-  const isDirty =
-    !!query.trim() ||
-    !!replace.trim() ||
-    excludedKeys.size > 0 ||
-    selectionTouched ||
-    !!filterQuery.trim() ||
-    !!chapterFrom.trim() ||
-    !!chapterTo.trim() ||
-    !!textBlockType ||
-    caseSensitive ||
-    wholeWord;
+  const isDirty = computeIsDirty({
+    query,
+    replace,
+    excludedCount: excludedKeys.size,
+    selectionTouched,
+    filterQuery,
+    chapterFrom,
+    chapterTo,
+    textBlockType,
+    caseSensitive,
+    wholeWord,
+  });
 
   const loadMore = useCallback(() => {
-    if (!hasMore || nextOffset == null || loadingMore) return;
+    if (!shouldLoadMore({ hasMore, nextOffset, loadingMore })) return;
     void performSearch(debouncedQuery, debouncedParsedChapterFrom, debouncedParsedChapterTo, {
       append: true,
-      offset: nextOffset,
+      offset: nextOffset!,
       resetSelection: false,
     });
   }, [
@@ -527,8 +502,6 @@ export function useProjectSearch({
     debouncedParsedChapterFrom,
     debouncedParsedChapterTo,
   ]);
-
-  const showLargeProjectHint = chapters.length > 200;
 
   return {
     query,
@@ -591,6 +564,6 @@ export function useProjectSearch({
     pendingRetryUpdates,
     isDirty,
     isOriginalReadingMode,
-    showLargeProjectHint,
+    showLargeProjectHint: showLargeProjectHint(chapters.length),
   };
 }

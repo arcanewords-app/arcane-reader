@@ -15,7 +15,7 @@ npm run test:contract        # contract fixtures (Wave 9)
 npm run test:e2e             # placeholder until Playwright + test env
 npm run test:all             # unit + slow + component + integration + contract
 npm run test:watch           # watch mode
-npm run test:coverage        # HTML + summary; floors lines 64 / branches 54 (coverage/ gitignored)
+npm run test:coverage        # HTML + summary; floors lines 77 / branches 65 (coverage/ gitignored)
 npm run test:mutation        # Stryker mutation — manual/nightly only (hours; break: null)
 npx stryker run --mutate src/engine/glossary/glossary-filter.ts   # mutation smoke
 npm run test -- src/engine/glossary   # focused directory (prefer npm run test over raw npx on Windows)
@@ -34,7 +34,7 @@ Inventory: `node scripts/gen-test-inventory.mjs` (after coverage run).
 
 | Mechanism              | Policy                                                                                                                                   |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **64**, branches **54**. Enforced by `npm run test:coverage` only — **not** pre-push. |
+| Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **77**, branches **65**. Enforced by `npm run test:coverage` only — **not** pre-push. |
 | Stryker                | `high: 80`, `low: 60`, `break: null` — advisory bands; never fails the build                                                             |
 
 If coverage drops below floors, fix tests or lower floors **deliberately** in the same PR.

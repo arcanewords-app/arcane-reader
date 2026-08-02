@@ -28,6 +28,7 @@ import {
   getTokenUsageHistory,
   getUserTokenUsage,
   incrementTokenUsage,
+  releaseTokens,
   reserveTokens,
 } from './tokenLimits.js';
 
@@ -287,5 +288,72 @@ describe('incrementTokenUsage', () => {
     assert.equal(mockRpc.mock.calls[0]?.[0], 'increment_token_usage_atomic');
     assert.equal(mockRedisDelMany.mock.calls.length, 1);
     assert.equal(mockFrom.mock.calls.length, 0);
+  });
+
+  it('falls back to upsert when RPC fails', async () => {
+    mockRpc.mockResolvedValue({ error: { message: 'fn missing' } });
+    mockFrom.mockReturnValue(
+      chainable({
+        data: {
+          tokens_used: 100,
+          tokens_by_stage: { analysis: 0, translation: 100, editing: 0 },
+        },
+        error: null,
+      })
+    );
+
+    await incrementTokenUsage('user-1', VALID_TOKEN, 50, { translation: 50 });
+
+    const upsertCall = mockFrom.mock.results[0]?.value?.upsert as ReturnType<typeof vi.fn>;
+    assert.equal(upsertCall.mock.calls[0]?.[0]?.tokens_used, 150);
+    assert.equal(mockRedisDelMany.mock.calls.length, 1);
+  });
+});
+
+describe('releaseTokens', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('decrements blocked tokens and applies actual usage', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: {
+          tokens_used: 1000,
+          tokens_blocked: 500,
+          tokens_by_stage: { analysis: 0, translation: 1000, editing: 0 },
+        },
+        error: null,
+      })
+    );
+
+    await releaseTokens('user-1', 200, {
+      tokensActual: 80,
+      tokensByStage: { analysis: 0, translation: 80, editing: 0 },
+      useServiceRole: true,
+    });
+
+    const upsertCall = mockFrom.mock.results[0]?.value?.upsert as ReturnType<typeof vi.fn>;
+    assert.equal(upsertCall.mock.calls[0]?.[0]?.tokens_blocked, 300);
+    assert.equal(upsertCall.mock.calls[0]?.[0]?.tokens_used, 1080);
+    assert.equal(mockRedisDelMany.mock.calls.length, 1);
+  });
+
+  it('clamps blocked tokens at zero when releasing more than reserved', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: {
+          tokens_used: 0,
+          tokens_blocked: 10,
+          tokens_by_stage: { analysis: 0, translation: 0, editing: 0 },
+        },
+        error: null,
+      })
+    );
+
+    await releaseTokens('user-1', 50, { useServiceRole: true });
+
+    const upsertCall = mockFrom.mock.results[0]?.value?.upsert as ReturnType<typeof vi.fn>;
+    assert.equal(upsertCall.mock.calls[0]?.[0]?.tokens_blocked, 0);
   });
 });

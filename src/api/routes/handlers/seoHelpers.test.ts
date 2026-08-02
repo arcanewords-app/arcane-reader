@@ -5,7 +5,10 @@ import { staticPageDocumentTitle } from '../../../shared/staticPageMeta.js';
 import {
   getPublicBaseUrl,
   injectBreadcrumbJsonLd,
+  injectNewsArticleJsonLd,
+  injectNewsContent,
   injectOrganizationJsonLd,
+  injectPublicationContent,
   injectPublicationJsonLd,
   injectPublicationMeta,
   injectStaticPageMeta,
@@ -321,5 +324,129 @@ describe('injectPublicationJsonLd', () => {
     assert.equal(book.author, undefined);
     assert.equal(book.translator, undefined);
     assert.equal(book.numberOfPages, undefined);
+  });
+
+  it('includes author, translator, relative image, and page count', () => {
+    const html = injectPublicationJsonLd(sampleIndexHtml(), {
+      title: 'My Novel',
+      description: 'A great story',
+      url: 'https://arcane.example/p/my-novel',
+      imageUrl: 'covers/a.jpg',
+      authorDisplay: 'Author',
+      translatorDisplay: 'Translator',
+      targetLanguage: 'be',
+      numberOfPages: 10,
+    });
+    const [book] = extractJsonLd(html) as Array<Record<string, unknown>>;
+    assert.deepEqual(book.author, { '@type': 'Person', name: 'Author' });
+    assert.deepEqual(book.translator, { '@type': 'Person', name: 'Translator' });
+    assert.equal(book.image, 'https://arcane.example/covers/a.jpg');
+    assert.equal(book.numberOfPages, 10);
+  });
+});
+
+describe('injectPublicationContent', () => {
+  it('injects visible SEO content with author/translator and download link', () => {
+    const long = 'x'.repeat(450);
+    const html = injectPublicationContent(sampleIndexHtml(), {
+      title: 'My Novel',
+      description: long,
+      authorDisplay: 'Author',
+      translatorDisplay: 'Translator',
+      pageUrl: 'https://arcane.example/p/my-novel',
+      publicationUrl: 'https://arcane.example/p/my-novel',
+      hasExport: true,
+    });
+    assert.match(html, /publication-page-seo/);
+    assert.match(html, /Автор: Author/);
+    assert.match(html, /Переводчик: Translator/);
+    assert.match(html, /#download/);
+    assert.match(html, /\.\.\./);
+  });
+
+  it('omits download link and meta line when no export/author', () => {
+    const html = injectPublicationContent(sampleIndexHtml(), {
+      title: 'My Novel',
+      description: 'Short',
+      authorDisplay: null,
+      translatorDisplay: null,
+      pageUrl: 'https://arcane.example/p/my-novel',
+      publicationUrl: 'https://arcane.example/p/my-novel',
+      hasExport: false,
+    });
+    assert.doesNotMatch(html, /#download/);
+    assert.doesNotMatch(html, /publication-page-seo-meta/);
+  });
+});
+
+describe('injectNewsArticleJsonLd / injectNewsContent', () => {
+  it('injects NewsArticle schema with optional datePublished', () => {
+    const withDate = injectNewsArticleJsonLd(sampleIndexHtml(), {
+      title: 'Hello',
+      description: 'Summary',
+      url: 'https://arcane.example/news/hello',
+      datePublished: '2026-01-01T00:00:00Z',
+      dateModified: '2026-01-02T00:00:00Z',
+    });
+    const [article] = extractJsonLd(withDate) as Array<Record<string, unknown>>;
+    assert.equal(article['@type'], 'NewsArticle');
+    assert.equal(article.datePublished, '2026-01-01T00:00:00Z');
+
+    const withoutDate = injectNewsArticleJsonLd(sampleIndexHtml(), {
+      title: 'Hello',
+      description: 'Summary',
+      url: 'https://arcane.example/news/hello',
+      datePublished: null,
+      dateModified: '2026-01-02T00:00:00Z',
+    });
+    const [article2] = extractJsonLd(withoutDate) as Array<Record<string, unknown>>;
+    assert.equal(article2.datePublished, undefined);
+  });
+
+  it('injects truncated news content for crawlers', () => {
+    const html = injectNewsContent(sampleIndexHtml(), {
+      title: 'Hello',
+      summary: 'y'.repeat(450),
+      pageUrl: 'https://arcane.example/news/hello',
+    });
+    assert.match(html, /news-page-seo/);
+    assert.match(html, /\.\.\./);
+    assert.match(html, /Читать на Arcane/);
+  });
+});
+
+describe('injectPublicationMeta / injectStaticPageMeta edge branches', () => {
+  it('updates existing og:url and twitter:image when present', () => {
+    const withUrl = sampleIndexHtml().replace(
+      '<meta property="og:type" content="website" />',
+      '<meta property="og:url" content="https://old.example/" />\n    <meta property="og:type" content="website" />'
+    );
+    const html = injectPublicationMeta(withUrl, {
+      title: 'My Novel',
+      description: 'A great story',
+      imageUrl: 'https://cdn.example/cover.jpg',
+      pageUrl: 'https://arcane.example/p/my-novel',
+    });
+    assert.match(html, /og:url" content="https:\/\/arcane\.example\/p\/my-novel"/);
+  });
+
+  it('inserts twitter:image and canonical when missing', () => {
+    const bare = `<!doctype html><html><head>
+<title>Default Title</title>
+<meta name="description" content="default description" />
+<meta property="og:title" content="OG Default" />
+<meta property="og:description" content="OG default description" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://old.example/arcane_icon.png" />
+<meta name="twitter:title" content="TW Default" />
+<meta name="twitter:description" content="TW default description" />
+</head><body><div id="app"></div></body></html>`;
+    const html = injectStaticPageMeta(bare, {
+      title: 'About',
+      description: 'About page',
+      pageUrl: 'not-a-url',
+    });
+    assert.match(html, /twitter:image/);
+    assert.match(html, /rel="canonical"/);
   });
 });

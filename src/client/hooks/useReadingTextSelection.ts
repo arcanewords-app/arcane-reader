@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { RefObject } from 'preact';
+import { getSelectionSnapshotInContainer } from '../utils/readingSelection';
 import {
-  getSelectionSnapshotInContainer,
-  type ReadingSelectionSnapshot,
-} from '../utils/readingSelection';
+  SELECTION_DEBOUNCE_MS,
+  mergeSelectionOnScroll,
+  selectionStateFromSnapshot,
+  shouldIgnoreDisabledSelection,
+  type ReadingTextSelectionState,
+} from './readingTextSelectionCore.js';
 
-const SELECTION_DEBOUNCE_MS = 100;
-
-export interface ReadingTextSelectionState {
-  text: string;
-  rect: DOMRect;
-  wasTruncated: boolean;
-}
+export type { ReadingTextSelectionState };
 
 interface UseReadingTextSelectionOptions {
   enabled: boolean;
@@ -29,26 +27,25 @@ export function useReadingTextSelection({
   const lastSelectionRef = useRef<string>('');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const applySnapshot = useCallback((snapshot: ReadingSelectionSnapshot | null) => {
-    if (!snapshot) {
-      setSelectionState(null);
-      return;
-    }
-    lastSelectionRef.current = snapshot.text;
-    setSelectionState({
-      text: snapshot.text,
-      rect: snapshot.rect,
-      wasTruncated: snapshot.wasTruncated,
-    });
-  }, []);
+  const applySnapshot = useCallback(
+    (snapshot: ReturnType<typeof getSelectionSnapshotInContainer>) => {
+      if (!snapshot) {
+        setSelectionState(null);
+        return;
+      }
+      lastSelectionRef.current = snapshot.text;
+      setSelectionState(selectionStateFromSnapshot(snapshot));
+    },
+    []
+  );
 
   const syncFromDom = useCallback(() => {
     const container = containerRef.current;
-    if (!enabled || !container) {
+    if (shouldIgnoreDisabledSelection(enabled, !!container)) {
       setSelectionState(null);
       return;
     }
-    applySnapshot(getSelectionSnapshotInContainer(container));
+    applySnapshot(getSelectionSnapshotInContainer(container!));
   }, [applySnapshot, containerRef, enabled]);
 
   const clearSelection = useCallback(() => {
@@ -90,15 +87,7 @@ export function useReadingTextSelection({
         setSelectionState(null);
         return;
       }
-      setSelectionState((prev) =>
-        prev
-          ? { ...prev, rect: snapshot.rect, wasTruncated: snapshot.wasTruncated }
-          : {
-              text: snapshot.text,
-              rect: snapshot.rect,
-              wasTruncated: snapshot.wasTruncated,
-            }
-      );
+      setSelectionState((prev) => mergeSelectionOnScroll(prev, snapshot));
     };
 
     container.addEventListener('pointerup', handlePointerUp);

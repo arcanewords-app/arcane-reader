@@ -100,7 +100,7 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 
 - Before **push:** `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` (enforced via `.husky/pre-push`).
 - Before **commit:** pre-commit runs lint-staged only (fast).
-- **Coverage floors:** `npm run test:coverage` enforces `coverage.thresholds` in `@vitest.config.ts` (lines **64**, branches **54** — measured floors). **Not** in pre-push.
+- **Coverage floors:** `npm run test:coverage` enforces `coverage.thresholds` in `@vitest.config.ts` (lines **77**, branches **65** — measured floors). **Not** in pre-push.
 - If a PR drops below floors, fix tests or adjust floors **deliberately** in the same PR (never silent lower).
 
 ## Coverage policy

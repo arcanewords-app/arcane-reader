@@ -250,6 +250,59 @@ describe('glossaryRouteHandlers', () => {
       );
       assert.equal(res.statusCode, 400);
     });
+
+    it('returns 401 when user missing', async () => {
+      const res = mockRes();
+      await handleImportGlossary(
+        mockReq({
+          user: undefined,
+          file: { buffer: Buffer.from('data'), originalname: 'glossary.csv' },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 401);
+    });
+
+    it('returns 404 when project not found', async () => {
+      mocks.getProject.mockResolvedValue(null);
+      const res = mockRes();
+      await handleImportGlossary(
+        mockReq({ file: { buffer: Buffer.from('data'), originalname: 'glossary.csv' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('returns 400 when too many entries', async () => {
+      mocks.getProject.mockResolvedValue({ id: 'proj-1', glossary: [] });
+      mocks.parseGlossaryImportFile.mockReturnValue({
+        entries: Array.from({ length: 5001 }, (_, i) => ({
+          original: `T${i}`,
+          translated: `Т${i}`,
+        })),
+        errors: [],
+      });
+      const res = mockRes();
+      await handleImportGlossary(
+        mockReq({ file: { buffer: Buffer.from('data'), originalname: 'glossary.csv' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+      assert.match(String((res.body as { error?: string }).error ?? ''), /Too many entries/);
+    });
+
+    it('returns 400 when Supported formats error is thrown', async () => {
+      mocks.getProject.mockResolvedValue({ id: 'proj-1', glossary: [] });
+      mocks.parseGlossaryImportFile.mockImplementation(() => {
+        throw new Error('Supported formats: csv, json');
+      });
+      const res = mockRes();
+      await handleImportGlossary(
+        mockReq({ file: { buffer: Buffer.from('data'), originalname: 'glossary.bin' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+    });
   });
 
   describe('handleCreateGlossaryEntry', () => {

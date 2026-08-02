@@ -232,4 +232,57 @@ describe('chaptersApi', () => {
     const [, init] = mockFetchJson.mock.calls[0] as [string, RequestInit];
     assert.equal(JSON.parse(init.body as string).force, true);
   });
+
+  it('covers remaining chapter mutation helpers', async () => {
+    mockFetchJson.mockResolvedValue({ ok: true });
+    await chaptersApi.transferChaptersFromProject('target', {
+      sourceProjectId: 'source',
+      chapterIds: ['c1'],
+      includeGlossary: true,
+    });
+    assert.equal(
+      (mockFetchJson.mock.calls.at(-1) as [string])[0],
+      '/api/projects/target/transfer-from'
+    );
+
+    await chaptersApi.duplicateChapters('proj-1', ['c1']);
+    assert.equal(
+      (mockFetchJson.mock.calls.at(-1) as [string])[0],
+      '/api/projects/proj-1/chapters/duplicate'
+    );
+
+    await chaptersApi.updateChapterNumber('proj-1', 'c1', 3);
+    assert.equal((mockFetchJson.mock.calls.at(-1) as [string, RequestInit])[1].method, 'PUT');
+
+    await chaptersApi.reorderChapters('proj-1', ['c2', 'c1']);
+    assert.equal(
+      (mockFetchJson.mock.calls.at(-1) as [string])[0],
+      '/api/projects/proj-1/chapters/order'
+    );
+
+    await chaptersApi.updateChapterStatus('proj-1', 'c1', 'completed');
+    await chaptersApi.cancelTranslation('proj-1', 'c1');
+    await chaptersApi.uploadChapterTranslation('proj-1', 'c1', 'text');
+    await chaptersApi.markChapterAsTranslated('proj-1', 'c1');
+    await chaptersApi.getChapterStats('proj-1', 'c1');
+    await chaptersApi.analyzeChaptersBatch('proj-1', ['c1']);
+    await chaptersApi.getAnalysisJob('proj-1', 'job-a');
+    await chaptersApi.cancelAnalysisJob('proj-1', 'job-a');
+    await chaptersApi.getImportJob('proj-1', 'job-i');
+    await chaptersApi.cancelImportJob('proj-1', 'job-i');
+
+    mockFetchFormData.mockResolvedValue({ jobId: 'job-2', status: 'queued' });
+    await chaptersApi.startImportJob('proj-1', new File(['x'], 'a.csv'), 'A');
+    assert.equal(mockFetchFormData.mock.calls.length, 1);
+
+    await chaptersApi.markChaptersAsTranslatedBatch('proj-1', ['c1'], {
+      continueOnError: false,
+      skipCacheInvalidation: true,
+    });
+    const body = JSON.parse(
+      (mockFetchJson.mock.calls.at(-1) as [string, RequestInit])[1].body as string
+    );
+    assert.equal(body.options.continueOnError, false);
+    assert.equal(body.options.skipCacheInvalidation, true);
+  });
 });

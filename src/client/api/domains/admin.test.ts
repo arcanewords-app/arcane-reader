@@ -93,4 +93,118 @@ describe('adminApi', () => {
     assert.equal(url, '/api/admin/entities/e1');
     assert.equal(init.method, 'DELETE');
   });
+
+  it('news and announcement admin helpers hit expected endpoints', async () => {
+    stubFetchJson({ id: 'n1' });
+    await adminApi.createNewsPost({ title: 'T', summary: 'S' });
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[0],
+      '/api/admin/news'
+    );
+
+    stubFetchJson({ id: 'n1' });
+    await adminApi.publishNewsPost('n1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[0],
+      '/api/admin/news/n1/publish'
+    );
+
+    stubFetchJson(undefined, 204);
+    await adminApi.deleteNewsPost('n1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/news/n1'
+    );
+
+    stubFetchJson([]);
+    await adminApi.getAdminAnnouncements();
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/announcements'
+    );
+
+    stubFetchJson({ id: 'a1' });
+    await adminApi.createAnnouncement({ message: 'hi', variant: 'info' });
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/announcements'
+    );
+
+    stubFetchJson({ id: 'a1' });
+    await adminApi.createAnnouncementFromNews('n1', { message: 'from news' });
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/announcements/from-news/n1'
+    );
+
+    stubFetchJson(undefined, 204);
+    await adminApi.deleteAnnouncement('a1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/announcements/a1'
+    );
+  });
+
+  it('admin publications/projects/translation-request helpers build queries', async () => {
+    stubFetchJson([]);
+    await adminApi.getAdminPublications({
+      status: 'published',
+      search: 'q',
+      targetLanguage: 'ru',
+      limit: 10,
+      offset: 5,
+    });
+    const pubsUrl = ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0];
+    assert.ok(pubsUrl.includes('/api/admin/publications?'));
+    assert.ok(pubsUrl.includes('status=published'));
+    assert.ok(pubsUrl.includes('targetLanguage=ru'));
+
+    stubFetchJson({ ok: true });
+    await adminApi.adminUnpublishPublication('p1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/publications/p1/unpublish'
+    );
+
+    stubFetchJson([]);
+    await adminApi.getAdminProjects({
+      search: 'x',
+      publicationStatus: 'published',
+      limit: 5,
+      offset: 0,
+    });
+    const projectsUrl = ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0];
+    assert.ok(projectsUrl.includes('publicationStatus=published'));
+
+    stubFetchJson({ ok: true });
+    await adminApi.adminDeleteProject('proj-1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[1].method,
+      'DELETE'
+    );
+
+    stubFetchJson([]);
+    await adminApi.getAdminTranslationRequests({ status: 'pending', search: 's', limit: 1 });
+    const trUrl = ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0];
+    assert.ok(trUrl.includes('/api/admin/translation-requests?'));
+    assert.ok(trUrl.includes('status=pending'));
+
+    stubFetchJson({ id: 'tr1' });
+    await adminApi.updateAdminTranslationRequest('tr1', { status: 'fulfilled', adminNotes: 'ok' });
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[1].method,
+      'PATCH'
+    );
+
+    stubFetchJson(undefined, 204);
+    await adminApi.deleteAdminTranslationRequest('tr1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[1].method,
+      'DELETE'
+    );
+
+    stubFetchJson({ usageCount: 2 });
+    const usage = await adminApi.getEntityUsage('e1');
+    assert.deepEqual(usage, { usageCount: 2 });
+  });
 });

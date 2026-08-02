@@ -665,6 +665,105 @@ describe('projectRouteHandlers', () => {
       );
       assert.equal(res.statusCode, 400);
     });
+
+    it('merges stage models, clears nullable engine keys, and applies text blocks', async () => {
+      const project = makeProject({
+        settings: {
+          temperature: 0.2,
+          stageModels: {
+            analysis: 'gpt-4.1-mini',
+            translation: 'gpt-4.1-mini',
+            editing: 'gpt-4.1-mini',
+          },
+          translateExecutionMode: 'standard',
+          chunkSize: 3000,
+        },
+      });
+      const updatedProject = makeProject({
+        settings: { ...project.settings, temperature: 0.6 },
+      });
+      mockGetProject.mockResolvedValueOnce(project).mockResolvedValueOnce(updatedProject);
+      mockUpdateProject.mockResolvedValue(updatedProject);
+      mockInvalidateUserProjectCaches.mockResolvedValue(undefined);
+      const res = mockRes();
+      await handleUpdateProjectSettings(
+        mockReq({
+          body: {
+            temperature: 0.6,
+            temperatureByStage: { translation: 0.7 },
+            stageModels: {
+              analysis: 'gpt-4.1-mini',
+              translation: 'gpt-4.1-mini',
+              editing: 'gpt-4.1-mini',
+            },
+            textBlockTypes: [
+              {
+                id: 'note',
+                name: 'Note',
+                description: '',
+                enabled: true,
+                htmlTag: 'aside',
+                cssClass: 'note',
+                isInline: false,
+              },
+            ],
+            includeTextBlockTypesInTranslation: true,
+            customInstructions: { translation: 'Keep tone', editing: 'Polish lightly' },
+            editingStylePreset: 'literary',
+            editingFocus: 'polish',
+            allowReasoningModelsForAnalysis: false,
+            translateExecutionMode: null,
+            chunkSize: null,
+            forceChunked: true,
+            enableTranslateFewShot: true,
+          },
+        }) as never,
+        res as never
+      );
+      assert.deepEqual(res.body, updatedProject.settings);
+      const saved = mockUpdateProject.mock.calls[0]?.[1]?.settings as Record<string, unknown>;
+      assert.equal(saved.temperature, 0.6);
+      assert.equal((saved.temperatureByStage as { translation?: number })?.translation, 0.7);
+      assert.equal(saved.includeTextBlockTypesInTranslation, true);
+      assert.deepEqual(saved.customInstructions, {
+        translation: 'Keep tone',
+        editing: 'Polish lightly',
+      });
+      assert.equal(saved.forceChunked, true);
+      assert.equal(saved.translateExecutionMode, undefined);
+      assert.equal(saved.chunkSize, undefined);
+      assert.equal(saved.enableTranslateFewShot, true);
+      assert.equal(saved.editingStylePreset, 'literary');
+      assert.equal(saved.editingFocus, 'polish');
+    });
+
+    it('sets legacy model when stageModels omitted', async () => {
+      const project = makeProject();
+      const updatedProject = makeProject({
+        settings: { ...project.settings, model: 'gpt-4.1-mini' },
+      });
+      mockGetProject.mockResolvedValueOnce(project).mockResolvedValueOnce(updatedProject);
+      mockUpdateProject.mockResolvedValue(updatedProject);
+      const res = mockRes();
+      await handleUpdateProjectSettings(
+        mockReq({
+          user: { id: 'user-1', role: 'admin' as const },
+          body: { model: 'gpt-4.1' },
+        }) as never,
+        res as never
+      );
+      const saved = mockUpdateProject.mock.calls[0]?.[1]?.settings as { model?: string };
+      assert.equal(saved.model, 'gpt-4.1');
+    });
+
+    it('returns 401 when user missing', async () => {
+      const res = mockRes();
+      await handleUpdateProjectSettings(
+        mockReq({ user: undefined, body: { temperature: 0.5 } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 401);
+    });
   });
 
   describe('handleUpdateProjectLanguages', () => {

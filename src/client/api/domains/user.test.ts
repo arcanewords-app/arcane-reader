@@ -119,4 +119,51 @@ describe('userApi', () => {
     assert.deepEqual(second, history);
     assert.equal((fetch as ReturnType<typeof vi.fn>).mock.calls.length, 2);
   });
+
+  it('reader settings cache hit avoids second network call', async () => {
+    const settings = { fontSize: 16 };
+    stubFetchJson(settings);
+    const first = await userApi.getUserReaderSettings();
+    const second = await userApi.getUserReaderSettings();
+    assert.deepEqual(first, settings);
+    assert.deepEqual(second, settings);
+    assert.equal((fetch as ReturnType<typeof vi.fn>).mock.calls.length, 1);
+  });
+
+  it('pseudonym and quotes helpers call expected endpoints', async () => {
+    stubFetchJson([]);
+    await userApi.getTranslatorPseudonyms({ includeHidden: true });
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/user/translator-pseudonyms?includeHidden=1'
+    );
+
+    stubFetchJson({ id: 'pseudo-1' });
+    await userApi.hideTranslatorPseudonym('pseudo-1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[1].method,
+      'POST'
+    );
+
+    stubFetchJson({ items: [] });
+    await userApi.getUserQuotes();
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/user/quotes'
+    );
+
+    stubFetchJson({ success: true });
+    await userApi.deleteUserQuote('q1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit])[0],
+      '/api/user/quotes/q1'
+    );
+
+    stubFetchJson([]);
+    await userApi.getUserPublications();
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/user/publications'
+    );
+  });
 });

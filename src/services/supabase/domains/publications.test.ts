@@ -24,20 +24,30 @@ vi.mock('../../../utils/tokenValidation.js', () => ({
 import {
   assertOwnedActiveTranslatorPseudonym,
   countActiveTranslatorPseudonymsForUser,
+  countPublicationsUsingEntity,
   createOrUpdatePublication,
   createPublicEntity,
   createTranslatorPseudonymForUser,
+  deletePublicEntity,
+  getGlossaryForPublication,
   getPublicationById,
+  getPublicationByProjectId,
   getPublicationBySlugOrId,
   getPublicationChapterContent,
   getPublicationWithChapters,
   getPublicEntityById,
+  getTranslatorPseudonymForUser,
   getUserPublications,
+  hideTranslatorPseudonymForUser,
   listPublicEntities,
   listPublicationsPublic,
   listTranslatorPseudonymsForUser,
   syncPublicationTranslationStatus,
   unpublishProject,
+  updatePublicationDisplaySettings,
+  updatePublicationExportPaths,
+  updatePublicEntity,
+  updateTranslatorPseudonymForUser,
 } from './publications.js';
 
 type ChainMethod = ReturnType<typeof vi.fn>;
@@ -55,9 +65,12 @@ function chainable(result: { data: unknown; error: unknown; count?: number }) {
     'single',
     'ilike',
     'neq',
+    'not',
+    'or',
     'maybeSingle',
     'insert',
     'update',
+    'delete',
   ]) {
     chain[m] = vi.fn(() => chain);
   }
@@ -296,6 +309,31 @@ describe('getPublicationWithChapters', () => {
     );
     const result = await getPublicationWithChapters('missing-slug');
     assert.equal(result, null);
+  });
+
+  it('returns chapters and glossary count for published publication', async () => {
+    const pubChain = chainable({ data: pubRow, error: null });
+    const chaptersChain = chainable({
+      data: [{ id: 'ch-1', number: 1, title: 'One', translated_title: 'Один' }],
+      error: null,
+    });
+    const translatedChain = chainable({ data: [{ id: 'ch-1' }], error: null });
+    const glossaryCountChain = chainable({ data: null, error: null, count: 4 });
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      if (call === 1) return pubChain;
+      if (call === 2) return chaptersChain;
+      if (call === 3) return translatedChain;
+      return glossaryCountChain;
+    });
+
+    const result = await getPublicationWithChapters('novel-slug');
+    assert.equal(result?.publication.id, 'pub-1');
+    assert.equal(result?.chapters.length, 1);
+    assert.equal(result?.chapters[0]?.hasTranslation, true);
+    assert.equal(result?.chapters[0]?.title, 'Один');
+    assert.equal(result?.glossaryCount, 4);
   });
 });
 
@@ -828,5 +866,265 @@ describe('createTranslatorPseudonymForUser', () => {
     const entity = await createTranslatorPseudonymForUser('user-1', { name: 'Alias' }, 'token');
     assert.equal(entity.name, 'Translator Alias');
     assert.equal(insertChain.insert.mock.calls.length, 1);
+  });
+});
+
+describe('updatePublicEntity', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates and maps entity', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: { ...entityRow, name: 'Updated Author' },
+        error: null,
+      })
+    );
+    const entity = await updatePublicEntity(
+      'ent-1',
+      { name: 'Updated Author', description: 'New bio' },
+      'token'
+    );
+    assert.equal(entity.name, 'Updated Author');
+  });
+
+  it('throws when entity not found', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await assert.rejects(
+      () => updatePublicEntity('missing', { name: 'X' }, 'token'),
+      /entity not found/
+    );
+  });
+
+  it('throws when update fails', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: { message: 'update fail' } }));
+    await assert.rejects(
+      () => updatePublicEntity('ent-1', { name: 'X' }, 'token'),
+      /Failed to update public entity/
+    );
+  });
+});
+
+describe('deletePublicEntity', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes entity without error', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await deletePublicEntity('ent-1', 'token');
+    assert.equal(mockFrom.mock.calls[0]?.[0], 'public_entities');
+  });
+
+  it('throws when delete fails', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: { message: 'delete fail' } }));
+    await assert.rejects(
+      () => deletePublicEntity('ent-1', 'token'),
+      /Failed to delete public entity/
+    );
+  });
+});
+
+describe('getTranslatorPseudonymForUser', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns mapped translator when found', async () => {
+    mockFrom.mockReturnValue(chainable({ data: translatorRow, error: null }));
+    const entity = await getTranslatorPseudonymForUser('user-1', 'ent-t1');
+    assert.equal(entity?.id, 'ent-t1');
+  });
+
+  it('returns null when missing', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    assert.equal(await getTranslatorPseudonymForUser('user-1', 'missing'), null);
+  });
+});
+
+describe('updateTranslatorPseudonymForUser', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates owned translator pseudonym', async () => {
+    const getChain = chainable({ data: translatorRow, error: null });
+    const updateChain = chainable({
+      data: { ...translatorRow, name: 'New Alias' },
+      error: null,
+    });
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      return call === 1 ? getChain : updateChain;
+    });
+    const entity = await updateTranslatorPseudonymForUser('user-1', 'ent-t1', {
+      name: 'New Alias',
+    });
+    assert.equal(entity.name, 'New Alias');
+  });
+
+  it('throws when pseudonym not owned', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await assert.rejects(
+      () => updateTranslatorPseudonymForUser('user-1', 'missing', { name: 'X' }),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'INVALID_TRANSLATOR_PSEUDONYM');
+        return true;
+      }
+    );
+  });
+});
+
+describe('hideTranslatorPseudonymForUser', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hides owned translator pseudonym', async () => {
+    const getChain = chainable({ data: translatorRow, error: null });
+    const hideChain = chainable({
+      data: { ...translatorRow, status: 'blocked' },
+      error: null,
+    });
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      return call === 1 ? getChain : hideChain;
+    });
+    const entity = await hideTranslatorPseudonymForUser('user-1', 'ent-t1');
+    assert.equal(entity.entityStatus, 'blocked');
+  });
+});
+
+describe('countPublicationsUsingEntity', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns usage count', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null, count: 7 }));
+    assert.equal(await countPublicationsUsingEntity('ent-1'), 7);
+  });
+
+  it('throws when count query fails', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: { message: 'count fail' } }));
+    await assert.rejects(
+      () => countPublicationsUsingEntity('ent-1'),
+      /Failed to count entity usage/
+    );
+  });
+});
+
+describe('getGlossaryForPublication', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns empty array when publication missing', async () => {
+    mockFrom.mockReturnValue(
+      chainable({ data: null, error: { code: 'PGRST116', message: 'not found' } })
+    );
+    assert.deepEqual(await getGlossaryForPublication('missing'), []);
+  });
+
+  it('loads glossary for published publication', async () => {
+    const pubChain = chainable({ data: pubRow, error: null });
+    const glossaryChain = chainable({
+      data: [
+        {
+          id: 'g1',
+          project_id: 'proj-1',
+          type: 'character',
+          original: 'Hero',
+          translated: 'Герой',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      error: null,
+    });
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call += 1;
+      return call === 1 ? pubChain : glossaryChain;
+    });
+    const entries = await getGlossaryForPublication('pub-1');
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]?.original, 'Hero');
+  });
+});
+
+describe('updatePublicationExportPaths', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates export paths for owner', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await updatePublicationExportPaths('pub-1', 'user-1', 'token', {
+      epubStoragePath: 'a.epub',
+      fb2StoragePath: 'b.fb2',
+    });
+    assert.equal(mockFrom.mock.calls[0]?.[0], 'publications');
+  });
+
+  it('throws when update fails', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: { message: 'paths fail' } }));
+    await assert.rejects(
+      () => updatePublicationExportPaths('pub-1', 'user-1', 'token', { epubStoragePath: 'a' }),
+      /Failed to update publication export paths/
+    );
+  });
+});
+
+describe('updatePublicationDisplaySettings', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates showGlossary setting', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    await updatePublicationDisplaySettings('pub-1', 'user-1', 'token', { showGlossary: false });
+    assert.equal(mockFrom.mock.calls[0]?.[0], 'publications');
+  });
+
+  it('throws when update fails', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: { message: 'display fail' } }));
+    await assert.rejects(
+      () =>
+        updatePublicationDisplaySettings('pub-1', 'user-1', 'token', {
+          translationStatus: 'ongoing',
+        }),
+      /Failed to update publication display settings/
+    );
+  });
+});
+
+describe('getPublicationByProjectId', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns publication for project owner', async () => {
+    mockFrom.mockReturnValue(chainable({ data: pubRow, error: null }));
+    const pub = await getPublicationByProjectId('proj-1', 'user-1', 'token');
+    assert.equal(pub?.id, 'pub-1');
+  });
+
+  it('returns null on PGRST116', async () => {
+    mockFrom.mockReturnValue(
+      chainable({ data: null, error: { code: 'PGRST116', message: 'not found' } })
+    );
+    assert.equal(await getPublicationByProjectId('proj-1', 'user-1', 'token'), null);
+  });
+
+  it('uses service role client when requested', async () => {
+    mockFrom.mockReturnValue(chainable({ data: pubRow, error: null }));
+    const pub = await getPublicationByProjectId('proj-1', 'user-1', 'token', {
+      useServiceRole: true,
+    });
+    assert.equal(pub?.id, 'pub-1');
   });
 });

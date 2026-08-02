@@ -105,7 +105,21 @@ Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integ
 
 Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **~4.0.8** (4.1.x breaks forks mocks on Node 24 / Windows).
 
-**Next:** Wave 10+ (blocked — dedicated test env). Phase 2 contracts (OpenAPI / Pact) deferred until service split.
+**Next:** Wave 10+ (blocked — dedicated test env). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
+
+### Coverage campaign (post–Wave 9)
+
+APP_SCOPE **unit** floors are the metric (`npm run test:coverage`). Component / mock-integration / contract suites do **not** move those %.
+
+| Phase | Target lines | Status                                                                           |
+| ----- | ------------ | -------------------------------------------------------------------------------- |
+| A     | ~70%         | **Done** — jobs, engine-integration, middleware, csv/txt, client pure            |
+| B     | ~75%         | **Done** — publication handlers/domains, seo, export helpers, client api         |
+| C     | ~78%         | **Done** at **~77.7%** lines (floors 77/65); soft ceiling without binary parsers |
+
+**Deferred (not required for campaign):** `server.ts` / `worker.ts` bootstrap; full ReadingMode UI; binary `import/fb2` + `import/epub` (+ export twins) unless golden fixtures are explicitly un-deferred; Wave 10 live E2E.
+
+After phases: remeasure → bump `coverage.thresholds` deliberately → update [[05-plans/testing-baseline]].
 
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 

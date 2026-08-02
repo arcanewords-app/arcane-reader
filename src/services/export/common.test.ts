@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { prepareProjectForExport, textToHtml } from './common.js';
+import {
+  getTranslatedText,
+  prepareProjectForExport,
+  textToHtml,
+  textToHtmlWithBlocks,
+} from './common.js';
 import type { Chapter, Project } from '../../storage/database.js';
+import { DEFAULT_TEXT_BLOCK_TYPES } from '../../engine/constants/text-block-presets.js';
 
 function makeChapter(overrides: Partial<Chapter> = {}): Chapter {
   return {
@@ -53,6 +59,44 @@ describe('textToHtml', () => {
   it('escapes title in h1', () => {
     const html = textToHtml('Body', true, 'Title <unsafe>');
     assert.match(html, /<h1>Title &lt;unsafe&gt;<\/h1>/);
+  });
+});
+
+describe('textToHtmlWithBlocks', () => {
+  it('falls back to textToHtml when no block markers or types', () => {
+    const html = textToHtmlWithBlocks('Hello', [], true, 'Ch 1');
+    assert.match(html, /<h1>Ch 1<\/h1>/);
+    assert.match(html, /<p>Hello<\/p>/);
+  });
+
+  it('returns empty paragraph for blank text', () => {
+    assert.equal(textToHtmlWithBlocks('', DEFAULT_TEXT_BLOCK_TYPES), '<p></p>');
+  });
+
+  it('wraps block markers as block-level HTML without p wrapper', () => {
+    const noteType = DEFAULT_TEXT_BLOCK_TYPES.find((t) => t.id === 'note')!;
+    const html = textToHtmlWithBlocks('{{block:note}}Aside{{/block:note}}', [noteType]);
+    assert.match(html, /class="note"/);
+    assert.match(html, /Aside/);
+    assert.doesNotMatch(html, /^<p>/);
+  });
+});
+
+describe('getTranslatedText', () => {
+  it('prefers paragraph translated text over chapter field', () => {
+    const chapter = makeChapter({
+      translatedText: 'Chapter-level',
+      paragraphs: [
+        { id: 'p1', index: 0, originalText: 'A', translatedText: 'Para A', status: 'translated' },
+        { id: 'p2', index: 1, originalText: 'B', translatedText: 'Para B', status: 'translated' },
+      ],
+    });
+    assert.equal(getTranslatedText(chapter), 'Para A\n\nPara B');
+  });
+
+  it('falls back to chapter.translatedText when paragraphs empty', () => {
+    const chapter = makeChapter({ translatedText: 'Fallback', paragraphs: [] });
+    assert.equal(getTranslatedText(chapter), 'Fallback');
   });
 });
 
@@ -134,5 +178,20 @@ describe('prepareProjectForExport', () => {
     const exported = prepareProjectForExport(project);
     assert.equal(exported.metadata?.model, 'new-model');
     assert.equal(exported.metadata?.translatedAt, '2026-02-01T00:00:00Z');
+  });
+
+  it('uses textToHtmlWithBlocks when text block types are provided', () => {
+    const noteType = DEFAULT_TEXT_BLOCK_TYPES.find((t) => t.id === 'note')!;
+    const project = makeProject([
+      makeChapter({
+        number: 1,
+        status: 'completed',
+        translatedText: '{{block:note}}Note body{{/block:note}}',
+      }),
+    ]);
+    const exported = prepareProjectForExport(project, 'Author', [noteType], false);
+    assert.equal(exported.textBlockTypes?.length, 1);
+    assert.match(exported.chapters[0]?.htmlContent ?? '', /class="note"/);
+    assert.doesNotMatch(exported.chapters[0]?.htmlContent ?? '', /<h1>/);
   });
 });

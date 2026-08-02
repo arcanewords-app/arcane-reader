@@ -232,4 +232,29 @@ describe('createAnalysisJobStoreFromEnv (redis)', () => {
     assert.equal(await store.getJob('job-1'), null);
     assert.ok(mockRedis.del.mock.calls.length >= 2);
   });
+
+  it('updateJob no-op and cancel/list/active helpers cover redis edges', async () => {
+    const store = await getStore();
+    const job = makeJob({ status: 'processing', current: 1 });
+    await store.createJob(job);
+    const same = await store.updateJob('job-1', { status: 'processing', current: 1 });
+    assert.deepEqual(same, job);
+    assert.equal(await store.updateJob('missing', { status: 'error' }), null);
+
+    await store.createJob(makeJob({ jobId: 'job-done', status: 'error' }));
+    const terminal = await store.cancelJob('job-done');
+    assert.equal(terminal?.status, 'error');
+    assert.equal(terminal?.cancelRequested, false);
+
+    await store.setUserActiveJob('user-1', 'job-1');
+    assert.equal(await store.hasActiveJobForUser('user-1'), true);
+    await store.clearUserActiveJob('user-1', 'job-1');
+    assert.equal(await store.hasActiveJobForUser('user-1'), false);
+
+    await store.setTtl('job-1', 120);
+    assert.ok(mockRedis.expire.mock.calls.length >= 1);
+
+    await mockRedis.set('analysis_job_cancel:job-1', 1);
+    assert.equal(await store.isCancelRequested('job-1'), true);
+  });
 });

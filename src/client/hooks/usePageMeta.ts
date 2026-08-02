@@ -5,11 +5,21 @@
  */
 
 import { useEffect } from 'preact/hooks';
-import { staticPageDocumentTitle } from '../../shared/staticPageMeta';
+import {
+  DEFAULT_OG_DESCRIPTION,
+  DEFAULT_PAGE_DESCRIPTION,
+  DEFAULT_PAGE_TITLE,
+  buildBookSchema,
+  buildBreadcrumbSchema,
+  buildNewsArticleSchema,
+  resolveDocumentTitle,
+  resolveMetaImageUrl,
+  type BreadcrumbItem,
+  type PageMetaInput,
+} from '../utils/pageMetaCore.js';
 
-const DEFAULT_TITLE = 'Arcane — Переводчик новелл';
-const DEFAULT_DESCRIPTION =
-  'Arcane — библиотека переводов новелл на русский и беларусский. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.';
+export type { BreadcrumbItem };
+export type PageMeta = PageMetaInput;
 
 function setMeta(attr: 'name' | 'property', key: string, content: string): void {
   let el = document.querySelector(`meta[${attr}="${key}"]`);
@@ -31,29 +41,15 @@ function setCanonical(url: string): void {
   el.setAttribute('href', url);
 }
 
-export interface BreadcrumbItem {
-  name: string;
-  url: string;
-}
-
-export interface PageMeta {
-  title: string;
-  description: string;
-  imageUrl?: string | null;
-  /** Chapter page uses shorter title suffix */
-  isChapter?: boolean;
-  /** Publication Book schema (default) or NewsArticle when 'news' */
-  schemaType?: 'book' | 'news';
-  /** For JSON-LD Book schema */
-  authorDisplay?: string | null;
-  translatorDisplay?: string | null;
-  targetLanguage?: string;
-  numberOfPages?: number;
-  /** For JSON-LD NewsArticle */
-  datePublished?: string | null;
-  dateModified?: string;
-  /** For JSON-LD BreadcrumbList */
-  breadcrumbs?: BreadcrumbItem[];
+function upsertJsonLd(key: string, schema: Record<string, unknown>): void {
+  let jsonLdEl = document.querySelector(`script[data-arcane-jsonld="${key}"]`);
+  if (!jsonLdEl) {
+    jsonLdEl = document.createElement('script');
+    jsonLdEl.setAttribute('type', 'application/ld+json');
+    jsonLdEl.setAttribute('data-arcane-jsonld', key);
+    document.head.appendChild(jsonLdEl);
+  }
+  jsonLdEl.textContent = JSON.stringify(schema);
 }
 
 /**
@@ -66,20 +62,9 @@ export function usePageMeta(meta: PageMeta | null): void {
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    const img =
-      meta.imageUrl && meta.imageUrl.startsWith('http')
-        ? meta.imageUrl
-        : `${origin}/arcane_icon.png`;
+    const img = resolveMetaImageUrl(meta.imageUrl, origin);
 
-    const titleSuffix = meta.isChapter
-      ? ' — Arcane'
-      : meta.schemaType === 'news'
-        ? ''
-        : ' — читать онлайн | Arcane';
-    document.title =
-      meta.schemaType === 'news'
-        ? staticPageDocumentTitle(meta.title)
-        : `${meta.title}${titleSuffix}`;
+    document.title = resolveDocumentTitle(meta);
     setMeta('name', 'description', meta.description);
     setMeta('property', 'og:title', meta.title);
     setMeta('property', 'og:description', meta.description);
@@ -94,94 +79,48 @@ export function usePageMeta(meta: PageMeta | null): void {
     const jsonLdKey = schemaType === 'news' ? 'news' : 'book';
 
     if (schemaType === 'news') {
-      const articleSchema: Record<string, unknown> = {
-        '@context': 'https://schema.org',
-        '@type': 'NewsArticle',
-        headline: meta.title,
-        description: meta.description,
-        url,
-        image: img,
-        publisher: {
-          '@type': 'Organization',
-          name: 'Arcane',
-          url: origin,
-        },
-        ...(meta.dateModified && { dateModified: meta.dateModified }),
-        ...(meta.datePublished && { datePublished: meta.datePublished }),
-      };
-      let jsonLdEl = document.querySelector(`script[data-arcane-jsonld="${jsonLdKey}"]`);
-      if (!jsonLdEl) {
-        jsonLdEl = document.createElement('script');
-        jsonLdEl.setAttribute('type', 'application/ld+json');
-        jsonLdEl.setAttribute('data-arcane-jsonld', jsonLdKey);
-        document.head.appendChild(jsonLdEl);
-      }
-      jsonLdEl.textContent = JSON.stringify(articleSchema);
+      upsertJsonLd(
+        jsonLdKey,
+        buildNewsArticleSchema({
+          title: meta.title,
+          description: meta.description,
+          url,
+          image: img,
+          origin,
+          datePublished: meta.datePublished,
+          dateModified: meta.dateModified,
+        })
+      );
     } else {
-      const bookSchema = {
-        '@context': 'https://schema.org',
-        '@type': 'Book',
-        name: meta.title,
-        description: meta.description,
-        url,
-        image: img,
-        ...(meta.authorDisplay && { author: { '@type': 'Person', name: meta.authorDisplay } }),
-        ...(meta.translatorDisplay && {
-          translator: { '@type': 'Person', name: meta.translatorDisplay },
-        }),
-        ...(meta.targetLanguage && { inLanguage: meta.targetLanguage }),
-        ...(meta.numberOfPages != null &&
-          meta.numberOfPages > 0 && { numberOfPages: meta.numberOfPages }),
-      };
-      let jsonLdEl = document.querySelector(`script[data-arcane-jsonld="${jsonLdKey}"]`);
-      if (!jsonLdEl) {
-        jsonLdEl = document.createElement('script');
-        jsonLdEl.setAttribute('type', 'application/ld+json');
-        jsonLdEl.setAttribute('data-arcane-jsonld', jsonLdKey);
-        document.head.appendChild(jsonLdEl);
-      }
-      jsonLdEl.textContent = JSON.stringify(bookSchema);
+      upsertJsonLd(
+        jsonLdKey,
+        buildBookSchema({
+          title: meta.title,
+          description: meta.description,
+          url,
+          image: img,
+          authorDisplay: meta.authorDisplay,
+          translatorDisplay: meta.translatorDisplay,
+          targetLanguage: meta.targetLanguage,
+          numberOfPages: meta.numberOfPages,
+        })
+      );
     }
 
     if (meta.breadcrumbs && meta.breadcrumbs.length > 0) {
-      const breadcrumbSchema = {
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: meta.breadcrumbs.map((item, i) => ({
-          '@type': 'ListItem',
-          position: i + 1,
-          name: item.name,
-          item: item.url,
-        })),
-      };
-      let breadcrumbEl = document.querySelector('script[data-arcane-jsonld="breadcrumb"]');
-      if (!breadcrumbEl) {
-        breadcrumbEl = document.createElement('script');
-        breadcrumbEl.setAttribute('type', 'application/ld+json');
-        breadcrumbEl.setAttribute('data-arcane-jsonld', 'breadcrumb');
-        document.head.appendChild(breadcrumbEl);
-      }
-      breadcrumbEl.textContent = JSON.stringify(breadcrumbSchema);
+      upsertJsonLd('breadcrumb', buildBreadcrumbSchema(meta.breadcrumbs));
     }
 
     return () => {
-      document.title = DEFAULT_TITLE;
-      setMeta('name', 'description', DEFAULT_DESCRIPTION);
+      document.title = DEFAULT_PAGE_TITLE;
+      setMeta('name', 'description', DEFAULT_PAGE_DESCRIPTION);
       setCanonical(typeof window !== 'undefined' ? window.location.href : url);
-      setMeta('property', 'og:title', DEFAULT_TITLE);
-      setMeta(
-        'property',
-        'og:description',
-        'Библиотека переводов новелл. Читайте и скачивайте переводы онлайн.'
-      );
+      setMeta('property', 'og:title', DEFAULT_PAGE_TITLE);
+      setMeta('property', 'og:description', DEFAULT_OG_DESCRIPTION);
       setMeta('property', 'og:image', `${origin}/arcane_icon.png`);
       setMeta('property', 'og:url', typeof window !== 'undefined' ? window.location.href : url);
-      setMeta('name', 'twitter:title', DEFAULT_TITLE);
-      setMeta(
-        'name',
-        'twitter:description',
-        'Библиотека переводов новелл. Читайте и скачивайте переводы онлайн.'
-      );
+      setMeta('name', 'twitter:title', DEFAULT_PAGE_TITLE);
+      setMeta('name', 'twitter:description', DEFAULT_OG_DESCRIPTION);
       setMeta('name', 'twitter:image', `${origin}/arcane_icon.png`);
       const bookEl = document.querySelector('script[data-arcane-jsonld="book"]');
       if (bookEl) bookEl.remove();

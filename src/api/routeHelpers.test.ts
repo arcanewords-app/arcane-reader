@@ -32,8 +32,9 @@ import type { ImportJobState } from '../services/importJobStore.js';
 import type { AnalysisJobState } from '../services/analysisJobStore.js';
 import type { TranslateJobState } from '../services/translateJobStore.js';
 import type { Project } from '../storage/database.js';
-import { redisDelByPattern, redisDelMany } from '../services/redisCache.js';
+import { redisDelByPattern, redisDelMany , redisGetJson, redisSetJson } from '../services/redisCache.js';
 import {
+  announcementsActiveCacheKey,
   clearTranslationProgress,
   decodeMultipartFilename,
   effectiveJobLanguageFields,
@@ -41,6 +42,7 @@ import {
   generateImportJobId,
   generateTranslateJobId,
   getTranslationProgress,
+  handleHealthCheck,
   invalidateAnnouncementCaches,
   invalidateNewsCaches,
   invalidatePublicationCaches,
@@ -48,17 +50,31 @@ import {
   invalidatePublicEntitiesCaches,
   invalidateUserProjectCaches,
   isLanguagePairOverride,
+  newsListCacheKey,
+  newsPostCacheKey,
+  projectReportsCountCacheKey,
   publicationCacheKey,
+  publicationChapterCacheKey,
+  publicationChaptersCacheKey,
+  publicationGlossaryCacheKey,
   publicationsListCacheKey,
+  publicEntitiesCacheKey,
+  publicEntityCacheKey,
+  readingHistoryCacheKey,
   sanitizeFilename,
   setTranslationProgress,
   toPublicAnalysisJob,
   toPublicImportJob,
   toPublicTranslateJob,
+  tokenUsageCacheKey,
+  tokenUsageHistoryCacheKey,
   translationCancelKey,
   userProjectCacheKey,
+  userProjectsCacheKey,
   warnLanguageOverrideWithGlossary,
+  withRedisCache,
 } from './routeHelpers.js';
+import { serviceHealthManager } from '../services/serviceHealth.js';
 
 function mockProject(overrides: Partial<Project> = {}): Project {
   return {
@@ -274,5 +290,52 @@ describe('routeHelpers pure functions', () => {
     const req = { log: { warn } };
     warnLanguageOverrideWithGlossary(req as never, mockProject(), undefined);
     assert.equal(warn.mock.calls.length, 0);
+  });
+
+  it('builds remaining cache keys', () => {
+    assert.match(userProjectsCacheKey('u1'), /u1/);
+    assert.match(publicationChaptersCacheKey('p1'), /p1/);
+    assert.match(publicationChapterCacheKey('p1', 'c1'), /c1/);
+    assert.match(publicationGlossaryCacheKey('p1'), /p1/);
+    assert.match(publicEntitiesCacheKey('author'), /author/);
+    assert.match(publicEntityCacheKey('e1'), /e1/);
+    assert.match(newsListCacheKey({ limit: 10, offset: 0, category: 'release' }), /release/);
+    assert.match(newsPostCacheKey('slug'), /slug/);
+    assert.match(announcementsActiveCacheKey('guest'), /guest/);
+    assert.match(tokenUsageCacheKey('u1', '2026-01-01'), /2026-01-01/);
+    assert.match(tokenUsageHistoryCacheKey('u1', 7), /7/);
+    assert.match(readingHistoryCacheKey('u1'), /u1/);
+    assert.match(projectReportsCountCacheKey('p1'), /p1/);
+  });
+
+  it('withRedisCache returns cached value or loads and stores', async () => {
+    vi.mocked(redisGetJson).mockResolvedValueOnce({ cached: true });
+    assert.deepEqual(await withRedisCache('k', 10, async () => ({ cached: false })), {
+      cached: true,
+    });
+
+    vi.mocked(redisGetJson).mockResolvedValueOnce(null);
+    const loaded = await withRedisCache('k2', 10, async () => ({ fresh: 1 }));
+    assert.deepEqual(loaded, { fresh: 1 });
+    assert.equal(vi.mocked(redisSetJson).mock.calls.length, 1);
+  });
+
+  it('handleHealthCheck returns health payload status codes', async () => {
+    vi.mocked(serviceHealthManager.getHealthResult).mockReturnValue({
+      status: 'ok',
+      services: {},
+      timestamp: '2026-01-01T00:00:00Z',
+    } as never);
+    const resOk = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+    await handleHealthCheck(resOk as never);
+    assert.equal(resOk.status.mock.calls[0]?.[0], 200);
+    assert.deepEqual(resOk.json.mock.calls[0]?.[0], {
+      status: 'ok',
+      services: {},
+      timestamp: '2026-01-01T00:00:00Z',
+    });
   });
 });

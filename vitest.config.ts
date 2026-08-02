@@ -45,9 +45,10 @@ export default defineConfig({
       ],
       // Floors from measured APP_SCOPE (unit suite). Not enforced in pre-push.
       // Raise deliberately with coverage gains; never silent lower.
+      // Coverage campaign Phases A–C (2026-08-02); soft ceiling ~78% without binary parsers.
       thresholds: {
-        lines: 64,
-        branches: 54,
+        lines: 77,
+        branches: 65,
       },
     },
   },

@@ -33,6 +33,11 @@ const {
   mockSyncPublicationTranslationStatus,
   mockGetActiveAnnouncementForUser,
   mockAssertOwnedActiveTranslatorPseudonym,
+  mockCreateUserQuote,
+  mockGetPublicationRatingStatus,
+  mockUpsertPublicationRating,
+  mockDeletePublicationRating,
+  MockUserQuoteError,
   mockWithRedisCache,
   mockRedisGetJson,
   mockRedisSetJson,
@@ -53,55 +58,72 @@ const {
   mockListFiles,
   mockExportProject,
   mockCreateServiceRoleClient,
-} = vi.hoisted(() => ({
-  mockGetPublicationBySlugOrId: vi.fn(),
-  mockListPublicationsPublic: vi.fn(),
-  mockListPublicEntities: vi.fn(),
-  mockGetPublicEntityById: vi.fn(),
-  mockDismissAnnouncement: vi.fn(),
-  mockCreateTranslationReport: vi.fn(),
-  mockGetProject: vi.fn(),
-  mockGetProjectFull: vi.fn(),
-  mockUpdateProject: vi.fn(),
-  mockCreateOrUpdatePublication: vi.fn(),
-  mockUpdatePublicationDisplaySettings: vi.fn(),
-  mockUpdatePublicationExportPaths: vi.fn(),
-  mockUnpublishProject: vi.fn(),
-  mockGetPublishedNewsPostByIdOrSlug: vi.fn(),
-  mockListPublishedNewsPosts: vi.fn(),
-  mockGetUserPublications: vi.fn(),
-  mockGetReadProgress: vi.fn(),
-  mockGetPublicationByProjectId: vi.fn(),
-  mockGetPublicationWithChapters: vi.fn(),
-  mockGetPublicationChapterContent: vi.fn(),
-  mockGetGlossaryForPublication: vi.fn(),
-  mockGetProjectForPublicationExport: vi.fn(),
-  mockUpdateReadProgress: vi.fn(),
-  mockResetReadProgress: vi.fn(),
-  mockSyncPublicationTranslationStatus: vi.fn(),
-  mockGetActiveAnnouncementForUser: vi.fn(),
-  mockAssertOwnedActiveTranslatorPseudonym: vi.fn(),
-  mockWithRedisCache: vi.fn(async (_key: string, _ttl: number, fn: () => Promise<unknown>) => fn()),
-  mockRedisGetJson: vi.fn(),
-  mockRedisSetJson: vi.fn(),
-  mockRedisDelMany: vi.fn(),
-  mockInvalidatePublicationCaches: vi.fn(),
-  mockInvalidatePublicationListCaches: vi.fn(),
-  mockInvalidateAnnouncementCaches: vi.fn(),
-  mockInvalidateUserProjectCaches: vi.fn(),
-  mockInvalidateProjectAndRelatedCaches: vi.fn(),
-  mockHandleServiceError: vi.fn(() => false),
-  mockUploadFile: vi.fn(),
-  mockDeleteFile: vi.fn(),
-  mockDeleteFiles: vi.fn(),
-  mockExtractPathFromUrl: vi.fn(),
-  mockGenerateUniqueFilename: vi.fn(),
-  mockDownloadFile: vi.fn(),
-  mockCreateSignedUrl: vi.fn(),
-  mockListFiles: vi.fn(),
-  mockExportProject: vi.fn(),
-  mockCreateServiceRoleClient: vi.fn(),
-}));
+} = vi.hoisted(() => {
+  class MockUserQuoteError extends Error {
+    readonly code: 'NOT_FOUND' | 'LIMIT_REACHED' | 'VALIDATION';
+    constructor(message: string, code: 'NOT_FOUND' | 'LIMIT_REACHED' | 'VALIDATION') {
+      super(message);
+      this.name = 'UserQuoteError';
+      this.code = code;
+    }
+  }
+  return {
+    mockGetPublicationBySlugOrId: vi.fn(),
+    mockListPublicationsPublic: vi.fn(),
+    mockListPublicEntities: vi.fn(),
+    mockGetPublicEntityById: vi.fn(),
+    mockDismissAnnouncement: vi.fn(),
+    mockCreateTranslationReport: vi.fn(),
+    mockGetProject: vi.fn(),
+    mockGetProjectFull: vi.fn(),
+    mockUpdateProject: vi.fn(),
+    mockCreateOrUpdatePublication: vi.fn(),
+    mockUpdatePublicationDisplaySettings: vi.fn(),
+    mockUpdatePublicationExportPaths: vi.fn(),
+    mockUnpublishProject: vi.fn(),
+    mockGetPublishedNewsPostByIdOrSlug: vi.fn(),
+    mockListPublishedNewsPosts: vi.fn(),
+    mockGetUserPublications: vi.fn(),
+    mockGetReadProgress: vi.fn(),
+    mockGetPublicationByProjectId: vi.fn(),
+    mockGetPublicationWithChapters: vi.fn(),
+    mockGetPublicationChapterContent: vi.fn(),
+    mockGetGlossaryForPublication: vi.fn(),
+    mockGetProjectForPublicationExport: vi.fn(),
+    mockUpdateReadProgress: vi.fn(),
+    mockResetReadProgress: vi.fn(),
+    mockSyncPublicationTranslationStatus: vi.fn(),
+    mockGetActiveAnnouncementForUser: vi.fn(),
+    mockAssertOwnedActiveTranslatorPseudonym: vi.fn(),
+    mockCreateUserQuote: vi.fn(),
+    mockGetPublicationRatingStatus: vi.fn(),
+    mockUpsertPublicationRating: vi.fn(),
+    mockDeletePublicationRating: vi.fn(),
+    MockUserQuoteError,
+    mockWithRedisCache: vi.fn(async (_key: string, _ttl: number, fn: () => Promise<unknown>) =>
+      fn()
+    ),
+    mockRedisGetJson: vi.fn(),
+    mockRedisSetJson: vi.fn(),
+    mockRedisDelMany: vi.fn(),
+    mockInvalidatePublicationCaches: vi.fn(),
+    mockInvalidatePublicationListCaches: vi.fn(),
+    mockInvalidateAnnouncementCaches: vi.fn(),
+    mockInvalidateUserProjectCaches: vi.fn(),
+    mockInvalidateProjectAndRelatedCaches: vi.fn(),
+    mockHandleServiceError: vi.fn(() => false),
+    mockUploadFile: vi.fn(),
+    mockDeleteFile: vi.fn(),
+    mockDeleteFiles: vi.fn(),
+    mockExtractPathFromUrl: vi.fn(),
+    mockGenerateUniqueFilename: vi.fn(),
+    mockDownloadFile: vi.fn(),
+    mockCreateSignedUrl: vi.fn(),
+    mockListFiles: vi.fn(),
+    mockExportProject: vi.fn(),
+    mockCreateServiceRoleClient: vi.fn(),
+  };
+});
 
 vi.mock('../../../services/storage.js', () => ({
   uploadFile: mockUploadFile,
@@ -158,6 +180,11 @@ vi.mock('../../../services/supabaseDatabase.js', () => ({
   getActiveAnnouncementForUser: mockGetActiveAnnouncementForUser,
   assertOwnedActiveTranslatorPseudonym: (...args: unknown[]) =>
     mockAssertOwnedActiveTranslatorPseudonym(...args),
+  createUserQuote: mockCreateUserQuote,
+  UserQuoteError: MockUserQuoteError,
+  getPublicationRatingStatus: mockGetPublicationRatingStatus,
+  upsertPublicationRating: mockUpsertPublicationRating,
+  deletePublicationRating: mockDeletePublicationRating,
 }));
 
 vi.mock('../../../middleware/serviceHealth.js', () => ({
@@ -198,9 +225,12 @@ vi.mock('../../routeHelpers.js', () => ({
     `ann:${role}:${userId ?? 'guest'}`,
 }));
 
+import { PublicationRatingError } from '../../../services/supabase/domains/publicationRatings.js';
 import {
   handleBuildPublicationExports,
+  handleCreatePublicationQuote,
   handleDeleteCover,
+  handleDeletePublicationRating,
   handleDismissAnnouncement,
   handleExportDownload,
   handleExportProject,
@@ -211,6 +241,7 @@ import {
   handleGetPublicationChapter,
   handleGetPublicationChapters,
   handleGetPublicationGlossary,
+  handleGetPublicationRatingStatus,
   handleGetPublicEntity,
   handleGetReadProgress,
   handleGetUserPublications,
@@ -221,11 +252,14 @@ import {
   handlePublicationDownload,
   handlePublishProject,
   handleReportPublication,
+  handleResetReadProgress,
   handleUnpublishProject,
   handleUpdateProjectMetadata,
   handleUpdatePublicationDisplaySettings,
   handleUpdateReadingPosition,
   handleUploadCover,
+  handleUpsertPublicationRating,
+  handleUpsertReadProgress,
 } from './publicationRouteHandlers.js';
 
 function mockRes() {
@@ -1054,6 +1088,223 @@ describe('publicationRouteHandlers', () => {
       assert.deepEqual(res.body, {
         lastReadChapterNumber: 3,
       });
+    });
+
+    it('returns progress for guest with null user', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockGetReadProgress.mockResolvedValue({ lastReadChapterNumber: 0 });
+      const res = mockRes();
+      await handleGetReadProgress(
+        mockReq({ user: undefined, token: undefined }) as never,
+        res as never
+      );
+      assert.deepEqual(res.body, { lastReadChapterNumber: 0 });
+      assert.equal(mockGetReadProgress.mock.calls[0]?.[1], null);
+    });
+  });
+
+  describe('handleCreatePublicationQuote', () => {
+    const quoteBody = {
+      chapterId: '11111111-1111-4111-8111-111111111111',
+      chapterNumber: 2,
+      quoteText: 'Memorable line',
+      startParagraph: 0,
+      startOffset: 0,
+      endParagraph: 0,
+      endOffset: 10,
+    };
+
+    it('returns 404 when publication missing', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleCreatePublicationQuote(mockReq({ body: quoteBody }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('returns 400 on validation failure', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      const res = mockRes();
+      await handleCreatePublicationQuote(
+        mockReq({ body: { quoteText: '' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+    });
+
+    it('creates quote and returns 201', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockCreateUserQuote.mockResolvedValue({ id: 'quote-1' });
+      const res = mockRes();
+      await handleCreatePublicationQuote(mockReq({ body: quoteBody }) as never, res as never);
+      assert.equal(res.statusCode, 201);
+      assert.deepEqual(res.body, { success: true, id: 'quote-1' });
+      assert.equal(mockCreateUserQuote.mock.calls[0]?.[2]?.publicationId, 'pub-1');
+    });
+
+    it('returns 400 when quote limit reached', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockCreateUserQuote.mockRejectedValue(new MockUserQuoteError('Limit', 'LIMIT_REACHED'));
+      const res = mockRes();
+      await handleCreatePublicationQuote(mockReq({ body: quoteBody }) as never, res as never);
+      assert.equal(res.statusCode, 400);
+      assert.equal((res.body as { code: string }).code, 'LIMIT_REACHED');
+    });
+
+    it('returns 404 for UserQuoteError NOT_FOUND', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockCreateUserQuote.mockRejectedValue(new MockUserQuoteError('Missing', 'NOT_FOUND'));
+      const res = mockRes();
+      await handleCreatePublicationQuote(mockReq({ body: quoteBody }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+  });
+
+  describe('handleUpsertReadProgress', () => {
+    it('returns 400 on validation failure', async () => {
+      const res = mockRes();
+      await handleUpsertReadProgress(
+        mockReq({ body: { chapterNumber: -1 } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+    });
+
+    it('returns 404 when publication missing', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleUpsertReadProgress(
+        mockReq({ body: { chapterNumber: 3, mode: 'set' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('updates progress and invalidates caches', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockUpdateReadProgress.mockResolvedValue({ lastReadChapterNumber: 3 });
+      const res = mockRes();
+      await handleUpsertReadProgress(
+        mockReq({ body: { chapterNumber: 3, mode: 'complete' } }) as never,
+        res as never
+      );
+      assert.deepEqual(res.body, { lastReadChapterNumber: 3 });
+      assert.equal(mockUpdateReadProgress.mock.calls[0]?.[3], 'complete');
+      assert.equal(mockRedisDelMany.mock.calls.length, 1);
+    });
+  });
+
+  describe('handleResetReadProgress', () => {
+    it('returns 404 when publication missing', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleResetReadProgress(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('resets progress and returns zero watermark', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockResetReadProgress.mockResolvedValue(undefined);
+      const res = mockRes();
+      await handleResetReadProgress(mockReq() as never, res as never);
+      assert.deepEqual(res.body, { lastReadChapterNumber: 0 });
+      assert.equal(mockResetReadProgress.mock.calls.length, 1);
+      assert.equal(mockRedisDelMany.mock.calls.length, 1);
+    });
+  });
+
+  describe('handleGetPublicationRatingStatus', () => {
+    it('returns 404 when publication missing', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleGetPublicationRatingStatus(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('returns rating status for authenticated user', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockGetPublicationRatingStatus.mockResolvedValue({
+        userScore: 4,
+        eligibility: 'eligible',
+      });
+      const res = mockRes();
+      await handleGetPublicationRatingStatus(mockReq() as never, res as never);
+      assert.deepEqual(res.body, { userScore: 4, eligibility: 'eligible' });
+    });
+  });
+
+  describe('handleUpsertPublicationRating', () => {
+    it('returns 404 when publication missing', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleUpsertPublicationRating(mockReq({ body: { score: 5 } }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('returns 400 on invalid score', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', slug: 'book' });
+      const res = mockRes();
+      await handleUpsertPublicationRating(mockReq({ body: { score: 9 } }) as never, res as never);
+      assert.equal(res.statusCode, 400);
+    });
+
+    it('upserts rating and invalidates caches', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', slug: 'book' });
+      mockUpsertPublicationRating.mockResolvedValue({ score: 5 });
+      const res = mockRes();
+      await handleUpsertPublicationRating(mockReq({ body: { score: 5 } }) as never, res as never);
+      assert.deepEqual(res.body, { score: 5 });
+      assert.equal(mockInvalidatePublicationCaches.mock.calls.length, 2);
+      assert.equal(mockInvalidatePublicationListCaches.mock.calls.length, 1);
+    });
+
+    it('maps PublicationRatingError OWN_WORK to 403', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', slug: 'book' });
+      mockUpsertPublicationRating.mockRejectedValue(
+        new PublicationRatingError('Own work', 'OWN_WORK')
+      );
+      const res = mockRes();
+      await handleUpsertPublicationRating(mockReq({ body: { score: 3 } }) as never, res as never);
+      assert.equal(res.statusCode, 403);
+      assert.equal((res.body as { code: string }).code, 'OWN_WORK');
+    });
+
+    it('maps PublicationRatingError NOT_FOUND to 404', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1' });
+      mockUpsertPublicationRating.mockRejectedValue(
+        new PublicationRatingError('Missing', 'NOT_FOUND')
+      );
+      const res = mockRes();
+      await handleUpsertPublicationRating(mockReq({ body: { score: 3 } }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+  });
+
+  describe('handleDeletePublicationRating', () => {
+    it('returns 404 when publication missing', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue(null);
+      const res = mockRes();
+      await handleDeletePublicationRating(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('deletes rating and invalidates caches', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', slug: 'book' });
+      mockDeletePublicationRating.mockResolvedValue(undefined);
+      const res = mockRes();
+      await handleDeletePublicationRating(mockReq() as never, res as never);
+      assert.deepEqual(res.body, { success: true });
+      assert.equal(mockInvalidatePublicationListCaches.mock.calls.length, 1);
+    });
+
+    it('maps PublicationRatingError NOT_ELIGIBLE to 403', async () => {
+      mockGetPublicationBySlugOrId.mockResolvedValue({ id: 'pub-1', slug: 'book' });
+      mockDeletePublicationRating.mockRejectedValue(
+        new PublicationRatingError('Not eligible', 'NOT_ELIGIBLE')
+      );
+      const res = mockRes();
+      await handleDeletePublicationRating(mockReq() as never, res as never);
+      assert.equal(res.statusCode, 403);
+      assert.equal((res.body as { code: string }).code, 'NOT_ELIGIBLE');
     });
   });
 

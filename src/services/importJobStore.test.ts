@@ -161,4 +161,70 @@ describe('createImportJobStoreFromEnv (redis)', () => {
     await store.setTtl('imp-ttl', 600);
     assert.equal(mockRedis.expire.mock.calls.length, 2);
   });
+
+  it('updateJob returns current when patch is a no-op', async () => {
+    const store = await getStore();
+    const job = sampleJob('imp-noop', { status: 'processing', current: 2 });
+    await store.createJob(job);
+    const updated = await store.updateJob('imp-noop', { status: 'processing', current: 2 });
+    assert.deepEqual(updated, job);
+  });
+
+  it('updateJob returns null for missing redis job', async () => {
+    const store = await getStore();
+    assert.equal(await store.updateJob('missing', { status: 'error' }), null);
+  });
+
+  it('isCancelRequested accepts numeric and boolean redis flags', async () => {
+    const store = await getStore();
+    await store.createJob(sampleJob('imp-flag'));
+    await mockRedis.set('import_job_cancel:imp-flag', 1);
+    assert.equal(await store.isCancelRequested('imp-flag'), true);
+    await mockRedis.set('import_job_cancel:imp-flag', true);
+    assert.equal(await store.isCancelRequested('imp-flag'), true);
+  });
+
+  it('cancelJob short-circuits terminal statuses and deleteJob clears keys', async () => {
+    const store = await getStore();
+    await store.createJob(sampleJob('imp-done', { status: 'error' }));
+    const canceled = await store.cancelJob('imp-done');
+    assert.equal(canceled?.status, 'error');
+    assert.equal(canceled?.cancelRequested, false);
+
+    await store.createJob(sampleJob('imp-del'));
+    await store.requestCancel('imp-del');
+    await store.deleteJob('imp-del');
+    assert.equal(await store.getJob('imp-del'), null);
+    assert.equal(await store.isCancelRequested('imp-del'), false);
+  });
+});
+
+describe('createImportJobStoreFromEnv (memory ttl/cancel edges)', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('setTtl eventually deletes memory job and cancelJob skips completed', async () => {
+    vi.useFakeTimers();
+    const { createImportJobStoreFromEnv } = await import('./importJobStore.js');
+    const store = createImportJobStoreFromEnv();
+    await store.createJob(sampleJob('imp-mem-ttl'));
+    await store.setTtl('imp-mem-ttl', 1);
+    await store.setTtl('imp-mem-ttl', 1);
+    vi.advanceTimersByTime(1000);
+    assert.equal(await store.getJob('imp-mem-ttl'), null);
+
+    await store.createJob(sampleJob('imp-mem-canceled', { status: 'canceled' }));
+    const canceled = await store.cancelJob('imp-mem-canceled');
+    assert.equal(canceled?.status, 'canceled');
+    vi.useRealTimers();
+  });
 });

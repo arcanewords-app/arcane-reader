@@ -7,6 +7,7 @@ import {
   filterNewGlossaryEntries,
   glossaryEntryKey,
   parseGlossaryImportFile,
+  prepareGlossaryEntryForInsert,
   toPortableGlossaryEntry,
 } from './glossaryImportExport.js';
 
@@ -71,5 +72,73 @@ describe('glossaryImportExport', () => {
     assert.equal(result.entries.length, 1);
     assert.equal(result.entries[0].original, 'Magic');
     assert.equal(result.errors.length, 0);
+  });
+
+  it('parseGlossaryImportFile parses JSON array and wrapped entries', () => {
+    const arr = parseGlossaryImportFile(
+      Buffer.from(JSON.stringify([{ original: 'A', translated: 'B', type: 'term' }]), 'utf-8'),
+      'g.json'
+    );
+    assert.equal(arr.entries.length, 1);
+
+    const wrapped = parseGlossaryImportFile(
+      Buffer.from(
+        JSON.stringify({
+          format: 'arcane-glossary',
+          entries: [{ original: 'C', translated: 'D', type: 'location' }],
+        }),
+        'utf-8'
+      ),
+      'g.json'
+    );
+    assert.equal(wrapped.entries[0]?.type, 'location');
+  });
+
+  it('parseGlossaryImportFile reports JSON and unsupported format errors', () => {
+    const badJson = parseGlossaryImportFile(Buffer.from('{', 'utf-8'), 'bad.json');
+    assert.ok(badJson.errors.some((e) => /Invalid JSON/.test(e.message)));
+
+    const badShape = parseGlossaryImportFile(
+      Buffer.from(JSON.stringify({ foo: 1 }), 'utf-8'),
+      'bad.json'
+    );
+    assert.ok(badShape.errors.some((e) => /Expected JSON/.test(e.message)));
+
+    const unsupported = parseGlossaryImportFile(Buffer.from('x'), 'file.txt');
+    assert.ok(unsupported.errors.length >= 1);
+
+    const emptyCsv = parseGlossaryImportFile(
+      Buffer.from('original,translated,type\n', 'utf-8'),
+      'empty.csv'
+    );
+    assert.ok(emptyCsv.errors.some((e) => /no data rows/.test(e.message)));
+  });
+
+  it('prepareGlossaryEntryForInsert fills character declensions', () => {
+    const prepared = prepareGlossaryEntryForInsert({
+      type: 'character',
+      original: 'John',
+      gender: 'male',
+    });
+    assert.equal(prepared.type, 'character');
+    assert.equal(prepared.translated, 'Иван');
+    assert.ok(prepared.declensions);
+  });
+
+  it('toPortableGlossaryEntry keeps optional fields when present', () => {
+    const portable = toPortableGlossaryEntry({
+      id: 'g1',
+      type: 'character',
+      original: 'A',
+      translated: 'B',
+      description: 'desc',
+      notes: 'n',
+      gender: 'female',
+      declensions: { nominative: 'B' } as never,
+    } as GlossaryEntry);
+    assert.equal(portable.description, 'desc');
+    assert.equal(portable.notes, 'n');
+    assert.equal(portable.gender, 'female');
+    assert.ok(portable.declensions);
   });
 });

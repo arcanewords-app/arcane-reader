@@ -77,12 +77,12 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | Coverage (stabilize 2026-08-02) |
-| ---------- | ------------------------------- |
-| Lines      | **64.67%**                      |
-| Statements | **62.70%**                      |
-| Functions  | **66.95%**                      |
-| Branches   | **54.68%**                      |
+| Metric     | Coverage (campaign Phases A–C, 2026-08-02) |
+| ---------- | ------------------------------------------ |
+| Lines      | **77.69%**                                 |
+| Statements | **75.64%**                                 |
+| Functions  | **80.36%**                                 |
+| Branches   | **65.28%**                                 |
 
 ### Coverage floors (active)
 
@@ -90,32 +90,30 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 
 | Metric   | Floor  |
 | -------- | ------ |
-| Lines    | **64** |
-| Branches | **54** |
+| Lines    | **77** |
+| Branches | **65** |
 
-> Floors are measured integers from the stabilize pass (unit suite excludes `*.test.tsx` / `*.hook.test.ts`). Raise deliberately with coverage gains; never silent lower. Client folder understates Wave 6 component coverage (separate suite).
+> Floors from Coverage campaign Phases A–C (measured integers). Soft ceiling ~78% without un-deferring binary fb2/epub. Unit suite excludes `*.test.tsx` / `*.hook.test.ts`. Never silent lower.
 
 ## By area (folder rollup, lines %)
 
-| Area                      | Files | Lines %  | Notes                                       |
-| ------------------------- | ----- | -------- | ------------------------------------------- |
-| `src/shared/`             | 42+   | **~90%** | near ceiling                                |
-| `src/storage/`            | 3     | **100%** | text-utils                                  |
-| `src/api/`                | 60+   | **~75%** | handlers + schemas                          |
-| `src/middleware/`         | 5     | **~76%** | auth, tokenLimits, requestContext           |
-| `src/engine/`             | 69+   | **~74%** | stage mocks + openai provider tests         |
-| `src/services/`           | 64+   | **~56%** | domains OK; jobs/import weak                |
-| `src/client/`             | 106   | **~53%** | Wave 6 hooks/helpers; UI via test:component |
-| `server.ts` + `worker.ts` | 2     | **0%**   | entrypoints                                 |
+| Area                      | Files | Lines %  | Notes                                        |
+| ------------------------- | ----- | -------- | -------------------------------------------- |
+| `src/shared/`             | 42+   | **~90%** | near ceiling                                 |
+| `src/storage/`            | 3     | **100%** | text-utils                                   |
+| `src/api/`                | 60+   | **~75%** | handlers + schemas                           |
+| `src/middleware/`         | 5     | **~76%** | auth, tokenLimits, requestContext            |
+| `src/engine/`             | 69+   | **~74%** | stage mocks + openai provider tests          |
+| `src/services/`           | 64+   | raised   | jobs unit + engine-integration + domains     |
+| `src/client/`             | 106+  | raised   | pure extracts + utils; UI via test:component |
+| `server.ts` + `worker.ts` | 2     | **0%**   | entrypoints (deferred)                       |
 
 ### Top uncovered files (by remaining gap)
 
 | File                                 | Notes                               |
 | ------------------------------------ | ----------------------------------- |
 | `services/import/fb2.ts` / `epub.ts` | binary parse (deferred)             |
-| `services/jobs/runTranslateJob.ts`   | Wave 7 worker integration           |
-| `services/jobs/runAnalysisJob.ts`    | Wave 7 worker integration           |
-| `api/routes/seo.ts`                  | SSR glue; `seoHelpers` tested       |
+| `services/export` epub/fb2 writers   | binary (deferred)                   |
 | `ReadingMode/index.tsx`              | helpers extracted; full UI deferred |
 | `server.ts` / `worker.ts`            | bootstrap                           |
 
@@ -144,6 +142,16 @@ Stryker `thresholds`: `high: 80`, `low: 60`, **`break: null`** — advisory band
 ## Vitest pin
 
 Exact **`vitest@4.0.8`** + `@vitest/coverage-v8@4.0.8`. Do not bump to 4.1.x without Windows + Node 24 re-validation (`vi.mock`, forks, glob/dir entry).
+
+## Coverage campaign (post–Wave 9)
+
+| Phase          | Target                                                      | Status                                                 |
+| -------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
+| A → ~70% lines | jobs + engine-integration + middleware/csv + client pure    | **Done**                                               |
+| B → ~75% lines | handlers/domains/seo/export/client api                      | **Done**                                               |
+| C → ~78% lines | SearchReplace/pageMeta/batch/selection extracts + inventory | **Done** (~77.7% lines; soft ceiling without binaries) |
+
+Unit floors ≠ component/integration coverage. Deferred: bootstrap entrypoints, ReadingMode full UI, binary fb2/epub parsers, Wave 10.
 
 ## Policy
 

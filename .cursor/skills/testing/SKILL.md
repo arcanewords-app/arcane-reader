@@ -29,7 +29,7 @@ Read `@.cursor/rules/testing.mdc` for policies. Pyramid: `@docs/05-plans/testing
 | E2E (placeholder) | `npm run test:e2e`                                                            |
 | Run full suite    | `npm run test:all`                                                            |
 | Watch mode        | `npm run test:watch`                                                          |
-| Coverage report   | `npm run test:coverage` (floors: lines 64 / branches 54)                      |
+| Coverage report   | `npm run test:coverage` (floors: lines 77 / branches 65)                      |
 | Mutation (smoke)  | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`             |
 | Mutation (full)   | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                    |
 | Mutation (zone)   | `npx stryker run --mutate "src/shared/**/*.ts"`                               |
@@ -144,12 +144,12 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 liv
 
 | Config                         | Role                                                            |
 | ------------------------------ | --------------------------------------------------------------- |
-| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (64/54)           |
+| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (77/65)           |
 | `vitest.slow.config.ts`        | Tiktoken-heavy engine tests                                     |
 | `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom, Preact JSX          |
 | `vitest.integration.config.ts` | `tests/integration/**` (excludes live supabase until unblocked) |
 
-Coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary`, thresholds lines **64** / branches **54**.
+Coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary`, thresholds lines **77** / branches **65**.
 
 ## Verification after changes
 

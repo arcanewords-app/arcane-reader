@@ -4,11 +4,13 @@
  */
 
 import { useEffect } from 'preact/hooks';
-import { STATIC_PAGE_META, staticPageDocumentTitle } from '../../shared/staticPageMeta';
-
-const DEFAULT_TITLE = 'Arcane — Переводчик новелл';
-const DEFAULT_DESCRIPTION =
-  'Arcane — библиотека переводов новелл на русский и беларусский. Читайте и скачивайте переводы онлайн. Переводчик с AI и глоссарием. Импорт EPUB, FB2, TXT.';
+import {
+  DEFAULT_OG_DESCRIPTION,
+  DEFAULT_PAGE_DESCRIPTION,
+  DEFAULT_PAGE_TITLE,
+  resolveStaticPageMetaFields,
+  staticDocumentTitle,
+} from '../utils/pageMetaCore.js';
 
 function setMeta(attr: 'name' | 'property', key: string, content: string): void {
   let el = document.querySelector(`meta[${attr}="${key}"]`);
@@ -43,46 +45,35 @@ export interface StaticPageMetaOptions {
  */
 export function useStaticPageMeta(pathname: string, options?: StaticPageMetaOptions | null): void {
   useEffect(() => {
-    const base = STATIC_PAGE_META[pathname];
-    if (!base && !options?.title) return;
+    const fields = resolveStaticPageMetaFields(pathname, options);
+    if (!fields) return;
 
-    const title = options?.title ?? base?.title ?? DEFAULT_TITLE;
-    const description = options?.description ?? base?.description ?? DEFAULT_DESCRIPTION;
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const pageUrl = `${origin}${pathname}`;
-    const canonicalPath = options?.canonicalPath ?? (pathname === '/catalog' ? '/' : pathname);
-    const canonicalUrl = `${origin}${canonicalPath}`;
+    const pageUrl = `${origin}${fields.pageUrlPath}`;
+    const canonicalUrl = `${origin}${fields.canonicalPath}`;
     const img = `${origin}/arcane_icon.png`;
 
-    document.title = staticPageDocumentTitle(title);
-    setMeta('name', 'description', description);
-    setMeta('property', 'og:title', title);
-    setMeta('property', 'og:description', description);
+    document.title = staticDocumentTitle(fields.title);
+    setMeta('name', 'description', fields.description);
+    setMeta('property', 'og:title', fields.title);
+    setMeta('property', 'og:description', fields.description);
     setMeta('property', 'og:image', img);
     setMeta('property', 'og:url', pageUrl);
     setCanonical(canonicalUrl);
-    setMeta('name', 'twitter:title', title);
-    setMeta('name', 'twitter:description', description);
+    setMeta('name', 'twitter:title', fields.title);
+    setMeta('name', 'twitter:description', fields.description);
     setMeta('name', 'twitter:image', img);
 
     return () => {
-      document.title = DEFAULT_TITLE;
-      setMeta('name', 'description', DEFAULT_DESCRIPTION);
+      document.title = DEFAULT_PAGE_TITLE;
+      setMeta('name', 'description', DEFAULT_PAGE_DESCRIPTION);
       setCanonical(typeof window !== 'undefined' ? window.location.href : canonicalUrl);
-      setMeta('property', 'og:title', DEFAULT_TITLE);
-      setMeta(
-        'property',
-        'og:description',
-        'Библиотека переводов новелл. Читайте и скачивайте переводы онлайн.'
-      );
+      setMeta('property', 'og:title', DEFAULT_PAGE_TITLE);
+      setMeta('property', 'og:description', DEFAULT_OG_DESCRIPTION);
       setMeta('property', 'og:image', img);
       setMeta('property', 'og:url', typeof window !== 'undefined' ? window.location.href : pageUrl);
-      setMeta('name', 'twitter:title', DEFAULT_TITLE);
-      setMeta(
-        'name',
-        'twitter:description',
-        'Библиотека переводов новелл. Читайте и скачивайте переводы онлайн.'
-      );
+      setMeta('name', 'twitter:title', DEFAULT_PAGE_TITLE);
+      setMeta('name', 'twitter:description', DEFAULT_OG_DESCRIPTION);
       setMeta('name', 'twitter:image', img);
     };
   }, [pathname, options?.title, options?.description, options?.canonicalPath]);

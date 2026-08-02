@@ -5,34 +5,50 @@ import {
   createPseudonymLimitError,
 } from '../../../shared/translatorPseudonyms.js';
 
-const mocks = vi.hoisted(() => ({
-  getUserReaderSettings: vi.fn(),
-  updateUserReaderSettings: vi.fn(),
-  getUserReadingHistory: vi.fn(),
-  createCatalogTranslationRequest: vi.fn(),
-  listCatalogTranslationRequestsByUser: vi.fn(),
-  listTranslatorPseudonymsForUser: vi.fn(),
-  createTranslatorPseudonymForUser: vi.fn(),
-  updateTranslatorPseudonymForUser: vi.fn(),
-  hideTranslatorPseudonymForUser: vi.fn(),
-  getTranslatorPseudonymForUser: vi.fn(),
-  getUserTokenUsage: vi.fn(),
-  getTokenUsageHistory: vi.fn(),
-  withRedisCache: vi.fn((_key: string, _ttl: number, fn: () => unknown) => fn()),
-  invalidatePublicEntitiesCaches: vi.fn(),
-  handleServiceError: vi.fn(() => false),
-  createClientWithToken: vi.fn(),
-  redisDelMany: vi.fn(),
-  invalidateProfileCache: vi.fn(),
-  uploadFile: vi.fn(),
-  deleteFile: vi.fn(),
-  generateUniqueFilename: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  class MockUserQuoteError extends Error {
+    readonly code: 'NOT_FOUND' | 'LIMIT_REACHED' | 'VALIDATION';
+    constructor(message: string, code: 'NOT_FOUND' | 'LIMIT_REACHED' | 'VALIDATION') {
+      super(message);
+      this.name = 'UserQuoteError';
+      this.code = code;
+    }
+  }
+  return {
+    getUserReaderSettings: vi.fn(),
+    updateUserReaderSettings: vi.fn(),
+    getUserReadingHistory: vi.fn(),
+    listUserQuotes: vi.fn(),
+    deleteUserQuote: vi.fn(),
+    MockUserQuoteError,
+    createCatalogTranslationRequest: vi.fn(),
+    listCatalogTranslationRequestsByUser: vi.fn(),
+    listTranslatorPseudonymsForUser: vi.fn(),
+    createTranslatorPseudonymForUser: vi.fn(),
+    updateTranslatorPseudonymForUser: vi.fn(),
+    hideTranslatorPseudonymForUser: vi.fn(),
+    getTranslatorPseudonymForUser: vi.fn(),
+    getUserTokenUsage: vi.fn(),
+    getTokenUsageHistory: vi.fn(),
+    withRedisCache: vi.fn((_key: string, _ttl: number, fn: () => unknown) => fn()),
+    invalidatePublicEntitiesCaches: vi.fn(),
+    handleServiceError: vi.fn(() => false),
+    createClientWithToken: vi.fn(),
+    redisDelMany: vi.fn(),
+    invalidateProfileCache: vi.fn(),
+    uploadFile: vi.fn(),
+    deleteFile: vi.fn(),
+    generateUniqueFilename: vi.fn(),
+  };
+});
 
 vi.mock('../../../services/supabaseDatabase.js', () => ({
   getUserReaderSettings: mocks.getUserReaderSettings,
   updateUserReaderSettings: mocks.updateUserReaderSettings,
   getUserReadingHistory: mocks.getUserReadingHistory,
+  listUserQuotes: mocks.listUserQuotes,
+  deleteUserQuote: mocks.deleteUserQuote,
+  UserQuoteError: mocks.MockUserQuoteError,
   createCatalogTranslationRequest: (...args: unknown[]) =>
     mocks.createCatalogTranslationRequest(...args),
   listCatalogTranslationRequestsByUser: (...args: unknown[]) =>
@@ -90,6 +106,8 @@ import {
   handleGetTokenUsage,
   handleGetTokenUsageHistory,
   handleGetReadingHistory,
+  handleGetUserQuotes,
+  handleDeleteUserQuote,
   handleCreateCatalogTranslationRequest,
   handleListUserTranslationRequests,
   handleGetProfile,
@@ -185,6 +203,54 @@ describe('userRouteHandlers', () => {
       const res = mockRes();
       await handleGetTokenUsageHistory(mockReq({ user: undefined }) as never, res as never);
       assert.equal(res.statusCode, 401);
+    });
+  });
+
+  describe('handleGetUserQuotes', () => {
+    it('returns 401 when unauthenticated', async () => {
+      const res = mockRes();
+      await handleGetUserQuotes(mockReq({ user: undefined }) as never, res as never);
+      assert.equal(res.statusCode, 401);
+    });
+
+    it('returns quote items on success', async () => {
+      mocks.listUserQuotes.mockResolvedValue([{ id: 'q1', quoteText: 'Line' }]);
+      const res = mockRes();
+      await handleGetUserQuotes(mockReq() as never, res as never);
+      assert.deepEqual(res.body, { items: [{ id: 'q1', quoteText: 'Line' }] });
+    });
+  });
+
+  describe('handleDeleteUserQuote', () => {
+    it('returns 401 when unauthenticated', async () => {
+      const res = mockRes();
+      await handleDeleteUserQuote(
+        mockReq({ user: undefined, params: { quoteId: 'q1' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 401);
+    });
+
+    it('returns 404 when quote missing', async () => {
+      mocks.deleteUserQuote.mockResolvedValue(false);
+      const res = mockRes();
+      await handleDeleteUserQuote(mockReq({ params: { quoteId: 'q1' } }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('deletes quote on success', async () => {
+      mocks.deleteUserQuote.mockResolvedValue(true);
+      const res = mockRes();
+      await handleDeleteUserQuote(mockReq({ params: { quoteId: 'q1' } }) as never, res as never);
+      assert.deepEqual(res.body, { success: true });
+    });
+
+    it('maps UserQuoteError to 404', async () => {
+      mocks.deleteUserQuote.mockRejectedValue(new mocks.MockUserQuoteError('Missing', 'NOT_FOUND'));
+      const res = mockRes();
+      await handleDeleteUserQuote(mockReq({ params: { quoteId: 'q1' } }) as never, res as never);
+      assert.equal(res.statusCode, 404);
+      assert.equal((res.body as { code: string }).code, 'NOT_FOUND');
     });
   });
 

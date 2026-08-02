@@ -1,557 +1,357 @@
 import assert from 'node:assert/strict';
-import { afterEach, describe, it, vi } from 'vitest';
+import { beforeEach, describe, it, vi } from 'vitest';
 
-const { mockFrom } = vi.hoisted(() => ({
-  mockFrom: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  mockCreateClientWithToken: vi.fn(),
+  mockCreateServiceRoleClient: vi.fn(),
+  mockSupabaseFrom: vi.fn(),
+  mockTransformList: vi.fn((row: Record<string, unknown>) => ({
+    id: row.id,
+    number: row.number,
+    title: row.title,
+  })),
+  mockTransformChapter: vi.fn((row: Record<string, unknown>, paragraphs: unknown[] = []) => ({
+    id: row.id,
+    number: row.number,
+    title: row.title,
+    paragraphs,
+    translatedText: row.translated_text ?? '',
+    translatedChunks: row.translated_chunks ?? [],
+  })),
+  mockTransformParagraph: vi.fn((row: Record<string, unknown>) => ({
+    id: row.id,
+    index: row.index,
+    originalText: 'o',
+    translatedText: row.translated_text ?? '',
+  })),
+  mockTransformGlossary: vi.fn((row: Record<string, unknown>) => ({
+    id: row.id,
+    original: row.original,
+  })),
+  mockTransformProject: vi.fn(
+    (row: Record<string, unknown>, chapters: unknown[], glossary: unknown[]) => ({
+      id: row.id,
+      chapters,
+      glossary,
+    })
+  ),
+  mockGroup: vi.fn((rows: Array<{ chapter_id: string }>) => {
+    const map = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const list = map.get(row.chapter_id) ?? [];
+      list.push(row);
+      map.set(row.chapter_id, list);
+    }
+    return map;
+  }),
+  mockAutoSync: vi.fn((paras: Array<{ id: string; index: number }>) =>
+    paras.map((p) => ({ ...p, translatedText: `synced-${p.id}`, status: 'completed' }))
+  ),
 }));
 
 vi.mock('../supabaseClient.js', () => ({
-  createClientWithToken: vi.fn(() => ({ from: mockFrom })),
-  createServiceRoleClient: vi.fn(() => ({ from: mockFrom })),
-  supabase: { from: mockFrom },
+  supabase: { from: (...args: unknown[]) => mocks.mockSupabaseFrom(...args) },
+  createClientWithToken: (...args: unknown[]) => mocks.mockCreateClientWithToken(...args),
+  createServiceRoleClient: (...args: unknown[]) => mocks.mockCreateServiceRoleClient(...args),
 }));
 
-import { CHAPTER_LOAD_BATCH, POSTGREST_MAX_ROWS } from '../../shared/cacheContract.js';
+vi.mock('../supabaseTransforms.js', () => ({
+  transformChapterFromDB: (...args: unknown[]) => mocks.mockTransformChapter(...args),
+  transformChapterListItemFromDB: (...args: unknown[]) => mocks.mockTransformList(...args),
+  transformGlossaryEntryFromDB: (...args: unknown[]) => mocks.mockTransformGlossary(...args),
+  transformParagraphFromDB: (...args: unknown[]) => mocks.mockTransformParagraph(...args),
+  transformProjectFromDB: (...args: unknown[]) => mocks.mockTransformProject(...args),
+}));
+
+vi.mock('../paragraphLoader.js', () => ({
+  groupParagraphRowsByChapterId: (...args: unknown[]) => mocks.mockGroup(...args),
+}));
+
+vi.mock('./pure/chapterSync.js', () => ({
+  autoSyncChunksToParagraphs: (...args: unknown[]) => mocks.mockAutoSync(...args),
+}));
+
+vi.mock('../../logger.js', () => ({
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+import { POSTGREST_MAX_ROWS } from '../../shared/cacheContract.js';
 import {
   getGlossaryCountForProject,
   getProjectForPublicationExport,
   loadChaptersForProject,
   loadChaptersForProjectLightweight,
+  loadChaptersForProjectWithServiceRole,
   loadGlossaryForProject,
+  loadGlossaryForProjectPublic,
   loadParagraphsForChapter,
   loadParagraphsForChapterIds,
 } from './loaders.js';
 
-function chainable(result: { data: unknown; error: unknown; count?: number }) {
-  const chain: Record<string, unknown> = {};
-  for (const m of ['select', 'eq', 'order', 'range', 'in', 'not', 'update']) {
+type ChainMethod = ReturnType<typeof vi.fn>;
+
+function chainable(result: { data: unknown; error: unknown; count?: number | null }) {
+  const chain = {} as Record<string, ChainMethod> & {
+    then: (resolve: (v: typeof result) => void) => void;
+  };
+  for (const m of ['select', 'eq', 'order', 'range', 'in', 'single', 'update']) {
     chain[m] = vi.fn(() => chain);
   }
-  chain.then = (resolve: (v: typeof result) => void) => resolve(result);
+  chain.then = (resolve) => resolve(result);
   return chain;
 }
 
-const chapterRow = {
-  id: 'ch-1',
-  project_id: 'proj-1',
-  number: 1,
-  title: 'Chapter 1',
-  translated_title: null,
-  original_text: 'Hello world.',
-  translated_text: null,
-  translated_chunks: null,
-  status: 'pending',
-  translation_meta: null,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-};
-
-const paragraphRow = {
-  id: 'p-1',
-  chapter_id: 'ch-1',
-  index: 0,
-  original_text: 'Hello world.',
-  translated_text: null,
-  status: 'pending',
-  edited_at: null,
-  edited_by: null,
-};
-
-describe('loadChaptersForProjectLightweight', () => {
-  afterEach(() => {
+describe('loaders', () => {
+  beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns empty array when project has no chapters', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [],
-        error: null,
-      })
-    );
-    const chapters = await loadChaptersForProjectLightweight('proj-1', 'token');
-    assert.deepEqual(chapters, []);
-  });
+  describe('loadChaptersForProjectLightweight', () => {
+    it('paginates until a short page and maps rows', async () => {
+      const page1 = Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => ({
+        id: `c${i}`,
+        number: i + 1,
+        title: `Ch ${i + 1}`,
+      }));
+      const page2 = [{ id: 'last', number: POSTGREST_MAX_ROWS + 1, title: 'Last' }];
+      const from = vi
+        .fn()
+        .mockReturnValueOnce(chainable({ data: page1, error: null }))
+        .mockReturnValueOnce(chainable({ data: page2, error: null }));
+      mocks.mockCreateClientWithToken.mockReturnValue({ from });
 
-  it('maps chapter list items from rows', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [
-          {
-            id: 'ch-1',
-            number: 1,
-            title: 'Chapter 1',
-            translated_title: null,
-            status: 'pending',
-            translation_meta: null,
-            created_at: '2026-01-01T00:00:00Z',
-            updated_at: '2026-01-01T00:00:00Z',
-          },
-        ],
-        error: null,
-      })
-    );
-    const chapters = await loadChaptersForProjectLightweight('proj-1', 'token');
-    assert.equal(chapters.length, 1);
-    assert.equal(chapters[0]?.number, 1);
-    assert.equal(chapters[0]?.title, 'Chapter 1');
-  });
+      const result = await loadChaptersForProjectLightweight('proj-1', 'tok');
+      assert.equal(result.length, POSTGREST_MAX_ROWS + 1);
+      assert.equal(result.at(-1)?.id, 'last');
+    });
 
-  it('throws when chapter query fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'db error' },
-      })
-    );
-    await assert.rejects(
-      () => loadChaptersForProjectLightweight('proj-1', 'token'),
-      /Failed to load chapters/
-    );
-  });
-
-  it('paginates when first batch is full', async () => {
-    const fullBatch = Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => ({
-      id: `ch-${i}`,
-      number: i + 1,
-      title: `Chapter ${i + 1}`,
-      translated_title: null,
-      status: 'pending',
-      translation_meta: null,
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    }));
-    const tailBatch = [
-      {
-        id: 'ch-last',
-        number: POSTGREST_MAX_ROWS + 1,
-        title: 'Final Chapter',
-        translated_title: null,
-        status: 'pending',
-        translation_meta: null,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-      },
-    ];
-
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call += 1;
-      return chainable({
-        data: call === 1 ? fullBatch : tailBatch,
-        error: null,
+    it('stops on empty page and throws on query error', async () => {
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() => chainable({ data: [], error: null })),
       });
-    });
+      assert.deepEqual(await loadChaptersForProjectLightweight('proj-1', 'tok'), []);
 
-    const chapters = await loadChaptersForProjectLightweight('proj-1', 'token');
-    assert.equal(chapters.length, POSTGREST_MAX_ROWS + 1);
-    assert.equal(chapters[POSTGREST_MAX_ROWS]?.title, 'Final Chapter');
-  });
-});
-
-describe('loadGlossaryForProject', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('returns empty array when project has no glossary entries', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [],
-        error: null,
-      })
-    );
-
-    const entries = await loadGlossaryForProject('proj-1', 'token');
-    assert.deepEqual(entries, []);
-  });
-
-  it('maps glossary rows to domain entries', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [
-          {
-            id: 'g1',
-            project_id: 'proj-1',
-            type: 'character',
-            original: 'Alice',
-            translated: 'Алиса',
-            gender: 'female',
-            mentioned_in_chapters: [1],
-            image_urls: [],
-          },
-        ],
-        error: null,
-      })
-    );
-
-    const entries = await loadGlossaryForProject('proj-1', 'token');
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0]?.original, 'Alice');
-    assert.equal(entries[0]?.translated, 'Алиса');
-    assert.deepEqual(entries[0]?.mentionedInChapters, [1]);
-  });
-
-  it('throws when glossary query fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'glossary fail' },
-      })
-    );
-    await assert.rejects(
-      () => loadGlossaryForProject('proj-1', 'token'),
-      /Failed to load glossary/
-    );
-  });
-
-  it('maps multiple entries preserving order', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [
-          {
-            id: 'g1',
-            project_id: 'proj-1',
-            type: 'character',
-            original: 'Alice',
-            translated: 'Алиса',
-            gender: 'female',
-            mentioned_in_chapters: [],
-            image_urls: [],
-          },
-          {
-            id: 'g2',
-            project_id: 'proj-1',
-            type: 'location',
-            original: 'Town',
-            translated: 'Город',
-            gender: null,
-            mentioned_in_chapters: [],
-            image_urls: [],
-          },
-        ],
-        error: null,
-      })
-    );
-
-    const entries = await loadGlossaryForProject('proj-1', 'token');
-    assert.equal(entries.length, 2);
-    assert.equal(entries[0]?.original, 'Alice');
-    assert.equal(entries[1]?.type, 'location');
-  });
-});
-
-describe('getGlossaryCountForProject', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('returns count from head query', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: null,
-        count: 7,
-      })
-    );
-
-    const count = await getGlossaryCountForProject('proj-1');
-    assert.equal(count, 7);
-  });
-
-  it('returns 0 on query error', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'db error' },
-      })
-    );
-
-    const count = await getGlossaryCountForProject('proj-1');
-    assert.equal(count, 0);
-  });
-
-  it('returns 0 when count is null', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: null,
-      })
-    );
-    assert.equal(await getGlossaryCountForProject('proj-1'), 0);
-  });
-});
-
-describe('loadChaptersForProject', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('returns empty array when project has no chapters', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [],
-        error: null,
-      })
-    );
-
-    const chapters = await loadChaptersForProject('proj-1', 'token');
-    assert.deepEqual(chapters, []);
-  });
-
-  it('maps chapters with paragraphs grouped by chapter id', async () => {
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call += 1;
-      return chainable({
-        data: call === 1 ? [chapterRow] : [paragraphRow],
-        error: null,
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() => chainable({ data: null, error: { message: 'boom' } })),
       });
+      await assert.rejects(() => loadChaptersForProjectLightweight('proj-1', 'tok'), /boom/);
+    });
+  });
+
+  describe('loadParagraphsForChapterIds / loadParagraphsForChapter', () => {
+    it('returns empty map for empty chapter ids', async () => {
+      const map = await loadParagraphsForChapterIds({ from: vi.fn() } as never, []);
+      assert.equal(map.size, 0);
     });
 
-    const chapters = await loadChaptersForProject('proj-1', 'token');
-    assert.equal(chapters.length, 1);
-    assert.equal(chapters[0]?.id, 'ch-1');
-    assert.equal(chapters[0]?.paragraphs.length, 1);
-    assert.equal(chapters[0]?.paragraphs[0]?.originalText, 'Hello world.');
-  });
+    it('paginates paragraphs and sorts by index', async () => {
+      const client = {
+        from: vi
+          .fn()
+          .mockReturnValueOnce(
+            chainable({
+              data: [
+                { id: 'p2', chapter_id: 'c1', index: 2, translated_text: 'b' },
+                { id: 'p1', chapter_id: 'c1', index: 1, translated_text: 'a' },
+              ],
+              error: null,
+            })
+          )
+          .mockReturnValueOnce(chainable({ data: [], error: null })),
+      };
+      const map = await loadParagraphsForChapterIds(client as never, ['c1', 'c2']);
+      assert.equal(map.get('c1')?.length, 2);
+      assert.equal(map.get('c1')?.[0]?.index, 1);
+      assert.deepEqual(map.get('c2'), []);
+    });
 
-  it('throws when chapter query fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'chapter fail' },
-      })
-    );
+    it('throws when paragraph query fails', async () => {
+      const client = {
+        from: vi.fn(() => chainable({ data: null, error: { message: 'para fail' } })),
+      };
+      await assert.rejects(() => loadParagraphsForChapterIds(client as never, ['c1']), /para fail/);
+    });
 
-    await assert.rejects(
-      () => loadChaptersForProject('proj-1', 'token'),
-      /Failed to load chapters/
-    );
-  });
-
-  it('throws when paragraph query fails', async () => {
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call += 1;
-      return chainable({
-        data: call === 1 ? [chapterRow] : null,
-        error: call === 1 ? null : { message: 'paragraph fail' },
+    it('loads single-chapter paragraphs with token client', async () => {
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() =>
+          chainable({
+            data: [{ id: 'p1', index: 0, translated_text: 'x' }],
+            error: null,
+          })
+        ),
       });
+      const paras = await loadParagraphsForChapter('c1', 'tok');
+      assert.equal(paras.length, 1);
     });
 
-    await assert.rejects(
-      () => loadChaptersForProject('proj-1', 'token'),
-      /Failed to load paragraphs/
-    );
-  });
-
-  it('paginates chapter batches when first batch is full', async () => {
-    const fullBatch = Array.from({ length: CHAPTER_LOAD_BATCH }, (_, i) => ({
-      ...chapterRow,
-      id: `ch-${i}`,
-      number: i + 1,
-      title: `Chapter ${i + 1}`,
-    }));
-    const tailChapter = {
-      ...chapterRow,
-      id: 'ch-last',
-      number: CHAPTER_LOAD_BATCH + 1,
-      title: 'Final Chapter',
-    };
-
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call += 1;
-      if (call === 1) {
-        return chainable({ data: fullBatch, error: null });
-      }
-      if (call === 2) {
-        return chainable({ data: [], error: null });
-      }
-      if (call === 3) {
-        return chainable({ data: [tailChapter], error: null });
-      }
-      return chainable({ data: [], error: null });
-    });
-
-    const chapters = await loadChaptersForProject('proj-1', 'token');
-    assert.equal(chapters.length, CHAPTER_LOAD_BATCH + 1);
-    assert.equal(chapters[CHAPTER_LOAD_BATCH]?.title, 'Final Chapter');
-  });
-});
-
-describe('loadParagraphsForChapter', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('returns empty array when chapter has no paragraphs', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [],
-        error: null,
-      })
-    );
-
-    const paragraphs = await loadParagraphsForChapter('ch-1', 'token');
-    assert.deepEqual(paragraphs, []);
-  });
-
-  it('maps paragraph rows ordered by index', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [
-          paragraphRow,
-          {
-            ...paragraphRow,
-            id: 'p-2',
-            index: 1,
-            original_text: 'Second paragraph.',
-          },
-        ],
-        error: null,
-      })
-    );
-
-    const paragraphs = await loadParagraphsForChapter('ch-1', 'token');
-    assert.equal(paragraphs.length, 2);
-    assert.equal(paragraphs[0]?.index, 0);
-    assert.equal(paragraphs[1]?.originalText, 'Second paragraph.');
-  });
-
-  it('throws when paragraph query fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'paragraph fail' },
-      })
-    );
-
-    await assert.rejects(
-      () => loadParagraphsForChapter('ch-1', 'token'),
-      /Failed to load paragraphs/
-    );
-  });
-
-  it('paginates when first batch is full', async () => {
-    const fullBatch = Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => ({
-      ...paragraphRow,
-      id: `p-${i}`,
-      index: i,
-      original_text: `Paragraph ${i}`,
-    }));
-    const tailBatch = [
-      {
-        ...paragraphRow,
-        id: 'p-last',
-        index: POSTGREST_MAX_ROWS,
-        original_text: 'Final paragraph.',
-      },
-    ];
-
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call += 1;
-      return chainable({
-        data: call === 1 ? fullBatch : tailBatch,
-        error: null,
+    it('uses service role when requested', async () => {
+      mocks.mockCreateServiceRoleClient.mockReturnValue({
+        from: vi.fn(() => chainable({ data: [], error: null })),
       });
+      assert.deepEqual(await loadParagraphsForChapter('c1', null, true), []);
     });
-
-    const paragraphs = await loadParagraphsForChapter('ch-1', 'token');
-    assert.equal(paragraphs.length, POSTGREST_MAX_ROWS + 1);
-    assert.equal(paragraphs[POSTGREST_MAX_ROWS]?.originalText, 'Final paragraph.');
-  });
-});
-
-describe('loadParagraphsForChapterIds', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
-  it('returns empty map for empty chapter ids', async () => {
-    const client = { from: mockFrom } as never;
-    const result = await loadParagraphsForChapterIds(client, []);
-    assert.deepEqual([...result.entries()], []);
-    assert.equal(mockFrom.mock.calls.length, 0);
-  });
-
-  it('groups paragraphs by chapter id and sorts by index', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: [
-          { ...paragraphRow, chapter_id: 'ch-2', id: 'p-2a', index: 1 },
-          { ...paragraphRow, chapter_id: 'ch-1', id: 'p-1b', index: 1 },
-          { ...paragraphRow, chapter_id: 'ch-1', id: 'p-1a', index: 0 },
-        ],
-        error: null,
-      })
-    );
-
-    const client = { from: mockFrom } as never;
-    const result = await loadParagraphsForChapterIds(client, ['ch-1', 'ch-2']);
-    assert.equal(result.get('ch-1')?.length, 2);
-    assert.equal(result.get('ch-1')?.[0]?.id, 'p-1a');
-    assert.equal(result.get('ch-2')?.[0]?.id, 'p-2a');
-  });
-
-  it('throws when paragraph query fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'paragraph fail' },
-      })
-    );
-    const client = { from: mockFrom } as never;
-    await assert.rejects(
-      () => loadParagraphsForChapterIds(client, ['ch-1']),
-      /Failed to load paragraphs/
-    );
-  });
-
-  it('paginates when first batch is full', async () => {
-    const fullBatch = Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => ({
-      ...paragraphRow,
-      chapter_id: 'ch-1',
-      id: `p-${i}`,
-      index: i,
-    }));
-    const tailBatch = [
-      {
-        ...paragraphRow,
-        chapter_id: 'ch-1',
-        id: 'p-last',
-        index: POSTGREST_MAX_ROWS,
-      },
-    ];
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call += 1;
-      return chainable({
-        data: call === 1 ? fullBatch : tailBatch,
-        error: null,
+  describe('glossary loaders', () => {
+    it('loadGlossaryForProject maps entries and handles empty/error', async () => {
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() =>
+          chainable({
+            data: [{ id: 'g1', original: 'A' }],
+            error: null,
+          })
+        ),
       });
+      assert.equal((await loadGlossaryForProject('p1', 'tok')).length, 1);
+
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() => chainable({ data: [], error: null })),
+      });
+      assert.deepEqual(await loadGlossaryForProject('p1', 'tok'), []);
+
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() => chainable({ data: null, error: { message: 'gfail' } })),
+      });
+      await assert.rejects(() => loadGlossaryForProject('p1', 'tok'), /gfail/);
     });
-    const client = { from: mockFrom } as never;
-    const result = await loadParagraphsForChapterIds(client, ['ch-1']);
-    assert.equal(result.get('ch-1')?.length, POSTGREST_MAX_ROWS + 1);
-  });
-});
 
-describe('getProjectForPublicationExport', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
+    it('public glossary and count helpers use service role', async () => {
+      mocks.mockCreateServiceRoleClient.mockReturnValue({
+        from: vi.fn(() =>
+          chainable({
+            data: [{ id: 'g1', original: 'A' }],
+            error: null,
+          })
+        ),
+      });
+      assert.equal((await loadGlossaryForProjectPublic('p1')).length, 1);
+
+      mocks.mockCreateServiceRoleClient.mockReturnValue({
+        from: vi.fn(() => chainable({ data: null, error: null, count: 3 })),
+      });
+      assert.equal(await getGlossaryCountForProject('p1'), 3);
+
+      mocks.mockCreateServiceRoleClient.mockReturnValue({
+        from: vi.fn(() => chainable({ data: null, error: { message: 'x' }, count: null })),
+      });
+      assert.equal(await getGlossaryCountForProject('p1'), 0);
+    });
   });
 
-  it('returns null when project query fails', async () => {
-    mockFrom.mockReturnValue(
-      chainable({
-        data: null,
-        error: { message: 'not found' },
-      })
-    );
-    const project = await getProjectForPublicationExport('proj-missing');
-    assert.equal(project, null);
+  describe('full chapter loaders', () => {
+    it('loadChaptersForProject loads chapters without auto-recovery', async () => {
+      const chapterRow = {
+        id: 'c1',
+        number: 1,
+        title: 'One',
+        translated_text: '',
+        translated_chunks: [],
+      };
+      const from = vi
+        .fn()
+        .mockReturnValueOnce(chainable({ data: [chapterRow], error: null }))
+        .mockReturnValueOnce(chainable({ data: [], error: null }));
+      mocks.mockCreateClientWithToken.mockReturnValue({ from });
+
+      const chapters = await loadChaptersForProject('proj-1', 'tok');
+      assert.equal(chapters.length, 1);
+      assert.equal(chapters[0]!.id, 'c1');
+    });
+
+    it('loadChaptersForProject auto-recovers empty paragraph translations from chunks', async () => {
+      const chapterRow = {
+        id: 'c1',
+        number: 1,
+        title: 'One',
+        translated_text: 'full',
+        translated_chunks: ['chunk-a'],
+      };
+      mocks.mockTransformChapter.mockImplementation(
+        (row: Record<string, unknown>, paragraphs: Array<{ translatedText?: string }> = []) => ({
+          id: row.id,
+          number: row.number,
+          title: row.title,
+          paragraphs,
+          translatedText: String(row.translated_text ?? ''),
+          translatedChunks: (row.translated_chunks as string[]) ?? [],
+        })
+      );
+      mocks.mockGroup.mockReturnValue(
+        new Map([
+          [
+            'c1',
+            [
+              {
+                id: 'p1',
+                chapter_id: 'c1',
+                index: 0,
+                translated_text: '',
+              },
+            ],
+          ],
+        ])
+      );
+      mocks.mockTransformParagraph.mockImplementation((row: Record<string, unknown>) => ({
+        id: row.id,
+        index: row.index ?? 0,
+        originalText: 'o',
+        translatedText: row.translated_text ?? '',
+      }));
+
+      const from = vi.fn((table: string) => {
+        if (table === 'chapters') {
+          return chainable({ data: [chapterRow], error: null });
+        }
+        if (table === 'paragraphs') {
+          return chainable({
+            data: [{ id: 'p1', chapter_id: 'c1', index: 0, translated_text: 'synced-p1' }],
+            error: null,
+          });
+        }
+        return chainable({ data: null, error: null });
+      });
+      mocks.mockCreateClientWithToken.mockReturnValue({ from });
+
+      const chapters = await loadChaptersForProject('proj-1', 'tok');
+      assert.equal(chapters.length, 1);
+      assert.equal(mocks.mockAutoSync.mock.calls.length, 1);
+      assert.ok(from.mock.calls.some((c) => c[0] === 'paragraphs'));
+    });
+
+    it('loadChaptersForProject throws on chapter query error', async () => {
+      mocks.mockCreateClientWithToken.mockReturnValue({
+        from: vi.fn(() => chainable({ data: null, error: { message: 'ch fail' } })),
+      });
+      await assert.rejects(() => loadChaptersForProject('proj-1', 'tok'), /ch fail/);
+    });
+
+    it('loadChaptersForProjectWithServiceRole maps batches', async () => {
+      const from = vi
+        .fn()
+        .mockReturnValueOnce(
+          chainable({
+            data: [{ id: 'c1', number: 1, title: 'One' }],
+            error: null,
+          })
+        )
+        .mockReturnValueOnce(chainable({ data: [], error: null }));
+      mocks.mockCreateServiceRoleClient.mockReturnValue({ from });
+
+      const chapters = await loadChaptersForProjectWithServiceRole('proj-1');
+      assert.equal(chapters.length, 1);
+    });
+
+    it('getProjectForPublicationExport returns null when project missing or throws', async () => {
+      mocks.mockCreateServiceRoleClient.mockReturnValue({
+        from: vi.fn(() => chainable({ data: null, error: { message: 'missing' } })),
+      });
+      assert.equal(await getProjectForPublicationExport('missing'), null);
+
+      mocks.mockCreateServiceRoleClient.mockImplementation(() => {
+        throw new Error('client boom');
+      });
+      assert.equal(await getProjectForPublicationExport('proj-1'), null);
+    });
   });
 });
