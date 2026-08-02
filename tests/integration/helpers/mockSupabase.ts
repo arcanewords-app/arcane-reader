@@ -15,6 +15,8 @@ const mocks = {
   getAllProjectsLightweight: vi.fn(),
   resetStuckChapters: vi.fn(),
   getProject: vi.fn(),
+  createProject: vi.fn(),
+  updateProject: vi.fn(),
   verifyChapterAccess: vi.fn(),
   getChapter: vi.fn(),
   updateChapter: vi.fn(),
@@ -24,7 +26,15 @@ const mocks = {
   updateGlossaryEntry: vi.fn(),
   getGlossaryEntry: vi.fn(),
   updateReadProgress: vi.fn(),
+  updateChapterStatus: vi.fn(),
+  updateParagraph: vi.fn(),
+  searchParagraphsInProject: vi.fn(),
   upsertPublicationRating: vi.fn(),
+  createCatalogTranslationRequest: vi.fn(),
+  listTranslationRequestsBoard: vi.fn(),
+  createTranslationRequestInterest: vi.fn(),
+  updateTranslationRequestInterestMe: vi.fn(),
+  withdrawTranslationRequestInterest: vi.fn(),
 } as const satisfies Record<string, MockFn>;
 
 export type SupabaseMockName = keyof typeof mocks;
@@ -45,6 +55,8 @@ export function resetMocks(): void {
   mocks.getAllProjectsLightweight.mockResolvedValue([]);
   mocks.resetStuckChapters.mockResolvedValue(0);
   mocks.getProject.mockResolvedValue(null);
+  mocks.createProject.mockResolvedValue(null);
+  mocks.updateProject.mockResolvedValue(null);
   mocks.verifyChapterAccess.mockResolvedValue(false);
   mocks.getChapter.mockResolvedValue(null);
   mocks.updateChapter.mockResolvedValue(true);
@@ -54,7 +66,15 @@ export function resetMocks(): void {
   mocks.updateGlossaryEntry.mockResolvedValue(undefined);
   mocks.getGlossaryEntry.mockResolvedValue(null);
   mocks.updateReadProgress.mockResolvedValue({ lastReadChapterNumber: 0 });
+  mocks.updateChapterStatus.mockResolvedValue(null);
+  mocks.updateParagraph.mockResolvedValue(null);
+  mocks.searchParagraphsInProject.mockResolvedValue({ items: [], total: 0 });
   mocks.upsertPublicationRating.mockResolvedValue({ score: 1, average: 1, count: 1 });
+  mocks.createCatalogTranslationRequest.mockResolvedValue(null);
+  mocks.listTranslationRequestsBoard.mockResolvedValue({ items: [], total: 0 });
+  mocks.createTranslationRequestInterest.mockResolvedValue(null);
+  mocks.updateTranslationRequestInterestMe.mockResolvedValue(null);
+  mocks.withdrawTranslationRequestInterest.mockResolvedValue(false);
 }
 
 /** Defaults applied once at load; call resetMocks() in beforeEach. */
@@ -89,6 +109,8 @@ export function createProjectsDomainOverlay(): Record<string, MockFn> {
     getAllProjectsLightweight: mocks.getAllProjectsLightweight,
     resetStuckChapters: mocks.resetStuckChapters,
     getProject: mocks.getProject,
+    createProject: mocks.createProject,
+    updateProject: mocks.updateProject,
     verifyChapterAccess: mocks.verifyChapterAccess,
     getProjectFullForRecovery: mocks.getProjectFullForRecovery,
     resetStuckChaptersForRecovery: mocks.resetStuckChaptersForRecovery,
@@ -113,6 +135,24 @@ export function createGlossaryDomainOverlay(): Record<string, MockFn> {
 export function createReaderProgressDomainOverlay(): Record<string, MockFn> {
   return {
     updateReadProgress: mocks.updateReadProgress,
+    updateChapterStatus: mocks.updateChapterStatus,
+  };
+}
+
+export function createParagraphsDomainOverlay(): Record<string, MockFn> {
+  return {
+    updateParagraph: mocks.updateParagraph,
+    searchParagraphsInProject: mocks.searchParagraphsInProject,
+  };
+}
+
+export function createCatalogBoardDomainOverlay(): Record<string, MockFn> {
+  return {
+    createCatalogTranslationRequest: mocks.createCatalogTranslationRequest,
+    listTranslationRequestsBoard: mocks.listTranslationRequestsBoard,
+    createTranslationRequestInterest: mocks.createTranslationRequestInterest,
+    updateTranslationRequestInterestMe: mocks.updateTranslationRequestInterestMe,
+    withdrawTranslationRequestInterest: mocks.withdrawTranslationRequestInterest,
   };
 }
 

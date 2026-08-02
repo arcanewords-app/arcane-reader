@@ -1,0 +1,11 @@
+{
+  "chapterIds": ["ch-1", "ch-2"],
+  "languagePair": {
+    "sourceLanguage": "en",
+    "targetLanguage": "ru"
+  },
+  "options": {
+    "continueOnError": true,
+    "skipCacheInvalidation": false
+  }
+}

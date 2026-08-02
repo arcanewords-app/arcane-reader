@@ -1,0 +1,14 @@
+{
+  "updates": [
+    {
+      "chapterId": "ch-1",
+      "paragraphId": "p-1",
+      "translatedText": "Hello world"
+    },
+    {
+      "chapterId": "ch-1",
+      "paragraphId": "p-2",
+      "translatedText": "Second paragraph"
+    }
+  ]
+}

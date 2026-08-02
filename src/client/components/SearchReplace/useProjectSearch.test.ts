@@ -8,4 +8,16 @@ describe('useProjectSearch helpers', () => {
     assert.equal(parseChapterBound(''), undefined);
     assert.equal(parseChapterBound('abc'), undefined);
   });
+
+  it('parseChapterBound rejects zero, negative, and non-finite values', () => {
+    assert.equal(parseChapterBound('0'), undefined);
+    assert.equal(parseChapterBound('-3'), undefined);
+    assert.equal(parseChapterBound('Infinity'), undefined);
+    assert.equal(parseChapterBound('NaN'), undefined);
+  });
+
+  it('parseChapterBound trims whitespace before parsing', () => {
+    assert.equal(parseChapterBound('  12  '), 12);
+    assert.equal(parseChapterBound('\t\n'), undefined);
+  });
 });

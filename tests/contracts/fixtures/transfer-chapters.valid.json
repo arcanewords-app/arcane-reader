@@ -1,0 +1,5 @@
+{
+  "sourceProjectId": "proj-source",
+  "chapterIds": ["ch-1", "ch-2"],
+  "includeGlossary": true
+}
