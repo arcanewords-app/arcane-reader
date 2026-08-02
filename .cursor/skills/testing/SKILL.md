@@ -1,21 +1,37 @@
 ---
 name: testing
-description: Vitest unit tests, mocking, coverage, and test gates for Arcane Reader. Use when writing, reviewing, or migrating tests.
-paths: '**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.integration.config.ts,stryker.conf.json,tests/**'
+description: Vitest Q3 pyramid for Arcane Reader — unit, component, mock-integration, contract; coverage floors, layer gaps, mocking, and pre-push gates. Use when writing, reviewing, or migrating tests.
+paths: '**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.integration.config.ts,vitest.contract.config.ts,stryker.conf.json,tests/**'
 ---
 
 # Testing Skill
 
 ## When To Use
 
-- Writing or reviewing `*.test.ts` / `*.test.tsx` files
+- Writing or reviewing tests at **any** Q3 layer (unit / component / mock-integration / contract)
 - Migrating from `node:test` to Vitest
 - Fixing pre-push test failures
-- Running or interpreting coverage (`npm run test:coverage`)
+- Running or interpreting coverage (`npm run test:coverage`) or layer gaps (`npm run test:gaps`)
 - Setting up test infrastructure (vitest configs, husky hooks, wrappers)
-- Component, mock-integration, contract stubs
 
 Read `@.cursor/rules/testing.mdc` for policies. Pyramid: `@docs/05-plans/testing-strategy.md`. Layer recipes: `PATTERNS.md` in this folder.
+
+## Choose the layer first
+
+Do **not** default to unit. Pick layer(s) from the change:
+
+| Change                                                                                   | Add / update                                                               |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Pure logic `engine/` `shared/` utils / extracted helpers                                 | Co-located `*.test.ts` (`npm run test`)                                    |
+| Preact component / hook / page                                                           | `*.test.tsx` / `*.hook.test.ts` (`npm run test:component`) — page smoke OK |
+| New/changed Express route wiring                                                         | `tests/integration/api/*.test.ts` (`npm run test:integration`)             |
+| Client↔server enum / critical request shape **not** already covered by thorough Zod unit | `tests/contracts/**` (`npm run test:contract`)                             |
+| Deferred monster / `ProjectInfo`                                                         | Extract + unit; **do not** full-mount                                      |
+
+- Domain agents own these tests with feature work. Testing agent owns infra and cross-layer campaigns.
+- Contract is **selective** — do not mirror every Zod schema that already has unit coverage.
+- Ambiguous “add tests” for UI → run/suggest `npm run test:gaps`, then pick from CLIENT_SCOPE gaps.
+- Exemplars: page-smoke / Header / Sidebar / ChapterHeader → `PATTERNS.md` § Client; integration → `PATTERNS.md` § Integration.
 
 ## Commands
 
@@ -50,7 +66,7 @@ Read `@.cursor/rules/testing.mdc` for policies. Pyramid: `@docs/05-plans/testing
 - Component/integration wrappers pass **explicit file lists** (directory/glob entry flaky on Windows).
 - Integration: `pool: 'forks'`, **no** Vitest `setupFiles` — env isolation via imported `tests/integration/setup.ts`.
 
-## File template
+## File template (unit)
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -64,6 +80,8 @@ describe('myFunction', () => {
 ```
 
 - Co-locate: `src/shared/foo.ts` → `src/shared/foo.test.ts`
+- Component: `Foo.tsx` → `Foo.test.tsx` (happy-dom); hooks → `*.hook.test.ts` — see `PATTERNS.md` § Client
+- Integration: `tests/integration/api/<route>.test.ts` — see `PATTERNS.md` § Integration
 - Use **behavior** names in `it('...')`, not internal implementation details
 - Prefer `expect` from vitest; `node:assert/strict` is acceptable during migration
 

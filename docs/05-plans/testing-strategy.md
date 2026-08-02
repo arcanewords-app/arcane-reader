@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-03
 wave6: done
 wave7: done
 type: plan
@@ -14,6 +14,8 @@ Global SSOT for **what** to test and **in which order**. Measured numbers live i
 ## Executive summary
 
 Arcane Reader is a Preact SPA + Express API + Supabase + BullMQ worker. Waves 0–5 built a strong **unit** base (~65% lines). The pyramid next expands **component** and **mock-integration**, then snapshot/contract stubs, then live E2E when a dedicated test environment exists.
+
+**Guidance update:** domain agents own multi-layer tests with their features (UI → component; routes → mock-integration; pure → unit). Contract fixtures are selective (enum-sync / high-value shapes) — not a Zod unit mirror. See agent/skill decision tables in `testing.mdc` / testing `SKILL.md`.
 
 ```mermaid
 flowchart TB

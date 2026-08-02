@@ -63,6 +63,10 @@ try {
 - Log with `req.log` (English, structured `event` fields)
 - Delegate persistence to `supabaseDatabase.ts` / services — keep handlers thin
 
+## Testing
+
+Choose the layer per `@.cursor/skills/testing/SKILL.md` (“Choose the layer first”) — new/changed routes → mock-integration; contract only for shared enums / high-value shapes.
+
 ## Anti-patterns
 
 - Skipping Zod on new body/query/**path** parameters

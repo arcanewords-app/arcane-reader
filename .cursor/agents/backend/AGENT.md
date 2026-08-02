@@ -55,3 +55,4 @@ Read and follow: [`.cursor/skills/backend/SKILL.md`](../../skills/backend/SKILL.
 - [ ] Worker/env: `REDIS_URL`, `KV_REST_*` documented if new async behavior
 - [ ] Reuse existing DB functions before new queries
 - [ ] Pure logic in `shared/` or services → co-located `*.test.ts` per `testing.mdc`
+- [ ] Job / service wiring exposed via API routes → mock-integration with API (not live Redis/BullMQ) per `testing.mdc`

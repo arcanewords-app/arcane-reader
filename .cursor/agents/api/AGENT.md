@@ -54,4 +54,6 @@ Read and follow: [`.cursor/skills/api/SKILL.md`](../../skills/api/SKILL.md)
 - [ ] `routing.mdc` updated for new/changed/removed routes
 - [ ] Auth level documented (`requireRole`, `optionalAuth`)
 - [ ] Logs via `req.log` (English, structured)
-- [ ] Pure helpers changed → add/update co-located `*.test.ts` per `testing.mdc`
+- [ ] New/changed route → mock-integration smoke in `tests/integration/api/*.test.ts` (`npm run test:integration`)
+- [ ] Pure helpers changed → co-located `*.test.ts` per `testing.mdc`
+- [ ] Contract fixtures only for shared enums / high-churn request bodies — **not** every Zod schema already covered by unit tests (`tests/contracts/**`)

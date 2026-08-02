@@ -62,6 +62,10 @@ Policies (tokens, a11y, 44px touch) stay in [`design-system.mdc`](../../rules/de
 - Calling Supabase or Redis from the browser with service role
 - `className` (React-ism) in new code
 
+## Testing
+
+Choose the layer per `@.cursor/skills/testing/SKILL.md` (“Choose the layer first”) — UI/hooks/pages → component suite, not unit-only.
+
 ## Checklist (UI tasks)
 
 - [ ] Checked [PATTERNS.md](./PATTERNS.md) for reusable recipe (publication ratings → `publication-rating-*`, `catalog-sort-by-rating`)
@@ -70,3 +74,4 @@ Policies (tokens, a11y, 44px touch) stay in [`design-system.mdc`](../../rules/de
 - [ ] i18n keys in en, ru, be (and pl if touching pl.json)
 - [ ] Mobile → tablet → desktop; touch ≥ 44px
 - [ ] New reusable UX → entry in PATTERNS.md
+- [ ] New/changed component/hook/page → `*.test.tsx` / `*.hook.test.ts`

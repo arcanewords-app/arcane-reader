@@ -63,4 +63,6 @@ Read and follow: [`.cursor/skills/ui/SKILL.md`](../../skills/ui/SKILL.md)
 - [ ] Touch targets ≥ 44px on mobile/tablet
 - [ ] If routes changed: `routing.mdc` + `AppRouter.tsx` updated in same task
 - [ ] Reusable UX shipped → consider entry in [PATTERNS.md](../../skills/ui/PATTERNS.md)
-- [ ] Pure utils/hooks extracted → co-located `*.test.ts` per `testing.mdc`
+- [ ] New/changed component / hook / page → `*.test.tsx` / `*.hook.test.ts` (`npm run test:component`); page smoke OK
+- [ ] Do **not** full-mount deferred monsters / `ProjectInfo` — extract + unit instead; see `@.cursor/skills/testing/PATTERNS.md`
+- [ ] Pure utils extracted → co-located `*.test.ts` per `testing.mdc`

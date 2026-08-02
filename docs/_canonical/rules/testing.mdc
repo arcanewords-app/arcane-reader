@@ -1,5 +1,5 @@
 ---
-description: Unit test policies, Vitest runner, gates, and co-location. Read when writing or reviewing *.test.ts, vitest config, or test infrastructure.
+description: Q3 test pyramid policies (unit, component, mock-integration, contract), Vitest runner, gates, and co-location. Read when writing or reviewing tests, vitest config, or test infrastructure.
 globs: "**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.contract.config.ts,vitest.integration.config.ts,stryker.conf.json,tests/**"
 alwaysApply: false
 ---
@@ -11,6 +11,22 @@ alwaysApply: false
 Pyramid, waves, and module priorities: `@docs/05-plans/testing-strategy.md`.
 Measured coverage numbers: `@docs/05-plans/testing-baseline.md`.
 How-to: `@.cursor/skills/testing/SKILL.md`, patterns: `@.cursor/skills/testing/PATTERNS.md`.
+
+## When shipping a feature
+
+Domain agents own layer-appropriate tests with the feature. Do **not** default to unit-only.
+
+| Change | Add / update |
+|--------|----------------|
+| Pure logic `engine/` `shared/` utils / extracted helpers | Co-located `*.test.ts` (`npm run test`) |
+| Preact component / hook / page | `*.test.tsx` / `*.hook.test.ts` (`npm run test:component`); page smoke OK |
+| New/changed Express route wiring | `tests/integration/api/*.test.ts` (`npm run test:integration`) |
+| Client↔server enum / critical request shape **not** already covered by thorough Zod unit | `tests/contracts/**` (`npm run test:contract`) |
+| Deferred monster / `ProjectInfo` (`COMPONENT_DEFERRED` in gaps) | Extract + unit; **do not** full-mount |
+
+**Contract selectivity:** prefer enum-sync and high-value / high-churn request bodies. Do **not** duplicate exhaustive Zod unit suites with fixture spam.
+
+**Agent routing:** domain agents write these layer tests; Testing utility owns infra, `test:gaps` campaigns, and cross-layer work.
 
 ## Runner and layout
 
@@ -74,7 +90,7 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 | Integration (mock) | `createApp` + supertest + mocked services | keep as fast CI layer |
 | Integration (live) | — | real Supabase / Redis / worker |
 | Snapshot | Presentational `ui/*` / EntityCard / TagChip (`toMatchSnapshot`); no breakpoint matrix | same |
-| Contract | Phase 1 Zod fixtures under `tests/contracts/` (pre-push) | OpenAPI / Pact after split |
+| Contract | Selective Zod fixtures under `tests/contracts/` (pre-push) — enums / high-value shapes, not every schema | OpenAPI / Pact after split |
 | System/E2E | stub only | Playwright smoke on test stack |
 
 ## Layer boundaries
@@ -127,5 +143,6 @@ When changing runner, gates, or test conventions:
 
 ## Agent routing
 
-- Test infrastructure, migration, coverage baseline → **Testing** utility agent (`@.cursor/agents/testing/AGENT.md`).
-- Feature code + tests → domain agent (Engine/API/Backend/UI) + **verifier** runs `lint:all` + `test` (+ component/integration when those layers change).
+- Feature code + **layer-appropriate tests** → domain agent (Engine/API/Backend/UI) — choose layer from “When shipping a feature” above.
+- Test infrastructure, migration, coverage baseline, gap campaigns → **Testing** utility (`@.cursor/agents/testing/AGENT.md`).
+- **verifier** runs `lint:all` + suites for changed layers (`test` / `test:component` / `test:integration` / `test:contract`).

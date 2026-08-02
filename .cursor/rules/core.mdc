@@ -37,9 +37,12 @@ On every meaningful change:
 PR checklist:
 
 - `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` pass
-- Layer hint: pure logic → unit; Preact UI/hooks → component; HTTP/wiring/jobs → mock-integration; wire shapes → contract (`@.cursor/rules/testing.mdc`)
+- Choose test layer(s) with the feature (`@.cursor/rules/testing.mdc`):
+  - Pure logic in `engine/` / `shared/` / utils → co-located `*.test.ts`
+  - Preact UI / hooks / pages → `*.test.tsx` / `*.hook.test.ts` (component suite)
+  - New/changed API routes → mock-integration smoke under `tests/integration/api/`
+  - Wire enums / split-critical request shapes → contract (`tests/contracts/**`) — **not** every Zod schema that already has thorough unit coverage
 - New/changed route → `@.cursor/rules/routing.mdc` + `@src/client/AppRouter.tsx` + `@src/server.ts`
-- Pure logic in `engine/` or `shared/` → co-located `*.test.ts` per `@.cursor/rules/testing.mdc`
 - New env var → `@env.example.txt` + `@.cursor/rules/deployment.mdc`
 - New/changed DB schema → `@.cursor/rules/supabase.mdc` — SQL only in `supabase/migrations/` + row in `@supabase/README.md`
 - Plan completed → archive plan note (`status: archived`) and update `@docs/project-status.md`

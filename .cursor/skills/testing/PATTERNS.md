@@ -3,6 +3,8 @@
 Exemplar tests in this repo — match these patterns before inventing new ones.
 Strategy: `@docs/05-plans/testing-strategy.md`.
 
+**Layer picker:** choose unit / component / mock-integration / contract from the decision table in [`SKILL.md`](./SKILL.md) (“Choose the layer first”) and `@.cursor/rules/testing.mdc`. Do not default to unit for UI or route wiring.
+
 ## APP_SCOPE
 
 Unit tests, coverage, and Stryker mutation share the same scope:
