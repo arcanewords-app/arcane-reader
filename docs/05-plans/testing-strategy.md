@@ -121,6 +121,18 @@ APP_SCOPE **unit** floors are the metric (`npm run test:coverage`). Component / 
 
 After phases: remeasure → bump `coverage.thresholds` deliberately → update [[05-plans/testing-baseline]].
 
+### Layer gaps instrument (component + contract)
+
+Unit has floors + mutation. Component/contract need a **gap finder** (not floors, not pre-push):
+
+| Signal                    | Command                                                 | Output                                                      |
+| ------------------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| Component presence + v8   | `npm run test:component:coverage` / `npm run test:gaps` | `coverage-component/` + CLIENT_SCOPE gaps (no suite + 0%)   |
+| Contract schema inventory | `npm run test:gaps`                                     | schemas/enums without fixtures in `reports/layer-gaps.json` |
+| Contract v8 (advisory)    | `npm run test:contract:coverage`                        | `coverage-contract/` — which Zod branches never `parse`     |
+
+Script: `scripts/gen-layer-gaps.mjs`. Reuse prior coverage: `npm run test:gaps -- --reuse`. Always exit 0.
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).
@@ -169,18 +181,20 @@ See [[tests/e2e/README|tests/e2e/README.md]] (repo path).
 
 ## Infrastructure
 
-| Artifact                         | Role                                 |
-| -------------------------------- | ------------------------------------ |
-| `vitest.config.ts`               | Fast unit suite + coverage APP_SCOPE |
-| `vitest.slow.config.ts`          | Tiktoken-heavy engine tests          |
-| `vitest.component.config.ts`     | Component / hook DOM suite           |
-| `vitest.integration.config.ts`   | Mock-integration suite               |
-| `src/createApp.ts`               | Express app factory (no `listen`)    |
-| `src/test/setup-component.ts`    | i18n + Testing Library cleanup       |
-| `tests/integration/`             | Integration tests                    |
-| `tests/contracts/`               | Contract fixtures (Phase 1)          |
-| `tests/e2e/`                     | E2E stubs (blocked)                  |
-| `scripts/gen-test-inventory.mjs` | Inventory after coverage             |
+| Artifact                         | Role                                               |
+| -------------------------------- | -------------------------------------------------- |
+| `vitest.config.ts`               | Fast unit suite + coverage APP_SCOPE               |
+| `vitest.slow.config.ts`          | Tiktoken-heavy engine tests                        |
+| `vitest.component.config.ts`     | Component / hook DOM suite + CLIENT_SCOPE coverage |
+| `vitest.contract.config.ts`      | Contract suite + advisory schema coverage          |
+| `vitest.integration.config.ts`   | Mock-integration suite                             |
+| `src/createApp.ts`               | Express app factory (no `listen`)                  |
+| `src/test/setup-component.ts`    | i18n + Testing Library cleanup                     |
+| `tests/integration/`             | Integration tests                                  |
+| `tests/contracts/`               | Contract fixtures (Phase 1)                        |
+| `tests/e2e/`                     | E2E stubs (blocked)                                |
+| `scripts/gen-test-inventory.mjs` | Unit inventory after `test:coverage`               |
+| `scripts/gen-layer-gaps.mjs`     | Component + contract gap report (`test:gaps`)      |
 
 ### npm scripts
 
@@ -188,14 +202,17 @@ See [[tests/e2e/README|tests/e2e/README.md]] (repo path).
 npm run test                 # unit (fast)
 npm run test:slow            # tiktoken
 npm run test:component       # Testing Library
+npm run test:component:coverage  # CLIENT_SCOPE v8 → coverage-component/
 npm run test:integration     # mock-integration
 npm run test:contract        # contract suite (when tests exist)
+npm run test:contract:coverage   # advisory schema v8 → coverage-contract/
+npm run test:gaps            # layer gap report (component + contract)
 npm run test:e2e             # placeholder until Playwright + test env
 npm run test:all             # unit + slow + component + integration + contract
 npm run test:coverage        # unit coverage
 ```
 
-Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`. Coverage floors on `test:coverage` only (not pre-push).
+Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`. Coverage floors on `test:coverage` only (not pre-push). `test:gaps` is manual/advisory.
 
 ## Metrics (orientation, not gates)
 

@@ -153,8 +153,22 @@ Exact **`vitest@4.0.8`** + `@vitest/coverage-v8@4.0.8`. Do not bump to 4.1.x wit
 
 Unit floors ≠ component/integration coverage. Deferred: bootstrap entrypoints, ReadingMode full UI, binary fb2/epub parsers, Wave 10.
 
+## Layer gaps (component + contract)
+
+Unit inventory (`gen-test-inventory.mjs`) does not see `*.test.tsx` execution. For UI / wire-shape blind spots:
+
+```bash
+npm run test:gaps                 # component coverage + schema/enum inventory → reports/layer-gaps.json
+npm run test:gaps -- --reuse      # skip re-run if coverage-component/ exists
+npm run test:component:coverage   # CLIENT_SCOPE html/json only
+npm run test:contract:coverage    # advisory Zod schema v8 only
+```
+
+Refresh gap counts after component/contract deepen PRs; do **not** fold into unit floors 77/65.
+
 ## Policy
 
 - Coverage floors active on `test:coverage` only; pre-push = lint + unit + component + integration + contract
+- Layer gaps (`test:gaps`) are advisory — not a merge gate
 - Re-run baseline after major test additions; update this note (and floors if measured drift is intentional)
 - See [[02-how-to/run-tests]] and `.cursor/rules/testing.mdc`

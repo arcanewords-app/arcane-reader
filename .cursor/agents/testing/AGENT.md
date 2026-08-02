@@ -13,6 +13,7 @@ You own **unit test quality and test infrastructure** for Arcane Reader — not 
 - User asks to write, fix, or review tests
 - Vitest migration, vitest configs, npm test scripts, **wrappers** (`scripts/test-*.mjs`, `resolve-vitest.mjs`)
 - Coverage baseline, **floors**, or interpreting `test:coverage` output
+- Layer gaps (`test:gaps` / `gen-layer-gaps.mjs`) for component + contract blind spots
 - Pre-push test failures, husky hook setup
 - Test infrastructure docs (`testing.mdc`, `SKILL.md`, strategy/baseline)
 
@@ -23,7 +24,7 @@ You own **unit test quality and test infrastructure** for Arcane Reader — not 
 - `src/**/*.test.ts`, `src/**/*.test.tsx`, `src/**/*.hook.test.ts`
 - `tests/integration/**`, `tests/contracts/**`, `tests/e2e/**` (stubs)
 - `vitest.config.ts`, `vitest.component.config.ts`, `vitest.integration.config.ts`, `vitest.contract.config.ts`, `stryker.conf.json`
-- `scripts/test-unit.mjs`, `scripts/test-component.mjs`, `scripts/test-integration.mjs`, `scripts/resolve-vitest.mjs`
+- `scripts/test-unit.mjs`, `scripts/test-component.mjs`, `scripts/test-integration.mjs`, `scripts/resolve-vitest.mjs`, `scripts/gen-layer-gaps.mjs`
 - `src/createApp.ts` (testability extract)
 - Test scripts in `package.json`
 - `.husky/pre-push` test gate

@@ -43,9 +43,11 @@ Helper: `tests/contracts/helpers/loadFixture.ts`.
 
 ```bash
 npm run test:contract
+npm run test:contract:coverage   # advisory v8 on src/api/schemas (not a KPI)
+npm run test:gaps                # schema + enum-sync inventory gaps → reports/layer-gaps.json
 ```
 
-Included in pre-push (fast, no network).
+`test:contract` is included in pre-push (fast, no network). Gap inventory is manual/advisory — see [[05-plans/testing-strategy#Layer gaps instrument (component + contract)|testing-strategy]].
 
 ## Policy
 

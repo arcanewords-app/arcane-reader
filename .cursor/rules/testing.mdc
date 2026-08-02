@@ -1,6 +1,6 @@
 ---
 description: Unit test policies, Vitest runner, gates, and co-location. Read when writing or reviewing *.test.ts, vitest config, or test infrastructure.
-globs: "**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.integration.config.ts,stryker.conf.json,tests/**"
+globs: "**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.contract.config.ts,vitest.integration.config.ts,stryker.conf.json,tests/**"
 alwaysApply: false
 ---
 
@@ -19,11 +19,11 @@ How-to: `@.cursor/skills/testing/SKILL.md`, patterns: `@.cursor/skills/testing/P
   - `npm run test` → `scripts/test-unit.mjs` (native cwd casing + hoisted vitest)
   - `npm run test:component` → `scripts/test-component.mjs` (explicit file list)
   - `npm run test:integration` → `scripts/test-integration.mjs` (explicit file list)
-  - Also: `test:slow`, `test:contract`, `test:all`, `test:coverage`
-- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX), `@vitest.integration.config.ts` (forks, **no** `setupFiles`)
+  - Also: `test:slow`, `test:contract`, `test:all`, `test:coverage`, `test:component:coverage`, `test:contract:coverage`, `test:gaps`
+- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX, CLIENT_SCOPE coverage), `@vitest.contract.config.ts` (Zod fixtures + advisory schema coverage), `@vitest.integration.config.ts` (forks, **no** `setupFiles`)
 - **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract/e2e live under `tests/`.
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
-- **Wrappers allowed:** `scripts/test-*.mjs` / `scripts/resolve-vitest.mjs` for runner workarounds only — not for test cases. Put tests under `src/**/*.test.ts(x)` or `tests/`. Inventory helper `scripts/gen-test-inventory.mjs` is allowed.
+- **Wrappers allowed:** `scripts/test-*.mjs` / `scripts/resolve-vitest.mjs` for runner workarounds only — not for test cases. Put tests under `src/**/*.test.ts(x)` or `tests/`. Inventory helpers `scripts/gen-test-inventory.mjs` and `scripts/gen-layer-gaps.mjs` are allowed.
 
 ## APP_SCOPE (unified)
 
@@ -108,6 +108,13 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 - Floors on `test:coverage` only; track trend above floors.
 - Prioritize `engine/` and `shared/` pure modules; expand to client components/hooks and mock-integration.
 - Baseline: `@docs/05-plans/testing-baseline.md`. Strategy: `@docs/05-plans/testing-strategy.md`.
+
+## Layer gaps (component + contract)
+
+- **Command:** `npm run test:gaps` → runs component suite with coverage (or `--reuse`), then writes `reports/layer-gaps.json`.
+- **Component:** presence (co-located `*.test.tsx` / `*.hook.test.ts`) + v8 on CLIENT_SCOPE (`coverage-component/`). Deferred UI monsters are listed, not counted as gaps.
+- **Contract:** schema export inventory vs `tests/contracts/**` mentions + enum-sync manifest. Line % is advisory only (`test:contract:coverage`).
+- **Not** merged into unit APP_SCOPE floors. **Not** in pre-push. Exit always 0 (advisory).
 
 ## Documentation workflow
 

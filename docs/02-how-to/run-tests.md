@@ -10,8 +10,11 @@ Tests never require prod/staging `.env` credentials. Q3 uses mocks at all extern
 npm run test                 # fast unit suite (scripts/test-unit.mjs; excludes tiktoken slow tests)
 npm run test:slow            # slow preview/chunking tests (~100 s)
 npm run test:component       # Testing Library + happy-dom (*.test.tsx, *.hook.test.ts)
+npm run test:component:coverage  # CLIENT_SCOPE v8 → coverage-component/
 npm run test:integration     # mock-integration (createApp + supertest; scripts/test-integration.mjs)
 npm run test:contract        # contract fixtures (Wave 9)
+npm run test:contract:coverage   # advisory schema v8 → coverage-contract/
+npm run test:gaps            # component + contract blind spots → reports/layer-gaps.json
 npm run test:e2e             # placeholder until Playwright + test env
 npm run test:all             # unit + slow + component + integration + contract
 npm run test:watch           # watch mode
@@ -30,11 +33,23 @@ npm run test -- src/engine/glossary   # focused directory (prefer npm run test o
 
 Inventory: `node scripts/gen-test-inventory.mjs` (after coverage run).
 
+## Layer gaps (component + contract)
+
+Unit floors do not show UI / contract blind spots. Use:
+
+```bash
+npm run test:gaps                 # presence + v8 (component) + schema/enum inventory (contract)
+npm run test:gaps -- --reuse      # reuse coverage-component/ if already generated
+```
+
+Advisory only (exit 0). See [[05-plans/testing-strategy]].
+
 ## Thresholds
 
 | Mechanism              | Policy                                                                                                                                   |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **77**, branches **65**. Enforced by `npm run test:coverage` only — **not** pre-push. |
+| Layer gaps             | `npm run test:gaps` — advisory report; not a merge gate                                                                                  |
 | Stryker                | `high: 80`, `low: 60`, `break: null` — advisory bands; never fails the build                                                             |
 
 If coverage drops below floors, fix tests or lower floors **deliberately** in the same PR.

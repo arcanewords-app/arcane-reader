@@ -60,6 +60,7 @@ npm run test:component    # Testing Library + happy-dom
 npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures
 npm run test:coverage     # coverage with floors (lines 77 / branches 65); not in pre-push
+npm run test:gaps         # component + contract blind spots (advisory); not in pre-push
 ```
 
 Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`.

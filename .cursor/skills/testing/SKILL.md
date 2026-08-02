@@ -19,24 +19,27 @@ Read `@.cursor/rules/testing.mdc` for policies. Pyramid: `@docs/05-plans/testing
 
 ## Commands
 
-| Task              | Command                                                                       |
-| ----------------- | ----------------------------------------------------------------------------- |
-| Run fast tests    | `npm run test` (via `scripts/test-unit.mjs`)                                  |
-| Run slow tests    | `npm run test:slow`                                                           |
-| Component suite   | `npm run test:component` (`scripts/test-component.mjs`)                       |
-| Mock-integration  | `npm run test:integration` (`scripts/test-integration.mjs`)                   |
-| Contract suite    | `npm run test:contract`                                                       |
-| E2E (placeholder) | `npm run test:e2e`                                                            |
-| Run full suite    | `npm run test:all`                                                            |
-| Watch mode        | `npm run test:watch`                                                          |
-| Coverage report   | `npm run test:coverage` (floors: lines 77 / branches 65)                      |
-| Mutation (smoke)  | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`             |
-| Mutation (full)   | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                    |
-| Mutation (zone)   | `npx stryker run --mutate "src/shared/**/*.ts"`                               |
-| Inventory         | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                 |
-| Focused run       | `npm run test -- src/engine/glossary`                                         |
-| Single file       | `npm run test -- src/shared/paragraphSync.test.ts`                            |
-| Pre-push gate     | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract` |
+| Task               | Command                                                                       |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Run fast tests     | `npm run test` (via `scripts/test-unit.mjs`)                                  |
+| Run slow tests     | `npm run test:slow`                                                           |
+| Component suite    | `npm run test:component` (`scripts/test-component.mjs`)                       |
+| Component coverage | `npm run test:component:coverage` → `coverage-component/` (CLIENT_SCOPE)      |
+| Mock-integration   | `npm run test:integration` (`scripts/test-integration.mjs`)                   |
+| Contract suite     | `npm run test:contract`                                                       |
+| Contract coverage  | `npm run test:contract:coverage` → `coverage-contract/` (advisory)            |
+| Layer gaps         | `npm run test:gaps` (component presence+v8 + contract schema inventory)       |
+| E2E (placeholder)  | `npm run test:e2e`                                                            |
+| Run full suite     | `npm run test:all`                                                            |
+| Watch mode         | `npm run test:watch`                                                          |
+| Coverage report    | `npm run test:coverage` (floors: lines 77 / branches 65)                      |
+| Mutation (smoke)   | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`             |
+| Mutation (full)    | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                    |
+| Mutation (zone)    | `npx stryker run --mutate "src/shared/**/*.ts"`                               |
+| Inventory          | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                 |
+| Focused run        | `npm run test -- src/engine/glossary`                                         |
+| Single file        | `npm run test -- src/shared/paragraphSync.test.ts`                            |
+| Pre-push gate      | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract` |
 
 **Emergency bypass** (document reason): `HUSKY=0 git push`
 
@@ -118,15 +121,16 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 liv
 
 ## Gate table
 
-| Gate             | Command                    | When                                                 |
-| ---------------- | -------------------------- | ---------------------------------------------------- |
-| Lint + types     | `npm run lint:all`         | every push                                           |
-| Unit             | `npm run test`             | every push                                           |
-| Component        | `npm run test:component`   | every push                                           |
-| Mock-integration | `npm run test:integration` | every push                                           |
-| Contract         | `npm run test:contract`    | every push                                           |
-| Coverage floors  | `npm run test:coverage`    | manual / PR when touching coverage; **not** pre-push |
-| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                        |
+| Gate             | Command                    | When                                                  |
+| ---------------- | -------------------------- | ----------------------------------------------------- |
+| Lint + types     | `npm run lint:all`         | every push                                            |
+| Unit             | `npm run test`             | every push                                            |
+| Component        | `npm run test:component`   | every push                                            |
+| Mock-integration | `npm run test:integration` | every push                                            |
+| Contract         | `npm run test:contract`    | every push                                            |
+| Coverage floors  | `npm run test:coverage`    | manual / PR when touching coverage; **not** pre-push  |
+| Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures |
+| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                         |
 
 ## Anti-patterns
 
@@ -142,14 +146,15 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 liv
 
 ## Vitest config SSOT
 
-| Config                         | Role                                                            |
-| ------------------------------ | --------------------------------------------------------------- |
-| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (77/65)           |
-| `vitest.slow.config.ts`        | Tiktoken-heavy engine tests                                     |
-| `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom, Preact JSX          |
-| `vitest.integration.config.ts` | `tests/integration/**` (excludes live supabase until unblocked) |
+| Config                         | Role                                                              |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (77/65)             |
+| `vitest.slow.config.ts`        | Tiktoken-heavy engine tests                                       |
+| `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom, CLIENT_SCOPE coverage |
+| `vitest.contract.config.ts`    | Zod fixtures; advisory schema coverage only                       |
+| `vitest.integration.config.ts` | `tests/integration/**` (excludes live supabase until unblocked)   |
 
-Coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary`, thresholds lines **77** / branches **65**.
+Unit coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary`, thresholds lines **77** / branches **65**. Component/contract coverage dirs are separate (`coverage-component/`, `coverage-contract/`) — never merge into unit floors.
 
 ## Verification after changes
 

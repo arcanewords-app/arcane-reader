@@ -37,6 +37,8 @@ npm-debug.log*
 # Cache
 .cache/
 coverage/
+coverage-component/
+coverage-contract/
 reports/
 .stryker-tmp/
 *.tsbuildinfo

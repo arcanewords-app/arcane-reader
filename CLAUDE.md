@@ -17,6 +17,7 @@ npm run test:component    # Testing Library + happy-dom
 npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures
 npm run test:coverage     # floors lines 77 / branches 65 (not pre-push)
+npm run test:gaps         # component + contract blind spots (advisory)
 npm run typecheck
 ```
 
