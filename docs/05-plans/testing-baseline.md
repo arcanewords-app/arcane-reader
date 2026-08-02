@@ -38,19 +38,19 @@ Policy SSOT: [[_canonical/rules/testing]]. Full pyramid: [[05-plans/testing-stra
 
 Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) is in pre-push.
 
-## Test suite (2026-08-02, post further coverage wave)
+## Test suite (2026-08-02, post component focus wave)
 
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **41** files / **103** tests (`npm run test:component`)                           |
-| Mock-integration suite      | **11** files / **54** tests (`npm run test:integration`)                          |
-| Contract suite              | **28** files / **42** tests (`npm run test:contract`)                             |
-| Co-located `*.test.tsx`     | **36**                                                                            |
-| Co-located `*.hook.test.ts` | **5**                                                                             |
+| Component suite             | **96** files / **251** tests (`npm run test:component`)                           |
+| Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                          |
+| Contract suite              | **46** files / **75** tests (`npm run test:contract`)                             |
+| Co-located `*.test.tsx`     | **86**                                                                            |
+| Co-located `*.hook.test.ts` | **10**                                                                            |
 | Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
-Component suite: `happy-dom` + `@testing-library/preact`. Unit coverage command does **not** execute `*.test.tsx` (separate config) — client % below understates Wave 6 component coverage. Integration suite is mock-first (no live Supabase/Redis/LLM).
+Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.config.ts` uses `pool: 'threads'` (Windows fork-runner stability). Unit coverage command does **not** execute `*.test.tsx` (separate config). Integration suite is mock-first (no live Supabase/Redis/LLM).
 
 ## Inventory: tested vs untested
 
@@ -65,24 +65,24 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 ### Client breakdown
 
-| Folder               | Coverage notes                                               |
-| -------------------- | ------------------------------------------------------------ |
-| `client/utils/`      | Strong + `publicationChapterFilters`                         |
-| `client/hooks/`      | Wave 6 P0: translation / token / history hooks               |
-| `client/components/` | Gates, toolbar, rating/auth/upgrade, ReplacePreview, banners |
-| `client/pages/`      | About / Privacy / Terms / Projects smokes                    |
-| `client/api/`        | Domains / cache / transport mostly covered                   |
+| Folder               | Coverage notes                                                        |
+| -------------------- | --------------------------------------------------------------------- |
+| `client/utils/`      | Strong + `publicationChapterFilters`                                  |
+| `client/hooks/`      | Wave 6 P0: translation / token / history hooks                        |
+| `client/components/` | Focus wave: dashboard/sidebar/modals + page smokes; monsters deferred |
+| `client/pages/`      | About / Privacy / Terms / Projects smokes                             |
+| `client/api/`        | Domains / cache / transport mostly covered                            |
 
 ## Overall coverage (v8, APP_SCOPE — unit suite)
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | Coverage (post further wave, 2026-08-02) |
-| ---------- | ---------------------------------------- |
-| Lines      | **77.69%**                               |
-| Statements | **75.65%**                               |
-| Functions  | **80.39%**                               |
-| Branches   | **65.33%**                               |
+| Metric     | Coverage (post large campaign, 2026-08-02) |
+| ---------- | ------------------------------------------ |
+| Lines      | **77.76%**                                 |
+| Statements | **75.72%**                                 |
+| Functions  | **80.43%**                                 |
+| Branches   | **65.49%**                                 |
 
 ### Coverage floors (active)
 
@@ -185,6 +185,30 @@ npm run test:contract:coverage    # advisory Zod schema v8 only
 | Integration | suite files / tests                         | 9 / 44            | **11 / 54**           |
 
 Further wave: ReplacePreviewModal, ChapterStatusSelect, AnnouncementBanner, ReadingHistorySection, CriticUpgradeModal; +6 API contract fixtures; unit branch edges (`publication-rating`, `seoHtml`, `importCoverPath`); mock-integration glossary + rating/read-progress. Still **advisory** for layers — do **not** fold into unit floors 77/65 or husky.
+
+### Post large coverage campaign (`test:gaps`, 2026-08-02)
+
+| Layer       | Metric                                      | After further wave | After large campaign  |
+| ----------- | ------------------------------------------- | ------------------ | --------------------- |
+| Component   | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 41 / 80 / 7  | **130 / 71 / 50 / 7** |
+| Component   | v8 lines (advisory, component suite)        | ~8.38%             | **~15.96%**           |
+| Contract    | schemas with fixtures / total               | 21 / 72            | **39 / 72**           |
+| Contract    | enum-sync covered / targets                 | 9 / 9              | **9 / 9**             |
+| Unit        | lines / branches (floors 77/65)             | 77.69 / 65.33      | **77.76 / 65.49**     |
+| Integration | suite files / tests                         | 11 / 54            | **20 / 95**           |
+
+Large campaign: +30 component suites (Batches A–C), +18 contract schemas (chapters/glossary/projects/report), +9 mock-integration routes, unit buffer (`critic`, `text-block-presets`, chapterPicker/bulkReplace). Layers remain **advisory** — no floors / husky for `test:gaps`.
+
+### Post component focus wave (`test:gaps`, 2026-08-02)
+
+| Layer     | Metric                                      | After large campaign | After component focus   |
+| --------- | ------------------------------------------- | -------------------- | ----------------------- |
+| Component | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 71 / 50 / 7    | **130 / 96 / 24 / 7**   |
+| Component | v8 lines (advisory, component suite)        | ~15.96%              | **~23.32%**             |
+| Contract  | schemas with fixtures / total               | 39 / 72              | **39 / 72** (unchanged) |
+| Contract  | enum-sync                                   | 9 / 9                | **9 / 9**               |
+
+Component-only wave (+25 suites): Dashboard, CopyChaptersModal, ProjectList, SupportMenu, ChapterTocModal, Cabinet/Profile/Project/AccountTiers/ReadingMode pages, News/Contact, ReportsModal, Sidebar chrome, admin thin (form fields, photo, publications/users smokes, section/tabs/redirect), Suspense; hooks `useReadingTextSelection`, `useStaticPageMeta`. No new contract fixtures. Layers remain **advisory**.
 
 ## Policy
 

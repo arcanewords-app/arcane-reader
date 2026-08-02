@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.tsx', 'src/client/**/*.hook.test.ts'],
     environment: 'happy-dom',
+    pool: 'threads',
     setupFiles: ['src/test/setup-component.ts'],
     testTimeout: 15_000,
     coverage: {

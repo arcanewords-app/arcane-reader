@@ -154,15 +154,23 @@ vi.mock('./useTokenLimitCheck.js', () => ({
 
 **Presentational + snap:** `@src/client/components/Home/PublicationStatusBadge.test.tsx`, `@src/client/components/Publication/PublicationRatingStars.test.tsx`.
 
-**Auth / upgrade / health:** `LoginForm.test.tsx`, `UpgradeScreen.test.tsx`, `AiReplaceUpgradeModal.test.tsx`, `CriticUpgradeModal.test.tsx`, `ServiceStatusBanner.test.tsx` — mock auth / `useUserRole` / `ServiceHealthContext`.
+**Auth / upgrade / health:** `LoginForm.test.tsx`, `RegisterForm.test.tsx`, `AuthModal.test.tsx`, `UpgradeScreen.test.tsx`, `AiReplaceUpgradeModal.test.tsx`, `CriticUpgradeModal.test.tsx`, `ServiceStatusBanner.test.tsx` — mock auth / `useUserRole` / `ServiceHealthContext`.
 
 **SearchReplace / chapter status:** `@src/client/components/SearchReplace/ReplacePreviewModal.test.tsx` (literal/ai/progress props), `@src/client/components/ChapterView/ChapterStatusSelect.test.tsx` (mock `api.updateChapterStatus`).
 
 **Announcement / reading history:** `@src/client/components/AnnouncementBanner.test.tsx`, `@src/client/components/Cabinet/ReadingHistorySection.test.tsx` — mock contexts / `useReadingHistory`.
 
+**Thin UI / confirm / cookies:** `@src/client/components/ui/ConfirmModal.test.tsx`, `@src/client/components/CookieBanner/CookieBanner.test.tsx`, `@src/client/components/Home/EntityChip.test.tsx`.
+
+**Dashboard / publication cards:** `@src/client/components/Dashboard/Dashboard.test.tsx`, `ProjectCard.test.tsx`, `ProjectGrid.test.tsx`, `@src/client/components/Home/PublicationCard.test.tsx`.
+
+**Sidebar chrome:** `@src/client/components/Sidebar/index.test.tsx` — mock `ChapterList` / `ProcessChapters` / search monsters; `@src/client/components/Sidebar/ProjectList.test.tsx`.
+
+**Hooks (component suite):** `useUrlSync.hook.test.ts`, `useTokenEstimate.hook.test.ts`, `usePageMeta.hook.test.ts`, `useStaticPageMeta.hook.test.ts`, `useReadingTextSelection.hook.test.ts`.
+
 **Publication filters (pure):** `@src/client/utils/publicationChapterFilters.test.ts` — prefer extract over mounting `PublicationPage`.
 
-**Page smoke:** `@src/client/pages/AboutPage.test.tsx` — mock `useStaticPageMeta` + i18n; assert `heading` level 1.
+**Page smoke:** `@src/client/pages/AboutPage.test.tsx`, `CabinetPage.test.tsx`, `NewsPage.test.tsx`, `ContactPage.test.tsx`, `AdminPublicationsPage.test.tsx` — mock heavy children/API; assert heading or key region. Do **not** mount `ProjectInfo` / `ReadingMode/index` / deferred monsters.
 
 ## Services — language pair
 
@@ -181,7 +189,7 @@ vi.mock('./useTokenLimitCheck.js', () => ({
 
 ## Integration — mock-first (supertest)
 
-**Exemplar:** `@tests/integration/helpers/createTestApp.ts` (+ `@tests/integration/api/publications.test.ts`)
+**Exemplar:** `@tests/integration/helpers/createTestApp.ts` (+ `@tests/integration/api/publications.test.ts`, `glossary.test.ts`, `projects-create.test.ts`, `chapters-mutations.test.ts`)
 
 - `bootTestApp()` after `vi.mock` of auth / redis / supabase domains
 - Auth stub: Bearer + optional `X-Test-Role` (`helpers/mockAuth.ts`)
@@ -218,7 +226,7 @@ Live Supabase integration: `tests/integration/supabase/README.md` — blocked un
 
 ## Contract (Wave 9 Phase 1)
 
-**Exemplars:** `@tests/contracts/api/news-create.contract.test.ts`, `@tests/contracts/api/glossary-create.contract.test.ts`, `@tests/contracts/client-server/news-enums.contract.test.ts`, `@tests/contracts/client-server/chapter-status.contract.test.ts`
+**Exemplars:** `@tests/contracts/api/news-create.contract.test.ts`, `@tests/contracts/api/glossary-create.contract.test.ts`, `@tests/contracts/api/language-pair.contract.test.ts`, `@tests/contracts/api/paragraph-bulk-update.contract.test.ts`, `@tests/contracts/client-server/news-enums.contract.test.ts`, `@tests/contracts/client-server/chapter-status.contract.test.ts`
 
 ```typescript
 import { newsCreateSchema } from '../../../src/api/schemas/news.js';

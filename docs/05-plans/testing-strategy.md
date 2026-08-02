@@ -159,6 +159,32 @@ Gap-driven P2 + contract increment + unit branch hold + small mock-integration (
 
 Picks: ReplacePreviewModal, ChapterStatusSelect, AnnouncementBanner, ReadingHistorySection, CriticUpgradeModal; read-progress / publication-rating / paragraph-update / project-create / glossary-update / project-ai-replace fixtures. See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
 
+### Large coverage campaign (**done** 2026-08-02)
+
+Multi-track gap-driven push (~200 new tests across layers; still advisory; no layer floors):
+
+| KPI                    | From     | To                      |
+| ---------------------- | -------- | ----------------------- |
+| Component suite / gaps | 41 / 80  | **71 / 50**             |
+| Schemas with fixtures  | 21 / 72  | **39 / 72**             |
+| Enum-sync              | 9 / 9    | **9 / 9**               |
+| Mock-integration       | 11 files | **20**                  |
+| Unit floors            | 77 / 65  | green (~77.76 / ~65.49) |
+
+Tracks: component Batches A–C (thin → medium product UI + hooks); contract D+E (chapters/glossary/projects/report); +9 integration route files; unit buffer (critic prompts, text-block-presets, chapterPicker/bulkReplace). See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
+
+### Component focus wave (**done** 2026-08-02)
+
+Component/hook presence only — **no** new Zod contract fixtures (schemas largely overlap unit tests):
+
+| KPI                           | From    | To          |
+| ----------------------------- | ------- | ----------- |
+| Component suite / gaps        | 71 / 50 | **96 / 24** |
+| Component v8 lines (advisory) | ~16%    | **~23%**    |
+| Contract schemas              | 39 / 72 | unchanged   |
+
+Batches: product shell (Dashboard, Sidebar ProjectList, page smokes), public news/contact, ReportsModal, admin thin primitives/pages. Monsters and pages >500 still out. See [[05-plans/testing-baseline#Layer gaps (component + contract)|testing-baseline]].
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).
