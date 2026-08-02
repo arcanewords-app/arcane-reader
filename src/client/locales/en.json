@@ -1568,8 +1568,6 @@
     "continueFromChapter": "Continue from: {{chapter}}",
     "notTranslated": "No translation",
     "read": "Read",
-    "markRead": "Mark as read",
-    "markUpToHere": "Mark read up to here",
     "filterAll": "All",
     "filterTranslated": "Translated",
     "filterUnread": "Unread",

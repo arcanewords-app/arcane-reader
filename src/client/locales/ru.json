@@ -1567,8 +1567,6 @@
     "continueFromChapter": "Продолжить с: {{chapter}}",
     "notTranslated": "Нет перевода",
     "read": "Прочитано",
-    "markRead": "Отметить прочитанным",
-    "markUpToHere": "Отметить прочитанным до этой главы",
     "filterAll": "Все",
     "filterAllWithCount": "Все ({{count}})",
     "filterTranslated": "Только переведённые",

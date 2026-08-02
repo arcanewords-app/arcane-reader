@@ -70,4 +70,22 @@ describe('ChapterTocModal', () => {
     fireEvent.click(screen.getByText('Middle'));
     expect(onSelectChapter).toHaveBeenCalledWith('ch2');
   });
+
+  it('shows watermark bookmark without per-chapter check or mark controls', () => {
+    const { container } = render(
+      <ChapterTocModal
+        isOpen
+        onClose={vi.fn()}
+        chapters={chapters}
+        onSelectChapter={vi.fn()}
+        lastReadChapterNumber={1}
+      />
+    );
+
+    expect(container.querySelector('.reading-toc-mark-read')).toBeNull();
+    expect(container.querySelector('.reading-toc-read')).toBeNull();
+    expect(container.querySelector('.reading-toc-continue')).toBeTruthy();
+    expect(container.querySelector('.reading-toc-item.last-read')).toBeTruthy();
+    expect(container.querySelector('.reading-toc-item.read')).toBeTruthy();
+  });
 });

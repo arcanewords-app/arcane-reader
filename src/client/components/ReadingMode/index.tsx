@@ -135,9 +135,7 @@ export function ReadingMode({
 
   const isPublicationMode = !!publicationId;
   const lastSyncedParagraphUrlRef = useRef(-1);
-  const scrolledToEndRef = useRef(false);
   const markedThisSessionRef = useRef<Set<string>>(new Set());
-  const lastParagraphRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const reportTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const readingStartTrackedRef = useRef<Set<string>>(new Set());
@@ -479,43 +477,6 @@ export function ReadingMode({
     isOriginalReadingMode,
   ]);
 
-  // Reset "scrolled to end" flag when chapter changes
-  useEffect(() => {
-    scrolledToEndRef.current = false;
-  }, [currentChapterIndex]);
-
-  // IntersectionObserver: auto-complete last chapter at 85% scroll
-  useEffect(() => {
-    if (!onChapterComplete || !isPublicationMode) return;
-    const el = lastParagraphRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry || entry.intersectionRatio < 0.85) return;
-        scrolledToEndRef.current = true;
-
-        const isLastChapter = currentChapterIndex >= chapters.length - 1;
-        if (isLastChapter) {
-          markCurrentChapterComplete();
-        }
-      },
-      { threshold: 0.85, rootMargin: '0px' }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [
-    onChapterComplete,
-    isPublicationMode,
-    chapters,
-    currentChapterIndex,
-    chapterContentMap,
-    chapterContentLoading,
-    markCurrentChapterComplete,
-  ]);
-
   // Apply reader settings as CSS variables
   useEffect(() => {
     const root = document.documentElement;
@@ -845,7 +806,6 @@ export function ReadingMode({
     return segments.map((segment, idx) => (
       <div
         key={idx}
-        ref={idx === segments.length - 1 ? lastParagraphRef : undefined}
         class="reading-mode-paragraph"
         data-paragraph-index={idx}
         dangerouslySetInnerHTML={{
@@ -1079,7 +1039,6 @@ export function ReadingMode({
         }))}
         currentChapterId={currentChapter?.id}
         lastReadChapterNumber={lastReadChapterNumber}
-        onSetProgressToChapter={onSetProgress ? (num) => onSetProgress(num, 'set') : undefined}
         onSelectChapter={(chapterId) => {
           const index = chapters.findIndex((ch) => ch.id === chapterId);
           if (index >= 0) {

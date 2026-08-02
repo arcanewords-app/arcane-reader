@@ -169,8 +169,13 @@ export function useReadingChapterNavigation({
 
   const handleJumpCancel = useCallback(() => {
     if (!jumpConfirm) return;
+    const target = chapters[jumpConfirm.targetIndex];
+    if (target && jumpConfirm.targetIndex !== currentChapterIndex) {
+      setCurrentChapterIndex(jumpConfirm.targetIndex);
+      syncChapterUrl(target.id);
+    }
     setJumpConfirm(null);
-  }, [jumpConfirm]);
+  }, [jumpConfirm, chapters, currentChapterIndex, syncChapterUrl]);
 
   const handleSelectChapter = useCallback(
     (index: number) => {

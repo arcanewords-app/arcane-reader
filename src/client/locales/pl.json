@@ -1385,8 +1385,6 @@
     "continueFromChapter": "Kontynuuj od: {{chapter}}",
     "notTranslated": "Brak tłumaczenia",
     "read": "Przeczytane",
-    "markRead": "Oznacz jako przeczytane",
-    "markUpToHere": "Oznacz jako przeczytane do tego rozdziału",
     "filterAll": "Wszystkie",
     "filterAllWithCount": "Wszystkie ({{count}})",
     "filterTranslated": "Tylko przetłumaczone",

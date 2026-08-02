@@ -184,17 +184,6 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     }
   }, [publicationId]);
 
-  const handleSetProgressToChapter = useCallback(
-    (chapterNumber: number) => {
-      if (!publicationId || !isAuthenticated) return;
-      setLastReadChapterNumber(chapterNumber);
-      api.updateReadProgress(publicationId, chapterNumber, 'set').catch(() => {
-        syncAuthProgress().catch(() => {});
-      });
-    },
-    [publicationId, isAuthenticated, syncAuthProgress]
-  );
-
   const handleResetProgress = useCallback(async () => {
     if (!publicationId || !isAuthenticated) return;
     try {
@@ -877,17 +866,6 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                       </span>
                                     )}
                                   </span>
-                                  {isAuthenticated && !isRead && ch.hasTranslation && (
-                                    <button
-                                      type="button"
-                                      class="publication-page-chapter-mark-read"
-                                      title={t('publication.markUpToHere')}
-                                      aria-label={t('publication.markUpToHere')}
-                                      onClick={() => handleSetProgressToChapter(ch.number)}
-                                    >
-                                      <Icon name="check_circle" size="sm" />
-                                    </button>
-                                  )}
                                   {ch.hasTranslation ? (
                                     <button
                                       type="button"
@@ -929,17 +907,6 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                 </span>
                               )}
                             </span>
-                            {isAuthenticated && !isRead && ch.hasTranslation && (
-                              <button
-                                type="button"
-                                class="publication-page-chapter-mark-read"
-                                title={t('publication.markUpToHere')}
-                                aria-label={t('publication.markUpToHere')}
-                                onClick={() => handleSetProgressToChapter(ch.number)}
-                              >
-                                <Icon name="check_circle" size="sm" />
-                              </button>
-                            )}
                             {ch.hasTranslation ? (
                               <button
                                 type="button"
@@ -976,7 +943,6 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         onClose={() => setShowToc(false)}
         chapters={translatedChapters}
         lastReadChapterNumber={isAuthenticated ? lastReadChapterNumber : 0}
-        onSetProgressToChapter={isAuthenticated ? handleSetProgressToChapter : undefined}
         onSelectChapter={(chapterId) => {
           setShowToc(false);
           route(`/p/${pubPath}/chapters/${chapterId}/reading`);

@@ -21,8 +21,6 @@ interface ChapterTocModalProps {
   title?: string;
   /** Watermark: chapters with number <= N are read. */
   lastReadChapterNumber?: number;
-  /** Set progress watermark to chapter number (auth only). */
-  onSetProgressToChapter?: (chapterNumber: number) => void;
 }
 
 export function ChapterTocModal({
@@ -33,7 +31,6 @@ export function ChapterTocModal({
   currentChapterId,
   title,
   lastReadChapterNumber = 0,
-  onSetProgressToChapter,
 }: ChapterTocModalProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
@@ -48,7 +45,7 @@ export function ChapterTocModal({
   const TOC_BUFFER = 6;
   const TOC_VIRTUAL_THRESHOLD = 50;
 
-  const hasProgressTracking = lastReadChapterNumber > 0 || !!onSetProgressToChapter;
+  const hasProgressTracking = lastReadChapterNumber > 0;
 
   useEffect(() => {
     if (!isOpen) {
@@ -210,25 +207,6 @@ export function ChapterTocModal({
                     {chapterDisplayTitle(chapter) ||
                       t('chapterList.defaultChapterTitle', { number: chapter.number })}
                   </span>
-                  {isRead && (
-                    <span class="reading-toc-read" title={t('publication.read')}>
-                      <Icon name="check" size="sm" />
-                    </span>
-                  )}
-                  {onSetProgressToChapter && !isRead && (
-                    <button
-                      type="button"
-                      class="reading-toc-mark-read"
-                      title={t('publication.markUpToHere')}
-                      aria-label={t('publication.markUpToHere')}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSetProgressToChapter(chapter.number);
-                      }}
-                    >
-                      <Icon name="check_circle" size="sm" />
-                    </button>
-                  )}
                   {isWatermark && (
                     <span class="reading-toc-continue" title={t('readingProgress.lastReadUpTo')}>
                       <Icon name="bookmark" size="sm" />

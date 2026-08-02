@@ -1567,8 +1567,6 @@
     "continueFromChapter": "Працягнуць з: {{chapter}}",
     "notTranslated": "Няма перакладу",
     "read": "Прачытана",
-    "markRead": "Пазначыць прачытанай",
-    "markUpToHere": "Пазначыць прачытанай да гэтай главы",
     "filterAll": "Усе",
     "filterAllWithCount": "Усе ({{count}})",
     "filterTranslated": "Толькі перакладзеныя",
