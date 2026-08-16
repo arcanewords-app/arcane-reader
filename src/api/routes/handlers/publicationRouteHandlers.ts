@@ -43,6 +43,7 @@ import {
   createUserQuote,
   UserQuoteError,
   listPublicEntities,
+  listPublicEntitiesByIds,
   getPublicEntityById,
   getPublicationRatingStatus,
   upsertPublicationRating,
@@ -1006,8 +1007,10 @@ export async function handleListPublicEntities(req: Request, res: Response): Pro
   try {
     const parseResult = publicEntityListQuerySchema.safeParse({
       kind: req.query.kind,
+      search: req.query.search,
       limit: req.query.limit,
       offset: req.query.offset,
+      ids: req.query.ids,
     });
 
     if (!parseResult.success) {
@@ -1018,7 +1021,42 @@ export async function handleListPublicEntities(req: Request, res: Response): Pro
       return;
     }
 
-    const { kind, search, limit, offset } = parseResult.data;
+    const { kind, search, limit, offset, ids } = parseResult.data;
+
+    if (ids && ids.length > 0) {
+      const cachedEntries = await Promise.all(
+        ids.map(async (id) => {
+          const cached = await redisGetJson<Awaited<ReturnType<typeof getPublicEntityById>>>(
+            publicEntityCacheKey(id)
+          );
+          return { id, cached };
+        })
+      );
+
+      const results: NonNullable<Awaited<ReturnType<typeof getPublicEntityById>>>[] = [];
+      const misses: string[] = [];
+      for (const entry of cachedEntries) {
+        if (entry.cached) {
+          results.push(entry.cached);
+        } else {
+          misses.push(entry.id);
+        }
+      }
+
+      if (misses.length > 0) {
+        const fetched = await listPublicEntitiesByIds(misses);
+        await Promise.all(
+          fetched.map((entity) =>
+            redisSetJson(publicEntityCacheKey(entity.id), entity, CACHE_TTL.redisPublicEntitySec)
+          )
+        );
+        results.push(...fetched);
+      }
+
+      res.json(results);
+      return;
+    }
+
     const listOptions = { kind, search, limit, offset };
     const entities = search
       ? await listPublicEntities(listOptions)

@@ -2,8 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
 import type { ChapterListItem, Project, ProjectWithChapterList } from '../../types';
 import { buildReadingChapterUrl } from '../../utils/readingRoutes';
-import { shouldConfirmJumpAhead } from '../../../shared/reading-progress';
 import { resolveChapterIndexById, type ReaderChapter } from './readingModeHelpers.js';
+import {
+  filterProjectReadingChapters,
+  isValidChapterIndex,
+  resolvePublicationChapters,
+  shouldPromptJumpConfirm,
+  shouldSkipChapterRoute,
+} from './readingChapterNavigation.js';
 
 export interface JumpConfirmState {
   targetIndex: number;
@@ -56,30 +62,29 @@ export function useReadingChapterNavigation({
         projectId: project?.id,
         chapterId: targetChapterId,
       });
-      if (!url) return;
-      if (
-        typeof window !== 'undefined' &&
-        window.location.pathname + window.location.search === url
-      ) {
-        return;
-      }
+      const current =
+        typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
+      if (shouldSkipChapterRoute(current, url)) return;
       lastSyncedParagraphUrlRef.current = -1;
-      route(url, replace);
+      route(url as string, replace);
     },
     [isPublicationMode, publicationPath, publicationId, project?.id, lastSyncedParagraphUrlRef]
   );
 
   const navigateToChapterIndex = useCallback(
     (newIndex: number, options?: { skipJumpConfirm?: boolean }) => {
-      if (newIndex < 0 || newIndex >= chapters.length || newIndex === currentChapterIndex) return;
+      if (!isValidChapterIndex(newIndex, chapters.length, currentChapterIndex)) return;
       const targetChapter = chapters[newIndex];
       if (!targetChapter) return;
 
       if (
-        !options?.skipJumpConfirm &&
-        isPublicationMode &&
-        onSetProgress &&
-        shouldConfirmJumpAhead(targetChapter.number, lastReadChapterNumber)
+        shouldPromptJumpConfirm({
+          isPublicationMode,
+          hasOnSetProgress: !!onSetProgress,
+          targetChapterNumber: targetChapter.number,
+          lastReadChapterNumber,
+          skipJumpConfirm: options?.skipJumpConfirm,
+        })
       ) {
         setJumpConfirm({ targetIndex: newIndex, chapterNumber: targetChapter.number });
         return;
@@ -101,7 +106,7 @@ export function useReadingChapterNavigation({
   // Publication mode: set chapters from catalog and initial index
   useEffect(() => {
     if (!isPublicationMode) return;
-    const list: ReaderChapter[] = publicationChapters.map((ch) => ({ ...ch }));
+    const list = resolvePublicationChapters(publicationChapters);
     setChapters(list);
     if (list.length > 0) {
       const syncFromUrl = lastInitialChapterIdRef.current !== initialChapterId;
@@ -119,7 +124,14 @@ export function useReadingChapterNavigation({
     const ch = chapters[currentChapterIndex];
     if (!ch) return;
     initialJumpCheckedRef.current = true;
-    if (shouldConfirmJumpAhead(ch.number, lastReadChapterNumber)) {
+    if (
+      shouldPromptJumpConfirm({
+        isPublicationMode: true,
+        hasOnSetProgress: true,
+        targetChapterNumber: ch.number,
+        lastReadChapterNumber,
+      })
+    ) {
       setJumpConfirm({ targetIndex: currentChapterIndex, chapterNumber: ch.number });
     }
   }, [isPublicationMode, onSetProgress, chapters, currentChapterIndex, lastReadChapterNumber]);
@@ -128,21 +140,8 @@ export function useReadingChapterNavigation({
   useEffect(() => {
     if (isPublicationMode || !project) return;
 
-    let availableChapters: ReaderChapter[];
     const projectChapters = project.chapters as ChapterListItem[];
-    if (isOriginalReadingMode) {
-      availableChapters = [...projectChapters].sort((a, b) => a.number - b.number);
-    } else {
-      availableChapters = projectChapters
-        .filter(
-          (ch) =>
-            ch.hasTranslation ||
-            ch.status === 'completed' ||
-            ch.status === 'draft' ||
-            ch.status === 'partial'
-        )
-        .sort((a, b) => a.number - b.number);
-    }
+    const availableChapters = filterProjectReadingChapters(projectChapters, isOriginalReadingMode);
 
     setChapters(availableChapters);
     if (availableChapters.length > 0) {

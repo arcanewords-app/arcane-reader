@@ -156,12 +156,14 @@ export function HomePage() {
         setEntityMap({});
         return;
       }
-      Promise.all([...ids].map((id) => api.getPublicEntityById(id))).then((results) => {
+      const idList = [...ids];
+      api.getPublicEntitiesByIds(idList).then((results) => {
         if (loadIdRef.current !== loadId) return;
+        const byId = new Map(results.map((entity) => [entity.id, entity]));
         const map: Record<string, PublicEntity | null> = {};
-        [...ids].forEach((id, i) => {
-          map[id] = results[i] ?? null;
-        });
+        for (const id of idList) {
+          map[id] = byId.get(id) ?? null;
+        }
         setEntityMap(map);
       });
     };

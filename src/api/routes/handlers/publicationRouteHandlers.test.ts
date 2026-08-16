@@ -9,6 +9,7 @@ const {
   mockGetPublicationBySlugOrId,
   mockListPublicationsPublic,
   mockListPublicEntities,
+  mockListPublicEntitiesByIds,
   mockGetPublicEntityById,
   mockDismissAnnouncement,
   mockCreateTranslationReport,
@@ -71,6 +72,7 @@ const {
     mockGetPublicationBySlugOrId: vi.fn(),
     mockListPublicationsPublic: vi.fn(),
     mockListPublicEntities: vi.fn(),
+    mockListPublicEntitiesByIds: vi.fn(),
     mockGetPublicEntityById: vi.fn(),
     mockDismissAnnouncement: vi.fn(),
     mockCreateTranslationReport: vi.fn(),
@@ -155,6 +157,7 @@ vi.mock('../../../services/supabaseDatabase.js', () => ({
   getPublicationBySlugOrId: mockGetPublicationBySlugOrId,
   listPublicationsPublic: mockListPublicationsPublic,
   listPublicEntities: mockListPublicEntities,
+  listPublicEntitiesByIds: mockListPublicEntitiesByIds,
   getPublicEntityById: mockGetPublicEntityById,
   dismissAnnouncement: mockDismissAnnouncement,
   createTranslationReport: mockCreateTranslationReport,
@@ -854,6 +857,37 @@ describe('publicationRouteHandlers', () => {
       );
       assert.deepEqual(res.body, [{ id: 'ent-2', name: 'Page' }]);
       assert.equal(mockListPublicEntities.mock.calls.length, 1);
+    });
+
+    it('returns 400 when ids contains invalid uuid', async () => {
+      const res = mockRes();
+      await handleListPublicEntities(
+        mockReq({ query: { ids: 'not-a-uuid' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+    });
+
+    it('batches by ids using redis per-id then DB for misses', async () => {
+      const idA = '550e8400-e29b-41d4-a716-446655440001';
+      const idB = '550e8400-e29b-41d4-a716-446655440002';
+      mockRedisGetJson
+        .mockResolvedValueOnce({ id: idA, name: 'Cached Author' })
+        .mockResolvedValueOnce(null);
+      mockListPublicEntitiesByIds.mockResolvedValue([{ id: idB, name: 'Fresh Author' }]);
+      const res = mockRes();
+      await handleListPublicEntities(
+        mockReq({ query: { ids: `${idA},${idB}` } }) as never,
+        res as never
+      );
+      assert.deepEqual(res.body, [
+        { id: idA, name: 'Cached Author' },
+        { id: idB, name: 'Fresh Author' },
+      ]);
+      assert.equal(mockListPublicEntitiesByIds.mock.calls.length, 1);
+      assert.deepEqual(mockListPublicEntitiesByIds.mock.calls[0]?.[0], [idB]);
+      assert.equal(mockWithRedisCache.mock.calls.length, 0);
+      assert.equal(mockRedisSetJson.mock.calls.length, 1);
     });
   });
 

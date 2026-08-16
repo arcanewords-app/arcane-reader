@@ -352,7 +352,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/public/entities` | - | List global public entities. Query: `kind`, `search`, `limit`, `offset` |
+| GET | `/api/public/entities` | - | List global public entities. Query: `kind`, `search`, `limit`, `offset`, or `ids` (comma-separated UUIDs, max 50; when set, returns those active entities and ignores kind/search/limit/offset) |
 | GET | `/api/public/entities/:id` | - | Get single public entity by id |
 
 ### Publish (requireAuth + requireRole('author'))

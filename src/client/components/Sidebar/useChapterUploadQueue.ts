@@ -3,6 +3,27 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client.js';
 import type { Chapter } from '../../types.js';
 import { isJobBasedUploadFormat } from './chapterUploadQueueUtils.js';
+import {
+  MAX_IMPORT_POLL_ATTEMPTS,
+  PARALLEL_LIMIT,
+  buildUploadErrorDetails,
+  canStartMoreUploads,
+  cancelPendingQueueItems,
+  extractUploadResultWarnings,
+  findNextPendingItem,
+  generateQueueItemId,
+  importJobSnapshot,
+  isAbortUploadError,
+  isSupportedUploadFilename,
+  markItemRetryPending,
+  markItemUploading,
+  nextImportPollDelay,
+  normalizeUploadTitle,
+  patchQueueItemById,
+  pendingQueueItemIds,
+  removeQueueItemById,
+  uploadPhaseFromProgress,
+} from './chapterUploadQueueCore.js';
 
 export { isJobBasedUploadFormat } from './chapterUploadQueueUtils.js';
 
@@ -42,12 +63,6 @@ export interface UseChapterUploadQueueOptions {
   onError?: (error: { title: string; message: string }) => void;
 }
 
-const PARALLEL_LIMIT = 3;
-const IMPORT_POLL_INTERVAL_MIN_MS = 1500;
-const IMPORT_POLL_INTERVAL_MAX_MS = 8000;
-const IMPORT_POLL_BACKOFF_FACTOR = 1.5;
-
-const generateId = () => `${Date.now().toString(36)}-${Math.round(Math.random() * 1e9)}`;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function useChapterUploadQueue({
@@ -76,7 +91,7 @@ export function useChapterUploadQueue({
     }
     const tid = window.setTimeout(() => {
       setQueue((prev) => {
-        const next = prev.filter((it) => it.id !== id);
+        const next = removeQueueItemById(prev, id);
         queueRef.current = next;
         return next;
       });
@@ -115,28 +130,18 @@ export function useChapterUploadQueue({
     currentAbortRef.current = controller;
 
     setQueue((prev) => {
-      const next = prev.map((it) =>
-        it.id === current.id
-          ? {
-              ...it,
-              status: 'uploading' as const,
-              uploadProgress: undefined,
-              uploadPhase: 'sending' as const,
-            }
-          : it
-      );
+      const next = markItemUploading(prev, current.id);
       queueRef.current = next;
       return next;
     });
 
     const onProgress = (loaded: number, total: number) => {
-      const phase = total > 0 && loaded >= total ? 'processing' : 'sending';
+      const phase = uploadPhaseFromProgress(loaded, total);
       setQueue((prev) => {
-        const next = prev.map((it) =>
-          it.id === current.id
-            ? { ...it, uploadProgress: { loaded, total }, uploadPhase: phase }
-            : it
-        );
+        const next = patchQueueItemById(prev, current.id, {
+          uploadProgress: { loaded, total },
+          uploadPhase: phase,
+        });
         queueRef.current = next;
         return next;
       });
@@ -154,17 +159,15 @@ export function useChapterUploadQueue({
           onProgress
         );
         setQueue((prev) => {
-          const next = prev.map((it) =>
-            it.id === current.id
-              ? { ...it, importJobId: job.jobId, uploadPhase: 'processing' as const }
-              : it
-          );
+          const next = patchQueueItemById(prev, current.id, {
+            importJobId: job.jobId,
+            uploadPhase: 'processing',
+          });
           queueRef.current = next;
           return next;
         });
 
-        const MAX_IMPORT_POLL_ATTEMPTS = 120;
-        let pollDelayMs = IMPORT_POLL_INTERVAL_MIN_MS;
+        let pollDelayMs = nextImportPollDelay(0, true);
         let previousSnapshot = '';
         let importPollAttempt = 0;
 
@@ -173,9 +176,10 @@ export function useChapterUploadQueue({
           if (importPollAttempt > MAX_IMPORT_POLL_ATTEMPTS) {
             const msg = t('chapterList.importJobLost');
             setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id ? { ...it, status: 'error' as const, error: msg } : it
-              );
+              const next = patchQueueItemById(prev, current.id, {
+                status: 'error',
+                error: msg,
+              });
               queueRef.current = next;
               return next;
             });
@@ -188,16 +192,17 @@ export function useChapterUploadQueue({
           } catch (_jobErr) {
             const msg = t('chapterList.importJobLost');
             setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id ? { ...it, status: 'error' as const, error: msg } : it
-              );
+              const next = patchQueueItemById(prev, current.id, {
+                status: 'error',
+                error: msg,
+              });
               queueRef.current = next;
               return next;
             });
             await refreshChaptersSafely('import error');
             return false;
           }
-          const currentSnapshot = `${state.status}|${state.phase}|${state.current}|${state.total}|${state.currentChapterTitle ?? ''}`;
+          const currentSnapshot = importJobSnapshot(state);
           const hasStateChanged = currentSnapshot !== previousSnapshot;
           previousSnapshot = currentSnapshot;
 
@@ -221,11 +226,11 @@ export function useChapterUploadQueue({
 
           if (state.status === 'completed') {
             setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id
-                  ? { ...it, status: 'success' as const, result: state, warnings: state.warnings }
-                  : it
-              );
+              const next = patchQueueItemById(prev, current.id, {
+                status: 'success',
+                result: state,
+                warnings: state.warnings,
+              });
               queueRef.current = next;
               return next;
             });
@@ -237,16 +242,11 @@ export function useChapterUploadQueue({
           if (state.status === 'error') {
             const details = state.errors?.join('\n') || 'Import job failed';
             setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id
-                  ? {
-                      ...it,
-                      status: 'error' as const,
-                      error: `${itemLabel}\n\n${details}`,
-                      warnings: state.warnings,
-                    }
-                  : it
-              );
+              const next = patchQueueItemById(prev, current.id, {
+                status: 'error',
+                error: `${itemLabel}\n\n${details}`,
+                warnings: state.warnings,
+              });
               queueRef.current = next;
               return next;
             });
@@ -256,11 +256,10 @@ export function useChapterUploadQueue({
 
           if (state.status === 'canceled') {
             setQueue((prev) => {
-              const next = prev.map((it) =>
-                it.id === current.id
-                  ? { ...it, status: 'canceled' as const, error: 'Canceled' }
-                  : it
-              );
+              const next = patchQueueItemById(prev, current.id, {
+                status: 'canceled',
+                error: 'Canceled',
+              });
               queueRef.current = next;
               return next;
             });
@@ -269,15 +268,7 @@ export function useChapterUploadQueue({
             return false;
           }
 
-          if (hasStateChanged) {
-            pollDelayMs = IMPORT_POLL_INTERVAL_MIN_MS;
-          } else {
-            pollDelayMs = Math.min(
-              IMPORT_POLL_INTERVAL_MAX_MS,
-              Math.round(pollDelayMs * IMPORT_POLL_BACKOFF_FACTOR)
-            );
-          }
-
+          pollDelayMs = nextImportPollDelay(pollDelayMs, hasStateChanged);
           await sleep(pollDelayMs);
         }
       }
@@ -289,17 +280,14 @@ export function useChapterUploadQueue({
         onProgress,
       });
 
-      const resultWarnings =
-        result && typeof result === 'object' && 'warnings' in result
-          ? (result as { warnings?: string[] }).warnings
-          : undefined;
+      const resultWarnings = extractUploadResultWarnings(result);
 
       setQueue((prev) => {
-        const next = prev.map((it) =>
-          it.id === current.id
-            ? { ...it, status: 'success' as const, result, warnings: resultWarnings }
-            : it
-        );
+        const next = patchQueueItemById(prev, current.id, {
+          status: 'success',
+          result,
+          warnings: resultWarnings,
+        });
         queueRef.current = next;
         return next;
       });
@@ -318,11 +306,12 @@ export function useChapterUploadQueue({
           warnings?: string[];
         };
       };
-      if (errObj.name === 'AbortError' || errObj.message === 'Request aborted') {
+      if (isAbortUploadError(errObj)) {
         setQueue((prev) => {
-          const next = prev.map((it) =>
-            it.id === current.id ? { ...it, status: 'canceled' as const, error: 'Canceled' } : it
-          );
+          const next = patchQueueItemById(prev, current.id, {
+            status: 'canceled',
+            error: 'Canceled',
+          });
           queueRef.current = next;
           return next;
         });
@@ -336,18 +325,19 @@ export function useChapterUploadQueue({
       const parseErrors = errObj.data?.parseErrors;
       const warnings = errObj.data?.warnings;
 
-      let detailsText = itemLabel;
-      if (errObj.message) detailsText += `\n\n${errObj.message}`;
-      if (errorDetails) detailsText += `\n\n${errorDetails}`;
-      if (parseErrors && parseErrors.length > 0)
-        detailsText += `\n\nОшибки парсинга:\n${parseErrors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n')}`;
+      const detailsText = buildUploadErrorDetails({
+        itemLabel,
+        message: errObj.message,
+        errorDetails,
+        parseErrors,
+      });
 
       setQueue((prev) => {
-        const next = prev.map((it) =>
-          it.id === current.id
-            ? { ...it, status: 'error' as const, error: detailsText, warnings }
-            : it
-        );
+        const next = patchQueueItemById(prev, current.id, {
+          status: 'error',
+          error: detailsText,
+          warnings,
+        });
         queueRef.current = next;
         return next;
       });
@@ -372,8 +362,8 @@ export function useChapterUploadQueue({
       const maybeStartNext = () => {
         const pending = queueRef.current.filter((it) => it.status === 'pending');
         if (pending.length === 0 && inFlight.length === 0) return;
-        while (inFlight.length < PARALLEL_LIMIT) {
-          const next = queueRef.current.find((it) => it.status === 'pending');
+        while (canStartMoreUploads(inFlight.length, PARALLEL_LIMIT)) {
+          const next = findNextPendingItem(queueRef.current);
           if (!next) break;
           const p = processOneItem(next).then((continueProcessing) => {
             inFlight.splice(inFlight.indexOf(p), 1);
@@ -402,19 +392,15 @@ export function useChapterUploadQueue({
       return;
     }
 
-    const supportedFormats = ['.txt', '.epub', '.fb2', '.csv'];
-    const normalizeTitle = (file: File, index: number): string => {
-      const noExt = file.name.replace(/\.[^.]+$/, '');
-      const cleaned = noExt.replace(/^\d+[._\-\s]*/, '').trim();
-      return cleaned || t('chapterList.defaultChapterTitle', { number: chapterCount + index + 1 });
-    };
     const newItems: ChapterUploadQueueItem[] = Array.from(fileList).map((file, index) => {
-      const filename = file.name.toLowerCase();
-      const supported = supportedFormats.some((ext) => filename.endsWith(ext));
+      const supported = isSupportedUploadFilename(file.name);
       return {
-        id: generateId(),
+        id: generateQueueItemId(),
         file,
-        title: normalizeTitle(file, index),
+        title: normalizeUploadTitle(
+          file.name,
+          t('chapterList.defaultChapterTitle', { number: chapterCount + index + 1 })
+        ),
         status: supported ? ('pending' as const) : ('error' as const),
         error: supported ? undefined : `${t('chapterList.unsupportedFormat')}: ${file.name}`,
         warnings: [],
@@ -444,11 +430,9 @@ export function useChapterUploadQueue({
     if (currentAbortRef.current) {
       currentAbortRef.current.abort();
     }
-    const pendingIds = queueRef.current.filter((it) => it.status === 'pending').map((it) => it.id);
+    const pendingIds = pendingQueueItemIds(queueRef.current);
     setQueue((prev) => {
-      const next = prev.map((it) =>
-        it.status === 'pending' ? { ...it, status: 'canceled' as const } : it
-      );
+      const next = cancelPendingQueueItems(prev);
       queueRef.current = next;
       return next;
     });
@@ -470,11 +454,7 @@ export function useChapterUploadQueue({
   const retryItem = (id: string) => {
     clearRemovalTimeout(id);
     setQueue((prev) => {
-      const next = prev.map((it) =>
-        it.id === id
-          ? { ...it, status: 'pending' as const, error: undefined, retries: it.retries + 1 }
-          : it
-      );
+      const next = markItemRetryPending(prev, id);
       queueRef.current = next;
       return next;
     });
@@ -484,7 +464,7 @@ export function useChapterUploadQueue({
   const removeItem = (id: string) => {
     clearRemovalTimeout(id);
     setQueue((prev) => {
-      const next = prev.filter((it) => it.id !== id);
+      const next = removeQueueItemById(prev, id);
       queueRef.current = next;
       return next;
     });

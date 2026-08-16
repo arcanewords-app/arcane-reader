@@ -6,6 +6,7 @@ import {
   chapterTranslateBodySchema,
   chapterTitleBodySchema,
 } from './chapters.js';
+import { publicEntityListQuerySchema } from './admin.js';
 
 describe('api/schemas/common', () => {
   it('uuidSchema accepts valid UUID', () => {
@@ -102,5 +103,27 @@ describe('api/schemas/user', () => {
     const { tokenUsageHistoryQuerySchema } = await import('./user.js');
     const ok = tokenUsageHistoryQuerySchema.parse({ days: '7' });
     assert.equal(ok.days, 7);
+  });
+});
+
+describe('api/schemas/admin publicEntityListQuerySchema', () => {
+  const idA = '550e8400-e29b-41d4-a716-446655440001';
+  const idB = '550e8400-e29b-41d4-a716-446655440002';
+
+  it('parses comma-separated ids and dedupes', () => {
+    const parsed = publicEntityListQuerySchema.parse({ ids: `${idA},${idB},${idA}` });
+    assert.deepEqual(parsed.ids, [idA, idB]);
+  });
+
+  it('rejects invalid id in ids list', () => {
+    assert.throws(() => publicEntityListQuerySchema.parse({ ids: 'not-uuid' }));
+  });
+
+  it('rejects more than 50 ids', () => {
+    const many = Array.from({ length: 51 }, (_, i) => {
+      const n = String(i + 1).padStart(12, '0');
+      return `550e8400-e29b-41d4-a716-${n}`;
+    }).join(',');
+    assert.throws(() => publicEntityListQuerySchema.parse({ ids: many }));
   });
 });

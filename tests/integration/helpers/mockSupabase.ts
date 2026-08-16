@@ -10,6 +10,8 @@ type MockFn = ReturnType<typeof vi.fn>;
 const mocks = {
   listPublicationsPublic: vi.fn(),
   getPublicationBySlugOrId: vi.fn(),
+  listPublicEntities: vi.fn(),
+  listPublicEntitiesByIds: vi.fn(),
   listPublishedNewsPosts: vi.fn(),
   getPublishedNewsPostByIdOrSlug: vi.fn(),
   getAllProjectsLightweight: vi.fn(),
@@ -50,6 +52,8 @@ export function resetMocks(): void {
 
   mocks.listPublicationsPublic.mockResolvedValue([]);
   mocks.getPublicationBySlugOrId.mockResolvedValue(null);
+  mocks.listPublicEntities.mockResolvedValue([]);
+  mocks.listPublicEntitiesByIds.mockResolvedValue([]);
   mocks.listPublishedNewsPosts.mockResolvedValue([]);
   mocks.getPublishedNewsPostByIdOrSlug.mockResolvedValue(null);
   mocks.getAllProjectsLightweight.mockResolvedValue([]);
@@ -94,6 +98,8 @@ export function createPublicationsDomainOverlay(): Record<string, MockFn> {
   return {
     listPublicationsPublic: mocks.listPublicationsPublic,
     getPublicationBySlugOrId: mocks.getPublicationBySlugOrId,
+    listPublicEntities: mocks.listPublicEntities,
+    listPublicEntitiesByIds: mocks.listPublicEntitiesByIds,
   };
 }
 

@@ -40,6 +40,7 @@ import {
   getUserPublications,
   hideTranslatorPseudonymForUser,
   listPublicEntities,
+  listPublicEntitiesByIds,
   listPublicationsPublic,
   listTranslatorPseudonymsForUser,
   syncPublicationTranslationStatus,
@@ -59,6 +60,7 @@ function chainable(result: { data: unknown; error: unknown; count?: number }) {
   for (const m of [
     'select',
     'eq',
+    'in',
     'contains',
     'order',
     'range',
@@ -261,6 +263,44 @@ describe('listPublicEntities', () => {
       })
     );
     await assert.rejects(() => listPublicEntities(), /Failed to list public entities/);
+  });
+});
+
+describe('listPublicEntitiesByIds', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns empty array for empty ids', async () => {
+    const list = await listPublicEntitiesByIds([]);
+    assert.deepEqual(list, []);
+    assert.equal(mockFrom.mock.calls.length, 0);
+  });
+
+  it('maps active entity rows by ids', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: [entityRow],
+        error: null,
+      })
+    );
+    const list = await listPublicEntitiesByIds(['ent-1']);
+    assert.equal(list.length, 1);
+    assert.equal(list[0]?.id, 'ent-1');
+    assert.equal(list[0]?.name, 'Jane Author');
+  });
+
+  it('throws when query fails', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: null,
+        error: { message: 'batch fail' },
+      })
+    );
+    await assert.rejects(
+      () => listPublicEntitiesByIds(['ent-1']),
+      /Failed to list public entities by ids/
+    );
   });
 });
 

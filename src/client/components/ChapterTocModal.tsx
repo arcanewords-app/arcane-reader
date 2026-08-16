@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'preact/hooks';
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Modal, Button, Icon } from './ui';
 import { chapterDisplayTitle } from '../../shared/chapterTitle';
 import { isChapterReadByWatermark } from '../../shared/reading-progress';
+import { computeTocScrollTop } from './tocScroll.js';
 import './ChapterTocModal.css';
 
 export interface ChapterTocItem {
@@ -98,6 +99,26 @@ export function ChapterTocModal({
     obs.observe(el);
     return () => obs.disconnect();
   }, [isOpen]);
+
+  // Scroll to current chapter when TOC opens or order/filter changes visibility of it.
+  useLayoutEffect(() => {
+    if (!isOpen || !currentChapterId) return;
+    const el = tocListRef.current;
+    if (!el) return;
+
+    const index = filteredChapters.findIndex((ch) => ch.id === currentChapterId);
+    if (index < 0) return;
+
+    const viewportHeight = el.clientHeight || tocHeight || 400;
+    const scrollTop = computeTocScrollTop(
+      index,
+      TOC_ITEM_HEIGHT,
+      viewportHeight,
+      filteredChapters.length
+    );
+    el.scrollTop = scrollTop;
+    setTocScrollTop(scrollTop);
+  }, [isOpen, currentChapterId, filteredChapters, tocHeight]);
 
   const displayTitle = title ?? t('readingMode.toc');
 
@@ -198,6 +219,8 @@ export function ChapterTocModal({
                 <button
                   key={chapter.id}
                   type="button"
+                  data-toc-chapter-id={chapter.id}
+                  aria-current={isActive ? 'true' : undefined}
                   class={`reading-toc-item ${isActive ? 'active' : ''} ${isRead ? 'read' : ''} ${isWatermark ? 'last-read' : ''}`}
                   onClick={() => onSelectChapter(chapter.id)}
                   style={useVirtualization ? { minHeight: TOC_ITEM_HEIGHT + 'px' } : undefined}

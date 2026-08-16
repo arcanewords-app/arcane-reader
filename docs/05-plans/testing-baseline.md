@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-07-12
-updated: 2026-08-02
+updated: 2026-08-16
 ---
 
 # Testing coverage baseline
@@ -77,12 +77,12 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | Coverage (post large campaign, 2026-08-02) |
-| ---------- | ------------------------------------------ |
-| Lines      | **77.76%**                                 |
-| Statements | **75.72%**                                 |
-| Functions  | **80.43%**                                 |
-| Branches   | **65.49%**                                 |
+| Metric     | Coverage (post extract+hook unit, 2026-08-16) |
+| ---------- | --------------------------------------------- |
+| Lines      | **78.21%**                                    |
+| Statements | **76.09%**                                    |
+| Functions  | **80.42%**                                    |
+| Branches   | **65.67%**                                    |
 
 ### Coverage floors (active)
 
@@ -145,11 +145,12 @@ Exact **`vitest@4.0.8`** + `@vitest/coverage-v8@4.0.8`. Do not bump to 4.1.x wit
 
 ## Coverage campaign (post–Wave 9)
 
-| Phase          | Target                                                      | Status                                                 |
-| -------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
-| A → ~70% lines | jobs + engine-integration + middleware/csv + client pure    | **Done**                                               |
-| B → ~75% lines | handlers/domains/seo/export/client api                      | **Done**                                               |
-| C → ~78% lines | SearchReplace/pageMeta/batch/selection extracts + inventory | **Done** (~77.7% lines; soft ceiling without binaries) |
+| Phase              | Target                                                                       | Status                                                        |
+| ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| A → ~70% lines     | jobs + engine-integration + middleware/csv + client pure                     | **Done**                                                      |
+| B → ~75% lines     | handlers/domains/seo/export/client api                                       | **Done**                                                      |
+| C → ~78% lines     | SearchReplace/pageMeta/batch/selection extracts + inventory                  | **Done** (~77.7% lines; soft ceiling without binaries)        |
+| D → restore floors | ReadingMode/Sidebar/SearchReplace extract cores + happy-dom unit hook suites | **Done** (2026-08-16: **78.21%** lines / **65.67%** branches) |
 
 Unit floors ≠ component/integration coverage. Deferred: bootstrap entrypoints, ReadingMode full UI, binary fb2/epub parsers, Wave 10.
 

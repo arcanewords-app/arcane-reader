@@ -2,14 +2,23 @@ import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import type { Paragraph } from '../../types.js';
 import { searchInParagraphs, replaceInText, type SearchMatch } from '../../utils/search-utils.js';
 import type { ReplacePreviewItem } from './ReplacePreviewModal.js';
+import {
+  CHAPTER_SEARCH_DEBOUNCE_MS,
+  buildReplacePreviewItems,
+  buildSearchHighlight,
+  canReplaceInChapter,
+  nextMatchIndex,
+  prevMatchIndex,
+  searchFieldForMode,
+  trimFindQuery,
+  type SearchHighlight,
+} from './chapterSearchReplaceCore.js';
 
-export const CHAPTER_SEARCH_DEBOUNCE_MS = 250;
-export const CHAPTER_SEARCH_MAX_FIND_LENGTH = 2000;
-
-export interface SearchHighlight {
-  paragraphIds: string[];
-  currentParagraphId: string | null;
-}
+export {
+  CHAPTER_SEARCH_DEBOUNCE_MS,
+  CHAPTER_SEARCH_MAX_FIND_LENGTH,
+  type SearchHighlight,
+} from './chapterSearchReplaceCore.js';
 
 export interface UseChapterSearchReplaceOptions {
   paragraphs: Paragraph[];
@@ -41,14 +50,14 @@ export function useChapterSearchReplace({
   }, [initialFind]);
 
   useEffect(() => {
-    const trimmed = find.trim().slice(0, CHAPTER_SEARCH_MAX_FIND_LENGTH);
+    const trimmed = trimFindQuery(find);
     const id = setTimeout(() => setDebouncedFind(trimmed), CHAPTER_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [find]);
 
   const matches = useMemo(() => {
     if (!debouncedFind) return [];
-    const field = isOriginalReadingMode ? 'original' : 'translated';
+    const field = searchFieldForMode(isOriginalReadingMode);
     return searchInParagraphs(paragraphs, debouncedFind, field, caseSensitive);
   }, [paragraphs, debouncedFind, isOriginalReadingMode, caseSensitive]);
 
@@ -65,26 +74,17 @@ export function useChapterSearchReplace({
   }, [matches.length, currentIndex]);
 
   useEffect(() => {
-    if (matches.length === 0) {
-      onHighlightChange({ paragraphIds: [], currentParagraphId: null });
-    } else {
-      const ids = [...new Set(matches.map((m) => m.paragraphId))];
-      const current = matches[currentIndex];
-      onHighlightChange({
-        paragraphIds: ids,
-        currentParagraphId: current ? current.paragraphId : null,
-      });
-    }
+    onHighlightChange(buildSearchHighlight(matches, currentIndex));
   }, [matches, currentIndex, onHighlightChange]);
 
   const handlePrev = useCallback(() => {
     if (matches.length === 0) return;
-    setCurrentIndex((i) => (i <= 0 ? matches.length - 1 : i - 1));
+    setCurrentIndex((i) => prevMatchIndex(i, matches.length));
   }, [matches.length]);
 
   const handleNext = useCallback(() => {
     if (matches.length === 0) return;
-    setCurrentIndex((i) => (i >= matches.length - 1 ? 0 : i + 1));
+    setCurrentIndex((i) => nextMatchIndex(i, matches.length));
   }, [matches.length]);
 
   const handleRowClick = useCallback(
@@ -99,12 +99,13 @@ export function useChapterSearchReplace({
   const [replacing, setReplacing] = useState(false);
 
   const hasMatches = matches.length > 0;
-  const canReplace =
-    !!onReplace &&
-    !isOriginalReadingMode &&
-    !!debouncedFind &&
-    replace.trim() !== debouncedFind &&
-    hasMatches;
+  const canReplace = canReplaceInChapter({
+    hasOnReplace: !!onReplace,
+    isOriginalReadingMode,
+    debouncedFind,
+    replace,
+    hasMatches,
+  });
 
   const handleReplace = useCallback(async () => {
     if (!onReplace || !hasMatches || isOriginalReadingMode) return;
@@ -128,32 +129,18 @@ export function useChapterSearchReplace({
     hasMatches,
   ]);
 
-  const previewItems = useMemo((): ReplacePreviewItem[] => {
-    if (!debouncedFind || !hasMatches) return [];
-    const byPara = new Map<string, Paragraph>();
-    for (const p of paragraphs) {
-      byPara.set(p.id, p);
-    }
-    const seen = new Set<string>();
-    const items: ReplacePreviewItem[] = [];
-    for (const m of matches) {
-      if (seen.has(m.paragraphId)) continue;
-      seen.add(m.paragraphId);
-      const p = byPara.get(m.paragraphId);
-      if (!p) continue;
-      const text = m.field === 'translated' ? p.translatedText || '' : p.originalText || '';
-      const after = replaceInText(text, debouncedFind, replace, true, caseSensitive);
-      if (after !== text) {
-        items.push({
-          paragraphId: m.paragraphId,
-          paragraphIndex: m.paragraphIndex,
-          before: text.slice(0, 150) + (text.length > 150 ? '…' : ''),
-          after: after.slice(0, 150) + (after.length > 150 ? '…' : ''),
-        });
-      }
-    }
-    return items;
-  }, [paragraphs, matches, debouncedFind, replace, caseSensitive, hasMatches]);
+  const previewItems = useMemo(
+    (): ReplacePreviewItem[] =>
+      buildReplacePreviewItems({
+        paragraphs,
+        matches,
+        debouncedFind,
+        replace,
+        caseSensitive,
+        hasMatches,
+      }),
+    [paragraphs, matches, debouncedFind, replace, caseSensitive, hasMatches]
+  );
 
   const handleReplaceAll = useCallback(async () => {
     if (!onReplace || !hasMatches || isOriginalReadingMode) return;

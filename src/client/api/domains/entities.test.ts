@@ -9,11 +9,13 @@ vi.mock('../transport/fetchDeduped.js', () => ({
   fetchJsonDeduped: (...args: unknown[]) => mockFetchJsonDeduped(...args),
 }));
 
+import { publicationCache } from '../cache/memoryCache.js';
 import { entitiesApi } from './entities.js';
 
 describe('entitiesApi', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    publicationCache.publicEntity.clear();
   });
 
   it('getPublicEntities calls fetchJsonDeduped with query params', async () => {
@@ -50,5 +52,31 @@ describe('entitiesApi', () => {
 
     const result = await entitiesApi.getPublicEntityById('missing');
     assert.equal(result, null);
+  });
+
+  it('getPublicEntitiesByIds batches request and fills cache', async () => {
+    const entities = [
+      { id: 'e1', name: 'A', kind: 'author' },
+      { id: 'e2', name: 'B', kind: 'translator' },
+    ];
+    mockFetchJsonDeduped.mockResolvedValue(entities);
+
+    const result = await entitiesApi.getPublicEntitiesByIds(['e1', 'e2', 'e1']);
+    assert.equal(result.length, 2);
+    const url = mockFetchJsonDeduped.mock.calls[0]?.[0] as string;
+    assert.ok(url.includes('/api/public/entities?ids='));
+    assert.ok(url.includes('e1'));
+    assert.ok(url.includes('e2'));
+
+    mockFetchJsonDeduped.mockClear();
+    const cached = await entitiesApi.getPublicEntityById('e1');
+    assert.equal(cached?.name, 'A');
+    assert.equal(mockFetchJsonDeduped.mock.calls.length, 0);
+  });
+
+  it('getPublicEntitiesByIds returns empty for empty input', async () => {
+    const result = await entitiesApi.getPublicEntitiesByIds([]);
+    assert.deepEqual(result, []);
+    assert.equal(mockFetchJsonDeduped.mock.calls.length, 0);
   });
 });

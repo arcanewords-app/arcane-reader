@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { uuidSchema } from './common.js';
 
 export const publicEntityKinds = ['tag', 'author', 'translator'] as const;
 
@@ -14,11 +15,51 @@ export const publicEntityCreateSchema = z.object({
   photoUrl: z.string().trim().url().max(2048).optional(),
 });
 
+/** Comma-separated UUIDs → unique array (max 50). Empty / missing → undefined. */
+const publicEntityIdsQuerySchema = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, ctx) => {
+    if (!value) return undefined;
+    const parts = value
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return undefined;
+    if (parts.length > 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ids must contain at most 50 UUIDs',
+      });
+      return z.NEVER;
+    }
+    const parsed: string[] = [];
+    const seen = new Set<string>();
+    for (const part of parts) {
+      const idResult = uuidSchema.safeParse(part);
+      if (!idResult.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Invalid entity id: ${part}`,
+        });
+        return z.NEVER;
+      }
+      if (!seen.has(idResult.data)) {
+        seen.add(idResult.data);
+        parsed.push(idResult.data);
+      }
+    }
+    return parsed;
+  });
+
 export const publicEntityListQuerySchema = z.object({
   kind: z.enum(publicEntityKinds).optional(),
   search: z.string().trim().max(100).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
+  /** When set, returns only these entities (active); kind/search/limit/offset ignored. */
+  ids: publicEntityIdsQuerySchema,
 });
 
 export const publicEntityUpdateSchema = z.object({

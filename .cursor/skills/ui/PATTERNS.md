@@ -25,24 +25,25 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                           | Summary                                           | Reference                            |
-| ---------------------------- | ------------------------------------------------- | ------------------------------------ |
-| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`           |
-| `filter-icon-chip`           | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`           |
-| `filter-segment-control`     | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`           |
-| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                       |
-| `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip` |
-| `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                         |
-| `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`             |
-| `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`         |
-| `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                |
-| `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`    |
-| `publication-rating-summary` | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`       |
-| `publication-rating-input`   | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`           |
-| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`           |
-| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                  |
-| `reading-history-card`       | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`          |
-| `glossary-type-filter-bar`   | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`          |
+| Id                           | Summary                                           | Reference                                   |
+| ---------------------------- | ------------------------------------------------- | ------------------------------------------- |
+| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`                  |
+| `filter-icon-chip`           | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`                  |
+| `filter-segment-control`     | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`                  |
+| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                              |
+| `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`        |
+| `entity-chip-hover-preview`  | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css` |
+| `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                                |
+| `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                    |
+| `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`                |
+| `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                       |
+| `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`           |
+| `publication-rating-summary` | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`              |
+| `publication-rating-input`   | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`                  |
+| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`                  |
+| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                         |
+| `reading-history-card`       | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`                 |
+| `glossary-type-filter-bar`   | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`                 |
 
 ---
 
@@ -143,6 +144,27 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **Reference:** [`HomePage.tsx`](../../../src/client/pages/HomePage.tsx) — `entityFilter`, `buildCatalogUrl`.
 
 **Do not:** Mix entity chips into the icon toolbar — keep contextual chips on their own row.
+
+---
+
+## `entity-chip-hover-preview`
+
+**When:** Catalog publication cards show author/translator as interactive chips; hover/focus should reinforce identity with avatar + bio.
+
+**When not:** Entity has neither `photoUrl` nor description (chip name is enough). Touch-only surfaces without focus (no hover) — preview stays desktop/keyboard.
+
+**Files:**
+
+- [`EntityChip.tsx`](../../../src/client/components/Home/EntityChip.tsx)
+- [`card-content-popup.css`](../../../src/client/styles/components/card-content-popup.css)
+- [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts)
+- Prefetch: [`HomePage.tsx`](../../../src/client/pages/HomePage.tsx) via `api.getPublicEntitiesByIds`
+
+**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + clamped description. Flip above/below and align start/end via viewport space. Open wrapper raises `z-index`.
+
+**a11y:** `role="tooltip"` + `aria-describedby` while open; keyboard focus/blur same as hover.
+
+**Anti-patterns:** Putting the avatar permanently in the chip (separate product choice); N× `getPublicEntityById` after catalog load (use batch `ids=`).
 
 ---
 

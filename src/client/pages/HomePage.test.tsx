@@ -78,6 +78,7 @@ vi.mock('../api/client.js', () => ({
   api: {
     getPublications: (...args: unknown[]) => mocks.getPublications(...args),
     getPublicEntityById: vi.fn().mockResolvedValue(null),
+    getPublicEntitiesByIds: vi.fn().mockResolvedValue([]),
   },
 }));
 

@@ -2,3 +2,7 @@
   position: relative;
   display: inline-flex;
 }
+
+.entity-chip-wrapper.is-popup-open {
+  z-index: 20;
+}

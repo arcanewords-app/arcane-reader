@@ -1,9 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'preact/hooks';
 import type { RefObject } from 'preact';
-
-const SCROLL_THRESHOLD = 50;
-const SCROLL_UP_THRESHOLD = 50;
-const EDGE_THRESHOLD = 100;
+import { computeChromeFromScroll, computeChromeVisibility } from './readingChrome.js';
 
 export interface UseReadingChromeOptions {
   contentRef: RefObject<HTMLDivElement | null>;
@@ -29,6 +26,7 @@ export function useReadingChrome({
   const lastScrollTopRef = useRef(0);
   const scrollAccumRef = useRef(0);
   const scrollUpAccumRef = useRef(0);
+  const menuVisibleRef = useRef(true);
 
   const measureChrome = useCallback(() => {
     const headerEl = headerRef.current;
@@ -57,6 +55,7 @@ export function useReadingChrome({
     lastScrollTopRef.current = 0;
     scrollAccumRef.current = 0;
     scrollUpAccumRef.current = 0;
+    menuVisibleRef.current = true;
     setMenuVisible(true);
     setIsNearTop(true);
     setIsNearBottom(false);
@@ -74,28 +73,27 @@ export function useReadingChrome({
         const delta = scrollTop - lastScrollTopRef.current;
         lastScrollTopRef.current = scrollTop;
 
-        const nearTop = scrollTop <= EDGE_THRESHOLD;
-        const nearBottom =
-          el.scrollHeight <= el.clientHeight ||
-          scrollTop + el.clientHeight >= el.scrollHeight - EDGE_THRESHOLD;
-        setIsNearTop(nearTop);
-        setIsNearBottom(nearBottom);
+        const next = computeChromeFromScroll({
+          scrollTop,
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+          delta,
+          scrollAccum: scrollAccumRef.current,
+          scrollUpAccum: scrollUpAccumRef.current,
+          menuVisible: menuVisibleRef.current,
+        });
 
-        if (delta > 0) {
-          scrollUpAccumRef.current = 0;
-          scrollAccumRef.current += delta;
-          if (scrollAccumRef.current > SCROLL_THRESHOLD) {
-            setMenuVisible(false);
-            onHideSettings?.();
-            scrollAccumRef.current = 0;
-          }
-        } else if (delta < 0) {
-          scrollAccumRef.current = 0;
-          scrollUpAccumRef.current += Math.abs(delta);
-          if (scrollUpAccumRef.current > SCROLL_UP_THRESHOLD) {
-            setMenuVisible(true);
-            scrollUpAccumRef.current = 0;
-          }
+        scrollAccumRef.current = next.scrollAccum;
+        scrollUpAccumRef.current = next.scrollUpAccum;
+        setIsNearTop(next.isNearTop);
+        setIsNearBottom(next.isNearBottom);
+
+        if (next.menuVisible !== menuVisibleRef.current) {
+          menuVisibleRef.current = next.menuVisible;
+          setMenuVisible(next.menuVisible);
+        }
+        if (next.didHideMenu) {
+          onHideSettings?.();
         }
       });
     };
@@ -107,8 +105,11 @@ export function useReadingChrome({
     };
   }, [contentRef, currentChapterIndex, chaptersLength, onHideSettings]);
 
-  const headerVisible = menuVisible || isNearTop;
-  const footerVisible = menuVisible || isNearBottom;
+  const { headerVisible, footerVisible } = computeChromeVisibility({
+    menuVisible,
+    isNearTop,
+    isNearBottom,
+  });
 
   return {
     headerRef,

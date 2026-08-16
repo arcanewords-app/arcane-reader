@@ -131,6 +131,23 @@ export async function getPublicEntityById(id: string): Promise<PublicEntity | nu
   return transformPublicEntityFromDB(data as PublicEntityRow);
 }
 
+/** Batch fetch active public entities by id (max 50 caller-enforced). */
+export async function listPublicEntitiesByIds(ids: string[]): Promise<PublicEntity[]> {
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('public_entities')
+    .select('*')
+    .in('id', ids)
+    .eq('status', 'active');
+
+  if (error) {
+    throw new Error(`Failed to list public entities by ids: ${error.message}`);
+  }
+
+  return (data || []).map((row) => transformPublicEntityFromDB(row as PublicEntityRow));
+}
+
 export async function updatePublicEntity(
   id: string,
   data: {
