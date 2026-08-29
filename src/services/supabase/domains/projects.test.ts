@@ -207,6 +207,7 @@ describe('getAllProjects', () => {
     assert.equal(result[0]?.glossary.length, 1);
     assert.equal(result[1]?.id, 'proj-b');
     assert.equal(mockLoadChaptersForProject.mock.calls.length, 2);
+    assert.deepEqual(mockLoadChaptersForProject.mock.calls[0]?.[2], { chapterColumns: 'core' });
     assert.equal(mockLoadGlossaryForProject.mock.calls.length, 2);
   });
 
@@ -632,6 +633,7 @@ describe('getProjectFull', () => {
     assert.equal(project?.chapters[0]?.paragraphs.length, 1);
     assert.equal(project?.glossary.length, 1);
     assert.equal(mockLoadChaptersForProject.mock.calls[0]?.[0], 'proj-1');
+    assert.deepEqual(mockLoadChaptersForProject.mock.calls[0]?.[2], { chapterColumns: 'recovery' });
     assert.equal(mockLoadGlossaryForProject.mock.calls[0]?.[0], 'proj-1');
   });
 });
@@ -922,6 +924,7 @@ describe('cloneProject', () => {
     const result = await cloneProject('proj-1', 'user-1', 'token');
     assert.equal(result?.id, 'proj-clone');
     assert.equal(result?.chapters.length, 1);
+    assert.deepEqual(mockLoadChaptersForProject.mock.calls[0]?.[2], { chapterColumns: 'full' });
   });
 });
 

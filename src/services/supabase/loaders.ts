@@ -22,6 +22,14 @@ import {
   transformProjectFromDB,
 } from '../supabaseTransforms.js';
 import { autoSyncChunksToParagraphs } from './pure/chapterSync.js';
+import { chapterSelect, asChapterRows, type ChapterColumnSet } from './chapterColumns.js';
+
+export type { ChapterColumnSet } from './chapterColumns.js';
+
+export interface LoadChaptersOptions {
+  /** Default `recovery`: translated_text + chunks, skip original_text and critic_report. */
+  chapterColumns?: ChapterColumnSet;
+}
 
 /**
  * Load lightweight chapter list for a project (no paragraphs, no text).
@@ -70,16 +78,21 @@ export async function loadChaptersForProjectLightweight(
  * Load all chapters for a project (with paragraphs).
  * Uses small chapter batches; paragraphs are paginated (PostgREST 1000-row cap per request).
  */
-export async function loadChaptersForProject(projectId: string, token: string): Promise<Chapter[]> {
+export async function loadChaptersForProject(
+  projectId: string,
+  token: string,
+  options?: LoadChaptersOptions
+): Promise<Chapter[]> {
   const client = createClientWithToken(token);
   const allChapters: Chapter[] = [];
   let offset = 0;
+  const columns = chapterSelect(options?.chapterColumns ?? 'recovery');
 
   for (;;) {
     // 1. Load chapters batch (without paragraphs) - small batch to avoid timeout
     const { data: chapters, error } = await client
       .from('chapters')
-      .select('*')
+      .select(columns)
       .eq('project_id', projectId)
       .order('number', { ascending: true })
       .range(offset, offset + CHAPTER_LOAD_BATCH - 1);
@@ -88,27 +101,29 @@ export async function loadChaptersForProject(projectId: string, token: string): 
       throw new Error(`Failed to load chapters: ${error.message}`);
     }
 
-    if (!chapters || chapters.length === 0) {
+    const chapterRows = asChapterRows(chapters);
+    if (chapterRows.length === 0) {
       break;
     }
 
-    const chapterIds = chapters.map((c) => c.id);
+    const chapterIds = chapterRows.map((c) => String(c.id));
 
     // 2. Load paragraphs for this batch (paginated — PostgREST max 1000 rows per request)
     const paragraphsByChapterMap = await loadParagraphsForChapterIds(client, chapterIds);
 
     // Log loaded chapters order for debugging (only in development)
-    if (process.env.NODE_ENV === 'development' && chapters.length <= 5 && offset === 0) {
+    if (process.env.NODE_ENV === 'development' && chapterRows.length <= 5 && offset === 0) {
       logger.debug(
-        { projectId, chaptersCount: chapters.length },
-        `Chapters loaded: ${chapters.map((c) => `${c.number}: ${c.id.substring(0, 8)} (${c.title})`).join(', ')}`
+        { projectId, chaptersCount: chapterRows.length },
+        `Chapters loaded: ${chapterRows.map((c) => `${c.number}: ${String(c.id).substring(0, 8)} (${c.title})`).join(', ')}`
       );
     }
 
     // 3. Build chapters with paragraphs and auto-recovery
     const chaptersWithParagraphs = await Promise.all(
-      chapters.map(async (chapter) => {
-        let paragraphsList = paragraphsByChapterMap.get(chapter.id) ?? [];
+      chapterRows.map(async (chapter) => {
+        const chapterId = String(chapter.id);
+        let paragraphsList = paragraphsByChapterMap.get(chapterId) ?? [];
         const chapterData = transformChapterFromDB(chapter, paragraphsList);
 
         // Auto-sync check: if chapter has translation but paragraphs are empty, restore sync
@@ -130,7 +145,7 @@ export async function loadChaptersForProject(projectId: string, token: string): 
         ) {
           // Auto-recovery: sync translatedChunks to paragraphs
           logger.info(
-            { chapterId: chapter.id, chapterTitle: chapterData.title },
+            { chapterId, chapterTitle: chapterData.title },
             `Auto-recovery: syncing paragraphs for chapter ${chapterData.title}`
           );
 
@@ -163,7 +178,7 @@ export async function loadChaptersForProject(projectId: string, token: string): 
                     .from('paragraphs')
                     .update(paragraphData)
                     .eq('id', paragraph.id)
-                    .eq('chapter_id', chapter.id);
+                    .eq('chapter_id', chapterId);
                   if (error)
                     logger.warn(
                       { paragraphId: paragraph.id, error: error.message },
@@ -177,14 +192,14 @@ export async function loadChaptersForProject(projectId: string, token: string): 
             }
 
             // Reload updated paragraphs
-            paragraphsList = await loadParagraphsForChapter(chapter.id, token);
+            paragraphsList = await loadParagraphsForChapter(chapterId, token);
 
             const syncedCount = paragraphsList.filter(
               (p: Paragraph) => p.translatedText && p.translatedText.trim().length > 0
             ).length;
             logger.info(
               {
-                chapterId: chapter.id,
+                chapterId,
                 syncedCount,
                 chunksCount: chapterData.translatedChunks.length,
               },
@@ -199,7 +214,7 @@ export async function loadChaptersForProject(projectId: string, token: string): 
 
     allChapters.push(...chaptersWithParagraphs);
 
-    if (chapters.length < CHAPTER_LOAD_BATCH) {
+    if (chapterRows.length < CHAPTER_LOAD_BATCH) {
       break;
     }
     offset += CHAPTER_LOAD_BATCH;
@@ -223,7 +238,7 @@ export async function loadChaptersForProjectWithServiceRole(projectId: string): 
     // 1. Load chapters batch (without paragraphs) - small batch to avoid timeout
     const { data: chapters, error } = await client
       .from('chapters')
-      .select('*')
+      .select(chapterSelect('core'))
       .eq('project_id', projectId)
       .order('number', { ascending: true })
       .range(offset, offset + CHAPTER_LOAD_BATCH - 1);
@@ -232,22 +247,23 @@ export async function loadChaptersForProjectWithServiceRole(projectId: string): 
       throw new Error(`Failed to load chapters: ${error.message}`);
     }
 
-    if (!chapters || chapters.length === 0) {
+    const chapterRows = asChapterRows(chapters);
+    if (chapterRows.length === 0) {
       break;
     }
 
-    const chapterIds = chapters.map((c: { id: string }) => c.id);
+    const chapterIds = chapterRows.map((c) => String(c.id));
 
     const paragraphsByChapterMap = await loadParagraphsForChapterIds(client, chapterIds);
 
-    const batch = chapters.map((chapter: Record<string, unknown>) => {
-      const paragraphs = paragraphsByChapterMap.get(chapter.id as string) ?? [];
+    const batch = chapterRows.map((chapter) => {
+      const paragraphs = paragraphsByChapterMap.get(String(chapter.id)) ?? [];
       return transformChapterFromDB(chapter, paragraphs);
     });
 
     allChapters.push(...batch);
 
-    if (chapters.length < CHAPTER_LOAD_BATCH) {
+    if (chapterRows.length < CHAPTER_LOAD_BATCH) {
       break;
     }
     offset += CHAPTER_LOAD_BATCH;

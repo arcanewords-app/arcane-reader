@@ -23,7 +23,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260621120500_fix_rpc_search_path.sql`                   | Schema-qualified table names in RPC functions (`search_path = ''`)                                                      |
 | `20260622120000_catalog_translation_requests.sql`          | User catalog translation requests + RLS                                                                                 |
 | `20260622130000_chapter_partial_translation_status.sql`    | Add `partial` to `chapters_status_check`; backfill `completed` → `partial` when paragraph coverage incomplete           |
-| `20260622140000_paragraph_search_trgm_rpc.sql`             | `pg_trgm` GIN indexes on `paragraphs` text columns; RPC `search_paragraphs_in_project` for project-wide find            |
+| `20260622140000_paragraph_search_trgm_rpc.sql`             | RPC `search_paragraphs_in_project` (ILIKE); GIN `pg_trgm` on paragraph text (unused; dropped 2026-08-29)                |
 | `20260622200000_search_rpc_translated_chapter_title.sql`   | Search RPC: return `chapter_translated_title` for display title                                                         |
 | `20260627120000_publications_source_url.sql`               | `publications.source_url`; recreate `publications_list_with_counts` view                                                |
 | `20260628120000_catalog_translation_request_interests.sql` | Author interests on translation requests + RLS                                                                          |
@@ -37,6 +37,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260718130000_reading_progress_watermark.sql`            | `last_read_chapter_number` on `user_publication_progress`; migrate from `read_chapter_ids`; deprecate bookmark columns  |
 | `20260719120000_user_quotes.sql`                           | `user_quotes` table for reader-saved publication quotes; RLS (select/insert/delete own rows)                            |
 | `20260801153000_user_publication_progress_delete_rls.sql`  | RLS DELETE on `user_publication_progress` (reset read progress was silently no-op)                                      |
+| `20260829225000_drop_unused_paragraph_trgm_indexes.sql`    | Drop unused GIN `paragraphs_*_text_trgm_idx` (~237 MB, `idx_scan = 0`); search RPC unchanged (ILIKE seq scan)           |
 
 ## Heavy RPC policy
 
@@ -44,13 +45,13 @@ Supabase role **`authenticated`** has `statement_timeout = 8s`. Do **not** raise
 
 Batch or loop RPC that touch many `chapters` / `paragraphs` rows must use a **function-level** override. SSOT for names: `supabase/migrations/20260708190000_heavy_rpc_statement_timeout.sql`.
 
-| Function                            | Tier  | Timeout | Notes                                                       |
-| ----------------------------------- | ----- | ------- | ----------------------------------------------------------- |
-| `mark_chapters_as_translated_batch` | write | 120s    | Set-based UPDATE paragraphs + chapters; stable reason codes |
-| `import_chapters_batch`             | write | 120s    | Insert chapters + split paragraphs                          |
-| `reorder_chapters`                  | write | 120s    | Mass UPDATE `chapters.number`                               |
-| `renumber_chapters_atomic`          | write | 120s    | Renumber all chapters in project                            |
-| `search_paragraphs_in_project`      | read  | 60s     | `pg_trgm` over project paragraphs                           |
+| Function                            | Tier  | Timeout | Notes                                                          |
+| ----------------------------------- | ----- | ------- | -------------------------------------------------------------- |
+| `mark_chapters_as_translated_batch` | write | 120s    | Set-based UPDATE paragraphs + chapters; stable reason codes    |
+| `import_chapters_batch`             | write | 120s    | Insert chapters + split paragraphs                             |
+| `reorder_chapters`                  | write | 120s    | Mass UPDATE `chapters.number`                                  |
+| `renumber_chapters_atomic`          | write | 120s    | Renumber all chapters in project                               |
+| `search_paragraphs_in_project`      | read  | 60s     | ILIKE/LIKE seq scan over project paragraphs (GIN trgm dropped) |
 
 **When adding a new heavy RPC:** append the function name to the registry migration (or a follow-up migration with the same `DO` block pattern) and add a row to this table.
 

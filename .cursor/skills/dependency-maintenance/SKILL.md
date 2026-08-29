@@ -107,9 +107,12 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | SEO router                    | Done   | `src/api/routes/seo.ts`                                                   |
 | 11 Dev scripts                | Done   | `wait-on` 9, `concurrently` 10                                            |
 | 12 TypeScript 6               | Done   | tsconfig: `types: ["node"]`, removed `baseUrl`; `vite-env.d.ts` for CSS   |
+| 13 TypeScript 7 side-by-side  | Done   | `@typescript/native` (tsc 7) + `typescript` shim (ESLint API 6)           |
 | Skill + agent                 | Done   | this file                                                                 |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
+
+**TS 7.1 trigger:** when `typescript-eslint` peer allows `typescript@7`, drop shim and use single `typescript@^7` devDependency.
 
 ## References
 

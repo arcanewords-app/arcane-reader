@@ -68,7 +68,8 @@ import {
   loadChaptersForProjectLightweight,
   loadGlossaryForProject,
   loadParagraphsForChapterIds,
- loadGlossaryForProjectPublic } from '../loaders.js';
+  loadGlossaryForProjectPublic,
+} from '../loaders.js';
 import { renumberChapters } from './chapters.js';
 
 /**
@@ -186,7 +187,7 @@ export async function getAllProjects(userId: string, token: string): Promise<Pro
   const projectsWithRelations = await Promise.all(
     projects.map(async (project) => {
       const [chapters, glossary] = await Promise.all([
-        loadChaptersForProject(project.id, token),
+        loadChaptersForProject(project.id, token, { chapterColumns: 'core' }),
         loadGlossaryForProject(project.id, token),
       ]);
       return transformProjectFromDB(project, chapters, glossary);
@@ -316,7 +317,9 @@ export async function cloneProject(
   validateToken(token);
   const client = createClientWithToken(token);
 
-  const source = await getProjectFull(sourceProjectId, userId, token);
+  const source = await getProjectFull(sourceProjectId, userId, token, {
+    chapterColumns: 'full',
+  });
   if (!source) {
     return undefined;
   }
@@ -972,7 +975,8 @@ export async function getProject(
 export async function getProjectFull(
   id: string,
   userId: string,
-  token: string
+  token: string,
+  options?: { chapterColumns?: 'core' | 'recovery' | 'full' }
 ): Promise<Project | undefined> {
   validateToken(token);
   const client = createClientWithToken(token);
@@ -987,7 +991,9 @@ export async function getProjectFull(
   if (error || !project) return undefined;
 
   const [chapters, glossary] = await Promise.all([
-    loadChaptersForProject(project.id, token),
+    loadChaptersForProject(project.id, token, {
+      chapterColumns: options?.chapterColumns ?? 'recovery',
+    }),
     loadGlossaryForProject(project.id, token),
   ]);
 

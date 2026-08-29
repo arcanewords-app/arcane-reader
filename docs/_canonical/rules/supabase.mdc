@@ -50,6 +50,13 @@ supabase/migrations/YYYYMMDDHHMMSS_short_snake_description.sql
 - Prefer `ALTER FUNCTION ... SET statement_timeout = '120s'` (idempotent registry `DO` block) over `CREATE OR REPLACE` when only timeout/`search_path` changes.
 - New heavy RPC: update registry migration + `@supabase/README.md` table in the same task.
 
+## Indexes (MUST)
+
+- Do not add GIN/GiST/`pg_trgm` on `paragraphs` / `chapters` text unless `EXPLAIN (ANALYZE, BUFFERS)` on the **same** SQL the app runs (RPC + RLS) shows Index Scan / Bitmap Index Scan.
+- After `CREATE INDEX`, check `pg_stat_user_indexes.idx_scan`. Advisor `unused_index` or `idx_scan = 0` → DROP candidate, not “for later”.
+- Do not add btree on columns already covered by UNIQUE/PK (unique `(chapter_id, index)` already covers `chapter_id`).
+- `ILIKE '%q%'` is not a reason to add trgm. Either switch the query to `%` / `similarity` (then GIN can help) or keep a seq scan filtered by `project_id` / `chapter_id` at current scale.
+
 ## Agents (MUST)
 
 - Before creating migration SQL, read this rule.

@@ -76,6 +76,7 @@ vi.mock('../../logger.js', () => ({
 }));
 
 import { POSTGREST_MAX_ROWS } from '../../shared/cacheContract.js';
+import { CHAPTER_COLUMNS } from './chapterColumns.js';
 import {
   getGlossaryCountForProject,
   getProjectForPublicationExport,
@@ -257,6 +258,8 @@ describe('loaders', () => {
       const chapters = await loadChaptersForProject('proj-1', 'tok');
       assert.equal(chapters.length, 1);
       assert.equal(chapters[0]!.id, 'c1');
+      const chapterChain = from.mock.results[0]!.value as { select: ReturnType<typeof vi.fn> };
+      assert.equal(chapterChain.select.mock.calls[0]![0], CHAPTER_COLUMNS.recovery);
     });
 
     it('loadChaptersForProject auto-recovers empty paragraph translations from chunks', async () => {
@@ -319,6 +322,20 @@ describe('loaders', () => {
       assert.ok(from.mock.calls.some((c) => c[0] === 'paragraphs'));
     });
 
+    it('loadChaptersForProject can request full chapter row', async () => {
+      const from = vi
+        .fn()
+        .mockReturnValueOnce(
+          chainable({ data: [{ id: 'c1', number: 1, title: 'One' }], error: null })
+        )
+        .mockReturnValueOnce(chainable({ data: [], error: null }));
+      mocks.mockCreateClientWithToken.mockReturnValue({ from });
+
+      await loadChaptersForProject('proj-1', 'tok', { chapterColumns: 'full' });
+      const chapterChain = from.mock.results[0]!.value as { select: ReturnType<typeof vi.fn> };
+      assert.equal(chapterChain.select.mock.calls[0]![0], CHAPTER_COLUMNS.full);
+    });
+
     it('loadChaptersForProject throws on chapter query error', async () => {
       mocks.mockCreateClientWithToken.mockReturnValue({
         from: vi.fn(() => chainable({ data: null, error: { message: 'ch fail' } })),
@@ -340,6 +357,8 @@ describe('loaders', () => {
 
       const chapters = await loadChaptersForProjectWithServiceRole('proj-1');
       assert.equal(chapters.length, 1);
+      const chapterChain = from.mock.results[0]!.value as { select: ReturnType<typeof vi.fn> };
+      assert.equal(chapterChain.select.mock.calls[0]![0], CHAPTER_COLUMNS.core);
     });
 
     it('getProjectForPublicationExport returns null when project missing or throws', async () => {

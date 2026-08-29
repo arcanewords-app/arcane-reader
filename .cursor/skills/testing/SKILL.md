@@ -59,6 +59,8 @@ Do **not** default to unit. Pick layer(s) from the change:
 
 **Emergency bypass** (document reason): `HUSKY=0 git push`
 
+Husky hooks source `.husky/load-node.sh` before `npx`/`npm`. GUI Git (Cursor Source Control) does not load `~/.zshrc`, so nvm is otherwise missing and pre-commit fails with `npx: command not found`.
+
 ## Pin and Windows notes
 
 - Vitest / `@vitest/coverage-v8` pinned exact **`4.0.8`**. Do not bump to 4.1.x without Windows + Node 24 proof (`vi.mock`, forks, glob).

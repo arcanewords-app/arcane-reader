@@ -1,11 +1,12 @@
 # Dependency audit baseline
 
-Last updated: 2026-07-12 (lockfile CI sync + dev audit overrides).
+Last updated: 2026-08-29 (TypeScript 7 side-by-side via `@typescript/typescript6` shim).
 
 ## npm audit --omit=dev (production)
 
 - **0 vulnerabilities**
-- Runtime: `express@5`, `openai@6`, Node 24, `typescript@6` (dev/build only)
+- Runtime: `express@5`, `openai@6`, Node 24
+- **TypeScript:** `tsc` → **7.0** (`@typescript/native`); `typescript` npm package → **6.0 shim** for `typescript-eslint` (see Wave 13)
 - Scripts use `npm audit --omit=dev --no-workspaces` so monorepo parent hoisting does not skew counts
 
 ## npm audit (all, dev included)
@@ -73,6 +74,28 @@ Do **not** rely on monorepo root `f:/arcane/package-lock.json` for CI — Vitest
 | `typescript` 6 + tsconfig (no `baseUrl`, `types: node`)  | Done   |
 | Vitest + Stryker + CI lockfile sync                      | Done   |
 | Dev audit overrides (`@vercel/node` 5.8.23)              | Done   |
+| TypeScript 7 side-by-side (`@typescript/native` + shim)  | Done   |
+
+### TypeScript 7 (Wave 13)
+
+Dual-package setup per [Microsoft TS 7 announcement](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/):
+
+| Package              | Alias / version                      | Role                                     |
+| -------------------- | ------------------------------------ | ---------------------------------------- |
+| `@typescript/native` | `npm:typescript@^7.0.2`              | `tsc` (typecheck, `build:server`)        |
+| `typescript`         | `npm:@typescript/typescript6@^6.0.2` | Compiler API 6.0 for `typescript-eslint` |
+
+Post-install smoke:
+
+```bash
+npx tsc --version                    # 7.x
+node -e "import('typescript').then(m => console.log(m.version))"  # 6.x
+npm run lint:all && npm run build
+```
+
+**Pilot notes (2026-08-29):** `tsconfig.json`, `tsconfig.debug-app.json`, and `tsconfig.prompt-lab-app.json` pass `tsc --noEmit` on TS 7. `tsconfig.client.json` is **not** in `npm run typecheck` (pre-existing gaps on TS 6 and TS 7); add to gate in a separate client-typecheck wave.
+
+**Upgrade to single `typescript@7`:** when TypeScript **7.1** ships programmatic API and `typescript-eslint` widens peer range — remove shim + `@typescript/native` alias.
 
 ## Local smoke (post override)
 
@@ -86,7 +109,10 @@ Vercel preview deploy recommended after `@vercel/node` / overrides changes.
 
 ## Major backlog (npm outdated)
 
-Deferred: `@types/node` 26 only — with Node 26 LTS + `.nvmrc` / `engines.node` / Vercel SSOT trio.
+Deferred:
+
+- `@types/node` 26 — until Node 26 LTS + `.nvmrc` / `engines.node` / Vercel SSOT trio
+- **TypeScript 7.1** — single-package upgrade when `typescript-eslint` peer includes TS 7 (remove `@typescript/native` + `@typescript/typescript6` shim)
 
 ## Before (2026-06-28 initial)
 

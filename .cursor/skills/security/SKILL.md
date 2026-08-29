@@ -33,6 +33,7 @@ Any authenticated user could `PATCH /rest/v1/profiles` with `{ "role": "admin" }
 - [ ] Every user-writable table has **both** `USING` and `WITH CHECK` on `UPDATE`/`INSERT`
 - [ ] Privileged columns (`role`, `subscription`) are **not** client-writable — server/service role or trigger only
 - [ ] Test as `anon` and `authenticated` (not only as `postgres`)
+- [ ] **InitPlan:** `auth.uid()` → `(select auth.uid())` — see backend skill **Database size and schema cleanup**. Do not apply RLS DDL to production without an explicit request.
 
 ### Views
 

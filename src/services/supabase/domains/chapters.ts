@@ -344,7 +344,7 @@ export async function getChapter(
 
   const { data: chapter, error } = await client
     .from('chapters')
-    .select('*')
+    .select('*') // editor + chunk recovery + critic_report
     .eq('id', chapterId)
     .eq('project_id', projectId)
     .single();
