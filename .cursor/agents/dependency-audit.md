@@ -28,7 +28,7 @@ node -v && cat .nvmrc
 Deliver a **markdown report**:
 
 1. **Prod vulnerabilities (P0)** — package, severity, advisory, suggested fix
-2. **Dev vulnerabilities (P1)** — same; note if `@vercel/node` / ESLint chain
+2. **Dev vulnerabilities (P1)** — same; note if `@vercel/node` / oxlint chain
 3. **Outdated** — group by patch/minor (P3) vs major (P2/P4)
 4. **Node SSOT** — `.nvmrc`, `engines.node`, `@types/node` alignment
 5. **Express types** — `@types/express@5`; augment `Express.Request` in `@src/types/express.d.ts`

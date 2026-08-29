@@ -16,7 +16,7 @@ When invoked:
 ## Verification commands (repo root)
 
 ```bash
-npm run lint:all    # ESLint + Stylelint + TypeScript (3 tsconfigs)
+npm run lint:all    # oxlint + Stylelint + TypeScript (3 tsconfigs)
 npm run test        # Vitest unit tests (all src/**/*.test.ts)
 npm run lint
 npm run typecheck

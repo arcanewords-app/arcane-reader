@@ -41,7 +41,7 @@ npm run check:graphviz
 
 | Trigger                           | Action                                                                                                   |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Every commit                      | Husky: Prettier + ESLint/Stylelint on **staged** files; `check:circular` when `src/**/*.{ts,tsx}` change |
+| Every commit                      | Husky: Prettier + oxlint/Stylelint on **staged** files; `check:circular` when `src/**/*.{ts,tsx}` change |
 | Before PR / after large refactor  | `npm run docs:deps` then commit `docs/01-reference/dependency-graphs/`                                   |
 | New top-level module under `src/` | Regenerate so Mermaid overview stays accurate                                                            |
 

@@ -95,7 +95,7 @@ npm run kill-port
 | Tests (watch)            | `npm run test:watch`                 |
 | Coverage report          | `npm run test:coverage`              |
 | Focused test run         | `npx vitest run src/engine/glossary` |
-| ESLint                   | `npm run lint`                       |
+| Oxlint                   | `npm run lint`                       |
 | Typecheck                | `npm run typecheck`                  |
 | Format                   | `npm run format`                     |
 | Production build         | `npm run build`                      |

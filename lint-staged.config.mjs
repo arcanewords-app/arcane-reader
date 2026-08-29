@@ -2,11 +2,11 @@
 export default {
   'src/**/*.{ts,tsx}': [
     'prettier --write',
-    'eslint --fix',
+    'oxlint --fix',
     () => 'npm run check:circular',
   ],
   'src/**/*.css': ['prettier --write', 'stylelint --fix'],
-  'scripts/**/*.{ts,js,mjs,cjs}': ['prettier --write', 'eslint --fix'],
+  'scripts/**/*.{ts,js,mjs,cjs}': ['prettier --write', 'oxlint --fix'],
   'docs/**/*.{md,json}': 'prettier --write',
   '*.{json,md,yml,yaml}': 'prettier --write',
 };

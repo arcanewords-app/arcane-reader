@@ -13,7 +13,7 @@ description: npm audit, outdated deps, CVE response, and phased dependency updat
 
 - User asks to update dependencies, run `npm audit`, fix CVEs, bump Node
 - Monthly maintenance cadence (recommended)
-- After major ecosystem news (Express, OpenAI SDK, ESLint, Vercel runtime)
+- After major ecosystem news (Express, OpenAI SDK, oxlint, Vercel runtime)
 
 ## Commands (repo root: `arcane-reader`)
 
@@ -32,7 +32,7 @@ npm run build           # required after dependency changes
 | P      | Criteria                                                    | SLA                | Action                                            |
 | ------ | ----------------------------------------------------------- | ------------------ | ------------------------------------------------- |
 | **P0** | Critical/High in **prod** (`audit:prod`)                    | 1–3 days           | Patch/upgrade prod chain; verify engine/API smoke |
-| **P1** | High in **dev** with deploy impact (`@vercel/node`, ESLint) | ~1 week            | Dev-toolchain wave; Vercel preview                |
+| **P1** | High in **dev** with deploy impact (`@vercel/node`, oxlint) | ~1 week            | Dev-toolchain wave; Vercel preview                |
 | **P2** | Major framework (Express, OpenAI, Zod)                      | Separate PR / plan | See wave rules + domain agent                     |
 | **P3** | Patch/minor, no CVE                                         | Monthly            | Batch in one PR                                   |
 | **P4** | Deferred / low urgency                                      | Backlog            | Document only                                     |
@@ -43,7 +43,7 @@ npm run build           # required after dependency changes
 2. **One major per PR** — do not combine Express + Zod + Vite in one diff.
 3. **Order:** patch/minor → dev security chain → prod runtime majors → UI/build majors.
 4. **Gate:** `npm run lint:all && npm run test && npm run build` + domain smoke (see below).
-5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters. Root [`f:/arcane/.npmrc`](f:/arcane/.npmrc) uses `legacy-peer-deps=true` for `madge` + `eslint-plugin-import` peer gaps; root `eslint@^10` satisfies hoisted import plugin.
+5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters. Root [`f:/arcane/.npmrc`](f:/arcane/.npmrc) uses `legacy-peer-deps=true` for `madge` optional `typescript` peer (`^5`; we ship `typescript@7`). Arcane Reader lint is oxlint — no `eslint-plugin-import` peer.
 
 ## Node.js SSOT (mandatory trio)
 
@@ -75,7 +75,7 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | Engine  | `openai`                                     | `npm run test`; one translate job        |
 | API     | `express`, `multer`                          | Chapter/glossary/avatar upload endpoints |
 | Backend | `bullmq`, `ioredis`, `@supabase/supabase-js` | `dev:full` + worker job                  |
-| UI dev  | `vite`, `eslint`, `@preact/*`                | `npm run build`, client loads            |
+| UI dev  | `vite`, `oxlint`, `@preact/*`                | `npm run build`, client loads            |
 | Deploy  | `@vercel/node`                               | Vercel preview deploy                    |
 
 ## P4 backlog (defer — separate PRs)
@@ -88,7 +88,7 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 
 - `npm overrides` for transitive CVE (e.g. `ws`) when parent package cannot upgrade yet
 - Accept risk + note in PR when fix requires `--force` or breaking major
-- Monorepo: `legacy-peer-deps` in root `.npmrc` until `madge` publishes TS 6 peer; root `eslint` until `eslint-plugin-import` publishes ESLint 10 peer
+- Monorepo: `legacy-peer-deps` in root `.npmrc` until `madge` publishes a `typescript@7` peer (optional peer; `check:circular` still runs)
 
 ## Completed waves (2026-06-28)
 
@@ -108,11 +108,12 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | 11 Dev scripts                | Done   | `wait-on` 9, `concurrently` 10                                            |
 | 12 TypeScript 6               | Done   | tsconfig: `types: ["node"]`, removed `baseUrl`; `vite-env.d.ts` for CSS   |
 | 13 TypeScript 7 side-by-side  | Done   | `@typescript/native` (tsc 7) + `typescript` shim (ESLint API 6)           |
+| 14 Oxlint + TypeScript 7      | Done   | Drop ESLint / typescript-eslint; single `typescript@^7`; `.oxlintrc.json` |
 | Skill + agent                 | Done   | this file                                                                 |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 
-**TS 7.1 trigger:** when `typescript-eslint` peer allows `typescript@7`, drop shim and use single `typescript@^7` devDependency.
+**Lint:** `npm run lint` → `oxlint src` (not type-aware). Typecheck remains `tsc --noEmit` on three tsconfigs. Prettier + Stylelint unchanged.
 
 ## References
 
