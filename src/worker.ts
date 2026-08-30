@@ -17,16 +17,20 @@ function main(): void {
 
 main();
 
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, closing workers');
-  const { closeChapterWorkers } = await import('./services/chapterWorker.js');
-  await closeChapterWorkers();
-  process.exit(0);
+process.on('SIGTERM', () => {
+  void (async () => {
+    logger.info('SIGTERM received, closing workers');
+    const { closeChapterWorkers } = await import('./services/chapterWorker.js');
+    await closeChapterWorkers();
+    process.exit(0);
+  })();
 });
 
-process.on('SIGINT', async () => {
-  logger.info('SIGINT received, closing workers');
-  const { closeChapterWorkers } = await import('./services/chapterWorker.js');
-  await closeChapterWorkers();
-  process.exit(0);
+process.on('SIGINT', () => {
+  void (async () => {
+    logger.info('SIGINT received, closing workers');
+    const { closeChapterWorkers } = await import('./services/chapterWorker.js');
+    await closeChapterWorkers();
+    process.exit(0);
+  })();
 });

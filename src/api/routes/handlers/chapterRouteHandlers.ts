@@ -881,10 +881,10 @@ export function createHandleAnalyzeBatch(deps: RouteDeps) {
         { stages: ['analysis'], translateChapterTitles: false }
       );
       const limitCheck = await checkTokenLimit(
-        req.user!.id,
+        req.user.id,
         token,
         estimatedTokens,
-        req.user!.role
+        req.user.role
       );
       if (!limitCheck.allowed) {
         return res.status(429).json(buildTokenLimit429Response(limitCheck, estimatedTokens));
@@ -893,7 +893,7 @@ export function createHandleAnalyzeBatch(deps: RouteDeps) {
       const preferAsync = isPreferAsync(req);
 
       if (preferAsync) {
-        const userId = req.user!.id;
+        const userId = req.user.id;
 
         if (!isBullAvailable()) {
           return res.status(503).json({
@@ -1490,19 +1490,19 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
         project,
         'analysis',
         deps.config.openai.model,
-        req.user!.role
+        req.user.role
       );
       const translationModel = getStageModel(
         project,
         'translation',
         deps.config.openai.model,
-        req.user!.role
+        req.user.role
       );
       const editingModel = getStageModel(
         project,
         'editing',
         deps.config.openai.model,
-        req.user!.role
+        req.user.role
       );
 
       const translateTitles = translateChapterTitles !== false;
@@ -1575,7 +1575,7 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
         startTime,
         translateOnlyEmpty,
         token,
-        req.user!.id,
+        req.user.id,
         paragraphIds,
         stages,
         {
@@ -1583,7 +1583,7 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
           requestId,
           languagePair: languagePairOverride,
           translateChapterTitles: translateTitles,
-          userRole: req.user!.role,
+          userRole: req.user.role,
         }
       );
 
@@ -1654,7 +1654,7 @@ export async function handleChapterCritic(req: Request, res: Response) {
     const { languageDisplayName } = await import('../../../engine/language.js');
     const { getAgentForProject } = await import('../../../services/engine-integration.js');
 
-    const agent = await getAgentForProject(project);
+    const agent = getAgentForProject(project);
     const glossaryText = new GlossaryManager(agent.glossary).toPromptText({
       targetLanguageLabel: languageDisplayName(
         project.targetLanguage as import('../../../engine/types/common.js').Language

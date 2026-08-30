@@ -38,6 +38,7 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 - Service-role key usage from client-facing code paths
 - Logging secrets or full row dumps
 - `SECURITY DEFINER` without `search_path = ''` and schema-qualified names — see `@.cursor/skills/security/SKILL.md`
+- `await Promise.resolve(syncFn())` (or `await syncFn()`) to silence oxlint `await-thenable`. If the function returns a value, not a Promise (e.g. `getAgentForProject`), call it without `await`. Fix tests that used `mockResolvedValue` — they should `mockReturnValue`. See `@.cursor/skills/testing/SKILL.md` § Mocking.
 
 ## Database size and schema cleanup
 

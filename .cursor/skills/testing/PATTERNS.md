@@ -54,6 +54,12 @@ function providerWithMockCreate(create: () => Promise<MockResponse>): OpenAIProv
 
 - Edge cases: empty arrays, separator paragraphs, ID remapping
 
+## Services — sync vs Promise mocks
+
+**Exemplar:** `@src/services/chapter-critic.test.ts` — `mockGetAgentForProject.mockReturnValue({ glossary })`.
+
+`getAgentForProject` is **sync**. Do not `mockResolvedValue` and do not `await Promise.resolve(getAgentForProject(...))` in production. Policy: `@.cursor/skills/testing/SKILL.md` § Mocking; `@.cursor/skills/backend/SKILL.md` anti-patterns.
+
 ## API — validation helpers
 
 **Exemplar:** `@src/api/validateRoute.test.ts`

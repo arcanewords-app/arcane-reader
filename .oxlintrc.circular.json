@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import"],
+  "options": {
+    "typeAware": false
+  },
+  "categories": {
+    "correctness": "off"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**", "**/*.cjs"],
+  "rules": {
+    "import/no-cycle": "error"
+  }
+}

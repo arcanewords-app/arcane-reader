@@ -102,8 +102,10 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
     const chapterMap = new Map(chaptersWithText.map((c) => [c.id, c]));
     let totalTokensAccum = 0;
     let cancelledFlag = false;
-    const cancelCheckInterval = setInterval(async () => {
-      if (await analysisJobStore.isCancelRequested(jobId)) cancelledFlag = true;
+    const cancelCheckInterval = setInterval(() => {
+      void analysisJobStore.isCancelRequested(jobId).then((requested) => {
+        if (requested) cancelledFlag = true;
+      });
     }, 500);
 
     try {
@@ -153,7 +155,7 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
                   projectId,
                   chapterId,
                   {
-                    status: preserveStatus ? existingChapter!.status : 'analyzed',
+                    status: preserveStatus ? existingChapter.status : 'analyzed',
                     translationMeta: {
                       ...(existingChapter?.translationMeta || {}),
                       tokensUsed: progResult.tokensUsed,

@@ -43,7 +43,7 @@ npm run build           # required after dependency changes
 2. **One major per PR** — do not combine Express + Zod + Vite in one diff.
 3. **Order:** patch/minor → dev security chain → prod runtime majors → UI/build majors.
 4. **Gate:** `npm run lint:all && npm run test && npm run build` + domain smoke (see below).
-5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters. Root [`f:/arcane/.npmrc`](f:/arcane/.npmrc) uses `legacy-peer-deps=true` for `madge` optional `typescript` peer (`^5`; we ship `typescript@7`). Arcane Reader lint is oxlint — no `eslint-plugin-import` peer.
+5. **Lockfile** — commit `package-lock.json`; run `npm install` from monorepo root (`f:/arcane`) when workspace hoisting matters. Root [`f:/arcane/.npmrc`](f:/arcane/.npmrc) uses `legacy-peer-deps=true` for `madge` optional `typescript` peer (`^5`; we ship `typescript@7`). Arcane Reader lint is oxlint — no `eslint-plugin-import` peer. Do not nest `typescript@6` only to keep madge alive; see mitigations.
 
 ## Node.js SSOT (mandatory trio)
 
@@ -88,7 +88,7 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 
 - `npm overrides` for transitive CVE (e.g. `ws`) when parent package cannot upgrade yet
 - Accept risk + note in PR when fix requires `--force` or breaking major
-- Monorepo: `legacy-peer-deps` in root `.npmrc` until `madge` publishes a `typescript@7` peer (optional peer; `check:circular` still runs)
+- Monorepo: `legacy-peer-deps` in root `.npmrc` until `madge` publishes a `typescript@7` peer (optional peer). Pre-commit `check:circular` is oxlint `import/no-cycle` (`.oxlintrc.circular.json`) — not madge / typescript-estree. `docs:deps` still uses madge and will fail on TS 7 until madge’s parser supports it.
 
 ## Completed waves (2026-06-28)
 
@@ -109,11 +109,12 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | 12 TypeScript 6               | Done   | tsconfig: `types: ["node"]`, removed `baseUrl`; `vite-env.d.ts` for CSS   |
 | 13 TypeScript 7 side-by-side  | Done   | `@typescript/native` (tsc 7) + `typescript` shim (ESLint API 6)           |
 | 14 Oxlint + TypeScript 7      | Done   | Drop ESLint / typescript-eslint; single `typescript@^7`; `.oxlintrc.json` |
+| 15 Oxlint type-aware          | Done   | `oxlint-tsgolint@7`; `typeAware` on; `typeCheck` off; noisy rules warn    |
 | Skill + agent                 | Done   | this file                                                                 |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 
-**Lint:** `npm run lint` → `oxlint src` (not type-aware). Typecheck remains `tsc --noEmit` on three tsconfigs. Prettier + Stylelint unchanged.
+**Lint:** `npm run lint` → `oxlint src` with type-aware (`oxlint-tsgolint`). Typecheck remains `tsc --noEmit` on three tsconfigs. Prettier + Stylelint unchanged. Cursor: `oxc.oxc-vscode`.
 
 ## References
 

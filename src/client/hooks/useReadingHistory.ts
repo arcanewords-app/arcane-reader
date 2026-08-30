@@ -68,7 +68,9 @@ export function useReadingHistory() {
       if (document.visibilityState === 'visible') reload();
     };
     document.addEventListener('visibilitychange', onVisible);
-    const unsubCache = subscribeToUserCacheInvalidation(() => reload());
+    const unsubCache = subscribeToUserCacheInvalidation(() => {
+      void reload();
+    });
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       unsubCache();

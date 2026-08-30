@@ -10,6 +10,7 @@ alwaysApply: true
 - TypeScript strict. Preact (use `preact`, not `react`).
 - Functional components. Named exports.
 - 2 spaces, LF. See `.editorconfig`.
+- Lint: oxlint (`.oxlintrc.json`). Format: Prettier. CSS: Stylelint. Cursor/VS Code: recommend `oxc.oxc-vscode` (not ESLint).
 - Run `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` before pushing (pre-push enforces all five).
 
 ## Structure

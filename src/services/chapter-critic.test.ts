@@ -129,7 +129,7 @@ describe('runChapterCritic', () => {
   });
 
   it('returns critic report on successful LLM response', async () => {
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     mockCompleteStructuredJSON.mockResolvedValue({
       data: {
         summary: 'Good flow',
@@ -157,7 +157,7 @@ describe('runChapterCritic', () => {
   });
 
   it('throws CriticNoTranslationError when chapter has no translated text', async () => {
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     const chapter = makeChapter({
       paragraphs: [
         { id: 'p1', index: 0, originalText: 'Hello.', translatedText: '', status: 'pending' },
@@ -171,7 +171,7 @@ describe('runChapterCritic', () => {
   });
 
   it('throws CriticInputTooLargeError when input exceeds limit', async () => {
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     const huge = 'x'.repeat(CRITIC_MAX_INPUT_CHARS);
     const chapter = makeChapter({
       paragraphs: [
@@ -186,7 +186,7 @@ describe('runChapterCritic', () => {
   });
 
   it('throws CriticChapterTooLongError above paragraph threshold', async () => {
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     const paragraphs = Array.from({ length: CRITIC_CHUNKED_PARAGRAPH_THRESHOLD + 1 }, (_, i) => ({
       id: `p${i}`,
       index: i,
@@ -202,7 +202,7 @@ describe('runChapterCritic', () => {
   });
 
   it('maps truncated LLM output to CriticOutputTruncatedError', async () => {
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     mockCompleteStructuredJSON.mockRejectedValue(new Error('truncated at max_tokens'));
 
     await assert.rejects(

@@ -112,8 +112,10 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
     let totalTokensAccum = 0;
     let cancelledFlag = false;
     const succeededChapterIds = new Set<string>();
-    const cancelCheckInterval = setInterval(async () => {
-      if (await translateJobStore.isCancelRequested(jobId)) cancelledFlag = true;
+    const cancelCheckInterval = setInterval(() => {
+      void translateJobStore.isCancelRequested(jobId).then((requested) => {
+        if (requested) cancelledFlag = true;
+      });
     }, 500);
 
     const { performTranslation } = await import('../../api/chapterTranslation.js');
@@ -270,7 +272,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
           const candidates = collectTitleTranslationCandidates(validChapters, {
             translateChapterTitles: true,
             translateOnlyEmpty,
-            stages: stages as TranslationStages,
+            stages: stages,
             succeededChapterIds,
           });
           if (candidates.length > 0) {

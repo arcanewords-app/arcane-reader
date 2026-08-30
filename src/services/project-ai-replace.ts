@@ -268,7 +268,7 @@ export async function runProjectAiReplace(
     throw new AiReplaceInputTooLargeError(totalChars);
   }
 
-  const agent = await getAgentForProject(project);
+  const agent = getAgentForProject(project);
   const glossaryText = new GlossaryManager(agent.glossary).toPromptText({
     targetLanguageLabel: languageDisplayName(project.targetLanguage as Language),
   });

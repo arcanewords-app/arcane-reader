@@ -17,7 +17,7 @@ Update this file when completing plans or shipping major features.
 ## Currently implemented (code-verified)
 
 - Preact SPA + Express API + Supabase (auth, DB, storage)
-- TypeScript **7** (`typescript@^7`); lint is **oxlint** (`.oxlintrc.json`); Prettier + Stylelint unchanged
+- TypeScript **7** (`typescript@^7`); lint is **oxlint** + type-aware (`oxlint-tsgolint`); Prettier + Stylelint unchanged
 - Public catalog (`/`, `/catalog`) and publication reading (`/p/:id`)
 - Reading mode: chapter URL sync on prev/next/TOC (`route()` push); reload/share/back work — [[03-explanation/addressable-ui-state]], policy [[_canonical/rules/spa-navigation]]
 - Profile tabs + publication chapter filters synced to URL query (Phase 1) — `profileRoutes.ts`, `publicationRoutes.ts`

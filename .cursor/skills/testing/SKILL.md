@@ -106,6 +106,7 @@ afterEach(() => {
 - Mock only external boundaries (LLM, network, DB, Redis, filesystem)
 - Never use real `OPENAI_API_KEY` or Supabase credentials in tests
 - Do not commit `.env` values into test fixtures
+- **Match mock async to the real signature.** `mockResolvedValue` / `mockRejectedValue` only if production returns a `Promise`. Sync helpers (`getAgentForProject` → `NovelAgent`) use `mockReturnValue` / `mockReturnValueOnce`. Do **not** keep `await` or `await Promise.resolve(...)` in production just so a Promise mock still unwraps — oxlint `typescript/await-thenable` will flag `await` on a non-Promise, and `Promise.resolve` is a lint workaround, not a fix.
 
 ### Mock-first integration (no test env)
 

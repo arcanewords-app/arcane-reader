@@ -142,7 +142,7 @@ describe('runProjectAiReplace', () => {
         translatedText: 'Old name walked in.',
       },
     ]);
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     mockCompleteStructuredJSON.mockResolvedValue({
       data: {
         paragraphs: [{ id: 'p-1', text: 'New name walked in.' }],
@@ -180,7 +180,7 @@ describe('runProjectAiReplace', () => {
         translatedText: 'Same text.',
       },
     ]);
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     mockCompleteStructuredJSON.mockResolvedValue({
       data: { paragraphs: [{ id: 'p-1', text: 'Same text.' }] },
       tokensUsed: { total: 5 },
@@ -212,7 +212,7 @@ describe('runProjectAiReplace', () => {
         translatedText: 'Text one.',
       },
     ]);
-    mockGetAgentForProject.mockResolvedValue({ glossary: emptyGlossary });
+    mockGetAgentForProject.mockReturnValue({ glossary: emptyGlossary });
     mockCompleteStructuredJSON.mockResolvedValue({
       data: { paragraphs: [{ id: 'p-unknown', text: 'Changed.' }] },
       tokensUsed: { total: 5 },

@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-05-16
+updated: 2026-08-30
 canonical: .cursor/rules/deployment.mdc
 ---
 
@@ -42,12 +42,12 @@ cp env.example.txt .env
 
 ## Commands
 
-| Command                              | What runs                               |
-| ------------------------------------ | --------------------------------------- |
-| `npm run dev`                        | Express API (3000) + Vite client (5173) |
-| `npm run dev:full`                   | Above + BullMQ worker (`src/worker.ts`) |
-| `npm run worker`                     | Worker only (needs Redis env)           |
-| `npm run lint` / `npm run typecheck` | Quality checks before PR                |
+| Command                              | What runs                                      |
+| ------------------------------------ | ---------------------------------------------- |
+| `npm run dev`                        | Express API (3000) + Vite client (5173)        |
+| `npm run dev:full`                   | Above + BullMQ worker (`src/worker.ts`)        |
+| `npm run worker`                     | Worker only (needs Redis env)                  |
+| `npm run lint` / `npm run typecheck` | oxlint (`src/`) + `tsc --noEmit` (3 tsconfigs) |
 
 ## Async translation / analysis
 
@@ -63,6 +63,10 @@ Without Redis, use sync endpoints only; batch async returns 503.
 - Dev UI: Vite proxy or `http://localhost:5173` (see Vite config)
 - API: `http://localhost:3000`
 - Debug logs (dev only): `http://localhost:3000/debug` or `http://localhost:5173/debug` — see [[debug-translation]]
+
+## Editor (Cursor / VS Code)
+
+Workspace recommends the **Oxc** extension (`oxc.oxc-vscode`); it uses local `oxlint` and `.oxlintrc.json`. Disable the ESLint extension for this workspace to avoid duplicate diagnostics. Format-on-save remains Prettier; Oxc only applies lint auto-fixes (`source.fixAll.oxc`).
 
 ## Troubleshooting
 

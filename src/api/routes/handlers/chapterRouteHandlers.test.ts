@@ -458,7 +458,7 @@ function resetDefaults() {
   );
   mockIsPreferAsync.mockReturnValue(false);
   mockIsBullAvailable.mockReturnValue(false);
-  mockGetAgentForProject.mockResolvedValue({ glossary: [] });
+  mockGetAgentForProject.mockReturnValue({ glossary: [] });
   mockComputeCriticInputStats.mockReturnValue({
     tooLarge: false,
     totalChars: 500,

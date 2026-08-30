@@ -10,6 +10,8 @@ updated: 2026-05-16
 
 Module dependency maps for Arcane Reader, generated with [madge](https://github.com/pahen/madge).
 
+Circular imports on commit are checked with oxlint `import/no-cycle` (`npm run check:circular`), not madge. Madge remains for Mermaid/SVG graphs (`npm run docs:deps`). Its TypeScript parser still pulls `@typescript-eslint/typescript-estree` (an ESLint parser, not our linter) and does not support `typescript@7` yet — regenerate graphs when that stack catches up, or isolate a TypeScript 5 parser for madge only.
+
 ## Generated artifacts
 
 | File               | Description                                                                 |
@@ -30,7 +32,7 @@ Files marked **generated** in frontmatter are overwritten by `npm run docs:deps`
 # Regenerate all markdown (+ SVG if Graphviz is installed)
 npm run docs:deps
 
-# Fast circular-deps check only (~2–5s)
+# Circular imports (oxlint import/no-cycle; pre-commit)
 npm run check:circular
 
 # Debug Graphviz / PATH / GRAPHVIZ_BIN

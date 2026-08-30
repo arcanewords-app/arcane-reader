@@ -304,7 +304,7 @@ export function ChapterList({
       setIsSavingOrder(false);
       // clear any existing timeout
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current as number);
+        clearTimeout(undoTimeoutRef.current);
         undoTimeoutRef.current = null;
       }
       // allow user to undo within 8s after save
@@ -321,7 +321,7 @@ export function ChapterList({
       setUndoAvailable(false);
       setIsSavingOrder(false);
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current as number);
+        clearTimeout(undoTimeoutRef.current);
         undoTimeoutRef.current = null;
       }
       setError({
@@ -498,7 +498,7 @@ export function ChapterList({
       setIsSavingOrder(false);
       // clear any existing timeout
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current as number);
+        clearTimeout(undoTimeoutRef.current);
         undoTimeoutRef.current = null;
       }
       // allow user to undo within 8s after save
@@ -514,7 +514,7 @@ export function ChapterList({
       setUndoAvailable(false);
       setIsSavingOrder(false);
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current as number);
+        clearTimeout(undoTimeoutRef.current);
         undoTimeoutRef.current = null;
       }
       if (onChaptersUpdate) await onChaptersUpdate();
@@ -528,7 +528,7 @@ export function ChapterList({
 
   const clearUndoImmediate = () => {
     if (undoTimeoutRef.current) {
-      clearTimeout(undoTimeoutRef.current as number);
+      clearTimeout(undoTimeoutRef.current);
       undoTimeoutRef.current = null;
     }
     lastOrderRef.current = null;
@@ -557,7 +557,7 @@ export function ChapterList({
       }
       // clear undo state
       if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current as number);
+        clearTimeout(undoTimeoutRef.current);
         undoTimeoutRef.current = null;
       }
       lastOrderRef.current = null;
@@ -1074,7 +1074,7 @@ export function ChapterList({
                   if (!onDelete || !deleteConfirmId) return;
                   setDeleting(true);
                   try {
-                    await onDelete(deleteConfirmId);
+                    await Promise.resolve(onDelete(deleteConfirmId));
                     setDeleteConfirmId(null);
                   } catch (err) {
                     console.error('Failed to delete chapter:', err);

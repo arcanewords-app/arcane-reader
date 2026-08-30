@@ -6,7 +6,7 @@ Last updated: 2026-08-30 (TypeScript 7 single package; oxlint replaced ESLint).
 
 - **0 vulnerabilities**
 - Runtime: `express@5`, `openai@6`, Node 24
-- **TypeScript:** `typescript@^7` — `npx tsc` and `import('typescript')` both **7.x** (Wave 14; lint is oxlint, not typescript-eslint)
+- **TypeScript:** `typescript@^7` — `npx tsc` and `import('typescript')` both **7.x**. Lint: oxlint + `oxlint-tsgolint` (`options.typeAware`, no `typeCheck`).
 - Scripts use `npm audit --omit=dev --no-workspaces` so monorepo parent hoisting does not skew counts
 
 ## npm audit (all, dev included)
@@ -76,15 +76,18 @@ Do **not** rely on monorepo root `f:/arcane/package-lock.json` for CI — Vitest
 | Dev audit overrides (`@vercel/node` 5.8.23)              | Done   |
 | TypeScript 7 side-by-side (`@typescript/native` + shim)  | Done   |
 | Oxlint + single `typescript@7` (drop ESLint + shim)      | Done   |
+| Oxlint type-aware (`oxlint-tsgolint`)                    | Done   |
+| Circular check via oxlint `import/no-cycle` (not madge)  | Done   |
 
 ### TypeScript 7 (Wave 13–14)
 
 Wave 13 was dual-package (`@typescript/native` tsc 7 + `@typescript/typescript6` for typescript-eslint). Wave 14 replaced ESLint with oxlint and uses a single `typescript@^7` package.
 
-| Package      | Version  | Role                                             |
-| ------------ | -------- | ------------------------------------------------ |
-| `typescript` | `^7.0.2` | `tsc` (typecheck, `build:server`) + Compiler API |
-| Lint         | `oxlint` | `.oxlintrc.json`; not type-aware; Prettier stays |
+| Package         | Version             | Role                                             |
+| --------------- | ------------------- | ------------------------------------------------ |
+| `typescript`    | `^7.0.2`            | `tsc` (typecheck, `build:server`) + Compiler API |
+| Lint            | `oxlint`            | `.oxlintrc.json`; Prettier stays                 |
+| Type-aware lint | `oxlint-tsgolint@7` | `options.typeAware: true`; **not** `typeCheck`   |
 
 Post-install smoke:
 

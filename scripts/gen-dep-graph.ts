@@ -4,7 +4,8 @@
  *
  * Usage:
  *   npx tsx scripts/gen-dep-graph.ts              # full docs + optional SVG
- *   npx tsx scripts/gen-dep-graph.ts --circular-only  # fast check (exit 1 if cycles)
+ *   npx tsx scripts/gen-dep-graph.ts --circular-only  # madge cycles (needs TS 5/6 parser)
+ * Pre-commit circular gate: npm run check:circular (oxlint import/no-cycle).
  */
 
 import { execFile } from 'child_process';

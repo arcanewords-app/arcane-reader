@@ -132,7 +132,7 @@ export async function runChapterCritic(
   chapter: Chapter
 ): Promise<ChapterCriticReport> {
   const { targetLanguage } = project;
-  const agent = await getAgentForProject(project);
+  const agent = getAgentForProject(project);
   const glossaryText = new GlossaryManager(agent.glossary).toPromptText({
     targetLanguageLabel: languageDisplayName(targetLanguage as Language),
   });
