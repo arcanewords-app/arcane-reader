@@ -33,6 +33,13 @@ When debugging **Vitest** or pre-push test failures:
 2. Reproduce: `npx vitest run path/to/failing.test.ts`
 3. Fix minimal root cause; do not disable tests without user approval
 
+When debugging **local Playwright E2E** (`tests/e2e/**`):
+
+1. Read `@tests/e2e/README.md` and the E2E section of `@.cursor/skills/testing/PATTERNS.md`
+2. Empty catalog / wrong roles / AuthorPlus not empty → `npm run stack:restore` (stamp image present). Do **not** default to `stack:load`.
+3. Missing `arcane-reader-stamp:latest` → first-time path: `STACK_STAMP=0 npm run stack:up` then `stack:load` then `stack:stamp`
+4. `npm run test:e2e:visual` after logic specs that create a project will fail `seesEmptyAuthorWorkspace` until restore
+
 ## Deliverables
 
 For each issue, provide:

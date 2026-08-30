@@ -19,7 +19,7 @@ npm run test:contract     # Zod contract fixtures
 npm run test:coverage     # floors lines 77 / branches 65 (not pre-push)
 npm run test:gaps         # component + contract blind spots (advisory)
 npm run test:e2e          # Playwright logic smoke (not pre-push)
-npm run test:e2e:visual   # pixel shells
+npm run test:e2e:visual   # pixel shells (restore stamp if dirty)
 npm run typecheck
 ```
 

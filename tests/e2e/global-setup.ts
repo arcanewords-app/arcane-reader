@@ -44,7 +44,7 @@ export default async function globalSetup(): Promise<void> {
     }
     if (persona.id === 'reader' && projects.length > 0) {
       throw stampFailed(
-        'Reader owns translation projects. Dump remapped to the wrong user; run stack:load.'
+        'Reader owns translation projects. Dump remapped to the wrong user; run stack:restore or stack:load.'
       );
     }
   }

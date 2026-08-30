@@ -30,10 +30,10 @@ flowchart TB
   UNIT --> COMP --> INT --> SNAP --> CONTRACT --> E2E
 ```
 
-| Phase              | Scope                                      | External I/O                                                       |
-| ------------------ | ------------------------------------------ | ------------------------------------------------------------------ |
-| **Q3** (Waves 6–7) | Unit + Component + mock-integration        | Always mocked (Supabase, Redis, LLM, fetch)                        |
-| **Q4+** (Wave 10)  | Local E2E unblocked; CI live stack blocked | Playwright vs `stack:load` locally — never prod/staging as CI gate |
+| Phase              | Scope                                      | External I/O                                                           |
+| ------------------ | ------------------------------------------ | ---------------------------------------------------------------------- |
+| **Q3** (Waves 6–7) | Unit + Component + mock-integration        | Always mocked (Supabase, Redis, LLM, fetch)                            |
+| **Q4+** (Wave 10)  | Local E2E unblocked; CI live stack blocked | Playwright vs local stamp (`stack:up`) — never prod/staging as CI gate |
 
 ## APP_SCOPE
 
@@ -227,7 +227,7 @@ Phase 2 (after split): OpenAPI / Pact — deferred.
 
 ### Wave 10 — E2E (local stamp unblocked; CI blocked)
 
-Persona/Actor Playwright against `stack:up` + `stack:load` + `npm run dev`. Not in pre-push.
+Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty isolation: `stack:restore`, not `stack:load`. Not in pre-push.
 
 #### Local (done)
 

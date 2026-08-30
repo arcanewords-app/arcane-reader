@@ -80,33 +80,35 @@ npm run kill-port
 
 ## A. Local dev (npm)
 
-| Task                     | Command                              |
-| ------------------------ | ------------------------------------ |
-| Install deps (monorepo)  | `cd f:\arcane && npm install`        |
-| Install deps (reader)    | `npm install` in `arcane-reader`     |
-| API + Vite UI            | `npm run dev`                        |
-| API + UI + BullMQ worker | `npm run dev:full`                   |
-| Local Redis + Supabase   | `npm run stack:up` (Docker Desktop)  |
-| Stop local stack         | `npm run stack:down`                 |
-| Stack status / keys      | `npm run stack:status`               |
-| Worker only              | `npm run worker`                     |
-| Server only              | `npm run dev:server`                 |
-| Client only              | `npm run dev:client`                 |
-| Free port 3000           | `npm run kill-port`                  |
-| Force restart API        | `npm run dev:force`                  |
-| Lint + typecheck         | `npm run lint:all`                   |
-| Unit tests               | `npm run test`                       |
-| Tests (watch)            | `npm run test:watch`                 |
-| Coverage report          | `npm run test:coverage`              |
-| Local E2E (stamp + dev)  | `npm run test:e2e`                   |
-| Local E2E visual shells  | `npm run test:e2e:visual`            |
-| Local E2E + live LLM     | `npm run test:e2e:llm`               |
-| Playwright Chromium      | `npm run playwright:install`         |
-| Focused test run         | `npx vitest run src/engine/glossary` |
-| Oxlint                   | `npm run lint`                       |
-| Typecheck                | `npm run typecheck`                  |
-| Format                   | `npm run format`                     |
-| Production build         | `npm run build`                      |
+| Task                     | Command                                                              |
+| ------------------------ | -------------------------------------------------------------------- |
+| Install deps (monorepo)  | `cd f:\arcane && npm install`                                        |
+| Install deps (reader)    | `npm install` in `arcane-reader`                                     |
+| API + Vite UI            | `npm run dev`                                                        |
+| API + UI + BullMQ worker | `npm run dev:full`                                                   |
+| Local Redis + Supabase   | `npm run stack:up` (Docker Desktop; restores stamp image if present) |
+| Stop local stack         | `npm run stack:down`                                                 |
+| Stack status / keys      | `npm run stack:status`                                               |
+| Bake stamp image         | `npm run stack:stamp` (after `stack:load`; monthly)                  |
+| Restore stamp volume     | `npm run stack:restore` (fast E2E reset)                             |
+| Worker only              | `npm run worker`                                                     |
+| Server only              | `npm run dev:server`                                                 |
+| Client only              | `npm run dev:client`                                                 |
+| Free port 3000           | `npm run kill-port`                                                  |
+| Force restart API        | `npm run dev:force`                                                  |
+| Lint + typecheck         | `npm run lint:all`                                                   |
+| Unit tests               | `npm run test`                                                       |
+| Tests (watch)            | `npm run test:watch`                                                 |
+| Coverage report          | `npm run test:coverage`                                              |
+| Local E2E (stamp + dev)  | `npm run test:e2e`                                                   |
+| Local E2E visual shells  | `npm run test:e2e:visual`                                            |
+| Local E2E + live LLM     | `npm run test:e2e:llm`                                               |
+| Playwright Chromium      | `npm run playwright:install`                                         |
+| Focused test run         | `npx vitest run src/engine/glossary`                                 |
+| Oxlint                   | `npm run lint`                                                       |
+| Typecheck                | `npm run typecheck`                                                  |
+| Format                   | `npm run format`                                                     |
+| Production build         | `npm run build`                                                      |
 
 **Node:** `.nvmrc` pins **24**. On Windows use [nvm-windows](https://github.com/coreybutler/nvm-windows): `nvm install 24`, `nvm use 24`. Restart the terminal after install so `PATH` picks up `C:\nvm4w\nodejs`. Keep `.nvmrc`, `package.json` `engines.node`, and `@types/node` in sync (see `@.cursor/skills/dependency-maintenance/SKILL.md`).
 
@@ -120,7 +122,7 @@ cp env.example.txt .env
 Copy-Item env.example.txt .env
 ```
 
-`.env` is the local stack (demo JWTs + Redis localhost). Put secrets in `.env.local`: `OPENAI_API_KEY`, and for dumps `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY`. `.env.local` wins on duplicate keys (`src/loadEnv.ts`; Vite same). Dump public schema into gitignored `supabase/bootstrap/schema.sql` **before** `stack:up` (MCP; `stack:dump-schema` prints the recipe). Prod-like data: `stack:dump` / `stack:load`. To run the app against cloud, put cloud `SUPABASE_*` and Redis/KV in `.env.local`. For async analyze/translate you still need Redis (`stack:up` or Upstash).
+`.env` is the local stack (demo JWTs + Redis localhost). Put secrets in `.env.local`: `OPENAI_API_KEY`, and for dumps `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY`. `.env.local` wins on duplicate keys (`src/loadEnv.ts`; Vite same). Dump public schema into gitignored `supabase/bootstrap/schema.sql` **before** first `stack:up` / `stack:load` (MCP; `stack:dump-schema` prints the recipe). Prod-like data: `stack:dump` / `stack:load` / `stack:stamp`. Daily `stack:up` restores `arcane-reader-stamp:latest` if that image exists (`STACK_STAMP=0` skips it). To run the app against cloud, put cloud `SUPABASE_*` and Redis/KV in `.env.local`. For async analyze/translate you still need Redis (`stack:up` or Upstash).
 
 **Web scraper** lives in the separate [arcane-scraper](https://github.com/arcane-scraper) repo (`npm run dev` there). Not part of arcane-reader.
 
@@ -222,16 +224,20 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 
 ## F. Troubleshooting quick checks
 
-| Symptom                            | Check                                                                                         |
-| ---------------------------------- | --------------------------------------------------------------------------------------------- |
-| Port in use                        | `npm run kill-port`                                                                           |
-| 503 on batch translate             | Redis env + `npm run worker` or `dev:full`                                                    |
-| Auth fails locally                 | Local `SUPABASE_*` in `.env` (not overridden by cloud keys in `.env.local`); JWT in browser   |
-| API unreachable from UI            | `npm run kill-port`, then `dev:server` alone; wait for port 3000                              |
-| Vite proxy ECONNREFUSED            | API not ready yet or crashed — check `[0]` logs, not only `[1]`                               |
-| Worker exits in dev                | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel          |
-| Local stack dump refuses localhost | Set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI) |
-| `stack:up` killed mid-run          | Restore `supabase/.temp/parked-migrations/` → `supabase/migrations/`                          |
+| Symptom                              | Check                                                                                              |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Port in use                          | `npm run kill-port`                                                                                |
+| 503 on batch translate               | Redis env + `npm run worker` or `dev:full`                                                         |
+| Auth fails locally                   | Local `SUPABASE_*` in `.env` (not overridden by cloud keys in `.env.local`); JWT in browser        |
+| API unreachable from UI              | `npm run kill-port`, then `dev:server` alone; wait for port 3000                                   |
+| Vite proxy ECONNREFUSED              | API not ready yet or crashed — check `[0]` logs, not only `[1]`                                    |
+| Worker exits in dev                  | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel               |
+| Local stack dump refuses localhost   | Set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI)      |
+| `stack:up` killed mid-run            | Restore `supabase/.temp/parked-migrations/` → `supabase/migrations/`                               |
+| `stack:up` skipped stamp             | Unset `STACK_STAMP` (or drop `=0`) so `arcane-reader-stamp:latest` is restored                     |
+| Dirty E2E / AuthorPlus has a project | `npm run stack:restore` — not `stack:load` when the stamp image exists                             |
+| No stamp image (`stack:status`)      | First bake: `STACK_STAMP=0 npm run stack:up` → `stack:load` → `stack:stamp`. Then daily `stack:up` |
+| Stamp bake mid-session               | `stack:stamp` stops local Supabase, then starts it again                                           |
 
 ---
 
@@ -243,5 +249,7 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 - Committing `.env` / `.env.local` or logging secrets
 - `grep`, `find`, `cat`, `cp` in PowerShell when §G lists a better tool
 - Retrying the same search with bash vs PS vs MCP without fixing the root cause
+- `stack:load` to reset a dirty E2E run when `arcane-reader-stamp:latest` exists — use `stack:restore`
+- `docker push` / public registry for `arcane-reader-stamp` (local Docker only; later private GHCR by hand)
 - MCP paths like `docs/05-plans/x.md` (wrong — use `05-plans/x.md`)
 - Reading entire `routing.mdc` when only one route is needed — `rg "path" .cursor/rules/routing.mdc`

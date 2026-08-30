@@ -5,8 +5,8 @@ export const API_ORIGIN = process.env.E2E_API_URL ?? 'http://localhost:3000';
 
 export const STAMP_HINT =
   'Local E2E needs the Docker stamp and the app running.\n' +
-  '  npm run stack:up\n' +
-  '  npm run stack:load\n' +
+  '  npm run stack:up          # restores arcane-reader-stamp:latest if present\n' +
+  '  npm run stack:restore     # if the stamp is dirty\n' +
   '  npm run dev\n' +
   'Then retry: npm run test:e2e';
 

@@ -58,7 +58,7 @@ Update this file when completing plans or shipping major features.
 
 ## Known tech debt
 
-- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Local E2E: `npm run test:e2e` after `stack:load` + `dev`. CI live integration still blocked. Schema and data dumps are **local/gitignored** (MCP schema + `stack:dump` / `stack:load`). Never push the dump back to prod.
+- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase; restores `arcane-reader-stamp:latest` if present). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Local E2E: `npm run test:e2e` after `stack:up` + `dev`. Monthly stamp rebuild: `stack:dump` / `stack:load` / `stack:stamp`. CI live integration still blocked. Schema and data dumps are **local/gitignored**. Never push the dump or stamp image to a public registry.
 - Large legacy docs in `docs/archive/` — treat as stale; use `.cursor/rules/` + code
 - Publication reading settings not persisted (defaults to dark) — see reader-theme plan
 - Stage 3 chunk alignment still open — see [[05-plans/engine-pipeline-improvements]]; archive E2E superseded by [[03-explanation/engine-integration-boundary]]

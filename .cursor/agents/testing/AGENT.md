@@ -40,7 +40,7 @@ You own **Q3 test pyramid quality and test infrastructure** for Arcane Reader �
 - Feature implementation without explicit test request → domain agent first (they own layer tests with the feature)
 - Production code changes unless required to make code testable (extract pure helper / `createApp`)
 - **Q3 scope:** unit + component + mock-integration + contract Phase 1; mutation on APP_SCOPE; mock-first
-- **Q4 local unblocked:** Playwright vs Docker stamp (`stack:load` + `dev`). **CI live stack still blocked.** Never E2E against prod/staging.
+- **Q4 local unblocked:** Playwright vs Docker stamp (`stack:up` / `stack:restore` + `dev`). **CI live stack still blocked.** Never E2E against prod/staging.
 - **Never in unit/component tests:** live Supabase, Redis, BullMQ worker, live LLM
 - Full mount of deferred UI monsters / `ProjectInfo` — extract + unit instead
 
@@ -88,3 +88,4 @@ Playwright `@playwright/test` **1.62.1** exact. Chromium only (`npm run playwrig
 - Coverage floor changes are deliberate and documented in baseline
 - If runner/gates changed: `testing.mdc` + `SKILL.md` + strategy/baseline + `AGENTS.md` updated
 - E2E (`tests/e2e/**`, `playwright.config.ts`) is Testing utility; Q4 local stamp unblocked, CI still blocked
+- Dirty E2E / `authorPlus.visual` count ≠ 0 → `npm run stack:restore`, not `stack:load`. Rebuild image only: `STACK_STAMP=0` + `load` + `stamp`. Do not `docker push` the stamp.

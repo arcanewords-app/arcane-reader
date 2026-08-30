@@ -2,7 +2,7 @@
 
 Unit tests use **Vitest 4.0.8** (exact pin). Policy: [[_canonical/rules/testing]]. Strategy (pyramid): [[05-plans/testing-strategy]].
 
-Tests never require prod/staging `.env` credentials. Q3 uses mocks at all external boundaries. Local E2E uses the Docker stamp (`stack:load`) + `npm run dev` — not a CI gate. CI live integration is still blocked. See [[05-plans/testing-baseline]].
+Tests never require prod/staging `.env` credentials. Q3 uses mocks at all external boundaries. Local E2E uses the Docker stamp (`stack:up` restores `arcane-reader-stamp:latest`; dirty reset = `stack:restore`) + `npm run dev` — not a CI gate. First bake only: `stack:load` then `stack:stamp`. CI live integration is still blocked. See [[05-plans/testing-baseline]].
 
 ## Commands
 
@@ -15,7 +15,8 @@ npm run test:integration     # mock-integration (createApp + supertest; scripts/
 npm run test:contract        # contract fixtures (Wave 9)
 npm run test:contract:coverage   # advisory schema v8 → coverage-contract/
 npm run test:gaps            # component + contract blind spots → reports/layer-gaps.json
-npm run test:e2e             # Playwright vs stamp (not pre-push; needs stack:load + dev)
+npm run test:e2e             # Playwright vs stamp (not pre-push; needs stack:up + dev)
+npm run test:e2e:visual      # pixel shells; restore stamp if AuthorPlus is dirty
 npm run test:e2e:llm         # includes tagged @llm live translate
 npm run test:all             # unit + slow + component + integration + contract
 npm run test:watch           # watch mode

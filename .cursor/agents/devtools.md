@@ -31,7 +31,7 @@ You help with **local development** and the **Obsidian vault** (`docs/`) on a **
 
 1. `@.cursor/skills/local-dev/SKILL.md` (commands, rg, Windows).
 2. Vault + Obsidian running → `@.cursor/skills/obsidian-mcp/SKILL.md` (MCP before `rg` on `docs/`).
-3. Env / Redis / worker → `@.cursor/rules/deployment.mdc`, `@env.example.txt`.
+3. Env / Redis / worker / local stamp → `@.cursor/rules/deployment.mdc`, `@env.example.txt`. Dirty E2E: `npm run stack:restore` (not `stack:load` if the stamp image exists). Rebuild: `stack:load` then `stack:stamp` (stops Supabase). Do not `docker push` `arcane-reader-stamp`.
 4. Vault conventions → `@docs/_meta/conventions.md`, `@docs/AGENTS.md`.
 5. Run commands yourself when allowed; use **PowerShell** syntax on this machine.
 6. `npm run lint:all` only when user asked for verification or code under `src/` was changed.

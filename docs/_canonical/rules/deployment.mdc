@@ -73,8 +73,9 @@ cp env.example.txt .env
 # Put OPENAI_API_KEY and SUPABASE_DUMP_* in .env.local
 # Schema (gitignored): ask the agent to dump public schema via MCP
 npm run stack:up          # Redis + local Supabase (Docker Desktop required)
-# Optional prod-like data:
-#   npm run stack:dump && npm run stack:load
+# Optional prod-like data (first time / monthly):
+#   STACK_STAMP=0 npm run stack:up && npm run stack:dump && npm run stack:load && npm run stack:stamp
+# Daily: stack:up restores arcane-reader-stamp:latest if that image exists
 npm run dev:full          # API + Vite + worker
 ```
 

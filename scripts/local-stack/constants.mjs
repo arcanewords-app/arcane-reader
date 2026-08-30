@@ -66,3 +66,15 @@ export const BOOTSTRAP_SCHEMA = 'supabase/bootstrap/schema.sql';
 export const DATA_DUMP_DIR = 'supabase/dumps';
 export const DATA_DUMP_MANIFEST = 'supabase/dumps/manifest.json';
 export const REMAP_SQL = 'supabase/bootstrap/remap_owners.sql';
+
+/** Local stamp image (PGDATA snapshot). Registry-ready name without a host. */
+export const STAMP_IMAGE = 'arcane-reader-stamp';
+export const STAMP_IMAGE_LATEST = `${STAMP_IMAGE}:latest`;
+/** Future private GHCR name — tag/push only, not used by stack:* yet. */
+export const STAMP_GHCR_IMAGE = 'ghcr.io/arcanewords-app/arcane-reader-stamp';
+export const STAMP_SOURCE_URL = 'https://github.com/arcanewords-app/arcane-reader';
+export const STAMP_DB_VOLUME = 'supabase_db_arcane-reader';
+export const STAMP_DB_CONTAINER = 'supabase_db_arcane-reader';
+export const STAMP_WORKDIR = 'supabase/.temp/stamp';
+export const STAMP_DOCKERFILE = 'scripts/local-stack/stamp.Dockerfile';
+export const POSTGRES_MAJOR = 17;

@@ -15,8 +15,8 @@ updated: 2026-08-30
 npm install
 cp env.example.txt .env          # local stack defaults
 # .env.local: OPENAI_API_KEY (+ SUPABASE_DUMP_* for stack:dump)
-# schema.sql (gitignored): dump public schema via MCP before stack:up
-npm run stack:up                 # Docker Redis + local Supabase
+# schema.sql (gitignored): dump public schema via MCP before first stack:up / stack:load
+npm run stack:up                 # Docker Redis + local Supabase (restores stamp image if present)
 npm run dev:full
 ```
 

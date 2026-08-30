@@ -1,6 +1,6 @@
 /**
  * E2E personas — 1:1 with supabase/seed.sql and scripts/local-stack/constants.mjs.
- * Stamp recreates these users on every stack:load.
+ * Stamp recreates these users on every stack:load / stack:restore.
  */
 
 export const SEED_PASSWORD = 'local-dev-password';

@@ -25,17 +25,20 @@ npx supabase db dump --linked -s public -f supabase/bootstrap/schema.sql
 ## First-run local test
 
 ```bash
-# schema.sql — MCP or CLI dump above (gitignored); required before stack:up
-npm run stack:up      # Redis + local Supabase (demo JWTs already in .env)
-npm run stack:dump    # .env.local SUPABASE_DUMP_* → supabase/dumps/*.json
+# schema.sql — MCP or CLI dump above (gitignored); required before stack:up / stack:load
+npm run stack:up      # Redis + local Supabase; restores stamp image if present
+npm run stack:dump    # .env.local SUPABASE_DUMP_* → supabase/dumps/*.json (first time)
 npm run stack:load    # reset + seed + data; remaps owners to author@local.test
+npm run stack:stamp   # optional monthly: bake PGDATA into arcane-reader-stamp:latest
 npm run dev:full
 ```
+
+If `arcane-reader-stamp:latest` already exists, `stack:up` restores it and you can skip `stack:load`. Rebuild: `STACK_STAMP=0 npm run stack:up` then dump/load/stamp.
 
 Put prod HTTPS keys in `.env.local` as `SUPABASE_DUMP_URL` and `SUPABASE_DUMP_SERVICE_ROLE_KEY`.
 
 Login: `author@local.test` / `local-dev-password`.
 
-After prod DDL: dump schema again, then `stack:load`. After prod data: `stack:dump` + `stack:load`.
+After prod DDL: dump schema again, then `stack:load` + `stack:stamp`. After prod data: `stack:dump` + `stack:load` + `stack:stamp`.
 
 **Never** `supabase db push` / `apply_migration` from this dump to prod.

@@ -59,6 +59,8 @@
     "stack:dump-schema": "node scripts/stack.mjs dump-schema",
     "stack:dump": "node scripts/stack.mjs dump",
     "stack:load": "node scripts/stack.mjs load",
+    "stack:stamp": "node scripts/stack.mjs stamp",
+    "stack:restore": "node scripts/stack.mjs restore",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:deps": "tsx scripts/gen-dep-graph.ts",

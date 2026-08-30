@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## SSOT
 
-- **npm scripts:** `@package.json` — do not invent commands; use `npm run <script>` from there. Local Docker stack: `stack:up` / `stack:down` / `stack:dump` / `stack:load`.
+- **npm scripts:** `@package.json` — do not invent commands; use `npm run <script>` from there. Local Docker stack: `stack:up` / `stack:down` / `stack:dump` / `stack:load` / `stack:stamp` / `stack:restore`.
 - **Env vars:** `@.cursor/rules/deployment.mdc` + `@env.example.txt` — never commit `.env` or `.env.local`.
 - **Routes:** `@.cursor/rules/routing.mdc` — do not duplicate the route map in vault notes.
 - **Commands, tool choice, Windows VM, rg, vault:** `@.cursor/skills/local-dev/SKILL.md` (§G–H before shell).

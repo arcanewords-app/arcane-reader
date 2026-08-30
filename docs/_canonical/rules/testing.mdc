@@ -60,7 +60,7 @@ SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testi
 | Unit test | co-located `*.test.ts`; `vi.mock` at DB/LLM/HTTP boundaries |
 | Component test | `@testing-library/preact` + happy-dom; mocked `fetch` / hooks |
 | Integration test (mock) | `createApp()` + supertest; mocked Supabase/Redis/LLM |
-| Local E2E (Wave 10) | Playwright Chromium vs Docker stamp (`stack:load` + `dev`). **Not** pre-push / CI |
+| Local E2E (Wave 10) | Playwright Chromium vs Docker stamp (`stack:up` / `stack:restore` + `dev`). **Not** pre-push / CI |
 | Integration test (live CI) | **Still blocked** — dedicated CI test stack / `tests/integration/supabase/` |
 
 **Local E2E (unblocked):** personas are seed users from `supabase/seed.sql` (`user@` / `author@` / `author-plus@` / `admin@local.test`, password `local-dev-password`). Stamp remaps dump owners to Author; Reader owns **0** projects. Live OpenAI only in `@llm`. Actor/Persona SSOT: `@.cursor/skills/testing/PATTERNS.md` + `@tests/e2e/README.md`. Fail loudly if stamp/dev is missing — do not `exit 0`.
@@ -79,7 +79,7 @@ See `@docs/05-plans/testing-strategy.md`.
 | HTTP middleware order / status wiring / job runner | `tests/integration/**` mock-first (`npm run test:integration`) |
 | Bug fix in pure logic (`engine/`, `shared/`, utils) | Regression in co-located `*.test.ts` |
 | Live LLM / OpenAI API | **Never** in unit/component/mock-integration — mock provider. Local E2E: only `@llm` (`npm run test:e2e:llm`) |
-| Live Supabase (local stamp) | Playwright `tests/e2e/**` after `stack:load` — Testing utility; **not** a substitute for component/mock-integration |
+| Live Supabase (local stamp) | Playwright `tests/e2e/**` after `stack:up` / `stack:restore` — Testing utility; **not** a substitute for component/mock-integration |
 | Live Supabase / Redis / BullMQ in CI | **Still blocked** — dedicated test environment |
 
 Do **not** use unit tests as a substitute for mock-integration wiring checks, or vice versa. Do **not** snapshot full pages, `ReadingMode`, Auth gates, or async-loaded DOM. Do **not** write E2E instead of the layer in “When shipping a feature”.

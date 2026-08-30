@@ -38,31 +38,31 @@ Do **not** default to unit. Pick layer(s) from the change:
 
 ## Commands
 
-| Task               | Command                                                                          |
-| ------------------ | -------------------------------------------------------------------------------- |
-| Run fast tests     | `npm run test` (via `scripts/test-unit.mjs`)                                     |
-| Run slow tests     | `npm run test:slow`                                                              |
-| Component suite    | `npm run test:component` (`scripts/test-component.mjs`)                          |
-| Component coverage | `npm run test:component:coverage` → `coverage-component/` (CLIENT_SCOPE)         |
-| Mock-integration   | `npm run test:integration` (`scripts/test-integration.mjs`)                      |
-| Contract suite     | `npm run test:contract`                                                          |
-| Contract coverage  | `npm run test:contract:coverage` → `coverage-contract/` (advisory)               |
-| Layer gaps         | `npm run test:gaps` (component presence+v8 + contract schema inventory)          |
-| E2E (local stamp)  | `npm run test:e2e` (needs `stack:load` + `dev`; Chromium; no `@llm` / `@visual`) |
-| E2E visual shells  | `npm run test:e2e:visual`                                                        |
-| E2E visual refresh | `npm run test:e2e:update-snapshots`                                              |
-| E2E + live LLM     | `npm run test:e2e:llm` (needs `OPENAI_API_KEY`; tagged `@llm`)                   |
-| Install Chromium   | `npm run playwright:install`                                                     |
-| Run full suite     | `npm run test:all`                                                               |
-| Watch mode         | `npm run test:watch`                                                             |
-| Coverage report    | `npm run test:coverage` (floors: lines 77 / branches 65)                         |
-| Mutation (smoke)   | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`                |
-| Mutation (full)    | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                       |
-| Mutation (zone)    | `npx stryker run --mutate "src/shared/**/*.ts"`                                  |
-| Inventory          | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                    |
-| Focused run        | `npm run test -- src/engine/glossary`                                            |
-| Single file        | `npm run test -- src/shared/paragraphSync.test.ts`                               |
-| Pre-push gate      | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`    |
+| Task               | Command                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| Run fast tests     | `npm run test` (via `scripts/test-unit.mjs`)                                          |
+| Run slow tests     | `npm run test:slow`                                                                   |
+| Component suite    | `npm run test:component` (`scripts/test-component.mjs`)                               |
+| Component coverage | `npm run test:component:coverage` → `coverage-component/` (CLIENT_SCOPE)              |
+| Mock-integration   | `npm run test:integration` (`scripts/test-integration.mjs`)                           |
+| Contract suite     | `npm run test:contract`                                                               |
+| Contract coverage  | `npm run test:contract:coverage` → `coverage-contract/` (advisory)                    |
+| Layer gaps         | `npm run test:gaps` (component presence+v8 + contract schema inventory)               |
+| E2E (local stamp)  | `npm run test:e2e` (needs `stack:up` + `dev`; Chromium; no `@llm` / `@visual`)        |
+| E2E visual shells  | `npm run test:e2e:visual` (clean AuthorPlus: `stack:restore` first, not `stack:load`) |
+| E2E visual refresh | `npm run test:e2e:update-snapshots`                                                   |
+| E2E + live LLM     | `npm run test:e2e:llm` (needs `OPENAI_API_KEY`; tagged `@llm`)                        |
+| Install Chromium   | `npm run playwright:install`                                                          |
+| Run full suite     | `npm run test:all`                                                                    |
+| Watch mode         | `npm run test:watch`                                                                  |
+| Coverage report    | `npm run test:coverage` (floors: lines 77 / branches 65)                              |
+| Mutation (smoke)   | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`                     |
+| Mutation (full)    | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                            |
+| Mutation (zone)    | `npx stryker run --mutate "src/shared/**/*.ts"`                                       |
+| Inventory          | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                         |
+| Focused run        | `npm run test -- src/engine/glossary`                                                 |
+| Single file        | `npm run test -- src/shared/paragraphSync.test.ts`                                    |
+| Pre-push gate      | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`         |
 
 **Emergency bypass** (document reason): `HUSKY=0 git push`
 
@@ -131,9 +131,9 @@ Arcane has **no dedicated test environment**. Unit, component, and mock-integrat
 **Quarter scope:**
 
 - **Q3 2026:** unit + component + **mock-integration** (`createApp` + supertest) + mutation on APP_SCOPE.
-- **Q4 2026:** **local Playwright E2E** against Docker stamp (`stack:load`). **CI live integration still blocked.** Never E2E against prod/staging.
+- **Q4 2026:** **local Playwright E2E** against Docker stamp (`stack:up` / `stack:restore`). **CI live integration still blocked.** Never E2E against prod/staging.
 
-Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E: stamp + seed personas. Live OpenAI: **only** `@llm`.
+Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E: stamp image + seed personas. Isolation between dirty runs: `npm run stack:restore` — **not** `stack:load` when `arcane-reader-stamp:latest` exists. `stack:load` + `stack:stamp` only when rebuilding the image (new dump / `STACK_STAMP=0`). Visual shells need a clean AuthorPlus workspace — restore before `test:e2e:visual` if logic specs already created a project. Live OpenAI: **only** `@llm`.
 
 ## Layer quick reference
 
@@ -150,17 +150,17 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E
 
 ## Gate table
 
-| Gate             | Command                    | When                                                  |
-| ---------------- | -------------------------- | ----------------------------------------------------- |
-| Lint + types     | `npm run lint:all`         | every push                                            |
-| Unit             | `npm run test`             | every push                                            |
-| Component        | `npm run test:component`   | every push                                            |
-| Mock-integration | `npm run test:integration` | every push                                            |
-| Contract         | `npm run test:contract`    | every push                                            |
-| Coverage floors  | `npm run test:coverage`    | manual / PR when touching coverage; **not** pre-push  |
-| Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures |
-| Local E2E        | `npm run test:e2e`         | after `stack:load` + `dev`; **not** pre-push          |
-| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                         |
+| Gate             | Command                    | When                                                                      |
+| ---------------- | -------------------------- | ------------------------------------------------------------------------- |
+| Lint + types     | `npm run lint:all`         | every push                                                                |
+| Unit             | `npm run test`             | every push                                                                |
+| Component        | `npm run test:component`   | every push                                                                |
+| Mock-integration | `npm run test:integration` | every push                                                                |
+| Contract         | `npm run test:contract`    | every push                                                                |
+| Coverage floors  | `npm run test:coverage`    | manual / PR when touching coverage; **not** pre-push                      |
+| Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures                     |
+| Local E2E        | `npm run test:e2e`         | after `stack:up` + `dev`; dirty reset = `stack:restore`; **not** pre-push |
+| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                                             |
 
 ## Anti-patterns
 
@@ -172,6 +172,7 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E
 - Component tests without `@testing-library/preact` + mocked API
 - Live Supabase, Redis, or BullMQ in Q3 automated tests
 - E2E against staging/prod as CI gate
+- Resetting a dirty local stamp with `stack:load` when `arcane-reader-stamp:latest` exists — use `stack:restore`
 - Mocking the live stamp with Playwright `page.route` in `tests/e2e` v1
 - Silent lowering of coverage floors
 

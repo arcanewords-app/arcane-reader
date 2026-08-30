@@ -1,7 +1,7 @@
 /**
  * Local stack: Redis + Supabase CLI + prod public dump (HTTPS).
  *
- *   node scripts/stack.mjs redis|up|down|status|reset|dump|dump-schema|load
+ *   node scripts/stack.mjs redis|up|down|status|reset|dump|dump-schema|load|stamp|restore
  */
 import {
   existsSync,
@@ -20,6 +20,7 @@ import {
   SEED_AUTHOR_ID,
   SEED_IDS,
   SEED_PASSWORD,
+  STAMP_IMAGE_LATEST,
 } from './local-stack/constants.mjs';
 import { dumpProdData } from './local-stack/dump-data.mjs';
 import { loadProdData } from './local-stack/load-data.mjs';
@@ -30,6 +31,12 @@ import {
   groupBootstrapSections,
   isGeneratedBootstrap,
 } from './local-stack/split-schema.mjs';
+import {
+  createStampImage,
+  printStampStatus,
+  restoreStampVolume,
+  stampEnabled,
+} from './local-stack/stamp.mjs';
 
 const command = process.argv[2];
 
@@ -178,6 +185,13 @@ schema.sql is gitignored (local only). Never db push that dump to prod.
 `);
 }
 
+function startSupabase() {
+  copyBootstrapMigration();
+  withIsolatedMigrations(() => supabase(['start']));
+  supabase(['status', '-o', 'pretty']);
+  printStampStatus();
+}
+
 const commands = {
   redis() {
     ensureDocker();
@@ -186,9 +200,13 @@ const commands = {
   async up() {
     ensureDocker();
     dockerCompose(['up', '-d']);
-    copyBootstrapMigration();
-    withIsolatedMigrations(() => supabase(['start']));
-    supabase(['status', '-o', 'pretty']);
+    if (stampEnabled()) {
+      console.log(`Using ${STAMP_IMAGE_LATEST} (set STACK_STAMP=0 to bootstrap from schema.sql)`);
+      restoreStampVolume();
+    } else if (process.env.STACK_STAMP === '0' || process.env.STACK_STAMP === 'false') {
+      console.log('STACK_STAMP=0 — bootstrap from schema.sql (stamp image ignored)');
+    }
+    startSupabase();
   },
   down() {
     ensureDocker();
@@ -199,6 +217,7 @@ const commands = {
     ensureDocker();
     dockerCompose(['ps']);
     supabase(['status', '-o', 'pretty']);
+    printStampStatus();
   },
   reset() {
     ensureDocker();
@@ -221,10 +240,24 @@ const commands = {
     supabase(['db', 'query', '--local', '-f', join(root, REMAP_SQL)]);
     console.log(`Load complete. Log in as author@local.test / ${SEED_PASSWORD}`);
   },
+  async stamp() {
+    ensureDocker();
+    await createStampImage();
+    startSupabase();
+    console.log(`Stamp complete. Daily use: npm run stack:up (restores ${STAMP_IMAGE_LATEST}).`);
+  },
+  restore() {
+    ensureDocker();
+    dockerCompose(['up', '-d']);
+    restoreStampVolume();
+    startSupabase();
+  },
 };
 
 if (!command || !commands[command]) {
-  console.error('Usage: node scripts/stack.mjs <redis|up|down|status|reset|dump|dump-schema|load>');
+  console.error(
+    'Usage: node scripts/stack.mjs <redis|up|down|status|reset|dump|dump-schema|load|stamp|restore>'
+  );
   process.exit(1);
 }
 

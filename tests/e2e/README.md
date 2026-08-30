@@ -5,8 +5,8 @@ Playwright against the **local Docker stamp**, not prod/staging. Not in pre-push
 ## Preconditions
 
 ```bash
-npm run stack:up
-npm run stack:load          # seed personas + dump; remaps owners to author@local.test
+npm run stack:up            # restores arcane-reader-stamp:latest if present
+npm run stack:restore       # optional: clean stamp between dirty E2E runs
 npm run dev                 # UI :5173, API :3000
 npx playwright install chromium   # once per machine
 npm run test:e2e            # logic smoke (no @llm, no @visual)
@@ -14,7 +14,7 @@ npm run test:e2e:visual     # pixel shells
 npm run test:e2e:llm        # smoke + tiny live translate (needs OPENAI_API_KEY in .env.local)
 ```
 
-Empty catalog, failed seed login, or Author without projects → abort with `run npm run stack:load`.
+First time (no stamp image): `STACK_STAMP=0 npm run stack:up` then `stack:load` then `stack:stamp`. Empty catalog, failed seed login, or Author without projects → abort with `run npm run stack:up` (or `stack:restore` / `stack:load`).
 
 ## Personas (stamp seed)
 
@@ -65,7 +65,7 @@ New production `data-testid` needs a row here **and** a helper in `targets/`.
 
 ## Isolation
 
-Reload the stamp (`stack:load`) before a clean run. Tests may add a tiny chapter or Reader progress; they must not delete or unpublish dump rows. `authorPlus.visual.spec.ts` / `seesEmptyAuthorWorkspace` fail if AuthorPlus already created a project.
+Reload the stamp (`npm run stack:restore`, or `stack:load` if there is no stamp image) before a clean run. Tests may add a tiny chapter or Reader progress; they must not delete or unpublish dump rows. `authorPlus.visual.spec.ts` / `seesEmptyAuthorWorkspace` fail if AuthorPlus already created a project.
 
 ## Visual shells
 
@@ -78,12 +78,12 @@ npm run test:e2e:visual
 npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or breakpoint tweak
 ```
 
-| Prefix                                                    | Spec                                             |
-| --------------------------------------------------------- | ------------------------------------------------ |
-| `guest-catalog` / `guest-sign-in` / `guest-account-tiers` | `guest.visual.spec.ts`                           |
-| `reader-upgrade`                                          | `reader.visual.spec.ts`                          |
-| `author-projects`                                         | `author.visual.spec.ts`                          |
-| `authorplus-empty`                                        | `authorPlus.visual.spec.ts` (needs `stack:load`) |
+| Prefix                                                    | Spec                                                |
+| --------------------------------------------------------- | --------------------------------------------------- |
+| `guest-catalog` / `guest-sign-in` / `guest-account-tiers` | `guest.visual.spec.ts`                              |
+| `reader-upgrade`                                          | `reader.visual.spec.ts`                             |
+| `author-projects`                                         | `author.visual.spec.ts`                             |
+| `authorplus-empty`                                        | `authorPlus.visual.spec.ts` (needs `stack:restore`) |
 
 Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec (18). Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport.
 

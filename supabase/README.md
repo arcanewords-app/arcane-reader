@@ -9,16 +9,31 @@ Migrations are applied to project `arcane` (`ugcnqejiiybaatcqxmgn`) via Supabase
 
 Do **not** `db push` / `apply_migration` from a local dump to prod.
 
-| Command                     | What                                                                     |
-| --------------------------- | ------------------------------------------------------------------------ |
-| `npm run stack:up`          | Redis + SRH + `supabase start` (needs `supabase/bootstrap/schema.sql`)   |
-| `npm run stack:status`      | Ports and local API keys                                                 |
-| `npm run stack:dump-schema` | Prints how to dump gitignored `schema.sql` (MCP or CLI)                  |
-| `npm run stack:dump`        | Public data via `.env.local` `SUPABASE_DUMP_*` → `supabase/dumps/*.json` |
-| `npm run stack:load`        | Reset + seed users + JSON data + remap owners to `author@local.test`     |
-| `npm run stack:down`        | Stop local Supabase and Redis                                            |
+| Command                     | What                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `npm run stack:up`          | Redis + SRH + `supabase start`. Restores `arcane-reader-stamp:latest` if present (`STACK_STAMP=0` to skip) |
+| `npm run stack:status`      | Ports, local API keys, stamp image manifest                                                                |
+| `npm run stack:dump-schema` | Prints how to dump gitignored `schema.sql` (MCP or CLI)                                                    |
+| `npm run stack:dump`        | Public data via `.env.local` `SUPABASE_DUMP_*` → `supabase/dumps/*.json`                                   |
+| `npm run stack:load`        | Reset + seed users + JSON data + remap owners to `author@local.test`                                       |
+| `npm run stack:stamp`       | After load: snapshot Postgres volume → `arcane-reader-stamp:latest` (monthly)                              |
+| `npm run stack:restore`     | Replace db volume from stamp image and start (fast E2E isolation)                                          |
+| `npm run stack:down`        | Stop local Supabase and Redis                                                                              |
 
 Data dump uses `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` in `.env.local` (no Postgres URI, no fallback to app `SUPABASE_*`). Schema is a **gitignored** local dump (MCP or `db dump --linked`) — see `supabase/bootstrap/README.md`. Do not commit `schema.sql`.
+
+### Stamp image (monthly)
+
+`stack:load` via PostgREST is slow. After a successful load, `npm run stack:stamp` archives the Postgres volume into a local Docker image `arcane-reader-stamp:latest` (also tagged `arcane-reader-stamp:YYYY-MM-DD`). Daily `stack:up` restores that image instead of re-inserting JSON. `stack:restore` does the same on an already-running machine (clean E2E).
+
+The image holds **prod-like catalog text**. Keep it on local Docker only. Do not push to Docker Hub. Later private GHCR: `docker tag arcane-reader-stamp:latest ghcr.io/arcanewords-app/arcane-reader-stamp:YYYY-MM-DD` (no `stack:stamp:push` yet). Rebuild the stamp after a Postgres major / CLI bump (`config.toml` `major_version`). Storage files are not in the stamp (covers still load from prod public URLs).
+
+```bash
+# Rebuild stamp (ignore any existing image)
+STACK_STAMP=0 npm run stack:up
+npm run stack:dump && npm run stack:load
+npm run stack:stamp
+```
 
 If `.env` is already localhost, set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod.
 

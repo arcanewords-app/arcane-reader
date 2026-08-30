@@ -41,9 +41,9 @@ npm install
 cp env.example.txt .env
 # Put OPENAI_API_KEY and prod dump keys in .env.local (see below).
 # Schema (gitignored): dump public schema via MCP into supabase/bootstrap/schema.sql
-# (or see supabase/bootstrap/README.md). Required before stack:up.
+# (or see supabase/bootstrap/README.md). Required before first stack:up / stack:load.
 
-npm run stack:up
+npm run stack:up          # restores arcane-reader-stamp:latest if that image exists
 ```
 
 `.env` already has local demo JWTs and Redis. `.env.local` wins for the same key (API/worker via `src/loadEnv.ts`; Vite does the same).
@@ -59,28 +59,36 @@ npm run stack:up
 
 RAM: budget ~2–4 GB for Supabase images plus Redis.
 
-### Prod-like data (once per machine)
+### Prod-like data
 
-Schema and data dumps stay **on disk, not in git**. Each developer dumps them locally.
+Schema and JSON dumps stay **on disk, not in git**. The fast path is a **local stamp image** (`arcane-reader-stamp:latest`) baked from the Postgres volume after load.
 
-1. Schema (not PostgREST): ask the agent to dump public schema via MCP into `supabase/bootstrap/schema.sql`, **or** `npx supabase login` + `db dump --linked`. See `supabase/bootstrap/README.md`.
-2. In `.env.local` set `SUPABASE_DUMP_URL` / `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI). `npm run stack:up`.
-3. `npm run stack:dump` — gitignored JSON → `supabase/dumps/`
-4. `npm run stack:load` — reset + seed + data; remaps owners to seed author
-5. `npm run dev:full`
+**Daily / E2E** (image already built):
 
 ```bash
-npm run stack:dump
-npm run stack:load
+npm run stack:up          # restores stamp image; skip stack:load
+npm run dev:full
 ```
+
+**First time or monthly rebuild:**
+
+1. Schema (not PostgREST): ask the agent to dump public schema via MCP into `supabase/bootstrap/schema.sql`, **or** `npx supabase login` + `db dump --linked`. See `supabase/bootstrap/README.md`.
+2. In `.env.local` set `SUPABASE_DUMP_URL` / `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI).
+3. `STACK_STAMP=0 npm run stack:up` — bootstrap from schema.sql (ignore any old stamp)
+4. `npm run stack:dump` — gitignored JSON → `supabase/dumps/`
+5. `npm run stack:load` — reset + seed + data; remaps owners to seed author
+6. `npm run stack:stamp` — snapshot PGDATA → `arcane-reader-stamp:latest` (also `:YYYY-MM-DD`)
+7. `npm run dev:full`
+
+The stamp image contains prod-like catalog text. Local Docker only — do not push to a public registry. Later private GHCR: `ghcr.io/arcanewords-app/arcane-reader-stamp` (tag/push by hand; no `stack:stamp:push` yet). Rebuild after a Postgres major bump.
 
 Log in as `author@local.test` / `local-dev-password`. Catalog covers still load from **prod** public Storage URLs.
 
-After the stamp is loaded and `npm run dev` is up, local Playwright: `npm run test:e2e` (see [[run-tests]] and `tests/e2e/README.md`).
+After the stamp is up and `npm run dev` is running, local Playwright: `npm run test:e2e` (see [[run-tests]] and `tests/e2e/README.md`). Between dirty E2E runs: `npm run stack:restore`.
 
 **Never** `npx supabase db push` or MCP `apply_migration` from this machine to prod.
 
-Refresh data after prod changes: `stack:dump` + `stack:load`. Refresh schema after DDL: dump schema again, then `stack:load`.
+Refresh data after prod changes: `stack:dump` + `stack:load` + `stack:stamp`. Refresh schema after DDL: dump schema again, then load + stamp.
 
 ## Cloud Supabase (old path)
 
@@ -90,12 +98,14 @@ You can still put prod/staging `SUPABASE_URL` + keys in `.env.local` (overrides 
 
 | Command                              | What runs                                                           |
 | ------------------------------------ | ------------------------------------------------------------------- |
-| `npm run stack:up`                   | Redis + local Supabase (needs `supabase/bootstrap/schema.sql`)      |
+| `npm run stack:up`                   | Redis + local Supabase; restores stamp image if present             |
 | `npm run stack:down`                 | Stop stack                                                          |
-| `npm run stack:status`               | Keys and container status                                           |
+| `npm run stack:status`               | Keys, containers, stamp image                                       |
 | `npm run stack:dump`                 | Prod public data → gitignored JSON (`.env.local` `SUPABASE_DUMP_*`) |
 | `npm run stack:dump-schema`          | Prints how to dump gitignored `schema.sql` (MCP or CLI)             |
 | `npm run stack:load`                 | Local reset + JSON insert + remap owners                            |
+| `npm run stack:stamp`                | Bake loaded PGDATA into `arcane-reader-stamp:latest` (monthly)      |
+| `npm run stack:restore`              | Re-apply stamp image onto the db volume (fast E2E reset)            |
 | `npm run dev`                        | Express API (3000) + Vite client (5173)                             |
 | `npm run dev:full`                   | Above + BullMQ worker (`src/worker.ts`)                             |
 | `npm run worker`                     | Worker only (needs Redis env)                                       |
@@ -127,8 +137,10 @@ Workspace recommends the **Oxc** extension (`oxc.oxc-vscode`); it uses local `ox
 - 503 on translate: check Redis + worker process (`npm run stack:status`)
 - Auth errors: local demo JWTs in `.env`, not cloud `SUPABASE_*` in `.env.local`
 - Dump refused (localhost): set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI)
-- `stack:up` missing schema: dump public schema into `supabase/bootstrap/schema.sql` first (see `supabase/bootstrap/README.md`)
+- `stack:up` missing schema: dump public schema into `supabase/bootstrap/schema.sql` first (see `supabase/bootstrap/README.md`), or restore a stamp image (`npm run stack:stamp` after load)
+- `stack:up` ignored stamp: `STACK_STAMP=0` forces schema bootstrap; omit it to restore `arcane-reader-stamp:latest`
 - `stack:up` / `stack:reset` killed mid-run: restore parked SQL from `supabase/.temp/parked-migrations/` back into `supabase/migrations/`, then retry
+- Stamp Postgres mismatch after CLI bump: rebuild with `STACK_STAMP=0` + `stack:load` + `stack:stamp`
 - Registration emails: Inbucket at port 54324, not prod Auth
 
 See also: [[../_canonical/rules/deployment]], [[debug-translation]]

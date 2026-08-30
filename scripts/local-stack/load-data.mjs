@@ -38,7 +38,7 @@ function parseStatusEnv(text) {
   return out;
 }
 
-function localServiceClient() {
+export function localServiceClient() {
   const status = runCapture('npx', ['supabase', 'status', '-o', 'env']);
   if (status.status !== 0) {
     throw new Error('Local Supabase is not running. Start it with npm run stack:up.');

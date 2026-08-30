@@ -296,7 +296,7 @@ Bad: `it('test1')`, `it('works')`, `it('filterGlossaryForChunk')`
 
 ## E2E (Wave 10 — local stamp)
 
-Playwright **Persona / Actor** against `stack:load` + `npm run dev`. Not in pre-push. Do **not** mock the API with `page.route` on this live stack.
+Playwright **Persona / Actor** against `stack:up` (stamp image) + `npm run dev`. Not in pre-push. Do **not** mock the API with `page.route` on this live stack.
 
 **Selector hierarchy** (tasks/questions/specs must not skip the `tests/e2e/targets/` layer):
 
@@ -332,7 +332,7 @@ Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await 
 - Fixtures: `guest` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
 - Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions; targets = locators
 - Discover publications/projects at runtime — do not hardcode dump UUIDs
-- Isolation = reload stamp. Additive mutations only (Reader progress, AuthorPlus one project, `@llm` tiny chapter)
+- Isolation = `stack:restore` (re-apply `arcane-reader-stamp:latest`). Do **not** `stack:load` for a dirty-run reset when the stamp image exists (`load` is rebuild-only: dump JSON → then `stack:stamp`). Additive mutations only (Reader progress, AuthorPlus one project, `@llm` tiny chapter). `authorPlus.visual` / `seesEmptyAuthorWorkspace` fail if logic specs already created a project — restore before visual, or visual before logic.
 - `npm run test:e2e` inverts `@llm` and `@visual`. Pixel shells: `npm run test:e2e:visual`. Live OpenAI: `npm run test:e2e:llm` + `OPENAI_API_KEY`
 - Visual refresh: `npm run test:e2e:update-snapshots` after layout, dump, or breakpoint change
 - See `tests/e2e/README.md` and `@docs/05-plans/testing-strategy.md`
