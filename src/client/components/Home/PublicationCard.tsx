@@ -105,6 +105,7 @@ export function PublicationCard({
         class="publication-card-clickable"
         role="button"
         tabIndex={0}
+        data-testid="publication-card"
         aria-label={t('home.openPublicationAria', { title })}
         onClick={openPublication}
         onKeyDown={handleCardAreaKeyDown}

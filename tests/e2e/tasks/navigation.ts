@@ -1,8 +1,9 @@
 import type { Task } from '../actors/types.js';
+import { banner } from '../targets/catalog.js';
 
 export const openCatalog: Task = async (actor) => {
   await actor.page.goto('/');
-  await actor.page.locator('header').waitFor({ state: 'visible' });
+  await banner(actor.page).waitFor({ state: 'visible' });
 };
 
 export const openPath =

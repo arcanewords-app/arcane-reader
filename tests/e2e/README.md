@@ -32,12 +32,34 @@ Do not hardcode publication UUIDs from the dump. User UUIDs in `actors/personas.
 ## Layout (Persona / Actor)
 
 - `actors/` — personas + Actor (`attemptsTo` / `see`)
+- `targets/` — named locators (only place for `getByRole` / `getByTestId`)
 - `tasks/` — user verbs
 - `questions/` — assertions
 - `fixtures/test.ts` — `test.extend({ guest, reader, author, authorPlus, admin })`
 - `specs/` — `persona.does-thing.spec.ts`
 
 Gherkin later can wrap the same tasks. Cucumber is not installed.
+
+## Selectors
+
+Locale in fixtures is `en`. Tasks, questions, and specs **must** import locators from `targets/` — no CSS classes, no `getByTitle` as the primary hook, no regex on dump book titles.
+
+1. Unique accessible name — `getByRole` / `getByLabel` / `getByPlaceholder` (Log in, Sign in, My projects, New project).
+2. `data-testid` — lists, icon-only controls, duplicate copy.
+
+| `data-testid`                | Where                                                   |
+| ---------------------------- | ------------------------------------------------------- |
+| `publication-card`           | Catalog card clickable                                  |
+| `publication-read-chapter`   | Publication page chapter **Read** (not the Read filter) |
+| `project-card`               | Author workspace card                                   |
+| `chapter-item`               | Sidebar chapter row                                     |
+| `chapter-reading-mode`       | Chapter header reading-mode button                      |
+| `chapter-actions`            | Chapter overflow menu trigger                           |
+| `project-search-find`        | Find-in-project query field                             |
+| `token-usage`                | Header credit indicator                                 |
+| `settings-model-translation` | Project settings translation model `<select>`           |
+
+New production `data-testid` needs a row here **and** a helper in `targets/`.
 
 ## Isolation
 

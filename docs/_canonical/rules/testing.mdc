@@ -38,7 +38,7 @@ Domain agents own layer-appropriate tests with the feature. Do **not** default t
   - Also: `test:slow`, `test:contract`, `test:all`, `test:coverage`, `test:component:coverage`, `test:contract:coverage`, `test:gaps`
   - Local E2E (not pre-push): `test:e2e` (Playwright Chromium, invert `@llm`), `test:e2e:llm` (includes live OpenAI)
 - **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX, CLIENT_SCOPE coverage), `@vitest.contract.config.ts` (Zod fixtures + advisory schema coverage), `@vitest.integration.config.ts` (forks, **no** `setupFiles`), `@playwright.config.ts` (local E2E; pin `@playwright/test` **1.62.1**)
-- **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract live under `tests/`. Local E2E specs use `*.spec.ts` under `tests/e2e/specs/` (Persona/Actor; see `@.cursor/skills/testing/PATTERNS.md`).
+- **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract live under `tests/`. Local E2E specs use `*.spec.ts` under `tests/e2e/specs/`; locators only via `tests/e2e/targets/` (Persona/Actor; see `@.cursor/skills/testing/PATTERNS.md`).
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
 - **Wrappers allowed:** `scripts/test-*.mjs` / `scripts/resolve-vitest.mjs` for runner workarounds only — not for test cases. Put tests under `src/**/*.test.ts(x)` or `tests/`. Inventory helpers `scripts/gen-test-inventory.mjs` and `scripts/gen-layer-gaps.mjs` are allowed.
 

@@ -206,6 +206,7 @@ export function ChapterHeader({
                 size="sm"
                 onClick={onEnterReadingMode}
                 title={t('chapter.readingMode')}
+                data-testid="chapter-reading-mode"
               >
                 <Icon name="menu_book" size="sm" /> {t('chapter.read')}
               </Button>
@@ -224,6 +225,7 @@ export function ChapterHeader({
                   aria-expanded={showActionsMenu}
                   aria-haspopup="menu"
                   title={t('chapter.actionsMenu')}
+                  data-testid="chapter-actions"
                 >
                   <Icon name="more_vert" />
                 </button>

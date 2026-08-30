@@ -48,6 +48,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
   return (
     <div
       class="project-card"
+      data-testid="project-card"
       role="button"
       tabIndex={0}
       onClick={() => onClick(project.id)}
@@ -99,7 +100,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
             <div class={`project-card-placeholder ${coverImageUrl ? 'hidden' : ''}`}>
               <BookPlaceholder
                 projectName={project.name}
-                projectType={projectType as 'book' | 'text'}
+                projectType={projectType}
               />
             </div>
           </>
@@ -107,7 +108,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
           <div class="project-card-placeholder">
             <BookPlaceholder
               projectName={project.name}
-              projectType={projectType as 'book' | 'text'}
+              projectType={projectType}
             />
           </div>
         )}

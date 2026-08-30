@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/test.js';
 import { TINY_CHAPTER_TEXT, TINY_CHAPTER_TITLE } from '../fixtures/text.js';
 import { openFirstProject } from '../tasks/workspace.js';
+import { chapterItem } from '../targets/workspace.js';
 
 test.describe('Author', () => {
   test('translates a tiny additive chapter', { tag: '@llm' }, async ({ author }) => {
@@ -28,7 +29,7 @@ test.describe('Author', () => {
 
     await author.attemptsTo(openFirstProject);
     await author.page.goto(`/projects/${projectId}/chapters/${chapter.id}`);
-    await expect(author.page.locator('.chapter-item').first()).toBeVisible();
+    await expect(chapterItem(author.page).first()).toBeVisible();
     await expect(author.page.getByText(/wizard|башн|волшеб/i).first()).toBeVisible({
       timeout: 20_000,
     });

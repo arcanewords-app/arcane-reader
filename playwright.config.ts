@@ -22,6 +22,7 @@ export default defineConfig({
     baseURL,
     ...devices['Desktop Chrome'],
     locale: 'en-US',
+    testIdAttribute: 'data-testid',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

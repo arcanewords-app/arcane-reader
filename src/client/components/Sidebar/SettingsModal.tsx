@@ -698,10 +698,7 @@ export function SettingsModal({
                 value={settings.editingStylePreset ?? 'default'}
                 onChange={async (e) => {
                   const value = (e.target as HTMLSelectElement).value as
-                    | 'default'
-                    | 'literary'
-                    | 'minimal'
-                    | 'ai_revivification';
+                    'default' | 'literary' | 'minimal' | 'ai_revivification';
                   const updated = await api.updateSettings(project.id, {
                     editingStylePreset: value,
                   });
@@ -809,6 +806,7 @@ export function SettingsModal({
                     <span class="stage-row-label">{t('settings.translationStage')}</span>
                     <select
                       class="setting-select stage-row-select"
+                      data-testid="settings-model-translation"
                       value={getStageModel('translation')}
                       onChange={(e) =>
                         handleStageModelChange('translation', (e.target as HTMLSelectElement).value)

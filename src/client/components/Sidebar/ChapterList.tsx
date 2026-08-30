@@ -828,6 +828,7 @@ export function ChapterList({
                           {({ attributes, listeners }) => (
                             <div
                               class={`chapter-item ${selectedId === chapter.id ? 'active' : ''}${reorderMode ? ' chapter-item-reorder' : ''}`}
+                              data-testid="chapter-item"
                               role={reorderMode ? undefined : 'button'}
                               tabIndex={reorderMode ? undefined : 0}
                               onClick={() => {

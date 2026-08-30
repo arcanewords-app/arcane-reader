@@ -298,7 +298,13 @@ Bad: `it('test1')`, `it('works')`, `it('filterGlossaryForChunk')`
 
 Playwright **Persona / Actor** against `stack:load` + `npm run dev`. Not in pre-push. Do **not** mock the API with `page.route` on this live stack.
 
-**Exemplar:** `@tests/e2e/specs/guest.browses-catalog.spec.ts`
+**Selector hierarchy** (tasks/questions/specs must not skip the `tests/e2e/targets/` layer):
+
+1. Unique a11y — `getByRole` / `getByLabel` / `getByPlaceholder` (locale locked to `en`)
+2. `data-testid` — lists, icon controls, duplicate copy (`Read`, `Find`)
+3. Forbidden in tasks/questions/specs: CSS classes, layout `nth`, `getByTitle` as the primary hook, regex on dump book titles
+
+**Exemplar:** `@tests/e2e/specs/guest.browses-catalog.spec.ts` + `@tests/e2e/targets/catalog.ts`
 
 ```typescript
 import { test } from '../fixtures/test.js';
@@ -314,8 +320,15 @@ test('Guest opens a catalog publication', async ({ guest }) => {
 });
 ```
 
+```typescript
+// tests/e2e/targets/catalog.ts
+export const publicationCard = (page: Page) => page.getByTestId('publication-card');
+```
+
+Anti-pattern: `page.locator('.project-card')` in a spec or task.
+
 - Fixtures: `guest` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
-- Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions
+- Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions; targets = locators
 - Discover publications/projects at runtime — do not hardcode dump UUIDs
 - Isolation = reload stamp. Additive mutations only (Reader progress, AuthorPlus one project, `@llm` tiny chapter)
 - `npm run test:e2e` inverts `@llm`. Live OpenAI: `npm run test:e2e:llm` + `OPENAI_API_KEY`

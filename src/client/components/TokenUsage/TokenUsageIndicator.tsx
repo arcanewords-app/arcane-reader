@@ -25,7 +25,7 @@ export function TokenUsageIndicator({
 
   if (loading && !usage) {
     return (
-      <div class={`token-usage-indicator ${className}`}>
+      <div class={`token-usage-indicator ${className}`} data-testid="token-usage">
         <span class="token-usage-loading">{t('tokenUsage.loading')}</span>
       </div>
     );
@@ -49,6 +49,7 @@ export function TokenUsageIndicator({
   return (
     <div
       class={`token-usage-indicator ${className} ${credits.unlimited ? 'token-usage-unlimited' : ''}`}
+      data-testid="token-usage"
     >
       <span class="token-usage-sr-only">{hint}</span>
       <div class="token-usage-content" aria-hidden="true">

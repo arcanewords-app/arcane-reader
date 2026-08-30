@@ -467,7 +467,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     try {
       const result = await api.buildPublicationExports(pub.id);
       if (result.epubReady || result.fb2Ready) {
-        const refreshed = await api.getPublicationWithChapters(publicationId!);
+        const refreshed = await api.getPublicationWithChapters(publicationId);
         setData(refreshed);
       }
     } catch (err) {
@@ -870,6 +870,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                     <button
                                       type="button"
                                       class="publication-page-read-chapter"
+                                      data-testid="publication-read-chapter"
                                       onClick={() =>
                                         route(`/p/${pubPath}/chapters/${ch.id}/reading`)
                                       }
@@ -911,6 +912,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                               <button
                                 type="button"
                                 class="publication-page-read-chapter"
+                                data-testid="publication-read-chapter"
                                 onClick={() => route(`/p/${pubPath}/chapters/${ch.id}/reading`)}
                               >
                                 {t('home.read')}

@@ -1,18 +1,23 @@
-import { expect, test } from '../fixtures/test.js';
+import { test } from '../fixtures/test.js';
 import { TINY_CHAPTER_TEXT, TINY_CHAPTER_TITLE, projectIdFromUrl } from '../fixtures/text.js';
 import {
+  clickFixWithAi,
   createNamedProject,
+  dismissModal,
   openFindInProject,
   openFirstChapter,
   openFirstProject,
   openProjectSettings,
   openReviewTranslation,
+  searchInProject,
+  tryOpenAiReplace,
 } from '../tasks/workspace.js';
 import {
   seesAiReplaceSetup,
-  seesAiReplaceUpgrade,
+  seesAiReplaceUpgradeOrHint,
   seesCriticConfirm,
   seesCriticUpgrade,
+  seesFixWithAiEnabled,
   seesUnlockedPremiumModels,
 } from '../questions/ui.js';
 
@@ -37,13 +42,11 @@ test.describe('AuthorPlus', () => {
 
     await authorPlus.attemptsTo(openFirstChapter, openReviewTranslation);
     await authorPlus.see(seesCriticConfirm);
-    await authorPlus.page.getByRole('button', { name: 'Cancel' }).click();
+    await authorPlus.attemptsTo(dismissModal);
 
-    await authorPlus.attemptsTo(openFindInProject);
-    await authorPlus.page.getByRole('textbox', { name: 'Find' }).fill('wizard');
-    const fixWithAi = authorPlus.page.getByRole('button', { name: 'Fix with AI' });
-    await expect(fixWithAi).toBeEnabled({ timeout: 20_000 });
-    await fixWithAi.click();
+    await authorPlus.attemptsTo(openFindInProject, searchInProject('wizard'));
+    await authorPlus.see(seesFixWithAiEnabled);
+    await authorPlus.attemptsTo(clickFixWithAi);
     await authorPlus.see(seesAiReplaceSetup);
   });
 });
@@ -54,14 +57,7 @@ test.describe('Author', () => {
     await author.see(seesCriticUpgrade);
     await author.page.keyboard.press('Escape');
 
-    await author.attemptsTo(openFindInProject);
-    const ai = author.page.getByRole('button', { name: 'Fix with AI' });
-    await ai.waitFor({ state: 'visible' });
-    if (await ai.isEnabled()) {
-      await ai.click();
-      await author.see(seesAiReplaceUpgrade);
-    } else {
-      await author.page.getByTitle('Available on Author+').waitFor({ state: 'visible' });
-    }
+    await author.attemptsTo(openFindInProject, tryOpenAiReplace);
+    await author.see(seesAiReplaceUpgradeOrHint);
   });
 });

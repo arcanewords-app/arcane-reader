@@ -126,6 +126,7 @@ export function ProjectSearchModal({
                 value={search.query}
                 onInput={(e) => search.setQuery((e.target as HTMLInputElement).value)}
                 aria-label={t('searchReplace.findPlaceholder', 'Find')}
+                data-testid="project-search-find"
               />
             </div>
             {!search.isOriginalReadingMode && (
