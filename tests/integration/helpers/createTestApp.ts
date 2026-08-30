@@ -10,7 +10,7 @@ import { stripRedisEnv, ensureDummySupabaseEnv } from '../setup.js';
 let cachedApp: Application | null = null;
 
 /**
- * Load createApp after dotenv may have restored Redis env from .env,
+ * Load createApp after dotenv may have restored Redis env from .env / .env.local,
  * then strip Redis again so job stores use Memory backends.
  * Always resets circuit-breaker supabase status to healthy.
  */
@@ -20,7 +20,7 @@ export async function getTestApp(): Promise<Application> {
 
   if (!cachedApp) {
     const { createApp } = await import('../../../src/createApp.js');
-    // createApp.ts imports dotenv/config — wipe Redis/Upstash again before stores init.
+    // createApp.ts imports loadEnv — wipe Redis/Upstash again before stores init.
     stripRedisEnv();
     ensureDummySupabaseEnv();
     cachedApp = createApp().app;

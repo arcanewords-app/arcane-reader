@@ -4,7 +4,7 @@
  * Must set RUN_AS_WORKER before importing chapterWorker (which loads server via runTranslateJob).
  */
 import './worker-env.js';
-import 'dotenv/config';
+import './loadEnv.js';
 
 console.log('[arcane] Loading BullMQ worker…');
 import { startChapterWorkers } from './services/chapterWorker.js';

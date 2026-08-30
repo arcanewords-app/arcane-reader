@@ -1,7 +1,7 @@
 /**
  * Vercel serverless function for /api/sitemap (rewrite target for /sitemap.xml)
  */
-import 'dotenv/config';
+import '../src/loadEnv.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   listPublicationsPublic,

@@ -16,15 +16,18 @@ alwaysApply: false
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side admin DB ops |
 | `PORT` | API port (default 3000) |
 
+Local dump only (never Vercel, never commit): `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` in `.env.local` — prod HTTPS while `.env` points at localhost (`npm run stack:dump`).
+
+### Local env files
+
+| File | Purpose |
+|------|---------|
+| `.env` | Local stack defaults (demo JWTs, Redis localhost). Template: `@env.example.txt`. |
+| `.env.local` | Secrets (`OPENAI_API_KEY`, dump keys, `VITE_*`). Wins over `.env` for the same key. |
+
+API / worker / `stack:*` load `.env.local` then `.env` (`src/loadEnv.ts`). Vite: `.env` then `.env.local` (same outcome). Never commit either file. To run the app against cloud, put cloud `SUPABASE_*` and Redis/KV in `.env.local`.
+
 See `@env.example.txt` for optional: chunking, `PUBLIC_URL`, `VITE_GA_MEASUREMENT_ID`, `VITE_SUPPORT_BOOSTY_URL`.
-
-### Client env (`VITE_*`)
-
-| Variable | Purpose |
-|----------|---------|
-| `VITE_GA_MEASUREMENT_ID` | GA4 measurement ID (`G-…`). Embedded at **Vite build** time; set in Vercel env for Production (and Preview if needed), then **redeploy**. GA loads only after cookie consent. Verify in prod: DevTools → Sources → search bundle for `G-`. |
-
-See `@docs/03-explanation/analytics-ga4.md` for events and smoke-test checklist.
 
 ### Client env (`VITE_*`)
 
@@ -62,12 +65,25 @@ Web scraper is **not** part of arcane-reader deployment. See [arcane-scraper](ht
 
 ## Local development
 
+Preferred: local Docker stack (no extra cloud project). See `@docs/02-how-to/run-locally.md`.
+
 ```bash
 npm install
 cp env.example.txt .env
-npm run dev          # API + Vite client
-npm run dev:full     # + BullMQ worker
+# Put OPENAI_API_KEY and SUPABASE_DUMP_* in .env.local
+# Schema (gitignored): ask the agent to dump public schema via MCP
+npm run stack:up          # Redis + local Supabase (Docker Desktop required)
+# Optional prod-like data:
+#   npm run stack:dump && npm run stack:load
+npm run dev:full          # API + Vite + worker
 ```
+
+Local Redis is already in the `.env` template: `REDIS_URL=redis://127.0.0.1:6379`, `KV_REST_API_URL=http://127.0.0.1:8079`, `KV_REST_API_TOKEN=local-token`.
+
+**Never** `supabase db push` / `apply_migration` from the local dump to prod.
+
+Without the stack, put cloud keys in `.env.local` (`npm run dev`) as before.
+
 
 ## Build and run
 
@@ -89,7 +105,6 @@ npm run start:worker # separate process for queues
 - Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes. Public SEO pages `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/news/:slug*`, `/account-tiers`, and `/p/*` route to `api/index` for SSR meta (see `routing.mdc` SEO section).
 - Set all env vars in Vercel project settings (same names as `.env`).
 - **Worker:** BullMQ worker is **not** a Vercel serverless function — run `start:worker` on a long-lived host (Railway, Fly, second Vercel service, etc.) with same `REDIS_URL` and `KV_REST_*`.
-- **Worker-only install:** `npm ci --omit=dev` then `npm run start:worker` — UI packages (`preact`, `i18next`, etc.) live in `devDependencies` and are not needed at worker runtime. API/Vercel hosts must run `npm run build` (requires full `npm install` with devDependencies).
 - **Worker-only install:** `npm ci --omit=dev` then `npm run start:worker` — UI packages (`preact`, `i18next`, etc.) live in `devDependencies` and are not needed at worker runtime. API/Vercel hosts must run `npm run build` (requires full `npm install` with devDependencies).
 
 ## Supabase

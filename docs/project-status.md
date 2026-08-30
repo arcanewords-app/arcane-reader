@@ -58,7 +58,7 @@ Update this file when completing plans or shipping major features.
 
 ## Known tech debt
 
-- **No dedicated test environment** — unit/component/mock-integration are mock-first; live integration/E2E deferred to Q4 (see [[05-plans/testing-strategy]])
+- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Live integration/E2E still Q4 (see [[05-plans/testing-strategy]]). Schema and data dumps are **local/gitignored** (MCP schema + `stack:dump` / `stack:load`). Never push the dump back to prod.
 - Large legacy docs in `docs/archive/` — treat as stale; use `.cursor/rules/` + code
 - Publication reading settings not persisted (defaults to dark) — see reader-theme plan
 - Stage 3 chunk alignment still open — see [[05-plans/engine-pipeline-improvements]]; archive E2E superseded by [[03-explanation/engine-integration-boundary]]

@@ -3,16 +3,16 @@
  *
  * Usage:
  *   ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run seed:news
- *   npm run seed:news -- --direct          # service role (SUPABASE_* in .env), no admin login
+ *   npm run seed:news -- --direct          # service role (local SUPABASE_* in .env), no admin login
  *   npm run seed:news -- --dry-run
  *   npm run seed:news -- --force
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
+import { loadProjectEnv } from './load-env.mjs';
 
-dotenv.config({ quiet: true });
+loadProjectEnv();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DRAFTS_DIR = path.join(__dirname, '../docs/05-plans/news-drafts');

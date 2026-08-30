@@ -18,6 +18,7 @@ supabase/migrations/
 - The folder is **gitignored** (`.gitignore` → `supabase/migrations/`). Files live on disk for agents and humans; they are not committed.
 - **Do not create** migration SQL in:
   - `supabase/` root (e.g. `supabase/20260707_*.sql`)
+  - `supabase/bootstrap/` (committed README; `schema.sql` is gitignored local dump — not incremental migrations)
   - `docs/migrations/`
   - `docs/supabase-migrations/`
   - random paths under `docs/` or `scripts/`

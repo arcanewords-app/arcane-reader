@@ -14,16 +14,16 @@ You help with **local development** and the **Obsidian vault** (`docs/`) on a **
 
 ## Tool choice (quick matrix)
 
-| Goal                                      | Use first                                       | Not on Windows                                       |
-| ----------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- |
-| Search text in `src/`                     | `rg "pattern" src/`                             | `grep -r`, `find /`                                  |
-| Search text in `docs/` (Obsidian running) | MCP `search_simple` / `search_query`            | full-file rewrite                                    |
-| Search text in `docs/` (no MCP)           | `rg -i "keyword" docs --glob "*.md"`            | invent vault paths with `docs/` prefix in MCP        |
-| Read a known file                         | Cursor **Read** tool                            | `cat`, `type`, `Get-Content` unless Read unavailable |
-| Find file by name                         | Cursor **Glob** tool                            | `find . -name`, slow recursive `dir`                 |
-| Run project scripts                       | `npm run <script>` from `@package.json`         | invented script names                                |
-| Copy env template                         | `Copy-Item env.example.txt .env`                | bare `cp` in PowerShell                              |
-| Vault read/patch (Obsidian up)            | MCP per `@.cursor/skills/obsidian-mcp/SKILL.md` | `rg` only when MCP down                              |
+| Goal                                      | Use first                                                 | Not on Windows                                       |
+| ----------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
+| Search text in `src/`                     | `rg "pattern" src/`                                       | `grep -r`, `find /`                                  |
+| Search text in `docs/` (Obsidian running) | MCP `search_simple` / `search_query`                      | full-file rewrite                                    |
+| Search text in `docs/` (no MCP)           | `rg -i "keyword" docs --glob "*.md"`                      | invent vault paths with `docs/` prefix in MCP        |
+| Read a known file                         | Cursor **Read** tool                                      | `cat`, `type`, `Get-Content` unless Read unavailable |
+| Find file by name                         | Cursor **Glob** tool                                      | `find . -name`, slow recursive `dir`                 |
+| Run project scripts                       | `npm run <script>` from `@package.json`                   | invented script names                                |
+| Copy env template                         | `Copy-Item env.example.txt .env` (secrets → `.env.local`) | bare `cp` in PowerShell                              |
+| Vault read/patch (Obsidian up)            | MCP per `@.cursor/skills/obsidian-mcp/SKILL.md`           | `rg` only when MCP down                              |
 
 **Paths:** Repo files → `src/...`, `docs/...`. MCP vault paths → vault-relative **without** `docs/` (e.g. `05-plans/foo.md`).
 

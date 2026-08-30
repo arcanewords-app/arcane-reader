@@ -3,7 +3,7 @@
  * Used by server.ts (HTTP / Vercel) and mock-integration tests (supertest).
  */
 
-import 'dotenv/config';
+import './loadEnv.js';
 import type {} from './types/express.js';
 import express, { type Application } from 'express';
 import cors from 'cors';

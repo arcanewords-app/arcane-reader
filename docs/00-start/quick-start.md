@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-05-16
+updated: 2026-08-30
 ---
 
 # Quick start
@@ -13,8 +13,11 @@ updated: 2026-05-16
 
 ```bash
 npm install
-cp env.example.txt .env   # add Supabase + OpenAI keys
-npm run dev
+cp env.example.txt .env          # local stack defaults
+# .env.local: OPENAI_API_KEY (+ SUPABASE_DUMP_* for stack:dump)
+# schema.sql (gitignored): dump public schema via MCP before stack:up
+npm run stack:up                 # Docker Redis + local Supabase
+npm run dev:full
 ```
 
 App: `http://localhost:3000`

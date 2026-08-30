@@ -4,7 +4,7 @@ node_modules/
 # Build output
 dist/
 
-# Environment variables (ВАЖНО!)
+# Environment variables (never commit)
 .env
 .env.local
 .env.*.local
@@ -49,6 +49,11 @@ reports/
 .debug/
 
 supabase/migrations/
+supabase/dumps/
+supabase/.temp/
+supabase/.branches/
+supabase/bootstrap/schema.sql
+supabase/bootstrap/remap_owners.sql
 docs/supabase-migrations/
 docs/migrations
 scripts/input-files/

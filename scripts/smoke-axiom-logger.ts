@@ -1,11 +1,11 @@
 /**
  * Smoke test: ship one log line to Axiom (staging dataset).
  * Usage: NODE_ENV=production LOG_SHIPPING=1 AXIOM_DATASET=arcane-staging tsx scripts/smoke-axiom-logger.ts
- * Requires AXIOM_TOKEN in .env or environment.
+ * Requires AXIOM_TOKEN in .env.local or environment.
  */
-import dotenv from 'dotenv';
+import { loadProjectEnv } from './load-env.mjs';
 
-dotenv.config({ quiet: true });
+loadProjectEnv();
 
 process.env.NODE_ENV = 'production';
 process.env.LOG_SHIPPING = process.env.LOG_SHIPPING ?? '1';

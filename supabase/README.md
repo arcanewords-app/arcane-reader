@@ -1,9 +1,28 @@
-# Supabase migrations (Arcane Reader)
+# Supabase (Arcane Reader)
 
 **Local SQL files:** `supabase/migrations/` (gitignored). **Agent rule:** `@.cursor/rules/supabase.mdc`.  
 This README is the committed migration history when `.sql` files are not in git.
 
 Migrations are applied to project `arcane` (`ugcnqejiiybaatcqxmgn`) via Supabase Dashboard or MCP `apply_migration`.
+
+## Local stack (Docker)
+
+Do **not** `db push` / `apply_migration` from a local dump to prod.
+
+| Command                     | What                                                                     |
+| --------------------------- | ------------------------------------------------------------------------ |
+| `npm run stack:up`          | Redis + SRH + `supabase start` (needs `supabase/bootstrap/schema.sql`)   |
+| `npm run stack:status`      | Ports and local API keys                                                 |
+| `npm run stack:dump-schema` | Prints how to dump gitignored `schema.sql` (MCP or CLI)                  |
+| `npm run stack:dump`        | Public data via `.env.local` `SUPABASE_DUMP_*` → `supabase/dumps/*.json` |
+| `npm run stack:load`        | Reset + seed users + JSON data + remap owners to `author@local.test`     |
+| `npm run stack:down`        | Stop local Supabase and Redis                                            |
+
+Data dump uses `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` in `.env.local` (no Postgres URI, no fallback to app `SUPABASE_*`). Schema is a **gitignored** local dump (MCP or `db dump --linked`) — see `supabase/bootstrap/README.md`. Do not commit `schema.sql`.
+
+If `.env` is already localhost, set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod.
+
+Seed logins (password `local-dev-password`): `author@local.test`, `author-plus@local.test`, `admin@local.test`, `user@local.test`.
 
 ## Manual dashboard step (not SQL)
 

@@ -50,8 +50,9 @@ Default shell is **PowerShell**, not bash. Prefer `rg` and npm; use PS cmdlets o
 # Repo root (run once)
 Set-Location f:\arcane\arcane-reader
 
-# Env file
+# Env files
 Copy-Item env.example.txt .env
+# Secrets go in .env.local (OPENAI_API_KEY, SUPABASE_DUMP_*)
 
 # rg — use forward slashes; double-quote regex
 rg "safeParse" src/server.ts
@@ -85,6 +86,9 @@ npm run kill-port
 | Install deps (reader)    | `npm install` in `arcane-reader`     |
 | API + Vite UI            | `npm run dev`                        |
 | API + UI + BullMQ worker | `npm run dev:full`                   |
+| Local Redis + Supabase   | `npm run stack:up` (Docker Desktop)  |
+| Stop local stack         | `npm run stack:down`                 |
+| Stack status / keys      | `npm run stack:status`               |
 | Worker only              | `npm run worker`                     |
 | Server only              | `npm run dev:server`                 |
 | Client only              | `npm run dev:client`                 |
@@ -112,7 +116,7 @@ cp env.example.txt .env
 Copy-Item env.example.txt .env
 ```
 
-Edit `.env`: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. For async analyze/translate add `REDIS_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`.
+`.env` is the local stack (demo JWTs + Redis localhost). Put secrets in `.env.local`: `OPENAI_API_KEY`, and for dumps `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY`. `.env.local` wins on duplicate keys (`src/loadEnv.ts`; Vite same). Dump public schema into gitignored `supabase/bootstrap/schema.sql` **before** `stack:up` (MCP; `stack:dump-schema` prints the recipe). Prod-like data: `stack:dump` / `stack:load`. To run the app against cloud, put cloud `SUPABASE_*` and Redis/KV in `.env.local`. For async analyze/translate you still need Redis (`stack:up` or Upstash).
 
 **Web scraper** lives in the separate [arcane-scraper](https://github.com/arcane-scraper) repo (`npm run dev` there). Not part of arcane-reader.
 
@@ -214,14 +218,16 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 
 ## F. Troubleshooting quick checks
 
-| Symptom                 | Check                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| Port in use             | `npm run kill-port`                                                                  |
-| 503 on batch translate  | Redis env + `npm run worker` or `dev:full`                                           |
-| Auth fails locally      | Supabase keys in `.env`, JWT in browser                                              |
-| API unreachable from UI | `npm run kill-port`, then `dev:server` alone; wait for port 3000                     |
-| Vite proxy ECONNREFUSED | API not ready yet or crashed — check `[0]` logs, not only `[1]`                      |
-| Worker exits in dev     | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel |
+| Symptom                            | Check                                                                                         |
+| ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| Port in use                        | `npm run kill-port`                                                                           |
+| 503 on batch translate             | Redis env + `npm run worker` or `dev:full`                                                    |
+| Auth fails locally                 | Local `SUPABASE_*` in `.env` (not overridden by cloud keys in `.env.local`); JWT in browser   |
+| API unreachable from UI            | `npm run kill-port`, then `dev:server` alone; wait for port 3000                              |
+| Vite proxy ECONNREFUSED            | API not ready yet or crashed — check `[0]` logs, not only `[1]`                               |
+| Worker exits in dev                | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel          |
+| Local stack dump refuses localhost | Set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI) |
+| `stack:up` killed mid-run          | Restore `supabase/.temp/parked-migrations/` → `supabase/migrations/`                          |
 
 ---
 
@@ -230,7 +236,7 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 - Inventing npm scripts not in `package.json`
 - Using `docs/archive/` as SSOT without code check
 - Wikilinks with `docs/` prefix inside vault notes
-- Committing `.env` or logging secrets
+- Committing `.env` / `.env.local` or logging secrets
 - `grep`, `find`, `cat`, `cp` in PowerShell when §G lists a better tool
 - Retrying the same search with bash vs PS vs MCP without fixing the root cause
 - MCP paths like `docs/05-plans/x.md` (wrong — use `05-plans/x.md`)
