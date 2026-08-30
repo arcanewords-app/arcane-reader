@@ -294,14 +294,29 @@ Bad: `it('test1')`, `it('works')`, `it('filterGlossaryForChunk')`
 3. Run focused vitest / `npm run test:component` / `npm run test:integration`
 4. Ensure `npm run test` passes before push
 
-## E2E (Wave 10 — blocked)
+## E2E (Wave 10 — local stamp)
 
-Playwright with API interception (mock) or live test stack:
+Playwright **Persona / Actor** against `stack:load` + `npm run dev`. Not in pre-push. Do **not** mock the API with `page.route` on this live stack.
+
+**Exemplar:** `@tests/e2e/specs/guest.browses-catalog.spec.ts`
 
 ```typescript
-await page.route('**/api/**', (route) =>
-  route.fulfill({ status: 200, body: JSON.stringify({ ok: true }) })
-);
+import { test } from '../fixtures/test.js';
+import { openCatalog } from '../tasks/navigation.js';
+import { openFirstPublication } from '../tasks/reading.js';
+import { catalogHasPublications, publicationPageLoaded } from '../questions/ui.js';
+
+test('Guest opens a catalog publication', async ({ guest }) => {
+  await guest.attemptsTo(openCatalog);
+  await guest.see(catalogHasPublications);
+  await guest.attemptsTo(openFirstPublication);
+  await guest.see(publicationPageLoaded);
+});
 ```
 
-Prerequisite: dedicated test environment. See `tests/e2e/README.md` and `@docs/05-plans/testing-strategy.md`.
+- Fixtures: `guest` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
+- Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions
+- Discover publications/projects at runtime — do not hardcode dump UUIDs
+- Isolation = reload stamp. Additive mutations only (Reader progress, AuthorPlus one project, `@llm` tiny chapter)
+- `npm run test:e2e` inverts `@llm`. Live OpenAI: `npm run test:e2e:llm` + `OPENAI_API_KEY`
+- See `tests/e2e/README.md` and `@docs/05-plans/testing-strategy.md`

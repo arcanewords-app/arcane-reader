@@ -13,14 +13,14 @@ Global SSOT for **what** to test and **in which order**. Measured numbers live i
 
 ## Executive summary
 
-Arcane Reader is a Preact SPA + Express API + Supabase + BullMQ worker. Waves 0–5 built a strong **unit** base (~65% lines). The pyramid next expands **component** and **mock-integration**, then snapshot/contract stubs, then live E2E when a dedicated test environment exists.
+Arcane Reader is a Preact SPA + Express API + Supabase + BullMQ worker. Waves 0–5 built a strong **unit** base (~65% lines). The pyramid next expands **component** and **mock-integration**, then snapshot/contract, then **local Playwright E2E** against the Docker stamp. CI live stack remains blocked.
 
 **Guidance update:** domain agents own multi-layer tests with their features (UI → component; routes → mock-integration; pure → unit). Contract fixtures are selective (enum-sync / high-value shapes) — not a Zod unit mirror. See agent/skill decision tables in `testing.mdc` / testing `SKILL.md`.
 
 ```mermaid
 flowchart TB
   subgraph target [Target pyramid]
-    E2E["Wave 10+: E2E / System\nPlaywright + test stack"]
+    E2E["Wave 10: E2E / System\nPlaywright + local stamp"]
     CONTRACT["Wave 9: Contract\nZod fixtures / future OpenAPI"]
     SNAP["Wave 8: Snapshot\npresentational UI"]
     INT["Wave 7: Integration mock-first\nsupertest + mocked services"]
@@ -30,10 +30,10 @@ flowchart TB
   UNIT --> COMP --> INT --> SNAP --> CONTRACT --> E2E
 ```
 
-| Phase              | Scope                               | External I/O                                              |
-| ------------------ | ----------------------------------- | --------------------------------------------------------- |
-| **Q3** (Waves 6–7) | Unit + Component + mock-integration | Always mocked (Supabase, Redis, LLM, fetch)               |
-| **Q4+** (Wave 10+) | Live integration + E2E              | Dedicated test stack only — never prod/staging as CI gate |
+| Phase              | Scope                                      | External I/O                                                       |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------------------ |
+| **Q3** (Waves 6–7) | Unit + Component + mock-integration        | Always mocked (Supabase, Redis, LLM, fetch)                        |
+| **Q4+** (Wave 10)  | Local E2E unblocked; CI live stack blocked | Playwright vs `stack:load` locally — never prod/staging as CI gate |
 
 ## APP_SCOPE
 
@@ -50,7 +50,7 @@ Coverage and mutation share one scope — see `vitest.config.ts` / `stryker.conf
 | **Integration (live)** | Vitest + real stack                   | `tests/integration/supabase/**` | **Blocked** — see README there               |
 | **Snapshot**           | Vitest `toMatchSnapshot`              | co-located `__snapshots__/`     | Stable presentational UI only                |
 | **Contract**           | Zod fixture round-trips               | `tests/contracts/**`            | API/shared shapes; OpenAPI later             |
-| **E2E**                | Playwright (planned)                  | `tests/e2e/**`                  | Smoke flows on test env                      |
+| **E2E**                | Playwright `@playwright/test` 1.62.1  | `tests/e2e/specs/*.spec.ts`     | Local stamp smoke; `@llm` opt-in             |
 | **Mutation**           | Stryker                               | APP_SCOPE                       | Manual/nightly — not CI gate                 |
 
 ### Anti-patterns
@@ -107,7 +107,7 @@ Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integ
 
 Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **~4.0.8** (4.1.x breaks forks mocks on Node 24 / Windows).
 
-**Next:** Wave 10+ (blocked — dedicated test env). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
+**Next:** Wave 10 **local E2E unblocked** (CI live stack still blocked). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
 
 ### Coverage campaign (post–Wave 9)
 
@@ -119,7 +119,7 @@ APP_SCOPE **unit** floors are the metric (`npm run test:coverage`). Component / 
 | B     | ~75%         | **Done** — publication handlers/domains, seo, export helpers, client api         |
 | C     | ~78%         | **Done** at **~77.7%** lines (floors 77/65); soft ceiling without binary parsers |
 
-**Deferred (not required for campaign):** `server.ts` / `worker.ts` bootstrap; full ReadingMode UI; binary `import/fb2` + `import/epub` (+ export twins) unless golden fixtures are explicitly un-deferred; Wave 10 live E2E.
+**Deferred (not required for campaign):** `server.ts` / `worker.ts` bootstrap; full ReadingMode UI; binary `import/fb2` + `import/epub` (+ export twins) unless golden fixtures are explicitly un-deferred; CI live E2E.
 
 After phases: remeasure → bump `coverage.thresholds` deliberately → update [[05-plans/testing-baseline]].
 
@@ -225,26 +225,34 @@ Review `.snap` diffs in PR. No full pages / ReadingMode / Auth gates. Rides `npm
 
 Phase 2 (after split): OpenAPI / Pact — deferred.
 
-### Wave 10+ — E2E (blocked)
+### Wave 10 — E2E (local stamp unblocked; CI blocked)
 
-#### Prerequisites
+Persona/Actor Playwright against `stack:up` + `stack:load` + `npm run dev`. Not in pre-push.
 
-- [ ] Isolated Supabase project (seed fixtures, JWT users per role)
-- [ ] Redis + BullMQ worker
-- [ ] `.env.test` (not prod/staging)
-- [ ] CI job (docker-compose or dedicated test stack)
-- [ ] Playwright installed + `tests/e2e/` wired
+#### Local (done)
 
-#### Planned smoke flows
+- [x] Playwright `@playwright/test` 1.62.1 + Chromium
+- [x] `tests/e2e/` Persona/Actor (`guest`, `reader`, `author`, `authorPlus`, `admin`)
+- [x] globalSetup: health, seed logins/roles, catalog nonempty, Author owns dump, Reader owns none
+- [x] Specs: guest catalog, reader login/progress, access matrix, author workspace, AuthorPlus gated UI, admin console, `@llm` tiny translate
 
-| Flow                  | Route sketch                   |
-| --------------------- | ------------------------------ |
-| Guest catalog         | `/` → filter → publication     |
-| Auth login/logout     | modal → session                |
-| Author create project | `/projects` → new              |
-| Translate chapter     | chapter → translate → progress |
-| Reader progress       | `/p/*/reading` → next chapter  |
-| Admin entities        | `/admin/entities`              |
+#### Still blocked (CI)
+
+- Isolated CI Supabase / docker-compose test env
+- Live `tests/integration/supabase/`
+- Playwright as merge gate
+
+#### Specs (v1)
+
+| File                                                       | Persona       |
+| ---------------------------------------------------------- | ------------- |
+| `guest.browses-catalog.spec.ts`                            | Guest         |
+| `reader.logs-in.spec.ts` / `reader.saves-progress.spec.ts` | Reader        |
+| `access.role-boundaries.spec.ts`                           | boundaries    |
+| `author.opens-workspace.spec.ts`                           | Author        |
+| `authorPlus.uses-gated-tools.spec.ts`                      | AuthorPlus    |
+| `admin.opens-console.spec.ts`                              | Admin         |
+| `author.translates-chapter.spec.ts`                        | Author `@llm` |
 
 See [[tests/e2e/README|tests/e2e/README.md]] (repo path).
 
@@ -261,7 +269,8 @@ See [[tests/e2e/README|tests/e2e/README.md]] (repo path).
 | `src/test/setup-component.ts`    | i18n + Testing Library cleanup                     |
 | `tests/integration/`             | Integration tests                                  |
 | `tests/contracts/`               | Contract fixtures (Phase 1)                        |
-| `tests/e2e/`                     | E2E stubs (blocked)                                |
+| `tests/e2e/`                     | Local Playwright (Persona/Actor vs stamp)          |
+| `playwright.config.ts`           | Chromium; `testDir: tests/e2e/specs`               |
 | `scripts/gen-test-inventory.mjs` | Unit inventory after `test:coverage`               |
 | `scripts/gen-layer-gaps.mjs`     | Component + contract gap report (`test:gaps`)      |
 
@@ -276,7 +285,8 @@ npm run test:integration     # mock-integration
 npm run test:contract        # contract suite (when tests exist)
 npm run test:contract:coverage   # advisory schema v8 → coverage-contract/
 npm run test:gaps            # layer gap report (component + contract)
-npm run test:e2e             # placeholder until Playwright + test env
+npm run test:e2e             # Playwright vs stamp (not pre-push)
+npm run test:e2e:llm         # includes @llm
 npm run test:all             # unit + slow + component + integration + contract
 npm run test:coverage        # unit coverage
 ```
@@ -285,13 +295,13 @@ Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:co
 
 ## Metrics (orientation, not gates)
 
-| Milestone     | Lines % | Component files | Integration files |
-| ------------- | ------- | --------------- | ----------------- |
-| Wave 5 (done) | ~65%    | 1               | 0                 |
-| Wave 6        | ~70%    | ~30             | 0                 |
-| Wave 7        | ~75%    | ~40             | ~15               |
-| Wave 8–9      | ~78%    | +snapshots      | +contracts        |
-| Wave 10+      | 80%+    | stable          | live + E2E smoke  |
+| Milestone     | Lines %   | Component files | Integration files     |
+| ------------- | --------- | --------------- | --------------------- |
+| Wave 5 (done) | ~65%      | 1               | 0                     |
+| Wave 6        | ~70%      | ~30             | 0                     |
+| Wave 7        | ~75%      | ~40             | ~15                   |
+| Wave 8–9      | ~78%      | +snapshots      | +contracts            |
+| Wave 10       | local E2E | local unblocked | CI live stack blocked |
 
 Refresh numbers: `npm run test:coverage` → `node scripts/gen-test-inventory.mjs` → update [[05-plans/testing-baseline]].
 

@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Vitest Q3 pyramid for Arcane Reader — unit, component, mock-integration, contract; coverage floors, layer gaps, mocking, and pre-push gates. Use when writing, reviewing, or migrating tests.
+description: Vitest Q3 pyramid for Arcane Reader — unit, component, mock-integration, contract; local Playwright E2E; coverage floors, layer gaps, mocking, and pre-push gates. Use when writing, reviewing, or migrating tests.
 paths: '**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.integration.config.ts,vitest.contract.config.ts,stryker.conf.json,tests/**'
 ---
 
@@ -9,6 +9,7 @@ paths: '**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,v
 ## When To Use
 
 - Writing or reviewing tests at **any** Q3 layer (unit / component / mock-integration / contract)
+- Local Playwright E2E (`tests/e2e/**`) against the Docker stamp
 - Migrating from `node:test` to Vitest
 - Fixing pre-push test failures
 - Running or interpreting coverage (`npm run test:coverage`) or layer gaps (`npm run test:gaps`)
@@ -27,8 +28,10 @@ Do **not** default to unit. Pick layer(s) from the change:
 | New/changed Express route wiring                                                         | `tests/integration/api/*.test.ts` (`npm run test:integration`)             |
 | Client↔server enum / critical request shape **not** already covered by thorough Zod unit | `tests/contracts/**` (`npm run test:contract`)                             |
 | Deferred monster / `ProjectInfo`                                                         | Extract + unit; **do not** full-mount                                      |
+| Role happy-path on the **local stamp** (not a substitute for the rows above)             | `tests/e2e/specs/*.spec.ts` (`npm run test:e2e`) — Testing utility         |
 
-- Domain agents own these tests with feature work. Testing agent owns infra and cross-layer campaigns.
+- Domain agents own these tests with feature work. Testing agent owns infra, cross-layer campaigns, and **E2E**. Domain agents do **not** have to add Playwright with every feature.
+- **Do not** replace a missing component/mock-integration test with an E2E spec.
 - Contract is **selective** — do not mirror every Zod schema that already has unit coverage.
 - Ambiguous “add tests” for UI → run/suggest `npm run test:gaps`, then pick from CLIENT_SCOPE gaps.
 - Exemplars: page-smoke / Header / Sidebar / ChapterHeader → `PATTERNS.md` § Client; integration → `PATTERNS.md` § Integration.
@@ -45,7 +48,9 @@ Do **not** default to unit. Pick layer(s) from the change:
 | Contract suite     | `npm run test:contract`                                                       |
 | Contract coverage  | `npm run test:contract:coverage` → `coverage-contract/` (advisory)            |
 | Layer gaps         | `npm run test:gaps` (component presence+v8 + contract schema inventory)       |
-| E2E (placeholder)  | `npm run test:e2e`                                                            |
+| E2E (local stamp)  | `npm run test:e2e` (needs `stack:load` + `dev`; Chromium; no `@llm`)          |
+| E2E + live LLM     | `npm run test:e2e:llm` (needs `OPENAI_API_KEY`; tagged `@llm`)                |
+| Install Chromium   | `npm run playwright:install`                                                  |
 | Run full suite     | `npm run test:all`                                                            |
 | Watch mode         | `npm run test:watch`                                                          |
 | Coverage report    | `npm run test:coverage` (floors: lines 77 / branches 65)                      |
@@ -124,21 +129,22 @@ Arcane has **no dedicated test environment**. Unit, component, and mock-integrat
 **Quarter scope:**
 
 - **Q3 2026:** unit + component + **mock-integration** (`createApp` + supertest) + mutation on APP_SCOPE.
-- **Q4 2026+:** **live integration + E2E** (real Supabase / Redis / worker on dedicated test stack). **Blocked** until test env exists.
+- **Q4 2026:** **local Playwright E2E** against Docker stamp (`stack:load`). **CI live integration still blocked.** Never E2E against prod/staging.
 
-Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 live integration: **only** on dedicated test environment.
+Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E: stamp + seed personas. Live OpenAI: **only** `@llm`.
 
 ## Layer quick reference
 
-| Layer            | Exemplar                               | See                         |
-| ---------------- | -------------------------------------- | --------------------------- |
-| Engine glossary  | `glossary-filter.test.ts`              | `PATTERNS.md` § Engine      |
-| Engine pipeline  | `resolve-execution-options.test.ts`    | `PATTERNS.md` § Engine      |
-| Shared utils     | `paragraphSync.test.ts`                | `PATTERNS.md` § Shared      |
-| API helpers      | `validateRoute.test.ts`                | `PATTERNS.md` § API         |
-| Client utils     | `urlRoutes.test.ts`                    | `PATTERNS.md` § Client      |
-| Components       | `RequireRole.test.tsx`, gates          | `PATTERNS.md` § Client      |
-| Mock-integration | `tests/integration/api/status.test.ts` | `PATTERNS.md` § Integration |
+| Layer            | Exemplar                                        | See                         |
+| ---------------- | ----------------------------------------------- | --------------------------- |
+| Engine glossary  | `glossary-filter.test.ts`                       | `PATTERNS.md` § Engine      |
+| Engine pipeline  | `resolve-execution-options.test.ts`             | `PATTERNS.md` § Engine      |
+| Shared utils     | `paragraphSync.test.ts`                         | `PATTERNS.md` § Shared      |
+| API helpers      | `validateRoute.test.ts`                         | `PATTERNS.md` § API         |
+| Client utils     | `urlRoutes.test.ts`                             | `PATTERNS.md` § Client      |
+| Components       | `RequireRole.test.tsx`, gates                   | `PATTERNS.md` § Client      |
+| Mock-integration | `tests/integration/api/status.test.ts`          | `PATTERNS.md` § Integration |
+| Local E2E        | `tests/e2e/specs/guest.browses-catalog.spec.ts` | `PATTERNS.md` § E2E         |
 
 ## Gate table
 
@@ -151,6 +157,7 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 liv
 | Contract         | `npm run test:contract`    | every push                                            |
 | Coverage floors  | `npm run test:coverage`    | manual / PR when touching coverage; **not** pre-push  |
 | Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures |
+| Local E2E        | `npm run test:e2e`         | after `stack:load` + `dev`; **not** pre-push          |
 | Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                         |
 
 ## Anti-patterns
@@ -163,17 +170,19 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. In Q4 liv
 - Component tests without `@testing-library/preact` + mocked API
 - Live Supabase, Redis, or BullMQ in Q3 automated tests
 - E2E against staging/prod as CI gate
+- Mocking the live stamp with Playwright `page.route` in `tests/e2e` v1
 - Silent lowering of coverage floors
 
 ## Vitest config SSOT
 
-| Config                         | Role                                                              |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (77/65)             |
-| `vitest.slow.config.ts`        | Tiktoken-heavy engine tests                                       |
-| `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom, CLIENT_SCOPE coverage |
-| `vitest.contract.config.ts`    | Zod fixtures; advisory schema coverage only                       |
-| `vitest.integration.config.ts` | `tests/integration/**` (excludes live supabase until unblocked)   |
+| Config                         | Role                                                                 |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `vitest.config.ts`             | Fast unit suite + coverage APP_SCOPE + floors (77/65)                |
+| `vitest.slow.config.ts`        | Tiktoken-heavy engine tests                                          |
+| `vitest.component.config.ts`   | `*.test.tsx` + `*.hook.test.ts`, happy-dom, CLIENT_SCOPE coverage    |
+| `vitest.contract.config.ts`    | Zod fixtures; advisory schema coverage only                          |
+| `vitest.integration.config.ts` | `tests/integration/**` (excludes live supabase until unblocked)      |
+| `playwright.config.ts`         | Local E2E; `testDir: tests/e2e/specs`; Chromium; no Docker webServer |
 
 Unit coverage: `provider: 'v8'`, reporters `text`, `html`, `json-summary`, thresholds lines **77** / branches **65**. Component/contract coverage dirs are separate (`coverage-component/`, `coverage-contract/`) — never merge into unit floors.
 

@@ -119,14 +119,14 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 
 ## Wave completion
 
-| Wave                     | Status         | Deliverables                                                                     |
-| ------------------------ | -------------- | -------------------------------------------------------------------------------- |
-| 0–5                      | Done           | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                   |
-| **6 — Component**        | **Done**       | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes        |
-| **7 — Mock integration** | **Done**       | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest 4.0.8 wrappers  |
-| **8 — Snapshot**         | **Done**       | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps         |
-| **9 — Contract Phase 1** | **Done**       | Zod fixtures + enum sync; deepen → 22 files / 32 tests; pre-push `test:contract` |
-| 10 — Live + E2E          | **Blocked Q4** | requires dedicated test environment; `tests/e2e/README.md`                       |
+| Wave                     | Status                          | Deliverables                                                                     |
+| ------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
+| 0–5                      | Done                            | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                   |
+| **6 — Component**        | **Done**                        | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes        |
+| **7 — Mock integration** | **Done**                        | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest 4.0.8 wrappers  |
+| **8 — Snapshot**         | **Done**                        | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps         |
+| **9 — Contract Phase 1** | **Done**                        | Zod fixtures + enum sync; deepen → 22 files / 32 tests; pre-push `test:contract` |
+| 10 — Live + E2E          | **Local unblocked; CI blocked** | Playwright vs stamp; `tests/e2e/README.md`                                       |
 
 ## Mutation testing (Stryker)
 
@@ -152,7 +152,7 @@ Exact **`vitest@4.0.8`** + `@vitest/coverage-v8@4.0.8`. Do not bump to 4.1.x wit
 | C → ~78% lines     | SearchReplace/pageMeta/batch/selection extracts + inventory                  | **Done** (~77.7% lines; soft ceiling without binaries)        |
 | D → restore floors | ReadingMode/Sidebar/SearchReplace extract cores + happy-dom unit hook suites | **Done** (2026-08-16: **78.21%** lines / **65.67%** branches) |
 
-Unit floors ≠ component/integration coverage. Deferred: bootstrap entrypoints, ReadingMode full UI, binary fb2/epub parsers, Wave 10.
+Unit floors ≠ component/integration coverage. Deferred: bootstrap entrypoints, ReadingMode full UI, binary fb2/epub parsers, CI live E2E. Local Playwright vs stamp is unblocked (`npm run test:e2e`).
 
 ## Layer gaps (component + contract)
 

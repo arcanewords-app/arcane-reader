@@ -51,14 +51,14 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
 | [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
-| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–7 **done**; next Wave 8 snapshots                                            |
-| [[05-plans/testing-baseline]]             | Coverage **65.5%** lines; component 49 + integration 44 tests; Q4 live E2E blocked                 |
+| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–9 **done**; Wave 10 local E2E unblocked (CI still blocked)                   |
+| [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                         |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
 | [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod           |
 
 ## Known tech debt
 
-- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Live integration/E2E still Q4 (see [[05-plans/testing-strategy]]). Schema and data dumps are **local/gitignored** (MCP schema + `stack:dump` / `stack:load`). Never push the dump back to prod.
+- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Local E2E: `npm run test:e2e` after `stack:load` + `dev`. CI live integration still blocked. Schema and data dumps are **local/gitignored** (MCP schema + `stack:dump` / `stack:load`). Never push the dump back to prod.
 - Large legacy docs in `docs/archive/` — treat as stale; use `.cursor/rules/` + code
 - Publication reading settings not persisted (defaults to dark) — see reader-theme plan
 - Stage 3 chunk alignment still open — see [[05-plans/engine-pipeline-improvements]]; archive E2E superseded by [[03-explanation/engine-integration-boundary]]

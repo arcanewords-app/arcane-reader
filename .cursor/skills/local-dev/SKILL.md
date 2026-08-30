@@ -98,6 +98,9 @@ npm run kill-port
 | Unit tests               | `npm run test`                       |
 | Tests (watch)            | `npm run test:watch`                 |
 | Coverage report          | `npm run test:coverage`              |
+| Local E2E (stamp + dev)  | `npm run test:e2e`                   |
+| Local E2E + live LLM     | `npm run test:e2e:llm`               |
+| Playwright Chromium      | `npm run playwright:install`         |
 | Focused test run         | `npx vitest run src/engine/glossary` |
 | Oxlint                   | `npm run lint`                       |
 | Typecheck                | `npm run typecheck`                  |

@@ -1,34 +1,50 @@
-# E2E / system tests (Wave 10+)
+# E2E / system tests (Wave 10 — local stamp)
 
-**Status:** blocked — no dedicated test environment (isolated Supabase / Redis / BullMQ for CI).
+Playwright against the **local Docker stamp**, not prod/staging. Not in pre-push or CI.
 
-## Prerequisites
+## Preconditions
 
-- [ ] Isolated Supabase project with seed fixtures and JWT users per role
-- [ ] Redis + BullMQ worker instance
-- [ ] `.env.test` credentials (never prod/staging)
-- [ ] CI job (docker-compose or dedicated test stack)
-- [ ] Playwright installed and wired (`playwright.config.ts`)
+```bash
+npm run stack:up
+npm run stack:load          # seed personas + dump; remaps owners to author@local.test
+npm run dev                 # UI :5173, API :3000
+npx playwright install chromium   # once per machine
+npm run test:e2e            # smoke (no live OpenAI)
+npm run test:e2e:llm        # smoke + tiny live translate (needs OPENAI_API_KEY in .env.local)
+```
 
-Until these exist, `npm run test:e2e` exits with a placeholder message.
+Empty catalog, failed seed login, or Author without projects → abort with `run npm run stack:load`.
 
-## Planned smoke flows (~10–15)
+## Personas (stamp seed)
 
-| Flow                  | Route sketch                                  |
-| --------------------- | --------------------------------------------- |
-| Guest catalog browse  | `/` → filter → publication card               |
-| Auth login/logout     | modal → session persist                       |
-| Author create project | `/projects` → new → settings                  |
-| Translate chapter     | chapter → translate → progress                |
-| Reader progress       | `/p/*/reading` → next chapter → progress save |
-| Admin entity review   | `/admin/entities` (admin role)                |
+Password for all: `local-dev-password`
+
+- **Guest** — no session
+- **Reader** — `user@local.test` / `user` — catalog only, **0 projects**
+- **Author** — `author@local.test` / `author` — owns remapped dump projects
+- **AuthorPlus** — `author-plus@local.test` / `author_plus` — empty workspace
+- **Admin** — `admin@local.test` / `admin`
+
+Catalog is public: Reader **sees** all books; that is not ownership. If Reader has `/projects` data, the stamp is dirty.
+
+Do not hardcode publication UUIDs from the dump. User UUIDs in `actors/personas.ts` match `supabase/seed.sql`.
+
+## Layout (Persona / Actor)
+
+- `actors/` — personas + Actor (`attemptsTo` / `see`)
+- `tasks/` — user verbs
+- `questions/` — assertions
+- `fixtures/test.ts` — `test.extend({ guest, reader, author, authorPlus, admin })`
+- `specs/` — `persona.does-thing.spec.ts`
+
+Gherkin later can wrap the same tasks. Cucumber is not installed.
+
+## Isolation
+
+Reload the stamp (`stack:load`) before a clean run. Tests may add a tiny chapter or Reader progress; they must not delete or unpublish dump rows.
 
 ## Policy
 
-- E2E **never** against prod/staging as a CI merge gate
-- Prefer the dedicated test stack; mock-first Playwright is optional for local smoke only
-- Strategy SSOT: [docs/05-plans/testing-strategy.md](../../docs/05-plans/testing-strategy.md)
-
-## Live integration sibling
-
-Supabase live domain tests (also blocked): [tests/integration/supabase/README.md](../integration/supabase/README.md)
+- Chromium only
+- Live OpenAI only in `@llm`
+- Testing utility owns this layer; not a pre-push gate

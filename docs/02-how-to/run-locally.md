@@ -76,6 +76,8 @@ npm run stack:load
 
 Log in as `author@local.test` / `local-dev-password`. Catalog covers still load from **prod** public Storage URLs.
 
+After the stamp is loaded and `npm run dev` is up, local Playwright: `npm run test:e2e` (see [[run-tests]] and `tests/e2e/README.md`).
+
 **Never** `npx supabase db push` or MCP `apply_migration` from this machine to prod.
 
 Refresh data after prod changes: `stack:dump` + `stack:load`. Refresh schema after DDL: dump schema again, then `stack:load`.

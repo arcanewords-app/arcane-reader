@@ -1,6 +1,6 @@
 ---
 description: Q3 test pyramid policies (unit, component, mock-integration, contract), Vitest runner, gates, and co-location. Read when writing or reviewing tests, vitest config, or test infrastructure.
-globs: "**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.contract.config.ts,vitest.integration.config.ts,stryker.conf.json,tests/**"
+globs: "**/*.test.ts,**/*.test.tsx,vitest.config.ts,vitest.component.config.ts,vitest.contract.config.ts,vitest.integration.config.ts,playwright.config.ts,stryker.conf.json,tests/**"
 alwaysApply: false
 ---
 
@@ -36,8 +36,9 @@ Domain agents own layer-appropriate tests with the feature. Do **not** default t
   - `npm run test:component` → `scripts/test-component.mjs` (explicit file list)
   - `npm run test:integration` → `scripts/test-integration.mjs` (explicit file list)
   - Also: `test:slow`, `test:contract`, `test:all`, `test:coverage`, `test:component:coverage`, `test:contract:coverage`, `test:gaps`
-- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX, CLIENT_SCOPE coverage), `@vitest.contract.config.ts` (Zod fixtures + advisory schema coverage), `@vitest.integration.config.ts` (forks, **no** `setupFiles`)
-- **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract/e2e live under `tests/`.
+  - Local E2E (not pre-push): `test:e2e` (Playwright Chromium, invert `@llm`), `test:e2e:llm` (includes live OpenAI)
+- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX, CLIENT_SCOPE coverage), `@vitest.contract.config.ts` (Zod fixtures + advisory schema coverage), `@vitest.integration.config.ts` (forks, **no** `setupFiles`), `@playwright.config.ts` (local E2E; pin `@playwright/test` **1.62.1**)
+- **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract live under `tests/`. Local E2E specs use `*.spec.ts` under `tests/e2e/specs/` (Persona/Actor; see `@.cursor/skills/testing/PATTERNS.md`).
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
 - **Wrappers allowed:** `scripts/test-*.mjs` / `scripts/resolve-vitest.mjs` for runner workarounds only — not for test cases. Put tests under `src/**/*.test.ts(x)` or `tests/`. Inventory helpers `scripts/gen-test-inventory.mjs` and `scripts/gen-layer-gaps.mjs` are allowed.
 
@@ -52,18 +53,19 @@ SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testi
 
 ## Test environment
 
-**Current state:** no dedicated test environment (no isolated Supabase / Redis / BullMQ stack for CI).
+**Default (Q3 CI / pre-push):** mock external boundaries for unit, component, and mock-integration tests. Tests must not require prod/staging `.env` credentials.
 
-**Default (Q3):** mock external boundaries for unit, component, and mock-integration tests. Tests must not require prod/staging `.env` credentials.
-
-| Term in Arcane (Q3) | Means |
-|---------------------|-------|
+| Term in Arcane | Means |
+|----------------|-------|
 | Unit test | co-located `*.test.ts`; `vi.mock` at DB/LLM/HTTP boundaries |
 | Component test | `@testing-library/preact` + happy-dom; mocked `fetch` / hooks |
 | Integration test (mock) | `createApp()` + supertest; mocked Supabase/Redis/LLM |
-| Integration test (live) | **Q4 only** — real test stack |
+| Local E2E (Wave 10) | Playwright Chromium vs Docker stamp (`stack:load` + `dev`). **Not** pre-push / CI |
+| Integration test (live CI) | **Still blocked** — dedicated CI test stack / `tests/integration/supabase/` |
 
-**Q4 2026+ (blocked):** live integration + Playwright E2E on a dedicated test stack. Without test env, Wave 10 work is paused.
+**Local E2E (unblocked):** personas are seed users from `supabase/seed.sql` (`user@` / `author@` / `author-plus@` / `admin@local.test`, password `local-dev-password`). Stamp remaps dump owners to Author; Reader owns **0** projects. Live OpenAI only in `@llm`. Actor/Persona SSOT: `@.cursor/skills/testing/PATTERNS.md` + `@tests/e2e/README.md`. Fail loudly if stamp/dev is missing — do not `exit 0`.
+
+**CI docker-compose / live Supabase integration:** still Q4 blocked. Never E2E against prod/staging UI.
 
 See `@docs/05-plans/testing-strategy.md`.
 
@@ -76,22 +78,23 @@ See `@docs/05-plans/testing-strategy.md`.
 | Presentational markup (`ui/*`, EntityCard, TagChip) | `toMatchSnapshot` in component suite — update `.snap` intentionally in the same PR |
 | HTTP middleware order / status wiring / job runner | `tests/integration/**` mock-first (`npm run test:integration`) |
 | Bug fix in pure logic (`engine/`, `shared/`, utils) | Regression in co-located `*.test.ts` |
-| Live LLM / OpenAI API | **Never** in unit/component/mock-integration — mock provider |
-| Live Supabase / Redis / BullMQ | **Q4 only** on dedicated test environment |
+| Live LLM / OpenAI API | **Never** in unit/component/mock-integration — mock provider. Local E2E: only `@llm` (`npm run test:e2e:llm`) |
+| Live Supabase (local stamp) | Playwright `tests/e2e/**` after `stack:load` — Testing utility; **not** a substitute for component/mock-integration |
+| Live Supabase / Redis / BullMQ in CI | **Still blocked** — dedicated test environment |
 
-Do **not** use unit tests as a substitute for mock-integration wiring checks, or vice versa. Do **not** snapshot full pages, `ReadingMode`, Auth gates, or async-loaded DOM.
+Do **not** use unit tests as a substitute for mock-integration wiring checks, or vice versa. Do **not** snapshot full pages, `ReadingMode`, Auth gates, or async-loaded DOM. Do **not** write E2E instead of the layer in “When shipping a feature”.
 
 ## Test types in Arcane
 
-| Type | Q3 | Q4 (test env required) |
-|------|-----|------------------------|
+| Type | Q3 / pre-push | Local / Q4 |
+|------|----------------|------------|
 | Unit | pure logic, co-located, mocked boundaries | same |
-| Component | Testing Library + mocked `fetch` | optional live DOM + test API |
+| Component | Testing Library + mocked `fetch` | same |
 | Integration (mock) | `createApp` + supertest + mocked services | keep as fast CI layer |
-| Integration (live) | — | real Supabase / Redis / worker |
+| Integration (live) | — | CI stack still blocked |
 | Snapshot | Presentational `ui/*` / EntityCard / TagChip (`toMatchSnapshot`); no breakpoint matrix | same |
 | Contract | Selective Zod fixtures under `tests/contracts/` (pre-push) — enums / high-value shapes, not every schema | OpenAPI / Pact after split |
-| System/E2E | stub only | Playwright smoke on test stack |
+| System/E2E | **local stamp unblocked** (`npm run test:e2e`) — not a merge gate | CI Playwright still blocked |
 
 ## Layer boundaries
 
@@ -114,7 +117,7 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 
 ## Gates
 
-- Before **push:** `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` (enforced via `.husky/pre-push`).
+- Before **push:** `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` (enforced via `.husky/pre-push`). **`test:e2e` is not a push/merge gate.**
 - Before **commit:** pre-commit runs lint-staged only (fast).
 - Husky hooks source `.husky/load-node.sh` so GUI Git (Cursor, VS Code) can find nvm/Homebrew `node`/`npx`/`npm`.
 - **Coverage floors:** `npm run test:coverage` enforces `coverage.thresholds` in `@vitest.config.ts` (lines **77**, branches **65** — measured floors). **Not** in pre-push.
@@ -144,6 +147,6 @@ When changing runner, gates, or test conventions:
 
 ## Agent routing
 
-- Feature code + **layer-appropriate tests** → domain agent (Engine/API/Backend/UI) — choose layer from “When shipping a feature” above.
-- Test infrastructure, migration, coverage baseline, gap campaigns → **Testing** utility (`@.cursor/agents/testing/AGENT.md`).
-- **verifier** runs `lint:all` + suites for changed layers (`test` / `test:component` / `test:integration` / `test:contract`).
+- Feature code + **layer-appropriate tests** → domain agent (Engine/API/Backend/UI) — choose layer from “When shipping a feature” above. Domain agents are **not** required to add Playwright specs with every feature.
+- Test infrastructure, migration, coverage baseline, gap campaigns, **`tests/e2e/**` + `playwright.config.ts`** → **Testing** utility (`@.cursor/agents/testing/AGENT.md`).
+- **verifier** runs `lint:all` + suites for changed layers (`test` / `test:component` / `test:integration` / `test:contract`). Does **not** run `test:e2e`.
