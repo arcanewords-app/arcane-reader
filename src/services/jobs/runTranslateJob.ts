@@ -22,7 +22,6 @@ import {
   applyChapterTitleTranslations,
   collectTitleTranslationCandidates,
 } from '../chapterTitleTranslate.js';
-import type { TranslationStages } from '../../config/tokenLimits.js';
 
 const translateJobStore = createTranslateJobStoreFromEnv();
 const TRANSLATE_JOB_TTL_SECONDS = parseInt(process.env.TRANSLATE_JOB_TTL_SECONDS ?? '3600', 10);
