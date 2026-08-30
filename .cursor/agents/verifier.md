@@ -16,13 +16,14 @@ When invoked:
 ## Verification commands (repo root)
 
 ```bash
-npm run lint:all    # oxlint + Stylelint + TypeScript (3 tsconfigs)
-npm run test        # Vitest unit tests (all src/**/*.test.ts)
-npm run lint
-npm run typecheck
+npm run lint:all         # oxlint + Stylelint + TypeScript (3 tsconfigs)
+npm run test             # Vitest unit
+npm run test:component   # when UI / hooks / pages changed
+npm run test:integration # when Express routes / HTTP wiring changed
+npm run test:contract    # when enum-sync / high-value wire shapes changed
 ```
 
-**Tests:** Run `npm run test` when code under `src/` changed. For test infrastructure changes, also read `@.cursor/skills/testing/SKILL.md`.
+**Tests:** Choose layers from `@.cursor/rules/testing.mdc`. Do **not** run `test:e2e` (local stamp only; not a merge gate). For test infrastructure, also read `@.cursor/skills/testing/SKILL.md`.
 
 ## Domain-specific checks
 
@@ -32,8 +33,10 @@ npm run typecheck
 | Client route   | `AppRouter.tsx` + `routing.mdc` in sync                                         |
 | Env / deploy   | `@env.example.txt` + `@.cursor/rules/deployment.mdc`                            |
 | Cache mutation | Invalidation per `@.cursor/rules/cache.mdc`                                     |
-| UI strings     | Keys in `en.json`, `ru.json`, `pl.json`                                         |
+| UI strings     | Keys in `en.json` and `ru.json`                                                 |
 | Pure logic     | Co-located `*.test.ts` per `@.cursor/rules/testing.mdc`                         |
+| UI / hooks     | `*.test.tsx` / `*.hook.test.ts` (`npm run test:component`)                      |
+| New API route  | mock-integration smoke (`npm run test:integration`)                             |
 
 ## Report
 
@@ -41,4 +44,4 @@ npm run typecheck
 - What was claimed but incomplete or broken
 - Specific issues that need to be addressed
 
-Do not accept claims at face value. Run `npm run lint:all` and `npm run test` when code under `src/` changed unless the user asked for doc-only verification.
+Do not accept claims at face value. Run `lint:all` plus suites for changed layers when code under `src/` changed unless the user asked for doc-only verification.

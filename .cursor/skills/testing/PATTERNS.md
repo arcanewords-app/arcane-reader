@@ -289,10 +289,10 @@ Bad: `it('test1')`, `it('works')`, `it('filterGlossaryForChunk')`
 
 ## When adding a new test file
 
-1. Place next to source module (or under `tests/` for integration/contract/e2e)
-2. Pick closest exemplar from table above
-3. Run focused vitest / `npm run test:component` / `npm run test:integration`
-4. Ensure `npm run test` passes before push
+1. Place next to source module (or under `tests/` for integration/contract; E2E under `tests/e2e/specs/`)
+2. Pick closest exemplar from the layer table / § E2E below
+3. Run the matching suite: `npm run test` / `test:component` / `test:integration` / `test:contract` / `test:e2e`
+4. Pre-push still needs `lint:all` + unit + component + integration + contract (not Playwright)
 
 ## E2E (Wave 10 — local stamp)
 

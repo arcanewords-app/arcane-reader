@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-07-11
+updated: 2026-08-30
 ---
 
 # Arcane Reader — Documentation
@@ -34,6 +34,7 @@ updated: 2026-07-11
 | [[_canonical/rules/design-system]]  | Tokens, icons, a11y               |
 | [[_canonical/rules/deployment]]     | Env, Vercel, worker               |
 | [[_canonical/rules/logging]]        | Pino, req.log, levels             |
+| [[_canonical/rules/testing]]        | Test pyramid, gates, layers       |
 | [[_canonical/rules/local-dev]]      | Local dev, vault, search commands |
 
 If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code + rules win**.
@@ -66,6 +67,7 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 ## How-to
 
 - [[02-how-to/run-locally]]
+- [[02-how-to/run-tests]]
 - [[02-how-to/obsidian-vault]]
 - [[02-how-to/add-feature]]
 - [[02-how-to/sync-url-with-ui-state]]

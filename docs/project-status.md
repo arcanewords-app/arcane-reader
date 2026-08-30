@@ -42,23 +42,23 @@ Update this file when completing plans or shipping major features.
 
 ## Active plans (`05-plans/`)
 
-| Plan                                      | Domain                                                                                             |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                        |
-| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                 |
-| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                           |
-| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                           |
-| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                             |
-| [[05-plans/seo-search-console]]           | GSC submission                                                                                     |
-| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                    |
-| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–9 **done**; Wave 10 local E2E unblocked (CI still blocked)                   |
-| [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                         |
-| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred |
-| [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod           |
+| Plan                                      | Domain                                                                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                                             |
+| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                                      |
+| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                                                |
+| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                                                |
+| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                                                  |
+| [[05-plans/seo-search-console]]           | GSC submission                                                                                                          |
+| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                                         |
+| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–9 **done**; Wave 10 local E2E unblocked; GitHub Actions mock pyramid; CI live stack still blocked |
+| [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                                              |
+| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred                      |
+| [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod                                |
 
 ## Known tech debt
 
-- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase; restores `arcane-reader-stamp:latest` if present). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Local E2E: `npm run test:e2e` after `stack:up` + `dev`. Monthly stamp rebuild: `stack:dump` / `stack:load` / `stack:stamp`. CI live integration still blocked. Schema and data dumps are **local/gitignored**. Never push the dump or stamp image to a public registry.
+- **Local stack available** — `npm run stack:up` (Docker Redis + local Supabase; restores `arcane-reader-stamp:latest` if present). `.env` = local demo JWTs/Redis; `.env.local` = secrets + `SUPABASE_DUMP_*` (`src/loadEnv.ts`). Local E2E: `npm run test:e2e` after `stack:up` + `dev`. Monthly stamp rebuild: `stack:dump` / `stack:load` / `stack:stamp`. GitHub Actions runs the mock pyramid; CI live stack (Playwright-as-gate) is still blocked. Schema and data dumps are **local/gitignored**. Never push the dump or stamp image to a public registry.
 - Large legacy docs in `docs/archive/` — treat as stale; use `.cursor/rules/` + code
 - Publication reading settings not persisted (defaults to dark) — see reader-theme plan
 - Stage 3 chunk alignment still open — see [[05-plans/engine-pipeline-improvements]]; archive E2E superseded by [[03-explanation/engine-integration-boundary]]

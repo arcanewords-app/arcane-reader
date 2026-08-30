@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-07-12
-updated: 2026-08-16
+updated: 2026-08-30
 ---
 
 # Testing coverage baseline
@@ -21,22 +21,22 @@ Lab apps and dev-only debug/prompt-lab server code are not production app. SSOT:
 
 Arcane Reader has **no dedicated test environment** (isolated Supabase / Redis / BullMQ for CI). Automated tests use **mocks** at external boundaries unless noted.
 
-| Phase                 | Scope                                                                                                                   |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Q3 2026** (current) | Unit + Component + **mock-integration** (supertest with mocked services). Mutation on APP_SCOPE.                        |
-| **Q4 2026+** (future) | **Live integration + E2E** — real Supabase, Redis, worker on a dedicated test stack. **Blocked** until test env exists. |
+| Phase                 | Scope                                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Q3 2026** (current) | Unit + Component + mock-integration + contract (pre-push and GitHub Actions) + **local Playwright E2E** vs Docker stamp. Mutation on APP_SCOPE (manual). |
+| **Q4 2026+** (future) | Dedicated CI live stack — live `tests/integration/supabase/`, Redis/worker, Playwright as merge gate. **Blocked** until test env exists.                 |
 
 Policy SSOT: [[_canonical/rules/testing]]. Full pyramid: [[05-plans/testing-strategy]].
 
 ### Q4 prerequisite (live data only)
 
-| Type             | Approach when test env exists       |
-| ---------------- | ----------------------------------- |
-| API routes       | supertest against test Supabase     |
-| Worker / queues  | live Redis + test DB                |
-| Full-stack smoke | Playwright on test stack (not prod) |
+| Type             | Approach when test env exists          |
+| ---------------- | -------------------------------------- |
+| API routes       | supertest against test Supabase        |
+| Worker / queues  | live Redis + test DB                   |
+| Full-stack smoke | Playwright on CI test stack (not prod) |
 
-Until dedicated test environment is provisioned, Q4 live work is **paused**. Mock-integration (Wave 7) is in pre-push.
+Until a dedicated test environment is provisioned, **CI live** work is paused. Local Playwright vs stamp is unblocked (`npm run test:e2e`). Mock pyramid is in pre-push and GitHub Actions.
 
 ## Test suite (2026-08-03, post product shell wave)
 
@@ -239,7 +239,8 @@ Full shells of Glossary / ReadingMode / ChapterList / ProcessChapters remain def
 
 ## Policy
 
-- Coverage floors active on `test:coverage` only; pre-push = lint + unit + component + integration + contract
+- Coverage floors active on `test:coverage` (GitHub Actions merge gate); pre-push = lint + unit + component + integration + contract (no floors)
+- Local E2E is not a merge gate
 - Layer gaps (`test:gaps`) are advisory — not a merge gate
 - Re-run baseline after major test additions; update this note (and floors if measured drift is intentional)
 - See [[02-how-to/run-tests]] and `.cursor/rules/testing.mdc`

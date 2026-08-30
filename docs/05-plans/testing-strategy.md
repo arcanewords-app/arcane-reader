@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-08-02
-updated: 2026-08-03
+updated: 2026-08-30
 wave6: done
 wave7: done
 type: plan
@@ -13,7 +13,7 @@ Global SSOT for **what** to test and **in which order**. Measured numbers live i
 
 ## Executive summary
 
-Arcane Reader is a Preact SPA + Express API + Supabase + BullMQ worker. Waves 0–5 built a strong **unit** base (~65% lines). The pyramid next expands **component** and **mock-integration**, then snapshot/contract, then **local Playwright E2E** against the Docker stamp. CI live stack remains blocked.
+Arcane Reader is a Preact SPA + Express API + Supabase + BullMQ worker. Waves 0–9 built unit, component, mock-integration, snapshot, and contract layers. Wave 10 **local Playwright E2E** against the Docker stamp is unblocked. Dedicated CI live stack (Playwright-as-gate, live Supabase) remains blocked.
 
 **Guidance update:** domain agents own multi-layer tests with their features (UI → component; routes → mock-integration; pure → unit). Contract fixtures are selective (enum-sync / high-value shapes) — not a Zod unit mirror. See agent/skill decision tables in `testing.mdc` / testing `SKILL.md`.
 
@@ -30,10 +30,10 @@ flowchart TB
   UNIT --> COMP --> INT --> SNAP --> CONTRACT --> E2E
 ```
 
-| Phase              | Scope                                      | External I/O                                                           |
-| ------------------ | ------------------------------------------ | ---------------------------------------------------------------------- |
-| **Q3** (Waves 6–7) | Unit + Component + mock-integration        | Always mocked (Supabase, Redis, LLM, fetch)                            |
-| **Q4+** (Wave 10)  | Local E2E unblocked; CI live stack blocked | Playwright vs local stamp (`stack:up`) — never prod/staging as CI gate |
+| Phase                     | Scope                                                      | External I/O                                                                                 |
+| ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Q3** (Waves 6–10 local) | Unit + Component + mock-integration + contract + local E2E | Mocks in CI/pre-push; Playwright vs local stamp (`stack:up`) — never prod/staging as CI gate |
+| **Q4+**                   | Dedicated CI live stack still blocked                      | Live `tests/integration/supabase/`; Playwright as merge gate                                 |
 
 ## APP_SCOPE
 
@@ -107,7 +107,7 @@ Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integ
 
 Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **~4.0.8** (4.1.x breaks forks mocks on Node 24 / Windows).
 
-**Next:** Wave 10 **local E2E unblocked** (CI live stack still blocked). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
+**Next:** Wave 10 **local E2E done** (CI live stack still blocked). GitHub Actions runs the mock pyramid (`lint:all` + `test:coverage` + component + integration + contract). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
 
 ### Coverage campaign (post–Wave 9)
 
@@ -227,7 +227,7 @@ Phase 2 (after split): OpenAPI / Pact — deferred.
 
 ### Wave 10 — E2E (local stamp unblocked; CI blocked)
 
-Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty isolation: `stack:restore`, not `stack:load`. Not in pre-push.
+Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty isolation: `stack:restore`, not `stack:load`. Not in pre-push or GitHub Actions.
 
 #### Local (done)
 
@@ -245,15 +245,19 @@ Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty
 
 #### Specs (v1)
 
-| File                                                       | Persona       |
-| ---------------------------------------------------------- | ------------- |
-| `guest.browses-catalog.spec.ts`                            | Guest         |
-| `reader.logs-in.spec.ts` / `reader.saves-progress.spec.ts` | Reader        |
-| `access.role-boundaries.spec.ts`                           | boundaries    |
-| `author.opens-workspace.spec.ts`                           | Author        |
-| `authorPlus.uses-gated-tools.spec.ts`                      | AuthorPlus    |
-| `admin.opens-console.spec.ts`                              | Admin         |
-| `author.translates-chapter.spec.ts`                        | Author `@llm` |
+| File                                                       | Persona              |
+| ---------------------------------------------------------- | -------------------- |
+| `guest.browses-catalog.spec.ts`                            | Guest                |
+| `guest.visual.spec.ts`                                     | Guest `@visual`      |
+| `reader.logs-in.spec.ts` / `reader.saves-progress.spec.ts` | Reader               |
+| `reader.visual.spec.ts`                                    | Reader `@visual`     |
+| `access.role-boundaries.spec.ts`                           | boundaries           |
+| `author.opens-workspace.spec.ts`                           | Author               |
+| `author.visual.spec.ts`                                    | Author `@visual`     |
+| `authorPlus.uses-gated-tools.spec.ts`                      | AuthorPlus           |
+| `authorPlus.visual.spec.ts`                                | AuthorPlus `@visual` |
+| `admin.opens-console.spec.ts`                              | Admin                |
+| `author.translates-chapter.spec.ts`                        | Author `@llm`        |
 
 See [[tests/e2e/README|tests/e2e/README.md]] (repo path).
 
@@ -286,13 +290,15 @@ npm run test:integration     # mock-integration
 npm run test:contract        # contract suite (when tests exist)
 npm run test:contract:coverage   # advisory schema v8 → coverage-contract/
 npm run test:gaps            # layer gap report (component + contract)
-npm run test:e2e             # Playwright vs stamp (not pre-push)
+npm run test:e2e             # Playwright vs stamp (not pre-push / GitHub Actions)
+npm run test:e2e:visual      # pixel shells (`@visual`)
+npm run test:e2e:update-snapshots  # refresh visual PNGs
 npm run test:e2e:llm         # includes @llm
 npm run test:all             # unit + slow + component + integration + contract
 npm run test:coverage        # unit coverage
 ```
 
-Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`. Coverage floors on `test:coverage` only (not pre-push). `test:gaps` is manual/advisory.
+Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`. GitHub Actions: same pyramid with `test:coverage` instead of `test` (floors 77/65). `test:gaps` is manual/advisory. Local E2E is not a merge gate.
 
 ## Metrics (orientation, not gates)
 

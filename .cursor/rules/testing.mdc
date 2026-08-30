@@ -53,14 +53,14 @@ SSOT: `@vitest.config.ts`, `@stryker.conf.json`. Baseline: `@docs/05-plans/testi
 
 ## Test environment
 
-**Default (Q3 CI / pre-push):** mock external boundaries for unit, component, and mock-integration tests. Tests must not require prod/staging `.env` credentials.
+**Default (pre-push and GitHub Actions):** mock external boundaries for unit, component, mock-integration, and contract tests. Tests must not require prod/staging `.env` credentials.
 
 | Term in Arcane | Means |
 |----------------|-------|
 | Unit test | co-located `*.test.ts`; `vi.mock` at DB/LLM/HTTP boundaries |
 | Component test | `@testing-library/preact` + happy-dom; mocked `fetch` / hooks |
 | Integration test (mock) | `createApp()` + supertest; mocked Supabase/Redis/LLM |
-| Local E2E (Wave 10) | Playwright Chromium vs Docker stamp (`stack:up` / `stack:restore` + `dev`). **Not** pre-push / CI |
+| Local E2E (Wave 10) | Playwright Chromium vs Docker stamp (`stack:up` / `stack:restore` + `dev`). **Not** pre-push / GitHub Actions |
 | Integration test (live CI) | **Still blocked** — dedicated CI test stack / `tests/integration/supabase/` |
 
 **Local E2E (unblocked):** personas are seed users from `supabase/seed.sql` (`user@` / `author@` / `author-plus@` / `admin@local.test`, password `local-dev-password`). Stamp remaps dump owners to Author; Reader owns **0** projects. Live OpenAI only in `@llm`. Actor/Persona SSOT: `@.cursor/skills/testing/PATTERNS.md` + `@tests/e2e/README.md`. Fail loudly if stamp/dev is missing — do not `exit 0`.
@@ -86,15 +86,15 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 
 ## Test types in Arcane
 
-| Type | Q3 / pre-push | Local / Q4 |
-|------|----------------|------------|
-| Unit | pure logic, co-located, mocked boundaries | same |
-| Component | Testing Library + mocked `fetch` | same |
-| Integration (mock) | `createApp` + supertest + mocked services | keep as fast CI layer |
-| Integration (live) | — | CI stack still blocked |
-| Snapshot | Presentational `ui/*` / EntityCard / TagChip (`toMatchSnapshot`); no breakpoint matrix | same |
-| Contract | Selective Zod fixtures under `tests/contracts/` (pre-push) — enums / high-value shapes, not every schema | OpenAPI / Pact after split |
-| System/E2E | **local stamp unblocked** (`npm run test:e2e`) — not a merge gate | CI Playwright still blocked |
+| Type | Pre-push | GitHub Actions | Local / Q4 |
+|------|----------|----------------|------------|
+| Unit | `npm run test` | `npm run test:coverage` (floors) | same |
+| Component | yes | yes | same |
+| Integration (mock) | yes | yes | keep as fast CI layer |
+| Integration (live) | — | — | dedicated stack still blocked |
+| Snapshot | via component suite | via component suite | same |
+| Contract | yes | yes | OpenAPI / Pact after split |
+| System/E2E | no | no | **local stamp unblocked** (`npm run test:e2e`); Playwright-as-gate still blocked |
 
 ## Layer boundaries
 
@@ -117,15 +117,17 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 
 ## Gates
 
-- Before **push:** `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` (enforced via `.husky/pre-push`). **`test:e2e` is not a push/merge gate.**
 - Before **commit:** pre-commit runs lint-staged only (fast).
+- Before **push:** `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` (enforced via `.husky/pre-push`). **`test:e2e` is not a push/merge gate.**
+- **GitHub Actions** (`.github/workflows/test.yml`): `lint:all` + `test:coverage` (floors) + `test:component` + `test:integration` + `test:contract`. No Playwright, no `test:gaps`, no mutation.
 - Husky hooks source `.husky/load-node.sh` so GUI Git (Cursor, VS Code) can find nvm/Homebrew `node`/`npx`/`npm`.
-- **Coverage floors:** `npm run test:coverage` enforces `coverage.thresholds` in `@vitest.config.ts` (lines **77**, branches **65** — measured floors). **Not** in pre-push.
+- **Coverage floors:** `npm run test:coverage` enforces `coverage.thresholds` in `@vitest.config.ts` (lines **77**, branches **65** — measured floors). **CI merge gate; not in pre-push.**
+- Local E2E (`test:e2e` / `:visual` / `:llm`) is machine-local against the Docker stamp. Never a merge gate.
 - If a PR drops below floors, fix tests or adjust floors **deliberately** in the same PR (never silent lower).
 
 ## Coverage policy
 
-- Floors on `test:coverage` only; track trend above floors.
+- Floors on `test:coverage` (GitHub Actions merge gate; not pre-push); track trend above floors.
 - Prioritize `engine/` and `shared/` pure modules; expand to client components/hooks and mock-integration.
 - Baseline: `@docs/05-plans/testing-baseline.md`. Strategy: `@docs/05-plans/testing-strategy.md`.
 

@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Write and review Vitest tests across the Q3 pyramid (unit, component, mock-integration, contract) plus local Playwright E2E; coverage, layer gaps, test infrastructure. Use when adding tests, fixing test failures, or setting up vitest/pre-push gates.
+description: Write and review Vitest tests across the Q3 pyramid (unit, component, mock-integration, contract) plus local Playwright E2E; coverage, layer gaps, test infrastructure. Use when adding tests, fixing test failures, or setting up vitest/pre-push/GitHub Actions gates.
 model: fast
 ---
 
@@ -16,7 +16,7 @@ You own **Q3 test pyramid quality and test infrastructure** for Arcane Reader â€
 - Vitest migration, vitest configs, npm test scripts, **wrappers** (`scripts/test-*.mjs`, `resolve-vitest.mjs`)
 - Coverage baseline, **floors**, or interpreting `test:coverage` output
 - Layer gaps (`test:gaps` / `gen-layer-gaps.mjs`) for component + contract blind spots
-- Pre-push test failures, husky hook setup
+- Pre-push or GitHub Actions test failures, husky / `.github/workflows/test.yml`
 - Test infrastructure docs (`testing.mdc`, `SKILL.md`, strategy/baseline)
 - Cross-layer coverage campaigns (component focus, product shell, etc.)
 - Local Playwright E2E (`tests/e2e/**`, `playwright.config.ts`) against the Docker stamp
@@ -31,7 +31,7 @@ You own **Q3 test pyramid quality and test infrastructure** for Arcane Reader â€
 - `scripts/test-unit.mjs`, `scripts/test-component.mjs`, `scripts/test-integration.mjs`, `scripts/resolve-vitest.mjs`, `scripts/gen-layer-gaps.mjs`
 - `src/createApp.ts` (testability extract)
 - Test scripts in `package.json`
-- `.husky/pre-push` test gate
+- `.husky/pre-push` and `.github/workflows/test.yml` (mock pyramid; no Playwright)
 - Coverage floors in `vitest.config.ts` (`coverage.thresholds`)
 - `@docs/02-how-to/run-tests.md`, `@docs/05-plans/testing-baseline.md`, `@docs/05-plans/testing-strategy.md`
 
@@ -39,8 +39,8 @@ You own **Q3 test pyramid quality and test infrastructure** for Arcane Reader â€
 
 - Feature implementation without explicit test request â†’ domain agent first (they own layer tests with the feature)
 - Production code changes unless required to make code testable (extract pure helper / `createApp`)
-- **Q3 scope:** unit + component + mock-integration + contract Phase 1; mutation on APP_SCOPE; mock-first
-- **Q4 local unblocked:** Playwright vs Docker stamp (`stack:up` / `stack:restore` + `dev`). **CI live stack still blocked.** Never E2E against prod/staging.
+- **Q3 scope:** unit + component + mock-integration + contract Phase 1; mutation on APP_SCOPE; mock-first; **local** Playwright vs Docker stamp
+- **Q4 still blocked:** dedicated CI live stack (`tests/integration/supabase/`, Playwright as merge gate). Never E2E against prod/staging.
 - **Never in unit/component tests:** live Supabase, Redis, BullMQ worker, live LLM
 - Full mount of deferred UI monsters / `ProjectInfo` â€” extract + unit instead
 
@@ -87,5 +87,5 @@ Playwright `@playwright/test` **1.62.1** exact. Chromium only (`npm run playwrig
 - Infra changes: `npm run test` + `test:component` + `test:integration` (+ `test:contract`) green
 - Coverage floor changes are deliberate and documented in baseline
 - If runner/gates changed: `testing.mdc` + `SKILL.md` + strategy/baseline + `AGENTS.md` updated
-- E2E (`tests/e2e/**`, `playwright.config.ts`) is Testing utility; Q4 local stamp unblocked, CI still blocked
+- E2E (`tests/e2e/**`, `playwright.config.ts`) is Testing utility; Q3 local stamp unblocked; GitHub Actions runs the mock pyramid; CI Playwright-as-gate still blocked
 - Dirty E2E / `authorPlus.visual` count â‰  0 â†’ `npm run stack:restore`, not `stack:load`. Rebuild image only: `STACK_STAMP=0` + `load` + `stamp`. Do not `docker push` the stamp.

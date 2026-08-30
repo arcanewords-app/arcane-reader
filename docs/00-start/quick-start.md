@@ -43,4 +43,6 @@ npm run typecheck
 npm run dev:full    # API + client + worker (async jobs)
 ```
 
+Tests: [[02-how-to/run-tests]] (pre-push + GitHub Actions pyramid; local Playwright after `stack:up` + `dev`).
+
 Legacy deployment guides in `archive/` may be outdated — verify against `env.example.txt` and Vercel config in repo root.

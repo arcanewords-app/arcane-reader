@@ -2,7 +2,7 @@
 
 Unit tests use **Vitest 4.0.8** (exact pin). Policy: [[_canonical/rules/testing]]. Strategy (pyramid): [[05-plans/testing-strategy]].
 
-Tests never require prod/staging `.env` credentials. Q3 uses mocks at all external boundaries. Local E2E uses the Docker stamp (`stack:up` restores `arcane-reader-stamp:latest`; dirty reset = `stack:restore`) + `npm run dev` — not a CI gate. First bake only: `stack:load` then `stack:stamp`. CI live integration is still blocked. See [[05-plans/testing-baseline]].
+Tests never require prod/staging `.env` credentials. Pre-push and GitHub Actions use mocks at all external boundaries. Local E2E uses the Docker stamp (`stack:up` restores `arcane-reader-stamp:latest`; dirty reset = `stack:restore`) + `npm run dev` — not a merge gate. First bake only: `stack:load` then `stack:stamp`. Dedicated CI live stack (Playwright-as-gate, `tests/integration/supabase/`) is still blocked. See [[05-plans/testing-baseline]].
 
 ## Commands
 
@@ -48,17 +48,17 @@ Advisory only (exit 0). See [[05-plans/testing-strategy]].
 
 ## Thresholds
 
-| Mechanism              | Policy                                                                                                                                   |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **77**, branches **65**. Enforced by `npm run test:coverage` only — **not** pre-push. |
-| Layer gaps             | `npm run test:gaps` — advisory report; not a merge gate                                                                                  |
-| Stryker                | `high: 80`, `low: 60`, `break: null` — advisory bands; never fails the build                                                             |
+| Mechanism              | Policy                                                                                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **77**, branches **65**. GitHub Actions merge gate (`npm run test:coverage`); **not** in pre-push. |
+| Layer gaps             | `npm run test:gaps` — advisory report; not a merge gate                                                                                               |
+| Stryker                | `high: 80`, `low: 60`, `break: null` — advisory bands; never fails the build                                                                          |
 
 If coverage drops below floors, fix tests or lower floors **deliberately** in the same PR.
 
-## Before push
+## Gates (pre-push vs CI vs local E2E)
 
-Pre-push hook runs:
+**Pre-push** (`.husky/pre-push`) — no coverage floors, no Playwright:
 
 ```bash
 npm run lint:all
@@ -70,15 +70,27 @@ npm run test:contract
 
 Emergency bypass: `HUSKY=0 git push` (document why).
 
+**GitHub Actions** (`.github/workflows/test.yml`) — same pyramid plus unit coverage floors:
+
+```bash
+npm run lint:all
+npm run test:coverage
+npm run test:component
+npm run test:integration
+npm run test:contract
+```
+
+**Local E2E** — Docker stamp + `npm run dev`; never a merge gate: `test:e2e` / `test:e2e:visual` / `test:e2e:llm`.
+
 ## Where tests live
 
-| Kind             | Location                                                |
-| ---------------- | ------------------------------------------------------- |
-| Unit             | Co-located `*.test.ts` next to source                   |
-| Component        | Co-located `*.test.tsx` / `*.hook.test.ts`              |
-| Mock-integration | `tests/integration/**`                                  |
-| Contract         | `tests/contracts/**`                                    |
-| E2E              | `tests/e2e/specs/*.spec.ts` (local stamp; not pre-push) |
+| Kind             | Location                                                                 |
+| ---------------- | ------------------------------------------------------------------------ |
+| Unit             | Co-located `*.test.ts` next to source                                    |
+| Component        | Co-located `*.test.tsx` / `*.hook.test.ts`                               |
+| Mock-integration | `tests/integration/**`                                                   |
+| Contract         | `tests/contracts/**`                                                     |
+| E2E              | `tests/e2e/specs/*.spec.ts` (local stamp; not pre-push / GitHub Actions) |
 
 ## Windows / Vitest notes
 
