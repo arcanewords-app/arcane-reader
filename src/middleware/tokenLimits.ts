@@ -126,9 +126,9 @@ export async function checkTokenLimit(
 
   let message: string | undefined;
   if (!unlimited && !allowed) {
-    message = `Дневной лимит токенов исчерпан. Использовано: ${usage.tokensUsed.toLocaleString()} / ${tokensLimit.toLocaleString()}. Лимит сбросится завтра в 00:00 UTC.`;
+    message = `Дневной лимит кредитов исчерпан. Осталось: ${remaining.toLocaleString()}. Кредиты обновятся завтра в 00:00 UTC.`;
   } else if (!unlimited && warning) {
-    message = `Приближение к лимиту токенов. Использовано: ${usage.tokensUsed.toLocaleString()} / ${tokensLimit.toLocaleString()}. После перевода останется: ${(remaining - estimatedTokens).toLocaleString()} токенов.`;
+    message = `Приближение к лимиту кредитов. Осталось: ${remaining.toLocaleString()}. После перевода останется: ${Math.max(0, remaining - estimatedTokens).toLocaleString()} кредитов.`;
   }
 
   return {

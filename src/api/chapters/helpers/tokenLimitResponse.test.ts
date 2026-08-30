@@ -31,6 +31,6 @@ describe('tokenLimitResponse', () => {
 
   it('uses default Russian message when limit check has no message', () => {
     const body = buildTokenLimit429Response({ allowed: false }, 100);
-    expect(body.message).toContain('лимит');
+    expect(body.message).toContain('кредит');
   });
 });

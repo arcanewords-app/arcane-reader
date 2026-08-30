@@ -54,7 +54,7 @@ describe('TokenLimitWarning', () => {
         isOpen
         onClose={vi.fn()}
         onConfirm={vi.fn()}
-        usage={makeUsage({ tokensUsed: 9000, tokensLimit: 10000 })}
+        usage={makeUsage({ tokensUsed: 9000, tokensLimit: 10000, tokensRemaining: 1000 })}
         estimatedTokens={2000}
       />
     );
@@ -71,7 +71,7 @@ describe('TokenLimitWarning', () => {
         isOpen
         onClose={onClose}
         onConfirm={onConfirm}
-        usage={makeUsage({ tokensUsed: 8000, tokensLimit: 10000 })}
+        usage={makeUsage({ tokensUsed: 8000, tokensLimit: 10000, tokensRemaining: 2000 })}
         estimatedTokens={1000}
       />
     );

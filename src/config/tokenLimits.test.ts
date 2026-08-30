@@ -17,6 +17,8 @@ describe('tokenLimits', () => {
   it('getTokenLimitForRole and isUnlimitedTokenLimit cover role matrix', () => {
     assert.equal(getTokenLimitForRole('guest'), 0);
     assert.equal(getTokenLimitForRole('author'), TOKEN_LIMITS.DAILY_LIMIT);
+    assert.equal(getTokenLimitForRole('author_plus'), 150_000);
+    assert.equal(getTokenLimitForRole('super_author'), 300_000);
     assert.equal(getTokenLimitForRole('admin'), TOKEN_LIMITS.UNLIMITED_LIMIT);
     assert.equal(isUnlimitedTokenLimit(TOKEN_LIMITS.UNLIMITED_LIMIT), true);
     assert.equal(isUnlimitedTokenLimit(-5), true);

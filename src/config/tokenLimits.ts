@@ -29,8 +29,8 @@ export const TOKEN_LIMITS = {
     guest: 0,
     user: 0,
     author: 50000,
-    author_plus: 100000,
-    super_author: 200000,
+    author_plus: 150000,
+    super_author: 300000,
     admin: -1, // unlimited
   } as const satisfies Record<UserRole, number>,
 

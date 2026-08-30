@@ -32,6 +32,7 @@ import {
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
 import { requireToken } from '../../../utils/requestHelpers.js';
 import { checkTokenLimit, incrementTokenUsage } from '../../../middleware/tokenLimits.js';
+import { DEFAULT_DAILY_CREDIT_LIMIT_MESSAGE } from '../../chapters/helpers/tokenLimitResponse.js';
 import { isProjectLimitError } from '../../../config/projectLimits.js';
 import { clearAgentCache } from '../../../services/engine-integration.js';
 import { clampStageModelsForRole, clampStageModelForRole } from '../../../shared/modelAccess.js';
@@ -354,7 +355,7 @@ export async function handleSearchProject(req: Request, res: Response): Promise<
     }
     const projectId = requireRouteParam(req.params.id, 'id');
     const queryResult = projectSearchQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!queryResult.success) {
       res.status(400).json({
@@ -456,7 +457,7 @@ export async function handleProjectAiReplace(req: Request, res: Response): Promi
       res.status(429).json({
         error: 'Token limit exceeded',
         code: 'AI_REPLACE_TOKEN_LIMIT',
-        message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+        message: limitCheck.message || DEFAULT_DAILY_CREDIT_LIMIT_MESSAGE,
         currentUsage: limitCheck.currentUsage,
         limit: limitCheck.limit,
         estimatedTokens,

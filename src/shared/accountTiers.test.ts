@@ -18,7 +18,8 @@ describe('accountTiers', () => {
 
   it('getDailyTokenLimitForTier returns role limits', () => {
     assert.equal(typeof getDailyTokenLimitForTier('user'), 'number');
-    assert.equal(getDailyTokenLimitForTier('super_author'), 200_000);
+    assert.equal(getDailyTokenLimitForTier('author_plus'), 150_000);
+    assert.equal(getDailyTokenLimitForTier('super_author'), 300_000);
   });
 
   it('getMaxProjectsForTier and formatProjectLimitForTier', () => {

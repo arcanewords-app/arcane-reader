@@ -36,6 +36,8 @@ describe('RoleComparisonTable', () => {
     expect(document.querySelectorAll('.role-comparison-table tbody tr')).toHaveLength(
       TIER_FEATURE_ROWS.length
     );
+    expect(screen.getAllByText('150,000').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('300,000').length).toBeGreaterThan(0);
   });
 
   it('highlights current tier column and renders mobile cards', () => {

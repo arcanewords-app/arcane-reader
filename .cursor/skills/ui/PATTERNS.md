@@ -35,6 +35,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 | `entity-chip-hover-preview`  | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css` |
 | `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                                |
 | `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                    |
+| `header-credits-tooltip`     | Compact remaining credits + hover popup           | `TokenUsageIndicator.tsx`                   |
 | `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`                |
 | `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                       |
 | `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`           |
@@ -205,6 +206,26 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **Analytics:** `support_click` GA event with `{ platform: 'boosty' }` when cookies accepted.
 
 **Do not:** Bury support only in Info menu; add multi-platform dropdown without explicit product decision.
+
+---
+
+## `header-credits-tooltip`
+
+**When:** Header shows daily remaining credits next to the profile. Visible number only; daily cap and reset live in a hover/focus popup.
+
+**When not:** Native `title` on a non-button (browsers delay or skip it). Do not stretch the chip with `min-width: 200px`.
+
+**Files:**
+
+- [`TokenUsageIndicator.tsx`](../../../src/client/components/TokenUsage/TokenUsageIndicator.tsx)
+- [`TokenUsageIndicator.css`](../../../src/client/components/TokenUsage/TokenUsageIndicator.css)
+- Shared popup: [`card-content-popup.css`](../../../src/client/styles/components/card-content-popup.css)
+
+**Layout / behavior:** Chip hugs the remaining count (`width: max-content`, `flex: 0 0 auto`). Popup below, align-end (right cluster). Hidden on mobile (≤767px).
+
+**a11y:** Not a control — no click target. Sighted users get the hover popup; screen readers get the full hint in a visually hidden span.
+
+**Anti-patterns:** Putting used/limit in the chip; relying on `title=` for the cap.
 
 ---
 

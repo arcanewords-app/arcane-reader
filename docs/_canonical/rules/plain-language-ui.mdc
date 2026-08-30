@@ -24,7 +24,7 @@ Hints MUST answer: *«Зачем мне это менять?»* — quality, spe
 Do **not** use in user-facing settings, toggles, option subtitles, or workflow hints:
 
 - chunk / чанк, one-shot, CoT, reasoning, tier, prompt / промпт, JSON, schema
-- tok, token counts (except quota/stat screens: `tokenUsage`, `tokenLimit`, `projectInfo.approxTokens`)
+- tok, token counts (quota/stat screens use **credits**: `tokenUsage`, `tokenLimit`, `projectInfo.approxTokens`)
 - Legacy (use «сохранённая модель» / saved model)
 - English jargon in ru/be UI (except model product names: GPT, o4-mini)
 
@@ -74,7 +74,7 @@ No one-shot / chunked / reasoning in user-facing model lines.
 - [ ] Every new hint passes the «зачем мне это?» test
 - [ ] No token/chunk numbers in `settings.*` hints
 - [ ] ru/be hints free of English jargon (except model names)
-- [ ] «Токен» only on quota/stat screens
+- [ ] «Кредит» on quota/stat screens (`tokenUsage`, `tokenLimit`, estimates); internal `tokens*` in code is OK. Do not say «токен» in prod quota UI.
 
 ## References
 

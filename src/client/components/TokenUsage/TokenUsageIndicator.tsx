@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { authService } from '../../services/authService';
 import { useTokenUsageContext } from '../../contexts/TokenUsageContext';
+import { getCreditDisplay } from '../../utils/creditDisplay';
 import { Icon } from '../ui';
+import '../../styles/components/card-content-popup.css';
 import './TokenUsageIndicator.css';
 
 interface TokenUsageIndicatorProps {
@@ -33,49 +35,33 @@ export function TokenUsageIndicator({
     return null;
   }
 
-  const unlimited = usage.tokensLimit < 0;
-  const percentage = usage.percentageUsed;
-  const getColorClass = () => {
-    if (percentage >= 95) return 'critical';
-    if (percentage >= 80) return 'warning';
-    if (percentage >= 50) return 'caution';
-    return 'normal';
-  };
-
-  const colorClass = getColorClass();
-  const progressWidth = unlimited ? 0 : Math.min(percentage, 100);
+  const credits = getCreditDisplay(usage);
+  const progressWidth = credits.unlimited
+    ? 0
+    : Math.min(Math.max(credits.remainingPercent, 0), 100);
+  const hint = credits.unlimited
+    ? t('tokenUsage.unlimitedTitle')
+    : t('tokenUsage.remainingCreditsTitle', {
+        remaining: credits.remaining.toLocaleString(),
+        limit: credits.limit.toLocaleString(),
+      });
 
   return (
     <div
-      class={`token-usage-indicator ${className} ${unlimited ? 'token-usage-unlimited' : ''}`}
-      title={
-        unlimited
-          ? t('tokenUsage.unlimitedTitle', { used: usage.tokensUsed.toLocaleString() })
-          : t('tokenUsage.usedTokensTitle', {
-              used: usage.tokensUsed.toLocaleString(),
-              limit: usage.tokensLimit.toLocaleString(),
-            })
-      }
+      class={`token-usage-indicator ${className} ${credits.unlimited ? 'token-usage-unlimited' : ''}`}
     >
-      <div class="token-usage-content">
+      <span class="token-usage-sr-only">{hint}</span>
+      <div class="token-usage-content" aria-hidden="true">
         <div class="token-usage-label">
           <span class="token-usage-icon">
             <Icon name="toll" size="sm" />
           </span>
           <span class="token-usage-text">
-            {unlimited ? (
-              <>
-                {usage.tokensUsed.toLocaleString()} · {t('tokenUsage.unlimited')}
-              </>
-            ) : (
-              <>
-                {usage.tokensUsed.toLocaleString()} / {usage.tokensLimit.toLocaleString()}
-              </>
-            )}
+            {credits.unlimited ? t('tokenUsage.unlimited') : credits.remaining.toLocaleString()}
           </span>
         </div>
-        {!unlimited && (
-          <div class={`token-usage-progress ${colorClass}`}>
+        {!credits.unlimited && (
+          <div class={`token-usage-progress ${credits.colorClass}`}>
             <div class="token-usage-progress-bar" style={{ width: `${progressWidth}%` }} />
           </div>
         )}
@@ -97,11 +83,18 @@ export function TokenUsageIndicator({
           )}
         </div>
       )}
-      {!unlimited && usage.warning && (
+      {showDetails && !credits.unlimited && usage.warning && (
         <div class="token-usage-warning-badge">
           <Icon name="warning" size="sm" /> {t('tokenUsage.approachingLimit')}
         </div>
       )}
+      <div
+        class="token-usage-tooltip card-content-popup card-content-popup--below card-content-popup--align-end"
+        role="tooltip"
+        aria-hidden="true"
+      >
+        {hint}
+      </div>
     </div>
   );
 }

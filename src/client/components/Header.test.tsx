@@ -43,6 +43,7 @@ describe('Header', () => {
     cleanup();
     vi.clearAllMocks();
     mocks.isAtLeast.mockImplementation((role: string) => role === 'author' || role === 'admin');
+    window.history.replaceState({}, '', '/');
   });
 
   it('shows login and register buttons for guests', () => {
@@ -82,5 +83,24 @@ describe('Header', () => {
 
     fireEvent.click(screen.getByText('header.login'));
     expect(onOpenLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('places compact chrome before credits and credits before profile on /projects', () => {
+    window.history.replaceState({}, '', '/projects');
+    render(
+      <Header user={{ id: 'u1', email: 'author@example.com', role: 'author' }} onLogout={vi.fn()} />
+    );
+
+    const support = screen.getByTestId('support-menu');
+    const info = screen.getByLabelText('info.menu');
+    const locale = screen.getByLabelText('settings.appLanguageRu');
+    const credits = screen.getByTestId('token-usage');
+    const profile = screen.getByLabelText('profile.openProfile');
+
+    const following = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(support.compareDocumentPosition(info) & following).toBeTruthy();
+    expect(info.compareDocumentPosition(locale) & following).toBeTruthy();
+    expect(locale.compareDocumentPosition(credits) & following).toBeTruthy();
+    expect(credits.compareDocumentPosition(profile) & following).toBeTruthy();
   });
 });

@@ -169,10 +169,8 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
 
         {/* Right section - Системная информация и управление */}
         <div class="header-actions">
-          {/* Group 1: Tools - TokenUsage, More, Locale */}
+          {/* Group 1: compact chrome, then credits next to profile */}
           <div class="header-toolbar">
-            {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
-
             <SupportMenu />
 
             {/* Info menu (About, Contact, Privacy, Terms) - grouped by category */}
@@ -305,6 +303,8 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                 </div>
               )}
             </div>
+
+            {user && isTokenUsageRelevant(currentPath) && <TokenUsageIndicator />}
 
             {/* Auth Buttons (guests only) */}
             {!user && (onOpenLogin || onOpenRegister) && (

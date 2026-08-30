@@ -167,7 +167,7 @@ describe('checkTokenLimit', () => {
 
     assert.equal(check.allowed, false);
     assert.equal(check.currentUsage, 45000);
-    assert.match(check.message ?? '', /Дневной лимит токенов исчерпан/);
+    assert.match(check.message ?? '', /Дневной лимит кредитов исчерпан/);
   });
 
   it('sets warning when usage is above threshold', async () => {
@@ -187,7 +187,7 @@ describe('checkTokenLimit', () => {
 
     assert.equal(check.allowed, true);
     assert.equal(check.warning, true);
-    assert.match(check.message ?? '', /Приближение к лимиту токенов/);
+    assert.match(check.message ?? '', /Приближение к лимиту кредитов/);
   });
 
   it('always allows admin regardless of usage', async () => {

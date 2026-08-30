@@ -5,7 +5,8 @@ import type { TokenUsage } from '../../types';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { remaining?: string; limit?: string }) =>
+      opts?.limit ? `${key}:${opts.remaining}:${opts.limit}` : key,
   }),
 }));
 
@@ -71,15 +72,27 @@ describe('TokenUsageIndicator', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('shows used/limit and progress for limited quota', () => {
+  it('shows remaining credits; daily cap is only in the hover tooltip', () => {
     mockContext = {
-      usage: makeUsage({ percentageUsed: 85, warning: true }),
+      usage: makeUsage({
+        tokensUsed: 8500,
+        tokensRemaining: 1500,
+        tokensLimit: 10000,
+        percentageUsed: 85,
+        warning: true,
+      }),
       loading: false,
       error: null,
     };
     render(<TokenUsageIndicator showDetails />);
-    expect(screen.getByText(/5,000/)).toBeTruthy();
-    expect(screen.getByText(/10,000/)).toBeTruthy();
+    expect(screen.getByText('1,500')).toBeTruthy();
+    expect(document.querySelector('.token-usage-text')?.textContent).toBe('1,500');
+    const hint = 'tokenUsage.remainingCreditsTitle:1,500:10,000';
+    const indicator = document.querySelector('.token-usage-indicator');
+    expect(indicator?.tagName).toBe('DIV');
+    expect(indicator?.getAttribute('title')).toBeNull();
+    expect(document.querySelector('.token-usage-sr-only')?.textContent).toBe(hint);
+    expect(screen.getByRole('tooltip', { hidden: true }).textContent).toBe(hint);
     expect(document.querySelector('.token-usage-progress.warning')).toBeTruthy();
     expect(screen.getByText('tokenUsage.approachingLimit')).toBeTruthy();
   });
@@ -91,7 +104,10 @@ describe('TokenUsageIndicator', () => {
       error: null,
     };
     render(<TokenUsageIndicator />);
-    expect(screen.getByText(/tokenUsage\.unlimited/)).toBeTruthy();
+    expect(document.querySelector('.token-usage-text')?.textContent).toBe('tokenUsage.unlimited');
+    expect(screen.getByRole('tooltip', { hidden: true }).textContent).toBe(
+      'tokenUsage.unlimitedTitle'
+    );
     expect(document.querySelector('.token-usage-progress')).toBeNull();
   });
 

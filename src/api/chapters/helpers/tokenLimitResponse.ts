@@ -14,6 +14,11 @@ export function midnightUtcResetAt(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
 }
 
+export const TOKEN_LIMIT_EXCEEDED_ERROR = 'Token limit exceeded';
+
+export const DEFAULT_DAILY_CREDIT_LIMIT_MESSAGE =
+  'Дневной лимит кредитов исчерпан. Попробуйте завтра.';
+
 export function buildTokenLimit429Response(
   limitCheck: TokenLimitCheckLike,
   estimatedTokens: number,
@@ -27,8 +32,8 @@ export function buildTokenLimit429Response(
   resetAt: string;
 } {
   return {
-    error: 'Token limit exceeded',
-    message: limitCheck.message || 'Дневной лимит токенов исчерпан. Попробуйте завтра.',
+    error: TOKEN_LIMIT_EXCEEDED_ERROR,
+    message: limitCheck.message || DEFAULT_DAILY_CREDIT_LIMIT_MESSAGE,
     currentUsage: limitCheck.currentUsage,
     limit: limitCheck.limit,
     estimatedTokens,
