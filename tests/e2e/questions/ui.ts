@@ -1,5 +1,6 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { Question } from '../actors/types.js';
+import { LAYOUT_VIEWPORTS } from '../viewports.js';
 import {
   publicationsHeading,
   seedAuthorEmail,
@@ -27,9 +28,65 @@ import {
   lockedPremiumModel,
   newProjectButton,
   projectCard,
+  projectCardDate,
   projectsHeading,
   tokenUsage,
+  tokenUsageLoading,
 } from '../targets/workspace.js';
+
+async function waitForDocumentImages(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    for (const img of document.images) {
+      img.loading = 'eager';
+    }
+    await Promise.all(
+      [...document.images].map(async (img) => {
+        try {
+          await img.decode();
+        } catch {
+          // Broken or empty src — placeholder is the stable paint.
+        }
+      })
+    );
+  });
+}
+
+async function settleTokenUsage(page: Page): Promise<void> {
+  const indicator = tokenUsage(page);
+  if ((await indicator.count()) === 0) return;
+  if (!(await indicator.first().isVisible())) return;
+  await expect(tokenUsageLoading(page)).toHaveCount(0);
+}
+
+export function layoutMatches(name: string): Question {
+  return async (actor) => {
+    const page = actor.page;
+    const previous = page.viewportSize();
+    try {
+      for (const { id, width, height } of LAYOUT_VIEWPORTS) {
+        await page.setViewportSize({ width, height });
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+            )
+        );
+        await waitForDocumentImages(page);
+        await waitForDocumentImages(page);
+        await settleTokenUsage(page);
+        await expect(page).toHaveScreenshot(`${name}-${id}.png`, {
+          fullPage: true,
+          mask: [tokenUsage(page), projectCardDate(page)],
+        });
+      }
+    } finally {
+      if (previous) {
+        await page.setViewportSize(previous);
+      }
+    }
+  };
+}
 
 export const catalogHasPublications: Question = async (actor) => {
   await expect(publicationCard(actor.page).first()).toBeVisible({ timeout: 20_000 });
@@ -71,6 +128,7 @@ export const seesProjectsGrid: Question = async (actor) => {
 export const seesEmptyAuthorWorkspace: Question = async (actor) => {
   await expect(projectsHeading(actor.page)).toBeVisible();
   await expect(newProjectButton(actor.page)).toBeVisible();
+  await expect(projectCard(actor.page)).toHaveCount(0);
 };
 
 export const seesProfile: Question = async (actor) => {

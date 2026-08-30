@@ -235,6 +235,7 @@ Persona/Actor Playwright against `stack:up` + `stack:load` + `npm run dev`. Not 
 - [x] `tests/e2e/` Persona/Actor (`guest`, `reader`, `author`, `authorPlus`, `admin`)
 - [x] globalSetup: health, seed logins/roles, catalog nonempty, Author owns dump, Reader owns none
 - [x] Specs: guest catalog, reader login/progress, access matrix, author workspace, AuthorPlus gated UI, admin console, `@llm` tiny translate
+- [x] Pixel shells: separate `*.visual.spec.ts` (`@visual`); `layoutMatches` × phone/tablet/desktop `fullPage`; fixture seeds dismissed alerts
 
 #### Still blocked (CI)
 

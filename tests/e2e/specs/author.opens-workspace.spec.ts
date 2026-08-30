@@ -8,11 +8,11 @@ import {
   openProjectSettings,
 } from '../tasks/workspace.js';
 import {
+  seesBasicModelLock,
   seesGlossary,
   seesProjectsGrid,
   seesReadingMode,
   seesTokenCredits,
-  seesBasicModelLock,
 } from '../questions/ui.js';
 
 test.describe('Author', () => {

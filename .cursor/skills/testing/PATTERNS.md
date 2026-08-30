@@ -327,9 +327,12 @@ export const publicationCard = (page: Page) => page.getByTestId('publication-car
 
 Anti-pattern: `page.locator('.project-card')` in a spec or task.
 
+Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await actor.see(layoutMatches('guest-catalog'))`. Three CSS viewports from `tests/e2e/viewports.ts`; `fullPage` so the stamp catalog/projects are in the PNG. The fixture seeds `arcane:dismissed-alerts:v1` (same pattern as cookie consent) so a stamp banner cannot shift the layout. Do **not** click-dismiss the banner, mask dump cards “just in case”, call `page.toHaveScreenshot` in a spec, or add extra Playwright `projects` for viewports.
+
 - Fixtures: `guest` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
 - Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions; targets = locators
 - Discover publications/projects at runtime — do not hardcode dump UUIDs
 - Isolation = reload stamp. Additive mutations only (Reader progress, AuthorPlus one project, `@llm` tiny chapter)
-- `npm run test:e2e` inverts `@llm`. Live OpenAI: `npm run test:e2e:llm` + `OPENAI_API_KEY`
+- `npm run test:e2e` inverts `@llm` and `@visual`. Pixel shells: `npm run test:e2e:visual`. Live OpenAI: `npm run test:e2e:llm` + `OPENAI_API_KEY`
+- Visual refresh: `npm run test:e2e:update-snapshots` after layout, dump, or breakpoint change
 - See `tests/e2e/README.md` and `@docs/05-plans/testing-strategy.md`

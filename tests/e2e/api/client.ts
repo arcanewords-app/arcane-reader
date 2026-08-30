@@ -85,6 +85,17 @@ export class ApiClient {
     return body.user;
   }
 
+  async listAdminAnnouncements(): Promise<Array<{ id: string; contentVersion: number }>> {
+    const list = await this.json<unknown>('/api/admin/announcements');
+    if (!Array.isArray(list)) return [];
+    return list.flatMap((row) => {
+      if (!row || typeof row !== 'object') return [];
+      const { id, contentVersion } = row as { id?: unknown; contentVersion?: unknown };
+      if (typeof id !== 'string' || typeof contentVersion !== 'number') return [];
+      return [{ id, contentVersion }];
+    });
+  }
+
   async listPublications(limit = 1): Promise<Array<{ id: string; title?: string; slug?: string }>> {
     const list = await this.json<unknown>(`/api/publications?limit=${limit}`);
     return Array.isArray(list)

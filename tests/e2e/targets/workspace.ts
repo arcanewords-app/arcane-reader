@@ -42,6 +42,11 @@ export const fixWithAi = (page: Page) => page.getByRole('button', { name: 'Fix w
 
 export const tokenUsage = (page: Page) => page.getByTestId('token-usage');
 
+export const tokenUsageLoading = (page: Page) => tokenUsage(page).locator('.token-usage-loading');
+
+/** Relative "N days ago" on project cards — clock, not stamp. CSS only in targets. */
+export const projectCardDate = (page: Page) => page.locator('.project-card-date');
+
 export const translationModel = (page: Page) => page.getByTestId('settings-model-translation');
 
 export const lockedPremiumModel = (page: Page) =>

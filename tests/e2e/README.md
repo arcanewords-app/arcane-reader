@@ -9,7 +9,8 @@ npm run stack:up
 npm run stack:load          # seed personas + dump; remaps owners to author@local.test
 npm run dev                 # UI :5173, API :3000
 npx playwright install chromium   # once per machine
-npm run test:e2e            # smoke (no live OpenAI)
+npm run test:e2e            # logic smoke (no @llm, no @visual)
+npm run test:e2e:visual     # pixel shells
 npm run test:e2e:llm        # smoke + tiny live translate (needs OPENAI_API_KEY in .env.local)
 ```
 
@@ -34,9 +35,10 @@ Do not hardcode publication UUIDs from the dump. User UUIDs in `actors/personas.
 - `actors/` — personas + Actor (`attemptsTo` / `see`)
 - `targets/` — named locators (only place for `getByRole` / `getByTestId`)
 - `tasks/` — user verbs
-- `questions/` — assertions
+- `questions/` — assertions (`layoutMatches` only in `*.visual.spec.ts`)
+- `viewports.ts` — phone / tablet / desktop CSS sizes (product breakpoints)
 - `fixtures/test.ts` — `test.extend({ guest, reader, author, authorPlus, admin })`
-- `specs/` — `persona.does-thing.spec.ts`
+- `specs/` — `persona.does-thing.spec.ts` (logic) and `persona.visual.spec.ts` (`@visual`)
 
 Gherkin later can wrap the same tasks. Cucumber is not installed.
 
@@ -63,7 +65,27 @@ New production `data-testid` needs a row here **and** a helper in `targets/`.
 
 ## Isolation
 
-Reload the stamp (`stack:load`) before a clean run. Tests may add a tiny chapter or Reader progress; they must not delete or unpublish dump rows.
+Reload the stamp (`stack:load`) before a clean run. Tests may add a tiny chapter or Reader progress; they must not delete or unpublish dump rows. `authorPlus.visual.spec.ts` / `seesEmptyAuthorWorkspace` fail if AuthorPlus already created a project.
+
+## Visual shells
+
+Separate `*.visual.spec.ts` tagged `@visual` — not mixed into logic specs. The fixture seeds `arcane:dismissed-alerts:v1` (all stamp alert ids from `GET /api/admin/announcements`) so a banner cannot shift the layout.
+
+`fullPage` `toHaveScreenshot` via `layoutMatches(name)`. Stamp catalog/projects are **in** the PNG. Mask only `token-usage` and `.project-card-date`. One Chromium project; the question resizes to phone (390×844), tablet (768×1024), desktop (1280×720) and restores the original viewport.
+
+```bash
+npm run test:e2e:visual
+npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or breakpoint tweak
+```
+
+| Prefix                                                    | Spec                                             |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| `guest-catalog` / `guest-sign-in` / `guest-account-tiers` | `guest.visual.spec.ts`                           |
+| `reader-upgrade`                                          | `reader.visual.spec.ts`                          |
+| `author-projects`                                         | `author.visual.spec.ts`                          |
+| `authorplus-empty`                                        | `authorPlus.visual.spec.ts` (needs `stack:load`) |
+
+Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec (18). Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport.
 
 ## Policy
 

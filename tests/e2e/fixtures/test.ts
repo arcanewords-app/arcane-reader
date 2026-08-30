@@ -12,9 +12,29 @@ function consentRecord() {
   };
 }
 
+type DismissedAlertsStore = {
+  schemaVersion: 1;
+  items: Record<string, number>;
+};
+
+let dismissedAlertsSeed: DismissedAlertsStore | null = null;
+
+async function loadDismissedAlertsSeed(): Promise<DismissedAlertsStore> {
+  if (dismissedAlertsSeed) return dismissedAlertsSeed;
+  const { api } = await loginPersona(PERSONAS.admin);
+  const alerts = await api.listAdminAnnouncements();
+  const items: Record<string, number> = {};
+  for (const alert of alerts) {
+    items[alert.id] = alert.contentVersion;
+  }
+  dismissedAlertsSeed = { schemaVersion: 1, items };
+  return dismissedAlertsSeed;
+}
+
 type SessionPayload = {
   locale: string;
   consent: ReturnType<typeof consentRecord>;
+  dismissedAlerts: DismissedAlertsStore;
   session?: {
     access_token: string;
     refresh_token: string;
@@ -27,6 +47,7 @@ async function applyBootstrap(page: Page, payload: SessionPayload): Promise<void
   await page.addInitScript((data: SessionPayload) => {
     localStorage.setItem('app.locale', data.locale);
     localStorage.setItem('arcane:cookie-consent', JSON.stringify(data.consent));
+    localStorage.setItem('arcane:dismissed-alerts:v1', JSON.stringify(data.dismissedAlerts));
     if (data.session) {
       localStorage.setItem('arcane_auth_token', data.session.access_token);
       localStorage.setItem('arcane_auth_refresh', data.session.refresh_token);
@@ -39,7 +60,11 @@ async function applyBootstrap(page: Page, payload: SessionPayload): Promise<void
 }
 
 async function guestActor(page: Page): Promise<Actor> {
-  await applyBootstrap(page, { locale: 'en', consent: consentRecord() });
+  await applyBootstrap(page, {
+    locale: 'en',
+    consent: consentRecord(),
+    dismissedAlerts: await loadDismissedAlertsSeed(),
+  });
   return createActor(page, publicApi, null, null);
 }
 
@@ -51,12 +76,14 @@ async function authedActor(
   const context = await browser.newContext({
     ...devices['Desktop Chrome'],
     locale: 'en-US',
+    colorScheme: 'light',
     baseURL: UI_ORIGIN,
   });
   const page = await context.newPage();
   await applyBootstrap(page, {
     locale: 'en',
     consent: consentRecord(),
+    dismissedAlerts: await loadDismissedAlertsSeed(),
     session: {
       access_token: session.access_token,
       refresh_token: session.refresh_token,

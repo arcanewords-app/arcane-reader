@@ -61,7 +61,8 @@ npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures
 npm run test:coverage     # coverage with floors (lines 77 / branches 65); not in pre-push
 npm run test:gaps         # component + contract blind spots (advisory); not in pre-push
-npm run test:e2e          # Playwright vs local stamp (not pre-push; needs stack:load + dev)
+npm run test:e2e          # Playwright logic smoke (not pre-push; needs stack:load + dev)
+npm run test:e2e:visual   # pixel shells `@visual`
 npm run test:e2e:llm      # smoke + live OpenAI `@llm`
 ```
 

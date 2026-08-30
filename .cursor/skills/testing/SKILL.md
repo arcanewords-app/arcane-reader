@@ -38,29 +38,31 @@ Do **not** default to unit. Pick layer(s) from the change:
 
 ## Commands
 
-| Task               | Command                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| Run fast tests     | `npm run test` (via `scripts/test-unit.mjs`)                                  |
-| Run slow tests     | `npm run test:slow`                                                           |
-| Component suite    | `npm run test:component` (`scripts/test-component.mjs`)                       |
-| Component coverage | `npm run test:component:coverage` → `coverage-component/` (CLIENT_SCOPE)      |
-| Mock-integration   | `npm run test:integration` (`scripts/test-integration.mjs`)                   |
-| Contract suite     | `npm run test:contract`                                                       |
-| Contract coverage  | `npm run test:contract:coverage` → `coverage-contract/` (advisory)            |
-| Layer gaps         | `npm run test:gaps` (component presence+v8 + contract schema inventory)       |
-| E2E (local stamp)  | `npm run test:e2e` (needs `stack:load` + `dev`; Chromium; no `@llm`)          |
-| E2E + live LLM     | `npm run test:e2e:llm` (needs `OPENAI_API_KEY`; tagged `@llm`)                |
-| Install Chromium   | `npm run playwright:install`                                                  |
-| Run full suite     | `npm run test:all`                                                            |
-| Watch mode         | `npm run test:watch`                                                          |
-| Coverage report    | `npm run test:coverage` (floors: lines 77 / branches 65)                      |
-| Mutation (smoke)   | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`             |
-| Mutation (full)    | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                    |
-| Mutation (zone)    | `npx stryker run --mutate "src/shared/**/*.ts"`                               |
-| Inventory          | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                 |
-| Focused run        | `npm run test -- src/engine/glossary`                                         |
-| Single file        | `npm run test -- src/shared/paragraphSync.test.ts`                            |
-| Pre-push gate      | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract` |
+| Task               | Command                                                                          |
+| ------------------ | -------------------------------------------------------------------------------- |
+| Run fast tests     | `npm run test` (via `scripts/test-unit.mjs`)                                     |
+| Run slow tests     | `npm run test:slow`                                                              |
+| Component suite    | `npm run test:component` (`scripts/test-component.mjs`)                          |
+| Component coverage | `npm run test:component:coverage` → `coverage-component/` (CLIENT_SCOPE)         |
+| Mock-integration   | `npm run test:integration` (`scripts/test-integration.mjs`)                      |
+| Contract suite     | `npm run test:contract`                                                          |
+| Contract coverage  | `npm run test:contract:coverage` → `coverage-contract/` (advisory)               |
+| Layer gaps         | `npm run test:gaps` (component presence+v8 + contract schema inventory)          |
+| E2E (local stamp)  | `npm run test:e2e` (needs `stack:load` + `dev`; Chromium; no `@llm` / `@visual`) |
+| E2E visual shells  | `npm run test:e2e:visual`                                                        |
+| E2E visual refresh | `npm run test:e2e:update-snapshots`                                              |
+| E2E + live LLM     | `npm run test:e2e:llm` (needs `OPENAI_API_KEY`; tagged `@llm`)                   |
+| Install Chromium   | `npm run playwright:install`                                                     |
+| Run full suite     | `npm run test:all`                                                               |
+| Watch mode         | `npm run test:watch`                                                             |
+| Coverage report    | `npm run test:coverage` (floors: lines 77 / branches 65)                         |
+| Mutation (smoke)   | `npx stryker run --mutate src/engine/glossary/glossary-filter.ts`                |
+| Mutation (full)    | `npm run test:mutation` (APP_SCOPE; manual/nightly; hours)                       |
+| Mutation (zone)    | `npx stryker run --mutate "src/shared/**/*.ts"`                                  |
+| Inventory          | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                    |
+| Focused run        | `npm run test -- src/engine/glossary`                                            |
+| Single file        | `npm run test -- src/shared/paragraphSync.test.ts`                               |
+| Pre-push gate      | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`    |
 
 **Emergency bypass** (document reason): `HUSKY=0 git push`
 
