@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 domain: infra
 stale: false
 created: 2026-09-13
@@ -8,27 +8,19 @@ updated: 2026-09-13
 canonical: .cursor/skills/dependency-maintenance/SKILL.md
 ---
 
-# bullmq 5 → 6
+# bullmq 5 → 6 (completed)
 
-**Do not combine** with [[05-plans/ioredis-6-upgrade]] (separate PR). Owner: Backend agent.
+**Completed** 2026-09-13 — `bullmq@^6.3.4`. Direct `ioredis@^5.11.1` unchanged (not the same PR). Owner: Backend agent. Live `dev:full` enqueue skipped.
 
-| | |
-| --- | --- |
-| Current | `bullmq@^5.81.5` |
-| Target | `bullmq@^6` |
-| Code | `src/services/chapterQueue.ts`, `src/services/chapterWorker.ts`, `src/worker.ts` |
-
-## Blockers
-
-None known. Re-read BullMQ 6 migration notes at implement time (queue options, job types, Redis connection shape).
+No repeat/debounce/FlowProducer usage; Redis repeatable-job metadata migration not required. `connection` remains Redis options (`satisfies ConnectionOptions`).
 
 ## Checklist
 
-- [ ] Read BullMQ 6 breaking changes
-- [ ] Bump only `bullmq`; `npm install --no-workspaces`
-- [ ] `npm run lint:all && npm run test && npm run test:integration && npm run build`
-- [ ] Smoke: `npm run dev:full` — enqueue analysis + translate job, worker completes
-- [ ] Archive this plan; update [[05-plans/dependency-major-backlog]]
+- [x] Read BullMQ 6 breaking changes
+- [x] Bump only `bullmq`; `npm install --no-workspaces`
+- [x] `npm run lint:all && npm run test && npm run test:integration && npm run build`
+- [x] Smoke: unit `chapterQueue` / `chapterWorker`; live worker skipped
+- [x] Archive this plan; update [[05-plans/dependency-major-backlog]]
 
 ## References
 

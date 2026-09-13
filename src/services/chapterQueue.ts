@@ -3,7 +3,7 @@
  * Uses Redis (REDIS_URL) - separate from Upstash REST used by job stores.
  */
 
-import { Queue } from 'bullmq';
+import { Queue, type ConnectionOptions } from 'bullmq';
 import type { TranslationStages } from '../config/tokenLimits.js';
 import type { UserRole } from '../types/roles.js';
 
@@ -51,7 +51,7 @@ function getRedisUrl(): string | null {
 
 /**
  * Parse REDIS_URL into connection options for BullMQ.
- * BullMQ uses its own ioredis; we pass options to avoid version mismatch.
+ * Pass a Redis options object (not an ioredis instance) so BullMQ owns the client.
  */
 export function getBullConnectionOptions(): BullConnectionOptions {
   const url = getRedisUrl();
@@ -64,13 +64,14 @@ export function getBullConnectionOptions(): BullConnectionOptions {
   const port = parsed.port ? parseInt(parsed.port, 10) : 6379;
   const password = parsed.password || undefined;
   const username = parsed.username && parsed.username !== 'default' ? parsed.username : undefined;
-  return {
+  const options = {
     host: parsed.hostname,
     port,
     password,
     username,
     ...(parsed.protocol === 'rediss:' && { tls: {} }),
-  };
+  } satisfies ConnectionOptions;
+  return options;
 }
 
 /**

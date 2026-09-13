@@ -106,7 +106,7 @@
     "@supabase/supabase-js": "^2.116.0",
     "@upstash/redis": "^1.38.4",
     "adm-zip": "^0.6.1",
-    "bullmq": "^5.81.5",
+    "bullmq": "^6.3.4",
     "cors": "^2.8.6",
     "csv-parse": "^7.0.2",
     "diff-match-patch": "^1.0.5",

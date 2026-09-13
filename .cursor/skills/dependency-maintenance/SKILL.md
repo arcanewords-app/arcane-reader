@@ -85,8 +85,7 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 | Package           | Latest (2026-09) | Notes                                              |
 | ----------------- | ---------------- | -------------------------------------------------- |
 | `@types/node`     | 26.x             | P4 — only with Node 26 LTS + SSOT trio             |
-| `bullmq`          | 6.x              | P2 — not same PR as ioredis 6                      |
-| `ioredis`         | 6.x              | P2                                                 |
+| `ioredis`         | 6.x              | P2 — not same PR as BullMQ 6 (already shipped)     |
 | `@vercel/node`    | 13.x             | P2 — Vercel preview; never `audit fix --force`     |
 | `vitest`          | 5.x              | P2 — pin 4.0.8 until Windows + Node 24 proof       |
 
@@ -121,6 +120,7 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 | 17 Stryker 10                 | Done   | core + vitest-runner 10; keep `tsconfig.json` ignorePatterns              |
 | 18 OpenAI SDK 7               | Done   | `openai@^7.15.0`; typed Chat Completions params; no `as unknown as`       |
 | 19 Axiom 2 + web-vitals 6     | Done   | same PR; ingest/flush + `onCLS`/`onINP`/`onLCP`; no `reportSoftNavs`      |
+| 20 BullMQ 6                   | Done   | `bullmq@^6.3.4`; ioredis 5.x stays; no repeat/scheduler migration         |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 
