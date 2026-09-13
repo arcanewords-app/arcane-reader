@@ -121,6 +121,7 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 | 21 ioredis 6                  | Done   | `ioredis@^6.0.0`; debug bridge only; RESP3 + legacy replies               |
 | 22 `@vercel/node` 13          | Done   | `^13.0.0` + `@vercel/functions`; waitUntil flush; API cancellation        |
 | 23 Vitest 5                   | Done   | exact `5.0.0`; mocker GHSA gone; Windows wrappers kept                    |
+| 24 P3 pins                    | Done   | `@playwright/test` 1.63.0; `supabase` CLI 2.117.0                         |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 

@@ -72,6 +72,7 @@ Husky hooks source `.husky/load-node.sh` before `npx`/`npm`. GUI Git (Cursor Sou
 ## Pin and Windows notes
 
 - Vitest / `@vitest/coverage-v8` pinned exact **`5.0.0`**. Keep Windows wrappers until Windows + Node 24 proof (`vi.mock`, forks, glob/dir entry, `setupFiles`).
+- Playwright `@playwright/test` **1.63.0** exact. Chromium only (`npm run playwright:install`).
 - Wrappers normalize cwd via `realpathSync.native` (avoids `f:` vs `F:` → “No test suite found”).
 - Component/integration wrappers pass **explicit file lists** (directory/glob entry flaky on Windows).
 - Integration: `pool: 'forks'`, **no** Vitest `setupFiles` — env isolation via imported `tests/integration/setup.ts`.

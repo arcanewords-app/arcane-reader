@@ -28,7 +28,7 @@ Do **not** run `npm audit fix --force` (it may downgrade `@vercel/node`).
 | ---- | ---------------- | ------ | -------- |
 | [[05-plans/types-node-26-upgrade]] | `@types/node` 24 → 26 | infra | **P4 blocked** until Node 26 LTS |
 
-Not majors (leave in monthly outdated triage): `@playwright/test` 1.63, `supabase` CLI 2.117.
+Not majors (leave in monthly outdated triage): none — `@playwright/test` 1.63.0 and `supabase` CLI 2.117.0 shipped 2026-09-13.
 
 `@vercel/node` 5 → 13 shipped 2026-09-13 (`@vercel/node@^13.0.0`, `@vercel/functions@^3.9.7`; waitUntil + `supportsCancellation` on `api/index.ts`). Preview smoke still needed after merge. Archived: [[05-plans/vercel-node-13-upgrade]].
 
@@ -43,6 +43,8 @@ OpenAI 6 → 7 shipped 2026-09-13 (`openai@^7.15.0`). Archived: [[05-plans/opena
 Stryker 9 → 10 shipped 2026-09-13 (`@stryker-mutator/core` + `vitest-runner` 10). Keep `tsconfig.json` in `stryker.conf.json` `ignorePatterns` until [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111).
 
 `vitest` 4.0.8 → 5 shipped 2026-09-13 (`vitest@5.0.0` + `@vitest/coverage-v8@5.0.0`; Windows wrappers kept). Archived: [[05-plans/vitest-5-upgrade]].
+
+P3 exact pins 2026-09-13: `@playwright/test@1.63.0`, `supabase` CLI `2.117.0`.
 
 ## References
 

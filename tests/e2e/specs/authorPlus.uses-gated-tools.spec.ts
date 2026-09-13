@@ -3,6 +3,7 @@ import { TINY_CHAPTER_TEXT, TINY_CHAPTER_TITLE, projectIdFromUrl } from '../fixt
 import {
   clickFixWithAi,
   createNamedProject,
+  dismissCloseButton,
   dismissModal,
   openFindInProject,
   openFirstChapter,
@@ -55,7 +56,7 @@ test.describe('Author', () => {
   test('sees upgrade CTAs for Critic and AI replace', async ({ author }) => {
     await author.attemptsTo(openFirstProject, openFirstChapter, openReviewTranslation);
     await author.see(seesCriticUpgrade);
-    await author.page.keyboard.press('Escape');
+    await author.attemptsTo(dismissCloseButton);
 
     await author.attemptsTo(openFindInProject, tryOpenAiReplace);
     await author.see(seesAiReplaceUpgradeOrHint);

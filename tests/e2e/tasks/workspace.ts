@@ -59,6 +59,11 @@ export const dismissModal: Task = async (actor) => {
   await modalCancel(actor.page).click();
 };
 
+/** Upgrade / info modals have no Cancel — close via the header × (`aria-label="Close"`). */
+export const dismissCloseButton: Task = async (actor) => {
+  await actor.page.getByRole('button', { name: 'Close', exact: true }).click();
+};
+
 export const openProjectSettings: Task = async (actor) => {
   await projectSettings(actor.page).click();
   await projectSettingsHeading(actor.page).waitFor({ state: 'visible' });

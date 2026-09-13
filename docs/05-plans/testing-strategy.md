@@ -50,7 +50,7 @@ Coverage and mutation share one scope — see `vitest.config.ts` / `stryker.conf
 | **Integration (live)** | Vitest + real stack                   | `tests/integration/supabase/**` | **Blocked** — see README there               |
 | **Snapshot**           | Vitest `toMatchSnapshot`              | co-located `__snapshots__/`     | Stable presentational UI only                |
 | **Contract**           | Zod fixture round-trips               | `tests/contracts/**`            | API/shared shapes; OpenAPI later             |
-| **E2E**                | Playwright `@playwright/test` 1.62.1  | `tests/e2e/specs/*.spec.ts`     | Local stamp smoke; `@llm` opt-in             |
+| **E2E**                | Playwright `@playwright/test` 1.63.0  | `tests/e2e/specs/*.spec.ts`     | Local stamp smoke; `@llm` opt-in             |
 | **Mutation**           | Stryker                               | APP_SCOPE                       | Manual/nightly — not CI gate                 |
 
 ### Anti-patterns
@@ -231,7 +231,7 @@ Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty
 
 #### Local (done)
 
-- [x] Playwright `@playwright/test` 1.62.1 + Chromium
+- [x] Playwright `@playwright/test` 1.63.0 + Chromium
 - [x] `tests/e2e/` Persona/Actor (`guest`, `reader`, `author`, `authorPlus`, `admin`)
 - [x] globalSetup: health, seed logins/roles, catalog nonempty, Author owns dump, Reader owns none
 - [x] Specs: guest catalog, reader login/progress, access matrix, author workspace, AuthorPlus gated UI, admin console, `@llm` tiny translate
