@@ -1,19 +1,19 @@
 ---
 status: active
 created: 2026-07-12
-updated: 2026-08-30
+updated: 2026-09-13
 ---
 
 # Testing coverage baseline
 
-Measured **2026-08-02** (post Wave 7 mock-integration rollout). Strategy SSOT: [[05-plans/testing-strategy]].
+Measured **2026-09-13** (`npm run test:coverage` + `npm run test:gaps`). Strategy SSOT: [[05-plans/testing-strategy]]. August wave tables below are historical.
 
 ## APP_SCOPE (unified)
 
 Single scope for unit tests, coverage, and Stryker `mutate`:
 
-- **include:** `src/**/*.ts`, `src/**/*.test.tsx`
-- **exclude:** `*.test.ts`, `*.test.tsx`, `src/debug-app/**`, `src/prompt-lab-app/**`, `src/debug/**`, `src/prompt-lab/**`
+- **include:** `src/**/*.ts` (mutate does **not** include `.tsx` — Stryker dry-run uses the unit Vitest config)
+- **exclude:** `*.test.ts`, `*.test.tsx`, `*.hook.test.ts`, `src/debug-app/**`, `src/prompt-lab-app/**`, `src/debug/**`, `src/prompt-lab/**`
 
 Lab apps and dev-only debug/prompt-lab server code are not production app. SSOT: `vitest.config.ts`, `stryker.conf.json`.
 
@@ -43,7 +43,7 @@ Until a dedicated test environment is provisioned, **CI live** work is paused. L
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **108** files / **288** tests (`npm run test:component`)                          |
+| Component suite             | **113** files / **314** tests (`npm run test:component`, 2026-09-13)              |
 | Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                          |
 | Contract suite              | **46** files / **75** tests (`npm run test:contract`)                             |
 | Co-located `*.test.tsx`     | **97**                                                                            |
@@ -54,12 +54,12 @@ Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.conf
 
 ## Inventory: tested vs untested
 
-| Metric                        | Value   |
-| ----------------------------- | ------- |
-| Source files in coverage map  | **364** |
-| With co-located `*.test.ts`   | **206** |
-| Without co-located unit test  | **165** |
-| Files at **0%** line coverage | **81**  |
+| Metric                        | Value (2026-08) | Value (2026-09-13) |
+| ----------------------------- | --------------- | ------------------ |
+| Source files in coverage map  | 364             | **368**            |
+| With co-located `*.test.ts`   | 206             | **245**            |
+| Without co-located unit test  | 165             | **151**            |
+| Files at **0%** line coverage | 81              | **73**             |
 
 Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:coverage`).
 
@@ -77,12 +77,12 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | Coverage (post extract+hook unit, 2026-08-16) |
-| ---------- | --------------------------------------------- |
-| Lines      | **78.21%**                                    |
-| Statements | **76.09%**                                    |
-| Functions  | **80.42%**                                    |
-| Branches   | **65.67%**                                    |
+| Metric     | 2026-08-16 | 2026-09-13 |
+| ---------- | ---------- | ---------- |
+| Lines      | 78.21%     | **78.21%** |
+| Statements | 76.09%     | **76.10%** |
+| Functions  | 80.42%     | **80.35%** |
+| Branches   | 65.67%     | **65.68%** |
 
 ### Coverage floors (active)
 
@@ -97,25 +97,28 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 
 ## By area (folder rollup, lines %)
 
-| Area                      | Files | Lines %  | Notes                                        |
-| ------------------------- | ----- | -------- | -------------------------------------------- |
-| `src/shared/`             | 42+   | **~90%** | near ceiling                                 |
-| `src/storage/`            | 3     | **100%** | text-utils                                   |
-| `src/api/`                | 60+   | **~75%** | handlers + schemas                           |
-| `src/middleware/`         | 5     | **~76%** | auth, tokenLimits, requestContext            |
-| `src/engine/`             | 69+   | **~74%** | stage mocks + openai provider tests          |
-| `src/services/`           | 64+   | raised   | jobs unit + engine-integration + domains     |
-| `src/client/`             | 106+  | raised   | pure extracts + utils; UI via test:component |
-| `server.ts` + `worker.ts` | 2     | **0%**   | entrypoints (deferred)                       |
+| Area                      | Files | Lines % (2026-09-13) | Notes                                                     |
+| ------------------------- | ----- | -------------------- | --------------------------------------------------------- |
+| `src/shared/`             | 42    | **92.2%**            | near ceiling                                              |
+| `src/storage/`            | 3     | **100%**             | text-utils (types/database are 0-line)                    |
+| `src/middleware/`         | 5     | **91.3%**            | auth, tokenLimits, requestContext                         |
+| `src/api/`                | 60    | **84.4%**            | handlers + schemas                                        |
+| `src/services/`           | 65    | **78.0%**            | hugs floor; binary import/export still 0%                 |
+| `src/engine/`             | 69    | **77.6%**            | hugs floor; preview files live in `test:slow`             |
+| `src/client/`             | 108   | **67.8%**            | unit v8 only; UI/hooks via `test:component`               |
+| `server.ts` + `worker.ts` | 2     | **0%**               | entrypoints (deferred)                                    |
 
-### Top uncovered files (by remaining gap)
+### Top uncovered files (by remaining gap, unit v8)
 
-| File                                 | Notes                               |
-| ------------------------------------ | ----------------------------------- |
-| `services/import/fb2.ts` / `epub.ts` | binary parse (deferred)             |
-| `services/export` epub/fb2 writers   | binary (deferred)                   |
-| `ReadingMode/index.tsx`              | helpers extracted; full UI deferred |
-| `server.ts` / `worker.ts`            | bootstrap                           |
+| File                                       | Lines | Notes                                  |
+| ------------------------------------------ | ----- | -------------------------------------- |
+| `SearchReplace/useProjectSearch.ts`        | 186   | Hook suite only — not a unit-floor gap |
+| `services/import/fb2.ts` / `export/fb2.ts` | 156+98 | binary parse/write (deferred)         |
+| `hooks/useReadingTextSelection.ts` etc.    | 19–67 | Hook suite only                        |
+| `createApp.ts`                             | 54    | mock-integration, not unit             |
+| `export/epub.ts`                           | 31    | binary (deferred)                      |
+| `*-execution-preview.ts`                   | 22–24 | `test:slow`                            |
+| `server.ts` / `worker.ts`                  | 21+16 | bootstrap                              |
 
 ## Wave completion
 
@@ -132,12 +135,18 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 
 Config: `stryker.conf.json` — APP_SCOPE mutate, manual/nightly only (not CI).
 
+TypeScript 7: keep `tsconfig.json` in `ignorePatterns` until Stryker replaces `TSConfigPreprocessor`'s `parseConfigFileTextToJson` call ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Vitest compiles via esbuild; the project tsconfig is flat (no `extends` / `references` / `paths`).
+
+Mutate excludes `*.hook.test.ts` (those files match `src/**/*.ts`). `.tsx` components are **not** in mutate — Stryker dry-run uses the unit Vitest config. JSON report: `reports/mutation/mutation.json`. `related: false` is intentional for nightly coverage maps; smoke still pays a full unit dry-run.
+
 ```bash
 npm run test:mutation
 npx stryker run --mutate "src/shared/**/*.ts"
 ```
 
 Stryker `thresholds`: `high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only (not a merge gate). Distinct from Vitest coverage floors above.
+
+Smoke (2026-09-13): `npx stryker run --mutate src/engine/glossary/glossary-filter.ts` — 145 mutants, score **57.97%** (80 killed / 43 survived / 15 no cov / 7 errors). Line coverage ≠ mutation score.
 
 ## Vitest pin
 
@@ -164,6 +173,18 @@ npm run test:gaps -- --reuse      # skip re-run if coverage-component/ exists
 npm run test:component:coverage   # CLIENT_SCOPE html/json only
 npm run test:contract:coverage    # advisory Zod schema v8 only
 ```
+
+### Refresh (`test:gaps`, 2026-09-13)
+
+| Layer     | Metric                                      | 2026-08-03 product shell | 2026-09-13              |
+| --------- | ------------------------------------------- | ------------------------ | ----------------------- |
+| Component | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 108 / 9 / 7        | **163 / 113 / 30 / 6**  |
+| Component | v8 lines / branches (advisory)              | ~36.92%                  | **37.69% / 33.04%**     |
+| Contract  | schemas with fixtures / total               | 39 / 72                  | **39 / 72**             |
+| Contract  | enum-sync covered / targets                 | 9 / 9                    | **9 / 9**               |
+| Unit      | lines / branches (floors 77/65)             | 78.21 / 65.67            | **78.21 / 65.68**       |
+
+CLIENT_SCOPE grew (extracts from ProjectInfo / Glossary / ReadingMode / Sidebar). Suites +5; gap count 30 is mostly new modules without their own suites, not lost tests. Top component gaps: `ProjectInfo.tsx`, `ChapterView/*`, admin pages, upload-queue hook. Contract still selective — remaining 33 are list/query and auth bodies. Map: canvas `coverage-gaps`.
 
 ### Post deepen wave (`test:gaps`, 2026-08-02)
 

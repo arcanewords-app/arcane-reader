@@ -110,10 +110,13 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 ## Mutation testing (manual)
 
 - Command: `npm run test:mutation` or zone smoke `npx stryker run --mutate <glob>`
-- Scope: APP_SCOPE (same as coverage)
+- Scope: APP_SCOPE `src/**/*.ts` minus tests and lab apps (same as unit coverage include). **Does not mutate `.tsx`** — client components live in the component suite, not Stryker's Vitest unit runner.
+- Mutate excludes `*.test.ts`, `*.test.tsx`, and `*.hook.test.ts` (hook suites were matching `*.ts` and must stay out of mutate).
+- Dry-run uses `vitest.config.ts` with `related: false` (full unit suite once to build perTest coverage). Smoke on one file still pays that dry-run.
 - **Not** in CI or pre-push; manual/nightly only
 - `thresholds.high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only, not a merge gate
-- Report: `reports/mutation/mutation.html`
+- Reports: `reports/mutation/mutation.html`, `reports/mutation/mutation.json`
+- **TypeScript 7 workaround:** keep `tsconfig.json` in `stryker.conf.json` `ignorePatterns`. Stryker 9.6.1 (and 10.0.0) `TSConfigPreprocessor` still calls `ts.parseConfigFileTextToJson`, which TS7 removed ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Safe here: flat tsconfig, Vitest/esbuild, no typescript-checker. Remove the pattern when Stryker ships the jsonc-parser fix.
 
 ## Gates
 

@@ -26,6 +26,10 @@ npx stryker run --mutate src/engine/glossary/glossary-filter.ts   # mutation smo
 npm run test -- src/engine/glossary   # focused directory (prefer npm run test over raw npx on Windows)
 ```
 
+`stryker.conf.json` `ignorePatterns` includes `tsconfig.json` so the sandbox skips TypeScript 7's missing `parseConfigFileTextToJson` ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Safe here: flat tsconfig, Vitest/esbuild. Drop the pattern when Stryker ships the jsonc-parser fix.
+
+Mutate is `src/**/*.ts` minus `*.test.ts` / `*.test.tsx` / `*.hook.test.ts` and lab apps — **not** `.tsx` components. `vitest.related: false` means smoke still runs the full unit dry-run once. Reports: `reports/mutation/mutation.html` and `reports/mutation/mutation.json`.
+
 ## APP_SCOPE (coverage + mutation)
 
 `vitest.config.ts` and `stryker.conf.json` share the same scope:

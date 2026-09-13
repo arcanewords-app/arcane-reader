@@ -75,6 +75,8 @@ Husky hooks source `.husky/load-node.sh` before `npx`/`npm`. GUI Git (Cursor Sou
 - Wrappers normalize cwd via `realpathSync.native` (avoids `f:` vs `F:` → “No test suite found”).
 - Component/integration wrappers pass **explicit file lists** (directory/glob entry flaky on Windows).
 - Integration: `pool: 'forks'`, **no** Vitest `setupFiles` — env isolation via imported `tests/integration/setup.ts`.
+- Stryker + TypeScript 7: `stryker.conf.json` `ignorePatterns` includes `tsconfig.json` (Stryker `TSConfigPreprocessor` still calls `parseConfigFileTextToJson`; [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Do not drop that pattern until Stryker ships the jsonc-parser fix.
+- Stryker mutate is `src/**/*.ts` minus `*.test.ts` / `*.test.tsx` / `*.hook.test.ts` and lab apps. **`.tsx` is not mutated.** `vitest.related: false` means even smoke (`--mutate` one file) runs the full unit dry-run first. JSON report: `reports/mutation/mutation.json`.
 
 ## File template (unit)
 
@@ -161,7 +163,7 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E
 | Contract         | `npm run test:contract`    | pre-push + GitHub Actions                                                                  |
 | Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures                                      |
 | Local E2E        | `npm run test:e2e`         | after `stack:up` + `dev`; dirty reset = `stack:restore`; **not** pre-push / GitHub Actions |
-| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`                                                              |
+| Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`; `tsconfig.json` ignored until [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111) |
 
 ## Anti-patterns
 
@@ -208,4 +210,5 @@ For test-only PRs, **verifier** runs `lint:all` + suites for changed layers (`te
 - Agent profile: `@.cursor/agents/testing/AGENT.md`
 - Policy: `@.cursor/rules/testing.mdc`
 - Human guide: `@docs/02-how-to/run-tests.md`
-- Mutation testing (manual/nightly): `npm run test:mutation` — APP_SCOPE; not in CI
+- Mutation testing (manual/nightly): `npm run test:mutation` — APP_SCOPE `src/**/*.ts` (not `.tsx`); not in CI
+- TypeScript 7: `stryker.conf.json` `ignorePatterns` includes `tsconfig.json` so Stryker skips `TSConfigPreprocessor` (`parseConfigFileTextToJson` removed in TS7; [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Drop the pattern when Stryker ships the jsonc-parser fix.
