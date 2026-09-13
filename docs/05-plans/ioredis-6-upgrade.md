@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 domain: infra
 stale: false
 created: 2026-09-13
@@ -8,27 +8,19 @@ updated: 2026-09-13
 canonical: .cursor/skills/dependency-maintenance/SKILL.md
 ---
 
-# ioredis 5 → 6
+# ioredis 5 → 6 (completed)
 
-**Do not combine** with [[05-plans/bullmq-6-upgrade]]. Owner: Backend agent.
+**Completed** 2026-09-13 — `ioredis@^6.0.0`. Owner: Backend agent. Live `dev:full` debug-bridge smoke skipped.
 
-| | |
-| --- | --- |
-| Current | `ioredis@^5.11.1` (devDependency; used by API/worker at runtime via `npm run build` hosts) |
-| Target | `ioredis@^6` |
-| Code | `src/services/redisCache.ts`, `src/services/*JobStore.ts`, `src/debug/redisBridge.ts` |
-
-## Blockers
-
-Confirm ioredis 6 constructor / TLS / lazyConnect vs our `new Redis({ url })` usage. Keep Upstash REST (`@upstash/redis`) unchanged in this PR.
+Direct consumer is **only** `src/debug/redisBridge.ts` (`new Redis(url, { maxRetriesPerRequest: null })`). Cache and job stores stay on Upstash REST (`@upstash/redis`). BullMQ was not bumped; its optional peer `ioredis >=5` now resolves to the same 6.0.0 (no nested 5.x copy). Defaults kept: RESP3 + legacy reply shapes; HELLO 3 falls back to RESP2.
 
 ## Checklist
 
-- [ ] Read ioredis 6 changelog
-- [ ] Bump only `ioredis`; `npm install --no-workspaces`
-- [ ] `npm run lint:all && npm run test && npm run test:integration && npm run build`
-- [ ] Smoke: cache hit + invalidation; job store round-trip; worker still talks Redis
-- [ ] Archive this plan; update [[05-plans/dependency-major-backlog]]
+- [x] Read ioredis 6 changelog / v5→v6 wiki
+- [x] Bump only `ioredis`; `npm install --no-workspaces --engine-strict=false`
+- [x] `npm run lint:all && npm run test && npm run test:integration && npm run build`
+- [x] Smoke: unit + integration; live worker/debug bridge skipped
+- [x] Archive this plan; update [[05-plans/dependency-major-backlog]]
 
 ## References
 

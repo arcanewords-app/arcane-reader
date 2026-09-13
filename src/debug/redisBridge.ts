@@ -59,6 +59,7 @@ async function createClient(): Promise<Redis> {
   const url = getRedisUrl();
   if (!url) throw new Error('REDIS_URL required');
   const { Redis: RedisClient } = await import('ioredis');
+  // ioredis 6 defaults: RESP3 + legacy reply shapes; HELLO 3 falls back to RESP2.
   return new RedisClient(url, { maxRetriesPerRequest: null });
 }
 
