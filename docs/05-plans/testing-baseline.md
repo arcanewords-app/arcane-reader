@@ -146,7 +146,7 @@ npx stryker run --mutate "src/shared/**/*.ts"
 
 Stryker `thresholds`: `high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only (not a merge gate). Distinct from Vitest coverage floors above.
 
-Smoke (2026-09-13): `npx stryker run --mutate src/engine/glossary/glossary-filter.ts` — 145 mutants, score **57.97%** (80 killed / 43 survived / 15 no cov / 7 errors). Line coverage ≠ mutation score.
+Smoke (2026-09-13): Stryker **10** — `npx stryker run --mutate src/shared/multerCompat.ts` (1 mutant, 100% on that file; incremental still reports glossary-filter 57.97%). Babel 8 wants Node >=24.11; local 24.10 uses `npm install --engine-strict=false`.
 
 ## Vitest pin
 

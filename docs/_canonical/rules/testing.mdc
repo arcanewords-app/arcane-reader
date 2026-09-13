@@ -116,7 +116,8 @@ Do **not** use unit tests as a substitute for mock-integration wiring checks, or
 - **Not** in CI or pre-push; manual/nightly only
 - `thresholds.high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only, not a merge gate
 - Reports: `reports/mutation/mutation.html`, `reports/mutation/mutation.json`
-- **TypeScript 7 workaround:** keep `tsconfig.json` in `stryker.conf.json` `ignorePatterns`. Stryker 9.6.1 (and 10.0.0) `TSConfigPreprocessor` still calls `ts.parseConfigFileTextToJson`, which TS7 removed ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Safe here: flat tsconfig, Vitest/esbuild, no typescript-checker. Remove the pattern when Stryker ships the jsonc-parser fix.
+- **TypeScript 7 workaround:** keep `tsconfig.json` in `stryker.conf.json` `ignorePatterns`. Stryker 10.0.0 `TSConfigPreprocessor` still calls `ts.parseConfigFileTextToJson`, which TS7 removed ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Safe here: flat tsconfig, Vitest/esbuild, no typescript-checker. Remove the pattern when Stryker ships the jsonc-parser fix.
+- **Node for Babel 8:** Stryker 10 instruments via `@babel/core@8`, which declares `^22.18.0 || >=24.11.0`. Local Node 24.10 may warn `EBADENGINE`; install with `npm install --no-workspaces --engine-strict=false`. Prefer Node **24.11+** for mutation runs. `.nvmrc` stays `24` (CI `setup-node` uses latest 24.x).
 
 ## Gates
 
