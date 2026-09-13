@@ -1,4 +1,4 @@
-import { onCLS, onINP, onLCP } from 'web-vitals';
+import { onCLS, onINP, onLCP, type Metric } from 'web-vitals';
 
 declare global {
   interface Window {
@@ -11,12 +11,7 @@ let gaInitialized = false;
 
 export type ReadingAnalyticsMode = 'public' | 'author';
 
-function sendWebVitalsToGA(metric: {
-  name: string;
-  value: number;
-  id: string;
-  delta: number;
-}): void {
+function sendWebVitalsToGA(metric: Metric): void {
   if (!window.gtag || !gaInitialized) return;
   const value = metric.name === 'CLS' ? Math.round(metric.value * 1000) : Math.round(metric.value);
   window.gtag('event', metric.name, {

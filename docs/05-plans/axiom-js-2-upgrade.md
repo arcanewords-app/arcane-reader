@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 domain: infra
 stale: false
 created: 2026-09-13
@@ -8,27 +8,19 @@ updated: 2026-09-13
 canonical: .cursor/skills/dependency-maintenance/SKILL.md
 ---
 
-# @axiomhq/js 1 → 2
+# @axiomhq/js 1 → 2 (completed)
 
-**Do not combine** with other majors. Owner: Backend (logging).
+**Completed** 2026-09-13 — `@axiomhq/js@^2.0.0` in the same PR as [[05-plans/web-vitals-6-upgrade]] (unrelated surfaces). Owner: Backend (logging). Live Axiom shipping not run.
 
-| | |
-| --- | --- |
-| Current | `@axiomhq/js@^1.7` (installed 1.8.x) |
-| Target | `@axiomhq/js@^2` |
-| Code | `src/logger.ts` (`Axiom` client, ingest + flush) |
-
-## Blockers
-
-Must not change local `/debug` ring-buffer behaviour. Shipping only when `NODE_ENV=production` and `LOG_SHIPPING=1`.
+Ctor `token` / `url` / `edge` / `onError`, batched `ingest`, and `flush` are unchanged. APL query format default does not affect us.
 
 ## Checklist
 
-- [ ] Read `@axiomhq/js` 2 changelog (client ctor, ingest, flush, EU region)
-- [ ] Bump only `@axiomhq/js`; `npm install --no-workspaces`
-- [ ] `npm run lint:all && npm run test && npm run build`
-- [ ] Smoke: local logs still stdout; staging/preview with `LOG_SHIPPING=1` — `GET /api/status` logging block
-- [ ] Archive this plan; update [[05-plans/dependency-major-backlog]]
+- [x] Read `@axiomhq/js` 2 changelog (client ctor, ingest, flush, EU region)
+- [x] Bump `@axiomhq/js`; `npm install --no-workspaces`
+- [x] `npm run lint:all && npm run test && npm run build`
+- [x] Smoke: unit `src/logger.test.ts`; live `LOG_SHIPPING=1` skipped
+- [x] Archive this plan; update [[05-plans/dependency-major-backlog]]
 
 ## References
 

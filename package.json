@@ -102,7 +102,7 @@
     }
   },
   "dependencies": {
-    "@axiomhq/js": "^1.7.0",
+    "@axiomhq/js": "^2.0.0",
     "@supabase/supabase-js": "^2.116.0",
     "@upstash/redis": "^1.38.4",
     "adm-zip": "^0.6.1",
@@ -165,6 +165,6 @@
     "vite": "^8.3.0",
     "vitest": "4.0.8",
     "wait-on": "^9.1.0",
-    "web-vitals": "^5.3.0"
+    "web-vitals": "^6.2.1"
   }
 }

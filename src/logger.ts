@@ -15,7 +15,7 @@
  */
 
 import { PassThrough, Writable } from 'node:stream';
-import { Axiom } from '@axiomhq/js';
+import { Axiom, type ClientOptions } from '@axiomhq/js';
 import pino from 'pino';
 import { addDebugLogEntry } from './debug/buffer.js';
 
@@ -133,12 +133,7 @@ function createDevStream(): pino.DestinationStream {
   return passThrough;
 }
 
-function resolveAxiomClientOptions(token: string): {
-  token: string;
-  url?: string;
-  edge?: string;
-  onError: (error: Error) => void;
-} {
+function resolveAxiomClientOptions(token: string): ClientOptions {
   const url = process.env.AXIOM_URL?.trim();
   const edge = process.env.AXIOM_EDGE?.trim();
   const region = process.env.AXIOM_REGION?.trim()?.toLowerCase();

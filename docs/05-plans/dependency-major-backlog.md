@@ -28,13 +28,13 @@ Do **not** run `npm audit fix --force` (it may downgrade `@vercel/node`).
 | ---- | ---------------- | ------ | -------- |
 | [[05-plans/bullmq-6-upgrade]] | `bullmq` 5 → 6 | backend | P2 |
 | [[05-plans/ioredis-6-upgrade]] | `ioredis` 5 → 6 | backend | P2 — **not** same PR as BullMQ 6 |
-| [[05-plans/axiom-js-2-upgrade]] | `@axiomhq/js` 1 → 2 | infra | P2 |
 | [[05-plans/vercel-node-13-upgrade]] | `@vercel/node` 5 → 13 | infra | P2 |
 | [[05-plans/vitest-5-upgrade]] | `vitest` 4.0.8 → 5 | testing | P2 (pin; optional 4.1.11 first) |
-| [[05-plans/web-vitals-6-upgrade]] | `web-vitals` 5 → 6 | client | P2 |
 | [[05-plans/types-node-26-upgrade]] | `@types/node` 24 → 26 | infra | **P4 blocked** until Node 26 LTS |
 
 Not majors (leave in monthly outdated triage): `@playwright/test` 1.63, `supabase` CLI 2.117.
+
+`@axiomhq/js` 1 → 2 + `web-vitals` 5 → 6 shipped together 2026-09-13 (unrelated surfaces). Archived: [[05-plans/axiom-js-2-upgrade]], [[05-plans/web-vitals-6-upgrade]].
 
 OpenAI 6 → 7 shipped 2026-09-13 (`openai@^7.15.0`). Archived: [[05-plans/openai-7-upgrade]].
 
