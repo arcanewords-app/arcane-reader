@@ -22,7 +22,7 @@ import {
   newsHeading,
   publicationCard,
 } from '../targets/catalog.js';
-import { publicationHeading } from '../targets/reading.js';
+import { publicationHeading, readingModeParagraph } from '../targets/reading.js';
 import {
   aiReplaceSetupHeading,
   aiReplaceUpgradeHeading,
@@ -187,6 +187,7 @@ export const seesGlossary: Question = async (actor) => {
 
 export const seesReadingMode: Question = async (actor) => {
   await expect(actor.page).toHaveURL(/\/reading/);
+  await expect(readingModeParagraph(actor.page)).toBeVisible({ timeout: 20_000 });
 };
 
 export const seesTokenCredits: Question = async (actor) => {

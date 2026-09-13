@@ -15,6 +15,7 @@ import {
   newsPageLoaded,
   publicationPageLoaded,
   seesLoginRequired,
+  seesReadingMode,
 } from '../questions/ui.js';
 
 test.describe('Guest visual shells', { tag: '@visual' }, () => {
@@ -44,6 +45,7 @@ test.describe('Guest visual shells', { tag: '@visual' }, () => {
 
   test('reading mode', async ({ guest }) => {
     await guest.attemptsTo(openCatalog, openFirstPublication, openFirstTranslatedChapter);
+    await guest.see(seesReadingMode);
     await guest.see(layoutMatches('guest-reading'));
   });
 

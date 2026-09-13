@@ -1,18 +1,29 @@
 .card-grid {
   --card-grid-min: var(--card-min-publication);
+  --card-grid-max: var(--card-max-publication);
 
   container-type: inline-size;
   display: grid;
-  /* Definite min: min(100%, …) with auto-fit lets skinny cards pack two tracks on phone. */
-  grid-template-columns: repeat(auto-fit, minmax(var(--card-grid-min), 1fr));
+  /* Phone: one full-width column. Do not use unbounded 1fr on tablet+. */
+  grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
 .card-grid--project {
   --card-grid-min: var(--card-min-project);
+  --card-grid-max: var(--card-max-project);
+}
+
+.card-grid--request {
+  --card-grid-min: var(--card-min-request);
+  --card-grid-max: var(--card-max-request);
 }
 
 @media (min-width: 768px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(var(--card-grid-min), var(--card-grid-max)));
+  }
+
   .card-grid--project {
     gap: 2rem;
   }

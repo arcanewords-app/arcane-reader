@@ -2,7 +2,7 @@ import type { ComponentChildren } from 'preact';
 import './CardGrid.css';
 
 interface CardGridProps {
-  variant?: 'publication' | 'project';
+  variant?: 'publication' | 'project' | 'request';
   class?: string;
   children: ComponentChildren;
 }
@@ -12,8 +12,12 @@ export function CardGrid({
   class: classAttr = '',
   children,
 }: CardGridProps) {
-  const classes = ['card-grid', variant === 'project' && 'card-grid--project', classAttr]
-    .filter(Boolean)
-    .join(' ');
+  const variantClass =
+    variant === 'project'
+      ? 'card-grid--project'
+      : variant === 'request'
+        ? 'card-grid--request'
+        : '';
+  const classes = ['card-grid', variantClass, classAttr].filter(Boolean).join(' ');
   return <div class={classes}>{children}</div>;
 }

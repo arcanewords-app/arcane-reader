@@ -49,10 +49,6 @@
   color: var(--text-primary);
 }
 
-.cabinet-section-projects .dashboard-header {
-  margin-bottom: 1.5rem;
-}
-
 .cabinet-settings-panel {
   max-width: 600px;
 }

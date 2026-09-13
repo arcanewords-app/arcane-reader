@@ -30,34 +30,9 @@
   border-radius: 2px;
 }
 
-.home-header {
-  margin-bottom: 2rem;
-}
-
-.home-header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
 .home-suggest-btn {
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.home-title {
-  font-size: clamp(1.75rem, 4vw, 2rem);
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary);
-}
-
-.home-subtitle {
-  font-size: 0.9375rem;
-  color: var(--text-secondary);
-  margin: 0;
 }
 
 .home-tabs {
@@ -290,12 +265,6 @@
   .home-page {
     padding: var(--main-padding-mobile);
   }
-  .home-header {
-    margin-bottom: 1.5rem;
-  }
-  .home-title {
-    font-size: 1.75rem;
-  }
 }
 
 @media (max-width: 480px) {
@@ -310,15 +279,6 @@
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-  }
-  .home-header {
-    margin-bottom: 1.25rem;
-  }
-  .home-title {
-    font-size: 1.5rem;
-  }
-  .home-subtitle {
-    font-size: 0.85rem;
   }
   .home-tabs {
     gap: 0.25rem;

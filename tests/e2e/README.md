@@ -49,17 +49,18 @@ Locale in fixtures is `en`. Tasks, questions, and specs **must** import locators
 1. Unique accessible name — `getByRole` / `getByLabel` / `getByPlaceholder` (Log in, Sign in, My projects, New project).
 2. `data-testid` — lists, icon-only controls, duplicate copy.
 
-| `data-testid`                | Where                                                   |
-| ---------------------------- | ------------------------------------------------------- |
-| `publication-card`           | Catalog card clickable                                  |
-| `publication-read-chapter`   | Publication page chapter **Read** (not the Read filter) |
-| `project-card`               | Author workspace card                                   |
-| `chapter-item`               | Sidebar chapter row                                     |
-| `chapter-reading-mode`       | Chapter header reading-mode button                      |
-| `chapter-actions`            | Chapter overflow menu trigger                           |
-| `project-search-find`        | Find-in-project query field                             |
-| `token-usage`                | Header credit indicator                                 |
-| `settings-model-translation` | Project settings translation model `<select>`           |
+| `data-testid`                | Where                                                      |
+| ---------------------------- | ---------------------------------------------------------- |
+| `publication-card`           | Catalog card clickable                                     |
+| `publication-read-chapter`   | Publication page chapter **Read** (not the Read filter)    |
+| `project-card`               | Author workspace card                                      |
+| `chapter-item`               | Sidebar chapter row                                        |
+| `chapter-reading-mode`       | Chapter header reading-mode button                         |
+| `reading-mode-text`          | Publication/author reading body (wait for first paragraph) |
+| `chapter-actions`            | Chapter overflow menu trigger                              |
+| `project-search-find`        | Find-in-project query field                                |
+| `token-usage`                | Header credit indicator                                    |
+| `settings-model-translation` | Project settings translation model `<select>`              |
 
 New production `data-testid` needs a row here **and** a helper in `targets/`.
 
@@ -86,7 +87,7 @@ npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or break
 | `authorplus-empty`                                                                                                               | `authorPlus.visual.spec.ts` (needs `stack:restore`) |
 | `admin-users`                                                                                                                    | `admin.visual.spec.ts`                              |
 
-Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec. Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport. New reader screens need a shell (see `.cursor/skills/ui/RESPONSIVE.md`).
+Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec. Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport. New reader screens need a shell (see `.cursor/skills/ui/RESPONSIVE.md`). Do **not** add `/news/:slug`, contact/legal, or extra `/admin/*` shells unless those screens are being changed.
 
 ## Policy
 

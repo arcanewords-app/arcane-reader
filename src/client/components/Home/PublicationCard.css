@@ -45,7 +45,7 @@
 .publication-card-cover {
   position: relative;
   width: 100%;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 3 / 4;
   background: var(--bg-tertiary);
   overflow: hidden;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
@@ -54,15 +54,9 @@
   justify-content: center;
 }
 
-@media (max-width: 767px) {
+@container (min-width: 280px) {
   .publication-card-cover {
-    aspect-ratio: 3 / 4;
-  }
-}
-
-@media (max-width: 480px) {
-  .publication-card-cover {
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 2 / 3;
   }
 }
 
@@ -250,7 +244,7 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 480px) {
+@container (max-width: 480px) {
   .publication-card-read-btn {
     min-height: 44px;
     padding: var(--space-sm) var(--space-md);

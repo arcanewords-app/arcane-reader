@@ -116,7 +116,9 @@ Contract: `@.cursor/skills/ui/RESPONSIVE.md`.
 - MUST keep touch targets >= 44px for interactive controls on mobile/tablet.
 - MUST avoid horizontal scrolling and clipped actions with long localized strings.
 - MUST write mobile-first CSS: base = phone; enhance with `@media (min-width: 768px)` / `1024px`.
-- MUST NOT use `@media (max-width: 768px)` (overlaps tablet). Hide chrome with `max-width: 767px` or `480px` only.
+- MUST NOT use `@media (max-width: 768px)` (overlaps tablet).
+- MUST hide chrome with `max-width: 767px` or `480px` only (`display: none` / icon-only labels).
+- SHOULD add new layout restyle via `min-width` or `@container`, not a new `max-width: 767px` layout block.
 - MUST use viewport media for page chrome (Header, ReadingMode, sidebar) and container queries / intrinsic grids for cards, toolbars, and tables.
 - MUST prefer `CardGrid` (`auto-fit` + `minmax`) over per-page column counts; `auto-fill` is for chip/icon strips only.
 - SHOULD keep modal, back-button, and toolbar behavior visually consistent on narrow screens.

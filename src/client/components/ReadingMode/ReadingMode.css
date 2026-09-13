@@ -202,12 +202,19 @@
   line-height: var(--reader-line-height);
   margin-bottom: max(var(--reader-paragraph-spacing, 0.5em), 0.5em);
   font-weight: 400;
-  text-align: justify;
+  text-align: start;
+  hyphens: auto;
   text-indent: 1.5em;
 }
 
 .reading-mode-paragraph:first-child {
   text-indent: 0;
+}
+
+@media (min-width: 768px) {
+  .reading-mode-paragraph {
+    text-align: justify;
+  }
 }
 
 /* Footer always overlay - prev/next in row, centered */

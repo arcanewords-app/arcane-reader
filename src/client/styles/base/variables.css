@@ -98,9 +98,13 @@
      Mobile First Approach
      ============================================================= */
 
-  /* Card grids — CardGrid minmax floors (auto-fit) */
+  /* Card grids — CardGrid minmax floors and caps (auto-fit, no unbounded 1fr) */
   --card-min-publication: 220px;
+  --card-max-publication: 280px;
   --card-min-project: 220px;
+  --card-max-project: 280px;
+  --card-min-request: 280px;
+  --card-max-request: 320px;
 
   /* Mobile (≤767px) - Base styles */
   --container-width-mobile: 100%;

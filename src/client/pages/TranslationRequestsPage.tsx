@@ -29,6 +29,7 @@ import {
   ConfirmModal,
   AlertModal,
   PageHeader,
+  CardGrid,
 } from '../components/ui';
 import { getProjectLimitForRole } from '../../config/projectLimits';
 import '../components/Dashboard/Dashboard.css';
@@ -502,7 +503,7 @@ export function TranslationRequestsPage() {
           <div class="project-grid-empty-hint">{t('requestBoard.emptyHint')}</div>
         </div>
       ) : (
-        <div class="translation-requests-list request-board-list">
+        <CardGrid variant="request" class="translation-requests-list request-board-list">
           {requests.map((item) => {
             const adminItem = adminById[item.id];
             const adminDraft = adminDrafts[item.id];
@@ -681,13 +682,13 @@ export function TranslationRequestsPage() {
               </article>
             );
           })}
-        </div>
+        </CardGrid>
       )}
 
       {isAdmin && moderationMode && showClosedForAdmin && closedAdminRequests.length > 0 && (
         <section class="request-board-closed-section">
           <h2 class="request-board-closed-title">{t('requestBoard.closedSection')}</h2>
-          <div class="translation-requests-list request-board-list">
+          <CardGrid variant="request" class="translation-requests-list request-board-list">
             {closedAdminRequests.map((item) => (
               <article key={item.id} class="translation-request-card request-board-card">
                 <div class="request-board-card-header">
@@ -710,7 +711,7 @@ export function TranslationRequestsPage() {
                 </div>
               </article>
             ))}
-          </div>
+          </CardGrid>
         </section>
       )}
 

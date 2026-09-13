@@ -470,7 +470,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 **When:** Page has a heading, optional subtitle/meta, and a primary action (catalog suggest, new project, board CTA).
 
-**When not:** Inline section headings inside a card; modal titles (use `Modal`).
+**When not:** Inline section headings inside a card; modal titles (use `Modal`); info pages with title only (`info-page-title`); Admin layout chrome (own tabs).
 
 **Files:**
 
@@ -489,21 +489,21 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## `card-grid`
 
-**When:** Collection of publication, project, or reading-history cards.
+**When:** Collection of publication, project, reading-history, or translation-request cards.
 
-**When not:** Icon/chip toolbars (`auto-fill`); admin list rows.
+**When not:** Icon/chip toolbars (`auto-fill`); admin list rows; glossary/entity picker tiles (separate density).
 
 **Files:**
 
 - [`src/client/components/ui/CardGrid.tsx`](../../../src/client/components/ui/CardGrid.tsx)
 - [`src/client/components/ui/CardGrid.css`](../../../src/client/components/ui/CardGrid.css)
-- Tokens: `--card-min-publication`, `--card-min-project` in `variables.css`
+- Tokens: `--card-min-publication`, `--card-max-publication`, `--card-min-project`, `--card-max-project`, `--card-min-request`, `--card-max-request` in `variables.css`
 
-**Layout / behavior:** `repeat(auto-fit, minmax(var(--card-grid-min), 1fr))`. Container query context on the grid.
+**Layout / behavior:** Phone `grid-template-columns: 1fr`. ≥768 `repeat(auto-fit, minmax(var(--card-grid-min), var(--card-grid-max)))`. `auto-fit` collapses empty tracks; **max** keeps 3 catalog cards at prod density (leftover space on the right). Unbounded `1fr` stretches covers with `aspect-ratio`. `variant="request"` for the translation board. First `@container` recipe: [`PublicationCard.css`](../../../src/client/components/Home/PublicationCard.css) (cover/type from **card** width, not viewport).
 
-**Responsive:** Intrinsic — phone is one column because the min floor exceeds half the content width. Do not add `max-width: 768px` column overrides. Do not wrap the min in `min(100%, …)` (packs two skinny tracks on phone).
+**Responsive:** Phone is one full-width column. Tablet+ uses min/max tracks. Do not add `max-width: 768px` column overrides. Do not wrap the min in `min(100%, …)`.
 
-**Anti-patterns:** `auto-fill` (empty tracks keep cards skinny); per-page `repeat(3, 1fr)`.
+**Anti-patterns:** Unbounded `minmax(min, 1fr)` on catalog/project grids; per-page `repeat(3, 1fr)`.
 
 ---
 
@@ -513,9 +513,9 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 **Files:** [`Header.tsx`](../../../src/client/components/Header.tsx), [`Header.css`](../../../src/client/components/Header.css). Contract: [RESPONSIVE.md](./RESPONSIVE.md).
 
-**Layout / behavior:** Logo → primary nav → actions. ≤1023px wrap; nav full-width second row. ≤767px hide credits; guest Log in icon-only (`aria-label` retained).
+**Layout / behavior:** Logo → primary nav → actions. ≤1023px wrap; nav full-width second row. ≤767px hide credits; guest Log in is icon-only (`aria-label` retained). Desktop/tablet Log in is text only (no icon), matching prod.
 
-**Anti-patterns:** Squeezing author chrome into one tablet row; hiding Log out by shrinking type until it clips.
+**Anti-patterns:** Squeezing author chrome into one tablet row; hiding Log out by shrinking type until it clips; a 1024–1200 “compact desktop” squeeze band.
 
 ---
 

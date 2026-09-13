@@ -337,6 +337,8 @@ Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await 
 - `authorplus-empty` → `authorPlus.visual.spec.ts`
 - `admin-users` → `admin.visual.spec.ts`
 
+Do **not** add `/news/:slug`, contact/legal, or extra `/admin/*` shells unless those screens are being changed.
+
 - Fixtures: `guest` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
 - Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions; targets = locators
 - Discover publications/projects at runtime — do not hardcode dump UUIDs

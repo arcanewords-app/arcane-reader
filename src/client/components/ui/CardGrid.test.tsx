@@ -26,4 +26,13 @@ describe('CardGrid', () => {
     );
     expect((container.firstChild as HTMLElement).className).toContain('card-grid--project');
   });
+
+  it('adds request modifier class', () => {
+    const { container } = render(
+      <CardGrid variant="request">
+        <article>Request</article>
+      </CardGrid>
+    );
+    expect((container.firstChild as HTMLElement).className).toContain('card-grid--request');
+  });
 });

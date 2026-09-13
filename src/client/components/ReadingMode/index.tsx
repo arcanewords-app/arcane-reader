@@ -963,7 +963,7 @@ export function ReadingMode({
         style={{ paddingBottom: `${Math.max(0, footerHeight - 20)}px` }}
       >
         <div class="reading-mode-spacer-top" style={{ minHeight: `${headerHeight}px` }} />
-        <div class="reading-mode-text">
+        <div class="reading-mode-text" data-testid="reading-mode-text">
           {isLoadingContent ? (
             <div class="reading-mode-content-loading">
               <LoadingSpinner size="md" text={t('common.loading')} />

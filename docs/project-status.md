@@ -42,20 +42,20 @@ Update this file when completing plans or shipping major features.
 
 ## Active plans (`05-plans/`)
 
-| Plan                                      | Domain                                                                                                                  |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                                             |
-| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                                      |
-| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                                                |
-| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                                                |
-| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                                                  |
-| [[05-plans/seo-search-console]]           | GSC submission                                                                                                          |
-| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                                         |
-| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–9 **done**; Wave 10 local E2E unblocked; GitHub Actions mock pyramid; CI live stack still blocked |
-| [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                                              |
-| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred                      |
-| [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod                                |
-| [[05-plans/adaptive-ui]]                  | Responsive contract (RESPONSIVE.md): Header overflow, CardGrid, visual shells beyond catalog                            |
+| Plan                                      | Domain                                                                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [[05-plans/engine-pipeline-improvements]] | Stage 3 paragraph alignment                                                                                                |
+| [[05-plans/engine-cjk-ru-spike]]          | CJK rollout shipped (ko/zh→ru); ja Phase 2 pending                                                                         |
+| [[05-plans/engine-refactor]]              | Cancel/resume by chunk (draft save done)                                                                                   |
+| [[05-plans/multilingual-ui-audit]]        | Hardcoded string cleanup                                                                                                   |
+| [[05-plans/reader-theme-improvements]]    | Reader contrast/themes                                                                                                     |
+| [[05-plans/seo-search-console]]           | GSC submission                                                                                                             |
+| [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                                            |
+| [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–9 **done**; Wave 10 local E2E unblocked; GitHub Actions mock pyramid; CI live stack still blocked    |
+| [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                                                 |
+| [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred                         |
+| [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod                                   |
+| [[05-plans/adaptive-ui]]                  | I0–I5 shipped (Header wrap, CardGrid, 48 visual PNGs). Leftover: container queries per surface, news/admin shells on touch |
 
 ## Known tech debt
 
