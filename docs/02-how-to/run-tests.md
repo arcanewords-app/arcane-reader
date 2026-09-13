@@ -26,7 +26,7 @@ npx stryker run --mutate src/engine/glossary/glossary-filter.ts   # mutation smo
 npm run test -- src/engine/glossary   # focused directory (prefer npm run test over raw npx on Windows)
 ```
 
-`stryker.conf.json` `ignorePatterns` includes `tsconfig.json` so the sandbox skips TypeScript 7's missing `parseConfigFileTextToJson` ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Safe here: flat tsconfig, Vitest/esbuild. Drop the pattern when Stryker ships the jsonc-parser fix.
+`stryker.conf.json` `ignorePatterns` includes `tsconfig.json` so the sandbox skips TypeScript 7's missing `parseConfigFileTextToJson` ([stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Stryker **10** instruments with Babel 8 (`engines`: Node `>=24.11` or `^22.18`). On Node 24.10, `npm install --no-workspaces --engine-strict=false` (repo `.npmrc` has `engine-strict=true`). Safe here: flat tsconfig, Vitest/esbuild. Drop the `tsconfig.json` ignore pattern when Stryker ships the jsonc-parser fix.
 
 Mutate is `src/**/*.ts` minus `*.test.ts` / `*.test.tsx` / `*.hook.test.ts` and lab apps — **not** `.tsx` components. `vitest.related: false` means smoke still runs the full unit dry-run once. Reports: `reports/mutation/mutation.html` and `reports/mutation/mutation.json`.
 

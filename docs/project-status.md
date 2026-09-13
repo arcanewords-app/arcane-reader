@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-08-30
+updated: 2026-09-13
 ---
 
 # Project status
@@ -56,6 +56,7 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred                         |
 | [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod                                   |
 | [[05-plans/adaptive-ui]]                  | I0–I5 shipped (Header wrap, CardGrid, 48 visual PNGs). Leftover: container queries per surface, news/admin shells on touch |
+| [[05-plans/dependency-major-backlog]]     | Deferred npm majors (openai 7, bullmq/ioredis 6, vitest 5, …) — one major per PR |
 
 ## Known tech debt
 

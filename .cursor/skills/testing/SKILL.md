@@ -75,7 +75,7 @@ Husky hooks source `.husky/load-node.sh` before `npx`/`npm`. GUI Git (Cursor Sou
 - Wrappers normalize cwd via `realpathSync.native` (avoids `f:` vs `F:` → “No test suite found”).
 - Component/integration wrappers pass **explicit file lists** (directory/glob entry flaky on Windows).
 - Integration: `pool: 'forks'`, **no** Vitest `setupFiles` — env isolation via imported `tests/integration/setup.ts`.
-- Stryker + TypeScript 7: `stryker.conf.json` `ignorePatterns` includes `tsconfig.json` (Stryker `TSConfigPreprocessor` still calls `parseConfigFileTextToJson`; [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Do not drop that pattern until Stryker ships the jsonc-parser fix.
+- Stryker + TypeScript 7: `stryker.conf.json` `ignorePatterns` includes `tsconfig.json` (Stryker 10 `TSConfigPreprocessor` still calls `parseConfigFileTextToJson`; [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111)). Do not drop that pattern until Stryker ships the jsonc-parser fix. Babel 8 wants Node `>=24.11`; on 24.10 use `npm install --engine-strict=false`.
 - Stryker mutate is `src/**/*.ts` minus `*.test.ts` / `*.test.tsx` / `*.hook.test.ts` and lab apps. **`.tsx` is not mutated.** `vitest.related: false` means even smoke (`--mutate` one file) runs the full unit dry-run first. JSON report: `reports/mutation/mutation.json`.
 
 ## File template (unit)

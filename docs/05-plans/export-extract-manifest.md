@@ -191,9 +191,8 @@ export const logger = {
 | ----------------- | ------- | --------------------------------------------------------------- |
 | `epub-gen-memory` | ^1.1.2  | Генерация EPUB in-memory (Vercel-safe, без temp в node_modules) |
 | `epub2`           | ^3.0.2  | Парсинг EPUB                                                    |
-| `fast-xml-parser` | ^5.8.0  | FB2 XML + OPF в EPUB                                            |
-| `adm-zip`         | ^0.5.17 | Fallback-разбор EPUB-архива                                     |
-| `@types/adm-zip`  | ^0.5.8  | devDependency                                                   |
+| `fast-xml-parser` | ^5.11.1 | FB2 XML + OPF в EPUB                                            |
+| `adm-zip`         | ^0.6.1  | Fallback-разбор EPUB-архива (bundled types; no `@types/adm-zip`) |
 
 **Не нужны:** `epub-gen` (устарел, заменён на `epub-gen-memory`).
 

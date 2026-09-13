@@ -37,4 +37,6 @@ Runtime **5.x** with route validation in `src/api/validateRoute.ts`. Migration a
 
 ## Baseline
 
-Before/after comparison: [dependency-audit-baseline.md](./dependency-audit-baseline.md) (2026-06-28).
+Before/after comparison: [dependency-audit-baseline.md](./dependency-audit-baseline.md).
+
+Deferred majors (one PR each): [[05-plans/dependency-major-backlog]].

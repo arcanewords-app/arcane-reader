@@ -78,11 +78,20 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | UI dev  | `vite`, `oxlint`, `@preact/*`                | `npm run build`, client loads            |
 | Deploy  | `@vercel/node`                               | Vercel preview deploy                    |
 
-## P4 backlog (defer — separate PRs)
+## P4 / P2 major backlog (defer — separate PRs)
 
-| Package       | Latest (2026-06) | Notes                                              |
-| ------------- | ---------------- | -------------------------------------------------- |
-| `@types/node` | 26.x             | Only with Node 26 LTS + SSOT trio (`.nvmrc`, etc.) |
+Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
+
+| Package           | Latest (2026-09) | Notes                                              |
+| ----------------- | ---------------- | -------------------------------------------------- |
+| `@types/node`     | 26.x             | P4 — only with Node 26 LTS + SSOT trio             |
+| `openai`          | 7.x              | P2 — `@docs/05-plans/openai-7-upgrade.md`          |
+| `bullmq`          | 6.x              | P2 — not same PR as ioredis 6                      |
+| `ioredis`         | 6.x              | P2                                                 |
+| `@axiomhq/js`     | 2.x              | P2                                                 |
+| `@vercel/node`    | 13.x             | P2 — Vercel preview; never `audit fix --force`     |
+| `vitest`          | 5.x              | P2 — pin 4.0.8 until Windows + Node 24 proof       |
+| `web-vitals`      | 6.x              | P2                                                 |
 
 ## Mitigations (temporary — document as tech debt)
 
@@ -111,6 +120,8 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 | 14 Oxlint + TypeScript 7      | Done   | Drop ESLint / typescript-eslint; single `typescript@^7`; `.oxlintrc.json` |
 | 15 Oxlint type-aware          | Done   | `oxlint-tsgolint@7`; `typeAware` on; `typeCheck` off; noisy rules warn    |
 | Skill + agent                 | Done   | this file                                                                 |
+| 16 Monthly P0+P3 (2026-09)    | Done   | prod audit 0; `adm-zip` 0.6 + multer/csv/fxml/qs patches; Vite 8.3        |
+| 17 Stryker 10                 | Done   | core + vitest-runner 10; keep `tsconfig.json` ignorePatterns              |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 
@@ -119,6 +130,7 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 ## References
 
 - Baseline: `@docs/02-how-to/dependency-audit-baseline.md`
+- Major backlog: `@docs/05-plans/dependency-major-backlog.md`
 - Human runbook: `@docs/02-how-to/dependency-maintenance.md`
 - Deploy / Node: `@.cursor/rules/deployment.mdc`
 - Security (app): `@.cursor/skills/security/SKILL.md`
