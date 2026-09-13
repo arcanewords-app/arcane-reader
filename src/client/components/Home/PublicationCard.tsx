@@ -38,9 +38,7 @@ export function PublicationCard({
   const translatorEntityId = publication.translatorEntityId ?? null;
   const targetLanguage = publication.targetLanguage;
   const langLabel = targetLanguage
-    ? t('publication.languageLabel', {
-        language: t(`language.${targetLanguage}`) || targetLanguage.toUpperCase(),
-      })
+    ? t(`language.${targetLanguage}`) || targetLanguage.toUpperCase()
     : null;
 
   const translatedChapterCount =
@@ -191,11 +189,13 @@ export function PublicationCard({
               <p class="publication-card-meta-fallback">{t('publication.unknownAuthor')}</p>
             )}
             {langLabel && (
-              <div class="publication-card-chip-row">
+              <div class="publication-card-chip-row publication-card-chip-row--meta">
                 <span class="publication-card-lang-badge">{langLabel}</span>
                 {translatedChapterCount != null && translatedChapterCount > 0 && (
                   <>
-                    <span class="publication-card-meta-sep">·</span>
+                    <span class="publication-card-meta-sep" aria-hidden="true">
+                      ·
+                    </span>
                     <span class="publication-card-chapters-badge">
                       {translatedChapterCount} {declension(translatedChapterCount, chapterForms)}
                     </span>

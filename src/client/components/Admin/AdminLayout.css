@@ -50,3 +50,9 @@
 .admin-layout-content {
   min-width: 0;
 }
+
+@media (max-width: 767px) {
+  .admin-layout {
+    padding: 1rem;
+  }
+}

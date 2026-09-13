@@ -309,8 +309,16 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
             {/* Auth Buttons (guests only) */}
             {!user && (onOpenLogin || onOpenRegister) && (
               <div class="header-auth-buttons">
-                <Button variant="secondary" size="sm" onClick={onOpenLogin}>
-                  {t('header.login')}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="header-login-btn"
+                  onClick={onOpenLogin}
+                  aria-label={t('header.login')}
+                  title={t('header.login')}
+                >
+                  <Icon name="login" size="sm" />
+                  <span class="header-login-label">{t('header.login')}</span>
                 </Button>
                 <Button variant="primary" size="sm" onClick={onOpenRegister ?? onOpenLogin}>
                   {t('header.register')}
@@ -337,7 +345,12 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                     <span class="header-avatar-placeholder">{getInitials(user.email)}</span>
                   )}
                 </button>
-                <Button variant="secondary" onClick={onLogout} size="sm">
+                <Button
+                  variant="secondary"
+                  className="header-logout-btn"
+                  onClick={onLogout}
+                  size="sm"
+                >
                   {t('header.logout')}
                 </Button>
               </div>

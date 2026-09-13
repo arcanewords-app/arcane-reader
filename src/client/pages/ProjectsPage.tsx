@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
-import { Button, Input, Modal, Icon, AlertModal } from '../components/ui';
+import { Button, Input, Modal, Icon, AlertModal, PageHeader } from '../components/ui';
 import { ProjectLanguagePairFields } from '../components/Project/ProjectLanguagePairFields';
 import {
   PROJECT_DEFAULT_SOURCE_LANGUAGE,
@@ -90,10 +90,10 @@ export function ProjectsPage() {
 
   return (
     <div class="projects-page">
-      <div class="dashboard-header">
-        <div class="dashboard-title">
-          <h1>{t('dashboard.myProjects')}</h1>
-          <p class="dashboard-subtitle">
+      <PageHeader
+        title={t('dashboard.myProjects')}
+        subtitle={
+          <>
             {projects.length > 0
               ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
               : t('dashboard.subtitleEmpty')}
@@ -103,26 +103,29 @@ export function ProjectsPage() {
                 {t('dashboard.projectLimitHint', { current: projects.length, limit: projectLimit })}
               </>
             )}
-          </p>
-          <span class="projects-role-badge">{t(ROLE_LABEL_KEYS[role])}</span>
-        </div>
-        <Button
-          variant="primary"
-          onClick={() => setShowCreateModal(true)}
-          className="dashboard-create-btn"
-          disabled={atProjectLimit}
-          title={
-            atProjectLimit
-              ? t('dashboard.projectLimitReached', {
-                  current: projects.length,
-                  limit: projectLimit,
-                })
-              : undefined
-          }
-        >
-          <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
-        </Button>
-      </div>
+          </>
+        }
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => setShowCreateModal(true)}
+            className="dashboard-create-btn"
+            disabled={atProjectLimit}
+            title={
+              atProjectLimit
+                ? t('dashboard.projectLimitReached', {
+                    current: projects.length,
+                    limit: projectLimit,
+                  })
+                : undefined
+            }
+          >
+            <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
+          </Button>
+        }
+      >
+        <span class="projects-role-badge">{t(ROLE_LABEL_KEYS[role])}</span>
+      </PageHeader>
 
       {projects.length > 0 && (
         <div class="dashboard-filters">

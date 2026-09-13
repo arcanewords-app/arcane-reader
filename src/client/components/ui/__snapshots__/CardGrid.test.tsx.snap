@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CardGrid > matches snapshot for publication variant 1`] = `
+<div
+  class="card-grid"
+>
+  <article>
+    Card A
+  </article>
+  <article>
+    Card B
+  </article>
+</div>
+`;

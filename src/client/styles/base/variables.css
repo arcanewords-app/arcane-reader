@@ -98,6 +98,10 @@
      Mobile First Approach
      ============================================================= */
 
+  /* Card grids — CardGrid minmax floors (auto-fit) */
+  --card-min-publication: 220px;
+  --card-min-project: 220px;
+
   /* Mobile (≤767px) - Base styles */
   --container-width-mobile: 100%;
   --sidebar-width-mobile: 85vw; /* Шире для мобильных, так как выдвигается */

@@ -5,7 +5,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import { ProjectGrid } from '../components/Dashboard/ProjectGrid';
 import { ReadingHistorySection } from '../components/Cabinet/ReadingHistorySection';
 import { ReaderSettingsPanel } from '../components/ChapterView/ReaderSettings';
-import { Button, Input, Modal, LoadingSpinner, Icon } from '../components/ui';
+import { Button, Input, Modal, LoadingSpinner, Icon, PageHeader } from '../components/ui';
 import { ProjectLanguagePairFields } from '../components/Project/ProjectLanguagePairFields';
 import {
   PROJECT_DEFAULT_SOURCE_LANGUAGE,
@@ -137,23 +137,23 @@ export function CabinetPage() {
 
         {activeTab === 'projects' && isAuthor && (
           <div class="cabinet-section cabinet-section-projects">
-            <div class="dashboard-header">
-              <div class="dashboard-title">
-                <h1>{t('dashboard.myProjects')}</h1>
-                <p class="dashboard-subtitle">
-                  {projects.length > 0
-                    ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
-                    : t('dashboard.subtitleEmpty')}
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                onClick={() => setShowCreateModal(true)}
-                className="dashboard-create-btn"
-              >
-                <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
-              </Button>
-            </div>
+            <PageHeader
+              title={t('dashboard.myProjects')}
+              subtitle={
+                projects.length > 0
+                  ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
+                  : t('dashboard.subtitleEmpty')
+              }
+              actions={
+                <Button
+                  variant="primary"
+                  onClick={() => setShowCreateModal(true)}
+                  className="dashboard-create-btn"
+                >
+                  <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
+                </Button>
+              }
+            />
 
             {projects.length > 0 && (
               <div class="dashboard-filters">

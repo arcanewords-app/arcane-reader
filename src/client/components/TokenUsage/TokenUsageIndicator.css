@@ -129,7 +129,7 @@
 }
 
 /* Mobile styles */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .token-usage-indicator {
     min-width: auto;
     width: 100%;

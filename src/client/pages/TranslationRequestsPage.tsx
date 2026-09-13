@@ -28,6 +28,7 @@ import {
   Select,
   ConfirmModal,
   AlertModal,
+  PageHeader,
 } from '../components/ui';
 import { getProjectLimitForRole } from '../../config/projectLimits';
 import '../components/Dashboard/Dashboard.css';
@@ -401,38 +402,38 @@ export function TranslationRequestsPage() {
 
   return (
     <div class="translation-requests-page request-board-page">
-      <div class="dashboard-header">
-        <div class="dashboard-title">
-          <h1>{t('requestBoard.title')}</h1>
-          <p class="dashboard-subtitle">{subtitle}</p>
-        </div>
-        <div class="request-board-header-actions">
-          {isAdmin && (
+      <PageHeader
+        title={t('requestBoard.title')}
+        subtitle={subtitle}
+        actions={
+          <div class="request-board-header-actions">
+            {isAdmin && (
+              <Button
+                variant={moderationMode ? 'primary' : 'secondary'}
+                onClick={() => setModerationMode((v) => !v)}
+                className="request-board-moderation-toggle"
+              >
+                <Icon name="settings" size="sm" /> {t('requestBoard.moderation')}
+              </Button>
+            )}
+            {isAdmin && moderationMode && (
+              <Button
+                variant={showClosedForAdmin ? 'primary' : 'secondary'}
+                onClick={() => setShowClosedForAdmin((v) => !v)}
+              >
+                {t('requestBoard.showClosed')}
+              </Button>
+            )}
             <Button
-              variant={moderationMode ? 'primary' : 'secondary'}
-              onClick={() => setModerationMode((v) => !v)}
-              className="request-board-moderation-toggle"
+              variant="primary"
+              onClick={() => setShowSuggestModal(true)}
+              className="dashboard-create-btn"
             >
-              <Icon name="settings" size="sm" /> {t('requestBoard.moderation')}
+              <Icon name="add" size="sm" /> {t('translationRequests.newButton')}
             </Button>
-          )}
-          {isAdmin && moderationMode && (
-            <Button
-              variant={showClosedForAdmin ? 'primary' : 'secondary'}
-              onClick={() => setShowClosedForAdmin((v) => !v)}
-            >
-              {t('requestBoard.showClosed')}
-            </Button>
-          )}
-          <Button
-            variant="primary"
-            onClick={() => setShowSuggestModal(true)}
-            className="dashboard-create-btn"
-          >
-            <Icon name="add" size="sm" /> {t('translationRequests.newButton')}
-          </Button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {success && (
         <p class="translation-requests-flash translation-requests-flash--success" role="status">

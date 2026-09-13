@@ -250,7 +250,7 @@
 }
 
 /* Narrow viewport + tablet sidebar (320px): show short labels to fit */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .chapter-filter-label-long {
     display: none;
   }
@@ -648,7 +648,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .chapter-item {
     border-radius: 0;
     padding: 1rem;

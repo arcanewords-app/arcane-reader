@@ -72,6 +72,25 @@ vi.mock('../components/ui', () => ({
     </button>
   ),
   Modal: () => null,
+  PageHeader: ({
+    title,
+    subtitle,
+    actions,
+    children,
+  }: {
+    title: string;
+    subtitle?: unknown;
+    actions?: unknown;
+    children?: unknown;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {subtitle}
+      {actions}
+      {children}
+    </div>
+  ),
+  CardGrid: ({ children }: { children?: unknown }) => <div>{children}</div>,
 }));
 
 vi.mock('../api/client.js', () => ({

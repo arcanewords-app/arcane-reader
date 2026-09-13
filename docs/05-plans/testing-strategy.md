@@ -235,7 +235,7 @@ Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty
 - [x] `tests/e2e/` Persona/Actor (`guest`, `reader`, `author`, `authorPlus`, `admin`)
 - [x] globalSetup: health, seed logins/roles, catalog nonempty, Author owns dump, Reader owns none
 - [x] Specs: guest catalog, reader login/progress, access matrix, author workspace, AuthorPlus gated UI, admin console, `@llm` tiny translate
-- [x] Pixel shells: separate `*.visual.spec.ts` (`@visual`); `layoutMatches` × phone/tablet/desktop `fullPage`; fixture seeds dismissed alerts
+- [x] Pixel shells: separate `*.visual.spec.ts` (`@visual`); `layoutMatches` × phone 390 / tablet **834** / desktop 1280 `fullPage`; fixture seeds dismissed alerts
 
 #### Still blocked (CI)
 
@@ -257,6 +257,7 @@ Persona/Actor Playwright against `stack:up` (stamp image) + `npm run dev`. Dirty
 | `authorPlus.uses-gated-tools.spec.ts`                      | AuthorPlus           |
 | `authorPlus.visual.spec.ts`                                | AuthorPlus `@visual` |
 | `admin.opens-console.spec.ts`                              | Admin                |
+| `admin.visual.spec.ts`                                     | Admin `@visual`      |
 | `author.translates-chapter.spec.ts`                        | Author `@llm`        |
 
 See [[tests/e2e/README|tests/e2e/README.md]] (repo path).

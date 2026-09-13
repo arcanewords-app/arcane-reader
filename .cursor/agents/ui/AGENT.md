@@ -59,7 +59,7 @@ Read and follow: [`.cursor/skills/ui/SKILL.md`](../../skills/ui/SKILL.md)
 - [ ] Tokens from `variables.css` — no ad-hoc colors/spacing
 - [ ] States: hover, focus-visible, disabled, loading where applicable
 - [ ] i18n keys added to `en`, `ru`, `be` (and `pl` when that file is touched)
-- [ ] Responsive checked: mobile, tablet, desktop
+- [ ] Responsive checked: mobile, tablet, desktop ([RESPONSIVE.md](../../skills/ui/RESPONSIVE.md))
 - [ ] Touch targets ≥ 44px on mobile/tablet
 - [ ] If routes changed: `routing.mdc` + `AppRouter.tsx` updated in same task
 - [ ] Reusable UX shipped → consider entry in [PATTERNS.md](../../skills/ui/PATTERNS.md)

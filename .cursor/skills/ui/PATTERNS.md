@@ -25,26 +25,29 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                           | Summary                                           | Reference                                   |
-| ---------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`                  |
-| `filter-icon-chip`           | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`                  |
-| `filter-segment-control`     | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`                  |
-| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                              |
-| `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`        |
-| `entity-chip-hover-preview`  | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css` |
-| `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                                |
-| `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                    |
-| `header-credits-tooltip`     | Compact remaining credits + hover popup           | `TokenUsageIndicator.tsx`                   |
-| `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`                |
-| `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                       |
-| `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`           |
-| `publication-rating-summary` | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`              |
-| `publication-rating-input`   | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`                  |
-| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`                  |
-| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                         |
-| `reading-history-card`       | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`                 |
-| `glossary-type-filter-bar`   | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`                 |
+| Id                           | Summary                                           | Reference                                       |
+| ---------------------------- | ------------------------------------------------- | ----------------------------------------------- |
+| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`                      |
+| `filter-icon-chip`           | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`                      |
+| `filter-segment-control`     | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`                      |
+| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                                  |
+| `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`            |
+| `entity-chip-hover-preview`  | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css`     |
+| `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                                    |
+| `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                        |
+| `header-credits-tooltip`     | Compact remaining credits + hover popup           | `TokenUsageIndicator.tsx`                       |
+| `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`                    |
+| `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                           |
+| `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`               |
+| `publication-rating-summary` | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`                  |
+| `publication-rating-input`   | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`                      |
+| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`                      |
+| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                             |
+| `reading-history-card`       | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`                     |
+| `glossary-type-filter-bar`   | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`                     |
+| `page-header`                | Title + subtitle + CTA; stack CTA on phone        | `PageHeader.tsx`                                |
+| `card-grid`                  | `auto-fit` minmax grid for cards                  | `CardGrid.tsx`                                  |
+| `header-overflow`            | Nav wraps ≤1023; hide credits ≤767                | `Header.tsx` / [RESPONSIVE.md](./RESPONSIVE.md) |
 
 ---
 
@@ -444,7 +447,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 - [`src/client/components/Cabinet/ReadingHistorySection.tsx`](../../../src/client/components/Cabinet/ReadingHistorySection.tsx)
 - [`src/client/components/Cabinet/ReadingHistorySection.css`](../../../src/client/components/Cabinet/ReadingHistorySection.css)
-- Reuses [`PublicationCard.css`](../../../src/client/components/Home/PublicationCard.css) + [`home-grid`](../../../src/client/pages/HomePage.css)
+- Reuses [`PublicationCard.css`](../../../src/client/components/Home/PublicationCard.css) + [`CardGrid`](../../../src/client/components/ui/CardGrid.tsx)
 
 **Layout:**
 
@@ -453,13 +456,66 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 - `reading-history-reset-link` — secondary text link with `restart_alt` icon (not a second full-width button)
 - `reading-history-meta` — `readCount / totalChapters` and optional last-read date
 
-**Responsive:** `home-grid` breakpoints; reset link `min-height: 44px` on mobile.
+**Responsive:** `CardGrid` breakpoints; reset link `min-height: 44px` on mobile.
 
 **i18n:** `profile.continue`, `profile.open`, `profile.lastRead`, `readingProgress.reset`, `publication.chapters`.
 
 **a11y:** Clickable area has `aria-label`; empty state uses `Icon` not emoji; reset opens confirm `Modal` with `Button` variants.
 
 **Do not:** Style reset as unstyled native `<button>`; make entire card one click target (conflicts with CTA/reset).
+
+---
+
+## `page-header`
+
+**When:** Page has a heading, optional subtitle/meta, and a primary action (catalog suggest, new project, board CTA).
+
+**When not:** Inline section headings inside a card; modal titles (use `Modal`).
+
+**Files:**
+
+- [`src/client/components/ui/PageHeader.tsx`](../../../src/client/components/ui/PageHeader.tsx)
+- [`src/client/components/ui/PageHeader.css`](../../../src/client/components/ui/PageHeader.css)
+
+**Layout / behavior:** Row: copy (h1 + subtitle) + actions. Extra `children` (tabs, badges) below the row.
+
+**Responsive:** Phone (≤767) stacks and stretches CTAs. Tablet+ keeps CTA on the right (not full-width).
+
+**a11y:** One `h1` per page via this primitive.
+
+**Anti-patterns:** Full-width primary button on tablet; duplicating `.dashboard-header` / `.home-header-top` instead of `PageHeader`.
+
+---
+
+## `card-grid`
+
+**When:** Collection of publication, project, or reading-history cards.
+
+**When not:** Icon/chip toolbars (`auto-fill`); admin list rows.
+
+**Files:**
+
+- [`src/client/components/ui/CardGrid.tsx`](../../../src/client/components/ui/CardGrid.tsx)
+- [`src/client/components/ui/CardGrid.css`](../../../src/client/components/ui/CardGrid.css)
+- Tokens: `--card-min-publication`, `--card-min-project` in `variables.css`
+
+**Layout / behavior:** `repeat(auto-fit, minmax(var(--card-grid-min), 1fr))`. Container query context on the grid.
+
+**Responsive:** Intrinsic — phone is one column because the min floor exceeds half the content width. Do not add `max-width: 768px` column overrides. Do not wrap the min in `min(100%, …)` (packs two skinny tracks on phone).
+
+**Anti-patterns:** `auto-fill` (empty tracks keep cards skinny); per-page `repeat(3, 1fr)`.
+
+---
+
+## `header-overflow`
+
+**When:** Global app Header density across guest / reader / author / admin.
+
+**Files:** [`Header.tsx`](../../../src/client/components/Header.tsx), [`Header.css`](../../../src/client/components/Header.css). Contract: [RESPONSIVE.md](./RESPONSIVE.md).
+
+**Layout / behavior:** Logo → primary nav → actions. ≤1023px wrap; nav full-width second row. ≤767px hide credits; guest Log in icon-only (`aria-label` retained).
+
+**Anti-patterns:** Squeezing author chrome into one tablet row; hiding Log out by shrinking type until it clips.
 
 ---
 

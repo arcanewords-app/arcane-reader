@@ -327,7 +327,15 @@ export const publicationCard = (page: Page) => page.getByTestId('publication-car
 
 Anti-pattern: `page.locator('.project-card')` in a spec or task.
 
-Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await actor.see(layoutMatches('guest-catalog'))`. Three CSS viewports from `tests/e2e/viewports.ts`; `fullPage` so the stamp catalog/projects are in the PNG. The fixture seeds `arcane:dismissed-alerts:v1` (same pattern as cookie consent) so a stamp banner cannot shift the layout. Do **not** click-dismiss the banner, mask dump cards “just in case”, call `page.toHaveScreenshot` in a spec, or add extra Playwright `projects` for viewports.
+Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await actor.see(layoutMatches('guest-catalog'))`. Three CSS viewports from `tests/e2e/viewports.ts` (phone 390, **tablet 834 — inside 768–1023, not on 768**, desktop 1280); `fullPage` so the stamp catalog/projects are in the PNG. The fixture seeds `arcane:dismissed-alerts:v1` (same pattern as cookie consent) so a stamp banner cannot shift the layout. Do **not** click-dismiss the banner, mask dump cards “just in case”, call `page.toHaveScreenshot` in a spec, or add extra Playwright `projects` for viewports.
+
+**Visual coverage (reader first):** new/changed public reader screens need a shell. Logic specs do not replace pixels.
+
+- `guest-catalog` / `guest-sign-in` / `guest-account-tiers` / `guest-publication` / `guest-reading` / `guest-news` / `guest-about` → `guest.visual.spec.ts`
+- `reader-upgrade` / `reader-profile` → `reader.visual.spec.ts`
+- `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests` → `author.visual.spec.ts`
+- `authorplus-empty` → `authorPlus.visual.spec.ts`
+- `admin-users` → `admin.visual.spec.ts`
 
 - Fixtures: `guest` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
 - Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions; targets = locators

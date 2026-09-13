@@ -145,7 +145,7 @@
 }
 
 /* Mobile adjustments */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .project-card-cover {
     aspect-ratio: 3 / 4; /* Slightly taller on mobile */
   }

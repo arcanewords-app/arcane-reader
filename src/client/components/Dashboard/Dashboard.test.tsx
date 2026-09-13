@@ -53,6 +53,24 @@ vi.mock('../ui', () => ({
   Input: (props: Record<string, unknown>) => <input {...props} />,
   Modal: () => null,
   Icon: () => null,
+  PageHeader: ({
+    title,
+    subtitle,
+    actions,
+    children,
+  }: {
+    title: string;
+    subtitle?: unknown;
+    actions?: unknown;
+    children?: unknown;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {subtitle}
+      {actions}
+      {children}
+    </div>
+  ),
 }));
 
 import { Dashboard } from './Dashboard.js';

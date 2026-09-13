@@ -67,6 +67,24 @@ vi.mock('../components/ui', () => ({
   Modal: () => null,
   Icon: () => null,
   AlertModal: () => null,
+  PageHeader: ({
+    title,
+    subtitle,
+    actions,
+    children,
+  }: {
+    title: string;
+    subtitle?: unknown;
+    actions?: unknown;
+    children?: unknown;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {subtitle}
+      {actions}
+      {children}
+    </div>
+  ),
 }));
 
 import { ProjectsPage } from './ProjectsPage.js';

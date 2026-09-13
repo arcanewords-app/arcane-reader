@@ -13,6 +13,7 @@ description: Preact UI patterns for Arcane Reader — components, tokens, i18n, 
 - Adding or changing client routes (with `AppRouter.tsx` + `routing.mdc`)
 - **Tabs, filters, in-app navigation** — read `@.cursor/rules/spa-navigation.mdc` and `@docs/02-how-to/sync-url-with-ui-state.md`
 - **Filters, toolbars, chips, badges** — read [PATTERNS.md](./PATTERNS.md) first
+- **Responsive / adaptive layout** — read [RESPONSIVE.md](./RESPONSIVE.md) (chrome vs container, CardGrid, Header overflow)
 
 ## Domain Knowledge
 
@@ -31,7 +32,7 @@ Workflow:
 1. **Before** new filter/toolbar UI → check index in PATTERNS.md; reuse or extend existing components.
 2. **After** a shipped UX the team likes → add a short entry to PATTERNS.md (same task or follow-up PR).
 
-Policies (tokens, a11y, 44px touch) stay in [`design-system.mdc`](../../rules/design-system.mdc). PATTERNS.md is for **feature-level composition**, not duplicate rules.
+Policies (tokens, a11y, 44px touch) stay in [`design-system.mdc`](../../rules/design-system.mdc). Layout contract: [RESPONSIVE.md](./RESPONSIVE.md). PATTERNS.md is for **feature-level composition**, not duplicate rules.
 
 ## Patterns
 
@@ -73,7 +74,7 @@ Choose the layer per `@.cursor/skills/testing/SKILL.md` (“Choose the layer fir
 - [ ] Primitives from `components/ui/`; tokens from `variables.css`
 - [ ] hover / focus-visible / disabled / loading where applicable
 - [ ] i18n keys in en, ru, be (and pl if touching pl.json)
-- [ ] Mobile → tablet → desktop; touch ≥ 44px
+- [ ] Mobile → tablet → desktop; touch ≥ 44px; layout follows [RESPONSIVE.md](./RESPONSIVE.md)
 - [ ] New reusable UX → entry in PATTERNS.md
 - [ ] New/changed component/hook/page → `*.test.tsx` / `*.hook.test.ts`
 - [ ] New E2E `data-testid` → `tests/e2e/README.md` + `tests/e2e/targets/`

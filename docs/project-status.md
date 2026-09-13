@@ -55,6 +55,7 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                                              |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred                      |
 | [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod                                |
+| [[05-plans/adaptive-ui]]                  | Responsive contract (RESPONSIVE.md): Header overflow, CardGrid, visual shells beyond catalog                            |
 
 ## Known tech debt
 

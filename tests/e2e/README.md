@@ -71,21 +71,22 @@ Reload the stamp (`npm run stack:restore`, or `stack:load` if there is no stamp 
 
 Separate `*.visual.spec.ts` tagged `@visual` — not mixed into logic specs. The fixture seeds `arcane:dismissed-alerts:v1` (all stamp alert ids from `GET /api/admin/announcements`) so a banner cannot shift the layout.
 
-`fullPage` `toHaveScreenshot` via `layoutMatches(name)`. Stamp catalog/projects are **in** the PNG. Mask only `token-usage` and `.project-card-date`. One Chromium project; the question resizes to phone (390×844), tablet (768×1024), desktop (1280×720) and restores the original viewport.
+`fullPage` `toHaveScreenshot` via `layoutMatches(name)`. Stamp catalog/projects are **in** the PNG. Mask only `token-usage` and `.project-card-date`. One Chromium project; the question resizes to phone (390×844), tablet (**834×1112**, inside 768–1023), desktop (1280×720) and restores the original viewport.
 
 ```bash
 npm run test:e2e:visual
 npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or breakpoint tweak
 ```
 
-| Prefix                                                    | Spec                                                |
-| --------------------------------------------------------- | --------------------------------------------------- |
-| `guest-catalog` / `guest-sign-in` / `guest-account-tiers` | `guest.visual.spec.ts`                              |
-| `reader-upgrade`                                          | `reader.visual.spec.ts`                             |
-| `author-projects`                                         | `author.visual.spec.ts`                             |
-| `authorplus-empty`                                        | `authorPlus.visual.spec.ts` (needs `stack:restore`) |
+| Prefix                                                                                                                           | Spec                                                |
+| -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `guest-catalog` / `guest-sign-in` / `guest-account-tiers` / `guest-publication` / `guest-reading` / `guest-news` / `guest-about` | `guest.visual.spec.ts`                              |
+| `reader-upgrade` / `reader-profile`                                                                                              | `reader.visual.spec.ts`                             |
+| `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests`                                   | `author.visual.spec.ts`                             |
+| `authorplus-empty`                                                                                                               | `authorPlus.visual.spec.ts` (needs `stack:restore`) |
+| `admin-users`                                                                                                                    | `admin.visual.spec.ts`                              |
 
-Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec (18). Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport.
+Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec. Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport. New reader screens need a shell (see `.cursor/skills/ui/RESPONSIVE.md`).
 
 ## Policy
 

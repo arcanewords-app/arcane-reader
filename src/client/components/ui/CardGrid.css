@@ -1,0 +1,19 @@
+.card-grid {
+  --card-grid-min: var(--card-min-publication);
+
+  container-type: inline-size;
+  display: grid;
+  /* Definite min: min(100%, …) with auto-fit lets skinny cards pack two tracks on phone. */
+  grid-template-columns: repeat(auto-fit, minmax(var(--card-grid-min), 1fr));
+  gap: 1.5rem;
+}
+
+.card-grid--project {
+  --card-grid-min: var(--card-min-project);
+}
+
+@media (min-width: 768px) {
+  .card-grid--project {
+    gap: 2rem;
+  }
+}

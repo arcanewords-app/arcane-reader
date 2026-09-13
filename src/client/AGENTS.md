@@ -13,6 +13,7 @@ Applies when editing `src/client/**`. Global rules: `.cursor/rules/client.mdc`, 
 - Tokens: `src/client/styles/base/variables.css` — no ad-hoc colors
 - Icons: `Icon.tsx` + Material Symbols (`design-system.mdc`)
 - **UX recipes:** [`.cursor/skills/ui/PATTERNS.md`](../../.cursor/skills/ui/PATTERNS.md) — catalog chips, filter bars, badges (check before new toolbar/filter UI)
+- **Adaptive layout:** [`.cursor/skills/ui/RESPONSIVE.md`](../../.cursor/skills/ui/RESPONSIVE.md) — chrome vs container, CardGrid, Header overflow
 - i18n: `useTranslation()`; app locales **en**, **ru**, **be**, **pl** (`src/client/i18n.ts`)
 - Project translation pair UI: source en|ko|zh (+ ru if target be) → target ru|be (default en→ru)
 - Default pair: `SettingsModal` → `PUT /api/projects/:id/languages` (locked server-side after glossary / non-pending chapters)

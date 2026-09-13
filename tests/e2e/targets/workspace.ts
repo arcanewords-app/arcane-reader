@@ -12,6 +12,9 @@ export const projectNameField = (page: Page) => page.getByPlaceholder('e.g. Lord
 
 export const createProjectButton = (page: Page) => page.getByRole('button', { name: 'Create' });
 
+export const requestsHeading = (page: Page) =>
+  page.getByRole('heading', { name: 'Translation requests' });
+
 export const glossaryButton = (page: Page) => page.getByRole('button', { name: /Glossary/ });
 
 export const glossaryHeading = (page: Page) => page.getByRole('heading', { name: 'Glossary' });

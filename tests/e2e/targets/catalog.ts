@@ -6,5 +6,7 @@ export const publicationCard = (page: Page) => page.getByTestId('publication-car
 
 export const newsHeading = (page: Page) => page.getByRole('heading', { name: 'News' });
 
+export const aboutHeading = (page: Page) => page.getByRole('heading', { name: 'About Arcane' });
+
 export const accountTiersHeading = (page: Page) =>
   page.getByRole('heading', { name: 'Account levels' });

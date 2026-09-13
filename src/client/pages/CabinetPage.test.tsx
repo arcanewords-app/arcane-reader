@@ -60,6 +60,24 @@ vi.mock('../components/ui', () => ({
   Modal: () => null,
   LoadingSpinner: () => <span>loading</span>,
   Icon: () => null,
+  PageHeader: ({
+    title,
+    subtitle,
+    actions,
+    children,
+  }: {
+    title: string;
+    subtitle?: unknown;
+    actions?: unknown;
+    children?: unknown;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {subtitle}
+      {actions}
+      {children}
+    </div>
+  ),
 }));
 
 import { CabinetPage } from './CabinetPage.js';

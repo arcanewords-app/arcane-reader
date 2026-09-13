@@ -109,10 +109,16 @@ alwaysApply: false
 
 ## Responsive (Mobile First)
 
+Contract: `@.cursor/skills/ui/RESPONSIVE.md`.
+
 - MUST design and verify UI in order: mobile -> tablet -> desktop.
 - MUST check each changed screen/component on at least 3 viewport classes (mobile, tablet, desktop).
 - MUST keep touch targets >= 44px for interactive controls on mobile/tablet.
 - MUST avoid horizontal scrolling and clipped actions with long localized strings.
+- MUST write mobile-first CSS: base = phone; enhance with `@media (min-width: 768px)` / `1024px`.
+- MUST NOT use `@media (max-width: 768px)` (overlaps tablet). Hide chrome with `max-width: 767px` or `480px` only.
+- MUST use viewport media for page chrome (Header, ReadingMode, sidebar) and container queries / intrinsic grids for cards, toolbars, and tables.
+- MUST prefer `CardGrid` (`auto-fit` + `minmax`) over per-page column counts; `auto-fill` is for chip/icon strips only.
 - SHOULD keep modal, back-button, and toolbar behavior visually consistent on narrow screens.
 - SHOULD keep inline styles only for runtime geometry (for example virtualization or measured offsets).
 
@@ -130,4 +136,4 @@ alwaysApply: false
 - States covered (hover/focus-visible/disabled/loading where applicable).
 - Keyboard + focus-visible verified for interactive controls.
 - i18n keys added for all user-facing text.
-- Responsive verified on mobile/tablet/desktop without layout breaks.
+- Responsive verified on mobile/tablet/desktop without layout breaks (RESPONSIVE.md).

@@ -1,5 +1,6 @@
 .publication-card {
   position: relative;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -53,7 +54,7 @@
   justify-content: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .publication-card-cover {
     aspect-ratio: 3 / 4;
   }
@@ -155,6 +156,15 @@
   min-height: 1.75rem;
   min-width: 0;
   overflow: visible;
+}
+
+.publication-card-chip-row--meta {
+  flex-wrap: wrap;
+}
+
+.publication-card-lang-badge,
+.publication-card-chapters-badge {
+  white-space: nowrap;
 }
 
 .publication-card-chip {

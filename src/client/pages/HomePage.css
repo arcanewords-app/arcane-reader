@@ -235,12 +235,6 @@
   background: var(--bg-secondary);
 }
 
-.home-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
 .home-grid--refreshing {
   position: relative;
 }
@@ -292,7 +286,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .home-page {
     padding: var(--main-padding-mobile);
   }
@@ -301,10 +295,6 @@
   }
   .home-title {
     font-size: 1.75rem;
-  }
-  .home-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 1rem;
   }
 }
 
@@ -344,10 +334,6 @@
   }
   .home-search {
     min-width: 0;
-  }
-  .home-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
   }
   .home-empty-icon {
     font-size: 2.5rem;

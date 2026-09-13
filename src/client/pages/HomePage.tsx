@@ -7,7 +7,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import type { PublicationListItem, Publication, PublicEntity } from '../types';
 import { PublicationCard } from '../components/Home/PublicationCard';
 import { CatalogFilterToolbar } from '../components/Home/CatalogFilterToolbar';
-import { LoadingSpinner, Input, Icon, Button, Modal } from '../components/ui';
+import { LoadingSpinner, Input, Icon, Button, Modal, PageHeader, CardGrid } from '../components/ui';
 import { SuggestTranslationModal } from '../components/TranslationRequests/SuggestTranslationModal';
 import {
   buildCatalogUrlFromState,
@@ -354,12 +354,10 @@ export function HomePage() {
           </a>
         </div>
       )}
-      <div class="home-header">
-        <div class="home-header-top">
-          <div>
-            <h1 class="home-title">{t('home.title')}</h1>
-            <p class="home-subtitle">{t('home.subtitle')}</p>
-          </div>
+      <PageHeader
+        title={t('home.title')}
+        subtitle={t('home.subtitle')}
+        actions={
           <Button
             variant="secondary"
             className="home-suggest-btn"
@@ -370,7 +368,8 @@ export function HomePage() {
           >
             <Icon name="add" size="sm" /> {t('home.suggestTranslation')}
           </Button>
-        </div>
+        }
+      >
         {showMyWorksTab && (
           <div class="home-tabs" role="tablist">
             <button
@@ -393,7 +392,7 @@ export function HomePage() {
             </button>
           </div>
         )}
-      </div>
+      </PageHeader>
 
       {error && publications.length > 0 && (
         <div class="home-refresh-error">
@@ -534,7 +533,7 @@ export function HomePage() {
               )}
             </div>
           ) : (
-            <div class={`home-grid${refreshing ? ' home-grid--refreshing' : ''}`}>
+            <CardGrid class={refreshing ? 'home-grid--refreshing' : ''}>
               {refreshing && (
                 <div class="home-grid-refresh-overlay" aria-busy="true">
                   <LoadingSpinner size="md" />
@@ -552,7 +551,7 @@ export function HomePage() {
                   }
                 />
               ))}
-            </div>
+            </CardGrid>
           )}
         </>
       )}

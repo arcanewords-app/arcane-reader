@@ -439,7 +439,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .publication-page {
     padding: var(--main-padding-mobile);
   }

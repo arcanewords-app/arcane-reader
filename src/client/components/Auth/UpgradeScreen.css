@@ -44,3 +44,18 @@
   justify-content: center;
   flex-wrap: wrap;
 }
+
+.upgrade-screen__actions .btn {
+  flex: 0 1 auto;
+}
+
+@media (max-width: 767px) {
+  .upgrade-screen__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .upgrade-screen__actions .btn {
+    width: 100%;
+  }
+}

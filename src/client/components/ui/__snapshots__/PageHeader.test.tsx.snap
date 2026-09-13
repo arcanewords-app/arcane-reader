@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PageHeader > matches snapshot 1`] = `
+<div
+  class="page-header"
+>
+  <div
+    class="page-header-row"
+  >
+    <div
+      class="page-header-copy"
+    >
+      <h1
+        class="page-header-title"
+      >
+        My projects
+      </h1>
+      <div
+        class="page-header-subtitle"
+      >
+        7 projects
+      </div>
+    </div>
+    <div
+      class="page-header-actions"
+    >
+      <button>
+        New project
+      </button>
+    </div>
+  </div>
+</div>
+`;

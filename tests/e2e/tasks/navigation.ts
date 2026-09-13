@@ -28,6 +28,14 @@ export const openProfile: Task = async (actor) => {
   await actor.page.goto('/profile');
 };
 
+export const openAbout: Task = async (actor) => {
+  await actor.page.goto('/about');
+};
+
+export const openTranslationRequests: Task = async (actor) => {
+  await actor.page.goto('/translation-requests');
+};
+
 export const openAdminUsers: Task = async (actor) => {
   await actor.page.goto('/admin/users');
 };

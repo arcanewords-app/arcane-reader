@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { api } from '../../api/client';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
-import { LoadingSpinner, Modal, Button, Icon } from '../ui';
+import { LoadingSpinner, Modal, Button, Icon, CardGrid } from '../ui';
 import { useReadingHistory, type ReadingHistoryItem } from '../../hooks/useReadingHistory';
 import '../Home/PublicationCard.css';
-import '../../pages/HomePage.css';
 import './ReadingHistorySection.css';
 
 export type { ReadingHistoryItem };
@@ -77,7 +76,7 @@ export function ReadingHistorySection() {
 
   return (
     <>
-      <div class="home-grid">
+      <CardGrid>
         {items.map((item) => {
           const title = item.title || t('publication.untitled');
           return (
@@ -163,7 +162,7 @@ export function ReadingHistorySection() {
             </div>
           );
         })}
-      </div>
+      </CardGrid>
 
       <Modal
         isOpen={resetTarget != null}

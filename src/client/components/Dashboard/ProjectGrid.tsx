@@ -2,7 +2,7 @@ import { useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { ProjectListItem } from '../../types';
 import { ProjectCard } from './ProjectCard';
-import { LoadingSpinner, Icon } from '../ui';
+import { LoadingSpinner, Icon, CardGrid } from '../ui';
 import './ProjectGrid.css';
 
 interface ProjectGridProps {
@@ -84,10 +84,10 @@ export function ProjectGrid({
   // Virtualization can be added later if needed using Intersection Observer or a library
 
   return (
-    <div class="project-grid">
+    <CardGrid variant="project" class="project-grid">
       {filteredProjects.map((project) => (
         <ProjectCard key={project.id} project={project} onClick={onSelectProject} />
       ))}
-    </div>
+    </CardGrid>
   );
 }

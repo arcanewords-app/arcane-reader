@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { route } from 'preact-router';
 import { ProjectGrid } from './ProjectGrid';
-import { Button, Input, Modal, Icon } from '../ui';
+import { Button, Input, Modal, Icon, PageHeader } from '../ui';
 import { ProjectLanguagePairFields } from '../Project/ProjectLanguagePairFields';
 import {
   PROJECT_DEFAULT_SOURCE_LANGUAGE,
@@ -72,23 +72,23 @@ export function Dashboard() {
   return (
     <div class="dashboard">
       {/* Header Section */}
-      <div class="dashboard-header">
-        <div class="dashboard-title">
-          <h1>{t('dashboard.myProjects')}</h1>
-          <p class="dashboard-subtitle">
-            {projects.length > 0
-              ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
-              : t('dashboard.subtitleEmpty')}
-          </p>
-        </div>
-        <Button
-          variant="primary"
-          onClick={() => setShowCreateModal(true)}
-          className="dashboard-create-btn"
-        >
-          <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('dashboard.myProjects')}
+        subtitle={
+          projects.length > 0
+            ? `${projects.length} ${projects.length === 1 ? t('projectCount.one') : projects.length < 5 ? t('projectCount.few') : t('projectCount.many')}`
+            : t('dashboard.subtitleEmpty')
+        }
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => setShowCreateModal(true)}
+            className="dashboard-create-btn"
+          >
+            <Icon name="add" size="sm" /> {t('dashboard.newProjectButton')}
+          </Button>
+        }
+      />
 
       {/* Filters and Search */}
       {projects.length > 0 && (
