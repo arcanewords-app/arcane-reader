@@ -8,7 +8,7 @@ import {
   modelUsesDefaultTemperature as adapterModelUsesDefaultTemperature,
   resolveModelCapabilities,
   type ModelCapabilities,
-} from './openaiModelAdapter.js';
+} from './openaiModelCapabilities.js';
 import {
   PROD_ANALYSIS_MODELS,
   PROD_TRANSLATE_EDIT_MODELS,

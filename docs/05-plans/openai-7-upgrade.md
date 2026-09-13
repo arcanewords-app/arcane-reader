@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 domain: engine
 stale: false
 created: 2026-09-13
@@ -8,38 +8,23 @@ updated: 2026-09-13
 canonical: .cursor/skills/dependency-maintenance/SKILL.md
 ---
 
-# openai 6 → 7
+# openai 6 → 7 (completed)
 
-**Do not combine** with other majors. Owner: Engine agent.
+**Completed** 2026-09-13 — `openai@^7.15.0`. Chat Completions params are `ChatCompletionCreateParamsNonStreaming` (no `Record<string, unknown>` / `as unknown as`). Live `@llm` not run.
 
-| | |
-| --- | --- |
-| Current | `openai@^6.49.0` |
-| Target | `openai@^7` (latest 7.x) |
-| Code | `src/engine/providers/openai.ts`, `src/shared/openaiModelAdapter.ts` |
+## What landed
 
-## Blockers
-
-None on Node (SDK 7 requires Node 22+; we are on 24).
-
-## Breaking notes (read before coding)
-
-Upstream [MIGRATION.md](https://github.com/openai/openai-node/blob/master/MIGRATION.md):
-
-- Web Fetch types: `withResponse` / `asResponse` bodies are Web `ReadableStream`; `APIError.headers` is Web `Headers`
-- Named + URI-encoded path params
-- `httpAgent` removed → `fetchOptions`
-- Removed shims, deprecated helpers, beta chat namespace
-
-7.0.0 changelog itself is mostly “require Node 22”; later 7.x may add more — re-read changelog at implement time.
+- Provider calls `chat.completions.create(buildChatCompletionParams(...))` without a cast; return type is `ChatCompletion`.
+- `completionText` joins `message.content` string | text parts; 429 uses `APIError` (`status === 429`).
+- Capabilities stay in `src/shared/openaiModelCapabilities.ts` (no SDK import) so the client model list does not pull OpenAI types into oxlint.
 
 ## Checklist
 
-- [ ] Read current `openai` MIGRATION.md vs our provider
-- [ ] Bump only `openai` in `package.json`; `npm install --no-workspaces`
-- [ ] `npm run lint:all && npm run test && npm run build`
-- [ ] Smoke: one translate job (local, mocked unit + one live `@llm` only if asked)
-- [ ] Archive this plan; update [[05-plans/dependency-major-backlog]]
+- [x] Read current `openai` MIGRATION.md vs our provider
+- [x] Bump only `openai` in `package.json`; `npm install --no-workspaces`
+- [x] `npm run lint:all && npm run test && npm run build`
+- [x] Smoke: mocked unit (`openai*.test.ts`, `openaiModelAdapter.test.ts`); live `@llm` skipped
+- [x] Archive this plan; update [[05-plans/dependency-major-backlog]]
 
 ## References
 

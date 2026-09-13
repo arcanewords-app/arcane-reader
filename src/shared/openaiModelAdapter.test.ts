@@ -106,6 +106,34 @@ describe('buildChatCompletionParams', () => {
     });
     assert.deepEqual(params.response_format, { type: 'json_object' });
   });
+
+  it('adds json_schema response_format', () => {
+    const schema = { type: 'object', properties: { ok: { type: 'boolean' } } };
+    const params = buildChatCompletionParams({
+      model: 'gpt-4.1-mini',
+      messages,
+      defaultTemperature: 0.3,
+      responseFormat: {
+        type: 'json_schema',
+        json_schema: { name: 'OkSchema', strict: true, schema },
+      },
+    });
+    assert.deepEqual(params.response_format, {
+      type: 'json_schema',
+      json_schema: { name: 'OkSchema', strict: true, schema },
+    });
+  });
+
+  it('uses max_tokens for legacy models', () => {
+    const params = buildChatCompletionParams({
+      model: 'gpt-3.5-turbo',
+      messages,
+      defaultTemperature: 0.7,
+      options: { maxTokens: 256 },
+    });
+    assert.equal(params.max_tokens, 256);
+    assert.equal(params.max_completion_tokens, undefined);
+  });
 });
 
 describe('helper exports', () => {

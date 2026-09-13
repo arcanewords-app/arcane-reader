@@ -2,7 +2,8 @@
  * OpenAI LLM Provider implementation
  */
 
-import OpenAI from 'openai';
+import OpenAI, { APIError } from 'openai';
+import type { ChatCompletionContentPart } from 'openai/resources/chat/completions';
 import type {
   ILLMProvider,
   LLMProviderConfig,
@@ -17,13 +18,16 @@ import { buildChatCompletionParams } from '../../shared/openaiModelAdapter.js';
 
 const STRUCTURED_JSON_RETRY_MAX_TOKENS = 16384;
 
-function isRateLimitError(err: unknown): boolean {
-  return (
-    err instanceof Error &&
-    'status' in err &&
-    typeof (err as { status?: number }).status === 'number' &&
-    (err as { status: number }).status === 429
-  );
+export function completionText(
+  content: string | ReadonlyArray<ChatCompletionContentPart> | null | undefined
+): string {
+  if (content == null) return '';
+  if (typeof content === 'string') return content;
+  return content.map((part) => (part.type === 'text' ? part.text : '')).join('');
+}
+
+function isRateLimitError(err: unknown): err is APIError {
+  return err instanceof APIError && err.status === 429;
 }
 
 function logIfRateLimit(err: unknown, context: string): void {
@@ -31,7 +35,7 @@ function logIfRateLimit(err: unknown, context: string): void {
     log.warn('OpenAI rate limit (429) - consider lowering BULL_*_CONCURRENCY or PARALLEL_CHUNKS', {
       err,
       context,
-      status: (err as { status: number }).status,
+      status: err.status,
     });
   }
 }
@@ -43,18 +47,16 @@ function describeCompletionChoice(
   const choice = response.choices[0];
   const message = choice?.message;
   const usage = response.usage;
-  const completionDetails = usage?.completion_tokens_details as
-    | { reasoning_tokens?: number }
-    | undefined;
+  const text = completionText(message?.content);
 
   return {
     model: response.model,
     finishReason: choice?.finish_reason ?? null,
-    contentLength: message?.content?.length ?? 0,
+    contentLength: text.length,
     refusal: message?.refusal ?? null,
     promptTokens: usage?.prompt_tokens ?? null,
     completionTokens: usage?.completion_tokens ?? null,
-    reasoningTokens: completionDetails?.reasoning_tokens ?? null,
+    reasoningTokens: usage?.completion_tokens_details?.reasoning_tokens ?? null,
     ...extra,
   };
 }
@@ -159,11 +161,11 @@ export class OpenAIProvider implements ILLMProvider {
           options,
           defaultTemperature: 0.7,
           responseFormat: 'text',
-        }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+        })
       );
 
       const choice = response.choices[0];
-      const content = choice.message.content ?? '';
+      const content = completionText(choice.message.content);
 
       if (isEmptyContent(content)) {
         log.warn(
@@ -219,11 +221,11 @@ export class OpenAIProvider implements ILLMProvider {
             options: attemptOptions,
             defaultTemperature: 0.3,
             responseFormat: 'json_object',
-          }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+          })
         );
 
         const choice = response.choices[0];
-        const content = choice.message.content ?? '';
+        const content = completionText(choice.message.content);
         const finishReason = choice.finish_reason;
         const maxTokens = attemptOptions?.maxTokens ?? options?.maxTokens;
 
@@ -319,11 +321,11 @@ export class OpenAIProvider implements ILLMProvider {
                 schema,
               },
             },
-          }) as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+          })
         );
 
         const choice = response.choices[0];
-        const content = choice.message.content ?? '';
+        const content = completionText(choice.message.content);
         const finishReason = choice.finish_reason;
 
         if (shouldRetryJsonCompletion(content, finishReason)) {

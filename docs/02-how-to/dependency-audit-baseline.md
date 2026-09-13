@@ -1,11 +1,11 @@
 # Dependency audit baseline
 
-Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10).
+Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10 + openai 7).
 
 ## npm audit --omit=dev (production)
 
 - **0 vulnerabilities**
-- Runtime: `express@5`, `openai@6`, Node 24, `multer@2.3`, `csv-parse@7.0.2`, `fast-xml-parser@5.11`, `adm-zip@0.6.1` (override so `epub2` does not keep 0.5)
+- Runtime: `express@5`, `openai@7`, Node 24, `multer@2.3`, `csv-parse@7.0.2`, `fast-xml-parser@5.11`, `adm-zip@0.6.1` (override so `epub2` does not keep 0.5)
 - **TypeScript:** `typescript@^7` — `npx tsc` and `import('typescript')` both **7.x**. Lint: oxlint + `oxlint-tsgolint` (`options.typeAware`, no `typeCheck`).
 - Scripts use `npm audit --omit=dev --no-workspaces` so monorepo parent hoisting does not skew counts
 
@@ -60,7 +60,7 @@ Do **not** rely on monorepo root `f:/arcane/package-lock.json` for CI — Vitest
 
 ## npm outdated (2026-09-13)
 
-- **Applied:** monthly P3 (Vite 8.3, oxlint 1.82, supabase-js 2.116, openai 6.49, zod 4.6, …) + P0 security patches
+- **Applied:** monthly P3 (Vite 8.3, oxlint 1.82, supabase-js 2.116, openai 7.15, zod 4.6, …) + P0 security patches
 - **Stryker:** `@stryker-mutator/core` + `vitest-runner` **10.0.0**
 - **Deferred majors:** [[05-plans/dependency-major-backlog]]
 

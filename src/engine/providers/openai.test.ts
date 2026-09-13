@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
+import { APIError } from 'openai';
 import type OpenAI from 'openai';
-import { OpenAIProvider } from './openai.js';
+import { completionText, OpenAIProvider } from './openai.js';
 
 type MockResponse = OpenAI.Chat.Completions.ChatCompletion;
 
@@ -71,13 +72,38 @@ describe('OpenAIProvider.complete', () => {
   });
 
   it('rethrows rate limit errors from API', async () => {
-    const rateLimitErr = Object.assign(new Error('rate limit'), { status: 429 });
+    const rateLimitErr = APIError.generate(
+      429,
+      { message: 'rate limit' },
+      'rate limit',
+      new Headers()
+    );
     const provider = providerWithMockCreate(() => {
       throw rateLimitErr;
     });
     await assert.rejects(
       () => provider.complete([{ role: 'user', content: 'hi' }]),
-      (err: unknown) => (err as { status?: number }).status === 429
+      (err: unknown) => err instanceof APIError && err.status === 429
+    );
+  });
+});
+
+describe('completionText', () => {
+  it('returns empty string for null content', () => {
+    assert.equal(completionText(null), '');
+  });
+
+  it('returns the string content as-is', () => {
+    assert.equal(completionText('Hello world'), 'Hello world');
+  });
+
+  it('joins text parts from a content array', () => {
+    assert.equal(
+      completionText([
+        { type: 'text', text: 'Hello ' },
+        { type: 'text', text: 'world' },
+      ]),
+      'Hello world'
     );
   });
 });
