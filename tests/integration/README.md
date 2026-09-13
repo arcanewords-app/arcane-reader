@@ -8,7 +8,7 @@ HTTP → middleware → handler → **mocked** DB/LLM/Redis wiring. No live Supa
 npm run test:integration
 ```
 
-Uses `scripts/test-integration.mjs` (explicit file list — Vitest 4.0.8 + Windows directory/glob entry can fail with “No test suite found”).
+Uses `scripts/test-integration.mjs` (explicit file list — Windows directory/glob entry can fail with “No test suite found”; keep until proven on Vitest 5).
 
 Config: `vitest.integration.config.ts`. Live suite excluded: `tests/integration/supabase/**`.
 

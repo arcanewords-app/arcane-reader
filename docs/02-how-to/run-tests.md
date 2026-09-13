@@ -1,6 +1,6 @@
 # Run tests
 
-Unit tests use **Vitest 4.0.8** (exact pin). Policy: [[_canonical/rules/testing]]. Strategy (pyramid): [[05-plans/testing-strategy]].
+Unit tests use **Vitest 5.0.0** (exact pin). Policy: [[_canonical/rules/testing]]. Strategy (pyramid): [[05-plans/testing-strategy]].
 
 Tests never require prod/staging `.env` credentials. Pre-push and GitHub Actions use mocks at all external boundaries. Local E2E uses the Docker stamp (`stack:up` restores `arcane-reader-stamp:latest`; dirty reset = `stack:restore`) + `npm run dev` — not a merge gate. First bake only: `stack:load` then `stack:stamp`. Dedicated CI live stack (Playwright-as-gate, `tests/integration/supabase/`) is still blocked. See [[05-plans/testing-baseline]].
 
@@ -98,9 +98,9 @@ npm run test:contract
 
 ## Windows / Vitest notes
 
-- Pin stays at **4.0.8** until 4.1.x is re-validated on Windows + Node 24.
+- Pin is exact **`5.0.0`**. Windows wrappers stay until glob/dir entry, `setupFiles`, and unbounded forks are re-validated on Windows + Node 24.
 - Wrappers fix drive-letter casing (`f:` vs `F:`) and resolve hoisted workspace `vitest`.
-- Component/integration use explicit file lists (glob/dir entry flaky).
+- Component/integration use explicit file lists (glob/dir entry historically flaky on Windows).
 
 ## Agent docs
 

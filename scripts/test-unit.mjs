@@ -1,6 +1,7 @@
 /**
  * Unit gate wrapper: native cwd casing + local/hoisted vitest binary.
- * Avoids Windows Vitest 4.0.8 "No test suite found" from f: vs F: mismatch.
+ * Avoids Windows "No test suite found" from f: vs F: mismatch (cwd casing).
+ * Keep until Vitest 5 glob/dir + native cwd is proven on Windows + Node 24.
  */
 import { spawnSync } from 'node:child_process';
 import { ensureNativeCwd, resolveVitestBin } from './resolve-vitest.mjs';

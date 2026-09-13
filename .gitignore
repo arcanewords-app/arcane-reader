@@ -38,6 +38,7 @@ npm-debug.log*
 
 # Cache
 .cache/
+.vitest/
 coverage/
 coverage-component/
 coverage-contract/

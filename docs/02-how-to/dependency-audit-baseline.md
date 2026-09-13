@@ -1,6 +1,6 @@
 # Dependency audit baseline
 
-Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10 + openai 7 + axiom 2 / web-vitals 6 + bullmq 6 + ioredis 6 + `@vercel/node` 13).
+Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10 + openai 7 + axiom 2 / web-vitals 6 + bullmq 6 + ioredis 6 + `@vercel/node` 13 + vitest 5).
 
 ## npm audit --omit=dev (production)
 
@@ -11,19 +11,18 @@ Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10 + openai 7 + axiom 2 / web-
 
 ## npm audit (all, dev included)
 
-- **8** remaining (1 low, 2 moderate, 4 high, 1 critical) — **dev tree only**
-- Closed vs 2026-08 baseline: prod high CVEs in `multer`, `csv-parse`, `fast-xml-parser`, `qs`, `adm-zip`, `brace-expansion@2`
+- **6** remaining (1 low, 1 moderate, 4 high) — **dev tree only**
+- Closed vs 2026-08 baseline: prod high CVEs in `multer`, `csv-parse`, `fast-xml-parser`, `qs`, `adm-zip`, `brace-expansion@2`; `@vitest/mocker` GHSA-82fw-gwwq-j7x9 closed with `vitest@5.0.0`
 
 ### Remaining `audit:all` (accepted)
 
 | Package | Severity | Why deferred |
 | ------- | -------- | ------------ |
-| `@vitest/mocker` / `vitest@4.0.8` | moderate | Pin; [[05-plans/vitest-5-upgrade]] |
 | `baseline-browser-mapping` | moderate | Transitive (browserslist / toolchain) |
 | `brace-expansion` 4.x–5.x | high | Override is `brace-expansion@2` only |
 | `browserslist` | high | Transitive; `npm audit fix` not applied blindly |
 | `fast-uri` | high | Transitive (Ajv / Vercel / Stryker chain) |
-| `joi` | (audit: critical/high) | Transitive |
+| `joi` | low | Transitive |
 | `tar` | high | Transitive |
 
 ### Transitive overrides (tech debt until Vercel upstream)

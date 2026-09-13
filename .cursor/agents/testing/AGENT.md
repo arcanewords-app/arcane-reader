@@ -61,7 +61,7 @@ Read and follow:
 
 ## Pin
 
-Vitest **4.0.8** exact. Do not bump to 4.1.x without Windows + Node 24 re-validation (`vi.mock`, forks, glob/dir entry).
+Vitest **5.0.0** exact. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
 
 Playwright `@playwright/test` **1.62.1** exact. Chromium only (`npm run playwright:install`).
 

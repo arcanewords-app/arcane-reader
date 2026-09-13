@@ -12,7 +12,7 @@ TypeScript (strict), Preact, Express, Supabase (PostgreSQL, Auth, Storage), Redi
 npm run dev               # API + Vite client
 npm run dev:full          # + BullMQ worker
 npm run lint:all          # lint + typecheck
-npm run test              # Vitest unit (pin 4.0.8)
+npm run test              # Vitest unit (pin 5.0.0)
 npm run test:component    # Testing Library + happy-dom
 npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures

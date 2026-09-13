@@ -126,7 +126,7 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 | ------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
 | 0–5                      | Done                            | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                   |
 | **6 — Component**        | **Done**                        | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes        |
-| **7 — Mock integration** | **Done**                        | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest 4.0.8 wrappers  |
+| **7 — Mock integration** | **Done**                        | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest wrappers  |
 | **8 — Snapshot**         | **Done**                        | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps         |
 | **9 — Contract Phase 1** | **Done**                        | Zod fixtures + enum sync; deepen → 22 files / 32 tests; pre-push `test:contract` |
 | 10 — Live + E2E          | **Local unblocked; CI blocked** | Playwright vs stamp; `tests/e2e/README.md`                                       |
@@ -150,7 +150,7 @@ Smoke (2026-09-13): Stryker **10** — `npx stryker run --mutate src/shared/mult
 
 ## Vitest pin
 
-Exact **`vitest@4.0.8`** + `@vitest/coverage-v8@4.0.8`. Do not bump to 4.1.x without Windows + Node 24 re-validation (`vi.mock`, forks, glob/dir entry).
+Exact **`vitest@5.0.0`** + `@vitest/coverage-v8@5.0.0`. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
 
 ## Coverage campaign (post–Wave 9)
 

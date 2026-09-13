@@ -1,7 +1,8 @@
 /**
  * Run component suite by enumerating test files.
- * Vitest 4.0.8 on Windows can fail setupFiles + directory/glob entry with
+ * Vitest on Windows can fail setupFiles + directory/glob entry with
  * "failed to find the runner" / "No test suite found"; explicit files are stable.
+ * Keep until glob/dir entry is proven on Windows + Node 24 (Vitest 5).
  *
  * Extra args (e.g. `--coverage`) are forwarded to Vitest.
  */

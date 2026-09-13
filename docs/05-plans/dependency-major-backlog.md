@@ -26,7 +26,6 @@ Do **not** run `npm audit fix --force` (it may downgrade `@vercel/node`).
 
 | Plan | Current → target | Domain | Priority |
 | ---- | ---------------- | ------ | -------- |
-| [[05-plans/vitest-5-upgrade]] | `vitest` 4.0.8 → 5 | testing | P2 (pin; optional 4.1.11 first) |
 | [[05-plans/types-node-26-upgrade]] | `@types/node` 24 → 26 | infra | **P4 blocked** until Node 26 LTS |
 
 Not majors (leave in monthly outdated triage): `@playwright/test` 1.63, `supabase` CLI 2.117.
@@ -42,6 +41,8 @@ BullMQ 5 → 6 shipped 2026-09-13 (`bullmq@^6.3.4`). Archived: [[05-plans/bullmq
 OpenAI 6 → 7 shipped 2026-09-13 (`openai@^7.15.0`). Archived: [[05-plans/openai-7-upgrade]].
 
 Stryker 9 → 10 shipped 2026-09-13 (`@stryker-mutator/core` + `vitest-runner` 10). Keep `tsconfig.json` in `stryker.conf.json` `ignorePatterns` until [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111).
+
+`vitest` 4.0.8 → 5 shipped 2026-09-13 (`vitest@5.0.0` + `@vitest/coverage-v8@5.0.0`; Windows wrappers kept). Archived: [[05-plans/vitest-5-upgrade]].
 
 ## References
 

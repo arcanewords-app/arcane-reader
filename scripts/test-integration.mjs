@@ -1,7 +1,8 @@
 /**
  * Run mock-integration suite by enumerating test files.
- * Vitest 4.0.8 on Windows flaky-fails with "No test suite found" when the
+ * Vitest on Windows can flaky-fail with "No test suite found" when the
  * entry is a directory/glob; explicit file list is stable.
+ * Keep until glob/dir entry is proven on Windows + Node 24 (Vitest 5).
  */
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';

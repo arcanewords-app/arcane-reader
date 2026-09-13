@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: archived
 domain: testing
 stale: false
 created: 2026-09-13
@@ -8,38 +8,13 @@ updated: 2026-09-13
 canonical: .cursor/skills/dependency-maintenance/SKILL.md
 ---
 
-# vitest 4.0.8 → 5
+# vitest 4.0.8 → 5 (archived)
 
-**Do not combine** with other majors. Owner: Testing utility. Exact pin today: `vitest` + `@vitest/coverage-v8` **`4.0.8`** (no `^`).
+Shipped 2026-09-13. Exact pin: `vitest@5.0.0` + `@vitest/coverage-v8@5.0.0` (no `^`). Skipped optional 4.1.11 — GHSA-82fw-gwwq-j7x9 is patched in 5.0.0.
 
-| | |
-| --- | --- |
-| Current | `vitest@4.0.8`, `@vitest/coverage-v8@4.0.8` |
-| Target | `vitest@5` + matching coverage-v8 |
-| Optional mid-step | `4.1.11` — patches `@vitest/mocker` GHSA-82fw-gwwq-j7x9 |
+Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) **kept** until Windows + Node 24 proof. `clearMocks` stays at the v5 default (`true`). Coverage dirs unchanged (`./coverage`, `./coverage-component`, `./coverage-contract`); `.vitest/` gitignored.
 
-## Blockers
-
-Do **not** bump to 4.1.x without **Windows + Node 24** proof: `vi.mock`, forks pool, glob/dir entry (`scripts/test-unit.mjs`, `test-component.mjs`, `test-integration.mjs`). Policy: [[_canonical/rules/testing]].
-
-Vitest 5 is a separate major after that proof (or skip 4.1 if 5 already includes the mocker fix).
-
-## Checklist
-
-### Wave A (optional) — 4.1.11 pin
-
-- [ ] Re-validate on Windows + Node 24
-- [ ] Pin both packages to `4.1.11`
-- [ ] `npm run test && npm run test:component && npm run test:integration && npm run test:contract && npm run test:coverage`
-- [ ] `npm run audit:all` — mocker advisory gone
-
-### Wave B — 5.x
-
-- [ ] Read Vitest 5 migration (pool, coverage, `vi` API)
-- [ ] Bump pin + wrappers if needed
-- [ ] Update `.cursor/rules/testing.mdc`, `docs/_canonical/rules/testing.mdc`, `AGENTS.md` / `CLAUDE.md` pin notes
-- [ ] Same test gates as Wave A
-- [ ] Archive this plan; update [[05-plans/dependency-major-backlog]]
+Pyramid + `test:coverage` green on macOS Node 24.10. Stryker 10 vitest-runner dry-run succeeded against Vitest 5 (`npx stryker run --mutate src/engine/glossary/glossary-filter.ts`; incremental reused 145 mutants). Follow-up: Windows glob/dir, `setupFiles`, unbounded forks, `test:watch` via wrapper.
 
 ## References
 

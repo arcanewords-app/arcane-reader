@@ -4,7 +4,7 @@
  *
  * Imported by createTestApp / worker helpers — not registered as Vitest
  * setupFiles (setupFiles + some pools hit "failed to find the runner" on
- * Windows Vitest 4.0.8).
+ * Windows; keep this import until Vitest 5 + setupFiles is proven there).
  *
  * Do not import vitest hooks here.
  */

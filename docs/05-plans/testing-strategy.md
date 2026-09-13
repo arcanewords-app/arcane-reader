@@ -105,7 +105,7 @@ Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integ
 | Worker jobs      | `tests/integration/worker/*.test.ts`        | `runTranslateJob` + `runAnalysisJob` smoke           |
 | Live Supabase    | `tests/integration/supabase/` — **blocked** | —                                                    |
 
-Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **~4.0.8** (4.1.x breaks forks mocks on Node 24 / Windows).
+Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **5.0.0** exact. Windows wrappers stay until glob/dir + `setupFiles` + unbounded forks are re-validated on Windows + Node 24.
 
 **Next:** Wave 10 **local E2E done** (CI live stack still blocked). GitHub Actions runs the mock pyramid (`lint:all` + `test:coverage` + component + integration + contract). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
 

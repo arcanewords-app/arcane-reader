@@ -30,7 +30,7 @@ Domain agents own layer-appropriate tests with the feature. Do **not** default t
 
 ## Runner and layout
 
-- **Pin:** Vitest + `@vitest/coverage-v8` exact **`4.0.8`** (no `^`). Do **not** bump to 4.1.x without re-validating on Windows + Node 24 (`vi.mock`, forks, glob/dir entry).
+- **Pin:** Vitest + `@vitest/coverage-v8` exact **`5.0.0`** (no `^`). Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) stay until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
 - **Runner:** Vitest via wrappers where needed:
   - `npm run test` → `scripts/test-unit.mjs` (native cwd casing + hoisted vitest)
   - `npm run test:component` → `scripts/test-component.mjs` (explicit file list)
