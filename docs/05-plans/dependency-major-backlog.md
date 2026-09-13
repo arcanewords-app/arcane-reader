@@ -26,11 +26,12 @@ Do **not** run `npm audit fix --force` (it may downgrade `@vercel/node`).
 
 | Plan | Current → target | Domain | Priority |
 | ---- | ---------------- | ------ | -------- |
-| [[05-plans/vercel-node-13-upgrade]] | `@vercel/node` 5 → 13 | infra | P2 |
 | [[05-plans/vitest-5-upgrade]] | `vitest` 4.0.8 → 5 | testing | P2 (pin; optional 4.1.11 first) |
 | [[05-plans/types-node-26-upgrade]] | `@types/node` 24 → 26 | infra | **P4 blocked** until Node 26 LTS |
 
 Not majors (leave in monthly outdated triage): `@playwright/test` 1.63, `supabase` CLI 2.117.
+
+`@vercel/node` 5 → 13 shipped 2026-09-13 (`@vercel/node@^13.0.0`, `@vercel/functions@^3.9.7`; waitUntil + `supportsCancellation` on `api/index.ts`). Preview smoke still needed after merge. Archived: [[05-plans/vercel-node-13-upgrade]].
 
 ioredis 5 → 6 shipped 2026-09-13 (`ioredis@^6.0.0`; debug Redis bridge only). Archived: [[05-plans/ioredis-6-upgrade]].
 

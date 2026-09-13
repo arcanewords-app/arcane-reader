@@ -104,6 +104,8 @@ npm run start:worker # separate process for queues
 ## Vercel
 
 - Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes. Public SEO pages `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/news/:slug*`, `/account-tiers`, and `/p/*` route to `api/index` for SSR meta (see `routing.mdc` SEO section).
+- `api/index.ts` sets `maxDuration: 300` and `supportsCancellation: true` so a closed tab aborts in-flight OpenAI calls (AbortSignal via `src/shared/invocationAbort.ts`). Do **not** enable cancellation on `api/robots.ts` / `api/sitemap.ts`.
+- Axiom flush on Vercel uses `waitUntil(flushLogs())` from `@vercel/functions` (`requestLogging`). Local/tests still fire-and-forget `flushLogs()`.
 - Set all env vars in Vercel project settings (same names as `.env`).
 - **Worker:** BullMQ worker is **not** a Vercel serverless function — run `start:worker` on a long-lived host (Railway, Fly, second Vercel service, etc.) with same `REDIS_URL` and `KV_REST_*`.
 - **Worker-only install:** `npm ci --omit=dev` then `npm run start:worker` — UI packages (`preact`, `i18next`, etc.) live in `devDependencies` and are not needed at worker runtime. API/Vercel hosts must run `npm run build` (requires full `npm install` with devDependencies).

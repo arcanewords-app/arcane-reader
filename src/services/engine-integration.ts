@@ -28,6 +28,7 @@ import {
   resolveEditExecutionMode,
 } from '../engine/index.js';
 import { isReasoningModel } from '../shared/openaiModelAdapter.js';
+import { getInvocationAbortSignal } from '../shared/invocationAbort.js';
 import { clampStageModelForRole } from '../shared/modelAccess.js';
 import type { UserRole } from '../types/roles.js';
 import { isChunkError } from '../shared/chunkErrors.js';
@@ -991,7 +992,8 @@ export async function analyzeChaptersBatch(
         analysisMaxSectionTokens: config.translation?.analysisMaxSectionTokens,
         analysisConcurrency:
           options.analysisConcurrency ?? config.translation?.analysisConcurrency ?? 4,
-        isCancelled: options.isCancelled,
+        isCancelled: () =>
+          options.isCancelled?.() === true || getInvocationAbortSignal()?.aborted === true,
         onChapterComplete: onProgress
           ? (chapterId, _chapterNumber, result) => {
               if (chapterId) onProgress(chapterId, result);

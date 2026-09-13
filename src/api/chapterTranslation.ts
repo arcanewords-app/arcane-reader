@@ -31,6 +31,7 @@ import {
 } from '../services/chapterTitleTranslate.js';
 import { invalidateProjectAndRelatedCaches } from '../services/cacheInvalidation.js';
 import { isChunkError } from '../shared/chunkErrors.js';
+import { getInvocationAbortSignal } from '../shared/invocationAbort.js';
 import {
   getTranslationCoverage,
   resolveChapterStatusAfterTranslation,
@@ -188,7 +189,9 @@ async function performTranslationInner(
 ): Promise<void> {
   const cancelKey = translationCancelKey(projectId, chapterId);
   const isCancelled = () =>
-    translationCancelRegistry.get(cancelKey) === true || options?.externalIsCancelled?.() === true;
+    translationCancelRegistry.get(cancelKey) === true ||
+    options?.externalIsCancelled?.() === true ||
+    getInvocationAbortSignal()?.aborted === true;
   let savedDraftThisRun = false;
   let chunkProgressStarted = false;
   const handleChunkProgress = (chunksDone: number, totalChunks: number, stage?: string) => {

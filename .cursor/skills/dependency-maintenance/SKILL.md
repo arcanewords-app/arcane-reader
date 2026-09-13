@@ -85,7 +85,6 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 | Package           | Latest (2026-09) | Notes                                              |
 | ----------------- | ---------------- | -------------------------------------------------- |
 | `@types/node`     | 26.x             | P4 — only with Node 26 LTS + SSOT trio             |
-| `@vercel/node`    | 13.x             | P2 — Vercel preview; never `audit fix --force`     |
 | `vitest`          | 5.x              | P2 — pin 4.0.8 until Windows + Node 24 proof       |
 
 ## Mitigations (temporary — document as tech debt)
@@ -121,6 +120,7 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 | 19 Axiom 2 + web-vitals 6     | Done   | same PR; ingest/flush + `onCLS`/`onINP`/`onLCP`; no `reportSoftNavs`      |
 | 20 BullMQ 6                   | Done   | `bullmq@^6.3.4`; no repeat/scheduler migration                            |
 | 21 ioredis 6                  | Done   | `ioredis@^6.0.0`; debug bridge only; RESP3 + legacy replies               |
+| 22 `@vercel/node` 13          | Done   | `^13.0.0` + `@vercel/functions`; waitUntil flush; API cancellation        |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 

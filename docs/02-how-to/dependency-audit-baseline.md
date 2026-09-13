@@ -1,6 +1,6 @@
 # Dependency audit baseline
 
-Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10 + openai 7 + axiom 2 / web-vitals 6 + bullmq 6 + ioredis 6).
+Last updated: 2026-09-13 (monthly P0+P3 + Stryker 10 + openai 7 + axiom 2 / web-vitals 6 + bullmq 6 + ioredis 6 + `@vercel/node` 13).
 
 ## npm audit --omit=dev (production)
 
@@ -60,7 +60,7 @@ Do **not** rely on monorepo root `f:/arcane/package-lock.json` for CI — Vitest
 
 ## npm outdated (2026-09-13)
 
-- **Applied:** monthly P3 (Vite 8.3, oxlint 1.82, supabase-js 2.116, openai 7.15, `@axiomhq/js` 2.0, `web-vitals` 6.2, `bullmq` 6.3, `ioredis` 6.0, zod 4.6, …) + P0 security patches
+- **Applied:** monthly P3 (Vite 8.3, oxlint 1.82, supabase-js 2.116, openai 7.15, `@axiomhq/js` 2.0, `web-vitals` 6.2, `bullmq` 6.3, `ioredis` 6.0, `@vercel/node` 13.0, zod 4.6, …) + P0 security patches
 - **Stryker:** `@stryker-mutator/core` + `vitest-runner` **10.0.0**
 - **Deferred majors:** [[05-plans/dependency-major-backlog]]
 
@@ -102,6 +102,7 @@ Do **not** rely on monorepo root `f:/arcane/package-lock.json` for CI — Vitest
 | Axiom JS 2 + web-vitals 6                                | Done   |
 | BullMQ 6                                                 | Done   |
 | ioredis 6 (debug Redis bridge)                           | Done   |
+| `@vercel/node` 13 + waitUntil / cancellation             | Done   |
 
 ### TypeScript 7 (Wave 13–14)
 

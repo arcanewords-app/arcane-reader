@@ -3,6 +3,7 @@ import { describe, it } from 'vitest';
 import { APIError } from 'openai';
 import type OpenAI from 'openai';
 import { completionText, OpenAIProvider } from './openai.js';
+import { runWithAbortSignal } from '../../shared/invocationAbort.js';
 
 type MockResponse = OpenAI.Chat.Completions.ChatCompletion;
 
@@ -29,7 +30,7 @@ function mockCompletion(
 }
 
 function providerWithMockCreate(
-  create: () => Promise<MockResponse> | MockResponse,
+  create: (...args: unknown[]) => Promise<MockResponse> | MockResponse,
   model = 'gpt-4.1-mini'
 ): OpenAIProvider {
   const provider = new OpenAIProvider({ apiKey: 'test-key', model });
@@ -37,7 +38,7 @@ function providerWithMockCreate(
     {
       chat: {
         completions: {
-          create: async () => create(),
+          create: async (...args: unknown[]) => create(...args),
         },
       },
     };
@@ -85,6 +86,33 @@ describe('OpenAIProvider.complete', () => {
       () => provider.complete([{ role: 'user', content: 'hi' }]),
       (err: unknown) => err instanceof APIError && err.status === 429
     );
+  });
+
+  it('passes AbortSignal from invocation ALS to create', async () => {
+    let requestOptions: unknown;
+    const provider = providerWithMockCreate((_params, opts) => {
+      requestOptions = opts;
+      return mockCompletion('ok');
+    });
+    const controller = new AbortController();
+    await runWithAbortSignal(controller.signal, () =>
+      provider.complete([{ role: 'user', content: 'hi' }])
+    );
+    assert.equal((requestOptions as { signal: AbortSignal }).signal, controller.signal);
+  });
+
+  it('does not retry completeJSON after abort', async () => {
+    const abortErr = Object.assign(new Error('Request was aborted.'), { name: 'APIUserAbortError' });
+    let calls = 0;
+    const provider = providerWithMockCreate(() => {
+      calls += 1;
+      throw abortErr;
+    });
+    await assert.rejects(
+      () => provider.completeJSON([{ role: 'user', content: 'hi' }]),
+      (err: unknown) => err === abortErr
+    );
+    assert.equal(calls, 1);
   });
 });
 

@@ -1,13 +1,22 @@
 /**
- * Vercel serverless function for /api/sitemap (rewrite target for /sitemap.xml)
+ * Vercel serverless function for /api/sitemap (rewrite target for /sitemap.xml).
+ * Uses raw Node ServerResponse — VercelResponse helpers may be missing on the Rust runtime.
  */
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import '../src/loadEnv.js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   listPublicationsPublic,
   getPublicationWithChapters,
   listPublishedNewsPosts,
 } from '../src/services/supabaseDatabase.js';
+
+function requestBase(req: IncomingMessage): string {
+  const hostHeader = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'arcane-reader.com';
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  const protoHeader = req.headers['x-forwarded-proto'] ?? 'https';
+  const proto = Array.isArray(protoHeader) ? protoHeader[0] : protoHeader;
+  return `${proto}://${host}`;
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -21,10 +30,8 @@ function escapeHtml(s: string): string {
 const SITEMAP_CHAPTER_PUBS_LIMIT = 100;
 const SITEMAP_NEWS_LIMIT = 100;
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'arcane-reader.com';
-  const proto = req.headers['x-forwarded-proto'] ?? 'https';
-  const base = `${proto}://${host}`;
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const base = requestBase(req);
 
   let pubUrls = '';
   let chapterUrls = '';
@@ -115,6 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 ${staticPages}${pubUrls}${chapterUrls}${newsUrls}</urlset>
 `;
 
+  res.statusCode = 200;
   res.setHeader('Content-Type', 'application/xml');
-  res.send(xml);
+  res.end(xml);
 }

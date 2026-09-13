@@ -15,6 +15,10 @@ import { log } from '../logger.js';
 import { estimateTokensHeuristic } from '../utils/token-estimate.js';
 import { captureLlmCall } from '../../debug/promptCapture.js';
 import { buildChatCompletionParams } from '../../shared/openaiModelAdapter.js';
+import {
+  getInvocationAbortSignal,
+  isInvocationAbortError,
+} from '../../shared/invocationAbort.js';
 
 const STRUCTURED_JSON_RETRY_MAX_TOKENS = 16384;
 
@@ -28,6 +32,17 @@ export function completionText(
 
 function isRateLimitError(err: unknown): err is APIError {
   return err instanceof APIError && err.status === 429;
+}
+
+function openaiRequestOptions(): { signal: AbortSignal } | undefined {
+  const signal = getInvocationAbortSignal();
+  return signal ? { signal } : undefined;
+}
+
+function throwIfAborted(err: unknown, context: string): void {
+  if (!isInvocationAbortError(err)) return;
+  log.info('OpenAI provider: request aborted', { event: 'llm.aborted', context });
+  throw err;
 }
 
 function logIfRateLimit(err: unknown, context: string): void {
@@ -161,7 +176,8 @@ export class OpenAIProvider implements ILLMProvider {
           options,
           defaultTemperature: 0.7,
           responseFormat: 'text',
-        })
+        }),
+        openaiRequestOptions()
       );
 
       const choice = response.choices[0];
@@ -200,6 +216,7 @@ export class OpenAIProvider implements ILLMProvider {
         model: response.model,
       };
     } catch (err) {
+      throwIfAborted(err, 'complete');
       logIfRateLimit(err, 'complete');
       throw err;
     }
@@ -221,7 +238,8 @@ export class OpenAIProvider implements ILLMProvider {
             options: attemptOptions,
             defaultTemperature: 0.3,
             responseFormat: 'json_object',
-          })
+          }),
+          openaiRequestOptions()
         );
 
         const choice = response.choices[0];
@@ -279,6 +297,7 @@ export class OpenAIProvider implements ILLMProvider {
           throw lastError;
         }
       } catch (err) {
+        throwIfAborted(err, 'completeJSON');
         logIfRateLimit(err, 'completeJSON');
         lastError = err instanceof Error ? err : new Error(String(err));
         if (attempt < attempts.length) {
@@ -321,7 +340,8 @@ export class OpenAIProvider implements ILLMProvider {
                 schema,
               },
             },
-          })
+          }),
+          openaiRequestOptions()
         );
 
         const choice = response.choices[0];
@@ -385,6 +405,7 @@ export class OpenAIProvider implements ILLMProvider {
           throw lastError;
         }
       } catch (err) {
+        throwIfAborted(err, 'completeStructuredJSON');
         logIfRateLimit(err, 'completeStructuredJSON');
         lastError = err instanceof Error ? err : new Error(String(err));
         if (attempt < attempts.length) {

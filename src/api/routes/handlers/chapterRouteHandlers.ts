@@ -42,6 +42,7 @@ import {
   type Paragraph,
 } from '../../../storage/database.js';
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
+import { handleLlmAbort } from '../../../middleware/llmAbort.js';
 import { respondRouteError } from '../../../middleware/routeDebugError.js';
 import { resolveChapterStatusAfterTranslation } from '../../../shared/chapterTranslationCoverage.js';
 
@@ -1053,6 +1054,7 @@ export function createHandleAnalyzeBatch(deps: RouteDeps) {
         glossaryEntriesAdded: result.glossaryUpdates.length,
       });
     } catch (err) {
+      if (handleLlmAbort(err, req, res)) return;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       req.log?.error({ err }, `Analyze batch failed: ${errorMessage}`);
       res.status(500).json({
@@ -1300,6 +1302,7 @@ export function createHandleTranslateBatch(deps: RouteDeps) {
         message: 'Use ?async=1 or Prefer: respond-async for batch translate.',
       });
     } catch (err) {
+      if (handleLlmAbort(err, req, res)) return;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       req.log?.error({ err }, `Translate batch failed: ${errorMessage}`);
       res.status(500).json({
@@ -1590,6 +1593,7 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
       res.json({ status: 'started', chapterId: chapter.id, traceId });
     } catch (error) {
       if (handleServiceError(error, req, res)) return;
+      if (handleLlmAbort(error, req, res)) return;
       res.status(500).json({ error: 'Failed to start translation' });
     }
   };
@@ -1681,6 +1685,7 @@ export async function handleChapterCritic(req: Request, res: Response) {
     try {
       report = await runChapterCritic(project, chapter);
     } catch (err) {
+      if (handleLlmAbort(err, req, res)) return;
       if (err instanceof CriticInputTooLargeError) {
         return res.status(400).json({
           error: 'Chapter too long for review',

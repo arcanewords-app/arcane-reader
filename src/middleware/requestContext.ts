@@ -5,14 +5,22 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
+import { waitUntil } from '@vercel/functions';
 import { logger, createRequestLogger, flushLogs } from '../logger.js';
+import { runWithAbortSignal } from '../shared/invocationAbort.js';
 import { getRouteDebugError } from './routeDebugError.js';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
+function scheduleLogFlush(): void {
+  const pending = flushLogs().catch(() => {});
+  if (process.env.VERCEL) waitUntil(pending);
+}
+
 /**
  * Attach requestId and req.log to the request.
  * Reads X-Request-Id from client or generates a new one; sets X-Request-Id on response.
+ * Binds an AbortSignal for the invocation so OpenAI calls abort when the client disconnects.
  */
 export function requestContext(req: Request, res: Response, next: NextFunction): void {
   const requestId = (req.headers[REQUEST_ID_HEADER] as string) || randomUUID();
@@ -25,7 +33,16 @@ export function requestContext(req: Request, res: Response, next: NextFunction):
     ...(userId && { userId }),
   });
 
-  next();
+  const controller = new AbortController();
+  const abortIfClientGone = (): void => {
+    if (!res.writableEnded && !controller.signal.aborted) controller.abort();
+  };
+  req.on('close', abortIfClientGone);
+  res.on('close', abortIfClientGone);
+
+  runWithAbortSignal(controller.signal, () => {
+    next();
+  });
 }
 
 /**
@@ -75,11 +92,11 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     );
 
     // Serverless: flush Axiom batch before function freeze (never block response)
-    void flushLogs().catch(() => {});
+    scheduleLogFlush();
   });
 
   res.on('close', () => {
-    void flushLogs().catch(() => {});
+    scheduleLogFlush();
   });
 
   next();
