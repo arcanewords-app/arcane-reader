@@ -1,13 +1,13 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
     include: ['tests/integration/**/*.test.ts'],
-    exclude: ['**/node_modules/**', 'tests/integration/supabase/**'],
+    exclude: [...configDefaults.exclude, '**/dist/**', 'tests/e2e/**', 'tests/integration/supabase/**'],
     environment: 'node',
     // Env isolation: tests/integration/setup.ts (imported by createTestApp / worker tests).
     testTimeout: 90_000,

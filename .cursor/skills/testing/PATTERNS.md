@@ -184,6 +184,8 @@ vi.mock('./useTokenLimitCheck.js', () => ({
 
 **Page smoke (large):** `@src/client/pages/HomePage.test.tsx`, `PublicationPage.test.tsx`, `PublicationReadingPage.test.tsx`, `TranslationRequestsPage.test.tsx` — mock API + heavy cards; stub `ReadingMode`; keep `useUrlSync` state **stable** (new object each render → infinite load loops). Do **not** mount `ProjectInfo` / `ReadingMode/index` / deferred monsters.
 
+**API mock specifier:** mock the same path the source imports (`../../api/client` and/or `../../api/client.js`). A miss loads real `src/client/api/client.ts` → `cache/invalidation.ts` (`BroadcastChannel` + `fetch`) and can crash/hang the worker. Do **not** re-add `ReportsModal.test.tsx` until that mock is proven. Hang log: `@docs/05-plans/coverage-campaign-extracts.md`. Extract smokes: `ProjectCoverEditor`, `TranslationPanel`, `ParagraphList`, Sidebar batch/upload, admin News/Entities/Projects.
+
 ## Services — language pair
 
 **Exemplar:** `@src/services/languagePair.test.ts`

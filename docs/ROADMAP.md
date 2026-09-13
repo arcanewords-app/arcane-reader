@@ -105,7 +105,7 @@ Details and tech debt: [[project-status]].
 | ------ | ----------------- | ------------------------------------ | ------------------------------------------------------------------------ |
 | **O1** | Token limits ops  | [[05-plans/tokenization-follow-ups]] | Daily reset cron/RPC; admin unlimited paths                              |
 | **O2** | Production worker | [[_canonical/rules/deployment]]      | Document/run BullMQ worker beside Vercel API                             |
-| **T1** | Testing coverage  | [[05-plans/testing-baseline]]        | Waves 6–9 done; Wave 10 local E2E unblocked; CI live stack still blocked |
+| **T1** | Testing coverage  | [[05-plans/testing-baseline]], [[05-plans/coverage-campaign-extracts]] | Waves 6–9 done; Wave 10 local E2E unblocked; extract campaign in progress; CI live stack still blocked |
 
 ### P3 — Backlog (archive review required)
 

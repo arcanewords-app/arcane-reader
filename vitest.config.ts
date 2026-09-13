@@ -1,5 +1,20 @@
 import path from 'path';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
+
+/**
+ * Vitest 5 `defaultExclude` is only `node_modules` + `.git` (no dist / e2e).
+ * Custom `exclude` replaces defaults — spread them, then add layer splits.
+ */
+const UNIT_EXCLUDE = [
+  ...configDefaults.exclude,
+  '**/dist/**',
+  '**/coverage/**',
+  '**/coverage-component/**',
+  '**/coverage-contract/**',
+  'tests/e2e/**',
+  'src/**/*.test.tsx',
+  'src/**/*.hook.test.ts',
+];
 
 /** Tiktoken-heavy preview tests — run via `npm run test:slow`. */
 const SLOW_TEST_FILES = [
@@ -18,12 +33,7 @@ export default defineConfig({
   test: {
     // Unit gate: pure/node tests. Component suites run via test:component.
     include: ['src/**/*.test.ts'],
-    exclude: [
-      '**/node_modules/**',
-      'src/**/*.test.tsx',
-      'src/**/*.hook.test.ts',
-      ...SLOW_TEST_FILES,
-    ],
+    exclude: [...UNIT_EXCLUDE, ...SLOW_TEST_FILES],
     environment: 'node',
     testTimeout: isCoverageRun ? 120_000 : 10_000,
     // Windows + Node 24: unbounded forks can hit "Timeout starting forks runner".

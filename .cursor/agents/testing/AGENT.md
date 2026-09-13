@@ -33,7 +33,7 @@ You own **Q3 test pyramid quality and test infrastructure** for Arcane Reader â€
 - Test scripts in `package.json`
 - `.husky/pre-push` and `.github/workflows/test.yml` (mock pyramid; no Playwright)
 - Coverage floors in `vitest.config.ts` (`coverage.thresholds`)
-- `@docs/02-how-to/run-tests.md`, `@docs/05-plans/testing-baseline.md`, `@docs/05-plans/testing-strategy.md`
+- `@docs/02-how-to/run-tests.md`, `@docs/05-plans/testing-baseline.md`, `@docs/05-plans/testing-strategy.md`, `@docs/05-plans/coverage-campaign-extracts.md`
 
 **Out of scope (defer via orchestrator):**
 

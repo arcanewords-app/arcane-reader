@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-08-02
-updated: 2026-08-30
+updated: 2026-09-14
 wave6: done
 wave7: done
 type: plan
@@ -202,6 +202,10 @@ P0 delivered 12 suites; P1 (TranslationPanel / ParagraphList / ChapterView/index
 
 Split/reuse of large client shells so tests can target pieces without mounting monsters. EntityPickerModal undeferred (smoke suite). Glossary / ReadingMode / ChapterList / ProcessChapters shells still deferred; SearchReplaceBar thinned via `useChapterSearchReplace`. Numbers and LOC table: [[05-plans/testing-baseline#Deferred monsters extract wave (2026-08-03)|testing-baseline]].
 
+### Extract campaign after Vitest 5 (**in progress** 2026-09-14)
+
+Post-bump extract + admin smokes. Log: [[05-plans/coverage-campaign-extracts]]. Component suite **128 files / 368 tests** (2026-09-14). TranslationPanel + ParagraphList smokes shipped (product-shell P1 had skipped them). Do **not** re-add `ReportsModal.test.tsx` until the `api/client` mock blocks `BroadcastChannel`. Zone Stryker and `test:gaps` refresh still open.
+
 ### Wave 8 — Snapshot (**done** 2026-08-02)
 
 **Goal:** Vitest `toMatchSnapshot` for stable presentational markup; single happy-dom viewport (no breakpoint matrix).
@@ -316,6 +320,7 @@ Refresh numbers: `npm run test:coverage` → `node scripts/gen-test-inventory.mj
 ## Related
 
 - Baseline numbers: [[05-plans/testing-baseline]]
+- Extract campaign / hang log: [[05-plans/coverage-campaign-extracts]]
 - How to run: [[02-how-to/run-tests]]
 - Patterns: `.cursor/skills/testing/PATTERNS.md`
 - Policy: `.cursor/rules/testing.mdc`

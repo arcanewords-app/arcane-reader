@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 
 # Project status
@@ -53,6 +53,7 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/tokenization-follow-ups]]      | Daily reset ops                                                                                                            |
 | [[05-plans/testing-strategy]]             | Pyramid SSOT: Waves 6–9 **done**; Wave 10 local E2E unblocked; GitHub Actions mock pyramid; CI live stack still blocked    |
 | [[05-plans/testing-baseline]]             | Coverage floors 77/65; local Playwright vs stamp; Q4 CI live stack blocked                                                 |
+| [[05-plans/coverage-campaign-extracts]]   | Post–Vitest 5 extract smokes; component **128/368** green (2026-09-14); ReportsModal hang; zone Stryker still open         |
 | [[05-plans/web-scraper-research]]         | Web scraper: [arcane-scraper](https://github.com/arcane-scraper) repo; reader integration deferred                         |
 | [[05-plans/db-schema-cleanup]]            | Unused GIN trgm dropped on prod (2026-08-29); remaining RLS/btree/cache DDL **not** prod                                   |
 | [[05-plans/adaptive-ui]]                  | I0–I5 shipped (Header wrap, CardGrid, 48 visual PNGs). Leftover: container queries per surface, news/admin shells on touch |

@@ -1,12 +1,12 @@
 ---
 status: active
 created: 2026-07-12
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 
 # Testing coverage baseline
 
-Measured **2026-09-13** (`npm run test:coverage` + `npm run test:gaps`). Strategy SSOT: [[05-plans/testing-strategy]]. August wave tables below are historical.
+Measured **2026-09-13** (`npm run test:coverage` + `npm run test:gaps`; Wave 0 after Vitest 5). Component suite re-checked **2026-09-14**. Campaign log: [[05-plans/coverage-campaign-extracts]]. Strategy SSOT: [[05-plans/testing-strategy]]. August wave tables below are historical.
 
 ## APP_SCOPE (unified)
 
@@ -43,14 +43,14 @@ Until a dedicated test environment is provisioned, **CI live** work is paused. L
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **113** files / **314** tests (`npm run test:component`, 2026-09-13)              |
+| Component suite             | **128** files / **368** tests (`npm run test:component`, 2026-09-14; was 113 / 314 on 2026-09-13) |
 | Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                          |
 | Contract suite              | **46** files / **75** tests (`npm run test:contract`)                             |
-| Co-located `*.test.tsx`     | **97**                                                                            |
-| Co-located `*.hook.test.ts` | **11**                                                                            |
+| Co-located `*.test.tsx`     | **111**                                                                           |
+| Co-located `*.hook.test.ts` | **17**                                                                            |
 | Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
-Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.config.ts` uses `pool: 'threads'` (Windows fork-runner stability). Unit coverage command does **not** execute `*.test.tsx` (separate config). Integration suite is mock-first (no live Supabase/Redis/LLM).
+Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.config.ts` uses `pool: 'forks'` (Vitest 5 default). Do **not** set `threads` — Node `fetch` in worker_threads can hang the run ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). Unit coverage command does **not** execute `*.test.tsx` (separate config). Integration suite is mock-first (no live Supabase/Redis/LLM).
 
 ## Inventory: tested vs untested
 
@@ -77,12 +77,12 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | 2026-08-16 | 2026-09-13 |
-| ---------- | ---------- | ---------- |
-| Lines      | 78.21%     | **78.21%** |
-| Statements | 76.09%     | **76.10%** |
-| Functions  | 80.42%     | **80.35%** |
-| Branches   | 65.67%     | **65.68%** |
+| Metric     | 2026-08-16 | 2026-09-13 (pre-bump canvas) | Wave 0 Vitest 5 (2026-09-13) |
+| ---------- | ---------- | ---------------------------- | ---------------------------- |
+| Lines      | 78.21%     | 78.21%                       | **78.24%**                   |
+| Statements | 76.09%     | 76.10%                       | —                            |
+| Functions  | 80.42%     | 80.35%                       | —                            |
+| Branches   | 65.67%     | 65.68%                       | **65.81%**                   |
 
 ### Coverage floors (active)
 
@@ -146,11 +146,11 @@ npx stryker run --mutate "src/shared/**/*.ts"
 
 Stryker `thresholds`: `high: 80`, `low: 60`, **`break: null`** — advisory bands / trend only (not a merge gate). Distinct from Vitest coverage floors above.
 
-Smoke (2026-09-13): Stryker **10** — `npx stryker run --mutate src/shared/multerCompat.ts` (1 mutant, 100% on that file; incremental still reports glossary-filter 57.97%). Babel 8 wants Node >=24.11; local 24.10 uses `npm install --engine-strict=false`.
+Smoke (2026-09-13, Stryker **10**): `glossary-filter.ts` **58.27%** (81 killed / 43 survived / 15 no cov / 7 errors). Not comparable to Stryker 9’s 57.97%. Zone re-run after extra glossary tests is still pending — [[05-plans/coverage-campaign-extracts]]. Babel 8 wants Node >=24.11; local 24.10 uses `npm install --engine-strict=false`.
 
 ## Vitest pin
 
-Exact **`vitest@5.0.0`** + `@vitest/coverage-v8@5.0.0`. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
+Exact **`vitest@5.0.0`** + `@vitest/coverage-v8@5.0.0`. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x. Vitest 5 `defaultExclude` is only `node_modules` + `.git` — configs spread `configDefaults.exclude` and add `**/dist/**`, `tests/e2e/**`. Extract campaign + ReportsModal hang log: [[05-plans/coverage-campaign-extracts]].
 
 ## Coverage campaign (post–Wave 9)
 
@@ -185,6 +185,10 @@ npm run test:contract:coverage    # advisory Zod schema v8 only
 | Unit      | lines / branches (floors 77/65)             | 78.21 / 65.67            | **78.21 / 65.68**       |
 
 CLIENT_SCOPE grew (extracts from ProjectInfo / Glossary / ReadingMode / Sidebar). Suites +5; gap count 30 is mostly new modules without their own suites, not lost tests. Top component gaps: `ProjectInfo.tsx`, `ChapterView/*`, admin pages, upload-queue hook. Contract still selective — remaining 33 are list/query and auth bodies. Map: canvas `coverage-gaps`.
+
+### Extract campaign (2026-09-14)
+
+Component suite **128 / 368** green after extract + admin smokes and hook renames. `test:gaps` **not** re-run after those suites — expect suites >113 and gaps <30; `ReportsModal.tsx` stays a gap (hang — do not re-add smoke until the api mock blocks `BroadcastChannel`). Details: [[05-plans/coverage-campaign-extracts]].
 
 ### Post deepen wave (`test:gaps`, 2026-08-02)
 

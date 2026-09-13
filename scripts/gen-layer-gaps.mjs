@@ -111,16 +111,23 @@ function isSourceTs(name) {
   return name.endsWith('.ts') || name.endsWith('.tsx');
 }
 
-/** Component-layer suite only (not co-located unit `*.test.ts`). */
+/**
+ * Component-layer presence: `.tsx` needs `*.test.tsx`.
+ * CLIENT_SCOPE `.ts` is covered by colocated `*.hook.test.ts` or `*.test.ts`
+ * (pure helpers live in the unit suite; hooks in the component suite).
+ */
 function hasComponentSuite(relPath) {
   if (relPath.endsWith('.tsx')) {
     const colocated = relPath.replace(/\.tsx$/, '.test.tsx');
     if (existsSync(join(root, colocated))) return colocated;
+    return null;
   }
   if (relPath.endsWith('.ts')) {
     const base = relPath.replace(/\.ts$/, '');
     const hookSuite = `${base}.hook.test.ts`;
     if (existsSync(join(root, hookSuite))) return hookSuite;
+    const unitSuite = `${base}.test.ts`;
+    if (existsSync(join(root, unitSuite))) return unitSuite;
   }
   return null;
 }

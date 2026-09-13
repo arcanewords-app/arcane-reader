@@ -31,6 +31,8 @@ Domain agents own layer-appropriate tests with the feature. Do **not** default t
 ## Runner and layout
 
 - **Pin:** Vitest + `@vitest/coverage-v8` exact **`5.0.0`** (no `^`). Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) stay until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
+- **Vitest 5 `exclude`:** v5 `defaultExclude` is only `node_modules` + `.git` (no `dist/**`). Custom `test.exclude` **replaces** defaults — spread `configDefaults.exclude`, then add `**/dist/**`, `tests/e2e/**`, and layer splits. Unit must keep `src/**/*.hook.test.ts` out (`*.hook.test.ts` matches `*.test.ts`).
+- **Component pool:** `forks` (Vitest 5 default). Do not set `pool: 'threads'` — Node `fetch` in worker_threads can hang the suite ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). Hang log: `@docs/05-plans/coverage-campaign-extracts.md`.
 - **Runner:** Vitest via wrappers where needed:
   - `npm run test` → `scripts/test-unit.mjs` (native cwd casing + hoisted vitest)
   - `npm run test:component` → `scripts/test-component.mjs` (explicit file list)

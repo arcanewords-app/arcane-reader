@@ -101,6 +101,8 @@ npm run test:contract
 - Pin is exact **`5.0.0`**. Windows wrappers stay until glob/dir entry, `setupFiles`, and unbounded forks are re-validated on Windows + Node 24.
 - Wrappers fix drive-letter casing (`f:` vs `F:`) and resolve hoisted workspace `vitest`.
 - Component/integration use explicit file lists (glob/dir entry historically flaky on Windows).
+- Vitest 5 `defaultExclude` is only `node_modules` + `.git`. Custom `exclude` replaces defaults — spread `configDefaults.exclude`, then `**/dist/**`, `tests/e2e/**`, and unit layer splits (`*.test.tsx`, `*.hook.test.ts`).
+- Component pool is **`forks`** (Vitest 5 default). `threads` + Node `fetch` can hang ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). If `test:component` never prints tests / never exits, isolate the last added `*.test.tsx` (see [[05-plans/coverage-campaign-extracts]] — ReportsModal worker crash).
 
 ## Agent docs
 

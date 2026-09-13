@@ -20,5 +20,6 @@ Pyramid + `test:coverage` green on macOS Node 24.10. Stryker 10 vitest-runner dr
 
 - [[05-plans/testing-baseline]]
 - [[05-plans/testing-strategy]]
+- [[05-plans/coverage-campaign-extracts]] — extract smokes + ReportsModal hang after the bump
 - [[02-how-to/dependency-audit-baseline]]
 - [[05-plans/dependency-major-backlog]]

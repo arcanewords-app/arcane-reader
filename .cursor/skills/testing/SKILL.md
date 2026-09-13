@@ -72,6 +72,8 @@ Husky hooks source `.husky/load-node.sh` before `npx`/`npm`. GUI Git (Cursor Sou
 ## Pin and Windows notes
 
 - Vitest / `@vitest/coverage-v8` pinned exact **`5.0.0`**. Keep Windows wrappers until Windows + Node 24 proof (`vi.mock`, forks, glob/dir entry, `setupFiles`).
+- Vitest 5 `defaultExclude` is only `node_modules` + `.git`. Spread `configDefaults.exclude` and keep `**/dist/**`, `tests/e2e/**`, plus unit layer splits (`*.test.tsx`, `*.hook.test.ts`).
+- Component suite uses `pool: 'forks'` (Vitest 5 default). `threads` + happy-dom/`fetch` can hang ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). If `test:component` never prints tests / never exits, isolate the last added `*.test.tsx` — hang log: `@docs/05-plans/coverage-campaign-extracts.md`. Do not re-add `ReportsModal.test.tsx` until the `api/client` mock prevents `cache/invalidation.ts` (`BroadcastChannel`) from loading.
 - Playwright `@playwright/test` **1.63.0** exact. Chromium only (`npm run playwright:install`).
 - Wrappers normalize cwd via `realpathSync.native` (avoids `f:` vs `F:` → “No test suite found”).
 - Component/integration wrappers pass **explicit file lists** (directory/glob entry flaky on Windows).
