@@ -28,11 +28,13 @@ Keep: Vitest wrappers, `tsconfig.json` in Stryker `ignorePatterns` ([stryker-js#
 
 ## Wave 1 — in progress
 
-### 1a layer (done)
+### 1a layer (reverted for CI floors — 2026-09-14)
 
-- Renamed happy-dom hooks to `*.hook.test.ts` (upload queue, scroll restore, chrome).
-- Deleted unit duplicate `useReadingChapterNavigation.test.ts` (keep `.hook.test.ts`).
-- `scripts/gen-layer-gaps.mjs`: CLIENT_SCOPE `.ts` counts colocated `*.test.ts` **or** `*.hook.test.ts`. `.tsx` still needs `*.test.tsx`.
+Renaming upload-queue / chrome / scroll-restore / navigation to `*.hook.test.ts` dropped them from the **unit** suite. `test:coverage` (CI floors) only executes `src/**/*.test.ts`. After the rename, CI #19 failed: **76.21% lines / 64.82% branches** vs floors **77 / 65**. Husky pre-push does not run coverage, so the push looked green.
+
+Kept those four as unit `*.test.ts` with `// @vitest-environment happy-dom` (same tests, unit include). Other hooks stay `*.hook.test.ts`.
+
+`scripts/gen-layer-gaps.mjs`: CLIENT_SCOPE `.ts` counts colocated `*.test.ts` **or** `*.hook.test.ts`. `.tsx` still needs `*.test.tsx`.
 
 ### 1b smokes (partial)
 
@@ -50,7 +52,7 @@ Zone mutation (`engine/glossary` + `shared`) and remaining contract fixtures: co
 npm run test:component
 ```
 
-**128 files / 368 tests passed** in 15.56s (re-run 00:22 local; earlier same night 15.29s). Vitest 5.0.0, `pool: 'forks'`, `maxWorkers: 2`, happy-dom 20.14. File split: **111** `*.test.tsx` + **17** `*.hook.test.ts`. Versus 2026-09-13 baseline 113 / 314 — delta is hook renames + extract/admin smokes, minus ReportsModal.
+**128 files / 368 tests passed** in 15.56s (re-run 00:22 local; earlier same night 15.29s). After restoring four unit hook files (2026-09-14 evening): component suite is **124 / 344** (those tests run under `test` / `test:coverage` instead). Vitest 5.0.0, `pool: 'forks'`, `maxWorkers: 2`, happy-dom 20.14.
 
 Vite still warns that `__dirname` in `vitest.component.config.ts` is unsupported under future `configLoader: 'native'`. Out of campaign scope (same as the Vitest 5 upgrade note).
 
@@ -91,6 +93,11 @@ Likely chain: mock specifier for `../../api/client` misses Vite’s resolved id 
 - Lower floors 77/65.
 - Full `npm run test:mutation` (zone CLI only).
 - Treat Sept 13 mutation 57.97% as a Stryker 10 target.
+- Move a unit `*.test.ts` (happy-dom pragma) to `*.hook.test.ts` without `npm run test:coverage` — pre-push will not catch the floor miss.
+
+## CI Node 20 annotation vs job Node 24
+
+The job runtime is **Node 24** (`.nvmrc` / `engines.node`). The GitHub annotation “Node.js 20 is deprecated… forced to run on Node.js 24” is the **action** runtime (`using: node20` in checkout/setup-node/upload-artifact v4), not `setup-node`’s version for `npm test`. Workflow uses `actions/checkout@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v6` (`using: node24`).
 
 ## References
 
@@ -98,3 +105,4 @@ Likely chain: mock specifier for `../../api/client` misses Vite’s resolved id 
 - [[05-plans/testing-baseline]]
 - [Vitest common errors — Failed to Terminate Worker](https://vitest.dev/guide/common-errors)
 - [happy-dom BroadcastChannel](https://github.com/capricorn86/happy-dom/issues/1920)
+- [Node 20 deprecation on GitHub Actions runners](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)

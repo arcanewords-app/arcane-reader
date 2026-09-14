@@ -43,11 +43,11 @@ Until a dedicated test environment is provisioned, **CI live** work is paused. L
 | Metric                      | Value                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------- |
 | Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
-| Component suite             | **128** files / **368** tests (`npm run test:component`, 2026-09-14; was 113 / 314 on 2026-09-13) |
+| Component suite             | **124** files / **344** tests (`npm run test:component`, 2026-09-14 evening; 128 / 368 earlier that day before unit hook restore) |
 | Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                          |
 | Contract suite              | **46** files / **75** tests (`npm run test:contract`)                             |
 | Co-located `*.test.tsx`     | **111**                                                                           |
-| Co-located `*.hook.test.ts` | **17**                                                                            |
+| Co-located `*.hook.test.ts` | **13**                                                                            |
 | Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
 
 Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.config.ts` uses `pool: 'forks'` (Vitest 5 default). Do **not** set `threads` — Node `fetch` in worker_threads can hang the run ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). Unit coverage command does **not** execute `*.test.tsx` (separate config). Integration suite is mock-first (no live Supabase/Redis/LLM).
@@ -77,12 +77,12 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | 2026-08-16 | 2026-09-13 (pre-bump canvas) | Wave 0 Vitest 5 (2026-09-13) |
-| ---------- | ---------- | ---------------------------- | ---------------------------- |
-| Lines      | 78.21%     | 78.21%                       | **78.24%**                   |
-| Statements | 76.09%     | 76.10%                       | —                            |
-| Functions  | 80.42%     | 80.35%                       | —                            |
-| Branches   | 65.67%     | 65.68%                       | **65.81%**                   |
+| Metric     | 2026-08-16 | 2026-09-13 (pre-bump canvas) | Wave 0 Vitest 5 (2026-09-13) | After unit hook restore (2026-09-14) |
+| ---------- | ---------- | ---------------------------- | ---------------------------- | ------------------------------------ |
+| Lines      | 78.21%     | 78.21%                       | **78.24%**                   | **78.28%**                           |
+| Statements | 76.09%     | 76.10%                       | —                            | 76.11%                               |
+| Functions  | 80.42%     | 80.35%                       | —                            | —                                    |
+| Branches   | 65.67%     | 65.68%                       | **65.81%**                   | **65.89%**                           |
 
 ### Coverage floors (active)
 

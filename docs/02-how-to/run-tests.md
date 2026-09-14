@@ -84,6 +84,8 @@ npm run test:integration
 npm run test:contract
 ```
 
+Job Node is **24** (`.nvmrc`). A “Node.js 20 is deprecated” annotation on old `actions/*@v4` is the **action** runtime, not the test Node — current workflow uses checkout/setup-node/upload-artifact **v6** (`node24`). Pre-push does **not** run `test:coverage`; moving a unit `*.test.ts` to `*.hook.test.ts` can pass husky and fail CI floors (77/65). See [[05-plans/coverage-campaign-extracts]].
+
 **Local E2E** — Docker stamp + `npm run dev`; never a merge gate: `test:e2e` / `test:e2e:visual` / `test:e2e:llm`.
 
 ## Where tests live
