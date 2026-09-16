@@ -53,6 +53,30 @@
   right: 1rem;
 }
 
+/* Publication description: clamped preview with fade when truncated */
+.card-content-popup--description {
+  --card-content-popup-description-lines: 16;
+
+  padding: 0;
+  overflow: hidden;
+  max-height: min(calc(var(--card-max-publication) * 1.75), calc(100dvh - 2 * var(--space-lg)));
+}
+
+.card-content-popup__preview-text {
+  padding: var(--space-sm) var(--space-md);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--card-content-popup-description-lines);
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+}
+
+.card-content-popup--description.is-truncated .card-content-popup__preview-text {
+  mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
+}
+
 /* Entity preview: avatar + name + optional bio */
 .card-content-popup--entity {
   display: flex;

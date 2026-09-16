@@ -337,7 +337,7 @@ Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await 
 - `reader-upgrade` / `reader-profile` → `reader.visual.spec.ts`
 - `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests` → `author.visual.spec.ts`
 - `authorplus-empty` → `authorPlus.visual.spec.ts`
-- `admin-users` → `admin.visual.spec.ts`
+- `admin-users` / `admin-requests` → `admin.visual.spec.ts`
 
 Do **not** add `/news/:slug`, contact/legal, or extra `/admin/*` shells unless those screens are being changed.
 

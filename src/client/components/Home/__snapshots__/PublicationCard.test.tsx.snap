@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PublicationCard > matches snapshot when description tooltip is open 1`] = `
+<div
+  class="publication-card-description-wrap"
+>
+  <p
+    class="publication-card-description"
+  >
+    First paragraph of the synopsis with enough detail to preview the story.
+
+Second paragraph continues the plot setup and character introduction.
+
+Third paragraph raises the stakes before the main conflict begins.
+  </p>
+  <div
+    class="card-content-popup card-content-popup--description card-content-popup--below card-content-popup--align-start"
+    role="tooltip"
+  >
+    <div
+      class="card-content-popup__preview-text"
+    >
+      First paragraph of the synopsis with enough detail to preview the story.
+
+Second paragraph continues the plot setup and character introduction.
+
+Third paragraph raises the stakes before the main conflict begins.
+    </div>
+  </div>
+</div>
+`;

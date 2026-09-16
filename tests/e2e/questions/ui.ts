@@ -37,6 +37,7 @@ import {
   projectCard,
   projectCardDate,
   projectsHeading,
+  requestClosedButton,
   requestsHeading,
   tokenUsage,
   tokenUsageLoading,
@@ -157,6 +158,10 @@ export const seesChapterEditor: Question = async (actor) => {
 export const seesTranslationRequests: Question = async (actor) => {
   await expect(actor.page).toHaveURL(/\/translation-requests/);
   await expect(requestsHeading(actor.page)).toBeVisible({ timeout: 15_000 });
+};
+
+export const seesRequestModeration: Question = async (actor) => {
+  await expect(requestClosedButton(actor.page)).toBeVisible();
 };
 
 export const seesProfile: Question = async (actor) => {

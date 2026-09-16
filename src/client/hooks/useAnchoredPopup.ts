@@ -12,9 +12,15 @@ export type { AnchoredPopupPlacement } from './anchoredPopupPlacement.js';
  * Compute above/below + start/end alignment for a popup anchored to `anchorRef`.
  * Re-runs when `open` becomes true.
  */
+export type UseAnchoredPopupOptions = {
+  estimatedHeight?: number;
+  estimatedWidth?: number;
+};
+
 export function useAnchoredPopup(
   anchorRef: RefObject<HTMLElement | null>,
-  open: boolean
+  open: boolean,
+  options?: UseAnchoredPopupOptions
 ): AnchoredPopupPlacement {
   const [placement, setPlacement] = useState<AnchoredPopupPlacement>(DEFAULT_ANCHORED_PLACEMENT);
 
@@ -30,10 +36,11 @@ export function useAnchoredPopup(
     setPlacement(
       computeAnchoredPlacement(
         { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
-        { width: window.innerWidth, height: window.innerHeight }
+        { width: window.innerWidth, height: window.innerHeight },
+        options
       )
     );
-  }, [anchorRef, open]);
+  }, [anchorRef, open, options?.estimatedHeight, options?.estimatedWidth]);
 
   return placement;
 }

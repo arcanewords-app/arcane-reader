@@ -33,6 +33,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 | `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                                  |
 | `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`            |
 | `entity-chip-hover-preview`  | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css`     |
+| `publication-description-hover-preview` | Catalog card: full synopsis on description hover | `PublicationCard.tsx` / `card-content-popup.css` |
 | `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                                    |
 | `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                        |
 | `header-credits-tooltip`     | Compact remaining credits + hover popup           | `TokenUsageIndicator.tsx`                       |
@@ -169,6 +170,27 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **a11y:** `role="tooltip"` + `aria-describedby` while open; keyboard focus/blur same as hover.
 
 **Anti-patterns:** Putting the avatar permanently in the chip (separate product choice); N× `getPublicEntityById` after catalog load (use batch `ids=`).
+
+---
+
+## `publication-description-hover-preview`
+
+**When:** Catalog publication cards show a 2-line clamped synopsis; hover should reveal the full description without clipping at the viewport edge.
+
+**When not:** No description on the publication (omit the wrap entirely).
+
+**Files:**
+
+- [`PublicationCard.tsx`](../../../src/client/components/Home/PublicationCard.tsx)
+- [`card-content-popup.css`](../../../src/client/styles/components/card-content-popup.css) — modifier `--description`
+- [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts) with `ESTIMATED_DESCRIPTION_POPUP_HEIGHT`
+- [`useIsTruncated.ts`](../../../src/client/hooks/useIsTruncated.ts) for fade when preview overflows
+
+**Layout / behavior:** Card text stays 2-line clamp. Popup shows a ~16-line preview (max-height tied to `--card-max-publication`) with native ellipsis (`line-clamp`). When content overflows, add `is-truncated` + bottom fade mask (`useIsTruncated`). Flip above/below and align start/end via viewport space (`useAnchoredPopup`).
+
+**a11y:** `role="tooltip"` on the popup; hover-only (no keyboard path on the clamped paragraph — full text is on the publication page).
+
+**Anti-patterns:** Unbounded popup height (clips at viewport top); naive always-above CSS without flip; scroll in hover tooltip; hard clip without ellipsis/fade.
 
 ---
 

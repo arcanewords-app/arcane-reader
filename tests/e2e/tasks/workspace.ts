@@ -18,6 +18,8 @@ import {
   projectSearchFind,
   projectSettings,
   projectSettingsHeading,
+  requestClosedButton,
+  requestModerationButton,
   reviewTranslation,
 } from '../targets/workspace.js';
 
@@ -92,6 +94,11 @@ export const tryOpenAiReplace: Task = async (actor) => {
   if (await button.isEnabled()) {
     await button.click();
   }
+};
+
+export const enableRequestModeration: Task = async (actor) => {
+  await requestModerationButton(actor.page).click();
+  await requestClosedButton(actor.page).waitFor({ state: 'visible' });
 };
 
 export const createNamedProject =

@@ -32,7 +32,6 @@ import {
   CardGrid,
 } from '../components/ui';
 import { getProjectLimitForRole } from '../../config/projectLimits';
-import '../components/Dashboard/Dashboard.css';
 import './TranslationRequestsPage.css';
 
 type BoardTab = 'all' | 'mine';
@@ -407,7 +406,7 @@ export function TranslationRequestsPage() {
         title={t('requestBoard.title')}
         subtitle={subtitle}
         actions={
-          <div class="request-board-header-actions">
+          <>
             {isAdmin && (
               <Button
                 variant={moderationMode ? 'primary' : 'secondary'}
@@ -425,14 +424,10 @@ export function TranslationRequestsPage() {
                 {t('requestBoard.showClosed')}
               </Button>
             )}
-            <Button
-              variant="primary"
-              onClick={() => setShowSuggestModal(true)}
-              className="dashboard-create-btn"
-            >
+            <Button variant="primary" onClick={() => setShowSuggestModal(true)}>
               <Icon name="add" size="sm" /> {t('translationRequests.newButton')}
             </Button>
-          </div>
+          </>
         }
       />
 
@@ -448,13 +443,12 @@ export function TranslationRequestsPage() {
       )}
 
       <div class="request-board-toolbar">
-        <div class="dashboard-filters request-board-filters">
-          <div class="dashboard-search">
+        <div class="request-board-filters">
+          <div class="request-board-search">
             <Input
               placeholder={t('requestBoard.searchPlaceholder')}
               value={searchQuery}
               onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
-              className="dashboard-search-input"
             />
           </div>
           <Select

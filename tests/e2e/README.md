@@ -85,7 +85,7 @@ npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or break
 | `reader-upgrade` / `reader-profile`                                                                                              | `reader.visual.spec.ts`                             |
 | `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests`                                   | `author.visual.spec.ts`                             |
 | `authorplus-empty`                                                                                                               | `authorPlus.visual.spec.ts` (needs `stack:restore`) |
-| `admin-users`                                                                                                                    | `admin.visual.spec.ts`                              |
+| `admin-users` / `admin-requests`                                                                                                 | `admin.visual.spec.ts`                              |
 
 Files: `{prefix}-{phone|tablet|desktop}.png` next to that visual spec. Local Chromium + OS/DPI — not a CI gate. Do not add a Playwright project per viewport. New reader screens need a shell (see `.cursor/skills/ui/RESPONSIVE.md`). Do **not** add `/news/:slug`, contact/legal, or extra `/admin/*` shells unless those screens are being changed.
 

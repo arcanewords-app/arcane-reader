@@ -11,6 +11,8 @@ export const DEFAULT_ANCHORED_PLACEMENT: AnchoredPopupPlacement = {
 export const VIEWPORT_PADDING = 8;
 /** Approximate popup height used before measure (avatar row + clamped bio). */
 export const ESTIMATED_POPUP_HEIGHT = 140;
+/** Max preview height for publication description popups (matches CSS: card-max * 1.75). */
+export const ESTIMATED_DESCRIPTION_POPUP_HEIGHT = 490;
 export const ESTIMATED_POPUP_WIDTH = 280;
 
 export type AnchorRect = {

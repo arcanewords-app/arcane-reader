@@ -3,6 +3,7 @@ import {
   DEFAULT_ANCHORED_PLACEMENT,
   ESTIMATED_POPUP_HEIGHT,
   ESTIMATED_POPUP_WIDTH,
+  ESTIMATED_DESCRIPTION_POPUP_HEIGHT,
   computeAnchoredPlacement,
 } from './anchoredPopupPlacement.js';
 
@@ -21,6 +22,16 @@ describe('computeAnchoredPlacement', () => {
       computeAnchoredPlacement(
         { top: 20, bottom: 40, left: 40, right: 100 },
         { width: 1200, height: 800 }
+      ).vertical
+    ).toBe('below');
+  });
+
+  it('flips below for description popup when anchor is near top of viewport', () => {
+    expect(
+      computeAnchoredPlacement(
+        { top: 20, bottom: 40, left: 40, right: 100 },
+        { width: 1200, height: 800 },
+        { estimatedHeight: ESTIMATED_DESCRIPTION_POPUP_HEIGHT }
       ).vertical
     ).toBe('below');
   });

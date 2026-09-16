@@ -15,6 +15,11 @@ export const createProjectButton = (page: Page) => page.getByRole('button', { na
 export const requestsHeading = (page: Page) =>
   page.getByRole('heading', { name: 'Translation requests' });
 
+export const requestModerationButton = (page: Page) =>
+  page.getByRole('button', { name: 'Moderation' });
+
+export const requestClosedButton = (page: Page) => page.getByRole('button', { name: 'Closed' });
+
 export const glossaryButton = (page: Page) => page.getByRole('button', { name: /Glossary/ });
 
 export const glossaryHeading = (page: Page) => page.getByRole('heading', { name: 'Glossary' });
