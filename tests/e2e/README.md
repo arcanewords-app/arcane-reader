@@ -57,6 +57,7 @@ Locale in fixtures is `en`. Tasks, questions, and specs **must** import locators
 | `chapter-item`               | Sidebar chapter row                                        |
 | `chapter-reading-mode`       | Chapter header reading-mode button                         |
 | `reading-mode-text`          | Publication/author reading body (wait for first paragraph) |
+| `reading-mode-settings`      | Reading mode typography settings (icon button)             |
 | `chapter-actions`            | Chapter overflow menu trigger                              |
 | `project-search-find`        | Find-in-project query field                                |
 | `token-usage`                | Header credit indicator                                    |

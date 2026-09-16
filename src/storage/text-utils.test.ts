@@ -62,6 +62,17 @@ describe('getReaderSettings', () => {
     }
   });
 
+  it('preserves stored containerWidth', () => {
+    const settings = getReaderSettings({
+      settings: {
+        reader: {
+          containerWidth: 89,
+        } as unknown as ReaderSettings,
+      } as ProjectSettings,
+    });
+    assert.equal(settings.containerWidth, 89);
+  });
+
   it('includes customBg and customText when present', () => {
     const settings = getReaderSettings({
       settings: {

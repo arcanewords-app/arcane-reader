@@ -1,6 +1,10 @@
 import type { Task } from '../actors/types.js';
 import { publicationCard } from '../targets/catalog.js';
-import { publicationReadChapter } from '../targets/reading.js';
+import {
+  containerWidthSlider,
+  publicationReadChapter,
+  readingModeSettings,
+} from '../targets/reading.js';
 
 export const openFirstPublication: Task = async (actor) => {
   const card = publicationCard(actor.page).first();
@@ -14,4 +18,9 @@ export const openFirstTranslatedChapter: Task = async (actor) => {
   await read.waitFor({ state: 'visible', timeout: 20_000 });
   await read.click();
   await actor.page.waitForURL(/\/reading/);
+};
+
+export const openReadingSettings: Task = async (actor) => {
+  await readingModeSettings(actor.page).click();
+  await containerWidthSlider(actor.page).waitFor({ state: 'visible' });
 };

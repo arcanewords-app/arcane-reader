@@ -22,7 +22,12 @@ import {
   newsHeading,
   publicationCard,
 } from '../targets/catalog.js';
-import { publicationHeading, readingModeParagraph } from '../targets/reading.js';
+import {
+  containerWidthSlider,
+  publicationHeading,
+  readingModeParagraph,
+  readingModeText,
+} from '../targets/reading.js';
 import {
   aiReplaceSetupHeading,
   aiReplaceUpgradeHeading,
@@ -193,6 +198,31 @@ export const seesGlossary: Question = async (actor) => {
 export const seesReadingMode: Question = async (actor) => {
   await expect(actor.page).toHaveURL(/\/reading/);
   await expect(readingModeParagraph(actor.page)).toBeVisible({ timeout: 20_000 });
+};
+
+export const readerContainerWidthChangesText: Question = async (actor) => {
+  const slider = containerWidthSlider(actor.page);
+  const text = readingModeText(actor.page);
+  await expect(slider).toBeVisible();
+
+  const setWidth = async (value: number) => {
+    await slider.evaluate((el, next) => {
+      const input = el as HTMLInputElement;
+      input.value = String(next);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+  };
+
+  await setWidth(50);
+  await expect
+    .poll(async () => (await text.boundingBox())?.width ?? 0)
+    .toBeLessThan(700);
+  const narrow = (await text.boundingBox())?.width ?? 0;
+
+  await setWidth(100);
+  await expect
+    .poll(async () => (await text.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(narrow + 80);
 };
 
 export const seesTokenCredits: Question = async (actor) => {

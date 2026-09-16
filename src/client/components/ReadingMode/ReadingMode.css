@@ -188,7 +188,7 @@
 }
 
 .reading-mode-text {
-  max-width: min(var(--reader-container-width, 69%), 900px);
+  max-width: var(--reader-container-width, 69%);
   width: 100%;
   font-family: var(--reader-font);
   font-size: var(--reader-font-size);
@@ -934,7 +934,7 @@
   }
 
   .reading-mode-text {
-    max-width: min(var(--reader-container-width, 69%), 900px);
+    max-width: var(--reader-container-width, 69%);
     font-size: var(--reader-font-size);
   }
 
@@ -970,7 +970,7 @@
   }
 
   .reading-mode-text {
-    max-width: min(var(--reader-container-width, 69%), 900px);
+    max-width: var(--reader-container-width, 69%);
     font-size: var(--reader-font-size);
   }
 

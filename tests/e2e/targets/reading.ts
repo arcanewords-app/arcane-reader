@@ -8,3 +8,7 @@ export const readingModeText = (page: Page) => page.getByTestId('reading-mode-te
 
 export const readingModeParagraph = (page: Page) =>
   readingModeText(page).locator('[data-paragraph-index="0"]');
+
+export const readingModeSettings = (page: Page) => page.getByTestId('reading-mode-settings');
+
+export const containerWidthSlider = (page: Page) => page.getByLabel('Container width');

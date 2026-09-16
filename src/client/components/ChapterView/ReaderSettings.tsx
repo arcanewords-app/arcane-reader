@@ -52,8 +52,11 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
       <div class="settings-column">
         {/* Typography */}
         <div class="settings-section">
-          <label class="settings-label">{t('reader.font')}</label>
+          <label class="settings-label" for="reader-setting-font">
+            {t('reader.font')}
+          </label>
           <select
+            id="reader-setting-font"
             class="reader-settings-select"
             value={settings.fontFamily}
             onChange={(e) =>
@@ -69,10 +72,13 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
         </div>
 
         <div class="settings-section">
-          <label class="settings-label">{t('reader.fontSize')}</label>
+          <label class="settings-label" for="reader-setting-font-size">
+            {t('reader.fontSize')}
+          </label>
           <div class="slider-row">
             <span class="slider-label">A</span>
             <input
+              id="reader-setting-font-size"
               type="range"
               class="settings-slider"
               min="14"
@@ -91,10 +97,13 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
         </div>
 
         <div class="settings-section">
-          <label class="settings-label">{t('reader.lineHeight')}</label>
+          <label class="settings-label" for="reader-setting-line-height">
+            {t('reader.lineHeight')}
+          </label>
           <div class="slider-row">
             <span class="slider-label">≡</span>
             <input
+              id="reader-setting-line-height"
               type="range"
               class="settings-slider"
               min="140"
@@ -111,9 +120,12 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
         </div>
 
         <div class="settings-section">
-          <label class="settings-label">{t('reader.paragraphSpacing')}</label>
+          <label class="settings-label" for="reader-setting-paragraph-spacing">
+            {t('reader.paragraphSpacing')}
+          </label>
           <div class="slider-row">
             <input
+              id="reader-setting-paragraph-spacing"
               type="range"
               class="settings-slider"
               min="0"
@@ -173,9 +185,12 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
         </div>
 
         <div class="settings-section settings-section-container-width">
-          <label class="settings-label">{t('reader.containerWidth')}</label>
+          <label class="settings-label" for="reader-setting-container-width">
+            {t('reader.containerWidth')}
+          </label>
           <div class="slider-row">
             <input
+              id="reader-setting-container-width"
               type="range"
               class="settings-slider"
               min="50"

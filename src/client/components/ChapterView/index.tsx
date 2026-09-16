@@ -20,6 +20,7 @@ import { useChapterTranslation } from '../../hooks/useChapterTranslation';
 import { useTokenLimitCheck } from '../../hooks/useTokenLimitCheck';
 import { useUserRole } from '../../hooks/useUserRole';
 import { computeCriticContentFingerprint } from '../../utils/criticFingerprint';
+import { applyReaderSettings } from '../../utils/applyReaderSettings';
 import { Card, AlertModal, Modal, Button } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
 import { SearchReplaceBar, type SearchHighlight } from '../SearchReplace';
@@ -219,28 +220,7 @@ export function ChapterView({
 
   // Apply reader settings as CSS variables
   useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty('--reader-font-size', `${readerSettings.fontSize}px`);
-    root.style.setProperty('--reader-line-height', `${readerSettings.lineHeight}`);
-    root.style.setProperty(
-      '--reader-paragraph-spacing',
-      `${Math.max(0.5, readerSettings.paragraphSpacing ?? 0.5)}em`
-    );
-    root.style.setProperty('--reader-container-width', `${readerSettings.containerWidth ?? 69}%`);
-    root.setAttribute('data-reader-font', readerSettings.fontFamily);
-    root.setAttribute('data-reader-theme', readerSettings.colorScheme);
-    root.setAttribute(
-      'data-reader-indent',
-      (readerSettings.textIndent ?? false) ? 'true' : 'false'
-    );
-    root.setAttribute('data-reader-align', readerSettings.textAlign ?? 'justify');
-    if (readerSettings.colorScheme === 'custom') {
-      root.style.setProperty('--reader-bg', readerSettings.customBg ?? '#f2f2f3');
-      root.style.setProperty('--reader-text', readerSettings.customText ?? '#212529');
-    } else {
-      root.style.removeProperty('--reader-bg');
-      root.style.removeProperty('--reader-text');
-    }
+    applyReaderSettings(document.documentElement, readerSettings);
   }, [readerSettings]);
 
   // Poll while chapter is translating (local state or sidebar summary)

@@ -14,6 +14,7 @@ import { PublicationGlossaryModal } from '../Glossary';
 import { ChapterTocModal } from '../ChapterTocModal';
 import { Modal, LoadingSpinner, Icon } from '../ui';
 import { ApiError } from '../../api/errors';
+import { applyReaderSettings, clearReaderSettings } from '../../utils/applyReaderSettings';
 import { renderTextWithBlocks, mergeSegmentsWithUnclosedBlocks } from '../../utils/text-blocks';
 import {
   clearBrowserSelection,
@@ -480,37 +481,8 @@ export function ReadingMode({
   // Apply reader settings as CSS variables
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--reader-font-size', `${readerSettings.fontSize}px`);
-    root.style.setProperty('--reader-line-height', `${readerSettings.lineHeight}`);
-    root.style.setProperty(
-      '--reader-paragraph-spacing',
-      `${Math.max(0.5, readerSettings.paragraphSpacing ?? 0.5)}em`
-    );
-    root.style.setProperty('--reader-container-width', `${readerSettings.containerWidth ?? 69}%`);
-    root.setAttribute('data-reader-font', readerSettings.fontFamily);
-    root.setAttribute('data-reader-theme', readerSettings.colorScheme);
-    root.setAttribute('data-reader-indent', (readerSettings.textIndent ?? true) ? 'true' : 'false');
-    root.setAttribute('data-reader-align', readerSettings.textAlign ?? 'justify');
-    if (readerSettings.colorScheme === 'custom') {
-      root.style.setProperty('--reader-bg', readerSettings.customBg ?? '#f2f2f3');
-      root.style.setProperty('--reader-text', readerSettings.customText ?? '#212529');
-    } else {
-      root.style.removeProperty('--reader-bg');
-      root.style.removeProperty('--reader-text');
-    }
-
-    return () => {
-      root.removeAttribute('data-reader-font');
-      root.removeAttribute('data-reader-theme');
-      root.removeAttribute('data-reader-indent');
-      root.removeAttribute('data-reader-align');
-      root.style.removeProperty('--reader-font-size');
-      root.style.removeProperty('--reader-line-height');
-      root.style.removeProperty('--reader-paragraph-spacing');
-      root.style.removeProperty('--reader-container-width');
-      root.style.removeProperty('--reader-bg');
-      root.style.removeProperty('--reader-text');
-    };
+    applyReaderSettings(root, readerSettings);
+    return () => clearReaderSettings(root);
   }, [readerSettings]);
 
   const handleExit = useCallback(() => {
@@ -930,6 +902,8 @@ export function ReadingMode({
             class="reading-mode-settings-btn"
             onClick={() => setShowSettings(!showSettings)}
             title={t('readingMode.settingsTitle')}
+            aria-label={t('readingMode.settingsTitle')}
+            data-testid="reading-mode-settings"
           >
             <Icon name="settings" />
           </button>

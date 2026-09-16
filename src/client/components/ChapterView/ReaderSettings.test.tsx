@@ -78,4 +78,67 @@ describe('ReaderSettingsPanel', () => {
     fireEvent.click(screen.getByTitle('reader.themeLight'));
     expect(onChange).toHaveBeenCalledWith({ colorScheme: 'light' });
   });
+
+  it('calls onChange when paper theme is selected', () => {
+    const onChange = vi.fn();
+    render(
+      <ReaderSettingsPanel
+        settings={{ ...DEFAULT_READER_SETTINGS, colorScheme: 'dark' }}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('reader.themePaper'));
+    expect(onChange).toHaveBeenCalledWith({ colorScheme: 'paper' });
+  });
+
+  it('calls onChange when font family is changed', () => {
+    const onChange = vi.fn();
+    render(<ReaderSettingsPanel settings={DEFAULT_READER_SETTINGS} onChange={onChange} />);
+
+    const select = screen.getByLabelText('reader.font') as HTMLSelectElement;
+    select.value = 'eb_garamond';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onChange).toHaveBeenCalledWith({ fontFamily: 'eb_garamond' });
+  });
+
+  it('calls onChange when font size slider moves', () => {
+    const onChange = vi.fn();
+    render(<ReaderSettingsPanel settings={DEFAULT_READER_SETTINGS} onChange={onChange} />);
+
+    fireEvent.input(screen.getByLabelText('reader.fontSize'), { target: { value: '20' } });
+    expect(onChange).toHaveBeenCalledWith({ fontSize: 20 });
+  });
+
+  it('calls onChange when line height slider moves', () => {
+    const onChange = vi.fn();
+    render(<ReaderSettingsPanel settings={DEFAULT_READER_SETTINGS} onChange={onChange} />);
+
+    fireEvent.input(screen.getByLabelText('reader.lineHeight'), { target: { value: '180' } });
+    expect(onChange).toHaveBeenCalledWith({ lineHeight: 1.8 });
+  });
+
+  it('calls onChange when paragraph spacing slider moves', () => {
+    const onChange = vi.fn();
+    render(<ReaderSettingsPanel settings={DEFAULT_READER_SETTINGS} onChange={onChange} />);
+
+    fireEvent.input(screen.getByLabelText('reader.paragraphSpacing'), { target: { value: '12' } });
+    expect(onChange).toHaveBeenCalledWith({ paragraphSpacing: 1.2 });
+  });
+
+  it('calls onChange when container width slider moves', () => {
+    const onChange = vi.fn();
+    render(
+      <ReaderSettingsPanel
+        settings={{ ...DEFAULT_READER_SETTINGS, containerWidth: 69 }}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.input(screen.getByLabelText('reader.containerWidth'), { target: { value: '89' } });
+    expect(onChange).toHaveBeenCalledWith({ containerWidth: 89 });
+
+    fireEvent.input(screen.getByLabelText('reader.containerWidth'), { target: { value: '50' } });
+    expect(onChange).toHaveBeenCalledWith({ containerWidth: 50 });
+  });
 });
