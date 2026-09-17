@@ -35,9 +35,15 @@ export function requestContext(req: Request, res: Response, next: NextFunction):
 
   const controller = new AbortController();
   const abortIfClientGone = (): void => {
-    if (!res.writableEnded && !controller.signal.aborted) controller.abort();
+    if (res.writableEnded || controller.signal.aborted) return;
+    controller.abort();
   };
-  req.on('close', abortIfClientGone);
+  // IncomingMessage 'close' also fires after a fully-read POST body while the
+  // handler is still running — that is not a client disconnect.
+  req.on('close', () => {
+    if (req.complete) return;
+    abortIfClientGone();
+  });
   res.on('close', abortIfClientGone);
 
   runWithAbortSignal(controller.signal, () => {

@@ -188,6 +188,7 @@ async function performTranslationInner(
   traceId: string
 ): Promise<void> {
   const cancelKey = translationCancelKey(projectId, chapterId);
+  translationCancelRegistry.delete(cancelKey);
   const isCancelled = () =>
     translationCancelRegistry.get(cancelKey) === true ||
     options?.externalIsCancelled?.() === true ||
@@ -420,7 +421,14 @@ async function performTranslationInner(
 
     if (isCancelled()) {
       logger.info(
-        { projectId, chapterId, chapterTitle: chapter.title },
+        {
+          event: 'translation.cancelled',
+          projectId,
+          chapterId,
+          chapterTitle: chapter.title,
+          cancelRegistry: translationCancelRegistry.get(cancelKey) === true,
+          abortSignal: getInvocationAbortSignal()?.aborted === true,
+        },
         'Translation cancelled by user before pipeline start'
       );
       await updateChapter(projectId, chapterId, { status: 'pending' }, token, {

@@ -5,7 +5,7 @@ domain: engine
 stale: false
 canonical: .cursor/rules/engine.mdc
 created: 2026-05-31
-updated: 2026-05-31
+updated: 2026-09-17
 ---
 
 # Engine integration boundary (as-is)
@@ -103,7 +103,7 @@ Client polls `GET .../chapters/:id/status` (or project) for `chunksDone` / `tota
 
 ### 3. `performTranslation` (server)
 
-**Cancel:** `translationCancelRegistry` key `(projectId, chapterId)`. `POST .../translate/cancel` sets flag; `isCancelled` passed into pipeline options.
+**Cancel:** `isCancelled` is true when any of: `translationCancelRegistry` key `(projectId, chapterId)` (set by `POST .../translate/cancel`), worker `externalIsCancelled`, or the request ALS AbortSignal from a **real** client disconnect. Node `IncomingMessage` `'close'` after a fully-read POST body (`req.complete === true`) is **not** a disconnect — aborting on it cancels fire-and-forget `performTranslation` before OpenAI and logs a false “cancelled by user”. Worker jobs leave ALS empty.
 
 **Paragraph markers:** before engine call, `addParagraphMarkers` prefixes each paragraph with `--para:{id}--` (or `auto_N` if no DB match).
 
@@ -161,11 +161,12 @@ See [[../_canonical/rules/routing]] — Async Jobs.
 
 ## Cancel behavior
 
-| When cancelled | Server behavior                                                  |
-| -------------- | ---------------------------------------------------------------- |
-| After Stage 1  | `PipelineResult.cancelled`; save glossary, `status: pending`     |
-| Mid chunk      | pipeline throws `'Cancelled'`; chapter error/pending per handler |
-| Via job        | `externalIsCancelled` from Redis/KV in worker options            |
+| When cancelled  | Server behavior                                                                                                                                                                                     |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| After Stage 1   | `PipelineResult.cancelled`; save glossary, `status: pending`                                                                                                                                        |
+| Mid chunk       | pipeline throws `'Cancelled'`; chapter error/pending per handler                                                                                                                                    |
+| Via job         | `externalIsCancelled` from Redis/KV in worker options                                                                                                                                               |
+| HTTP disconnect | ALS abort: `res.close` while `!res.writableEnded`, or `req.close` while `!req.complete` (mid-body drop). Sync translate is fire-and-forget after `200 started`, so a completed body must not abort. |
 
 ## External services
 

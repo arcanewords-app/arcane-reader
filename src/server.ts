@@ -8,6 +8,7 @@
 
 import { createApp } from './createApp.js';
 import { logger } from './logger.js';
+import { parseDevDatabaseTarget, supabaseHostLabel } from './shared/devDatabaseTarget.js';
 import { serviceHealthManager } from './services/serviceHealth.js';
 import { isBullAvailable } from './services/chapterQueue.js';
 import { importBridgedLogEntry } from './debug/buffer.js';
@@ -43,7 +44,7 @@ async function startServer(): Promise<void> {
 ╠═══════════════════════════════════════════════════════════╣
 ║                                                           ║
 ║   🌐 Сервер: http://localhost:${PORT}                        ║
-║   💾 База данных: Supabase PostgreSQL                      ║
+║   💾 База: ${parseDevDatabaseTarget(process.env.ARCANE_DB) === 'prod' ? 'PROD' : 'local'} ${supabaseHostLabel(process.env.SUPABASE_URL)}
 ║   🤖 AI: ${config.openai.apiKey ? 'OpenAI ✅' : 'Не настроен ⚠️'}                                   ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
@@ -53,6 +54,8 @@ async function startServer(): Promise<void> {
         event: 'server.started',
         port: PORT,
         hasOpenAI: !!config.openai.apiKey,
+        dbTarget: parseDevDatabaseTarget(process.env.ARCANE_DB),
+        supabaseHost: supabaseHostLabel(process.env.SUPABASE_URL),
       },
       `Server listening on http://localhost:${PORT}`
     );

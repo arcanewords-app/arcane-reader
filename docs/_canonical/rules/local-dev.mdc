@@ -8,8 +8,8 @@ alwaysApply: false
 
 ## SSOT
 
-- **npm scripts:** `@package.json` — do not invent commands; use `npm run <script>` from there. Local Docker stack: `stack:up` / `stack:down` / `stack:dump` / `stack:load` / `stack:stamp` / `stack:restore`.
-- **Env vars:** `@.cursor/rules/deployment.mdc` + `@env.example.txt` — never commit `.env` or `.env.local`.
+- **npm scripts:** `@package.json` — do not invent commands; use `npm run <script>` from there. Local Docker stack: `stack:up` / `stack:down` / `stack:dump` / `stack:load` / `stack:stamp` / `stack:restore`. App: `dev` / `dev:full` (local DB), `dev:prod` / `dev:full:prod` (live prod via `.env.prod.local`).
+- **Env vars:** `@.cursor/rules/deployment.mdc` + `@env.example.txt` — never commit `.env`, `.env.local`, or `.env.prod.local`.
 - **Routes:** `@.cursor/rules/routing.mdc` — do not duplicate the route map in vault notes.
 - **Commands, tool choice, Windows VM, rg, vault:** `@.cursor/skills/local-dev/SKILL.md` (§G–H before shell).
 
@@ -28,6 +28,6 @@ alwaysApply: false
 
 ## Do not
 
-- Commit `.env`, `.env.local`, or secrets.
+- Commit `.env`, `.env.local`, `.env.prod.local`, or secrets.
 - Treat `docs/archive/` or old plans as SSOT without verifying against `src/` and rules.
 - Copy full routing tables into vault notes (link to `routing.mdc` instead).

@@ -24,8 +24,9 @@ Local dump only (never Vercel, never commit): `SUPABASE_DUMP_URL` + `SUPABASE_DU
 |------|---------|
 | `.env` | Local stack defaults (demo JWTs, Redis localhost). Template: `@env.example.txt`. |
 | `.env.local` | Secrets (`OPENAI_API_KEY`, dump keys, `VITE_*`). Wins over `.env` for the same key. |
+| `.env.prod.local` | Live prod `SUPABASE_*`. Loaded only when `ARCANE_DB=prod` (`npm run dev:full:prod`). |
 
-API / worker / `stack:*` load `.env.local` then `.env` (`src/loadEnv.ts`). Vite: `.env` then `.env.local` (same outcome). Never commit either file. To run the app against cloud, put cloud `SUPABASE_*` and Redis/KV in `.env.local`.
+API / worker load `.env.local` then `.env` (`src/loadEnv.ts`). `npm run dev:full:prod` prepends `.env.prod.local`. Stack scripts (`stack:*`) never load the prod overlay. Vite: `.env` then `.env.local` (client has no Supabase keys). Never commit these files. Do **not** put cloud `SUPABASE_URL` in `.env.local` — `dev:full` must stay on Docker Postgres.
 
 See `@env.example.txt` for optional: chunking, `PUBLIC_URL`, `VITE_GA_MEASUREMENT_ID`, `VITE_SUPPORT_BOOSTY_URL`. Local Playwright only (never Vercel): `E2E_BASE_URL` / `E2E_API_URL` (defaults `http://localhost:5173` / `http://localhost:3000`).
 
@@ -76,14 +77,16 @@ npm run stack:up          # Redis + local Supabase (Docker Desktop required)
 # Optional prod-like data (first time / monthly):
 #   STACK_STAMP=0 npm run stack:up && npm run stack:dump && npm run stack:load && npm run stack:stamp
 # Daily: stack:up restores arcane-reader-stamp:latest if that image exists
-npm run dev:full          # API + Vite + worker
+npm run dev:full          # API + Vite + worker → local Docker Postgres
+# Live prod DB (writes go to production; needs .env.prod.local):
+# npm run dev:full:prod
 ```
 
 Local Redis is already in the `.env` template: `REDIS_URL=redis://127.0.0.1:6379`, `KV_REST_API_URL=http://127.0.0.1:8079`, `KV_REST_API_TOKEN=local-token`.
 
 **Never** `supabase db push` / `apply_migration` from the local dump to prod.
 
-Without the stack, put cloud keys in `.env.local` (`npm run dev`) as before.
+Live prod from the local app: `npm run dev:full:prod` (`.env.prod.local`). Do not put cloud `SUPABASE_*` in `.env.local`.
 
 
 ## Build and run

@@ -458,7 +458,7 @@ Moved to standalone repo **[arcane-scraper](https://github.com/arcane-scraper)**
 
 Async analysis and translate jobs require a separate Worker process and Redis (REDIS_URL).
 
-- **Local dev:** `npm run dev:full` - runs API, client, and worker; or run `npm run worker` in a separate terminal.
+- **Local dev:** `npm run dev:full` — API, client, and worker against Docker Postgres; or run `npm run worker` in a separate terminal. Live prod DB: `npm run dev:full:prod` (`.env.prod.local`).
 - **Production:** `npm run start:worker` - run alongside `npm run start` (API).
 - **Queues:** `chapter-analysis`, `chapter-translate`. One active job per user per type (analysis/translate).
 

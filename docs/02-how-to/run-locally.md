@@ -46,7 +46,7 @@ cp env.example.txt .env
 npm run stack:up          # restores arcane-reader-stamp:latest if that image exists
 ```
 
-`.env` already has local demo JWTs and Redis. `.env.local` wins for the same key (API/worker via `src/loadEnv.ts`; Vite does the same).
+`.env` already has local demo JWTs and Redis. `.env.local` wins for the same key (API/worker via `src/loadEnv.ts`; Vite does the same). Do not put live `SUPABASE_URL` in `.env.local`.
 
 | Port  | Service                               |
 | ----- | ------------------------------------- |
@@ -90,9 +90,15 @@ After the stamp is up and `npm run dev` is running, local Playwright: `npm run t
 
 Refresh data after prod changes: `stack:dump` + `stack:load` + `stack:stamp`. Refresh schema after DDL: dump schema again, then load + stamp.
 
-## Cloud Supabase (old path)
+## Cloud Supabase (local app → live prod)
 
-You can still put prod/staging `SUPABASE_URL` + keys in `.env.local` (overrides `.env`) and skip `stack:up`. Async jobs then need Upstash `REDIS_URL` / `KV_REST_*` in `.env.local` as well.
+Put prod `SUPABASE_URL` + keys in **`.env.prod.local`** (not `.env.local`). Redis stays local so queues are not shared with the prod worker.
+
+```bash
+npm run dev:full:prod
+```
+
+Login with a real prod account. Writes go to production. Banner / log line: `Database: PROD …supabase.co`.
 
 ## Commands
 
@@ -106,8 +112,9 @@ You can still put prod/staging `SUPABASE_URL` + keys in `.env.local` (overrides 
 | `npm run stack:load`                 | Local reset + JSON insert + remap owners                            |
 | `npm run stack:stamp`                | Bake loaded PGDATA into `arcane-reader-stamp:latest` (monthly)      |
 | `npm run stack:restore`              | Re-apply stamp image onto the db volume (fast E2E reset)            |
-| `npm run dev`                        | Express API (3000) + Vite client (5173)                             |
-| `npm run dev:full`                   | Above + BullMQ worker (`src/worker.ts`)                             |
+| `npm run dev`                        | Express API (3000) + Vite client (5173) — **local** Docker Postgres |
+| `npm run dev:full`                   | Above + BullMQ worker — **local** DB                                |
+| `npm run dev:prod` / `dev:full:prod` | Same processes against **live prod** (`.env.prod.local`)            |
 | `npm run worker`                     | Worker only (needs Redis env)                                       |
 | `npm run lint` / `npm run typecheck` | oxlint (`src/`) + `tsc --noEmit` (3 tsconfigs)                      |
 
@@ -135,7 +142,7 @@ Workspace recommends the **Oxc** extension (`oxc.oxc-vscode`); it uses local `ox
 
 - Port in use: `npm run kill-port` or `predev:force` script
 - 503 on translate: check Redis + worker process (`npm run stack:status`)
-- Auth errors: local demo JWTs in `.env`, not cloud `SUPABASE_*` in `.env.local`
+- Auth errors: local demo JWTs in `.env`; prod login needs `npm run dev:full:prod`. Cloud `SUPABASE_*` must not live in `.env.local`.
 - Dump refused (localhost): set `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY` to prod HTTPS (not a Postgres URI)
 - `stack:up` missing schema: dump public schema into `supabase/bootstrap/schema.sql` first (see `supabase/bootstrap/README.md`), or restore a stamp image (`npm run stack:stamp` after load)
 - `stack:up` ignored stamp: `STACK_STAMP=0` forces schema bootstrap; omit it to restore `arcane-reader-stamp:latest`

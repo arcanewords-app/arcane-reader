@@ -66,6 +66,7 @@ function mockReq(overrides: Partial<Request> = {}) {
     method: 'GET',
     path: '/api/projects',
     user: undefined,
+    complete: true,
     on: vi.fn((event: string, handler: () => void) => {
       listeners[event] = listeners[event] ?? [];
       listeners[event].push(handler);
@@ -130,7 +131,7 @@ describe('requestContext', () => {
     assert.ok((req as Request & { log: unknown }).log);
   });
 
-  it('aborts the invocation signal when the client disconnects before the response ends', () => {
+  it('aborts when the client drops the connection before the response ends', () => {
     const req = mockReq();
     const res = mockRes();
     let captured: AbortSignal | undefined;
@@ -141,6 +142,28 @@ describe('requestContext', () => {
     requestContext(req, res, next as NextFunction);
 
     assert.equal(captured?.aborted, false);
+    res.emit('close');
+    assert.equal(captured?.aborted, true);
+  });
+
+  it('does not abort on IncomingMessage close after a fully-read body', () => {
+    const req = mockReq({ complete: true });
+    const res = mockRes();
+    let captured: AbortSignal | undefined;
+    requestContext(req, res, (() => {
+      captured = getInvocationAbortSignal();
+    }) as NextFunction);
+    req.emit('close');
+    assert.equal(captured?.aborted, false);
+  });
+
+  it('aborts when the request is closed before the body is complete', () => {
+    const req = mockReq({ complete: false });
+    const res = mockRes();
+    let captured: AbortSignal | undefined;
+    requestContext(req, res, (() => {
+      captured = getInvocationAbortSignal();
+    }) as NextFunction);
     req.emit('close');
     assert.equal(captured?.aborted, true);
   });
@@ -153,7 +176,7 @@ describe('requestContext', () => {
       captured = getInvocationAbortSignal();
     }) as NextFunction);
     res.writableEnded = true;
-    req.emit('close');
+    res.emit('close');
     assert.equal(captured?.aborted, false);
   });
 });

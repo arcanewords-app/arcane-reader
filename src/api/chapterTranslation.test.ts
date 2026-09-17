@@ -293,6 +293,25 @@ describe('performTranslation', () => {
   });
 
   it('returns early when cancelled before pipeline start', async () => {
+    await performTranslation(
+      'proj-1',
+      'ch-1',
+      makeTestChapter(),
+      makeTestProject(),
+      Date.now(),
+      false,
+      'token',
+      'user-1',
+      undefined,
+      'all',
+      { externalIsCancelled: () => true }
+    );
+    assert.equal(mockTranslateChapterWithPipeline.mock.calls.length, 0);
+    assert.equal(mockUpdateChapter.mock.calls[0]?.[2]?.status, 'pending');
+  });
+
+  it('clears a leftover cancel flag so a new run can start', async () => {
+    mockTranslateChapterWithPipeline.mockClear();
     translationCancelRegistry.set('proj-1:ch-1', true);
     await performTranslation(
       'proj-1',
@@ -302,10 +321,11 @@ describe('performTranslation', () => {
       Date.now(),
       false,
       'token',
-      'user-1'
+      'user-1',
+      undefined,
+      ['translation']
     );
-    assert.equal(mockTranslateChapterWithPipeline.mock.calls.length, 0);
-    assert.equal(mockUpdateChapter.mock.calls[0]?.[2]?.status, 'pending');
+    assert.equal(mockTranslateChapterWithPipeline.mock.calls.length, 1);
   });
 
   it('handles analysis-only run and sets analyzed status', async () => {

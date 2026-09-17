@@ -1,6 +1,6 @@
 /**
- * Load gitignored env files. `.env.local` wins over `.env` for the same key.
- * Keep path order in sync with `src/loadEnv.ts`.
+ * Load gitignored env files for stack/scripts. Always local: `.env.local` then `.env`.
+ * API/worker prod overlay is `ARCANE_DB=prod` in `src/loadEnv.ts` (npm run dev:full:prod).
  */
 import { resolve } from 'node:path';
 import { config } from 'dotenv';

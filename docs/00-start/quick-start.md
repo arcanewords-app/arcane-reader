@@ -17,7 +17,8 @@ cp env.example.txt .env          # local stack defaults
 # .env.local: OPENAI_API_KEY (+ SUPABASE_DUMP_* for stack:dump)
 # schema.sql (gitignored): dump public schema via MCP before first stack:up / stack:load
 npm run stack:up                 # Docker Redis + local Supabase (restores stamp image if present)
-npm run dev:full
+npm run dev:full                 # local Docker Postgres + worker
+# Live prod DB: keys in .env.prod.local, then npm run dev:full:prod
 ```
 
 App: `http://localhost:3000`
@@ -40,7 +41,8 @@ App: `http://localhost:3000`
 ```bash
 npm run lint
 npm run typecheck
-npm run dev:full    # API + client + worker (async jobs)
+npm run dev:full         # API + client + worker against local Docker Postgres
+npm run dev:full:prod    # same, live prod DB (`.env.prod.local`)
 ```
 
 Tests: [[02-how-to/run-tests]] (pre-push + GitHub Actions pyramid; local Playwright after `stack:up` + `dev`).

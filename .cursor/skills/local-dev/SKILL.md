@@ -86,6 +86,7 @@ npm run kill-port
 | Install deps (reader)    | `npm install` in `arcane-reader`                                     |
 | API + Vite UI            | `npm run dev`                                                        |
 | API + UI + BullMQ worker | `npm run dev:full`                                                   |
+| Same, live prod DB       | `npm run dev:full:prod` (`.env.prod.local`; writes go to production) |
 | Local Redis + Supabase   | `npm run stack:up` (Docker Desktop; restores stamp image if present) |
 | Stop local stack         | `npm run stack:down`                                                 |
 | Stack status / keys      | `npm run stack:status`                                               |
@@ -122,7 +123,7 @@ cp env.example.txt .env
 Copy-Item env.example.txt .env
 ```
 
-`.env` is the local stack (demo JWTs + Redis localhost). Put secrets in `.env.local`: `OPENAI_API_KEY`, and for dumps `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY`. `.env.local` wins on duplicate keys (`src/loadEnv.ts`; Vite same). Dump public schema into gitignored `supabase/bootstrap/schema.sql` **before** first `stack:up` / `stack:load` (MCP; `stack:dump-schema` prints the recipe). Prod-like data: `stack:dump` / `stack:load` / `stack:stamp`. Daily `stack:up` restores `arcane-reader-stamp:latest` if that image exists (`STACK_STAMP=0` skips it). To run the app against cloud, put cloud `SUPABASE_*` and Redis/KV in `.env.local`. For async analyze/translate you still need Redis (`stack:up` or Upstash).
+`.env` is the local stack (demo JWTs + Redis localhost). Put secrets in `.env.local`: `OPENAI_API_KEY`, and for dumps `SUPABASE_DUMP_URL` + `SUPABASE_DUMP_SERVICE_ROLE_KEY`. `.env.local` wins on duplicate keys (`src/loadEnv.ts`; Vite same). Dump public schema into gitignored `supabase/bootstrap/schema.sql` **before** first `stack:up` / `stack:load` (MCP; `stack:dump-schema` prints the recipe). Prod-like data: `stack:dump` / `stack:load` / `stack:stamp`. Daily `stack:up` restores `arcane-reader-stamp:latest` if that image exists (`STACK_STAMP=0` skips it). Live prod from the local app: `npm run dev:full:prod` + `.env.prod.local` (not `.env.local`). For async analyze/translate you still need Redis (`stack:up` or Upstash).
 
 **Web scraper** lives in the separate [arcane-scraper](https://github.com/arcane-scraper) repo (`npm run dev` there). Not part of arcane-reader.
 
@@ -228,7 +229,7 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | Port in use                          | `npm run kill-port`                                                                                |
 | 503 on batch translate               | Redis env + `npm run worker` or `dev:full`                                                         |
-| Auth fails locally                   | Local `SUPABASE_*` in `.env` (not overridden by cloud keys in `.env.local`); JWT in browser        |
+| Auth fails locally                   | Local `SUPABASE_*` in `.env` (not cloud keys in `.env.local`); JWT in browser. Prod login: `npm run dev:full:prod` |
 | API unreachable from UI              | `npm run kill-port`, then `dev:server` alone; wait for port 3000                                   |
 | Vite proxy ECONNREFUSED              | API not ready yet or crashed — check `[0]` logs, not only `[1]`                                    |
 | Worker exits in dev                  | Missing `KV_REST_*` — worker skips in dev (warn only); set Redis REST for job cancel               |
@@ -246,7 +247,7 @@ See `scripts/README-csv-patterns.md` for CSV workflow.
 - Inventing npm scripts not in `package.json`
 - Using `docs/archive/` as SSOT without code check
 - Wikilinks with `docs/` prefix inside vault notes
-- Committing `.env` / `.env.local` or logging secrets
+- Committing `.env` / `.env.local` / `.env.prod.local` or logging secrets
 - `grep`, `find`, `cat`, `cp` in PowerShell when §G lists a better tool
 - Retrying the same search with bash vs PS vs MCP without fixing the root cause
 - `stack:load` to reset a dirty E2E run when `arcane-reader-stamp:latest` exists — use `stack:restore`
