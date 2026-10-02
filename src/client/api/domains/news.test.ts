@@ -14,18 +14,22 @@ vi.mock('../transport/fetchDeduped.js', () => ({
   fetchJsonDeduped: (...args: unknown[]) => mockFetchJsonDeduped(...args),
 }));
 
-vi.mock('../../i18n.js', () => ({
-  default: { language: 'ru' },
-}));
-
 import { newsApi } from './news.js';
 
 describe('newsApi', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
+  function stubLocale(locale: string) {
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => (key === 'app.locale' ? locale : null),
+    });
+  }
+
   it('getNewsPosts calls fetchJsonDeduped with query params', async () => {
+    stubLocale('ru');
     const posts = [{ id: 'n1', title: 'Release notes' }];
     mockFetchJsonDeduped.mockResolvedValue(posts);
 
@@ -41,6 +45,7 @@ describe('newsApi', () => {
   });
 
   it('getNewsPost calls fetchJsonDeduped with encoded id or slug', async () => {
+    stubLocale('ru');
     const post = { id: 'n1', title: 'Release notes' };
     mockFetchJsonDeduped.mockResolvedValue(post);
 

@@ -2,6 +2,8 @@
 export const APP_LOCALES = ['ru', 'en', 'be', 'pl'] as const;
 export type AppLocale = (typeof APP_LOCALES)[number];
 
+export const APP_LOCALE_KEY = 'app.locale';
+
 export const PRIMARY_CONTENT_LOCALE: AppLocale = 'ru';
 
 /** Locales stored in jsonb. The primary language stays in table columns. */

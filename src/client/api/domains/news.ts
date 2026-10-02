@@ -1,12 +1,25 @@
 import type { NewsPost, NewsCategory, ActiveAnnouncement } from '../../types.js';
-import i18n from '../../i18n.js';
-import { isAppLocale, PRIMARY_CONTENT_LOCALE } from '../../../shared/appLocales.js';
+import { APP_LOCALE_KEY, isAppLocale, PRIMARY_CONTENT_LOCALE } from '../../../shared/appLocales.js';
 import { fetchJson } from '../transport/fetchJson.js';
 import { fetchJsonDeduped } from '../transport/fetchDeduped.js';
 
 function requestLocale(): string {
-  const base = (i18n.language || PRIMARY_CONTENT_LOCALE).split('-')[0]?.toLowerCase() ?? '';
-  return isAppLocale(base) ? base : PRIMARY_CONTENT_LOCALE;
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem(APP_LOCALE_KEY);
+    if (saved && isAppLocale(saved)) return saved;
+  }
+  if (typeof navigator !== 'undefined') {
+    const codes =
+      navigator.languages && navigator.languages.length > 0
+        ? navigator.languages
+        : [navigator.language];
+    for (const raw of codes) {
+      if (!raw) continue;
+      const base = raw.split('-')[0]?.toLowerCase() ?? '';
+      if (isAppLocale(base)) return base;
+    }
+  }
+  return PRIMARY_CONTENT_LOCALE;
 }
 
 export const newsApi = {
