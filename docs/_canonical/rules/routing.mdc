@@ -277,7 +277,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET/POST | `/api/admin/news` | List all news posts (query: `status`, `search`, `limit`, `offset`) / create draft |
 | GET/PATCH/DELETE | `/api/admin/news/:id` | News CRUD |
 | POST | `/api/admin/news/:id/publish` | Publish draft |
-| POST | `/api/admin/news/:id/translate` | Stub 501 (future AI translation) |
+| POST | `/api/admin/news/:id/translate` | Draft one locale (`en` \| `be` \| `pl`) from the Russian post. 409 if that locale is already `ready`. Does not publish or bump banner `content_version` |
 | GET/POST | `/api/admin/announcements` | List / create announcement alert |
 | PATCH/DELETE | `/api/admin/announcements/:id` | Update / delete alert |
 | POST | `/api/admin/announcements/from-news/:newsId` | Create alert prefilled from news |
@@ -296,9 +296,9 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/news` | - | Published news list. Query: `limit`, `offset`, `category` |
-| GET | `/api/news/:idOrSlug` | - | Single published news post |
-| GET | `/api/announcements/active` | optionalAuth | Active banner for user role (null if none) |
+| GET | `/api/news` | - | Published news list. Query: `limit`, `offset`, `category`, `locale` (`ru` \| `en` \| `be` \| `pl`, default `ru`). Resolved text only; `fellBack` when the locale is not ready |
+| GET | `/api/news/:idOrSlug` | - | Single published news post. Query: `locale` (same as the list) |
+| GET | `/api/announcements/active` | optionalAuth | Active banner for user role (null if none). Query: `locale` |
 | POST | `/api/announcements/:id/dismiss` | user+ | Record dismiss `{ contentVersion }` |
 
 ### Cache invalidation notes

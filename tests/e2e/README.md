@@ -30,6 +30,10 @@ Catalog is public: Reader **sees** all books; that is not ownership. If Reader h
 
 Do not hardcode publication UUIDs from the dump. User UUIDs in `actors/personas.ts` match `supabase/seed.sql`.
 
+## Mocked news locale
+
+`guest.switches-news-locale.spec.ts` is the one spec that calls `page.route`. It replaces `GET /api/news` and `GET /api/announcements/active` with fixed English, Russian, and Belarusian copy, then switches the header locale. The feed and banner must not show “Shown in Russian”; the article page shows that note only when the mocked payload has `fellBack: true` (Belarusian). Other specs keep hitting the stamp.
+
 ## Layout (Persona / Actor)
 
 - `actors/` — personas + Actor (`attemptsTo` / `see`)

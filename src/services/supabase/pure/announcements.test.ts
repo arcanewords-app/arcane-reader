@@ -22,6 +22,7 @@ function makeAlertRow(overrides: Partial<AnnouncementAlertRow> = {}): Announceme
     priority: 0,
     content_version: 1,
     dismissible: true,
+    translations: {},
     created_at: '',
     updated_at: '',
     ...overrides,

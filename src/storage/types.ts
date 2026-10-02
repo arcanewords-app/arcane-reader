@@ -248,6 +248,8 @@ export interface AnnouncementAlert {
   priority: number;
   contentVersion: number;
   dismissible: boolean;
+  /** Non-primary copies of message and ctaLabel. Russian stays in the columns. */
+  translations: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -261,6 +263,8 @@ export interface ActiveAnnouncement {
   variant: AnnouncementVariant;
   contentVersion: number;
   dismissible: boolean;
+  /** True when the visible copy is the Russian canonical text for a non-Russian reader. */
+  fellBack: boolean;
 }
 
 /** Font family options for reader */

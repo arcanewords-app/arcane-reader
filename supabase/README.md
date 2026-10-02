@@ -72,6 +72,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260719120000_user_quotes.sql`                           | `user_quotes` table for reader-saved publication quotes; RLS (select/insert/delete own rows)                            |
 | `20260801153000_user_publication_progress_delete_rls.sql`  | RLS DELETE on `user_publication_progress` (reset read progress was silently no-op)                                      |
 | `20260829225000_drop_unused_paragraph_trgm_indexes.sql`    | Drop unused GIN `paragraphs_*_text_trgm_idx` (~237 MB, `idx_scan = 0`); search RPC unchanged (ILIKE seq scan)           |
+| `20261002110000_announcement_translations.sql`             | `announcement_alerts.translations` jsonb for en/be/pl banner message and CTA; Russian stays in columns                  |
 
 ## Heavy RPC policy
 

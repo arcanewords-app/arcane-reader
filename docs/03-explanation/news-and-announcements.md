@@ -4,7 +4,7 @@ status: active
 domain: client
 stale: false
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-10-02
 canonical: .cursor/rules/routing.mdc
 ---
 
@@ -67,11 +67,11 @@ flowchart TB
 
 Published posts are public (RLS: `status = 'published'`). Drafts and archived posts are admin-only (service role).
 
-Key fields: `title`, `summary`, `body` (markdown), `category` (`feature` | `discount` | `update` | `other`), `slug`, `published_at`, `translations` jsonb (reserved for future AI i18n).
+Key fields: `title`, `summary`, `body` (markdown), `category` (`feature` | `discount` | `update` | `other`), `slug`, `published_at`. `primary_locale` is `ru` and those columns are the canonical text. `translations` jsonb holds `en` / `be` / `pl` as whole documents (`title`, `summary`, `body`, `status`: `draft` | `ready`). A locale is public only when `ready` and both title and summary are set. Otherwise the reader sees the Russian document and `fellBack: true`. Russian is not stored inside `translations`.
 
 ### `announcement_alerts`
 
-Short banner config. Optional `news_post_id` FK. Schedule via `starts_at` / `ends_at`. `min_role` gates audience. `content_version` increments when admin wants to re-show after dismiss. `priority` picks the single active alert when several qualify.
+Short banner config. Optional `news_post_id` FK. Schedule via `starts_at` / `ends_at`. `min_role` gates audience. `content_version` increments when admin wants to re-show after dismiss. `priority` picks the single active alert when several qualify. `message` and `cta_label` are the Russian copy. `translations` jsonb holds the same two fields for `en` / `be` / `pl`. Saving a translation does not change `content_version`. If the locale has no message, the banner uses the Russian message, then the news summary already resolved for that locale.
 
 ### `user_announcement_dismissals`
 
@@ -135,8 +135,10 @@ Internal navigation to `/news/...` also records a normal `page_view`.
 
 ## i18n
 
-- **UI labels:** `src/client/locales/en.json`, `ru.json`, `be.json`.
-- **Post content:** MVP is RU (`primary_locale: ru`). `translations` jsonb is stored but not rendered until AI translate is implemented (`POST /api/admin/news/:id/translate` returns 501).
+- **UI labels:** `src/client/locales/en.json`, `ru.json`, `be.json`, `pl.json`.
+- **Post and banner content:** the public API takes `locale` (default `ru`) and returns one resolved text plus `fellBack`. SSR and the sitemap stay on the Russian columns. No `hreflang`.
+- **Admin:** locale tabs on the post and on the banner. `POST /api/admin/news/:id/translate` writes a `draft` for `en` / `be` / `pl` and returns 409 if that locale is already `ready`.
+- Research and the chosen model: [[05-plans/news-multilingual]].
 
 ## Related
 

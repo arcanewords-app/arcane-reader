@@ -96,6 +96,12 @@
   color: var(--text-secondary);
 }
 
+.news-locale-fallback {
+  margin: 0 0 0.5rem;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
 .news-article-summary {
   margin: 0 0 1.25rem;
   color: var(--text-secondary);

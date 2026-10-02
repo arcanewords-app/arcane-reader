@@ -1275,6 +1275,18 @@
     "news": {
       "statusFilter": "Status",
       "searchPlaceholder": "Szukaj po tytule lub opisie",
+      "localeStatus": "Status tłumaczenia",
+      "localeDraft": "Szkic",
+      "localeReady": "Pokazuj czytelnikom",
+      "translateDraft": "Przetłumacz szkic",
+      "translateDraftReady": "Szkic tłumaczenia gotowy. Oznacz go jako gotowy, gdy sprawdzisz tekst.",
+      "translateDraftFailed": "Nie udało się przetłumaczyć szkicu.",
+      "translateReadyBlocked": "To tłumaczenie jest oznaczone jako gotowe. Wróć do szkicu, zanim wygenerujesz je ponownie.",
+      "translateUnavailable": "Tłumaczenie AI jest niedostępne.",
+      "translationDoesNotReshow": "Zmiana tłumaczenia nie pokazuje banera ponownie. Użyj „Pokaż ponownie”, gdy zmienia się sens.",
+      "editAlert": "Edytuj tekst",
+      "editAlertTitle": "Tekst ogłoszenia",
+      "alertCtaLabel": "Etykieta przycisku",
       "status": {
         "draft": "Szkic",
         "published": "Opublikowane",
@@ -1526,6 +1538,9 @@
     "changesDesc": "Regulamin może być aktualizowany. Kontynuacja korzystania po zmianach oznacza akceptację.",
     "contact": "Kontakt",
     "contactDesc": "Pytania: {{contactEmail}}"
+  },
+  "news": {
+    "shownInPrimary": "Pokazano po rosyjsku"
   },
   "cookieBanner": {
     "title": "Używamy plików cookies",

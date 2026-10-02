@@ -110,4 +110,17 @@ describe('AnnouncementBanner', () => {
       expect(route).toHaveBeenCalledWith('/news/feature');
     });
   });
+
+  it('does not append a language note when the banner fell back', () => {
+    vi.mocked(useServiceHealth).mockReturnValue({ state: null, retry: vi.fn() });
+    vi.mocked(useAnnouncement).mockReturnValue({
+      alert: { ...baseAlert, fellBack: true },
+      dismiss: vi.fn(),
+    });
+
+    render(<AnnouncementBanner />);
+
+    expect(screen.getByText('New feature shipped')).toBeTruthy();
+    expect(screen.queryByText(/news\.shownInPrimary/)).toBeNull();
+  });
 });

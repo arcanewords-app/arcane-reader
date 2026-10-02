@@ -6,14 +6,15 @@
 
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { APP_LOCALES, type AppLocale } from '../shared/appLocales.js';
 import ru from './locales/ru.json';
 import en from './locales/en.json';
 import be from './locales/be.json';
 import pl from './locales/pl.json';
 
 export const APP_LOCALE_KEY = 'app.locale';
-export type AppLocale = 'ru' | 'en' | 'be' | 'pl';
-export const SUPPORTED_LOCALES: AppLocale[] = ['ru', 'en', 'be', 'pl'];
+export type { AppLocale };
+export const SUPPORTED_LOCALES: readonly AppLocale[] = APP_LOCALES;
 
 function syncHtmlLang(locale: AppLocale): void {
   if (typeof document === 'undefined') return;

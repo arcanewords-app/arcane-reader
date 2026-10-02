@@ -126,7 +126,7 @@ banner_min_role: guest | user | author | author_plus | super_author
 2. Pick angle + category; confirm it passes the "announce vs skip" test.
 3. Draft `docs/05-plans/news-drafts/<slug>.md` from the template.
 4. Self-check against the voice table and structure (hook → CTA → one core block → CTA).
-5. Hand off: user publishes via `/admin/news` ([[02-how-to/manage-news-announcements]]). Drafts are not auto-synced to the DB.
+5. Hand off: user publishes via `/admin/news` ([[02-how-to/manage-news-announcements]]). Drafts are not auto-synced to the DB. The Russian body is the canonical post. `en` / `be` / `pl` are edited on locale tabs (or filled as drafts by **Translate draft**) and shown to readers only when marked ready. See [[05-plans/news-multilingual]].
 
 ## Verify feature facts before writing
 

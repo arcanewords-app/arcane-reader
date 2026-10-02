@@ -12,7 +12,33 @@ import type {
 import { AdminLayout, AdminSection, AdminFlash } from '../components/Admin';
 import '../components/Admin/admin-shared.css';
 import { Button, Input, Select, Modal, ConfirmModal } from '../components/ui';
+import { APP_LOCALES, type AppLocale } from '../../shared/appLocales';
 import './AdminNewsPage.css';
+
+type LocaleDraft = { title: string; summary: string; body: string; status: 'draft' | 'ready' };
+type AlertLocaleDraft = { message: string; ctaLabel: string };
+
+function emptyDraft(): LocaleDraft {
+  return { title: '', summary: '', body: '', status: 'draft' };
+}
+
+function draftFromUnknown(value: unknown): LocaleDraft {
+  const entry = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return {
+    title: typeof entry.title === 'string' ? entry.title : '',
+    summary: typeof entry.summary === 'string' ? entry.summary : '',
+    body: typeof entry.body === 'string' ? entry.body : '',
+    status: entry.status === 'ready' ? 'ready' : 'draft',
+  };
+}
+
+function alertDraftFromUnknown(value: unknown): AlertLocaleDraft {
+  const entry = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return {
+    message: typeof entry.message === 'string' ? entry.message : '',
+    ctaLabel: typeof entry.ctaLabel === 'string' ? entry.ctaLabel : '',
+  };
+}
 
 const categoryOptions: NewsCategory[] = ['feature', 'discount', 'update', 'other'];
 const statusOptions: Array<NewsStatus | ''> = ['', 'draft', 'published', 'archived'];
@@ -48,6 +74,8 @@ export function AdminNewsPage() {
   const [editBody, setEditBody] = useState('');
   const [editCategory, setEditCategory] = useState<NewsCategory>('feature');
   const [editSlug, setEditSlug] = useState('');
+  const [editLocale, setEditLocale] = useState<AppLocale>('ru');
+  const [localeDrafts, setLocaleDrafts] = useState<Record<string, LocaleDraft>>({});
 
   const [alertModalPost, setAlertModalPost] = useState<NewsPost | null>(null);
   const [alertMessage, setAlertMessage] = useState('');
@@ -60,6 +88,11 @@ export function AdminNewsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [bumpingAlert, setBumpingAlert] = useState<AnnouncementAlert | null>(null);
+  const [editingAlert, setEditingAlert] = useState<AnnouncementAlert | null>(null);
+  const [alertLocale, setAlertLocale] = useState<AppLocale>('ru');
+  const [alertEditMessage, setAlertEditMessage] = useState('');
+  const [alertEditCta, setAlertEditCta] = useState('');
+  const [alertLocaleDrafts, setAlertLocaleDrafts] = useState<Record<string, AlertLocaleDraft>>({});
 
   const [statusFilter, setStatusFilter] = useState<NewsStatus | ''>('');
   const [search, setSearch] = useState('');
@@ -151,7 +184,14 @@ export function AdminNewsPage() {
   };
 
   const openEdit = (post: NewsPost) => {
+    const drafts: Record<string, LocaleDraft> = {};
+    for (const locale of APP_LOCALES) {
+      if (locale === 'ru') continue;
+      drafts[locale] = draftFromUnknown(post.translations?.[locale]);
+    }
     setEditingPost(post);
+    setEditLocale('ru');
+    setLocaleDrafts(drafts);
     setEditTitle(post.title);
     setEditSummary(post.summary);
     setEditBody(post.body);
@@ -160,18 +200,40 @@ export function AdminNewsPage() {
     setError(null);
   };
 
+  const activeDraft = localeDrafts[editLocale] ?? emptyDraft();
+
+  const updateActiveDraft = (patch: Partial<LocaleDraft>) => {
+    setLocaleDrafts((prev) => ({
+      ...prev,
+      [editLocale]: { ...(prev[editLocale] ?? emptyDraft()), ...patch },
+    }));
+  };
+
   const handleEditSave = async () => {
     if (!editingPost) return;
     setFormLoading(true);
     setError(null);
     try {
-      await api.updateNewsPost(editingPost.id, {
-        title: editTitle.trim(),
-        summary: editSummary.trim(),
-        body: editBody,
-        category: editCategory,
-        slug: editSlug.trim() || null,
-      });
+      if (editLocale === 'ru') {
+        await api.updateNewsPost(editingPost.id, {
+          title: editTitle.trim(),
+          summary: editSummary.trim(),
+          body: editBody,
+          category: editCategory,
+          slug: editSlug.trim() || null,
+        });
+      } else {
+        const draft = localeDrafts[editLocale] ?? emptyDraft();
+        await api.updateNewsPost(editingPost.id, {
+          translation: {
+            locale: editLocale,
+            title: draft.title.trim(),
+            summary: draft.summary.trim(),
+            body: draft.body,
+            status: draft.status,
+          },
+        });
+      }
       setEditingPost(null);
       setSuccess(t('admin.news.updated'));
       await reload();
@@ -179,6 +241,75 @@ export function AdminNewsPage() {
       setError(t('admin.news.updateFailed'));
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  const handleTranslateDraft = async () => {
+    if (!editingPost || editLocale === 'ru') return;
+    setFormLoading(true);
+    setError(null);
+    try {
+      const updated = await api.translateNewsPost(editingPost.id, { locale: editLocale });
+      setEditingPost(updated);
+      setLocaleDrafts((prev) => ({
+        ...prev,
+        [editLocale]: draftFromUnknown(updated.translations?.[editLocale]),
+      }));
+      setSuccess(t('admin.news.translateDraftReady'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError(t('admin.news.translateReadyBlocked'));
+      } else if (err instanceof ApiError && err.status === 503) {
+        setError(t('admin.news.translateUnavailable'));
+      } else {
+        setError(t('admin.news.translateDraftFailed'));
+      }
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const openAlertEdit = (alert: AnnouncementAlert) => {
+    const drafts: Record<string, AlertLocaleDraft> = {};
+    for (const locale of APP_LOCALES) {
+      if (locale === 'ru') continue;
+      drafts[locale] = alertDraftFromUnknown(alert.translations?.[locale]);
+    }
+    setEditingAlert(alert);
+    setAlertLocale('ru');
+    setAlertEditMessage(alert.message ?? '');
+    setAlertEditCta(alert.ctaLabel ?? '');
+    setAlertLocaleDrafts(drafts);
+    setError(null);
+  };
+
+  const handleAlertTranslationSave = async () => {
+    if (!editingAlert) return;
+    setAlertLoading(true);
+    setError(null);
+    try {
+      if (alertLocale === 'ru') {
+        await api.updateAnnouncement(editingAlert.id, {
+          message: alertEditMessage.trim() || null,
+          ctaLabel: alertEditCta.trim() || null,
+        });
+      } else {
+        const draft = alertLocaleDrafts[alertLocale] ?? { message: '', ctaLabel: '' };
+        await api.updateAnnouncement(editingAlert.id, {
+          translation: {
+            locale: alertLocale,
+            message: draft.message.trim(),
+            ctaLabel: draft.ctaLabel.trim(),
+          },
+        });
+      }
+      setEditingAlert(null);
+      setSuccess(t('admin.news.updated'));
+      await reload();
+    } catch {
+      setError(t('admin.news.alertUpdateFailed'));
+    } finally {
+      setAlertLoading(false);
     }
   };
 
@@ -320,14 +451,6 @@ export function AdminNewsPage() {
             <Button type="submit" variant="primary" loading={formLoading} disabled={formLoading}>
               {t('admin.news.form.create')}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled
-              title={t('admin.news.translateSoon')}
-            >
-              {t('admin.news.translateSoon')}
-            </Button>
           </div>
         </AdminSection>
 
@@ -392,6 +515,7 @@ export function AdminNewsPage() {
         </AdminSection>
 
         <AdminSection title={t('admin.news.alertsTitle')}>
+          <p class="admin-news-hint">{t('admin.news.translationDoesNotReshow')}</p>
           {alerts.length === 0 ? (
             <p class="admin-empty">{t('admin.news.alertsEmpty')}</p>
           ) : (
@@ -411,6 +535,9 @@ export function AdminNewsPage() {
                     </span>
                   </div>
                   <div class="admin-news-alert-actions">
+                    <Button variant="secondary" size="sm" onClick={() => openAlertEdit(alert)}>
+                      {t('admin.news.editAlert')}
+                    </Button>
                     <Button variant="secondary" size="sm" onClick={() => toggleAlert(alert)}>
                       {alert.isActive ? t('admin.news.deactivate') : t('admin.news.activate')}
                     </Button>
@@ -455,42 +582,114 @@ export function AdminNewsPage() {
         }
       >
         <div class="admin-news-modal-form">
-          <Input
-            label={t('admin.news.form.title')}
-            value={editTitle}
-            onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)}
-            maxLength={200}
-          />
-          <Input
-            label={t('admin.news.form.summary')}
-            value={editSummary}
-            onInput={(e) => setEditSummary((e.target as HTMLInputElement).value)}
-            maxLength={300}
-          />
-          <div class="form-group">
-            <label class="form-label" for="admin-news-edit-body">
-              {t('admin.news.form.body')}
-            </label>
-            <textarea
-              id="admin-news-edit-body"
-              class="form-input admin-textarea admin-textarea--lg"
-              value={editBody}
-              onInput={(e) => setEditBody((e.target as HTMLTextAreaElement).value)}
-              rows={8}
-            />
+          <div class="admin-news-locale-tabs" role="tablist">
+            {APP_LOCALES.map((locale) => (
+              <Button
+                key={locale}
+                type="button"
+                size="sm"
+                variant={editLocale === locale ? 'primary' : 'secondary'}
+                onClick={() => setEditLocale(locale)}
+              >
+                {t(`language.${locale}`)}
+              </Button>
+            ))}
           </div>
-          <Select
-            label={t('admin.news.form.category')}
-            options={categorySelectOptions}
-            value={editCategory}
-            onChange={(e) => setEditCategory((e.target as HTMLSelectElement).value as NewsCategory)}
-          />
-          <Input
-            label={t('admin.news.form.slug')}
-            value={editSlug}
-            onInput={(e) => setEditSlug((e.target as HTMLInputElement).value)}
-            maxLength={120}
-          />
+          {editLocale === 'ru' ? (
+            <>
+              <Input
+                label={t('admin.news.form.title')}
+                value={editTitle}
+                onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)}
+                maxLength={200}
+              />
+              <Input
+                label={t('admin.news.form.summary')}
+                value={editSummary}
+                onInput={(e) => setEditSummary((e.target as HTMLInputElement).value)}
+                maxLength={300}
+              />
+              <div class="form-group">
+                <label class="form-label" for="admin-news-edit-body">
+                  {t('admin.news.form.body')}
+                </label>
+                <textarea
+                  id="admin-news-edit-body"
+                  class="form-input admin-textarea admin-textarea--lg"
+                  value={editBody}
+                  onInput={(e) => setEditBody((e.target as HTMLTextAreaElement).value)}
+                  rows={8}
+                />
+              </div>
+              <Select
+                label={t('admin.news.form.category')}
+                options={categorySelectOptions}
+                value={editCategory}
+                onChange={(e) =>
+                  setEditCategory((e.target as HTMLSelectElement).value as NewsCategory)
+                }
+              />
+              <Input
+                label={t('admin.news.form.slug')}
+                value={editSlug}
+                onInput={(e) => setEditSlug((e.target as HTMLInputElement).value)}
+                maxLength={120}
+              />
+            </>
+          ) : (
+            <>
+              <Select
+                label={t('admin.news.localeStatus')}
+                options={[
+                  { value: 'draft', label: t('admin.news.localeDraft') },
+                  { value: 'ready', label: t('admin.news.localeReady') },
+                ]}
+                value={activeDraft.status}
+                onChange={(e) =>
+                  updateActiveDraft({
+                    status: (e.target as HTMLSelectElement).value as 'draft' | 'ready',
+                  })
+                }
+              />
+              <Input
+                label={t('admin.news.form.title')}
+                value={activeDraft.title}
+                onInput={(e) => updateActiveDraft({ title: (e.target as HTMLInputElement).value })}
+                maxLength={200}
+              />
+              <Input
+                label={t('admin.news.form.summary')}
+                value={activeDraft.summary}
+                onInput={(e) =>
+                  updateActiveDraft({ summary: (e.target as HTMLInputElement).value })
+                }
+                maxLength={300}
+              />
+              <div class="form-group">
+                <label class="form-label" for="admin-news-locale-body">
+                  {t('admin.news.form.body')}
+                </label>
+                <textarea
+                  id="admin-news-locale-body"
+                  class="form-input admin-textarea admin-textarea--lg"
+                  value={activeDraft.body}
+                  onInput={(e) =>
+                    updateActiveDraft({ body: (e.target as HTMLTextAreaElement).value })
+                  }
+                  rows={8}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                loading={formLoading}
+                disabled={formLoading}
+                onClick={handleTranslateDraft}
+              >
+                {t('admin.news.translateDraft')}
+              </Button>
+            </>
+          )}
         </div>
       </Modal>
 
@@ -538,6 +737,85 @@ export function AdminNewsPage() {
             value={String(alertPriority)}
             onInput={(e) => setAlertPriority(Number((e.target as HTMLInputElement).value) || 0)}
           />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!editingAlert}
+        onClose={() => setEditingAlert(null)}
+        title={t('admin.news.editAlertTitle')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingAlert(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={handleAlertTranslationSave} loading={alertLoading}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <div class="admin-news-modal-form">
+          <div class="admin-news-locale-tabs" role="tablist">
+            {APP_LOCALES.map((locale) => (
+              <Button
+                key={locale}
+                type="button"
+                size="sm"
+                variant={alertLocale === locale ? 'primary' : 'secondary'}
+                onClick={() => setAlertLocale(locale)}
+              >
+                {t(`language.${locale}`)}
+              </Button>
+            ))}
+          </div>
+          {alertLocale === 'ru' ? (
+            <>
+              <Input
+                label={t('admin.news.alertMessage')}
+                value={alertEditMessage}
+                onInput={(e) => setAlertEditMessage((e.target as HTMLInputElement).value)}
+                maxLength={160}
+              />
+              <Input
+                label={t('admin.news.alertCtaLabel')}
+                value={alertEditCta}
+                onInput={(e) => setAlertEditCta((e.target as HTMLInputElement).value)}
+                maxLength={60}
+              />
+            </>
+          ) : (
+            <>
+              <Input
+                label={t('admin.news.alertMessage')}
+                value={alertLocaleDrafts[alertLocale]?.message ?? ''}
+                onInput={(e) =>
+                  setAlertLocaleDrafts((prev) => ({
+                    ...prev,
+                    [alertLocale]: {
+                      message: (e.target as HTMLInputElement).value,
+                      ctaLabel: prev[alertLocale]?.ctaLabel ?? '',
+                    },
+                  }))
+                }
+                maxLength={160}
+              />
+              <Input
+                label={t('admin.news.alertCtaLabel')}
+                value={alertLocaleDrafts[alertLocale]?.ctaLabel ?? ''}
+                onInput={(e) =>
+                  setAlertLocaleDrafts((prev) => ({
+                    ...prev,
+                    [alertLocale]: {
+                      message: prev[alertLocale]?.message ?? '',
+                      ctaLabel: (e.target as HTMLInputElement).value,
+                    },
+                  }))
+                }
+                maxLength={60}
+              />
+            </>
+          )}
         </div>
       </Modal>
 

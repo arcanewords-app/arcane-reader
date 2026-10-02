@@ -41,6 +41,7 @@ export interface AnnouncementAlertRow {
   priority: number;
   content_version: number;
   dismissible: boolean;
+  translations: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +79,7 @@ export function transformAnnouncementFromDB(row: AnnouncementAlertRow): Announce
     priority: row.priority,
     contentVersion: row.content_version,
     dismissible: row.dismissible,
+    translations: row.translations ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

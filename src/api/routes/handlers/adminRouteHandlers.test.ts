@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   invalidatePublicEntitiesCaches: vi.fn(),
   invalidateNewsCaches: vi.fn(),
   invalidateAnnouncementCaches: vi.fn(),
+  draftNewsTranslation: vi.fn(),
   uploadFile: vi.fn(),
   deleteFile: vi.fn(),
   generateUniqueFilename: vi.fn(),
@@ -90,6 +91,10 @@ vi.mock('../../routeHelpers.js', () => ({
     mocks.invalidatePublicEntitiesCaches(...args),
   invalidateNewsCaches: mocks.invalidateNewsCaches,
   invalidateAnnouncementCaches: mocks.invalidateAnnouncementCaches,
+}));
+
+vi.mock('../../../services/newsDraftTranslation.js', () => ({
+  draftNewsTranslation: (...args: unknown[]) => mocks.draftNewsTranslation(...args),
 }));
 
 vi.mock('../../../services/storage.js', () => ({
@@ -431,10 +436,95 @@ describe('adminRouteHandlers', () => {
   });
 
   describe('handleTranslateNewsPost', () => {
-    it('returns 501 not implemented', () => {
+    const previousKey = process.env.OPENAI_API_KEY;
+
+    afterEach(() => {
+      if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previousKey;
+    });
+
+    it('returns 400 for the primary locale', async () => {
       const res = mockRes();
-      handleTranslateNewsPost(mockReq() as never, res as never);
-      assert.equal(res.statusCode, 501);
+      await handleTranslateNewsPost(
+        mockReq({ params: { id: 'n1' }, body: { locale: 'ru' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+    });
+
+    it('returns 404 when the post is missing', async () => {
+      mocks.getNewsPostByIdAdmin.mockResolvedValue(null);
+      const res = mockRes();
+      await handleTranslateNewsPost(
+        mockReq({ params: { id: 'missing' }, body: { locale: 'en' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 404);
+    });
+
+    it('returns 409 when the locale is already ready', async () => {
+      mocks.getNewsPostByIdAdmin.mockResolvedValue({
+        id: 'n1',
+        translations: {
+          en: { title: 'Ready', summary: 'Done', body: '', status: 'ready' },
+        },
+      });
+      const res = mockRes();
+      await handleTranslateNewsPost(
+        mockReq({ params: { id: 'n1' }, body: { locale: 'en' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 409);
+      assert.equal(mocks.draftNewsTranslation.mock.calls.length, 0);
+    });
+
+    it('returns 503 when OpenAI is not configured', async () => {
+      delete process.env.OPENAI_API_KEY;
+      mocks.getNewsPostByIdAdmin.mockResolvedValue({
+        id: 'n1',
+        title: 'Заголовок',
+        summary: 'Описание',
+        body: '',
+        translations: {},
+      });
+      const res = mockRes();
+      await handleTranslateNewsPost(
+        mockReq({ params: { id: 'n1' }, body: { locale: 'en' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 503);
+    });
+
+    it('saves an English draft and does not publish the post', async () => {
+      process.env.OPENAI_API_KEY = 'sk-test';
+      mocks.getNewsPostByIdAdmin.mockResolvedValue({
+        id: 'n1',
+        slug: 'hello',
+        title: 'Заголовок',
+        summary: 'Описание',
+        body: 'Текст',
+        translations: { be: { title: 'Be', summary: 'Be', body: '', status: 'draft' } },
+      });
+      mocks.draftNewsTranslation.mockResolvedValue({
+        title: 'Title',
+        summary: 'Summary',
+        body: 'Body',
+      });
+      mocks.updateNewsPost.mockResolvedValue({ id: 'n1', status: 'draft' });
+      const res = mockRes();
+      await handleTranslateNewsPost(
+        mockReq({ params: { id: 'n1' }, body: { locale: 'en' } }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 200);
+      const payload = mocks.updateNewsPost.mock.calls[0]?.[1] as {
+        translations: { en: { status: string }; be: { title: string } };
+        status?: string;
+      };
+      assert.equal(payload.translations.en.status, 'draft');
+      assert.equal(payload.translations.be.title, 'Be');
+      assert.equal(payload.status, undefined);
+      assert.equal(mocks.invalidateNewsCaches.mock.calls.length, 1);
     });
   });
 

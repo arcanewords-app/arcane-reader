@@ -6,7 +6,10 @@ import {
   announcementUpdateSchema,
   newsCreateSchema,
   newsListQuerySchema,
+  newsTranslateSchema,
+  newsTranslationPatchSchema,
   newsUpdateSchema,
+  announcementTranslationPatchSchema,
 } from './news.js';
 
 describe('newsListQuerySchema', () => {
@@ -33,7 +36,13 @@ describe('newsListQuerySchema', () => {
       expect(parsed.data.limit).toBe(20);
       expect(parsed.data.offset).toBe(5);
       expect(parsed.data.category).toBe('update');
+      expect(parsed.data.locale).toBe('ru');
     }
+  });
+
+  it('rejects an unknown locale', () => {
+    const parsed = newsListQuerySchema.safeParse({ locale: 'de' });
+    expect(parsed.success).toBe(false);
   });
 });
 
@@ -137,6 +146,35 @@ describe('newsUpdateSchema', () => {
       expect(parsed.data.slug).toBeNull();
     }
   });
+
+  it('rejects a ready translation without title', () => {
+    const parsed = newsTranslationPatchSchema.safeParse({
+      locale: 'en',
+      title: ' ',
+      summary: 'Summary',
+      body: '',
+      status: 'ready',
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects Russian as a jsonb translation locale', () => {
+    const parsed = newsTranslateSchema.safeParse({ locale: 'ru' });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts an English draft patch', () => {
+    const parsed = newsUpdateSchema.safeParse({
+      translation: {
+        locale: 'en',
+        title: 'Hello',
+        summary: 'Short',
+        body: 'Body',
+        status: 'draft',
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
 });
 
 describe('announcementCreateSchema', () => {
@@ -185,6 +223,25 @@ describe('announcementCreateSchema', () => {
 });
 
 describe('announcementUpdateSchema', () => {
+  it('accepts one alert translation without a content version', () => {
+    const parsed = announcementUpdateSchema.safeParse({
+      translation: { locale: 'pl', message: 'Cześć', ctaLabel: 'Dalej' },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.contentVersion).toBeUndefined();
+    }
+  });
+
+  it('rejects an alert translation for Russian', () => {
+    const parsed = announcementTranslationPatchSchema.safeParse({
+      locale: 'ru',
+      message: 'Привет',
+      ctaLabel: '',
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it('rejects contentVersion below 1', () => {
     const parsed = announcementUpdateSchema.safeParse({ contentVersion: 0 });
     expect(parsed.success).toBe(false);

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { APP_LOCALES, NEWS_TRANSLATION_LOCALES } from '../../shared/appLocales.js';
 
 export const newsCategories = ['feature', 'discount', 'update', 'other'] as const;
 export const newsStatuses = ['draft', 'published', 'archived'] as const;
@@ -12,10 +13,17 @@ export const announcementMinRoles = [
   'admin',
 ] as const;
 
+export const newsLocaleStatuses = ['draft', 'ready'] as const;
+
 export const newsListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   category: z.enum(newsCategories).optional(),
+  locale: z.enum(APP_LOCALES).optional().default('ru'),
+});
+
+export const newsPostQuerySchema = z.object({
+  locale: z.enum(APP_LOCALES).optional().default('ru'),
 });
 
 export const adminNewsListQuerySchema = z.object({
@@ -45,6 +53,28 @@ export const newsCreateSchema = z.object({
     }),
 });
 
+export const newsTranslationPatchSchema = z
+  .object({
+    locale: z.enum(NEWS_TRANSLATION_LOCALES),
+    title: z.string().trim().max(200),
+    summary: z.string().trim().max(300),
+    body: z.string().max(50_000),
+    status: z.enum(newsLocaleStatuses),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === 'ready' && (value.title.length === 0 || value.summary.length === 0)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Ready locale requires title and summary',
+        path: ['status'],
+      });
+    }
+  });
+
+export const newsTranslateSchema = z.object({
+  locale: z.enum(NEWS_TRANSLATION_LOCALES),
+});
+
 export const newsUpdateSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   summary: z.string().trim().min(1).max(300).optional(),
@@ -64,6 +94,7 @@ export const newsUpdateSchema = z.object({
       }
       return v;
     }),
+  translation: newsTranslationPatchSchema.optional(),
 });
 
 export const announcementCreateSchema = z.object({
@@ -80,6 +111,12 @@ export const announcementCreateSchema = z.object({
   dismissible: z.boolean().optional().default(true),
 });
 
+export const announcementTranslationPatchSchema = z.object({
+  locale: z.enum(NEWS_TRANSLATION_LOCALES),
+  message: z.string().trim().max(160),
+  ctaLabel: z.string().trim().max(60),
+});
+
 export const announcementUpdateSchema = z.object({
   message: z.string().trim().max(160).nullable().optional(),
   ctaLabel: z.string().trim().max(60).nullable().optional(),
@@ -93,6 +130,7 @@ export const announcementUpdateSchema = z.object({
   contentVersion: z.coerce.number().int().min(1).optional(),
   dismissible: z.boolean().optional(),
   newsPostId: z.string().uuid().nullable().optional(),
+  translation: announcementTranslationPatchSchema.optional(),
 });
 
 export const announcementFromNewsSchema = announcementCreateSchema.omit({ newsPostId: true });
@@ -102,10 +140,14 @@ export const announcementDismissSchema = z.object({
 });
 
 export type NewsListQuery = z.infer<typeof newsListQuerySchema>;
+export type NewsPostQuery = z.infer<typeof newsPostQuerySchema>;
 export type AdminNewsListQuery = z.infer<typeof adminNewsListQuerySchema>;
 export type NewsCreateBody = z.infer<typeof newsCreateSchema>;
 export type NewsUpdateBody = z.infer<typeof newsUpdateSchema>;
+export type NewsTranslateBody = z.infer<typeof newsTranslateSchema>;
+export type NewsTranslationPatch = z.infer<typeof newsTranslationPatchSchema>;
 export type AnnouncementCreateBody = z.infer<typeof announcementCreateSchema>;
 export type AnnouncementUpdateBody = z.infer<typeof announcementUpdateSchema>;
+export type AnnouncementTranslationPatch = z.infer<typeof announcementTranslationPatchSchema>;
 export type AnnouncementFromNewsBody = z.infer<typeof announcementFromNewsSchema>;
 export type AnnouncementDismissBody = z.infer<typeof announcementDismissSchema>;

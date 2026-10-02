@@ -32,7 +32,7 @@ function formatDate(iso: string | null): string {
 }
 
 export function NewsDetailPage({ slugOrId }: NewsDetailPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { alert, dismiss } = useAnnouncement();
   const [post, setPost] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,19 +46,28 @@ export function NewsDetailPage({ slugOrId }: NewsDetailPageProps) {
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
     setNotFound(false);
     api
       .getNewsPost(slugOrId)
-      .then(setPost)
+      .then((next) => {
+        if (!cancelled) setPost(next);
+      })
       .catch((err) => {
+        if (cancelled) return;
         if (err instanceof ApiError && err.status === 404) {
           setNotFound(true);
         }
         setPost(null);
       })
-      .finally(() => setLoading(false));
-  }, [slugOrId]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slugOrId, i18n.language]);
 
   const pageMeta = useMemo(() => {
     if (!post) return null;
@@ -115,6 +124,7 @@ export function NewsDetailPage({ slugOrId }: NewsDetailPageProps) {
               )}
             </div>
             <h1 class="info-page-title">{post.title}</h1>
+            {post.fellBack && <p class="news-locale-fallback">{t('news.shownInPrimary')}</p>}
             <p class="news-article-summary">{post.summary}</p>
             {post.body.trim() && (
               <div

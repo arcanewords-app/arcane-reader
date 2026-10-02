@@ -89,6 +89,9 @@ export interface NewsPost {
   primaryLocale: string;
   translations: Record<string, unknown>;
   publishedAt: string | null;
+  /** Set on public payloads when the requested locale was not ready. */
+  fellBack?: boolean;
+  resolvedLocale?: string;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +111,7 @@ export interface AnnouncementAlert {
   priority: number;
   contentVersion: number;
   dismissible: boolean;
+  translations: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,6 +125,7 @@ export interface ActiveAnnouncement {
   variant: AnnouncementVariant;
   contentVersion: number;
   dismissible: boolean;
+  fellBack?: boolean;
 }
 
 // === Paragraphs ===

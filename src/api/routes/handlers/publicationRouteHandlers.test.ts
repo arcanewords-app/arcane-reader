@@ -926,13 +926,38 @@ describe('publicationRouteHandlers', () => {
     });
 
     it('returns news list on success', async () => {
-      mockListPublishedNewsPosts.mockResolvedValue([{ id: 'news-1', title: 'Launch' }]);
+      mockListPublishedNewsPosts.mockResolvedValue([
+        {
+          id: 'news-1',
+          slug: 'launch',
+          title: 'Launch',
+          summary: 'Summary',
+          body: 'Body',
+          category: 'feature',
+          status: 'published',
+          publishedAt: '2026-01-01T00:00:00.000Z',
+          translations: { en: { title: 'Secret', summary: 'Hidden', body: '', status: 'draft' } },
+        },
+      ]);
       const res = mockRes();
       await handleListNews(
         mockReq({ query: { limit: '10', category: 'feature' } }) as never,
         res as never
       );
-      assert.deepEqual(res.body, [{ id: 'news-1', title: 'Launch' }]);
+      assert.deepEqual(res.body, [
+        {
+          id: 'news-1',
+          slug: 'launch',
+          title: 'Launch',
+          summary: 'Summary',
+          body: 'Body',
+          category: 'feature',
+          status: 'published',
+          publishedAt: '2026-01-01T00:00:00.000Z',
+          fellBack: false,
+          resolvedLocale: 'ru',
+        },
+      ]);
       assert.equal(mockWithRedisCache.mock.calls.length, 1);
     });
   });
@@ -946,10 +971,29 @@ describe('publicationRouteHandlers', () => {
     });
 
     it('returns post on success', async () => {
-      mockGetPublishedNewsPostByIdOrSlug.mockResolvedValue({ id: 'news-1', title: 'Update' });
+      mockGetPublishedNewsPostByIdOrSlug.mockResolvedValue({
+        id: 'news-1',
+        slug: 'update',
+        title: 'Update',
+        summary: 'Summary',
+        body: '',
+        category: 'update',
+        status: 'published',
+        publishedAt: null,
+        primaryLocale: 'ru',
+        translations: {
+          en: { title: 'Update EN', summary: 'Summary EN', body: 'Body', status: 'ready' },
+        },
+      });
       const res = mockRes();
-      await handleGetNewsPost(mockReq({ params: { idOrSlug: 'update' } }) as never, res as never);
-      assert.deepEqual(res.body, { id: 'news-1', title: 'Update' });
+      await handleGetNewsPost(
+        mockReq({ params: { idOrSlug: 'update' }, query: { locale: 'en' } }) as never,
+        res as never
+      );
+      const body = res.body as { title: string; fellBack: boolean; translations?: unknown };
+      assert.equal(body.title, 'Update EN');
+      assert.equal(body.fellBack, false);
+      assert.equal(body.translations, undefined);
     });
   });
 

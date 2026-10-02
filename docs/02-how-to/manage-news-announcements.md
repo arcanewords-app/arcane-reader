@@ -95,9 +95,15 @@ In GA4 → **Reports → Engagement → Events**:
 
 Filter or explore by custom parameter `announcement_id` to compare campaigns.
 
-## Translate button (not yet available)
+## Languages
 
-**Translate (coming soon)** is disabled in UI. API `POST /api/admin/news/:id/translate` returns 501. Content i18n will use `translations` jsonb when implemented.
+The create form is the Russian original. Open **Edit** and switch tabs (`ru`, `en`, `be`, `pl`).
+
+- **Russian** edits the post columns. Category and slug live here too.
+- Other tabs edit that language only. Set **Show to readers** when title and summary are filled. Until then, readers of that language still see the Russian post. The “Shown in Russian” note appears on the article page only, not in the feed or the banner.
+- **Translate draft** asks AI for a draft of the open language. It does not mark the language ready. If the language is already ready, switch it back to draft before translating again.
+
+Announcement **Edit text** works the same way for the banner sentence and button label. Saving a translation does not show a dismissed banner again. Use **Show again** only when the meaning changed.
 
 ## References
 

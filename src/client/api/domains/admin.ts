@@ -121,6 +121,13 @@ export const adminApi = {
       category: NewsCategory;
       status: NewsStatus;
       slug: string | null;
+      translation: {
+        locale: 'en' | 'be' | 'pl';
+        title: string;
+        summary: string;
+        body: string;
+        status: 'draft' | 'ready';
+      };
     }>
   ): Promise<NewsPost> {
     return fetchJson<NewsPost>(`/api/admin/news/${id}`, {
@@ -137,8 +144,11 @@ export const adminApi = {
     await fetchJson(`/api/admin/news/${id}`, { method: 'DELETE' });
   },
 
-  async translateNewsPost(id: string): Promise<never> {
-    return fetchJson(`/api/admin/news/${id}/translate`, { method: 'POST' });
+  async translateNewsPost(id: string, data: { locale: 'en' | 'be' | 'pl' }): Promise<NewsPost> {
+    return fetchJson<NewsPost>(`/api/admin/news/${id}/translate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   async getAdminAnnouncements(): Promise<AnnouncementAlert[]> {
@@ -199,6 +209,7 @@ export const adminApi = {
       priority: number;
       contentVersion: number;
       dismissible: boolean;
+      translation: { locale: 'en' | 'be' | 'pl'; message: string; ctaLabel: string };
     }>
   ): Promise<AnnouncementAlert> {
     return fetchJson<AnnouncementAlert>(`/api/admin/announcements/${id}`, {

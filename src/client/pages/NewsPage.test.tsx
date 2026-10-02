@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: mocks.t }),
+  useTranslation: () => ({ t: mocks.t, i18n: { language: 'ru' } }),
 }));
 
 vi.mock('preact-router', () => ({
@@ -71,5 +71,15 @@ describe('NewsPage', () => {
       expect(screen.getByText('Hello News')).toBeTruthy();
       expect(screen.getByText('Summary text')).toBeTruthy();
     });
+  });
+
+  it('does not show a fallback note on the list', async () => {
+    mocks.getNewsPosts.mockResolvedValue([makePost({ fellBack: true })]);
+    render(<NewsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Hello News')).toBeTruthy();
+    });
+    expect(screen.queryByText('news.shownInPrimary')).toBeNull();
   });
 });

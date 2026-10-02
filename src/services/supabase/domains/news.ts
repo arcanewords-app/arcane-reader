@@ -19,7 +19,9 @@ import {
   type NewsPostRow,
   type AnnouncementAlertRow,
 } from '../transforms/news.js';
-import { resolveAlertMessage, isAnnouncementScheduledActive } from '../pure/announcements.js';
+import { isAnnouncementScheduledActive } from '../pure/announcements.js';
+import { mergeAlertTranslation, resolveAlertCopy, resolveNewsLocale } from '../pure/newsLocale.js';
+import { PRIMARY_CONTENT_LOCALE } from '../../../shared/appLocales.js';
 
 export async function listPublishedNewsPosts(options?: {
   limit?: number;
@@ -150,6 +152,7 @@ export async function updateNewsPost(
     category?: NewsCategory;
     status?: NewsStatus;
     slug?: string | null;
+    translations?: Record<string, unknown>;
   }
 ): Promise<NewsPost> {
   const { createServiceRoleClient } = await import('../../supabaseClient.js');
@@ -162,6 +165,7 @@ export async function updateNewsPost(
   if (data.category !== undefined) payload.category = data.category;
   if (data.status !== undefined) payload.status = data.status;
   if (data.slug !== undefined) payload.slug = data.slug;
+  if (data.translations !== undefined) payload.translations = data.translations;
 
   const { data: row, error } = await client
     .from('news_posts')
@@ -361,6 +365,7 @@ export async function updateAnnouncementAlert(
     contentVersion?: number;
     dismissible?: boolean;
     newsPostId?: string | null;
+    translation?: { locale: string; message: string; ctaLabel: string };
   }
 ): Promise<AnnouncementAlert> {
   const { createServiceRoleClient } = await import('../../supabaseClient.js');
@@ -379,6 +384,21 @@ export async function updateAnnouncementAlert(
   if (data.contentVersion !== undefined) payload.content_version = data.contentVersion;
   if (data.dismissible !== undefined) payload.dismissible = data.dismissible;
   if (data.newsPostId !== undefined) payload.news_post_id = data.newsPostId;
+  if (data.translation) {
+    const { data: current, error: currentError } = await client
+      .from('announcement_alerts')
+      .select('translations')
+      .eq('id', id)
+      .maybeSingle();
+    if (currentError) {
+      throw new Error(`Failed to update announcement alert: ${currentError.message}`);
+    }
+    if (!current) {
+      throw new Error('Announcement alert not found');
+    }
+    const existing = (current.translations ?? {}) as Record<string, unknown>;
+    payload.translations = mergeAlertTranslation(existing, data.translation);
+  }
 
   const { data: row, error } = await client
     .from('announcement_alerts')
@@ -409,11 +429,12 @@ export async function deleteAnnouncementAlert(id: string): Promise<void> {
 export async function getActiveAnnouncementForUser(options: {
   userRole: AnnouncementMinRole;
   userId?: string | null;
+  locale?: string;
 }): Promise<ActiveAnnouncement | null> {
   const now = new Date();
   const { data, error } = await supabase
     .from('announcement_alerts')
-    .select('*, news_posts(summary, slug)')
+    .select('*, news_posts(title, summary, body, primary_locale, translations, slug)')
     .eq('is_active', true)
     .order('priority', { ascending: false })
     .order('starts_at', { ascending: false, nullsFirst: false });
@@ -423,8 +444,18 @@ export async function getActiveAnnouncementForUser(options: {
   }
 
   const { isAtLeastRole } = await import('../../../types/roles.js');
+  const locale = options.locale ?? PRIMARY_CONTENT_LOCALE;
   const rows = (data || []) as Array<
-    AnnouncementAlertRow & { news_posts: { summary: string; slug: string | null } | null }
+    AnnouncementAlertRow & {
+      news_posts: {
+        title: string;
+        summary: string;
+        body: string | null;
+        primary_locale: string | null;
+        translations: Record<string, unknown> | null;
+        slug: string | null;
+      } | null;
+    }
   >;
 
   let dismissals = new Map<string, number>();
@@ -451,9 +482,28 @@ export async function getActiveAnnouncementForUser(options: {
     const dismissedVersion = dismissals.get(row.id);
     if (dismissedVersion != null && dismissedVersion >= row.content_version) continue;
 
-    const newsSummary = row.news_posts?.summary ?? null;
-    const message = resolveAlertMessage(row, newsSummary);
-    if (!message) continue;
+    const linked = row.news_posts;
+    const resolvedNews = linked
+      ? resolveNewsLocale(
+          {
+            title: linked.title,
+            summary: linked.summary,
+            body: linked.body ?? '',
+            primaryLocale: linked.primary_locale,
+            translations: linked.translations,
+          },
+          locale
+        )
+      : null;
+    const copy = resolveAlertCopy({
+      message: row.message,
+      ctaLabel: row.cta_label,
+      translations: row.translations,
+      requestedLocale: locale,
+      newsSummary: resolvedNews?.summary ?? null,
+      newsSummaryFellBack: resolvedNews?.fellBack ?? false,
+    });
+    if (!copy.message) continue;
 
     const newsSlug = row.news_posts?.slug ?? null;
     const ctaUrl =
@@ -463,13 +513,14 @@ export async function getActiveAnnouncementForUser(options: {
 
     return {
       id: row.id,
-      message,
-      ctaLabel: row.cta_label,
+      message: copy.message,
+      ctaLabel: copy.ctaLabel,
       ctaUrl,
       newsPostId: row.news_post_id,
       variant: row.variant,
       contentVersion: row.content_version,
       dismissible: row.dismissible,
+      fellBack: copy.fellBack,
     };
   }
 

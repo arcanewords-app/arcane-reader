@@ -218,21 +218,32 @@ export function newsListCacheKey(options: {
   limit: number;
   offset: number;
   category?: string;
+  locale?: string;
 }): string {
   return buildRedisKey(
     CACHE_PREFIX.newsList,
     options.limit,
     options.offset,
-    options.category ?? 'all'
+    options.category ?? 'all',
+    options.locale ?? 'ru'
   );
 }
 
-export function newsPostCacheKey(idOrSlug: string): string {
-  return buildRedisKey(CACHE_PREFIX.newsPost, idOrSlug);
+export function newsPostCacheKey(idOrSlug: string, locale?: string): string {
+  return buildRedisKey(CACHE_PREFIX.newsPost, idOrSlug, locale ?? 'ru');
 }
 
-export function announcementsActiveCacheKey(userRole: string, userId?: string): string {
-  return buildRedisKey(CACHE_PREFIX.announcementsActive, userRole, userId ?? 'guest');
+export function announcementsActiveCacheKey(
+  userRole: string,
+  userId?: string,
+  locale?: string
+): string {
+  return buildRedisKey(
+    CACHE_PREFIX.announcementsActive,
+    userRole,
+    userId ?? 'guest',
+    locale ?? 'ru'
+  );
 }
 
 export function tokenUsageCacheKey(userId: string, date: string): string {
@@ -293,16 +304,10 @@ export function invalidatePublicEntitiesCaches(entityId?: string): Promise<void>
   return redisDelMany(keys);
 }
 
-export async function invalidateNewsCaches(postIdOrSlug?: string): Promise<void> {
-  const keys: string[] = [];
-  if (postIdOrSlug) {
-    keys.push(newsPostCacheKey(postIdOrSlug));
-  }
+export async function invalidateNewsCaches(_postIdOrSlug?: string): Promise<void> {
   await redisDelByPattern(`${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.newsList}:*`);
+  await redisDelByPattern(`${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.newsPost}:*`);
   await redisDelByPattern(`${CACHE_SCHEMA_VERSION}:${CACHE_PREFIX.announcementsActive}:*`);
-  if (keys.length > 0) {
-    await redisDelMany(keys);
-  }
 }
 
 export async function invalidateAnnouncementCaches(): Promise<void> {

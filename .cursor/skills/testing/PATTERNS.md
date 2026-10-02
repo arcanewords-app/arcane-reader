@@ -300,6 +300,8 @@ Bad: `it('test1')`, `it('works')`, `it('filterGlossaryForChunk')`
 
 Playwright **Persona / Actor** against `stack:up` (stamp image) + `npm run dev`. Not in pre-push. Do **not** mock the API with `page.route` on this live stack.
 
+Exception: `guest.switches-news-locale.spec.ts` intercepts only `/api/news` and `/api/announcements/active`, so locale switching can be asserted with fixed copy. Do not extend that mock to catalog, auth, or projects.
+
 **Selector hierarchy** (tasks/questions/specs must not skip the `tests/e2e/targets/` layer):
 
 1. Unique a11y — `getByRole` / `getByLabel` / `getByPlaceholder` (locale locked to `en`)

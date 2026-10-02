@@ -32,7 +32,12 @@ import type { ImportJobState } from '../services/importJobStore.js';
 import type { AnalysisJobState } from '../services/analysisJobStore.js';
 import type { TranslateJobState } from '../services/translateJobStore.js';
 import type { Project } from '../storage/database.js';
-import { redisDelByPattern, redisDelMany , redisGetJson, redisSetJson } from '../services/redisCache.js';
+import {
+  redisDelByPattern,
+  redisDelMany,
+  redisGetJson,
+  redisSetJson,
+} from '../services/redisCache.js';
 import {
   announcementsActiveCacheKey,
   clearTranslationProgress,
@@ -261,10 +266,12 @@ describe('routeHelpers pure functions', () => {
     assert.match(keys[4]!, /entity-1/);
   });
 
-  it('invalidateNewsCaches deletes patterns and optional post key', async () => {
+  it('invalidateNewsCaches deletes list, post, and announcement patterns', async () => {
     await invalidateNewsCaches('post-slug');
-    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 2);
-    assert.equal(vi.mocked(redisDelMany).mock.calls.length, 1);
+    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 3);
+    const patterns = vi.mocked(redisDelByPattern).mock.calls.map((call) => String(call[0]));
+    assert.ok(patterns.some((pattern) => pattern.includes('public:news:post')));
+    assert.equal(vi.mocked(redisDelMany).mock.calls.length, 0);
   });
 
   it('invalidateAnnouncementCaches deletes announcement pattern', async () => {
@@ -299,9 +306,12 @@ describe('routeHelpers pure functions', () => {
     assert.match(publicationGlossaryCacheKey('p1'), /p1/);
     assert.match(publicEntitiesCacheKey('author'), /author/);
     assert.match(publicEntityCacheKey('e1'), /e1/);
-    assert.match(newsListCacheKey({ limit: 10, offset: 0, category: 'release' }), /release/);
-    assert.match(newsPostCacheKey('slug'), /slug/);
-    assert.match(announcementsActiveCacheKey('guest'), /guest/);
+    assert.match(
+      newsListCacheKey({ limit: 10, offset: 0, category: 'release', locale: 'en' }),
+      /en/
+    );
+    assert.match(newsPostCacheKey('slug', 'pl'), /pl/);
+    assert.match(announcementsActiveCacheKey('guest', undefined, 'be'), /be/);
     assert.match(tokenUsageCacheKey('u1', '2026-01-01'), /2026-01-01/);
     assert.match(tokenUsageHistoryCacheKey('u1', 7), /7/);
     assert.match(readingHistoryCacheKey('u1'), /u1/);

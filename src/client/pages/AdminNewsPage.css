@@ -1,5 +1,18 @@
 /* News-specific styles; shared layout in admin-shared.css */
 
+.admin-news-locale-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-news-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 .admin-news-card-header {
   display: flex;
   flex-wrap: wrap;

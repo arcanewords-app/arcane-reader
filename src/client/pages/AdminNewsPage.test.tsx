@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen, waitFor } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NewsPost } from '../types.js';
 
@@ -12,6 +12,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
       opts ? `${key}:${JSON.stringify(opts)}` : key,
+    i18n: { language: 'ru' },
   }),
 }));
 
@@ -79,5 +80,18 @@ describe('AdminNewsPage', () => {
       expect(screen.getByText('Hello News')).toBeTruthy();
       expect(screen.getByText('admin.news.publish')).toBeTruthy();
     });
+  });
+
+  it('opens locale tabs and offers a draft translation', async () => {
+    mocks.getAdminNewsPosts.mockResolvedValue([makePost()]);
+    mocks.getAdminAnnouncements.mockResolvedValue([]);
+    render(<AdminNewsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('admin.form.edit')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByText('admin.form.edit'));
+    fireEvent.click(screen.getByText('language.en'));
+    expect(screen.getByText('admin.news.translateDraft')).toBeTruthy();
   });
 });

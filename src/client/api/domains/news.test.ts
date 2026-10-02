@@ -14,6 +14,10 @@ vi.mock('../transport/fetchDeduped.js', () => ({
   fetchJsonDeduped: (...args: unknown[]) => mockFetchJsonDeduped(...args),
 }));
 
+vi.mock('../../i18n.js', () => ({
+  default: { language: 'ru' },
+}));
+
 import { newsApi } from './news.js';
 
 describe('newsApi', () => {
@@ -30,6 +34,7 @@ describe('newsApi', () => {
 
     const url = mockFetchJsonDeduped.mock.calls[0]?.[0] as string;
     assert.ok(url.startsWith('/api/news?'));
+    assert.ok(url.includes('locale=ru'));
     assert.ok(url.includes('limit=5'));
     assert.ok(url.includes('offset=0'));
     assert.ok(url.includes('category=product'));
@@ -41,7 +46,7 @@ describe('newsApi', () => {
 
     const result = await newsApi.getNewsPost('hello world');
     assert.deepEqual(result, post);
-    assert.equal(mockFetchJsonDeduped.mock.calls[0]?.[0], '/api/news/hello%20world');
+    assert.equal(mockFetchJsonDeduped.mock.calls[0]?.[0], '/api/news/hello%20world?locale=ru');
   });
 
   it('dismissAnnouncement calls fetchJson with POST body', async () => {

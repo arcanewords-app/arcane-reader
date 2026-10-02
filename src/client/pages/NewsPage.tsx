@@ -25,19 +25,31 @@ function formatDate(iso: string | null): string {
 }
 
 export function NewsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useStaticPageMeta('/news');
   const [posts, setPosts] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
     api
       .getNewsPosts({ limit: 50 })
-      .then(setPosts)
-      .catch(() => setError(t('news.loadError')))
-      .finally(() => setLoading(false));
-  }, [t]);
+      .then((next) => {
+        if (!cancelled) setPosts(next);
+      })
+      .catch(() => {
+        if (!cancelled) setError(t('news.loadError'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t, i18n.language]);
 
   return (
     <div class="info-page news-page">

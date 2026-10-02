@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-09-26
+updated: 2026-10-02
 ---
 
 # Project status
@@ -59,6 +59,7 @@ Update this file when completing plans or shipping major features.
 | [[05-plans/adaptive-ui]]                  | I0–I5 shipped (Header wrap, CardGrid, 48 visual PNGs). Leftover: container queries per surface, news/admin shells on touch |
 | [[05-plans/dependency-major-backlog]]     | Deferred npm majors (`@types/node` 26, …) — one major per PR                                                               |
 | [[05-plans/system-one-jev-integration]]   | Draft only: Jev as closed decisions around the pipeline; no implementation                                                 |
+| [[05-plans/news-multilingual]]            | Variant A chosen and implemented: news and banners follow app locale, Russian columns stay canonical.                      |
 
 ## Known tech debt
 

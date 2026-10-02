@@ -1,5 +1,6 @@
 import { createContext } from 'preact';
 import { useContext, useState, useCallback, useEffect, useRef } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { authService, AUTH_CHANGED_EVENT } from '../services/authService';
 import type { ActiveAnnouncement } from '../types';
@@ -19,6 +20,7 @@ type AnnouncementContextValue = {
 const AnnouncementContext = createContext<AnnouncementContextValue | null>(null);
 
 export function AnnouncementProvider({ children }: { children: preact.ComponentChildren }) {
+  const { i18n } = useTranslation();
   const [alert, setAlert] = useState<ActiveAnnouncement | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -61,6 +63,7 @@ export function AnnouncementProvider({ children }: { children: preact.ComponentC
       refresh();
     };
     window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChange);
+    // Refetch when the reader switches app language. Dismiss stays on id + version.
 
     pollRef.current = setInterval(refresh, POLL_INTERVAL_MS);
 
@@ -71,7 +74,7 @@ export function AnnouncementProvider({ children }: { children: preact.ComponentC
         pollRef.current = null;
       }
     };
-  }, [refresh]);
+  }, [refresh, i18n.language]);
 
   return (
     <AnnouncementContext.Provider value={{ alert, dismiss, refresh }}>

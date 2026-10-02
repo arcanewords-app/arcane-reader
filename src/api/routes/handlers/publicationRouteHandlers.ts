@@ -17,6 +17,7 @@ import {
   publicationDownloadQuerySchema,
   publicationDisplaySettingsBodySchema,
   newsListQuerySchema,
+  newsPostQuerySchema,
   announcementDismissSchema,
 } from '../../schemas/index.js';
 import {
@@ -77,6 +78,7 @@ import {
   listFiles,
 } from '../../../services/storage.js';
 import { CACHE_PREFIX, CACHE_TTL } from '../../../shared/cacheContract.js';
+import { toPublicNewsPost } from '../../../services/supabase/pure/newsLocale.js';
 import {
   buildRedisKey,
   redisDelMany,
@@ -722,7 +724,7 @@ export async function handleExportDownload(req: Request, res: Response): Promise
 
     const projectId = requireRouteParam(req.params.id, 'id');
     const queryResult = exportDownloadQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!queryResult.success) {
       res.status(400).json({
@@ -959,7 +961,7 @@ export async function handlePublicationDownload(req: Request, res: Response): Pr
     }
 
     const queryResult = publicationDownloadQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!queryResult.success) {
       res.status(400).json({
@@ -1097,7 +1099,7 @@ export async function handleGetPublicEntity(req: Request, res: Response): Promis
 export async function handleListNews(req: Request, res: Response): Promise<void> {
   try {
     const parseResult = newsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parseResult.success) {
       res.status(400).json({
@@ -1110,11 +1112,13 @@ export async function handleListNews(req: Request, res: Response): Promise<void>
     const limit = parseResult.data.limit ?? 50;
     const offset = parseResult.data.offset ?? 0;
     const category = parseResult.data.category;
-    const cacheKey = newsListCacheKey({ limit, offset, category });
+    const locale = parseResult.data.locale;
+    const cacheKey = newsListCacheKey({ limit, offset, category, locale });
 
-    const list = await withRedisCache(cacheKey, CACHE_TTL.redisNewsListSec, () =>
-      listPublishedNewsPosts({ limit, offset, category })
-    );
+    const list = await withRedisCache(cacheKey, CACHE_TTL.redisNewsListSec, async () => {
+      const posts = await listPublishedNewsPosts({ limit, offset, category });
+      return posts.map((post) => toPublicNewsPost(post, locale));
+    });
 
     res.json(list);
   } catch (error) {
@@ -1126,9 +1130,25 @@ export async function handleListNews(req: Request, res: Response): Promise<void>
 
 export async function handleGetNewsPost(req: Request, res: Response): Promise<void> {
   try {
+    const parsed = newsPostQuerySchema.safeParse(
+      normalizeQueryRecord(req.query)
+    );
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+    const locale = parsed.data.locale;
     const idOrSlug = requireRouteParam(req.params.idOrSlug, 'idOrSlug');
-    const post = await withRedisCache(newsPostCacheKey(idOrSlug), CACHE_TTL.redisNewsPostSec, () =>
-      getPublishedNewsPostByIdOrSlug(idOrSlug)
+    const post = await withRedisCache(
+      newsPostCacheKey(idOrSlug, locale),
+      CACHE_TTL.redisNewsPostSec,
+      async () => {
+        const raw = await getPublishedNewsPostByIdOrSlug(idOrSlug);
+        return raw ? toPublicNewsPost(raw, locale) : null;
+      }
     );
     if (!post) {
       res.status(404).json({ error: 'News post not found' });
@@ -1144,12 +1164,23 @@ export async function handleGetNewsPost(req: Request, res: Response): Promise<vo
 
 export async function handleGetActiveAnnouncement(req: Request, res: Response): Promise<void> {
   try {
+    const parsed = newsPostQuerySchema.safeParse(
+      normalizeQueryRecord(req.query)
+    );
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+    const locale = parsed.data.locale;
     const userRole: UserRole = req.user?.role ?? 'guest';
     const userId = req.user?.id;
-    const cacheKey = announcementsActiveCacheKey(userRole, userId);
+    const cacheKey = announcementsActiveCacheKey(userRole, userId, locale);
 
     const alert = await withRedisCache(cacheKey, CACHE_TTL.redisAnnouncementsActiveSec, () =>
-      getActiveAnnouncementForUser({ userRole, userId })
+      getActiveAnnouncementForUser({ userRole, userId, locale })
     );
 
     res.json(alert);
@@ -1195,7 +1226,7 @@ export async function handleDismissAnnouncement(req: Request, res: Response): Pr
 export async function handleListPublications(req: Request, res: Response): Promise<void> {
   try {
     const queryResult = publicationsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     const params = queryResult.success
       ? {

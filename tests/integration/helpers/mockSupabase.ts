@@ -14,6 +14,9 @@ const mocks = {
   listPublicEntitiesByIds: vi.fn(),
   listPublishedNewsPosts: vi.fn(),
   getPublishedNewsPostByIdOrSlug: vi.fn(),
+  getNewsPostByIdAdmin: vi.fn(),
+  updateNewsPost: vi.fn(),
+  updateAnnouncementAlert: vi.fn(),
   getAllProjectsLightweight: vi.fn(),
   resetStuckChapters: vi.fn(),
   getProject: vi.fn(),
@@ -56,6 +59,9 @@ export function resetMocks(): void {
   mocks.listPublicEntitiesByIds.mockResolvedValue([]);
   mocks.listPublishedNewsPosts.mockResolvedValue([]);
   mocks.getPublishedNewsPostByIdOrSlug.mockResolvedValue(null);
+  mocks.getNewsPostByIdAdmin.mockResolvedValue(null);
+  mocks.updateNewsPost.mockResolvedValue(null);
+  mocks.updateAnnouncementAlert.mockResolvedValue(null);
   mocks.getAllProjectsLightweight.mockResolvedValue([]);
   mocks.resetStuckChapters.mockResolvedValue(0);
   mocks.getProject.mockResolvedValue(null);
@@ -107,6 +113,9 @@ export function createNewsDomainOverlay(): Record<string, MockFn> {
   return {
     listPublishedNewsPosts: mocks.listPublishedNewsPosts,
     getPublishedNewsPostByIdOrSlug: mocks.getPublishedNewsPostByIdOrSlug,
+    getNewsPostByIdAdmin: mocks.getNewsPostByIdAdmin,
+    updateNewsPost: mocks.updateNewsPost,
+    updateAnnouncementAlert: mocks.updateAnnouncementAlert,
   };
 }
 

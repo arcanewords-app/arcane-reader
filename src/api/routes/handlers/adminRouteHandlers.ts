@@ -6,6 +6,7 @@ import {
   adminNewsListQuerySchema,
   newsCreateSchema,
   newsUpdateSchema,
+  newsTranslateSchema,
   announcementCreateSchema,
   announcementUpdateSchema,
   announcementFromNewsSchema,
@@ -52,6 +53,12 @@ import { normalizeQueryRecord, requireRouteParam } from '../../validateRoute.js'
 import { uploadFile, deleteFile, generateUniqueFilename } from '../../../services/storage.js';
 import { CACHE_PREFIX } from '../../../shared/cacheContract.js';
 import { buildRedisKey, redisDelMany } from '../../../services/redisCache.js';
+import { loadConfig } from '../../../config.js';
+import { draftNewsTranslation } from '../../../services/newsDraftTranslation.js';
+import {
+  mergeNewsTranslation,
+  readNewsTranslation,
+} from '../../../services/supabase/pure/newsLocale.js';
 import {
   invalidatePublicationCaches,
   invalidatePublicationListCaches,
@@ -244,7 +251,7 @@ export async function handleGetPublicEntityUsage(req: Request, res: Response): P
 export async function handleListAdminNews(req: Request, res: Response): Promise<void> {
   try {
     const parsed = adminNewsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parsed.success) {
       res.status(400).json({
@@ -328,7 +335,13 @@ export async function handleUpdateNewsPost(req: Request, res: Response): Promise
       return;
     }
 
-    const post = await updateNewsPost(postId, parseResult.data);
+    const { translation, ...columns } = parseResult.data;
+    const post = await updateNewsPost(postId, {
+      ...columns,
+      translations: translation
+        ? mergeNewsTranslation(existing.translations, translation)
+        : undefined,
+    });
     await invalidateNewsCaches(existing.slug ?? existing.id);
     if (post.slug && post.slug !== existing.slug) {
       await invalidateNewsCaches(post.slug);
@@ -384,8 +397,72 @@ export async function handlePublishNewsPost(req: Request, res: Response): Promis
   }
 }
 
-export function handleTranslateNewsPost(_req: Request, res: Response): void {
-  res.status(501).json({ error: 'Not implemented' });
+export async function handleTranslateNewsPost(req: Request, res: Response): Promise<void> {
+  try {
+    const parseResult = newsTranslateSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parseResult.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const postId = requireRouteParam(req.params.id, 'id');
+    const existing = await getNewsPostByIdAdmin(postId);
+    if (!existing) {
+      res.status(404).json({ error: 'News post not found' });
+      return;
+    }
+
+    const locale = parseResult.data.locale;
+    const current = readNewsTranslation(existing.translations, locale);
+    if (current?.status === 'ready') {
+      res.status(409).json({
+        error: 'Locale translation is ready. Set it back to draft before regenerating.',
+      });
+      return;
+    }
+
+    const config = loadConfig();
+    if (!config.openai.apiKey) {
+      res.status(503).json({
+        error: 'AI not configured',
+        message: 'Configure OpenAI API key to translate news.',
+      });
+      return;
+    }
+
+    const draft = await draftNewsTranslation({
+      title: existing.title,
+      summary: existing.summary,
+      body: existing.body,
+      targetLocale: locale,
+      apiKey: config.openai.apiKey,
+      timeout: config.openai.timeout,
+    });
+
+    const post = await updateNewsPost(postId, {
+      translations: mergeNewsTranslation(existing.translations, {
+        locale,
+        title: draft.title,
+        summary: draft.summary,
+        body: draft.body,
+        status: 'draft',
+      }),
+    });
+    await invalidateNewsCaches(existing.slug ?? existing.id);
+    res.json(post);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('invalid draft')) {
+      res.status(502).json({ error: 'Translation draft was invalid' });
+      return;
+    }
+    req.log?.error({ err: error }, 'Failed to translate news post');
+    res.status(500).json({ error: 'Failed to translate news post' });
+  }
 }
 
 export async function handleListAnnouncementAlerts(req: Request, res: Response): Promise<void> {
@@ -481,7 +558,7 @@ export async function handleUpdateAnnouncementAlert(req: Request, res: Response)
       return;
     }
 
-    const { ctaLabel, ctaUrl, startsAt, endsAt, newsPostId, contentVersion, ...rest } =
+    const { ctaLabel, ctaUrl, startsAt, endsAt, newsPostId, contentVersion, translation, ...rest } =
       parseResult.data;
 
     const alert = await updateAnnouncementAlert(requireRouteParam(req.params.id, 'id'), {
@@ -491,6 +568,7 @@ export async function handleUpdateAnnouncementAlert(req: Request, res: Response)
       endsAt,
       newsPostId,
       contentVersion,
+      translation,
       ...rest,
     });
     await invalidateAnnouncementCaches();
@@ -522,7 +600,7 @@ export async function handleDeleteAnnouncementAlert(req: Request, res: Response)
 export async function handleListAdminPublications(req: Request, res: Response): Promise<void> {
   try {
     const parsed = adminPublicationsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parsed.success) {
       res.status(400).json({
@@ -572,7 +650,7 @@ export async function handleUnpublishPublicationAdmin(req: Request, res: Respons
 export async function handleListAdminProjects(req: Request, res: Response): Promise<void> {
   try {
     const parsed = adminProjectsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parsed.success) {
       res.status(400).json({
@@ -660,7 +738,7 @@ export async function handleDeleteProjectAdmin(req: Request, res: Response): Pro
 export async function handleListAdminUsers(req: Request, res: Response): Promise<void> {
   try {
     const parsed = adminUsersListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parsed.success) {
       res.status(400).json({
@@ -750,7 +828,7 @@ export async function handleListAdminTranslationRequests(
 ): Promise<void> {
   try {
     const parsed = adminTranslationRequestsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parsed.success) {
       res.status(400).json({
