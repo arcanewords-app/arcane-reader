@@ -73,6 +73,7 @@
 }
 
 .home-tab-active:hover {
+  color: var(--accent-contrast);
   background: var(--accent-bright);
   border-color: var(--accent-bright);
 }

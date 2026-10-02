@@ -345,10 +345,11 @@
   border-color: var(--border-hover);
 }
 
-.publication-page-chapter-filters button.active {
+.publication-page-chapter-filters button.active,
+.publication-page-chapter-filters button.active:hover {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-primary);
+  color: var(--accent-contrast);
 }
 
 .publication-page-chapter-read {
@@ -412,7 +413,7 @@
   background: var(--accent);
   border: none;
   border-radius: 6px;
-  color: var(--text-primary);
+  color: var(--accent-contrast);
   font-size: 0.85rem;
   cursor: pointer;
 }

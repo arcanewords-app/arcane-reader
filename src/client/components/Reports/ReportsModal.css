@@ -55,10 +55,11 @@
   background: var(--bg-hover);
 }
 
-.reports-modal-filter-tab.active {
+.reports-modal-filter-tab.active,
+.reports-modal-filter-tab.active:hover {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-primary);
+  color: var(--accent-contrast);
 }
 
 .reports-modal-filter-tab:focus-visible {

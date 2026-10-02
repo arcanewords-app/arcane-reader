@@ -55,6 +55,7 @@
 }
 
 .catalog-filter-chip--active:hover {
+  color: var(--accent-contrast);
   background: var(--accent-bright);
   border-color: var(--accent-bright);
 }
@@ -129,5 +130,6 @@
 }
 
 .catalog-filter-segment-btn--active:hover {
+  color: var(--accent-contrast);
   background: var(--accent-bright);
 }

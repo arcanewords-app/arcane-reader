@@ -228,7 +228,7 @@
   background: var(--accent);
   border: none;
   border-radius: var(--radius-xs);
-  color: var(--text-primary);
+  color: var(--accent-contrast);
   font-size: var(--text-sm);
   font-weight: var(--fw-medium);
   cursor: pointer;
