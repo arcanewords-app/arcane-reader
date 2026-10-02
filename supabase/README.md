@@ -47,32 +47,32 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 
 ## Migration history
 
-| File                                                       | Purpose                                                                                                                 |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `20260621120000_lock_profiles_role.sql`                    | Block self-service role/subscription escalation on `profiles`                                                           |
-| `20260621120100_publications_view_security_invoker.sql`    | `publications_list_with_counts` respects caller RLS                                                                     |
-| `20260621120200_revoke_anon_write_grants.sql`              | Revoke anon write on `projects` / `publications`                                                                        |
-| `20260621120300_security_advisor_hardening.sql`            | Function `search_path`, RPC revoke, storage listing fix                                                                 |
-| `20260621120400_revoke_prevent_role_change_rpc.sql`        | Block RPC access to trigger-only `prevent_role_change`                                                                  |
-| `20260621120500_fix_rpc_search_path.sql`                   | Schema-qualified table names in RPC functions (`search_path = ''`)                                                      |
-| `20260622120000_catalog_translation_requests.sql`          | User catalog translation requests + RLS                                                                                 |
-| `20260622130000_chapter_partial_translation_status.sql`    | Add `partial` to `chapters_status_check`; backfill `completed` → `partial` when paragraph coverage incomplete           |
-| `20260622140000_paragraph_search_trgm_rpc.sql`             | RPC `search_paragraphs_in_project` (ILIKE); GIN `pg_trgm` on paragraph text (unused; dropped 2026-08-29)                |
-| `20260622200000_search_rpc_translated_chapter_title.sql`   | Search RPC: return `chapter_translated_title` for display title                                                         |
-| `20260627120000_publications_source_url.sql`               | `publications.source_url`; recreate `publications_list_with_counts` view                                                |
-| `20260628120000_catalog_translation_request_interests.sql` | Author interests on translation requests + RLS                                                                          |
-| `20260628201245_translator_pseudonyms.sql` (remote)        | `owner_user_id`, `status` on `public_entities`; author pseudonym RLS + limit trigger                                    |
-| `20260707200000_translator_pseudonym_limit_three.sql`      | Align pseudonym limit trigger to max **3** (via Supabase MCP)                                                           |
-| `20260708180000_import_chapters_batch_timeout.sql`         | `import_chapters_batch`: `SET statement_timeout=120s`, `search_path=''`                                                 |
-| `20260708190000_heavy_rpc_statement_timeout.sql`           | Heavy RPC registry: `ALTER FUNCTION SET statement_timeout` (write 120s, read 60s); fix `search_path` on 3 write RPC     |
-| `20260710220000_fix_renumber_reorder_search_path.sql`      | `renumber_chapters_atomic` / `reorder_chapters`: `public.chapters` + `public.projects` (empty `search_path` regression) |
-| `20260718100000_mark_chapters_as_translated_bulk.sql`      | `mark_chapters_as_translated_batch`: set-based bulk UPDATE; stable reason codes                                         |
-| `20260718120000_publication_ratings.sql`                   | `publication_ratings` table, RLS, denormalized `rating_*` on `publications`, recreate `publications_list_with_counts`   |
-| `20260718130000_reading_progress_watermark.sql`            | `last_read_chapter_number` on `user_publication_progress`; migrate from `read_chapter_ids`; deprecate bookmark columns  |
-| `20260719120000_user_quotes.sql`                           | `user_quotes` table for reader-saved publication quotes; RLS (select/insert/delete own rows)                            |
-| `20260801153000_user_publication_progress_delete_rls.sql`  | RLS DELETE on `user_publication_progress` (reset read progress was silently no-op)                                      |
-| `20260829225000_drop_unused_paragraph_trgm_indexes.sql`    | Drop unused GIN `paragraphs_*_text_trgm_idx` (~237 MB, `idx_scan = 0`); search RPC unchanged (ILIKE seq scan)           |
-| `20261002110000_announcement_translations.sql`             | `announcement_alerts.translations` jsonb for en/be/pl banner message and CTA; Russian stays in columns                  |
+| File                                                       | Purpose                                                                                                                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20260621120000_lock_profiles_role.sql`                    | Block self-service role/subscription escalation on `profiles`                                                                                        |
+| `20260621120100_publications_view_security_invoker.sql`    | `publications_list_with_counts` respects caller RLS                                                                                                  |
+| `20260621120200_revoke_anon_write_grants.sql`              | Revoke anon write on `projects` / `publications`                                                                                                     |
+| `20260621120300_security_advisor_hardening.sql`            | Function `search_path`, RPC revoke, storage listing fix                                                                                              |
+| `20260621120400_revoke_prevent_role_change_rpc.sql`        | Block RPC access to trigger-only `prevent_role_change`                                                                                               |
+| `20260621120500_fix_rpc_search_path.sql`                   | Schema-qualified table names in RPC functions (`search_path = ''`)                                                                                   |
+| `20260622120000_catalog_translation_requests.sql`          | User catalog translation requests + RLS                                                                                                              |
+| `20260622130000_chapter_partial_translation_status.sql`    | Add `partial` to `chapters_status_check`; backfill `completed` → `partial` when paragraph coverage incomplete                                        |
+| `20260622140000_paragraph_search_trgm_rpc.sql`             | RPC `search_paragraphs_in_project` (ILIKE); GIN `pg_trgm` on paragraph text (unused; dropped 2026-08-29)                                             |
+| `20260622200000_search_rpc_translated_chapter_title.sql`   | Search RPC: return `chapter_translated_title` for display title                                                                                      |
+| `20260627120000_publications_source_url.sql`               | `publications.source_url`; recreate `publications_list_with_counts` view                                                                             |
+| `20260628120000_catalog_translation_request_interests.sql` | Author interests on translation requests + RLS                                                                                                       |
+| `20260628201245_translator_pseudonyms.sql` (remote)        | `owner_user_id`, `status` on `public_entities`; author pseudonym RLS + limit trigger                                                                 |
+| `20260707200000_translator_pseudonym_limit_three.sql`      | Align pseudonym limit trigger to max **3** (via Supabase MCP)                                                                                        |
+| `20260708180000_import_chapters_batch_timeout.sql`         | `import_chapters_batch`: `SET statement_timeout=120s`, `search_path=''`                                                                              |
+| `20260708190000_heavy_rpc_statement_timeout.sql`           | Heavy RPC registry: `ALTER FUNCTION SET statement_timeout` (write 120s, read 60s); fix `search_path` on 3 write RPC                                  |
+| `20260710220000_fix_renumber_reorder_search_path.sql`      | `renumber_chapters_atomic` / `reorder_chapters`: `public.chapters` + `public.projects` (empty `search_path` regression)                              |
+| `20260718100000_mark_chapters_as_translated_bulk.sql`      | `mark_chapters_as_translated_batch`: set-based bulk UPDATE; stable reason codes                                                                      |
+| `20260718120000_publication_ratings.sql`                   | `publication_ratings` table, RLS, denormalized `rating_*` on `publications`, recreate `publications_list_with_counts`                                |
+| `20260718130000_reading_progress_watermark.sql`            | `last_read_chapter_number` on `user_publication_progress`; migrate from `read_chapter_ids`; deprecate bookmark columns                               |
+| `20260719120000_user_quotes.sql`                           | `user_quotes` table for reader-saved publication quotes; RLS (select/insert/delete own rows)                                                         |
+| `20260801153000_user_publication_progress_delete_rls.sql`  | RLS DELETE on `user_publication_progress` (reset read progress was silently no-op)                                                                   |
+| `20260829225000_drop_unused_paragraph_trgm_indexes.sql`    | Drop unused GIN `paragraphs_*_text_trgm_idx` (~237 MB, `idx_scan = 0`); search RPC unchanged (ILIKE seq scan)                                        |
+| `20261002112407_announcement_translations.sql` (remote)    | `announcement_alerts.translations` jsonb for en/be/pl banner message and CTA; Russian stays in columns. Applied via Supabase MCP to project `arcane` |
 
 ## Heavy RPC policy
 
