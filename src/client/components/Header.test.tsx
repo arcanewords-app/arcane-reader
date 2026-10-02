@@ -109,9 +109,13 @@ describe('Header', () => {
   it('toggles the site theme between dark and light', () => {
     render(<Header />);
 
-    fireEvent.click(screen.getByLabelText('header.themeLight'));
+    const toLight = screen.getByLabelText('header.themeLight');
+    expect(toLight).toMatchSnapshot();
+
+    fireEvent.click(toLight);
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(localStorage.getItem('app.theme')).toBe('light');
+    expect(screen.getByLabelText('header.themeDark')).toMatchSnapshot();
 
     fireEvent.click(screen.getByLabelText('header.themeDark'));
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);

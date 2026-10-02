@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Header > toggles the site theme between dark and light 1`] = `
+<button
+  aria-label="header.themeLight"
+  class="btn btn-secondary btn-sm header-theme-btn"
+  title="header.themeLight"
+>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-sm"
+  >
+    light_mode
+  </span>
+</button>
+`;
+
+exports[`Header > toggles the site theme between dark and light 2`] = `
+<button
+  aria-label="header.themeDark"
+  class="btn btn-secondary btn-sm header-theme-btn"
+  title="header.themeDark"
+>
+  <span
+    aria-hidden="true"
+    class="material-symbols-outlined ui-icon ui-icon-sm"
+  >
+    dark_mode
+  </span>
+</button>
+`;

@@ -35,6 +35,7 @@ type SessionPayload = {
   locale: string;
   consent: ReturnType<typeof consentRecord>;
   dismissedAlerts: DismissedAlertsStore;
+  theme?: 'light';
   session?: {
     access_token: string;
     refresh_token: string;
@@ -48,6 +49,9 @@ async function applyBootstrap(page: Page, payload: SessionPayload): Promise<void
     localStorage.setItem('app.locale', data.locale);
     localStorage.setItem('arcane:cookie-consent', JSON.stringify(data.consent));
     localStorage.setItem('arcane:dismissed-alerts:v1', JSON.stringify(data.dismissedAlerts));
+    if (data.theme === 'light') {
+      localStorage.setItem('app.theme', 'light');
+    }
     if (data.session) {
       localStorage.setItem('arcane_auth_token', data.session.access_token);
       localStorage.setItem('arcane_auth_refresh', data.session.refresh_token);
@@ -59,11 +63,12 @@ async function applyBootstrap(page: Page, payload: SessionPayload): Promise<void
   }, payload);
 }
 
-async function guestActor(page: Page): Promise<Actor> {
+async function guestActor(page: Page, theme?: 'light'): Promise<Actor> {
   await applyBootstrap(page, {
     locale: 'en',
     consent: consentRecord(),
     dismissedAlerts: await loadDismissedAlertsSeed(),
+    ...(theme === 'light' ? { theme: 'light' as const } : {}),
   });
   return createActor(page, publicApi, null, null);
 }
@@ -97,6 +102,7 @@ async function authedActor(
 
 type ActorFixtures = {
   guest: Actor;
+  guestLight: Actor;
   reader: Actor;
   author: Actor;
   authorPlus: Actor;
@@ -106,6 +112,9 @@ type ActorFixtures = {
 export const test = base.extend<ActorFixtures>({
   guest: async ({ page }, use) => {
     await use(await guestActor(page));
+  },
+  guestLight: async ({ page }, use) => {
+    await use(await guestActor(page, 'light'));
   },
   reader: async ({ browser }, use) => {
     const { actor, page } = await authedActor(browser, PERSONAS.reader);

@@ -83,6 +83,7 @@ npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or break
 | Prefix                                                                                                                           | Spec                                                |
 | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `guest-catalog` / `guest-sign-in` / `guest-account-tiers` / `guest-publication` / `guest-reading` / `guest-news` / `guest-about` | `guest.visual.spec.ts`                              |
+| `guest-catalog-light` / `guest-publication-light`                                                                                | `lightTheme.visual.spec.ts`                         |
 | `reader-upgrade` / `reader-profile`                                                                                              | `reader.visual.spec.ts`                             |
 | `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests`                                   | `author.visual.spec.ts`                             |
 | `authorplus-empty`                                                                                                               | `authorPlus.visual.spec.ts` (needs `stack:restore`) |
