@@ -30,6 +30,15 @@
     <meta name="twitter:image" content="__PUBLIC_URL__/arcane_icon.png" />
     <link rel="icon" type="image/png" href="/arcane_icon.png" />
     <link rel="apple-touch-icon" href="/arcane_icon.png" />
+    <script>
+      try {
+        if (localStorage.getItem('app.theme') === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {
+        /* storage blocked — dark theme stays the default */
+      }
+    </script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

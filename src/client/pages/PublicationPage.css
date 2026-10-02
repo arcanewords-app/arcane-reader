@@ -199,7 +199,7 @@
 
 .publication-page-continue-from:hover {
   color: var(--text-primary);
-  border-color: var(--border-hover, rgb(255, 255, 255, 0.15));
+  border-color: var(--border-hover);
   background: var(--bg-hover);
 }
 
@@ -243,7 +243,7 @@
 .publication-page-toc-btn:hover,
 .publication-page-source-link:hover {
   color: var(--text-primary);
-  border-color: var(--border-hover, rgb(255, 255, 255, 0.15));
+  border-color: var(--border-hover);
   background: var(--bg-hover);
 }
 
@@ -342,7 +342,7 @@
 
 .publication-page-chapter-filters button:hover {
   color: var(--text-primary);
-  border-color: var(--border-hover, rgb(255, 255, 255, 0.15));
+  border-color: var(--border-hover);
 }
 
 .publication-page-chapter-filters button.active {

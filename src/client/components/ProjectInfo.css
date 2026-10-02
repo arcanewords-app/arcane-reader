@@ -160,7 +160,7 @@
 
 .translation-status-pill--active {
   border-color: var(--accent);
-  background: rgb(157, 111, 255, 0.12);
+  background: var(--accent-soft);
   color: var(--text-primary);
 }
 

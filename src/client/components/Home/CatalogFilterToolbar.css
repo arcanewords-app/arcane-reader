@@ -49,7 +49,7 @@
 }
 
 .catalog-filter-chip--active {
-  color: #fff;
+  color: var(--accent-contrast);
   border-color: var(--accent);
   background: var(--accent);
 }
@@ -124,7 +124,7 @@
 }
 
 .catalog-filter-segment-btn--active {
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent);
 }
 

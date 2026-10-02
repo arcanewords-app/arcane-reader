@@ -299,14 +299,14 @@
   opacity: 1;
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
 }
 
 .settings-modal .stage-toggle.disabled .stage-checkbox {
   opacity: 1;
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
 }
 
 .settings-modal .stage-icon {

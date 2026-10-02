@@ -51,7 +51,7 @@
   transition: all var(--duration-slow) var(--ease-emphasized);
   box-shadow:
     0 20px 60px rgb(0, 0, 0, 0.6),
-    0 0 0 1px rgb(157, 111, 255, 0.15);
+    0 0 0 1px var(--accent-soft);
   position: relative;
 }
 
@@ -264,7 +264,7 @@
 .error-modal-footer button {
   padding: 0.5rem 1.5rem;
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   border: none;
   border-radius: 6px;
   font-size: 0.95rem;

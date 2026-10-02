@@ -42,7 +42,9 @@ npm-debug.log*
 coverage/
 coverage-component/
 coverage-contract/
-reports/
+# Root mutation/coverage output only. Unanchored `reports/` also hides
+# src/client/components/Reports on case-insensitive macOS and breaks git add.
+/reports/
 .stryker-tmp/
 *.tsbuildinfo
 

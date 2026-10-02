@@ -22,7 +22,7 @@ export function EmailConfirmationModal({ isOpen, email, onClose }: EmailConfirma
             fontSize: '2.5rem',
             marginBottom: '1rem',
             lineHeight: 1,
-            filter: 'drop-shadow(0 2px 8px rgba(139, 92, 246, 0.3))',
+            filter: 'drop-shadow(0 2px 8px var(--accent-glow))',
           }}
         >
           📧

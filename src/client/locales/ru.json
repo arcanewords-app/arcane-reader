@@ -523,7 +523,9 @@
     "logout": "Выйти",
     "login": "Войти",
     "register": "Регистрация",
-    "appLanguage": "Язык"
+    "appLanguage": "Язык",
+    "themeLight": "Светлая тема",
+    "themeDark": "Тёмная тема"
   },
   "glossary": {
     "title": "Глоссарий",

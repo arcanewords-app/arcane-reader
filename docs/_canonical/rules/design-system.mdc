@@ -17,7 +17,8 @@ alwaysApply: false
 
 ## Design Tokens
 
-- MUST avoid new hardcoded color values (`#...`, `rgb(...)`) in component CSS when an existing token can be used.
+- Site chrome theme is `data-theme` on `<html>` (`dark` default with no attribute, `light` for the library palette). Reader schemes stay on `data-reader-theme` and `--reader-*`. Do not recolor reader presets when changing site chrome.
+- MUST avoid new hardcoded color values (`#...`, `rgb(...)`) in component CSS when an existing token can be used. Tint washes use `--accent-soft`; text on accent fills uses `--accent-contrast`.
 - MUST avoid ad-hoc spacing and radius values when token equivalents exist.
 - MUST use responsive tokens and layout variables from `@src/client/styles/base/variables.css` before adding new breakpoint constants.
 - SHOULD keep shadow intensity and border contrast consistent with `Button.css`, `Modal.css`, and publication card patterns.

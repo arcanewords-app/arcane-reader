@@ -502,7 +502,9 @@
     "logout": "Wyloguj",
     "login": "Zaloguj",
     "register": "Rejestracja",
-    "appLanguage": "Język"
+    "appLanguage": "Język",
+    "themeLight": "Jasny motyw",
+    "themeDark": "Ciemny motyw"
   },
   "glossary": {
     "title": "Słownik",

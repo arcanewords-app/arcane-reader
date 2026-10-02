@@ -525,7 +525,9 @@
     "logout": "Log out",
     "login": "Log in",
     "register": "Sign up",
-    "appLanguage": "Language"
+    "appLanguage": "Language",
+    "themeLight": "Light theme",
+    "themeDark": "Dark theme"
   },
   "glossary": {
     "title": "Glossary",

@@ -44,6 +44,8 @@ describe('Header', () => {
     vi.clearAllMocks();
     mocks.isAtLeast.mockImplementation((role: string) => role === 'author' || role === 'admin');
     window.history.replaceState({}, '', '/');
+    localStorage.removeItem('app.theme');
+    document.documentElement.removeAttribute('data-theme');
   });
 
   it('shows login and register buttons for guests', () => {
@@ -102,5 +104,17 @@ describe('Header', () => {
     expect(info.compareDocumentPosition(locale) & following).toBeTruthy();
     expect(locale.compareDocumentPosition(credits) & following).toBeTruthy();
     expect(credits.compareDocumentPosition(profile) & following).toBeTruthy();
+  });
+
+  it('toggles the site theme between dark and light', () => {
+    render(<Header />);
+
+    fireEvent.click(screen.getByLabelText('header.themeLight'));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('app.theme')).toBe('light');
+
+    fireEvent.click(screen.getByLabelText('header.themeDark'));
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect(localStorage.getItem('app.theme')).toBe('dark');
   });
 });

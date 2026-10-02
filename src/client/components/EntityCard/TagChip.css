@@ -21,7 +21,7 @@
 
 .tag-chip--selected {
   border-color: var(--accent);
-  background: rgb(157, 111, 255, 0.12);
+  background: var(--accent-soft);
   color: var(--text-primary);
 }
 
@@ -64,7 +64,7 @@
 
 .tag-chip__remove:hover {
   color: var(--text-primary);
-  background: rgb(255, 255, 255, 0.1);
+  background: var(--bg-hover);
 }
 
 .tag-chip__remove:focus-visible {

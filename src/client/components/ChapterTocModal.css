@@ -203,7 +203,11 @@
 
 .modal.toc-modal.chapter-toc-modal .reading-toc-item.last-read {
   border-color: var(--reader-accent, var(--accent));
-  background: rgb(157, 111, 255, 0.08);
+  background: var(--accent-soft);
+}
+
+[data-reader-theme] .modal.toc-modal.chapter-toc-modal .reading-toc-item.last-read {
+  background: color-mix(in srgb, var(--reader-accent) 12%, transparent);
 }
 
 .modal.toc-modal.chapter-toc-modal .reading-toc-continue {

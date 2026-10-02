@@ -66,7 +66,7 @@
 }
 
 .home-tab-active {
-  color: white;
+  color: var(--accent-contrast);
   border-color: var(--accent);
   background: var(--accent);
   font-weight: 650;

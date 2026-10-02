@@ -8,6 +8,7 @@ import { TokenUsageIndicator } from './TokenUsage';
 import { isTokenUsageRelevant } from '../utils/tokenUsagePaths';
 import { isMobileViewport } from '../utils/viewport';
 import { setSavedLocale, SUPPORTED_LOCALES, type AppLocale } from '../i18n';
+import { readAppTheme, toggleAppTheme, type AppTheme } from '../utils/appTheme';
 import { SupportMenu } from './Header/SupportMenu';
 import './Header.css';
 
@@ -31,6 +32,7 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [infoOpen, setInfoOpen] = useState(false);
   const [localeOpen, setLocaleOpen] = useState(false);
+  const [theme, setTheme] = useState<AppTheme>(() => readAppTheme());
   const currentLocale = (i18n.language || 'ru') as AppLocale;
 
   const localeLabels: Record<AppLocale, string> = {
@@ -267,6 +269,17 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                 </div>
               )}
             </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              className="header-theme-btn"
+              onClick={() => setTheme(toggleAppTheme(theme))}
+              aria-label={theme === 'light' ? t('header.themeDark') : t('header.themeLight')}
+              title={theme === 'light' ? t('header.themeDark') : t('header.themeLight')}
+            >
+              <Icon name={theme === 'light' ? 'dark_mode' : 'light_mode'} size="sm" />
+            </Button>
 
             {/* Language Selector - compact dropdown */}
             <div class="header-locale-wrap">

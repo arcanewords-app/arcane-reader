@@ -272,7 +272,7 @@
 
 .chapter-filter-btn.active {
   background: var(--accent-dim);
-  color: white;
+  color: var(--accent-contrast);
   border-color: var(--accent);
 }
 
@@ -299,8 +299,8 @@
 }
 
 .chapter-search-input:hover {
-  border-color: rgb(139, 92, 246, 0.4);
-  box-shadow: 0 2px 8px rgb(139, 92, 246, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .chapter-search-input:focus {
@@ -308,7 +308,7 @@
   border-color: var(--accent);
   box-shadow:
     0 0 0 3px var(--accent-glow),
-    0 4px 16px rgb(139, 92, 246, 0.2);
+    0 4px 16px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .chapter-search-input::placeholder {
@@ -380,8 +380,8 @@
   border-color: var(--accent);
   box-shadow:
     0 4px 16px var(--accent-glow),
-    0 0 0 1px rgb(139, 92, 246, 0.4),
-    0 0 24px rgb(139, 92, 246, 0.2);
+    0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 0 24px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .chapter-item.dragging {
@@ -392,7 +392,11 @@
 .chapter-item.drag-over {
   border-color: var(--accent);
   border-style: dashed;
-  background: linear-gradient(135deg, var(--accent-glow) 0%, rgb(139, 92, 246, 0.1) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-glow) 0%,
+    color-mix(in srgb, var(--accent) 10%, transparent) 100%
+  );
   transform: scale(1.02);
 }
 
@@ -402,7 +406,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg-hover) 0%, rgb(34, 34, 46, 0.8) 100%);
+  background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-secondary) 100%);
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -414,14 +418,14 @@
 
 .chapter-item:hover .chapter-number {
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgb(139, 92, 246, 0.2);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .chapter-item.active .chapter-number {
-  background: linear-gradient(135deg, rgb(255, 255, 255, 0.2) 0%, rgb(255, 255, 255, 0.1) 100%);
-  color: white;
-  border-color: rgb(255, 255, 255, 0.3);
-  box-shadow: 0 2px 12px rgb(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--accent-contrast) 18%, transparent);
+  color: var(--accent-contrast);
+  border-color: color-mix(in srgb, var(--accent-contrast) 35%, transparent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent-contrast) 20%, transparent);
 }
 
 .chapter-list-empty {
@@ -441,7 +445,7 @@
   min-width: 2.5rem;
   height: 1.75rem;
   padding: 0 0.25rem;
-  background: linear-gradient(135deg, var(--bg-card) 0%, rgb(26, 26, 36, 0.8) 100%);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
   border: 1px solid var(--accent);
   border-radius: 6px;
   font-size: 0.8rem;
@@ -456,7 +460,7 @@
   border-color: var(--accent);
   box-shadow:
     0 0 0 2px var(--accent-glow),
-    0 2px 8px rgb(139, 92, 246, 0.3);
+    0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .chapter-number-edit-actions {
@@ -585,7 +589,7 @@
 
 .glossary-count {
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   padding: 0.15rem 0.5rem;
   border-radius: 10px;
   font-size: 0.8rem;
@@ -614,7 +618,7 @@
 .upload-area:hover,
 .upload-area.dragover {
   border-color: var(--accent);
-  background: rgb(139, 92, 246, 0.05);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
 .upload-icon {

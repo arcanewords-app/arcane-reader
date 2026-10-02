@@ -107,12 +107,12 @@
 }
 
 .admin-segment-tab--active {
-  color: white;
+  color: var(--accent-contrast);
   background: var(--accent);
 }
 
 .admin-segment-tab--active:hover {
-  color: white;
+  color: var(--accent-contrast);
   background: var(--accent);
 }
 

@@ -279,6 +279,12 @@
   flex-shrink: 0;
 }
 
+.header-theme-btn {
+  padding: 0.5rem !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
 /* Language Selector - compact dropdown */
 .header-locale-wrap {
   position: relative;
@@ -337,7 +343,7 @@
 
 .locale-dropdown-item.active {
   color: var(--accent-bright);
-  background: rgb(157, 111, 255, 0.15);
+  background: var(--accent-soft);
 }
 
 .locale-dropdown-item:focus-visible {
@@ -449,6 +455,12 @@
     justify-content: flex-end;
     align-items: center;
     min-width: 0;
+  }
+
+  .header-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
   }
 
   .header-info-label,

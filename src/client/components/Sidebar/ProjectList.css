@@ -2,7 +2,7 @@
 
 /* Sidebar Card - общий стиль для всех карточек в сайдбаре */
 .sidebar-card {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgb(26, 26, 36, 0.8) 100%);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.75rem 1rem;
@@ -19,7 +19,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgb(139, 92, 246, 0.05) 0%, transparent 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 5%, transparent) 0%,
+    transparent 100%
+  );
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
@@ -30,12 +34,12 @@
 }
 
 .sidebar-card:hover {
-  background: linear-gradient(135deg, var(--bg-hover) 0%, rgb(34, 34, 46, 0.8) 100%);
+  background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-secondary) 100%);
   border-color: var(--accent);
   box-shadow:
     0 4px 16px rgb(0, 0, 0, 0.3),
-    0 0 0 1px rgb(139, 92, 246, 0.2),
-    0 0 20px rgb(139, 92, 246, 0.1);
+    0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0 20px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .project-list {
@@ -49,7 +53,7 @@
 .chapter-item,
 .btn-glossary {
   /* Применяем общий стиль sidebar-card */
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgb(26, 26, 36, 0.8) 100%);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.75rem 1rem;
@@ -68,7 +72,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgb(139, 92, 246, 0.05) 0%, transparent 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 5%, transparent) 0%,
+    transparent 100%
+  );
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
@@ -83,12 +91,12 @@
 .project-item:hover,
 .chapter-item:hover,
 .btn-glossary:hover {
-  background: linear-gradient(135deg, var(--bg-hover) 0%, rgb(34, 34, 46, 0.8) 100%);
+  background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-secondary) 100%);
   border-color: var(--accent);
   box-shadow:
     0 4px 16px rgb(0, 0, 0, 0.3),
-    0 0 0 1px rgb(139, 92, 246, 0.2),
-    0 0 20px rgb(139, 92, 246, 0.1);
+    0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0 20px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .project-item.active {
@@ -98,17 +106,17 @@
   border-left-style: solid;
   box-shadow:
     0 4px 16px var(--accent-glow),
-    0 0 0 1px rgb(139, 92, 246, 0.4),
-    0 0 24px rgb(139, 92, 246, 0.2);
+    0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 0 24px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .project-item.active .project-name {
-  color: white;
+  color: var(--accent-contrast);
   font-weight: 600;
 }
 
 .project-item.active .project-meta {
-  color: rgb(255, 255, 255, 0.9);
+  color: color-mix(in srgb, var(--accent-contrast) 90%, transparent);
 }
 
 .project-name {

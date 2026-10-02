@@ -56,9 +56,9 @@ function ChapterPickerStatusBadge({ chapter }: ChapterPickerStatusBadgeProps) {
             : isPartial
               ? 'var(--warning-muted, rgba(245, 158, 11, 0.25))'
               : isDraft
-                ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
+                ? 'var(--accent-soft)'
                 : isAnalyzed
-                  ? 'var(--accent-muted, rgba(139, 92, 246, 0.25))'
+                  ? 'var(--accent-soft)'
                   : 'var(--text-dim)',
         color:
           isError || isCompleted
