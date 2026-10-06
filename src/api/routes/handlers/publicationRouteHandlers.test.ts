@@ -329,10 +329,13 @@ describe('publicationRouteHandlers', () => {
     mockDeleteFile.mockResolvedValue(undefined);
     mockExtractPathFromUrl.mockReturnValue('old/cover.jpg');
     mockInvalidateProjectAndRelatedCaches.mockResolvedValue(undefined);
-    mockAssertOwnedActiveTranslatorPseudonym.mockResolvedValue({
-      id: 'trans-1',
+    mockGetPublicEntityById.mockImplementation(async (id: string) => ({
+      id,
+      kind: 'translator',
       name: 'Translator One',
-    });
+      ownerUserId: 'user-1',
+      entityStatus: 'active',
+    }));
   });
 
   afterEach(() => {
@@ -471,9 +474,13 @@ describe('publicationRouteHandlers', () => {
 
     it('returns 400 for invalid translator pseudonym', async () => {
       mockGetProject.mockResolvedValue({ id: 'proj-1', metadata: {} });
-      mockAssertOwnedActiveTranslatorPseudonym.mockRejectedValue(
-        Object.assign(new Error('Invalid'), { code: INVALID_TRANSLATOR_PSEUDONYM_CODE })
-      );
+      mockGetPublicEntityById.mockResolvedValue({
+        id: 'bad-trans',
+        kind: 'translator',
+        name: 'Other',
+        ownerUserId: 'other-user',
+        entityStatus: 'active',
+      });
       const res = mockRes();
       await handleUpdateProjectMetadata(
         mockReq({
@@ -484,6 +491,33 @@ describe('publicationRouteHandlers', () => {
       );
       assert.equal(res.statusCode, 400);
       assert.equal((res.body as { code: string }).code, INVALID_TRANSLATOR_PSEUDONYM_CODE);
+      assert.equal(mockUpdateProject.mock.calls.length, 0);
+    });
+
+    it('lets an admin save a catalog translator', async () => {
+      mockGetProject.mockResolvedValue({ id: 'proj-1', metadata: {} });
+      mockGetPublicEntityById.mockResolvedValue({
+        id: 'catalog-trans',
+        kind: 'translator',
+        name: 'Kukutsapol',
+        ownerUserId: null,
+        entityStatus: 'active',
+      });
+      mockUpdateProject.mockResolvedValue({
+        id: 'proj-1',
+        metadata: { translatorEntityId: 'catalog-trans' },
+      });
+      const res = mockRes();
+      await handleUpdateProjectMetadata(
+        mockReq({
+          user: { id: 'user-1', role: 'admin' },
+          params: { projectId: 'proj-1' },
+          body: { metadata: { translatorEntityId: 'catalog-trans' } },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 200);
+      assert.equal(mockUpdateProject.mock.calls.length, 1);
     });
 
     it('updates metadata and syncs translationStatus on success', async () => {
@@ -1505,9 +1539,13 @@ describe('publicationRouteHandlers', () => {
 
     it('returns 400 for invalid translator pseudonym', async () => {
       mockGetProject.mockResolvedValue({ id: 'proj-1', metadata: {} });
-      mockAssertOwnedActiveTranslatorPseudonym.mockRejectedValue(
-        Object.assign(new Error('Invalid'), { code: INVALID_TRANSLATOR_PSEUDONYM_CODE })
-      );
+      mockGetPublicEntityById.mockResolvedValue({
+        id: 'bad-trans',
+        kind: 'translator',
+        name: 'Other',
+        ownerUserId: 'other-user',
+        entityStatus: 'active',
+      });
       const res = mockRes();
       await handlePublishProject(
         mockReq({
@@ -1518,6 +1556,39 @@ describe('publicationRouteHandlers', () => {
       );
       assert.equal(res.statusCode, 400);
       assert.equal((res.body as { code: string }).code, INVALID_TRANSLATOR_PSEUDONYM_CODE);
+      assert.equal(mockCreateOrUpdatePublication.mock.calls.length, 0);
+    });
+
+    it('lets an admin publish with a catalog translator', async () => {
+      mockGetProject.mockResolvedValue({ id: 'proj-1', metadata: {} });
+      mockGetPublicEntityById.mockResolvedValue({
+        id: 'catalog-trans',
+        kind: 'translator',
+        name: 'Kukutsapol',
+        ownerUserId: null,
+        entityStatus: 'active',
+      });
+      mockCreateOrUpdatePublication.mockResolvedValue({
+        id: 'pub-1',
+        slug: 'my-book',
+        status: 'published',
+      });
+      const res = mockRes();
+      await handlePublishProject(
+        mockReq({
+          user: { id: 'user-1', role: 'admin' },
+          params: { projectId: 'proj-1' },
+          body: { translatorEntityId: 'catalog-trans', title: 'Book' },
+        }) as never,
+        res as never
+      );
+      assert.equal((res.body as { id: string }).id, 'pub-1');
+      const payload = mockCreateOrUpdatePublication.mock.calls[0]?.[3] as {
+        translatorDisplay?: string;
+        translatorEntityId?: string;
+      };
+      assert.equal(payload.translatorDisplay, 'Kukutsapol');
+      assert.equal(payload.translatorEntityId, 'catalog-trans');
     });
 
     it('publishes project on success', async () => {
@@ -1525,7 +1596,16 @@ describe('publicationRouteHandlers', () => {
         id: 'proj-1',
         metadata: { authorEntityId: 'auth-1', authors: ['Fallback Author'] },
       });
-      mockGetPublicEntityById.mockResolvedValue({ id: 'auth-1', name: 'Entity Author' });
+      mockGetPublicEntityById.mockImplementation(async (id: string) => {
+        if (id === 'auth-1') return { id: 'auth-1', kind: 'author', name: 'Entity Author' };
+        return {
+          id,
+          kind: 'translator',
+          name: 'Translator One',
+          ownerUserId: 'user-1',
+          entityStatus: 'active',
+        };
+      });
       mockCreateOrUpdatePublication.mockResolvedValue({
         id: 'pub-1',
         slug: 'my-book',

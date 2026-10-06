@@ -1163,6 +1163,8 @@
     "emptyHint": "Utwórz pseudonim — pojawi się w katalogu jako nazwa tłumacza",
     "publishRequired": "Wybierz pseudonim tłumacza przed publikacją",
     "legacyBadge": "Wcześniej przypisany tłumacz",
+    "catalogLabel": "Katalog",
+    "ownLabel": "Twój pseudonim",
     "authorOnlyHint": "Pseudonimy tłumacza są dostępne z rolą Autor",
     "nameRequired": "Wpisz nazwę pseudonimu",
     "saveFailed": "Nie udało się zapisać pseudonimu",

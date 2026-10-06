@@ -27,6 +27,8 @@ interface EntityPickerModalProps {
   translatorScope?: 'public' | 'mine';
   /** Allow inline create for mine translator scope. */
   allowCreate?: boolean;
+  /** When set on a public translator list, label the current user's own pseudonym. */
+  ownershipHintUserId?: string;
 }
 
 export function EntityPickerModal({
@@ -38,6 +40,7 @@ export function EntityPickerModal({
   onSelect,
   translatorScope = 'public',
   allowCreate = false,
+  ownershipHintUserId,
 }: EntityPickerModalProps) {
   const { t } = useTranslation();
   const [entities, setEntities] = useState<PublicEntity[]>([]);
@@ -48,6 +51,7 @@ export function EntityPickerModal({
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const useMineTranslators = kind === 'translator' && translatorScope === 'mine';
+  const showOwnershipHint = kind === 'translator' && translatorScope === 'public';
   const canCreate = useMineTranslators && allowCreate;
   const atCreateLimit = entities.length >= MAX_TRANSLATOR_PSEUDONYMS_PER_USER;
 
@@ -122,6 +126,15 @@ export function EntityPickerModal({
     kind === 'tag' && !tagShowAll ? entities.slice(0, INITIAL_TAG_LIMIT) : entities;
   const hasMoreTags = kind === 'tag' && entities.length > INITIAL_TAG_LIMIT && !tagShowAll;
 
+  const ownershipCaption = (entity: PublicEntity): string | undefined => {
+    if (!showOwnershipHint) return undefined;
+    if (!entity.ownerUserId) return t('translatorPseudonym.catalogLabel');
+    if (ownershipHintUserId && entity.ownerUserId === ownershipHintUserId) {
+      return t('translatorPseudonym.ownLabel');
+    }
+    return undefined;
+  };
+
   const emptyMessage = useMineTranslators
     ? t('translatorPseudonym.empty')
     : t('entityPicker.empty');
@@ -167,6 +180,7 @@ export function EntityPickerModal({
                   key={entity.id}
                   entity={entity}
                   compact={false}
+                  caption={ownershipCaption(entity)}
                   onClick={() => handleSelectSingle(entity)}
                 />
               ))}

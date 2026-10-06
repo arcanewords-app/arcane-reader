@@ -20,6 +20,10 @@ import { formatLanguagePairLabel } from '../constants/translationLanguages';
 import { api, ApiError, clearCatalogLocalCache } from '../api/client';
 import { isChunkError } from '../../shared/chunkErrors';
 import {
+  isActiveTranslatorEntity,
+  shouldAutoAssignSolePseudonym,
+} from '../../shared/translatorPseudonyms';
+import {
   invalidateProject,
   loadProjects,
   projectsCache,
@@ -49,7 +53,8 @@ export function ProjectInfo({
   onOpenSettings,
 }: ProjectInfoProps) {
   const { t } = useTranslation();
-  const { role, user } = useUserRole();
+  const { role, user, isAtLeast } = useUserRole();
+  const isAdmin = isAtLeast('admin');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCopyChaptersModal, setShowCopyChaptersModal] = useState(false);
   const [showBulkDeleteChaptersModal, setShowBulkDeleteChaptersModal] = useState(false);
@@ -102,7 +107,9 @@ export function ProjectInfo({
     [user]
   );
 
-  const hasPublishableTranslator = isOwnedTranslatorEntity(translatorEntity);
+  const hasPublishableTranslator = isAdmin
+    ? isActiveTranslatorEntity(translatorEntity)
+    : isOwnedTranslatorEntity(translatorEntity);
 
   useEffect(() => {
     let cancelled = false;
@@ -281,9 +288,19 @@ export function ProjectInfo({
     if (!isOwnedTranslatorEntity(translatorEntity)) {
       try {
         const mine = await api.getTranslatorPseudonyms();
-        if (mine.length === 1) {
-          setTranslatorEntity(mine[0]);
-          await saveEntityMetadata({ translatorEntityId: mine[0].id });
+        if (
+          shouldAutoAssignSolePseudonym({
+            isAdmin,
+            translatorSelected: translatorEntity != null,
+            translatorOwned: false,
+            ownedPseudonymCount: mine.length,
+          })
+        ) {
+          const sole = mine[0];
+          if (sole) {
+            setTranslatorEntity(sole);
+            await saveEntityMetadata({ translatorEntityId: sole.id });
+          }
         }
       } catch {
         // Non-blocking: user can pick in modal
@@ -296,6 +313,7 @@ export function ProjectInfo({
     project.metadata?.description,
     project.name,
     translatorEntity,
+    isAdmin,
     isOwnedTranslatorEntity,
     saveEntityMetadata,
   ]);
@@ -1038,6 +1056,8 @@ export function ProjectInfo({
           translatorEntity={translatorEntity}
           tagEntities={tagEntities}
           savingEntities={savingEntities}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
           isOwnedTranslatorEntity={isOwnedTranslatorEntity}
           showAuthorPicker={showAuthorPicker}
           onShowAuthorPickerChange={setShowAuthorPicker}

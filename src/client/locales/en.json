@@ -1202,6 +1202,8 @@
     "emptyHint": "Create a pseudonym — it will appear in the catalog as the translator name",
     "publishRequired": "Select a translator pseudonym before publishing",
     "legacyBadge": "Previously assigned translator",
+    "catalogLabel": "Catalog",
+    "ownLabel": "Your pseudonym",
     "authorOnlyHint": "Translator pseudonyms are available with the Author role",
     "nameRequired": "Enter a pseudonym name",
     "saveFailed": "Failed to save pseudonym",

@@ -12,8 +12,24 @@ vi.mock('../EntityCard', () => ({
     <div data-testid={`entity-card-${entity.id}`}>{entity.name}</div>
   ),
   TagChip: ({ entity }: { entity: PublicEntity }) => <span>{entity.name}</span>,
-  EntityPickerModal: ({ isOpen, kind }: { isOpen: boolean; kind: string }) =>
-    isOpen ? <div data-testid={`picker-${kind}`} /> : null,
+  EntityPickerModal: ({
+    isOpen,
+    kind,
+    translatorScope,
+    allowCreate,
+  }: {
+    isOpen: boolean;
+    kind: string;
+    translatorScope?: string;
+    allowCreate?: boolean;
+  }) =>
+    isOpen ? (
+      <div
+        data-testid={`picker-${kind}`}
+        data-scope={translatorScope ?? ''}
+        data-allow-create={allowCreate ? 'true' : 'false'}
+      />
+    ) : null,
 }));
 
 import { ProjectEntitySection } from './ProjectEntitySection.js';
@@ -41,6 +57,7 @@ function renderSection(overrides: Partial<Parameters<typeof ProjectEntitySection
       translatorEntity={null}
       tagEntities={[]}
       savingEntities={false}
+      isAdmin={false}
       isOwnedTranslatorEntity={() => true}
       showAuthorPicker={false}
       onShowAuthorPickerChange={onShowAuthorPickerChange}
@@ -96,6 +113,33 @@ describe('ProjectEntitySection', () => {
     const { onTranslationStatusChange } = renderSection();
     fireEvent.click(screen.getByText('projectInfo.translationStatus.inProgress'));
     expect(onTranslationStatusChange).toHaveBeenCalledWith(null);
+  });
+
+  it('opens only the user pseudonyms for an author', () => {
+    renderSection({ showTranslatorPicker: true });
+    const picker = screen.getByTestId('picker-translator');
+    expect(picker.getAttribute('data-scope')).toBe('mine');
+    expect(picker.getAttribute('data-allow-create')).toBe('true');
+  });
+
+  it('opens every translator for an admin and hides the legacy badge', () => {
+    renderSection({
+      isAdmin: true,
+      showTranslatorPicker: true,
+      isOwnedTranslatorEntity: () => false,
+      translatorEntity: {
+        id: 't1',
+        kind: 'translator',
+        name: 'Kukutsapol',
+        ownerUserId: null,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    });
+    const picker = screen.getByTestId('picker-translator');
+    expect(picker.getAttribute('data-scope')).toBe('public');
+    expect(picker.getAttribute('data-allow-create')).toBe('false');
+    expect(screen.queryByText('translatorPseudonym.legacyBadge')).toBeNull();
   });
 
   it('selects the experimental translation status', () => {

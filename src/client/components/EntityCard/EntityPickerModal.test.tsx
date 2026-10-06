@@ -93,6 +93,42 @@ describe('EntityPickerModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('labels catalog and own translators in the public list', async () => {
+    const catalog = {
+      id: 'cat',
+      kind: 'translator' as const,
+      name: 'Kukutsapol',
+      description: null,
+      photoUrl: null,
+      ownerUserId: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const own = {
+      ...catalog,
+      id: 'own',
+      name: 'Kukutsapol',
+      ownerUserId: 'user-1',
+    };
+    apiMocks.getPublicEntities.mockResolvedValue([catalog, own]);
+
+    render(
+      <EntityPickerModal
+        isOpen
+        onClose={vi.fn()}
+        kind="translator"
+        mode="single"
+        translatorScope="public"
+        ownershipHintUserId="user-1"
+        onSelect={vi.fn()}
+      />
+    );
+
+    await screen.findByText('translatorPseudonym.catalogLabel', {}, { timeout: 3000 });
+    expect(screen.getByText('translatorPseudonym.ownLabel')).toBeTruthy();
+    expect(apiMocks.getTranslatorPseudonyms).not.toHaveBeenCalled();
+  });
+
   it('shows error when load fails', async () => {
     apiMocks.getPublicEntities.mockRejectedValue(new Error('network down'));
 

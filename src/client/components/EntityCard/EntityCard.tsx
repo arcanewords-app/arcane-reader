@@ -11,9 +11,17 @@ interface EntityCardProps {
   onClick?: () => void;
   /** Optional class name. */
   className?: string;
+  /** Short line under the name, for example catalog vs own pseudonym. */
+  caption?: string;
 }
 
-export function EntityCard({ entity, compact = true, onClick, className = '' }: EntityCardProps) {
+export function EntityCard({
+  entity,
+  compact = true,
+  onClick,
+  className = '',
+  caption,
+}: EntityCardProps) {
   const [showPopup, setShowPopup] = useState(false);
 
   const handleMouseEnter = useCallback(() => setShowPopup(true), []);
@@ -55,7 +63,10 @@ export function EntityCard({ entity, compact = true, onClick, className = '' }: 
           </div>
         )}
       </div>
-      <span class="entity-card__name">{entity.name}</span>
+      <span class="entity-card__text">
+        <span class="entity-card__name">{entity.name}</span>
+        {caption ? <span class="entity-card__caption">{caption}</span> : null}
+      </span>
       {hasDescription && showPopup && (
         <div class="card-content-popup" role="tooltip">
           {entity.description}

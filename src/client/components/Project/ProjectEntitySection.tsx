@@ -23,6 +23,8 @@ export interface ProjectEntitySectionProps {
   translatorEntity: PublicEntity | null;
   tagEntities: PublicEntity[];
   savingEntities: boolean;
+  isAdmin: boolean;
+  currentUserId?: string;
   isOwnedTranslatorEntity: (entity: PublicEntity | null | undefined) => boolean;
   showAuthorPicker: boolean;
   onShowAuthorPickerChange: (open: boolean) => void;
@@ -45,6 +47,8 @@ export function ProjectEntitySection({
   translatorEntity,
   tagEntities,
   savingEntities,
+  isAdmin,
+  currentUserId,
   isOwnedTranslatorEntity,
   showAuthorPicker,
   onShowAuthorPickerChange,
@@ -121,7 +125,7 @@ export function ProjectEntitySection({
               {translatorEntity ? (
                 <div class="entity-section__card-wrap">
                   <EntityCard entity={translatorEntity} compact />
-                  {translatorEntity && !isOwnedTranslatorEntity(translatorEntity) && (
+                  {translatorEntity && !isAdmin && !isOwnedTranslatorEntity(translatorEntity) && (
                     <span class="entity-section__legacy-badge">
                       {t('translatorPseudonym.legacyBadge')}
                     </span>
@@ -228,8 +232,9 @@ export function ProjectEntitySection({
         onClose={() => onShowTranslatorPickerChange(false)}
         kind="translator"
         mode="single"
-        translatorScope="mine"
-        allowCreate
+        translatorScope={isAdmin ? 'public' : 'mine'}
+        allowCreate={!isAdmin}
+        ownershipHintUserId={currentUserId}
         selectedIds={translatorEntity ? [translatorEntity.id] : []}
         onSelect={handleTranslatorSelect}
       />

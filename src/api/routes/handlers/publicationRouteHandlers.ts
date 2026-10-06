@@ -53,9 +53,12 @@ import {
   getPublishedNewsPostByIdOrSlug,
   getActiveAnnouncementForUser,
   dismissAnnouncement,
-  assertOwnedActiveTranslatorPseudonym,
 } from '../../../services/supabaseDatabase.js';
-import { INVALID_TRANSLATOR_PSEUDONYM_CODE } from '../../../shared/translatorPseudonyms.js';
+import {
+  INVALID_TRANSLATOR_PSEUDONYM_CODE,
+  canAssignTranslatorEntity,
+  createInvalidTranslatorPseudonymError,
+} from '../../../shared/translatorPseudonyms.js';
 import type { UserRole } from '../../../types/roles.js';
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
 import { logger } from '../../../logger.js';
@@ -383,6 +386,14 @@ export async function handleDeleteCover(req: Request, res: Response): Promise<vo
   }
 }
 
+async function resolveAssignableTranslator(userId: string, role: UserRole, entityId: string) {
+  const entity = await getPublicEntityById(entityId);
+  if (!entity || !canAssignTranslatorEntity(entity, userId, role)) {
+    throw createInvalidTranslatorPseudonymError();
+  }
+  return entity;
+}
+
 export async function handleUpdateProjectMetadata(req: Request, res: Response): Promise<void> {
   try {
     if (!req.user) {
@@ -414,7 +425,7 @@ export async function handleUpdateProjectMetadata(req: Request, res: Response): 
       const rawTranslatorId = metadataUpdates.translatorEntityId;
       if (rawTranslatorId != null && typeof rawTranslatorId === 'string') {
         try {
-          await assertOwnedActiveTranslatorPseudonym(req.user.id, rawTranslatorId);
+          await resolveAssignableTranslator(req.user.id, req.user.role, rawTranslatorId);
         } catch (err) {
           const code = (err as Error & { code?: string }).code;
           if (code === INVALID_TRANSLATOR_PSEUDONYM_CODE) {
@@ -723,9 +734,7 @@ export async function handleExportDownload(req: Request, res: Response): Promise
     }
 
     const projectId = requireRouteParam(req.params.id, 'id');
-    const queryResult = exportDownloadQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const queryResult = exportDownloadQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!queryResult.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -960,9 +969,7 @@ export async function handlePublicationDownload(req: Request, res: Response): Pr
       return;
     }
 
-    const queryResult = publicationDownloadQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const queryResult = publicationDownloadQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!queryResult.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -1098,9 +1105,7 @@ export async function handleGetPublicEntity(req: Request, res: Response): Promis
 
 export async function handleListNews(req: Request, res: Response): Promise<void> {
   try {
-    const parseResult = newsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parseResult = newsListQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parseResult.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -1130,9 +1135,7 @@ export async function handleListNews(req: Request, res: Response): Promise<void>
 
 export async function handleGetNewsPost(req: Request, res: Response): Promise<void> {
   try {
-    const parsed = newsPostQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parsed = newsPostQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parsed.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -1164,9 +1167,7 @@ export async function handleGetNewsPost(req: Request, res: Response): Promise<vo
 
 export async function handleGetActiveAnnouncement(req: Request, res: Response): Promise<void> {
   try {
-    const parsed = newsPostQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parsed = newsPostQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parsed.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -1225,9 +1226,7 @@ export async function handleDismissAnnouncement(req: Request, res: Response): Pr
 
 export async function handleListPublications(req: Request, res: Response): Promise<void> {
   try {
-    const queryResult = publicationsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const queryResult = publicationsListQuerySchema.safeParse(normalizeQueryRecord(req.query));
     const params = queryResult.success
       ? {
           limit: Math.min(queryResult.data.limit ?? 50, 100),
@@ -1632,8 +1631,9 @@ export async function handlePublishProject(req: Request, res: Response): Promise
 
     if (translatorEntityId) {
       try {
-        const translatorEntity = await assertOwnedActiveTranslatorPseudonym(
+        const translatorEntity = await resolveAssignableTranslator(
           userId,
+          req.user!.role,
           translatorEntityId
         );
         translatorDisplay = translatorEntity.name;
