@@ -30,3 +30,10 @@
   border: 1px solid var(--border);
   box-shadow: none;
 }
+
+.publication-status-badge--experimental {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--bg-card) 78%, var(--warning));
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  box-shadow: none;
+}

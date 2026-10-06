@@ -4,6 +4,7 @@
  */
 
 import type { EvaluationIssue } from '../shared/evaluation-normalize.js';
+import type { TranslationStatus } from '../shared/translation-status.js';
 
 // Types
 /**
@@ -33,7 +34,7 @@ export interface ProjectMetadata {
   translatorEntityId?: string;
   tagEntityIds?: string[];
   /** Catalog cover badge; null/omit = no badge. */
-  translationStatus?: 'in_progress' | 'complete' | 'abandoned' | null;
+  translationStatus?: TranslationStatus | null;
   isbn?: string;
   series?: string;
   seriesNumber?: number;

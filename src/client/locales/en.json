@@ -902,6 +902,7 @@
       "inProgress": "In progress",
       "complete": "Complete",
       "abandoned": "Abandoned",
+      "experimental": "Experimental",
       "clear": "No badge"
     }
   },
@@ -1599,12 +1600,14 @@
     "statusBadge": {
       "inProgress": "In progress",
       "complete": "Complete",
-      "abandoned": "On hold"
+      "abandoned": "On hold",
+      "experimental": "Experimental"
     },
     "statusBadgeAria": {
       "inProgress": "Translation in progress",
       "complete": "Complete work",
-      "abandoned": "Abandoned work"
+      "abandoned": "Abandoned work",
+      "experimental": "Experimental work"
     }
   },
   "language": {

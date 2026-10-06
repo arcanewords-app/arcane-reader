@@ -1,4 +1,9 @@
-export const TRANSLATION_STATUSES = ['in_progress', 'complete', 'abandoned'] as const;
+export const TRANSLATION_STATUSES = [
+  'in_progress',
+  'complete',
+  'abandoned',
+  'experimental',
+] as const;
 
 export type TranslationStatus = (typeof TRANSLATION_STATUSES)[number];
 

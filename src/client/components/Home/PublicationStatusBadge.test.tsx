@@ -26,4 +26,11 @@ describe('PublicationStatusBadge', () => {
     expect(screen.getByText('publication.statusBadge.inProgress')).toBeTruthy();
     expect(screen.getByLabelText('publication.statusBadgeAria.inProgress')).toBeTruthy();
   });
+
+  it('renders experimental status', () => {
+    const { container } = render(<PublicationStatusBadge status="experimental" />);
+    expect(screen.getByText('publication.statusBadge.experimental')).toBeTruthy();
+    expect(screen.getByLabelText('publication.statusBadgeAria.experimental')).toBeTruthy();
+    expect(container.querySelector('.publication-status-badge--experimental')).toBeTruthy();
+  });
 });

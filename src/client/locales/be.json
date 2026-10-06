@@ -900,6 +900,7 @@
       "inProgress": "У перакладзе",
       "complete": "Поўнае",
       "abandoned": "Закінутае",
+      "experimental": "Тэставы",
       "clear": "Без плашкі"
     }
   },
@@ -1600,12 +1601,14 @@
     "statusBadge": {
       "inProgress": "У працы",
       "complete": "Поўнае",
-      "abandoned": "Паўза"
+      "abandoned": "Паўза",
+      "experimental": "Тэставы"
     },
     "statusBadgeAria": {
       "inProgress": "У перакладзе",
       "complete": "Поўнае твор",
-      "abandoned": "Закінутае твор"
+      "abandoned": "Закінутае твор",
+      "experimental": "Тэставы твор"
     }
   },
   "language": {

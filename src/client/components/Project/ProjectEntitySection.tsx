@@ -6,6 +6,13 @@ import type {
   TranslationStatus,
 } from '../../types.js';
 import { TRANSLATION_STATUSES } from '../../../shared/translation-status.js';
+
+const TRANSLATION_STATUS_OPTION_KEYS: Record<TranslationStatus, string> = {
+  in_progress: 'inProgress',
+  complete: 'complete',
+  abandoned: 'abandoned',
+  experimental: 'experimental',
+};
 import { Button, Icon } from '../ui';
 import { EntityCard, TagChip, EntityPickerModal } from '../EntityCard';
 import '../ProjectInfo.css';
@@ -172,12 +179,7 @@ export function ProjectEntitySection({
               >
                 {TRANSLATION_STATUSES.map((status) => {
                   const isActive = project.metadata?.translationStatus === status;
-                  const optionKey =
-                    status === 'in_progress'
-                      ? 'inProgress'
-                      : status === 'complete'
-                        ? 'complete'
-                        : 'abandoned';
+                  const optionKey = TRANSLATION_STATUS_OPTION_KEYS[status];
                   return (
                     <button
                       key={status}

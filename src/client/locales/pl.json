@@ -869,6 +869,7 @@
       "inProgress": "W tłumaczeniu",
       "complete": "Kompletne",
       "abandoned": "Porzucone",
+      "experimental": "Testowy",
       "clear": "Bez plakietki"
     }
   },
@@ -1419,12 +1420,14 @@
     "statusBadge": {
       "inProgress": "W toku",
       "complete": "Kompletne",
-      "abandoned": "Pauza"
+      "abandoned": "Pauza",
+      "experimental": "Testowy"
     },
     "statusBadgeAria": {
       "inProgress": "W tłumaczeniu",
       "complete": "Dzieło kompletne",
-      "abandoned": "Porzucone dzieło"
+      "abandoned": "Porzucone dzieło",
+      "experimental": "Utwór testowy"
     }
   },
   "language": {

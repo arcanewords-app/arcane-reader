@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-08-30
+updated: 2026-10-04
 ---
 
 # Arcane Reader — Documentation
@@ -63,6 +63,11 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 ### Product
 
 - [[03-explanation/news-and-announcements]]
+
+### Client
+
+- [[03-explanation/css-delivery]] — static CSS vs GitHub's CSS-in-JS migration; no follow-up work
+- [[03-explanation/addressable-ui-state]]
 
 ## How-to
 

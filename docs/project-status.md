@@ -3,7 +3,7 @@ type: reference
 status: active
 domain: meta
 stale: false
-updated: 2026-10-02
+updated: 2026-10-04
 ---
 
 # Project status
@@ -74,3 +74,4 @@ Update this file when completing plans or shipping major features.
 - Agent SSOT: `.cursor/rules/` (see [[Home#Canonical rules]])
 - Vault MOC: [[Home]]
 - Triage log: [[_meta/archive-triage]]
+- CSS delivery: plain CSS and CSS variables already; GitHub Primer comparison says do not migrate — [[03-explanation/css-delivery]]

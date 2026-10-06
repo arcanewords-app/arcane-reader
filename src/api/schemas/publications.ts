@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { TRANSLATION_STATUSES } from '../../shared/translation-status.js';
 import { paginationQuerySchema, optionalUrlSchema } from './common.js';
 
-const translationStatusSchema = z.enum(['in_progress', 'complete', 'abandoned']);
+export const translationStatusSchema = z.enum(TRANSLATION_STATUSES);
 
 export const publicationsListQuerySchema = paginationQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(100).optional(),

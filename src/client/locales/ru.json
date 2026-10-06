@@ -900,6 +900,7 @@
       "inProgress": "В переводе",
       "complete": "Полное",
       "abandoned": "Заброшенное",
+      "experimental": "Тестовый",
       "clear": "Без плашки"
     }
   },
@@ -1600,12 +1601,14 @@
     "statusBadge": {
       "inProgress": "В работе",
       "complete": "Полное",
-      "abandoned": "Пауза"
+      "abandoned": "Пауза",
+      "experimental": "Тестовый"
     },
     "statusBadgeAria": {
       "inProgress": "В переводе",
       "complete": "Полное произведение",
-      "abandoned": "Заброшенное произведение"
+      "abandoned": "Заброшенное произведение",
+      "experimental": "Тестовое произведение"
     }
   },
   "language": {

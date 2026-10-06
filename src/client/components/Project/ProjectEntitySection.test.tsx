@@ -31,9 +31,7 @@ const project = {
   updatedAt: '2026-01-01T00:00:00Z',
 } as Project;
 
-function renderSection(
-  overrides: Partial<Parameters<typeof ProjectEntitySection>[0]> = {}
-) {
+function renderSection(overrides: Partial<Parameters<typeof ProjectEntitySection>[0]> = {}) {
   const onShowAuthorPickerChange = vi.fn();
   const onTranslationStatusChange = vi.fn();
   render(
@@ -98,5 +96,11 @@ describe('ProjectEntitySection', () => {
     const { onTranslationStatusChange } = renderSection();
     fireEvent.click(screen.getByText('projectInfo.translationStatus.inProgress'));
     expect(onTranslationStatusChange).toHaveBeenCalledWith(null);
+  });
+
+  it('selects the experimental translation status', () => {
+    const { onTranslationStatusChange } = renderSection();
+    fireEvent.click(screen.getByText('projectInfo.translationStatus.experimental'));
+    expect(onTranslationStatusChange).toHaveBeenCalledWith('experimental');
   });
 });

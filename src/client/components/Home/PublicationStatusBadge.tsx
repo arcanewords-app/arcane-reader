@@ -10,12 +10,14 @@ const BADGE_LABEL_KEYS: Record<TranslationStatus, string> = {
   in_progress: 'publication.statusBadge.inProgress',
   complete: 'publication.statusBadge.complete',
   abandoned: 'publication.statusBadge.abandoned',
+  experimental: 'publication.statusBadge.experimental',
 };
 
 const BADGE_ARIA_KEYS: Record<TranslationStatus, string> = {
   in_progress: 'publication.statusBadgeAria.inProgress',
   complete: 'publication.statusBadgeAria.complete',
   abandoned: 'publication.statusBadgeAria.abandoned',
+  experimental: 'publication.statusBadgeAria.experimental',
 };
 
 export function PublicationStatusBadge({ status }: PublicationStatusBadgeProps) {

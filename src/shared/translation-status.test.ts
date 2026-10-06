@@ -22,6 +22,10 @@ describe('translation-status', () => {
     );
     assert.equal(translationStatusFromMetadata({ translationStatus: 'complete' }), 'complete');
     assert.equal(translationStatusFromMetadata({ translationStatus: 'abandoned' }), 'abandoned');
+    assert.equal(
+      translationStatusFromMetadata({ translationStatus: 'experimental' }),
+      'experimental'
+    );
   });
 
   it('maps legacy isCompleteWork true to complete', () => {
