@@ -63,11 +63,6 @@
   text-decoration: underline;
 }
 
-/* Email Confirmation Modal should appear above Auth Modal */
-.email-confirmation-modal-overlay {
-  z-index: 1500;
-}
-
 /* Mobile: компактные отступы и тач-зоны */
 @media (max-width: 480px) {
   .auth-modal {

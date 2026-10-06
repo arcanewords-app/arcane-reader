@@ -16,7 +16,7 @@ Client-side analytics via `gtag.js`. Helpers: `src/client/utils/analytics.ts`.
 - **Not chosen** → banner on every visit until accept/reject.
 - **Privacy** (`/privacy`) → «Reset cookie preference» clears choice; banner returns on navigation.
 
-Cookie banner uses `z-index: 1300` so it stays above reading mode.
+Cookie banner uses `--z-cookie` so it stays above reading mode and under dialogs.
 
 ## Events
 

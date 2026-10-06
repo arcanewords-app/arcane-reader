@@ -13,7 +13,7 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: 'danger' | 'default';
   loading?: boolean;
-  /** Stacking layer above parent modals. Default nested (z-index 2000). */
+  /** Stacking layer above parent modals. Default nested (`--z-modal-nested`). */
   layer?: 'nested' | 'stacked';
   /** @deprecated Prefer `layer`. Extra overlay class when needed (e.g. error-modal-overlay). */
   overlayClassName?: string;

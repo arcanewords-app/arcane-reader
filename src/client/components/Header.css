@@ -11,7 +11,7 @@
   padding-right: max(var(--header-padding-mobile), env(safe-area-inset-right, 0px));
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: var(--z-header);
   backdrop-filter: blur(10px);
   width: 100%;
   max-width: 100vw;
@@ -209,7 +209,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgb(0, 0, 0, 0.15);
-  z-index: 1001;
+  z-index: 1; /* Local to the header stacking context, not a viewport layer */
 }
 
 .header-info-section {
@@ -315,7 +315,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgb(0, 0, 0, 0.15);
-  z-index: 1001;
+  z-index: 1; /* Local to the header stacking context, not a viewport layer */
 }
 
 .locale-dropdown-item {

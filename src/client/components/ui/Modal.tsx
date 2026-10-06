@@ -109,10 +109,8 @@ export function Modal({
   const overlayClasses = [
     'modal-overlay',
     'active',
-    isLarge && 'glossary-modal-overlay',
     layer !== 'base' && MODAL_LAYER_CLASS[layer],
     className.includes('nested') && 'modal-overlay--nested',
-    className === 'email-confirmation-modal' && 'email-confirmation-modal-overlay',
     overlayClassName,
   ]
     .filter(Boolean)

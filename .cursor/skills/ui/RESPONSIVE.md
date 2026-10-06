@@ -71,6 +71,10 @@ New or changed **reader** screens need a `*.visual.spec.ts` shell (`layoutMatche
 
 Add `/news/:slug`, contact/legal, extra `/admin/*` shells **only when touching those screens**.
 
+## Overlay stacking
+
+Phone drawer (`--z-sidebar-open`) covers the header and stays under every dialog (`--z-modal` and above). Cookie banner, reader selection toolbar, and reader toasts sit under dialogs too. Scale and rules: [`design-system.mdc`](../../rules/design-system.mdc) (Overlay stacking) and `--z-*` in `variables.css`. Do not raise a layer with modal `size`.
+
 ## Anti-patterns
 
 - `auto-fill` for catalog/project/request cards **with unbounded `1fr`** (few cards become posters). Capped `auto-fit` leftover space on the right is intended.
@@ -79,6 +83,7 @@ Add `/news/:slug`, contact/legal, extra `/admin/*` shells **only when touching t
 - Per-page copy of grid column counts instead of `CardGrid`.
 - Tailwind / extra 640/1536 / 1024–1200 squeeze bands / foldable-device rules.
 - `container-type` with no `@container` rules.
+- Raw `z-index` ≥ 800, or a larger modal size used to paint above the phone drawer.
 
 ## Status
 

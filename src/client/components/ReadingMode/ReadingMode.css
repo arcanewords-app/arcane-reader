@@ -12,7 +12,7 @@
   color: var(--reader-text);
   display: flex;
   flex-direction: column;
-  z-index: 1000;
+  z-index: var(--z-reading);
   overflow: hidden;
 }
 
@@ -748,7 +748,7 @@
 /* Floating selection toolbar on text selection (portaled to body; uses html reader theme vars) */
 .reading-selection-toolbar {
   position: fixed;
-  z-index: 1200;
+  z-index: var(--z-floating);
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
@@ -799,7 +799,7 @@
   position: fixed;
   left: 50%;
   bottom: calc(var(--reading-footer-offset, 72px) + 12px);
-  z-index: 1250;
+  z-index: var(--z-toast);
   transform: translateX(-50%);
   display: flex;
   align-items: center;

@@ -39,6 +39,27 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps large modals on the base overlay layer', () => {
+    render(
+      <Modal isOpen onClose={vi.fn()} title="Hello" size="large">
+        <p>Body</p>
+      </Modal>
+    );
+    const overlay = document.querySelector('.modal-overlay');
+    expect(overlay?.classList.contains('glossary-modal-overlay')).toBe(false);
+    expect(overlay?.classList.contains('modal-overlay--nested')).toBe(false);
+    expect(overlay?.classList.contains('modal-overlay--stacked')).toBe(false);
+  });
+
+  it('adds the nested overlay class for layer="nested"', () => {
+    render(
+      <Modal isOpen onClose={vi.fn()} title="Hello" layer="nested">
+        <p>Body</p>
+      </Modal>
+    );
+    expect(document.querySelector('.modal-overlay--nested')).toBeTruthy();
+  });
+
   it('matches snapshot for open shell', () => {
     render(
       <Modal isOpen onClose={vi.fn()} title="Hello">

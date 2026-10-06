@@ -15,6 +15,7 @@ export function EmailConfirmationModal({ isOpen, email, onClose }: EmailConfirma
       onClose={onClose}
       title={t('auth.confirmEmailTitle')}
       className="email-confirmation-modal"
+      layer="nested"
     >
       <div class="auth-form" style={{ textAlign: 'center', padding: '0.5rem 0' }}>
         <div

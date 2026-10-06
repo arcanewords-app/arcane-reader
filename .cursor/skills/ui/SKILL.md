@@ -75,6 +75,7 @@ Choose the layer per `@.cursor/skills/testing/SKILL.md` (“Choose the layer fir
 - [ ] hover / focus-visible / disabled / loading where applicable
 - [ ] i18n keys in en, ru, be (and pl if touching pl.json)
 - [ ] Mobile → tablet → desktop; touch ≥ 44px; layout follows [RESPONSIVE.md](./RESPONSIVE.md)
+- [ ] Viewport overlays use `--z-*` (`design-system.mdc` Overlay stacking); modal size does not change the layer
 - [ ] New reusable UX → entry in PATTERNS.md
 - [ ] New/changed component/hook/page → `*.test.tsx` / `*.hook.test.ts`
 - [ ] New E2E `data-testid` → `tests/e2e/README.md` + `tests/e2e/targets/`

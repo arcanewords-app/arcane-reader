@@ -55,6 +55,21 @@ alwaysApply: false
 - MUST support close behavior through Escape and backdrop click unless flow explicitly blocks closing.
 - MUST keep keyboard and focus-visible access usable for close/action controls.
 - SHOULD keep modal sizing and spacing aligned with existing modal breakpoints and token spacing.
+- MUST NOT change stacking by modal size. Use `layer` (`base` / `nested` / `stacked`) or `overlayClassName="error-modal-overlay"` for alerts.
+
+## Overlay stacking
+
+Viewport overlays use `--z-*` tokens in `@src/client/styles/base/variables.css`. Bottom → top:
+
+1. Phone drawer: `--z-sidebar-backdrop`, `--z-sidebar`, `--z-header`, `--z-sidebar-open` (open drawer covers the header and stays under every dialog).
+2. Reading takeover: `--z-reading`, then `--z-floating` (selection toolbar) and `--z-toast`.
+3. Cookie banner: `--z-cookie` (above the reader, under dialogs).
+4. Dialogs: `--z-modal`, `--z-modal-nested`, `--z-modal-stacked`, `--z-lightbox` (fixed menus and image viewers rendered outside the modal portal), `--z-modal-alert`.
+
+- MUST use these tokens for any `position: fixed` overlay that competes with chrome, the reader, or a dialog.
+- MUST NOT invent a raw `z-index` of 800 or higher.
+- Local indexes (`1`–`100`) stay inside a positioned parent (card badge, header menu, in-modal dropdown). They MUST NOT reuse viewport tokens. Header menus stay inside the header stacking context.
+- An open phone sidebar stays mounted under a dialog. The dialog backdrop covers it; closing the dialog shows the drawer again.
 
 ## Icons
 
@@ -134,7 +149,7 @@ Contract: `@.cursor/skills/ui/RESPONSIVE.md`.
 
 ## Implementation Checklist For UI Changes
 
-- Tokens used (no unnecessary hardcoded colors/sizes).
+- Tokens used (no unnecessary hardcoded colors/sizes; viewport overlays use `--z-*`).
 - Existing UI primitives reused before custom components.
 - States covered (hover/focus-visible/disabled/loading where applicable).
 - Keyboard + focus-visible verified for interactive controls.

@@ -15,7 +15,7 @@ main {
   position: relative;
   overflow-x: hidden;
   box-sizing: border-box;
-  /* z-index не задаём — хедер sticky с z-index: 1000 сам будет выше при прокрутке */
+  /* No z-index: sticky header (--z-header) stays above scrolled content */
 }
 
 .sidebar {
@@ -28,7 +28,7 @@ main {
   max-height: 100vh;
   min-height: 0; /* Allow flex container to shrink so overflow-y scroll works */
   border-right: 1px solid var(--border);
-  z-index: 999; /* Below header (1000) by default */
+  z-index: var(--z-sidebar); /* Below header until the phone drawer opens */
   transition: left 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
@@ -55,7 +55,7 @@ main {
   height: 100vh;
   max-height: 100vh;
   min-height: 0;
-  z-index: 1001; /* Above header to prevent overlap */
+  z-index: var(--z-sidebar-open); /* Above header, below every dialog */
 }
 
 .sidebar-overlay {
@@ -66,7 +66,7 @@ main {
   right: 0;
   bottom: 0;
   background: rgb(0, 0, 0, 0.5);
-  z-index: 998;
+  z-index: var(--z-sidebar-backdrop);
   backdrop-filter: blur(4px);
   touch-action: none; /* Prevent scroll passthrough to background */
 }

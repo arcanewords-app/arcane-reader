@@ -28,7 +28,7 @@
 
 .token-usage-tooltip {
   display: none;
-  z-index: 1001;
+  z-index: 1; /* Local to the indicator, inside the header stacking context */
   pointer-events: none;
   white-space: normal;
   min-width: 12rem;

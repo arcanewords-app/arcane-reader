@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
   opacity: 0;
   visibility: hidden;
   transition: all var(--duration-slow) var(--ease-emphasized);
@@ -26,15 +26,15 @@
   visibility: visible;
 }
 
-/* Modal stack layers (SSOT). base = 1000 (.modal-overlay). error = 10000 (.error-modal-overlay). */
+/* Modal stack layers (SSOT: --z-modal* in variables.css). Size does not change the layer. */
 .modal-overlay--nested,
 .nested-modal {
-  z-index: 2000;
+  z-index: var(--z-modal-nested);
   backdrop-filter: blur(12px);
 }
 
 .modal-overlay--stacked {
-  z-index: 3000;
+  z-index: var(--z-modal-stacked);
   backdrop-filter: blur(12px);
 }
 
@@ -173,7 +173,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--z-modal-alert);
   backdrop-filter: blur(4px);
 }
 

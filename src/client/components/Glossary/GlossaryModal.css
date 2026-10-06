@@ -2,11 +2,6 @@
 
 /* === Glossary === */
 
-.glossary-modal-overlay {
-  z-index: 1500;
-  backdrop-filter: blur(8px);
-}
-
 .modal.glossary-modal {
   width: var(--modal-width-mobile);
   max-width: var(--modal-max-width-mobile);
@@ -461,7 +456,7 @@
 
 .glossary-context-menu {
   position: fixed;
-  z-index: 2500;
+  z-index: var(--z-lightbox);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1050,7 +1045,7 @@
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: var(--z-lightbox);
   cursor: zoom-out;
 }
 

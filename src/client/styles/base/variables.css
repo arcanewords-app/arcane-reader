@@ -219,6 +219,21 @@
   --glossary-card-delete-offset-desktop: 1rem;
   --glossary-card-names-lines-desktop: 2;
   --glossary-card-description-lines-desktop: 4;
+
+  /* Viewport overlay stack (bottom → top). Local 1–100 indexes stay inside a parent. */
+  --z-sidebar-backdrop: 800;
+  --z-sidebar: 810;
+  --z-header: 820;
+  --z-sidebar-open: 830;
+  --z-reading: 900;
+  --z-floating: 920;
+  --z-toast: 930;
+  --z-cookie: 940;
+  --z-modal: 1000;
+  --z-modal-nested: 1100;
+  --z-modal-stacked: 1200;
+  --z-lightbox: 1300;
+  --z-modal-alert: 1400;
 }
 
 /* === Site chrome: light library (paper + wine). Dark stays on :root. === */
