@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { route } from 'preact-router';
 import { api, ApiError } from '../api/client';
 import type { AdminProjectListItem, AdminProjectPublicationFilter } from '../types';
 import { Button, Input, Select, ConfirmModal } from '../components/ui';
@@ -213,6 +214,13 @@ export function AdminProjectsPage() {
                     </div>
                   </div>
                   <div class="admin-list-card-actions admin-project-actions">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => route(`/admin/projects/${project.id}`)}
+                    >
+                      {t('admin.projects.openCard')}
+                    </Button>
                     <Button variant="secondary" size="sm" onClick={() => handleCopyId(project.id)}>
                       {t('admin.projects.copyId')}
                     </Button>

@@ -63,6 +63,7 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 ### Product
 
 - [[03-explanation/news-and-announcements]]
+- [[03-explanation/admin-project-capabilities]] — what an admin can do with projects, and why the author editor stays owner-scoped
 
 ### Client
 

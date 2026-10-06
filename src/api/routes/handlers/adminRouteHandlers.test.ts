@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   listProjectsAdmin: vi.fn(),
   unpublishProjectAdmin: vi.fn(),
   deleteProjectAdmin: vi.fn(),
+  getAdminProjectCard: vi.fn(),
+  updateAdminProjectCard: vi.fn(),
   listUsersAdmin: vi.fn(),
   updateUserRoleAdmin: vi.fn(),
   countAdminUsersWithRole: vi.fn(),
@@ -67,6 +69,8 @@ vi.mock('../../../services/supabaseDatabase.js', () => ({
   listProjectsAdmin: mocks.listProjectsAdmin,
   unpublishProjectAdmin: mocks.unpublishProjectAdmin,
   deleteProjectAdmin: mocks.deleteProjectAdmin,
+  getAdminProjectCard: mocks.getAdminProjectCard,
+  updateAdminProjectCard: mocks.updateAdminProjectCard,
   listUsersAdmin: mocks.listUsersAdmin,
   updateUserRoleAdmin: mocks.updateUserRoleAdmin,
   countAdminUsersWithRole: mocks.countAdminUsersWithRole,
@@ -101,6 +105,7 @@ vi.mock('../../../services/storage.js', () => ({
   uploadFile: mocks.uploadFile,
   deleteFile: mocks.deleteFile,
   generateUniqueFilename: mocks.generateUniqueFilename,
+  extractPathFromUrl: vi.fn(),
 }));
 
 vi.mock('../../../services/redisCache.js', () => ({
@@ -138,6 +143,8 @@ import {
   handleListAdminProjects,
   handleUnpublishProjectAdmin,
   handleDeleteProjectAdmin,
+  handlePatchAdminProjectCard,
+  handleUploadAdminProjectCover,
   handleListAdminUsers,
   handleUpdateUserRoleAdmin,
   handleListAdminTranslationRequests,
@@ -913,6 +920,92 @@ describe('adminRouteHandlers', () => {
         res as never
       );
       assert.equal(res.statusCode, 500);
+    });
+
+    it('saves a description and a catalog translator', async () => {
+      mocks.getPublicEntityById.mockResolvedValue({
+        id: '9823610f-a4d5-4407-9691-4b27508ef679',
+        kind: 'translator',
+        name: 'Kukutsapol',
+        ownerUserId: null,
+        entityStatus: 'active',
+      });
+      mocks.updateAdminProjectCard.mockResolvedValue({
+        id: 'proj-1',
+        userId: 'owner-1',
+        publicationId: 'pub-1',
+        publicationSlug: 'book',
+      });
+      const res = mockRes();
+      await handlePatchAdminProjectCard(
+        mockReq({
+          params: { id: 'proj-1' },
+          body: {
+            description: 'Moderated description',
+            translatorEntityId: '9823610f-a4d5-4407-9691-4b27508ef679',
+          },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(mocks.updateAdminProjectCard.mock.calls[0][1], {
+        description: 'Moderated description',
+        translatorEntityId: '9823610f-a4d5-4407-9691-4b27508ef679',
+        translatorDisplay: 'Kukutsapol',
+      });
+      assert.equal(mocks.invalidateUserProjectCaches.mock.calls.length, 1);
+    });
+
+    it('rejects a field outside the card allowlist', async () => {
+      const res = mockRes();
+      await handlePatchAdminProjectCard(
+        mockReq({
+          params: { id: 'proj-1' },
+          body: { description: 'ok', metadata: { title: 'nope' } },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 400);
+      assert.equal(mocks.updateAdminProjectCard.mock.calls.length, 0);
+    });
+
+    it('uploads a cover without touching chapter data', async () => {
+      mocks.getAdminProjectCard.mockResolvedValue({
+        id: 'proj-1',
+        userId: 'owner-1',
+        coverImageUrl: null,
+        publicationId: null,
+        publicationSlug: null,
+      });
+      mocks.generateUniqueFilename.mockReturnValue('covers/proj-1.jpg');
+      mocks.uploadFile.mockResolvedValue({ publicUrl: 'https://cdn.example/cover.jpg' });
+      mocks.updateAdminProjectCard.mockResolvedValue({
+        id: 'proj-1',
+        userId: 'owner-1',
+        coverImageUrl: 'https://cdn.example/cover.jpg',
+        publicationId: null,
+        publicationSlug: null,
+      });
+      const res = mockRes();
+      await handleUploadAdminProjectCover(
+        mockReq({
+          params: { id: 'proj-1' },
+          file: {
+            originalname: 'cover.jpg',
+            mimetype: 'image/jpeg',
+            buffer: Buffer.from('img'),
+          },
+        }) as never,
+        res as never
+      );
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(mocks.updateAdminProjectCard.mock.calls[0][1], {
+        coverImageUrl: 'https://cdn.example/cover.jpg',
+      });
+      assert.equal(
+        Object.keys(mocks.updateAdminProjectCard.mock.calls[0][1]).includes('chapters'),
+        false
+      );
     });
 
     it('handleUpdateAdminTranslationRequest returns 400 on validation failure', async () => {

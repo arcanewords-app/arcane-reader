@@ -22,6 +22,10 @@ import {
   handleListAdminPublications,
   handleUnpublishPublicationAdmin,
   handleListAdminProjects,
+  handleGetAdminProjectCard,
+  handlePatchAdminProjectCard,
+  handleUploadAdminProjectCover,
+  handleDeleteAdminProjectCover,
   handleUnpublishProjectAdmin,
   handleDeleteProjectAdmin,
   handleListAdminUsers,
@@ -113,6 +117,26 @@ export function registerAdminRoutes(app: Application, deps: RouteDeps): void {
     handleUnpublishPublicationAdmin
   );
   app.get('/api/admin/projects', requireAuth, requireRole('admin'), handleListAdminProjects);
+  app.get('/api/admin/projects/:id', requireAuth, requireRole('admin'), handleGetAdminProjectCard);
+  app.patch(
+    '/api/admin/projects/:id/card',
+    requireAuth,
+    requireRole('admin'),
+    handlePatchAdminProjectCard
+  );
+  app.post(
+    '/api/admin/projects/:id/cover',
+    requireAuth,
+    requireRole('admin'),
+    asUploadMiddleware(deps.uploadImage.single('image')),
+    handleUploadAdminProjectCover
+  );
+  app.delete(
+    '/api/admin/projects/:id/cover',
+    requireAuth,
+    requireRole('admin'),
+    handleDeleteAdminProjectCover
+  );
   app.post(
     '/api/admin/projects/:id/unpublish',
     requireAuth,

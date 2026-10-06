@@ -756,6 +756,27 @@ export interface AdminPublicationListItem extends PublicationListItem {
   userId: string;
 }
 
+export interface AdminProjectCard {
+  id: string;
+  name: string;
+  userId: string;
+  ownerEmail: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  originalTitle: string | null;
+  catalogTitle: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  sourceUrl: string | null;
+  authorEntityId: string | null;
+  translatorEntityId: string | null;
+  tagEntityIds: string[];
+  translationStatus: TranslationStatus | null;
+  publicationId: string | null;
+  publicationStatus: PublicationStatus | null;
+  publicationSlug: string | null;
+}
+
 export interface AdminProjectListItem {
   id: string;
   name: string;

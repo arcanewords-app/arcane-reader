@@ -46,7 +46,8 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin/entities/:kind` | admin+ | AdminEntitiesPage | Global entities by kind: `tag`, `author`, `translator` (AdminGate) |
 | `/admin/news` | admin+ | AdminNewsPage | Admin news feed and announcements (AdminGate) |
 | `/admin/publications` | admin+ | AdminPublicationsPage | Catalog publication moderation (AdminGate) |
-| `/admin/projects` | admin+ | AdminProjectsPage | All user projects: list, unpublish, delete (AdminGate) |
+| `/admin/projects/:projectId` | admin+ | AdminProjectCardPage | Public card moderation for any project: title, description, cover, author, translator, tags, translation status, source link. No chapters or translation (AdminGate) |
+| `/admin/projects` | admin+ | AdminProjectsPage | All user projects: list, open card, unpublish, delete (AdminGate) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
 | `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate). Query: `search` — pre-fill project-wide find modal (omit when empty) |
@@ -284,6 +285,10 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/admin/publications` | List all publications (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |
 | POST | `/api/admin/publications/:id/unpublish` | Force unpublish publication |
 | GET | `/api/admin/projects` | List all projects (query: `search`, `publicationStatus`, `targetLanguage`, `limit`, `offset`) |
+| GET | `/api/admin/projects/:id` | Public card only (no chapter text): metadata plus publication status |
+| PATCH | `/api/admin/projects/:id/card` | Update the public card. Strict field list; syncs `publications` when a row exists. Log `admin.project.card` |
+| POST | `/api/admin/projects/:id/cover` | Upload cover (`image` file). Same file checks as the author cover route, without an owner check |
+| DELETE | `/api/admin/projects/:id/cover` | Remove the project cover |
 | POST | `/api/admin/projects/:id/unpublish` | Force unpublish project's publication |
 | DELETE | `/api/admin/projects/:id` | Force delete project (cascade chapters, glossary, publication) |
 | GET | `/api/admin/translation-requests` | List translation requests (query: `status`, `search`, `targetLanguage`, `limit`, `offset`) |

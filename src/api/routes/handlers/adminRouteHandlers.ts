@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import fs from 'fs';
 import path from 'path';
 import {
   publicEntityCreateSchema,
@@ -16,6 +17,8 @@ import {
   adminUserRoleUpdateSchema,
   adminTranslationRequestsListQuerySchema,
   adminTranslationRequestUpdateSchema,
+  adminProjectCardPatchSchema,
+  type AdminProjectCardPatchBody,
 } from '../../schemas/index.js';
 import {
   createPublicEntity,
@@ -39,6 +42,10 @@ import {
   listProjectsAdmin,
   unpublishProjectAdmin,
   deleteProjectAdmin,
+  getAdminProjectCard,
+  updateAdminProjectCard,
+  type AdminProjectCard,
+  type AdminProjectCardPatch,
   listUsersAdmin,
   updateUserRoleAdmin,
   countAdminUsersWithRole,
@@ -50,7 +57,16 @@ import { invalidateProfileCache } from '../../../middleware/auth.js';
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
 import { requireToken } from '../../../utils/requestHelpers.js';
 import { normalizeQueryRecord, requireRouteParam } from '../../validateRoute.js';
-import { uploadFile, deleteFile, generateUniqueFilename } from '../../../services/storage.js';
+import {
+  uploadFile,
+  deleteFile,
+  generateUniqueFilename,
+  extractPathFromUrl,
+} from '../../../services/storage.js';
+import {
+  canAssignTranslatorEntity,
+  INVALID_TRANSLATOR_PSEUDONYM_CODE,
+} from '../../../shared/translatorPseudonyms.js';
 import { CACHE_PREFIX } from '../../../shared/cacheContract.js';
 import { buildRedisKey, redisDelMany } from '../../../services/redisCache.js';
 import { loadConfig } from '../../../config.js';
@@ -250,9 +266,7 @@ export async function handleGetPublicEntityUsage(req: Request, res: Response): P
 
 export async function handleListAdminNews(req: Request, res: Response): Promise<void> {
   try {
-    const parsed = adminNewsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parsed = adminNewsListQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parsed.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -599,9 +613,7 @@ export async function handleDeleteAnnouncementAlert(req: Request, res: Response)
 
 export async function handleListAdminPublications(req: Request, res: Response): Promise<void> {
   try {
-    const parsed = adminPublicationsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parsed = adminPublicationsListQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parsed.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -649,9 +661,7 @@ export async function handleUnpublishPublicationAdmin(req: Request, res: Respons
 
 export async function handleListAdminProjects(req: Request, res: Response): Promise<void> {
   try {
-    const parsed = adminProjectsListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parsed = adminProjectsListQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parsed.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -737,9 +747,7 @@ export async function handleDeleteProjectAdmin(req: Request, res: Response): Pro
 
 export async function handleListAdminUsers(req: Request, res: Response): Promise<void> {
   try {
-    const parsed = adminUsersListQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const parsed = adminUsersListQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!parsed.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -925,5 +933,237 @@ export async function handleDeleteAdminTranslationRequest(
     }
     req.log?.error({ err: error }, 'Failed to delete admin translation request');
     res.status(500).json({ error: 'Failed to delete translation request' });
+  }
+}
+
+const INVALID_CATALOG_ENTITY_CODE = 'INVALID_CATALOG_ENTITY';
+
+function unlinkUploadedTemp(file: { path?: string } | undefined): void {
+  if (file?.path) {
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      // Memory storage has no temp file.
+    }
+  }
+}
+
+async function invalidateAdminCardCaches(card: AdminProjectCard): Promise<void> {
+  await invalidateUserProjectCaches(card.userId, card.id);
+  if (!card.publicationId) return;
+  await invalidatePublicationCaches(card.publicationId, card.publicationId);
+  if (card.publicationSlug) {
+    await invalidatePublicationCaches(card.publicationSlug);
+  }
+  await invalidatePublicationListCaches();
+}
+
+function logAdminCard(req: Request, projectId: string, fields: string[]): void {
+  req.log?.info(
+    {
+      event: 'admin.project.card',
+      adminId: req.user?.id,
+      projectId,
+      fields,
+    },
+    'Admin updated project card'
+  );
+}
+
+type ResolvedEntity = { id: string | null; name: string | null };
+
+async function resolveCardEntity(
+  id: string | null | undefined,
+  kind: 'author' | 'translator' | 'tag',
+  adminUserId: string
+): Promise<'skip' | 'invalid' | ResolvedEntity> {
+  if (id === undefined) return 'skip';
+  if (id === null) return { id: null, name: null };
+  const entity = await getPublicEntityById(id);
+  if (!entity || entity.kind !== kind || (entity.entityStatus ?? 'active') !== 'active') {
+    return 'invalid';
+  }
+  if (kind === 'translator' && !canAssignTranslatorEntity(entity, adminUserId, 'admin')) {
+    return 'invalid';
+  }
+  return { id: entity.id, name: entity.name };
+}
+
+export async function handleGetAdminProjectCard(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = requireRouteParam(req.params.id, 'id');
+    const card = await getAdminProjectCard(projectId);
+    if (!card) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    res.json(card);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to load admin project card');
+    res.status(500).json({ error: 'Failed to load project card' });
+  }
+}
+
+export async function handlePatchAdminProjectCard(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const projectId = requireRouteParam(req.params.id, 'id');
+    const parsed = adminProjectCardPatchSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid project card', details: parsed.error.flatten() });
+      return;
+    }
+
+    const body: AdminProjectCardPatchBody = parsed.data;
+    const patch: AdminProjectCardPatch = {};
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.originalTitle !== undefined) patch.originalTitle = body.originalTitle;
+    if (body.catalogTitle !== undefined) patch.catalogTitle = body.catalogTitle;
+    if (body.description !== undefined) patch.description = body.description;
+    if (body.sourceUrl !== undefined) patch.sourceUrl = body.sourceUrl;
+    if (body.tagEntityIds !== undefined) patch.tagEntityIds = body.tagEntityIds;
+    if (body.translationStatus !== undefined) patch.translationStatus = body.translationStatus;
+
+    const author = await resolveCardEntity(body.authorEntityId, 'author', req.user.id);
+    if (author === 'invalid') {
+      res.status(400).json({ error: 'Invalid catalog entity', code: INVALID_CATALOG_ENTITY_CODE });
+      return;
+    }
+    if (author !== 'skip') {
+      patch.authorEntityId = author.id;
+      patch.authorDisplay = author.name;
+    }
+
+    const translator = await resolveCardEntity(body.translatorEntityId, 'translator', req.user.id);
+    if (translator === 'invalid') {
+      res.status(400).json({
+        error: 'Invalid translator pseudonym',
+        code: INVALID_TRANSLATOR_PSEUDONYM_CODE,
+      });
+      return;
+    }
+    if (translator !== 'skip') {
+      patch.translatorEntityId = translator.id;
+      patch.translatorDisplay = translator.name;
+    }
+
+    if (body.tagEntityIds) {
+      for (const tagId of body.tagEntityIds) {
+        const tag = await resolveCardEntity(tagId, 'tag', req.user.id);
+        if (tag === 'invalid' || tag === 'skip') {
+          res
+            .status(400)
+            .json({ error: 'Invalid catalog entity', code: INVALID_CATALOG_ENTITY_CODE });
+          return;
+        }
+      }
+    }
+
+    const updated = await updateAdminProjectCard(projectId, patch);
+    if (!updated) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    logAdminCard(req, projectId, Object.keys(body));
+    await invalidateAdminCardCaches(updated);
+    res.json(updated);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to update admin project card');
+    res.status(500).json({ error: 'Failed to update project card' });
+  }
+}
+
+export async function handleUploadAdminProjectCover(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: 'No image file provided' });
+      return;
+    }
+
+    const projectId = requireRouteParam(req.params.id, 'id');
+    const card = await getAdminProjectCard(projectId);
+    if (!card) {
+      unlinkUploadedTemp(req.file);
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (card.coverImageUrl) {
+      const oldStoragePath = extractPathFromUrl(card.coverImageUrl, 'images');
+      if (oldStoragePath) {
+        await deleteFile('images', oldStoragePath).catch((err) => {
+          req.log?.error({ err }, 'Failed to delete old cover');
+        });
+      }
+    }
+
+    const ext = path.extname(req.file.originalname).slice(1) || 'jpg';
+    const storagePath = generateUniqueFilename('cover', ext, projectId);
+    const uploadResult = await uploadFile('images', storagePath, req.file.buffer, {
+      contentType: req.file.mimetype,
+    });
+
+    const updated = await updateAdminProjectCard(projectId, {
+      coverImageUrl: uploadResult.publicUrl,
+    });
+    if (!updated) {
+      await deleteFile('images', storagePath).catch((err) => {
+        req.log?.error({ err, storagePath }, 'Failed to roll back uploaded cover');
+      });
+      res.status(404).json({ error: 'Failed to update project' });
+      return;
+    }
+
+    logAdminCard(req, projectId, ['coverImageUrl']);
+    await invalidateAdminCardCaches(updated);
+    res.json(updated);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to upload admin project cover');
+    res.status(500).json({ error: 'Failed to upload cover image' });
+  }
+}
+
+export async function handleDeleteAdminProjectCover(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = requireRouteParam(req.params.id, 'id');
+    const card = await getAdminProjectCard(projectId);
+    if (!card) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (card.coverImageUrl) {
+      const oldStoragePath = extractPathFromUrl(card.coverImageUrl, 'images');
+      if (oldStoragePath) {
+        await deleteFile('images', oldStoragePath).catch((err) => {
+          req.log?.error({ err }, 'Failed to delete cover file');
+        });
+      }
+    }
+
+    const updated = await updateAdminProjectCard(projectId, { coverImageUrl: null });
+    if (!updated) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    logAdminCard(req, projectId, ['coverImageUrl']);
+    await invalidateAdminCardCaches(updated);
+    res.json(updated);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    req.log?.error({ err: error }, 'Failed to delete admin project cover');
+    res.status(500).json({ error: 'Failed to delete cover image' });
   }
 }

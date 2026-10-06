@@ -176,6 +176,19 @@ describe('adminApi', () => {
     const projectsUrl = ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0];
     assert.ok(projectsUrl.includes('publicationStatus=published'));
 
+    stubFetchJson({ id: 'proj-1' });
+    await adminApi.getAdminProjectCard('proj-1');
+    assert.equal(
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string])[0],
+      '/api/admin/projects/proj-1'
+    );
+
+    stubFetchJson({ id: 'proj-1' });
+    await adminApi.updateAdminProjectCard('proj-1', { description: 'Moderated' });
+    const cardCall = (fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1) as [string, RequestInit];
+    assert.equal(cardCall[0], '/api/admin/projects/proj-1/card');
+    assert.equal(cardCall[1].method, 'PATCH');
+
     stubFetchJson({ ok: true });
     await adminApi.adminDeleteProject('proj-1');
     assert.equal(

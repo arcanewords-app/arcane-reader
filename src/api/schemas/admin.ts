@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRANSLATION_STATUSES } from '../../shared/translation-status.js';
 import { uuidSchema } from './common.js';
 
 export const publicEntityKinds = ['tag', 'author', 'translator'] as const;
@@ -111,6 +112,35 @@ export const adminProjectsListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
+
+const emptyToNull = (value: string | null) => {
+  const trimmed = value?.trim() ?? '';
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+export const adminProjectCardPatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(500).optional(),
+    originalTitle: z.string().trim().max(500).nullable().optional().transform(emptyToNullOptional),
+    catalogTitle: z.string().trim().max(500).nullable().optional().transform(emptyToNullOptional),
+    description: z.string().trim().max(8000).nullable().optional().transform(emptyToNullOptional),
+    sourceUrl: z
+      .union([z.string().trim().url().max(2048), z.literal(''), z.null()])
+      .optional()
+      .transform((value) => (value === undefined ? undefined : emptyToNull(value))),
+    authorEntityId: z.string().uuid().nullable().optional(),
+    translatorEntityId: z.string().uuid().nullable().optional(),
+    tagEntityIds: z.array(z.string().uuid()).max(30).optional(),
+    translationStatus: z.enum(TRANSLATION_STATUSES).nullable().optional(),
+  })
+  .strict();
+
+function emptyToNullOptional(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  return emptyToNull(value);
+}
+
+export type AdminProjectCardPatchBody = z.infer<typeof adminProjectCardPatchSchema>;
 
 export type AdminPublicationsListQuery = z.infer<typeof adminPublicationsListQuerySchema>;
 export type AdminUsersListQuery = z.infer<typeof adminUsersListQuerySchema>;

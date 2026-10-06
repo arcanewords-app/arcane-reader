@@ -31,6 +31,10 @@ vi.mock('./handlers/adminRouteHandlers.js', () => ({
   handleListAdminPublications: vi.fn(),
   handleUnpublishPublicationAdmin: vi.fn(),
   handleListAdminProjects: vi.fn(),
+  handleGetAdminProjectCard: vi.fn(),
+  handlePatchAdminProjectCard: vi.fn(),
+  handleUploadAdminProjectCover: vi.fn(),
+  handleDeleteAdminProjectCover: vi.fn(),
   handleUnpublishProjectAdmin: vi.fn(),
   handleDeleteProjectAdmin: vi.fn(),
   handleListAdminUsers: vi.fn(),
@@ -70,6 +74,10 @@ describe('registerAdminRoutes', () => {
     assert.ok(methods.includes('GET /api/admin/news'));
     assert.ok(methods.includes('GET /api/admin/announcements'));
     assert.ok(methods.includes('PATCH /api/admin/users/:id/role'));
+    assert.ok(methods.includes('GET /api/admin/projects/:id'));
+    assert.ok(methods.includes('PATCH /api/admin/projects/:id/card'));
+    assert.ok(methods.includes('POST /api/admin/projects/:id/cover'));
+    assert.ok(methods.includes('DELETE /api/admin/projects/:id/cover'));
     assert.ok(methods.includes('DELETE /api/admin/translation-requests/:id'));
     assert.ok(methods.length >= 20);
   });

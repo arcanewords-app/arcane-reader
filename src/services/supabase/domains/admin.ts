@@ -2,7 +2,7 @@
  * Extracted from supabaseDatabase.ts
  */
 
-import type { TranslationStatus } from '../../../shared/translation-status.js';
+import { isTranslationStatus, type TranslationStatus } from '../../../shared/translation-status.js';
 import {
   transformPublicationFromDB,
   type PublicationRow,
@@ -320,6 +320,251 @@ export async function deleteProjectAdmin(projectId: string): Promise<AdminProjec
     publicationId: (pub?.id as string) ?? null,
     publicationSlug: (pub?.slug as string) ?? null,
   };
+}
+
+export interface AdminProjectCard {
+  id: string;
+  name: string;
+  userId: string;
+  ownerEmail: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  originalTitle: string | null;
+  catalogTitle: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  sourceUrl: string | null;
+  authorEntityId: string | null;
+  translatorEntityId: string | null;
+  tagEntityIds: string[];
+  translationStatus: TranslationStatus | null;
+  publicationId: string | null;
+  publicationStatus: PublicationStatus | null;
+  publicationSlug: string | null;
+}
+
+export interface AdminProjectCardPatch {
+  name?: string;
+  originalTitle?: string | null;
+  catalogTitle?: string | null;
+  description?: string | null;
+  sourceUrl?: string | null;
+  coverImageUrl?: string | null;
+  authorEntityId?: string | null;
+  authorDisplay?: string | null;
+  translatorEntityId?: string | null;
+  translatorDisplay?: string | null;
+  tagEntityIds?: string[];
+  translationStatus?: TranslationStatus | null;
+}
+
+type ProjectMetadataJson = Record<string, unknown>;
+
+function readMetaString(metadata: ProjectMetadataJson, key: string): string | null {
+  const value = metadata[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readMetaStringList(metadata: ProjectMetadataJson, key: string): string[] {
+  const value = metadata[key];
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+function firstDefined<T>(...values: Array<T | null | undefined>): T | null {
+  for (const value of values) {
+    if (value != null) return value;
+  }
+  return null;
+}
+
+function assignMetaString(
+  metadata: ProjectMetadataJson,
+  key: string,
+  value: string | null | undefined
+): void {
+  if (value === undefined) return;
+  if (value == null || value.trim().length === 0) {
+    delete metadata[key];
+    return;
+  }
+  metadata[key] = value;
+}
+
+export async function getAdminProjectCard(projectId: string): Promise<AdminProjectCard | null> {
+  const { createServiceRoleClient } = await import('../../supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: project, error } = await client
+    .from('projects')
+    .select('id, name, user_id, source_language, target_language, metadata')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load admin project card: ${error.message}`);
+  }
+  if (!project) return null;
+
+  const { data: publication, error: publicationError } = await client
+    .from('publications')
+    .select(
+      'id, status, title, slug, description, cover_image_url, source_url, author_entity_id, translator_entity_id, tag_entity_ids, translation_status'
+    )
+    .eq('project_id', projectId)
+    .maybeSingle();
+
+  if (publicationError) {
+    throw new Error(`Failed to load admin project publication: ${publicationError.message}`);
+  }
+
+  const metadata = (project.metadata as ProjectMetadataJson | null) ?? {};
+  const userId = project.user_id as string;
+  let ownerEmail = '';
+  const { data: authUser, error: authError } = await client.auth.admin.getUserById(userId);
+  if (!authError && authUser.user) {
+    ownerEmail = authUser.user.email ?? '';
+  }
+
+  const translationStatus = firstDefined(
+    publication?.translation_status as string | null | undefined,
+    typeof metadata.translationStatus === 'string' ? metadata.translationStatus : null
+  );
+
+  return {
+    id: project.id as string,
+    name: project.name as string,
+    userId,
+    ownerEmail,
+    sourceLanguage: (project.source_language as string) || 'en',
+    targetLanguage: (project.target_language as string) || 'ru',
+    originalTitle: readMetaString(metadata, 'title'),
+    catalogTitle: (publication?.title as string | null) ?? null,
+    description: firstDefined(
+      publication?.description as string | null | undefined,
+      readMetaString(metadata, 'description')
+    ),
+    coverImageUrl: firstDefined(
+      publication?.cover_image_url as string | null | undefined,
+      readMetaString(metadata, 'coverImageUrl')
+    ),
+    sourceUrl: firstDefined(
+      publication?.source_url as string | null | undefined,
+      readMetaString(metadata, 'sourceUrl')
+    ),
+    authorEntityId: firstDefined(
+      publication?.author_entity_id as string | null | undefined,
+      readMetaString(metadata, 'authorEntityId')
+    ),
+    translatorEntityId: firstDefined(
+      publication?.translator_entity_id as string | null | undefined,
+      readMetaString(metadata, 'translatorEntityId')
+    ),
+    tagEntityIds:
+      (publication?.tag_entity_ids as string[] | null | undefined) ??
+      readMetaStringList(metadata, 'tagEntityIds'),
+    translationStatus: isTranslationStatus(translationStatus) ? translationStatus : null,
+    publicationId: (publication?.id as string) ?? null,
+    publicationStatus: (publication?.status as PublicationStatus) ?? null,
+    publicationSlug: (publication?.slug as string) ?? null,
+  };
+}
+
+export async function updateAdminProjectCard(
+  projectId: string,
+  patch: AdminProjectCardPatch
+): Promise<AdminProjectCard | null> {
+  const { createServiceRoleClient } = await import('../../supabaseClient.js');
+  const client = createServiceRoleClient();
+
+  const { data: project, error } = await client
+    .from('projects')
+    .select('id, metadata')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load project for card update: ${error.message}`);
+  }
+  if (!project) return null;
+
+  const metadata: ProjectMetadataJson = {
+    ...((project.metadata as ProjectMetadataJson | null) ?? {}),
+  };
+  assignMetaString(metadata, 'title', patch.originalTitle);
+  assignMetaString(metadata, 'description', patch.description);
+  assignMetaString(metadata, 'sourceUrl', patch.sourceUrl);
+  assignMetaString(metadata, 'coverImageUrl', patch.coverImageUrl);
+  if (patch.authorEntityId !== undefined) {
+    if (patch.authorEntityId) metadata.authorEntityId = patch.authorEntityId;
+    else delete metadata.authorEntityId;
+  }
+  if (patch.translatorEntityId !== undefined) {
+    if (patch.translatorEntityId) metadata.translatorEntityId = patch.translatorEntityId;
+    else delete metadata.translatorEntityId;
+  }
+  if (patch.tagEntityIds !== undefined) {
+    metadata.tagEntityIds = patch.tagEntityIds;
+  }
+  if (patch.translationStatus !== undefined) {
+    if (patch.translationStatus) metadata.translationStatus = patch.translationStatus;
+    else delete metadata.translationStatus;
+  }
+
+  const projectUpdate: Record<string, unknown> = {
+    metadata,
+    updated_at: new Date().toISOString(),
+  };
+  if (patch.name !== undefined) projectUpdate.name = patch.name;
+
+  const { error: updateError } = await client
+    .from('projects')
+    .update(projectUpdate)
+    .eq('id', projectId);
+  if (updateError) {
+    throw new Error(`Failed to update admin project card: ${updateError.message}`);
+  }
+
+  const { data: publication, error: publicationError } = await client
+    .from('publications')
+    .select('id')
+    .eq('project_id', projectId)
+    .maybeSingle();
+  if (publicationError) {
+    throw new Error(`Failed to load publication for card update: ${publicationError.message}`);
+  }
+
+  if (publication) {
+    const publicationUpdate: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (patch.catalogTitle !== undefined) publicationUpdate.title = patch.catalogTitle;
+    if (patch.description !== undefined) publicationUpdate.description = patch.description;
+    if (patch.sourceUrl !== undefined) publicationUpdate.source_url = patch.sourceUrl;
+    if (patch.coverImageUrl !== undefined) publicationUpdate.cover_image_url = patch.coverImageUrl;
+    if (patch.authorEntityId !== undefined) {
+      publicationUpdate.author_entity_id = patch.authorEntityId;
+      publicationUpdate.author_display = patch.authorDisplay ?? null;
+    }
+    if (patch.translatorEntityId !== undefined) {
+      publicationUpdate.translator_entity_id = patch.translatorEntityId;
+      publicationUpdate.translator_display = patch.translatorDisplay ?? null;
+    }
+    if (patch.tagEntityIds !== undefined) publicationUpdate.tag_entity_ids = patch.tagEntityIds;
+    if (patch.translationStatus !== undefined) {
+      publicationUpdate.translation_status = patch.translationStatus;
+    }
+
+    const { error: publicationUpdateError } = await client
+      .from('publications')
+      .update(publicationUpdate)
+      .eq('id', publication.id as string);
+    if (publicationUpdateError) {
+      throw new Error(`Failed to sync publication card: ${publicationUpdateError.message}`);
+    }
+  }
+
+  return getAdminProjectCard(projectId);
 }
 
 export interface AdminUserListItem {

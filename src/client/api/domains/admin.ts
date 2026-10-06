@@ -9,6 +9,7 @@ import type {
   AnnouncementMinRole,
   AdminPublicationListItem,
   PublicationStatus,
+  AdminProjectCard,
   AdminProjectListItem,
   AdminProjectPublicationFilter,
   AdminUserListItem,
@@ -243,6 +244,42 @@ export const adminApi = {
     return fetchJson<{ ok: boolean }>(`/api/admin/publications/${id}/unpublish`, {
       method: 'POST',
     });
+  },
+
+  async getAdminProjectCard(id: string): Promise<AdminProjectCard> {
+    return fetchJson<AdminProjectCard>(`/api/admin/projects/${id}`);
+  },
+
+  async updateAdminProjectCard(
+    id: string,
+    data: {
+      name?: string;
+      originalTitle?: string | null;
+      catalogTitle?: string | null;
+      description?: string | null;
+      sourceUrl?: string | null;
+      authorEntityId?: string | null;
+      translatorEntityId?: string | null;
+      tagEntityIds?: string[];
+      translationStatus?: AdminProjectCard['translationStatus'];
+    }
+  ): Promise<AdminProjectCard> {
+    return fetchJson<AdminProjectCard>(`/api/admin/projects/${id}/card`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async uploadAdminProjectCover(id: string, image: File): Promise<AdminProjectCard> {
+    const formData = new FormData();
+    formData.append('image', image);
+    return fetchFormData<AdminProjectCard>(`/api/admin/projects/${id}/cover`, formData, {
+      method: 'POST',
+    });
+  },
+
+  async deleteAdminProjectCover(id: string): Promise<AdminProjectCard> {
+    return fetchJson<AdminProjectCard>(`/api/admin/projects/${id}/cover`, { method: 'DELETE' });
   },
 
   async getAdminProjects(params?: {
