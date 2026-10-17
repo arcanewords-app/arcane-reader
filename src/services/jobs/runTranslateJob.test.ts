@@ -69,7 +69,7 @@ const {
   resetStuckChaptersForRecovery: vi.fn(),
   updateChapter: vi.fn(),
   getChapter: vi.fn(),
-  chapterHasTranslatingLock: vi.fn(async () => false),
+  chapterHasTranslatingLock: vi.fn(async (..._args: unknown[]) => false),
 }));
 
 vi.mock('../redisCache.js', () => ({

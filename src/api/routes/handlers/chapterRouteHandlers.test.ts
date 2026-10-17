@@ -99,8 +99,8 @@ const {
     mockResetStuckChaptersForRecovery: vi.fn(),
     mockAddGlossaryEntry: vi.fn(),
     mockUpdateGlossaryEntry: vi.fn(),
-    mockChapterHasTranslatingLock: vi.fn(async () => false),
-    mockListProjectEditionLanguages: vi.fn(async () => [] as string[]),
+    mockChapterHasTranslatingLock: vi.fn(async (..._args: unknown[]) => false),
+    mockListProjectEditionLanguages: vi.fn(async (..._args: unknown[]) => [] as string[]),
     mockHandleServiceError: vi.fn(() => false),
     mockRespondRouteError: vi.fn(() => true),
     mockInvalidateUserProjectCaches: vi.fn(),
@@ -462,10 +462,10 @@ function resetDefaults() {
     sourceLanguage: 'en',
     targetLanguage: 'ru',
   });
-  mockChapterHasTranslatingLock.mockImplementation(
-    async (_id: unknown, _token: unknown, options?: { chapterStatus?: string }) =>
-      options?.chapterStatus === 'translating'
-  );
+  mockChapterHasTranslatingLock.mockImplementation(async (...args: unknown[]) => {
+    const options = args[2] as { chapterStatus?: string } | undefined;
+    return options?.chapterStatus === 'translating';
+  });
   mockListProjectEditionLanguages.mockResolvedValue([]);
   mockResolveEffectiveOriginalText.mockImplementation(
     (ch: { originalText?: string }) => ch.originalText ?? ''
