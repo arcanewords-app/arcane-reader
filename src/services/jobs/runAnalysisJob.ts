@@ -19,6 +19,9 @@ import { createAnalysisJobStoreFromEnv } from '../analysisJobStore.js';
 import { mergeParagraphsToText } from '../../storage/database.js';
 import { logger } from '../../logger.js';
 import { runWithDebugContextAsync, createTraceId } from '../../debug/context.js';
+import { resolveRequestedEdition } from '../editions/editionLanguage.js';
+import { loadGlossaryForEdition } from '../editions/loadGlossaryForEdition.js';
+import { runWithEditionTarget } from '../editions/editionContext.js';
 import type { Chapter } from '../../storage/database.js';
 import type { AnalysisJobPayload } from '../chapterQueue.js';
 import type { AnalysisJobChapter } from '../analysisJobStore.js';
@@ -84,6 +87,17 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
             : '';
       if (!effectiveOriginalText) continue;
       chaptersWithText.push({ ...chapter, originalText: effectiveOriginalText });
+    }
+
+    const editionLanguage = resolveRequestedEdition(targetLanguage, project.targetLanguage);
+    if (editionLanguage) {
+      project.glossary = await loadGlossaryForEdition(
+        projectId,
+        editionLanguage,
+        token,
+        project.targetLanguage,
+        { useServiceRole: true }
+      );
     }
 
     if (chaptersWithText.length === 0) {
@@ -203,49 +217,53 @@ export async function runAnalysisJob(payload: AnalysisJobPayload): Promise<void>
         return;
       }
 
-      if (result.glossaryUpdates.length > 0) {
-        for (const entry of result.glossaryUpdates) {
-          await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
+      const persistGlossary = async () => {
+        if (result.glossaryUpdates.length > 0) {
+          for (const entry of result.glossaryUpdates) {
+            await addGlossaryEntry(projectId, entry, token, { useServiceRole: true });
+          }
         }
-      }
-      if (result.glossaryUpdatesExisting.length > 0) {
-        for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
-          await updateGlossaryEntry(projectId, entryId, updates, token, {
-            useServiceRole: true,
-          });
-        }
-      }
-
-      for (const chResult of result.chapterResults) {
-        if (!chResult.success) continue;
-        const chapterNum =
-          chaptersWithText.find((c) => c.id === chResult.chapterId)?.number ??
-          chResult.chapterNumber;
-        if (chResult.glossaryAppearanceEntryIds.length > 0) {
-          for (const entryId of chResult.glossaryAppearanceEntryIds) {
-            const entry = await getGlossaryEntry(projectId, entryId, token, {
+        if (result.glossaryUpdatesExisting.length > 0) {
+          for (const { id: entryId, updates } of result.glossaryUpdatesExisting) {
+            await updateGlossaryEntry(projectId, entryId, updates, token, {
               useServiceRole: true,
             });
-            if (entry) {
-              const merged = [...new Set([...(entry.mentionedInChapters ?? []), chapterNum])].sort(
-                (a, b) => a - b
-              );
-              await updateGlossaryEntry(
-                projectId,
-                entryId,
-                { mentionedInChapters: merged },
-                token,
-                { useServiceRole: true }
-              );
-            } else {
-              logger.warn(
-                { projectId, entryId, chapterNum, chapterId: chResult.chapterId },
-                'Glossary entry not found for chapter appearance merge'
-              );
+          }
+        }
+
+        for (const chResult of result.chapterResults) {
+          if (!chResult.success) continue;
+          const chapterNum =
+            chaptersWithText.find((c) => c.id === chResult.chapterId)?.number ??
+            chResult.chapterNumber;
+          if (chResult.glossaryAppearanceEntryIds.length > 0) {
+            for (const entryId of chResult.glossaryAppearanceEntryIds) {
+              const entry = await getGlossaryEntry(projectId, entryId, token, {
+                useServiceRole: true,
+              });
+              if (entry) {
+                const merged = [
+                  ...new Set([...(entry.mentionedInChapters ?? []), chapterNum]),
+                ].sort((a, b) => a - b);
+                await updateGlossaryEntry(
+                  projectId,
+                  entryId,
+                  { mentionedInChapters: merged },
+                  token,
+                  { useServiceRole: true }
+                );
+              } else {
+                logger.warn(
+                  { projectId, entryId, chapterNum, chapterId: chResult.chapterId },
+                  'Glossary entry not found for chapter appearance merge'
+                );
+              }
             }
           }
         }
-      }
+      };
+      if (editionLanguage) await runWithEditionTarget(editionLanguage, persistGlossary);
+      else await persistGlossary();
 
       try {
         await releaseTokens(userId, estimatedTokens, {

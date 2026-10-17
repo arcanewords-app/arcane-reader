@@ -12,6 +12,7 @@ import {
 } from '../../supabaseTransforms.js';
 import { transformGlossaryEntryToDB } from '../transforms/glossary.js';
 import { currentEditionTarget } from '../../editions/editionContext.js';
+import { upsertGlossaryTranslation } from './editions.js';
 
 /**
  * Get a single glossary entry by id (for merging chapter appearance).
@@ -57,9 +58,7 @@ export async function addGlossaryEntry(
   token: string,
   options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | undefined> {
-  // TODO(glossary-edition): replace with a glossary stored per target language.
-  // Do not write analysis merges into glossary_entries for a non-primary target.
-  if (currentEditionTarget()) return undefined;
+  const editionLanguage = currentEditionTarget();
   const useServiceRole = options?.useServiceRole === true;
   if (!useServiceRole) {
     validateToken(token);
@@ -79,7 +78,10 @@ export async function addGlossaryEntry(
     return undefined;
   }
 
-  const entryData = transformGlossaryEntryToDB(entry, { projectId });
+  const entryData = transformGlossaryEntryToDB(
+    editionLanguage ? { ...entry, translated: '', declensions: undefined } : entry,
+    { projectId }
+  );
 
   const { data: newEntry, error } = await client
     .from('glossary_entries')
@@ -91,10 +93,20 @@ export async function addGlossaryEntry(
     throw new Error(`Failed to add glossary entry: ${error.message}`);
   }
 
+  const created = transformGlossaryEntryFromDB(newEntry);
+  if (editionLanguage) {
+    await upsertGlossaryTranslation(client, created.id, editionLanguage, {
+      translated: entry.translated ?? '',
+      declensions: entry.declensions ?? null,
+    });
+    created.translated = entry.translated ?? '';
+    created.declensions = entry.declensions;
+  }
+
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  return transformGlossaryEntryFromDB(newEntry);
+  return created;
 }
 
 const GLOSSARY_BATCH_INSERT_SIZE = 100;
@@ -113,6 +125,7 @@ export async function importGlossaryEntriesBatch(
   }
 
   const client = createClientWithToken(token);
+  const editionLanguage = currentEditionTarget();
 
   const { data: project, error: projectError } = await client
     .from('projects')
@@ -128,7 +141,12 @@ export async function importGlossaryEntriesBatch(
 
   for (let offset = 0; offset < entries.length; offset += GLOSSARY_BATCH_INSERT_SIZE) {
     const chunk = entries.slice(offset, offset + GLOSSARY_BATCH_INSERT_SIZE);
-    const rows = chunk.map((entry) => transformGlossaryEntryToDB(entry, { projectId }));
+    const rows = chunk.map((entry) =>
+      transformGlossaryEntryToDB(
+        editionLanguage ? { ...entry, translated: '', declensions: undefined } : entry,
+        { projectId }
+      )
+    );
 
     const { data: newEntries, error } = await client.from('glossary_entries').insert(rows).select();
 
@@ -137,7 +155,21 @@ export async function importGlossaryEntriesBatch(
     }
 
     if (newEntries?.length) {
-      inserted.push(...newEntries.map(transformGlossaryEntryFromDB));
+      const mapped = newEntries.map(transformGlossaryEntryFromDB);
+      if (editionLanguage) {
+        for (let index = 0; index < mapped.length; index++) {
+          const source = chunk[index];
+          const row = mapped[index];
+          if (!source || !row) continue;
+          await upsertGlossaryTranslation(client, row.id, editionLanguage, {
+            translated: source.translated ?? '',
+            declensions: source.declensions ?? null,
+          });
+          row.translated = source.translated ?? '';
+          row.declensions = source.declensions;
+        }
+      }
+      inserted.push(...mapped);
     }
   }
 
@@ -157,9 +189,7 @@ export async function updateGlossaryEntry(
   token: string,
   options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | undefined> {
-  // TODO(glossary-edition): replace with a glossary stored per target language.
-  // Do not write analysis merges into glossary_entries for a non-primary target.
-  if (currentEditionTarget()) return undefined;
+  const editionLanguage = currentEditionTarget();
   const useServiceRole = options?.useServiceRole === true;
   if (!useServiceRole) {
     validateToken(token);
@@ -189,9 +219,11 @@ export async function updateGlossaryEntry(
   const entryData: Record<string, unknown> = {};
   if (updates.type !== undefined) entryData.type = normalizeGlossaryTypeForDB(updates.type);
   if (updates.original !== undefined) entryData.original = updates.original;
-  if (updates.translated !== undefined) entryData.translated = updates.translated;
+  if (!editionLanguage && updates.translated !== undefined)
+    entryData.translated = updates.translated;
   if (updates.gender !== undefined) entryData.gender = normalizeGenderForDB(updates.gender);
-  if (updates.declensions !== undefined) entryData.declensions = updates.declensions || null;
+  if (!editionLanguage && updates.declensions !== undefined)
+    entryData.declensions = updates.declensions || null;
   if (updates.description !== undefined) entryData.description = updates.description || null;
   if (updates.notes !== undefined) entryData.notes = updates.notes || null;
   if (updates.firstAppearance !== undefined)
@@ -207,25 +239,50 @@ export async function updateGlossaryEntry(
   if (imageUrls.length > 0 || updates.imageUrls !== undefined) entryData.image_urls = imageUrls;
   if (updates.autoDetected !== undefined) entryData.auto_detected = updates.autoDetected;
 
-  const { data: updatedEntry, error } = await client
-    .from('glossary_entries')
-    .update(entryData)
-    .eq('id', entryId)
-    .eq('project_id', projectId)
-    .select()
-    .single();
+  let updatedRow = currentEntry;
+  if (Object.keys(entryData).length > 0) {
+    const { data: updatedEntry, error } = await client
+      .from('glossary_entries')
+      .update(entryData)
+      .eq('id', entryId)
+      .eq('project_id', projectId)
+      .select()
+      .single();
 
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return undefined; // Not found
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return undefined;
+      }
+      throw new Error(`Failed to update glossary entry: ${error.message}`);
     }
-    throw new Error(`Failed to update glossary entry: ${error.message}`);
+    if (updatedEntry) updatedRow = updatedEntry;
+  }
+
+  const updated = transformGlossaryEntryFromDB(updatedRow);
+  if (editionLanguage && (updates.translated !== undefined || updates.declensions !== undefined)) {
+    const { data: existingForm } = await client
+      .from('glossary_translations')
+      .select('translated, declensions')
+      .eq('glossary_entry_id', entryId)
+      .eq('target_language', editionLanguage)
+      .maybeSingle();
+    const translated = updates.translated ?? (existingForm?.translated as string | undefined) ?? '';
+    const declensions =
+      updates.declensions !== undefined
+        ? updates.declensions
+        : (existingForm?.declensions as GlossaryEntry['declensions'] | null | undefined);
+    await upsertGlossaryTranslation(client, entryId, editionLanguage, {
+      translated,
+      declensions: declensions ?? null,
+    });
+    updated.translated = translated;
+    updated.declensions = declensions ?? undefined;
   }
 
   // Update project updated_at
   await client.from('projects').update({}).eq('id', projectId);
 
-  return transformGlossaryEntryFromDB(updatedEntry);
+  return updated;
 }
 
 /**

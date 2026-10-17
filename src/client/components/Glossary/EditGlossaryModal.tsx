@@ -10,6 +10,7 @@ export interface EditGlossaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
+  editionLanguage?: string;
   entry: GlossaryEntry;
   entries: GlossaryEntry[];
   chapters?: ChapterRef[];
@@ -30,6 +31,7 @@ export function EditGlossaryModal({
   isOpen,
   onClose,
   projectId,
+  editionLanguage,
   entry,
   entries,
   chapters,
@@ -142,16 +144,21 @@ export function EditGlossaryModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.updateGlossaryEntry(projectId, entry.id, {
-        type,
-        original: original.trim(),
-        translated: translated.trim(),
-        description: description.trim() || undefined,
-        notes: notes.trim() || undefined,
-        gender: type === 'character' ? gender : undefined,
-        relatedEntryIds,
-        primaryLocationId: type === 'character' ? primaryLocationId || undefined : undefined,
-      });
+      await api.updateGlossaryEntry(
+        projectId,
+        entry.id,
+        {
+          type,
+          original: original.trim(),
+          translated: translated.trim(),
+          description: description.trim() || undefined,
+          notes: notes.trim() || undefined,
+          gender: type === 'character' ? gender : undefined,
+          relatedEntryIds,
+          primaryLocationId: type === 'character' ? primaryLocationId || undefined : undefined,
+        },
+        editionLanguage
+      );
       onClose();
       onUpdate();
     } finally {

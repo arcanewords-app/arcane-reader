@@ -3,10 +3,11 @@ import { createClientWithToken, createServiceRoleClient } from '../../supabaseCl
 import { validateToken } from '../../../utils/tokenValidation.js';
 import { isSupportedPair } from '../../../engine/language.js';
 import type { Language } from '../../../engine/types/common.js';
-import type { Chapter, Paragraph } from '../../../storage/database.js';
+import type { Chapter, GlossaryEntry, Paragraph } from '../../../storage/database.js';
 import {
   isMissingRelationError,
   type ChapterEditionState,
+  type GlossaryTranslationForm,
 } from '../../editions/editionLanguage.js';
 import { logger } from '../../../logger.js';
 
@@ -271,4 +272,79 @@ export async function editionChapterTranslatedText(
     .map((row) => translations.get(row.id as string)?.translatedText?.trim() ?? '')
     .filter((text) => text.length > 0)
     .join('\n\n');
+}
+
+export async function listGlossaryTranslationForms(
+  projectId: string,
+  targetLanguage: string,
+  token: string,
+  options?: { useServiceRole?: boolean }
+): Promise<Map<string, GlossaryTranslationForm>> {
+  const client = await clientFor(token, options?.useServiceRole);
+  const { data, error } = await client
+    .from('glossary_translations')
+    .select('glossary_entry_id, translated, declensions, glossary_entries!inner(project_id)')
+    .eq('target_language', targetLanguage)
+    .eq('glossary_entries.project_id', projectId);
+  if (error) {
+    if (isMissingRelationError(error)) return new Map();
+    throw new Error(`Failed to load glossary translations: ${error.message}`);
+  }
+  const forms = new Map<string, GlossaryTranslationForm>();
+  for (const row of data ?? []) {
+    const declensions = row.declensions as GlossaryEntry['declensions'] | null;
+    forms.set(row.glossary_entry_id as string, {
+      translated: (row.translated as string) ?? '',
+      declensions: declensions ?? undefined,
+    });
+  }
+  return forms;
+}
+
+export async function upsertGlossaryTranslation(
+  client: SupabaseClient,
+  entryId: string,
+  targetLanguage: string,
+  form: { translated: string; declensions?: GlossaryEntry['declensions'] | null }
+): Promise<void> {
+  const { error } = await client.from('glossary_translations').upsert(
+    {
+      glossary_entry_id: entryId,
+      target_language: targetLanguage,
+      translated: form.translated,
+      declensions: form.declensions ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'glossary_entry_id,target_language' }
+  );
+  if (error) {
+    throw new Error(`Failed to save glossary translation: ${error.message}`);
+  }
+}
+
+export async function upsertGlossaryTranslations(
+  token: string,
+  targetLanguage: string,
+  forms: Array<{
+    entryId: string;
+    translated: string;
+    declensions?: GlossaryEntry['declensions'] | null;
+  }>
+): Promise<void> {
+  if (forms.length === 0) return;
+  validateToken(token);
+  const client = createClientWithToken(token);
+  const { error } = await client.from('glossary_translations').upsert(
+    forms.map((form) => ({
+      glossary_entry_id: form.entryId,
+      target_language: targetLanguage,
+      translated: form.translated,
+      declensions: form.declensions ?? null,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: 'glossary_entry_id,target_language' }
+  );
+  if (error) {
+    throw new Error(`Failed to save glossary translations: ${error.message}`);
+  }
 }

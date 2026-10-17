@@ -116,6 +116,12 @@
   cursor: not-allowed;
 }
 
+.glossary-edition-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.9rem;
+}
+
 .glossary-toolbar {
   display: flex;
   flex-direction: column;

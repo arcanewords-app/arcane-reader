@@ -64,6 +64,16 @@ const {
   };
 });
 
+vi.mock('../../../services/supabase/domains/editions.js', () => ({
+  createProjectEdition: vi.fn(),
+  listChapterEditionStates: vi.fn(async () => new Map()),
+  listProjectEditionLanguages: vi.fn(async () => []),
+}));
+
+vi.mock('../../../services/editions/loadGlossaryForEdition.js', () => ({
+  loadGlossaryForEdition: vi.fn(async () => []),
+}));
+
 vi.mock('../../../services/supabaseClient.js', () => ({
   supabase: {},
   createClientWithToken: vi.fn(),
@@ -400,10 +410,21 @@ describe('projectRouteHandlers', () => {
 
   describe('handleGetProject', () => {
     it('returns project when found', async () => {
-      mockGetProject.mockResolvedValue({ id: 'proj-1', name: 'Test' });
+      mockGetProject.mockResolvedValue({
+        id: 'proj-1',
+        name: 'Test',
+        chapters: [],
+        glossary: [],
+      });
       const res = mockRes();
       await handleGetProject(mockReq() as never, res as never);
-      assert.deepEqual(res.body, { id: 'proj-1', name: 'Test' });
+      assert.deepEqual(res.body, {
+        id: 'proj-1',
+        name: 'Test',
+        chapters: [],
+        glossary: [],
+        editionLanguages: [],
+      });
     });
 
     it('returns 404 when project not found', async () => {

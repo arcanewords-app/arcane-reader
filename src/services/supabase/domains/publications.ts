@@ -741,10 +741,19 @@ export async function getPublicationWithChapters(
 /**
  * Get glossary for a published publication (public, no auth). Returns empty array if publication not found or not published.
  */
-export async function getGlossaryForPublication(publicationId: string): Promise<GlossaryEntry[]> {
+export async function getGlossaryForPublication(
+  publicationId: string,
+  targetLanguage?: string
+): Promise<GlossaryEntry[]> {
   const pub = await getPublicationById(publicationId);
   if (!pub) return [];
-  return loadGlossaryForProjectPublic(pub.projectId);
+  if (!targetLanguage || targetLanguage === pub.targetLanguage) {
+    return loadGlossaryForProjectPublic(pub.projectId);
+  }
+  const { loadGlossaryForEdition } = await import('../../editions/loadGlossaryForEdition.js');
+  return loadGlossaryForEdition(pub.projectId, targetLanguage, '', pub.targetLanguage, {
+    useServiceRole: true,
+  });
 }
 
 /**

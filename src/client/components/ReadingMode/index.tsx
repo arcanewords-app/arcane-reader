@@ -59,6 +59,8 @@ interface ReadingModeProps {
   publicationGlossaryCount?: number;
   /** Preloaded glossary entries (modal opens without loading when set). */
   publicationGlossaryPreloaded?: GlossaryEntry[] | null;
+  /** Selected catalog language. Omitted for the publication's primary language. */
+  publicationLanguage?: string;
   initialChapterId?: string;
   /** Preloaded chapter content (chapterId -> text) for initial chapter when opening via direct link. */
   initialChapterContent?: Record<string, string>;
@@ -92,6 +94,7 @@ export function ReadingMode({
   publicationChapters = [],
   publicationGlossaryCount = 0,
   publicationGlossaryPreloaded,
+  publicationLanguage,
   initialChapterId,
   initialChapterContent,
   onExit,
@@ -1146,6 +1149,7 @@ export function ReadingMode({
           publicationId={publicationId}
           chapters={publicationChapters}
           preloadedEntries={publicationGlossaryPreloaded ?? undefined}
+          language={publicationLanguage}
         />
       )}
 

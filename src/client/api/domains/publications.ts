@@ -82,13 +82,15 @@ export const publicationsApi = {
   },
 
   /** Get publication glossary (public, read-only). Cached 60s. Returns empty array if not published. */
-  async getPublicationGlossary(publicationId: string): Promise<GlossaryEntry[]> {
-    const cached = getCached(publicationCache.glossary, publicationId);
+  async getPublicationGlossary(publicationId: string, lang?: string): Promise<GlossaryEntry[]> {
+    const cacheKey = lang ? `${publicationId}:${lang}` : publicationId;
+    const cached = getCached(publicationCache.glossary, cacheKey);
     if (cached) return cached;
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const data = await fetchJsonDeduped<GlossaryEntry[]>(
-      `/api/publications/${publicationId}/glossary`
+      `/api/publications/${publicationId}/glossary${qs}`
     );
-    setCached(publicationCache.glossary, publicationId, data);
+    setCached(publicationCache.glossary, cacheKey, data);
     return data;
   },
 

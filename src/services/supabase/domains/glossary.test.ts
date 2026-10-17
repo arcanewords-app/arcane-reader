@@ -25,7 +25,17 @@ import {
 
 function chainable(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {};
-  for (const m of ['select', 'eq', 'insert', 'single', 'update', 'delete', 'in']) {
+  for (const m of [
+    'select',
+    'eq',
+    'insert',
+    'single',
+    'update',
+    'delete',
+    'in',
+    'upsert',
+    'maybeSingle',
+  ]) {
     chain[m] = vi.fn(() => chain);
   }
   chain.then = (resolve: (v: typeof result) => void) => resolve(result);
@@ -236,6 +246,28 @@ describe('addGlossaryEntry', () => {
     const entry = await addGlossaryEntry('proj-1', glossaryEntryInput, 'token');
     assert.equal(entry?.original, 'Carol');
     assert.equal(entry?.translated, 'Кэрол');
+  });
+
+  it('stores a second-language form and leaves the primary translation blank', async () => {
+    const tables: string[] = [];
+    mockFrom.mockImplementation((table: string) => {
+      tables.push(table);
+      if (table === 'projects') {
+        return chainable({ data: { id: 'proj-1' }, error: null });
+      }
+      if (table === 'glossary_entries') {
+        return chainable({ data: { ...glossaryRow, translated: '' }, error: null });
+      }
+      return chainable({ data: null, error: null });
+    });
+
+    const { runWithEditionTarget } = await import('../../editions/editionContext.js');
+    const entry = await runWithEditionTarget('be', () =>
+      addGlossaryEntry('proj-1', glossaryEntryInput, 'token')
+    );
+    assert.equal(entry?.translated, 'Кэрол');
+    assert.ok(tables.includes('glossary_translations'));
+    assert.equal(tables.filter((table) => table === 'glossary_entries').length > 0, true);
   });
 
   it('throws when insert fails', async () => {

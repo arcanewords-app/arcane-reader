@@ -210,8 +210,8 @@ export function publicationChapterCacheKey(
   );
 }
 
-export function publicationGlossaryCacheKey(id: string): string {
-  return buildRedisKey(CACHE_PREFIX.publicationGlossary, id);
+export function publicationGlossaryCacheKey(id: string, lang?: string): string {
+  return buildRedisKey(CACHE_PREFIX.publicationGlossary, lang ? `${id}:${lang}` : id);
 }
 
 export function publicEntitiesCacheKey(kind?: PublicEntityKind): string {
@@ -288,6 +288,7 @@ export async function invalidatePublicationCaches(
     publicationGlossaryCacheKey(identifier),
   ];
   await redisDelMany(keys);
+  await redisDelByPattern(`${publicationGlossaryCacheKey(identifier)}:*`);
   if (pubIdForChapters) {
     const pattern = cacheVersionedKey([CACHE_PREFIX.publicationChapter, pubIdForChapters, '*']);
     await redisDelByPattern(pattern);

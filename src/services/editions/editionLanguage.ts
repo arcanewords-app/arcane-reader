@@ -17,10 +17,15 @@ export function isMissingRelationError(error: { code?: string; message?: string 
   return /does not exist|schema cache/i.test(message);
 }
 
+/** Target-language form stored in glossary_translations. */
+export interface GlossaryTranslationForm {
+  translated: string;
+  declensions?: GlossaryEntry['declensions'];
+}
+
 /**
- * TODO(glossary-edition): replace with a glossary stored per target language.
- * Do not write analysis merges into glossary_entries for a non-primary target.
- * Stub: keep originals and mentions, clear target-language forms.
+ * Keep originals and mentions. Missing forms stay empty so the primary translation
+ * is not shown as the second language.
  */
 export function blankGlossaryTranslations(entries: GlossaryEntry[]): GlossaryEntry[] {
   return entries.map((entry) => ({
@@ -28,6 +33,23 @@ export function blankGlossaryTranslations(entries: GlossaryEntry[]): GlossaryEnt
     translated: '',
     declensions: undefined,
   }));
+}
+
+export function overlayGlossaryTranslations(
+  entries: GlossaryEntry[],
+  forms: ReadonlyMap<string, GlossaryTranslationForm>
+): GlossaryEntry[] {
+  return entries.map((entry) => {
+    const form = forms.get(entry.id);
+    if (!form) {
+      return { ...entry, translated: '', declensions: undefined };
+    }
+    return {
+      ...entry,
+      translated: form.translated,
+      declensions: form.declensions,
+    };
+  });
 }
 
 export interface ChapterEditionState {

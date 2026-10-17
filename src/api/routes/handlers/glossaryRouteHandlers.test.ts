@@ -66,6 +66,14 @@ vi.mock('../../../services/storage.js', () => ({
   generateUniqueFilename: mocks.generateUniqueFilename,
 }));
 
+vi.mock('../../../services/editions/loadGlossaryForEdition.js', () => ({
+  loadGlossaryForEdition: vi.fn(async () => []),
+}));
+
+vi.mock('../../../services/editions/editionContext.js', () => ({
+  runWithEditionTarget: async (_language: string, fn: () => Promise<unknown>) => fn(),
+}));
+
 vi.mock('../../../services/cacheInvalidation.js', () => ({
   invalidateProjectAndRelatedCaches: (...args: unknown[]) =>
     mocks.invalidateProjectAndRelatedCaches(...args),

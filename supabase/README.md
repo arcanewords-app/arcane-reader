@@ -76,6 +76,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20261006194200_publication_translation_status_experimental.sql` | Allow `experimental` in `publications_translation_status_check` (catalog badge «Тестовый»)                                                                                                                                             |
 | `20261017102600_imports_storage_bucket.sql`                      | Private Storage bucket `imports` (50 MB) for chapter files uploaded past the Vercel body limit                                                                                                                                         |
 | `20261017120000_project_editions.sql`                            | Second-language tables: `project_editions`, `chapter_editions`, `paragraph_translations`, `publication_editions`. Reading progress key includes `target_language`. Applied via Supabase MCP to project `arcane` as `project_editions`. |
+| `20261017140000_glossary_translations.sql`                       | `glossary_translations`: translated form and declensions per glossary entry and target language. Primary forms stay on `glossary_entries`. Applied via Supabase MCP to project `arcane` as `glossary_translations`.                    |
 
 ## Heavy RPC policy
 

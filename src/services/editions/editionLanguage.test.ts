@@ -2,9 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   blankGlossaryTranslations,
   overlayChapterListItem,
+  overlayGlossaryTranslations,
   resolveRequestedEdition,
 } from './editionLanguage.js';
 import { loadGlossaryForEdition } from './loadGlossaryForEdition.js';
+
+const { listForms } = vi.hoisted(() => ({
+  listForms: vi.fn(async () => new Map()),
+}));
 
 vi.mock('../supabase/loaders.js', () => ({
   loadGlossaryForProject: vi.fn(async () => [
@@ -18,6 +23,10 @@ vi.mock('../supabase/loaders.js', () => ({
     },
   ]),
   loadGlossaryForProjectPublic: vi.fn(async () => []),
+}));
+
+vi.mock('../supabase/domains/editions.js', () => ({
+  listGlossaryTranslationForms: listForms,
 }));
 
 describe('edition language helpers', () => {
@@ -60,6 +69,14 @@ describe('edition language helpers', () => {
     expect(edition[0]?.original).toBe('sword');
     expect(edition[0]?.translated).toBe('');
     expect(edition[0]?.declensions).toBeUndefined();
+
+    listForms.mockResolvedValueOnce(
+      new Map([['g1', { translated: 'меч', declensions: { nominative: 'меч' } }]])
+    );
+    const withForm = await loadGlossaryForEdition('p1', 'be', 'tok', 'ru');
+    expect(withForm[0]?.original).toBe('sword');
+    expect(withForm[0]?.translated).toBe('меч');
+    expect(overlayGlossaryTranslations(primary, new Map())[0]?.translated).toBe('');
     expect(blankGlossaryTranslations(primary)[0]?.translated).toBe('');
     expect(primary[0]?.translated).toBe('меч');
   });

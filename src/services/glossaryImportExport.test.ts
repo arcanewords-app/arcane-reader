@@ -125,6 +125,20 @@ describe('glossaryImportExport', () => {
     assert.ok(prepared.declensions);
   });
 
+  it('prepareGlossaryEntryForInsert does not decline Belarusian names', () => {
+    const prepared = prepareGlossaryEntryForInsert(
+      {
+        type: 'character',
+        original: 'John',
+        translated: 'Джон',
+        gender: 'male',
+      },
+      { targetLanguage: 'be' }
+    );
+    assert.equal(prepared.translated, 'Джон');
+    assert.equal(prepared.declensions, undefined);
+  });
+
   it('toPortableGlossaryEntry keeps optional fields when present', () => {
     const portable = toPortableGlossaryEntry({
       id: 'g1',

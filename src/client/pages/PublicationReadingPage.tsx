@@ -42,6 +42,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preloadedGlossary, setPreloadedGlossary] = useState<GlossaryEntry[] | null>(null);
+  const readingLang = parsePublicationLangFromUrl() || undefined;
   const [initialChapterContent, setInitialChapterContent] = useState<Record<string, string>>({});
   const [lastReadChapterNumber, setLastReadChapterNumber] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -107,7 +108,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     if (!publicationId || !data || (data.glossaryCount ?? 0) <= 0) return;
     let cancelled = false;
     api
-      .getPublicationGlossary(publicationId)
+      .getPublicationGlossary(publicationId, readingLang)
       .then((list) => {
         if (!cancelled) setPreloadedGlossary(list);
       })
@@ -117,7 +118,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     return () => {
       cancelled = true;
     };
-  }, [publicationId, data?.glossaryCount]);
+  }, [publicationId, data?.glossaryCount, readingLang]);
 
   useEffect(() => {
     if (!publicationId || !data || !chapterId) return;
@@ -341,6 +342,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       publicationChapters={publicationChapters}
       publicationGlossaryCount={data.glossaryCount}
       publicationGlossaryPreloaded={preloadedGlossary ?? undefined}
+      publicationLanguage={readingLang}
       initialChapterId={chapterId}
       initialChapterContent={
         Object.keys(initialChapterContent).length > 0 ? initialChapterContent : undefined

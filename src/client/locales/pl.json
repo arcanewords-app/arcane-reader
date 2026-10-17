@@ -1591,6 +1591,7 @@
     "addConfirm": "Dodaj {{language}}",
     "glossaryStubTitle": "Glosariusz tego języka",
     "glossaryStubBody": "Terminy dla {{language}} pojawią się w osobnym glosariuszu. Ten ekran nie zmienia głównej listy.",
+    "glossarySharedHint": "Lista nazw jest wspólna. Do tego języka należą tylko tłumaczenie i formy przypadków.",
     "emptyParagraph": "Nie ma jeszcze tłumaczenia na ten język",
     "analysisReady": "Analiza gotowa",
     "analysisLocked": "Analiza tego języka jest wyłączona, dopóki nie ma jego glosariusza.",

@@ -16,6 +16,7 @@ import {
   deleteGlossaryEntry,
   deleteGlossaryEntriesBulk,
   importGlossaryEntriesBatch,
+  upsertGlossaryTranslations,
 } from '../../../services/supabaseDatabase.js';
 import { type GlossaryEntry } from '../../../storage/database.js';
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
@@ -32,8 +33,12 @@ import {
   filterNewGlossaryEntries,
   GLOSSARY_IMPORT_MAX_ENTRIES,
   parseGlossaryImportFile,
+  partitionGlossaryImport,
   prepareGlossaryEntryForInsert,
 } from '../../../services/glossaryImportExport.js';
+import { resolveRequestedEdition } from '../../../services/editions/editionLanguage.js';
+import { loadGlossaryForEdition } from '../../../services/editions/loadGlossaryForEdition.js';
+import { runWithEditionTarget } from '../../../services/editions/editionContext.js';
 import {
   uploadFile,
   deleteFile,
@@ -45,6 +50,11 @@ import { invalidateProjectAndRelatedCaches } from '../../../services/cacheInvali
 import { decodeMultipartFilename } from '../../routeHelpers.js';
 import { logger } from '../../../logger.js';
 import type { RouteDeps } from '../deps.js';
+
+function requestedEdition(project: { targetLanguage: string }, req: Request): string | undefined {
+  const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+  return resolveRequestedEdition(queryLang, project.targetLanguage);
+}
 
 export async function handleGetGlossary(req: Request, res: Response): Promise<void> {
   try {
@@ -59,7 +69,11 @@ export async function handleGetGlossary(req: Request, res: Response): Promise<vo
       res.status(404).json({ error: 'Project not found' });
       return;
     }
-    res.json(project.glossary);
+    const editionLanguage = requestedEdition(project, req);
+    const glossary = editionLanguage
+      ? await loadGlossaryForEdition(project.id, editionLanguage, token, project.targetLanguage)
+      : project.glossary;
+    res.json(glossary);
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get glossary' });
@@ -74,7 +88,7 @@ export async function handleExportGlossary(req: Request, res: Response): Promise
     }
 
     const parsed = glossaryExportQuerySchema.safeParse(
-      normalizeQueryRecord(req.query as Record<string, unknown>)
+      normalizeQueryRecord(req.query)
     );
     if (!parsed.success) {
       res.status(400).json({
@@ -94,16 +108,20 @@ export async function handleExportGlossary(req: Request, res: Response): Promise
 
     const { format } = parsed.data;
     const filename = `glossary-${projectId}.${format}`;
+    const editionLanguage = requestedEdition(project, req);
+    const glossary = editionLanguage
+      ? await loadGlossaryForEdition(projectId, editionLanguage, token, project.targetLanguage)
+      : project.glossary;
 
     if (format === 'csv') {
-      const buffer = buildGlossaryCsvExport(project.glossary);
+      const buffer = buildGlossaryCsvExport(glossary);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(buffer);
       return;
     }
 
-    const json = buildGlossaryJsonExport(project.glossary);
+    const json = buildGlossaryJsonExport(glossary);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(json);
@@ -159,10 +177,37 @@ export async function handleImportGlossary(req: Request, res: Response): Promise
       return;
     }
 
-    const { toInsert, skipped } = filterNewGlossaryEntries(parsedEntries, project.glossary);
+    const editionLanguage = requestedEdition(project, req);
+    const targetLanguage = editionLanguage ?? project.targetLanguage;
+    const partitioned = editionLanguage
+      ? partitionGlossaryImport(parsedEntries, project.glossary)
+      : null;
+    const { toInsert, skipped } =
+      partitioned ?? filterNewGlossaryEntries(parsedEntries, project.glossary);
 
-    const prepared = toInsert.map((entry) => prepareGlossaryEntryForInsert(entry));
-    const inserted = await importGlossaryEntriesBatch(projectId, prepared, token);
+    const prepared = toInsert.map((entry) =>
+      prepareGlossaryEntryForInsert(entry, { targetLanguage })
+    );
+    const inserted = editionLanguage
+      ? await runWithEditionTarget(editionLanguage, () =>
+          importGlossaryEntriesBatch(projectId, prepared, token)
+        )
+      : await importGlossaryEntriesBatch(projectId, prepared, token);
+    const updatedForms = partitioned?.toUpdate ?? [];
+    if (editionLanguage && updatedForms.length > 0) {
+      await upsertGlossaryTranslations(
+        token,
+        editionLanguage,
+        updatedForms.map(({ entryId, entry }) => {
+          const preparedForm = prepareGlossaryEntryForInsert(entry, { targetLanguage });
+          return {
+            entryId,
+            translated: preparedForm.translated,
+            declensions: preparedForm.declensions ?? null,
+          };
+        })
+      );
+    }
 
     clearAgentCache(projectId);
     await invalidateProjectAndRelatedCaches(req.user.id, projectId, token);
@@ -171,7 +216,7 @@ export async function handleImportGlossary(req: Request, res: Response): Promise
       {
         event: 'glossary.imported',
         projectId,
-        added: inserted.length,
+        added: inserted.length + updatedForms.length,
         skipped,
         errorCount: parseErrors.length,
       },
@@ -179,7 +224,7 @@ export async function handleImportGlossary(req: Request, res: Response): Promise
     );
 
     res.json({
-      added: inserted.length,
+      added: inserted.length + updatedForms.length,
       skipped,
       errors: parseErrors,
     });
@@ -221,9 +266,16 @@ export async function handleCreateGlossaryEntry(req: Request, res: Response): Pr
       return;
     }
 
-    const prepared = prepareGlossaryEntryForInsert(parsed.data);
+    const editionLanguage = requestedEdition(project, req);
+    const prepared = prepareGlossaryEntryForInsert(parsed.data, {
+      targetLanguage: editionLanguage ?? project.targetLanguage,
+    });
 
-    const entry = await addGlossaryEntry(projectId, prepared, requireToken(req));
+    const entry = editionLanguage
+      ? await runWithEditionTarget(editionLanguage, () =>
+          addGlossaryEntry(projectId, prepared, requireToken(req))
+        )
+      : await addGlossaryEntry(projectId, prepared, requireToken(req));
 
     clearAgentCache(projectId);
 
@@ -276,8 +328,10 @@ export async function handleUpdateGlossaryEntry(req: Request, res: Response): Pr
     } = parsed.data;
 
     let declensions = declensionsIn;
+    const editionLanguage = requestedEdition(project, req);
+    const activeLanguage = editionLanguage ?? project.targetLanguage;
 
-    if (type === 'character' && translated && original && !declensions) {
+    if (activeLanguage !== 'be' && type === 'character' && translated && original && !declensions) {
       const result = getNameDeclensions(original, gender || 'unknown');
       declensions = result.declensions;
     }
@@ -296,7 +350,11 @@ export async function handleUpdateGlossaryEntry(req: Request, res: Response): Pr
     if (primaryLocationId !== undefined) updates.primaryLocationId = primaryLocationId || undefined;
 
     const entryId = requireRouteParam(req.params.entryId, 'entryId');
-    const entry = await updateGlossaryEntry(projectId, entryId, updates, token);
+    const entry = editionLanguage
+      ? await runWithEditionTarget(editionLanguage, () =>
+          updateGlossaryEntry(projectId, entryId, updates, token)
+        )
+      : await updateGlossaryEntry(projectId, entryId, updates, token);
 
     if (!entry) {
       res.status(404).json({ error: 'Entry not found' });

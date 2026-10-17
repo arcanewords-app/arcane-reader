@@ -4,13 +4,23 @@ import { fetchJson } from '../transport/fetchJson.js';
 import { fetchFormData } from '../transport/fetchFormData.js';
 import { downloadBlob } from '../transport/downloadBlob.js';
 
+function withLang(path: string, lang?: string): string {
+  if (!lang) return path;
+  const join = path.includes('?') ? '&' : '?';
+  return `${path}${join}lang=${encodeURIComponent(lang)}`;
+}
+
 export const glossaryApi = {
-  async getGlossary(projectId: string): Promise<GlossaryEntry[]> {
-    return fetchJson(`/api/projects/${projectId}/glossary`);
+  async getGlossary(projectId: string, lang?: string): Promise<GlossaryEntry[]> {
+    return fetchJson(withLang(`/api/projects/${projectId}/glossary`, lang));
   },
 
-  async addGlossary(projectId: string, entry: Omit<GlossaryEntry, 'id'>): Promise<GlossaryEntry> {
-    return fetchJson(`/api/projects/${projectId}/glossary`, {
+  async addGlossary(
+    projectId: string,
+    entry: Omit<GlossaryEntry, 'id'>,
+    lang?: string
+  ): Promise<GlossaryEntry> {
+    return fetchJson(withLang(`/api/projects/${projectId}/glossary`, lang), {
       method: 'POST',
       body: JSON.stringify(entry),
     });
@@ -19,9 +29,10 @@ export const glossaryApi = {
   async updateGlossaryEntry(
     projectId: string,
     entryId: string,
-    data: Partial<GlossaryEntry>
+    data: Partial<GlossaryEntry>,
+    lang?: string
   ): Promise<GlossaryEntry> {
-    return fetchJson(`/api/projects/${projectId}/glossary/${entryId}`, {
+    return fetchJson(withLang(`/api/projects/${projectId}/glossary/${entryId}`, lang), {
       method: 'PUT',
       body: JSON.stringify(data),
     });
@@ -95,20 +106,31 @@ export const glossaryApi = {
   },
 
   /** Download glossary as JSON or CSV */
-  async exportGlossary(projectId: string, format: 'json' | 'csv'): Promise<{ filename: string }> {
-    return downloadBlob(`/api/projects/${projectId}/glossary/export?format=${format}`, {
-      token: authService.getToken(),
-      fallbackFilename: `glossary-${projectId}.${format}`,
-      failureMessage: 'Export failed',
-    });
+  async exportGlossary(
+    projectId: string,
+    format: 'json' | 'csv',
+    lang?: string
+  ): Promise<{ filename: string }> {
+    return downloadBlob(
+      withLang(`/api/projects/${projectId}/glossary/export?format=${format}`, lang),
+      {
+        token: authService.getToken(),
+        fallbackFilename: `glossary-${projectId}.${format}`,
+        failureMessage: 'Export failed',
+      }
+    );
   },
 
   /** Import glossary from JSON or CSV file (append, skip duplicates) */
-  async importGlossary(projectId: string, file: File): Promise<GlossaryImportResult> {
+  async importGlossary(
+    projectId: string,
+    file: File,
+    lang?: string
+  ): Promise<GlossaryImportResult> {
     const formData = new FormData();
     formData.append('file', file);
     return fetchFormData<GlossaryImportResult>(
-      `/api/projects/${projectId}/glossary/import`,
+      withLang(`/api/projects/${projectId}/glossary/import`, lang),
       formData
     );
   },

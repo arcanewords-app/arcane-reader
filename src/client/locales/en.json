@@ -1848,6 +1848,7 @@
     "addConfirm": "Add {{language}}",
     "glossaryStubTitle": "Glossary for this language",
     "glossaryStubBody": "Terms for {{language}} will live in a separate glossary. This screen does not edit the primary glossary.",
+    "glossarySharedHint": "The list of names is shared. Only the translation and case forms belong to this language.",
     "emptyParagraph": "No translation into this language yet",
     "analysisReady": "Analysis is ready",
     "analysisLocked": "Analysis stays off for this language until its glossary exists.",

@@ -198,10 +198,6 @@ async function performTranslationInner(
   traceId: string
 ): Promise<void> {
   if (options?.editionLanguage && options.editionLanguage !== project.targetLanguage) {
-    // TODO(glossary-edition): analysis stays off until the second glossary can store merges.
-    if (stages === 'all') stages = ['translation', 'editing'];
-    else stages = stages.filter((stage) => stage !== 'analysis');
-    if (stages.length === 0) stages = ['translation'];
     const glossary = await loadGlossaryForEdition(
       projectId,
       options.editionLanguage,

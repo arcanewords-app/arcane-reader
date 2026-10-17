@@ -27,6 +27,8 @@ interface GlossaryModalProps {
   chapters?: ChapterRef[];
   /** Optional: when user confirms, navigate to this chapter (modal will close from parent) */
   onNavigateToChapter?: (chapterId: string, searchTerm?: string) => void;
+  /** Second target language. Originals stay shared; translated forms belong to this language. */
+  editionLanguage?: string;
 }
 
 export function GlossaryModal({
@@ -37,6 +39,7 @@ export function GlossaryModal({
   onUpdate,
   chapters,
   onNavigateToChapter,
+  editionLanguage,
 }: GlossaryModalProps) {
   const { t } = useTranslation();
 
@@ -129,7 +132,7 @@ export function GlossaryModal({
     if (!isOpen) return;
     let cancelled = false;
     api
-      .getGlossary(projectId)
+      .getGlossary(projectId, editionLanguage)
       .then((list) => {
         if (!cancelled) setDisplayEntries(list);
       })
@@ -139,7 +142,7 @@ export function GlossaryModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, projectId]);
+  }, [isOpen, projectId, editionLanguage]);
 
   const filteredEntries = useMemo(() => {
     let list = displayEntries.filter((entry) => {
@@ -205,7 +208,7 @@ export function GlossaryModal({
     setShowFileActionsMenu(false);
     setExporting(true);
     try {
-      await api.exportGlossary(projectId, format);
+      await api.exportGlossary(projectId, format, editionLanguage);
     } catch (error) {
       console.error('Failed to export glossary:', error);
       setMergeErrorModal({
@@ -250,8 +253,8 @@ export function GlossaryModal({
     if (!pendingImportFile) return;
     setImporting(true);
     try {
-      const result = await api.importGlossary(projectId, pendingImportFile);
-      const list = await api.getGlossary(projectId);
+      const result = await api.importGlossary(projectId, pendingImportFile, editionLanguage);
+      const list = await api.getGlossary(projectId, editionLanguage);
       setDisplayEntries(list);
       onUpdate();
       setImportResult({
@@ -351,7 +354,12 @@ export function GlossaryModal({
       return;
     }
     try {
-      await api.updateGlossaryEntry(projectId, entryId, { translated: inlineEditingValue.trim() });
+      await api.updateGlossaryEntry(
+        projectId,
+        entryId,
+        { translated: inlineEditingValue.trim() },
+        editionLanguage
+      );
       onUpdate();
     } catch (err) {
       console.error('Inline save failed:', err);
@@ -399,7 +407,7 @@ export function GlossaryModal({
     setBulkMarking(true);
     try {
       for (const id of selectedIds) {
-        await api.updateGlossaryEntry(projectId, id, { autoDetected: false });
+        await api.updateGlossaryEntry(projectId, id, { autoDetected: false }, editionLanguage);
       }
       setSelectedIds(new Set());
       setSelectMode(false);
@@ -588,6 +596,9 @@ export function GlossaryModal({
           style="display: none"
           onChange={handleImportFileSelect}
         />
+        {editionLanguage ? (
+          <p class="glossary-edition-hint">{t('edition.glossarySharedHint')}</p>
+        ) : null}
         <div class="glossary-toolbar">
           <div class="glossary-search">
             <input
@@ -1052,6 +1063,7 @@ export function GlossaryModal({
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         projectId={projectId}
+        editionLanguage={editionLanguage}
         onAdd={onUpdate}
       />
 
@@ -1076,6 +1088,7 @@ export function GlossaryModal({
           isOpen={true}
           onClose={() => setEditingEntry(null)}
           projectId={projectId}
+          editionLanguage={editionLanguage}
           entry={editingEntry}
           entries={displayEntries}
           chapters={chapters}
@@ -1113,9 +1126,12 @@ export function GlossaryModal({
               type="button"
               class="glossary-context-menu-item"
               onClick={async () => {
-                await api.updateGlossaryEntry(projectId, contextMenu.entry.id, {
-                  autoDetected: false,
-                });
+                await api.updateGlossaryEntry(
+                  projectId,
+                  contextMenu.entry.id,
+                  { autoDetected: false },
+                  editionLanguage
+                );
                 onUpdate();
                 setContextMenu(null);
               }}

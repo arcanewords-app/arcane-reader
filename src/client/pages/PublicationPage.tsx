@@ -252,7 +252,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     if (!data || (data.glossaryCount ?? 0) <= 0) return;
     let cancelled = false;
     api
-      .getPublicationGlossary(data.id)
+      .getPublicationGlossary(data.id, activeLang || undefined)
       .then((list) => {
         if (!cancelled) setPreloadedGlossary(list);
       })
@@ -262,8 +262,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when id or glossaryCount changes
-  }, [data?.id, data?.glossaryCount]);
+  }, [data?.id, data?.glossaryCount, activeLang]);
 
   // Load read progress for authenticated users
   useEffect(() => {
@@ -986,6 +985,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         publicationId={pub.id}
         chapters={translatedChapters}
         preloadedEntries={preloadedGlossary ?? undefined}
+        language={activeLang || undefined}
       />
       <ChapterTocModal
         isOpen={showToc}

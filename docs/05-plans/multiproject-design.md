@@ -13,11 +13,11 @@ Design lock for one book with more than one translation. The primary language st
 
 Shipped in code:
 
-- Author chips, `?lang=` on the project and chapter, edition writes that do not change the primary chapter status, and a glossary stub (`loadGlossaryForEdition`) that clears `translated` and declensions for the second language. Analysis of the second language stays off.
+- Author chips, `?lang=` on the project and chapter, edition writes that do not change the primary chapter status, and glossary forms for the second language in `glossary_translations`. Analysis of the second language stays off in the editor.
 - Catalog and publication `?lang=`, chapter list and empty reading state for the selected language, and reading progress keyed by language.
 - Export of an author project accepts `targetLanguage` and uses edition text.
 
-Still design-only: a real second glossary (copy, editor, analysis writes), and a stored EPUB/FB2 file per language. Publication download still serves the primary built file.
+Still design-only: a stored EPUB/FB2 file per language. Publication download still serves the primary built file. Glossary entities stay shared; the second language stores its own translated forms.
 
 As-is, verified 2026-10-17:
 

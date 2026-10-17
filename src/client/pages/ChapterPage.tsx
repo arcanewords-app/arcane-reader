@@ -6,7 +6,7 @@ import { getProject, updateProjectCache } from '../store/projects';
 import { shouldRefetchOpenChapter } from '../../shared/chapterContentSync.js';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
-import { GlossaryModal, GlossaryEditionStub } from '../components/Glossary';
+import { GlossaryModal } from '../components/Glossary';
 import { EditionAddModal } from '../components/Sidebar/EditionAddModal';
 import { ReportsModal } from '../components/Reports';
 import { LoadingSpinner } from '../components/ui';
@@ -396,34 +396,28 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
         />
       </section>
 
-      {showGlossary && project && activeLanguage && activeLanguage !== project.targetLanguage ? (
-        <GlossaryEditionStub
-          open={showGlossary}
-          language={activeLanguage}
+      {showGlossary && project && (
+        <GlossaryModal
+          isOpen={showGlossary}
           onClose={() => setShowGlossary(false)}
+          projectId={project.id}
+          entries={project.glossary}
+          editionLanguage={
+            activeLanguage && activeLanguage !== project.targetLanguage ? activeLanguage : undefined
+          }
+          chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
+          onNavigateToChapter={(navChapterId, searchTerm) => {
+            setShowGlossary(false);
+            route(
+              buildChapterEditorUrl(project.id, navChapterId, {
+                search: searchTerm,
+                lang: activeLanguageRef.current || undefined,
+              })
+            );
+          }}
+          onUpdate={handleRefreshProject}
         />
-      ) : null}
-      {showGlossary &&
-        project &&
-        (!activeLanguage || activeLanguage === project.targetLanguage) && (
-          <GlossaryModal
-            isOpen={showGlossary}
-            onClose={() => setShowGlossary(false)}
-            projectId={project.id}
-            entries={project.glossary}
-            chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
-            onNavigateToChapter={(navChapterId, searchTerm) => {
-              setShowGlossary(false);
-              route(
-                buildChapterEditorUrl(project.id, navChapterId, {
-                  search: searchTerm,
-                  lang: activeLanguageRef.current || undefined,
-                })
-              );
-            }}
-            onUpdate={handleRefreshProject}
-          />
-        )}
+      )}
       {showAddEdition && project && (
         <EditionAddModal
           isOpen={showAddEdition}

@@ -1,9 +1,10 @@
 /**
- * TODO(glossary-edition): replace with a glossary stored per target language.
- * Do not write analysis merges into glossary_entries for a non-primary target.
+ * Primary language reads glossary_entries. A second language overlays
+ * glossary_translations and leaves missing forms blank.
  */
 import { loadGlossaryForProject, loadGlossaryForProjectPublic } from '../supabase/loaders.js';
-import { blankGlossaryTranslations } from './editionLanguage.js';
+import { listGlossaryTranslationForms } from '../supabase/domains/editions.js';
+import { overlayGlossaryTranslations } from './editionLanguage.js';
 import type { GlossaryEntry } from '../../storage/database.js';
 
 export async function loadGlossaryForEdition(
@@ -17,5 +18,6 @@ export async function loadGlossaryForEdition(
     ? await loadGlossaryForProjectPublic(projectId)
     : await loadGlossaryForProject(projectId, token);
   if (!targetLanguage || targetLanguage === primaryLanguage) return entries;
-  return blankGlossaryTranslations(entries);
+  const forms = await listGlossaryTranslationForms(projectId, targetLanguage, token, options);
+  return overlayGlossaryTranslations(entries, forms);
 }

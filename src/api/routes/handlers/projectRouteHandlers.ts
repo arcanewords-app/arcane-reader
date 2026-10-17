@@ -48,6 +48,7 @@ import {
   overlayChapterListItem,
   resolveRequestedEdition,
 } from '../../../services/editions/editionLanguage.js';
+import { loadGlossaryForEdition } from '../../../services/editions/loadGlossaryForEdition.js';
 import { isProjectLanguagePairLocked } from '../../../services/projectLanguagePair.js';
 import { invalidateProjectAndRelatedCaches } from '../../../services/cacheInvalidation.js';
 import { invalidateUserProjectCaches } from '../../routeHelpers.js';
@@ -332,13 +333,20 @@ export async function handleGetProject(req: Request, res: Response): Promise<voi
     const editionLanguages = await listProjectEditionLanguages(project.id, token);
     const editionLanguage = resolveRequestedEdition(queryLang, project.targetLanguage);
     let chapters = project.chapters;
+    let glossary = project.glossary;
     if (editionLanguage && editionLanguages.includes(editionLanguage)) {
       const states = await listChapterEditionStates(project.id, editionLanguage, token);
       chapters = project.chapters.map((chapter) =>
         overlayChapterListItem(chapter, states.get(chapter.id))
       );
+      glossary = await loadGlossaryForEdition(
+        project.id,
+        editionLanguage,
+        token,
+        project.targetLanguage
+      );
     }
-    res.json({ ...project, chapters, editionLanguages });
+    res.json({ ...project, chapters, glossary, editionLanguages });
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get project' });

@@ -174,15 +174,42 @@ export function filterNewGlossaryEntries(
   return { toInsert, skipped };
 }
 
+/** New entities are inserted. Existing originals only receive a target-language form. */
+export function partitionGlossaryImport(
+  entries: GlossaryImportEntry[],
+  existing: GlossaryEntry[]
+): {
+  toInsert: GlossaryImportEntry[];
+  toUpdate: Array<{ entryId: string; entry: GlossaryImportEntry }>;
+  skipped: number;
+} {
+  const existingByKey = new Map(
+    existing.map((entry) => [glossaryEntryKey(entry.type, entry.original), entry.id])
+  );
+  const { unique, skippedInFile } = dedupeImportEntries(entries);
+  const toInsert: GlossaryImportEntry[] = [];
+  const toUpdate: Array<{ entryId: string; entry: GlossaryImportEntry }> = [];
+
+  for (const entry of unique) {
+    const entryId = existingByKey.get(glossaryEntryKey(entry.type ?? 'term', entry.original));
+    if (entryId) toUpdate.push({ entryId, entry });
+    else toInsert.push(entry);
+  }
+
+  return { toInsert, toUpdate, skipped: skippedInFile };
+}
+
 export function prepareGlossaryEntryForInsert(
-  entry: GlossaryImportEntry | GlossaryCreateBody
+  entry: GlossaryImportEntry | GlossaryCreateBody,
+  options?: { targetLanguage?: string }
 ): Omit<GlossaryEntry, 'id'> {
   const { declensions: declensionsIn, translated: translatedIn, ...rest } = entry;
   let declensions = declensionsIn;
   let translated = translatedIn;
   const type = rest.type ?? 'term';
+  const belarusian = options?.targetLanguage === 'be';
 
-  if (type === 'character' && rest.original && !declensions) {
+  if (type === 'character' && rest.original && !declensions && !belarusian) {
     const result = getNameDeclensions(rest.original, rest.gender || 'unknown');
     if (!translated) {
       translated = result.translatedName;
@@ -193,7 +220,7 @@ export function prepareGlossaryEntryForInsert(
   return {
     ...rest,
     type,
-    translated: translated ?? rest.original,
+    translated: translated ?? (belarusian ? '' : rest.original),
     declensions,
   };
 }

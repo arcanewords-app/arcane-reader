@@ -1390,10 +1390,12 @@ export async function handleGetPublicationGlossary(req: Request, res: Response):
       res.json([]);
       return;
     }
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const glossaryLanguage = queryLang && queryLang !== pub.targetLanguage ? queryLang : undefined;
     const entries = await withRedisCache(
-      publicationGlossaryCacheKey(pub.id),
+      publicationGlossaryCacheKey(pub.id, glossaryLanguage),
       CACHE_TTL.redisPublicationGlossarySec,
-      () => getGlossaryForPublication(pub.id)
+      () => getGlossaryForPublication(pub.id, glossaryLanguage)
     );
     res.json(entries);
   } catch (error) {

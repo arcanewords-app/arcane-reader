@@ -8,10 +8,17 @@ export interface AddGlossaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
+  editionLanguage?: string;
   onAdd: () => void;
 }
 
-export function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGlossaryModalProps) {
+export function AddGlossaryModal({
+  isOpen,
+  onClose,
+  projectId,
+  editionLanguage,
+  onAdd,
+}: AddGlossaryModalProps) {
   const { t } = useTranslation();
   const [type, setType] = useState<GlossaryEntryType>('character');
   const [original, setOriginal] = useState('');
@@ -32,13 +39,17 @@ export function AddGlossaryModal({ isOpen, onClose, projectId, onAdd }: AddGloss
     if (!original.trim()) return;
     setSaving(true);
     try {
-      await api.addGlossary(projectId, {
-        type,
-        original: original.trim(),
-        translated: translated.trim(),
-        description: description.trim() || undefined,
-        notes: notes.trim() || undefined,
-      });
+      await api.addGlossary(
+        projectId,
+        {
+          type,
+          original: original.trim(),
+          translated: translated.trim(),
+          description: description.trim() || undefined,
+          notes: notes.trim() || undefined,
+        },
+        editionLanguage
+      );
       reset();
       onClose();
       onAdd();

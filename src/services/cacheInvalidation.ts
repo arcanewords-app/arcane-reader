@@ -46,6 +46,7 @@ async function invalidatePublicationCaches(
     publicationGlossaryCacheKey(identifier),
   ];
   await redisDelMany(keys);
+  await redisDelByPattern(`${publicationGlossaryCacheKey(identifier)}:*`);
   if (pubIdForChapters) {
     const pattern = cacheVersionedKey([CACHE_PREFIX.publicationChapter, pubIdForChapters, '*']);
     await redisDelByPattern(pattern);

@@ -29,6 +29,8 @@ interface PublicationGlossaryModalProps {
   chapters?: PublicationChapterRef[];
   /** Preloaded entries (e.g. from parent). When set, modal opens without loading. */
   preloadedEntries?: GlossaryEntry[] | null;
+  /** Selected publication language. Primary language omits the query. */
+  language?: string;
 }
 
 export function PublicationGlossaryModal({
@@ -37,6 +39,7 @@ export function PublicationGlossaryModal({
   publicationId,
   chapters = [],
   preloadedEntries,
+  language,
 }: PublicationGlossaryModalProps) {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<GlossaryEntry[]>([]);
@@ -70,14 +73,14 @@ export function PublicationGlossaryModal({
     setLoadError(false);
     setLoading(true);
     api
-      .getPublicationGlossary(publicationId)
+      .getPublicationGlossary(publicationId, language)
       .then((list) => setEntries(list))
       .catch(() => {
         setLoadError(true);
         setEntries([]);
       })
       .finally(() => setLoading(false));
-  }, [isOpen, publicationId, retryTrigger, preloadedEntries]);
+  }, [isOpen, publicationId, retryTrigger, preloadedEntries, language]);
 
   const filteredEntries = useMemo(
     () => filterGlossaryEntriesByTypeAndSearch(entries, filter, search),
