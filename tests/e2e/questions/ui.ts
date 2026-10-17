@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import type { Question } from '../actors/types.js';
 import { LAYOUT_VIEWPORTS } from '../viewports.js';
 import {
@@ -19,6 +19,9 @@ import {
 import {
   accountTiersHeading,
   aboutHeading,
+  catalogTooltip,
+  firstCatalogDescription,
+  firstCatalogEntityChips,
   newsHeading,
   publicationCard,
 } from '../targets/catalog.js';
@@ -93,6 +96,88 @@ export function layoutMatches(name: string): Question {
           fullPage: true,
           mask: [tokenUsage(page), projectCardDate(page)],
         });
+      }
+    } finally {
+      if (previous) {
+        await page.setViewportSize(previous);
+      }
+    }
+  };
+}
+
+const ENTITY_TOOLTIP_SLOTS = ['author', 'translator'] as const;
+
+async function settleLayout(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+}
+
+async function settleTooltipImages(tip: Locator): Promise<void> {
+  await tip.evaluate(async (node) => {
+    const images = [...node.querySelectorAll('img')];
+    await Promise.all(
+      images.map(async (img) => {
+        img.loading = 'eager';
+        try {
+          await img.decode();
+        } catch {
+          // Broken photo — the placeholder is the stable paint.
+        }
+      })
+    );
+  });
+}
+
+async function dismissTooltip(page: Page): Promise<void> {
+  await page.mouse.move(0, 0);
+  await expect(catalogTooltip(page)).toHaveCount(0);
+}
+
+/**
+ * Element screenshots of the open catalog popups. Full-page catalog shots miss
+ * hover state, which is where clipped text and a fading short bio show up.
+ */
+export function catalogTooltipsMatch(): Question {
+  return async (actor) => {
+    const page = actor.page;
+    const previous = page.viewportSize();
+    try {
+      for (const { id, width, height } of LAYOUT_VIEWPORTS) {
+        await page.setViewportSize({ width, height });
+        await settleLayout(page);
+        const description = firstCatalogDescription(page);
+        await description.scrollIntoViewIfNeeded();
+        await description.hover();
+        const tip = catalogTooltip(page);
+        await expect(tip).toBeVisible();
+        await settleTooltipImages(tip);
+        await expect(tip).toHaveScreenshot(`guest-catalog-description-tooltip-${id}.png`);
+        await dismissTooltip(page);
+
+        const chips = firstCatalogEntityChips(page);
+        let sawEntity = false;
+        const count = Math.min(await chips.count(), ENTITY_TOOLTIP_SLOTS.length);
+        for (let index = 0; index < count; index += 1) {
+          const chip = chips.nth(index);
+          await chip.scrollIntoViewIfNeeded();
+          await chip.hover();
+          const opened = await tip
+            .waitFor({ state: 'visible', timeout: 2_000 })
+            .then(() => true)
+            .catch(() => false);
+          if (!opened) continue;
+          sawEntity = true;
+          await settleTooltipImages(tip);
+          await expect(tip).toHaveScreenshot(
+            `guest-catalog-${ENTITY_TOOLTIP_SLOTS[index]}-tooltip-${id}.png`
+          );
+          await dismissTooltip(page);
+        }
+        expect(sawEntity, `first catalog card has no entity tooltip at ${id}`).toBe(true);
       }
     } finally {
       if (previous) {

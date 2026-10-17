@@ -11,6 +11,7 @@ import {
   aboutPageLoaded,
   accountTiersLoaded,
   catalogHasPublications,
+  catalogTooltipsMatch,
   layoutMatches,
   newsPageLoaded,
   publicationPageLoaded,
@@ -23,6 +24,12 @@ test.describe('Guest visual shells', { tag: '@visual' }, () => {
     await guest.attemptsTo(openCatalog);
     await guest.see(catalogHasPublications);
     await guest.see(layoutMatches('guest-catalog'));
+  });
+
+  test('catalog tooltips', async ({ guest }) => {
+    await guest.attemptsTo(openCatalog);
+    await guest.see(catalogHasPublications);
+    await guest.see(catalogTooltipsMatch());
   });
 
   test('sign-in modal', async ({ guest }) => {

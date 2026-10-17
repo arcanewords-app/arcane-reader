@@ -331,7 +331,7 @@ export const publicationCard = (page: Page) => page.getByTestId('publication-car
 
 Anti-pattern: `page.locator('.project-card')` in a spec or task.
 
-Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await actor.see(layoutMatches('guest-catalog'))`. Three CSS viewports from `tests/e2e/viewports.ts` (phone 390, **tablet 834 — inside 768–1023, not on 768**, desktop 1280); `fullPage` so the stamp catalog/projects are in the PNG. The fixture seeds `arcane:dismissed-alerts:v1` (same pattern as cookie consent) so a stamp banner cannot shift the layout. Do **not** click-dismiss the banner, mask dump cards “just in case”, call `page.toHaveScreenshot` in a spec, or add extra Playwright `projects` for viewports.
+Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await actor.see(layoutMatches('guest-catalog'))`. Three CSS viewports from `tests/e2e/viewports.ts` (phone 390, **tablet 834 — inside 768–1023, not on 768**, desktop 1280); `fullPage` so the stamp catalog/projects are in the PNG. Catalog hover popups are a separate question, `catalogTooltipsMatch()`, which screenshots the open `role=tooltip` element (synopsis, author, translator) at those same widths. The fixture seeds `arcane:dismissed-alerts:v1` (same pattern as cookie consent) so a stamp banner cannot shift the layout. Do **not** click-dismiss the banner, mask dump cards “just in case”, call `page.toHaveScreenshot` in a spec, or add extra Playwright `projects` for viewports.
 
 **Visual coverage (reader first):** new/changed public reader screens need a shell. Logic specs do not replace pixels.
 

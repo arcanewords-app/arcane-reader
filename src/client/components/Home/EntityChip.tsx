@@ -89,6 +89,7 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
       <div
         ref={wrapperRef}
         class={`entity-chip-wrapper${popupOpen ? ' is-popup-open' : ''}`}
+        data-testid="entity-chip"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >

@@ -56,6 +56,8 @@ Locale in fixtures is `en`. Tasks, questions, and specs **must** import locators
 | `data-testid`                | Where                                                      |
 | ---------------------------- | ---------------------------------------------------------- |
 | `publication-card`           | Catalog card clickable                                     |
+| `publication-description`    | Catalog card synopsis (hover opens the description popup)  |
+| `entity-chip`                | Author or translator chip (hover opens the bio popup)      |
 | `publication-read-chapter`   | Publication page chapter **Read** (not the Read filter)    |
 | `project-card`               | Author workspace card                                      |
 | `chapter-item`               | Sidebar chapter row                                        |
@@ -79,6 +81,8 @@ Separate `*.visual.spec.ts` tagged `@visual` — not mixed into logic specs. The
 
 `fullPage` `toHaveScreenshot` via `layoutMatches(name)`. Stamp catalog/projects are **in** the PNG. Mask only `token-usage` and `.project-card-date`. One Chromium project; the question resizes to phone (390×844), tablet (**834×1112**, inside 768–1023), desktop (1280×720) and restores the original viewport.
 
+`catalogTooltipsMatch()` hovers the first described card and screenshots the open popup (`role=tooltip`) for the synopsis, author, and translator. Those shots are the element, not the page, so a clipped or faded short bio fails without rewriting the catalog shell.
+
 ```bash
 npm run test:e2e:visual
 npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or breakpoint tweak
@@ -87,6 +91,7 @@ npm run test:e2e:update-snapshots   # @visual only; after layout, dump, or break
 | Prefix                                                                                                                           | Spec                                                |
 | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `guest-catalog` / `guest-sign-in` / `guest-account-tiers` / `guest-publication` / `guest-reading` / `guest-news` / `guest-about` | `guest.visual.spec.ts`                              |
+| `guest-catalog-description-tooltip` / `guest-catalog-author-tooltip` / `guest-catalog-translator-tooltip`                        | `guest.visual.spec.ts` (open popup, not full page)  |
 | `guest-catalog-light` / `guest-publication-light`                                                                                | `lightTheme.visual.spec.ts`                         |
 | `reader-upgrade` / `reader-profile`                                                                                              | `reader.visual.spec.ts`                             |
 | `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests`                                   | `author.visual.spec.ts`                             |

@@ -1,10 +1,6 @@
 import { useState, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type {
-  Publication,
-  PublicationListItem,
-  PublicEntity,
-} from '../../types';
+import type { Publication, PublicationListItem, PublicEntity } from '../../types';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { AnchoredCardPopup } from './AnchoredCardPopup';
 import { EntityChip } from './EntityChip';
@@ -191,6 +187,7 @@ export function PublicationCard({
               <div
                 ref={descWrapRef}
                 class="publication-card-description-wrap"
+                data-testid="publication-description"
                 onMouseEnter={handleDescMouseEnter}
                 onMouseLeave={handleDescMouseLeave}
               >
