@@ -72,9 +72,21 @@ describe('PublicationGlossaryModal', () => {
     render(<PublicationGlossaryModal isOpen onClose={vi.fn()} publicationId="pub-1" />);
 
     await waitFor(() => {
-      expect(mocks.getPublicationGlossary).toHaveBeenCalledWith('pub-1');
+      expect(mocks.getPublicationGlossary).toHaveBeenCalledWith('pub-1', undefined);
       expect(screen.getByText('Mana')).toBeTruthy();
       expect(screen.getByText('Мана')).toBeTruthy();
+    });
+  });
+
+  it('requests the glossary for the selected edition language', async () => {
+    mocks.getPublicationGlossary.mockResolvedValue([]);
+
+    render(
+      <PublicationGlossaryModal isOpen onClose={vi.fn()} publicationId="pub-1" language="be" />
+    );
+
+    await waitFor(() => {
+      expect(mocks.getPublicationGlossary).toHaveBeenCalledWith('pub-1', 'be');
     });
   });
 });

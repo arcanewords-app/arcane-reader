@@ -12,6 +12,7 @@ import { PublicationStatusBadge } from '../components/Home/PublicationStatusBadg
 import { PublicationRatingCoverBadge } from '../components/Home/PublicationRatingCoverBadge';
 import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
+import { PublicationGlossaryModal } from '../components/Glossary';
 import { EditionLanguageSwitch } from '../components/Sidebar/EditionLanguageSwitch';
 import { ChapterTocModal } from '../components/ChapterTocModal';
 import {

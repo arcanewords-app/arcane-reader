@@ -37,6 +37,16 @@ vi.mock('../../../src/services/supabase/domains/projects.js', async (importOrigi
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, ...createProjectsDomainOverlay() };
 });
+vi.mock('../../../src/services/supabase/domains/editions.js', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    chapterHasTranslatingLock: vi.fn(
+      async (_id: unknown, _token: unknown, options?: { chapterStatus?: string }) =>
+        options?.chapterStatus === 'translating'
+    ),
+  };
+});
 vi.mock('../../../src/services/supabase/domains/chapters.js', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, ...createChaptersDomainOverlay() };

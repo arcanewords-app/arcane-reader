@@ -27,6 +27,16 @@ if (!process.env.OPENAI_API_KEY) {
   process.env.OPENAI_API_KEY = 'sk-test-integration-abort-regression';
 }
 
+vi.mock('../../../src/services/supabase/domains/editions.js', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    chapterHasTranslatingLock: vi.fn(
+      async (_id: unknown, _token: unknown, options?: { chapterStatus?: string }) =>
+        options?.chapterStatus === 'translating'
+    ),
+  };
+});
 vi.mock('../../../src/middleware/auth.js', () => installAuthMocks({ defaultRole: 'author' }));
 vi.mock('../../../src/services/redisCache.js', () => installRedisCacheMocks());
 vi.mock('../../../src/middleware/tokenLimits.js', () => installTokenLimitMocks());

@@ -63,7 +63,13 @@ export function classifyStatement(stmt) {
   if (u.startsWith('CREATE INDEX') || u.startsWith('CREATE UNIQUE INDEX')) return '03_indexes';
   if (u.startsWith('CREATE OR REPLACE FUNCTION') || u.startsWith('CREATE FUNCTION'))
     return '04_functions';
-  if (u.startsWith('CREATE TRIGGER') || u.startsWith('DROP TRIGGER')) return '05_triggers';
+  if (
+    u.startsWith('CREATE TRIGGER') ||
+    u.startsWith('CREATE OR REPLACE TRIGGER') ||
+    u.startsWith('DROP TRIGGER')
+  ) {
+    return '05_triggers';
+  }
   if (u.startsWith('CREATE OR REPLACE VIEW') || u.startsWith('CREATE VIEW')) return '06_views';
   if (u.includes('ENABLE ROW LEVEL SECURITY') || u.startsWith('CREATE POLICY')) return '07_rls';
   if (u.startsWith('GRANT') || u.startsWith('REVOKE') || u.startsWith('DO ')) return '08_grants';

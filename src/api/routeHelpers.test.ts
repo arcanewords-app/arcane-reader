@@ -251,7 +251,9 @@ describe('routeHelpers pure functions', () => {
   it('invalidatePublicationCaches deletes publication keys and optional chapter pattern', async () => {
     await invalidatePublicationCaches('pub-slug', 'pub-id');
     assert.equal(vi.mocked(redisDelMany).mock.calls.length, 1);
-    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 1);
+    assert.equal(vi.mocked(redisDelByPattern).mock.calls.length, 2);
+    const patterns = vi.mocked(redisDelByPattern).mock.calls.map((call) => String(call[0]));
+    assert.ok(patterns.some((pattern) => pattern.includes('pub:glossary:pub-slug:')));
   });
 
   it('invalidatePublicationListCaches deletes list pattern', async () => {

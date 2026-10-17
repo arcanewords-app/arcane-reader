@@ -96,14 +96,19 @@
   cursor: default;
 }
 
-/* Desktop: no project name, tighter spacing */
+/* Desktop: keep the language switch, hide the repeated project name. */
 @media (min-width: 1024px) {
   .sidebar-dashboard-link,
   .sidebar-process-chapters {
     margin-bottom: 0.5rem;
   }
 
-  .sidebar-project-header {
+  .sidebar-project-name {
     display: none;
+  }
+
+  .sidebar-project-header {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
   }
 }

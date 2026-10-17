@@ -19,6 +19,8 @@ const {
   mockResetStuckChaptersForRecovery,
   mockAddGlossaryEntry,
   mockUpdateGlossaryEntry,
+  mockChapterHasTranslatingLock,
+  mockListProjectEditionLanguages,
   mockHandleServiceError,
   mockRespondRouteError,
   mockInvalidateUserProjectCaches,
@@ -97,6 +99,8 @@ const {
     mockResetStuckChaptersForRecovery: vi.fn(),
     mockAddGlossaryEntry: vi.fn(),
     mockUpdateGlossaryEntry: vi.fn(),
+    mockChapterHasTranslatingLock: vi.fn(async () => false),
+    mockListProjectEditionLanguages: vi.fn(async () => [] as string[]),
     mockHandleServiceError: vi.fn(() => false),
     mockRespondRouteError: vi.fn(() => true),
     mockInvalidateUserProjectCaches: vi.fn(),
@@ -196,6 +200,11 @@ vi.mock('../../../services/supabase/domains/chapters.js', () => ({
 vi.mock('../../../services/supabase/domains/glossary.js', () => ({
   addGlossaryEntry: mockAddGlossaryEntry,
   updateGlossaryEntry: mockUpdateGlossaryEntry,
+}));
+
+vi.mock('../../../services/supabase/domains/editions.js', () => ({
+  chapterHasTranslatingLock: (...args: unknown[]) => mockChapterHasTranslatingLock(...args),
+  listProjectEditionLanguages: (...args: unknown[]) => mockListProjectEditionLanguages(...args),
 }));
 
 vi.mock('../../../services/supabase/domains/paragraphs.js', () => ({
@@ -453,6 +462,11 @@ function resetDefaults() {
     sourceLanguage: 'en',
     targetLanguage: 'ru',
   });
+  mockChapterHasTranslatingLock.mockImplementation(
+    async (_id: unknown, _token: unknown, options?: { chapterStatus?: string }) =>
+      options?.chapterStatus === 'translating'
+  );
+  mockListProjectEditionLanguages.mockResolvedValue([]);
   mockResolveEffectiveOriginalText.mockImplementation(
     (ch: { originalText?: string }) => ch.originalText ?? ''
   );
@@ -1350,6 +1364,28 @@ describe('chapterRouteHandlers', () => {
       await handler(mockReq({ body: {} }) as never, res as never);
       assert.equal((res.body as { status: string }).status, 'started');
       assert.equal(mockPerformTranslation.mock.calls.length, 1);
+    });
+
+    it('returns 400 when the requested edition does not exist', async () => {
+      mockListProjectEditionLanguages.mockResolvedValue([]);
+      const handler = createHandleTranslateChapter(makeDeps());
+      const res = mockRes();
+      await handler(mockReq({ body: {}, query: { lang: 'be' } }) as never, res as never);
+      assert.equal(res.statusCode, 400);
+      assert.equal(mockPerformTranslation.mock.calls.length, 0);
+    });
+
+    it('returns 409 when an edition is translating even if the primary status is pending', async () => {
+      mockListProjectEditionLanguages.mockResolvedValue(['be']);
+      mockGetChapter.mockResolvedValue(makeChapter({ status: 'pending' }));
+      mockChapterHasTranslatingLock.mockResolvedValue(true);
+      const handler = createHandleTranslateChapter(makeDeps());
+      const res = mockRes();
+      await handler(mockReq({ body: {}, query: { lang: 'be' } }) as never, res as never);
+      assert.equal(res.statusCode, 409);
+      assert.deepEqual(mockChapterHasTranslatingLock.mock.calls[0]?.[2], {
+        chapterStatus: undefined,
+      });
     });
 
     it('returns 409 when translation already running', async () => {

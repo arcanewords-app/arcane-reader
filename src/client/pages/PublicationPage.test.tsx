@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen, waitFor } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PublicationWithChapters } from '../types.js';
 
 const mocks = vi.hoisted(() => ({
   getPublicationWithChapters: vi.fn(),
+  glossaryProps: null as Record<string, unknown> | null,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -67,7 +68,10 @@ vi.mock('../components/EntityCard', () => ({
 }));
 
 vi.mock('../components/Glossary', () => ({
-  PublicationGlossaryModal: () => null,
+  PublicationGlossaryModal: (props: Record<string, unknown>) => {
+    mocks.glossaryProps = props;
+    return props.isOpen ? <div data-testid="publication-glossary" /> : null;
+  },
 }));
 
 vi.mock('../components/ChapterTocModal.js', () => ({
@@ -135,6 +139,8 @@ function makePublication(
 describe('PublicationPage', () => {
   afterEach(() => {
     cleanup();
+    mocks.glossaryProps = null;
+    window.history.pushState({}, '', '/');
     vi.clearAllMocks();
   });
 
@@ -153,6 +159,36 @@ describe('PublicationPage', () => {
       expect(screen.getByText('publication.chapters')).toBeTruthy();
       expect(screen.getByText('Opening')).toBeTruthy();
     });
+  });
+
+  it('opens the glossary for the selected language without preloaded entries', async () => {
+    window.history.pushState({}, '', '/p/test-publication?lang=be');
+    mocks.getPublicationWithChapters.mockResolvedValue(
+      makePublication({
+        glossaryCount: 2,
+        editions: [{ language: 'be', translationStatus: null }],
+      })
+    );
+    render(<PublicationPage publicationId="pub-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveProperty(
+        'textContent',
+        'Test Publication'
+      );
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'sidebar.glossary' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('publication-glossary')).toBeTruthy();
+    });
+    expect(mocks.glossaryProps).toMatchObject({
+      isOpen: true,
+      publicationId: 'pub-1',
+      language: 'be',
+    });
+    const preloaded = mocks.glossaryProps?.preloadedEntries;
+    expect(preloaded == null || Array.isArray(preloaded)).toBe(true);
   });
 
   it('shows not found when API fails', async () => {

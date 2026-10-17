@@ -58,13 +58,19 @@ const performTranslation = vi.fn();
 const releaseTokens = vi.fn().mockResolvedValue(undefined);
 const invalidateProjectAndRelatedCaches = vi.fn().mockResolvedValue(undefined);
 
-const { getProjectFullForRecovery, resetStuckChaptersForRecovery, updateChapter, getChapter } =
-  vi.hoisted(() => ({
-    getProjectFullForRecovery: vi.fn(),
-    resetStuckChaptersForRecovery: vi.fn(),
-    updateChapter: vi.fn(),
-    getChapter: vi.fn(),
-  }));
+const {
+  getProjectFullForRecovery,
+  resetStuckChaptersForRecovery,
+  updateChapter,
+  getChapter,
+  chapterHasTranslatingLock,
+} = vi.hoisted(() => ({
+  getProjectFullForRecovery: vi.fn(),
+  resetStuckChaptersForRecovery: vi.fn(),
+  updateChapter: vi.fn(),
+  getChapter: vi.fn(),
+  chapterHasTranslatingLock: vi.fn(async () => false),
+}));
 
 vi.mock('../redisCache.js', () => ({
   hasRedisCache: vi.fn(() => false),
@@ -88,6 +94,10 @@ vi.mock('../supabaseDatabase.js', async (importOriginal) => {
     getChapter: (...args: unknown[]) => getChapter(...args),
   };
 });
+
+vi.mock('../supabase/domains/editions.js', () => ({
+  chapterHasTranslatingLock: (...args: unknown[]) => chapterHasTranslatingLock(...args),
+}));
 
 vi.mock('../../api/chapterTranslation.js', () => ({
   performTranslation: (...args: unknown[]) => performTranslation(...args),
@@ -123,6 +133,8 @@ describe('runTranslateJob', () => {
     updateChapter.mockReset();
     updateChapter.mockResolvedValue(true);
     getChapter.mockReset();
+    chapterHasTranslatingLock.mockReset();
+    chapterHasTranslatingLock.mockResolvedValue(false);
   });
 
   async function loadRunner() {
@@ -303,5 +315,95 @@ describe('runTranslateJob', () => {
       50,
       expect.objectContaining({ useServiceRole: true })
     );
+  });
+
+  it('secondary language marks the edition, not the primary chapter', async () => {
+    const { store, runTranslateJob } = await loadRunner();
+    const jobId = 'tj-unit-edition-1';
+    const chapter = sampleChapter({ status: 'pending' });
+    getProjectFullForRecovery.mockResolvedValue(sampleProject({ chapters: [chapter] }));
+    performTranslation.mockResolvedValue(undefined);
+    getChapter.mockResolvedValue({ ...chapter, status: 'completed' });
+
+    await store.createJob({
+      jobId,
+      projectId: 'proj-1',
+      userId: TEST_USER_ID,
+      status: 'queued',
+      current: 0,
+      total: 1,
+      chapters: [{ chapterId: 'ch-1', title: 'Chapter 1', status: 'pending' }],
+      totalTokensUsed: 0,
+      errors: [],
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      cancelRequested: false,
+      estimatedTokens: 40,
+    });
+
+    await runTranslateJob({
+      jobId,
+      projectId: 'proj-1',
+      userId: TEST_USER_ID,
+      userRole: 'author',
+      estimatedTokens: 40,
+      chapterIds: ['ch-1'],
+      stages: 'all',
+      translateOnlyEmpty: false,
+      translateChapterTitles: false,
+      sourceLanguage: 'en',
+      targetLanguage: 'be',
+    });
+
+    expect(updateChapter).toHaveBeenCalledWith('proj-1', 'ch-1', { status: 'translating' }, '', {
+      useServiceRole: true,
+      editionLanguage: 'be',
+    });
+    const options = performTranslation.mock.calls[0]?.[10] as { editionLanguage?: string };
+    expect(options.editionLanguage).toBe('be');
+    expect((await store.getJob(jobId))?.status).toBe('completed');
+  });
+
+  it('locked chapters finish as error and release tokens', async () => {
+    const { store, runTranslateJob } = await loadRunner();
+    const jobId = 'tj-unit-locked-1';
+    chapterHasTranslatingLock.mockResolvedValue(true);
+    getProjectFullForRecovery.mockResolvedValue(
+      sampleProject({ chapters: [sampleChapter({ status: 'pending' })] })
+    );
+
+    await store.createJob({
+      jobId,
+      projectId: 'proj-1',
+      userId: TEST_USER_ID,
+      status: 'queued',
+      current: 0,
+      total: 1,
+      chapters: [{ chapterId: 'ch-1', title: 'Chapter 1', status: 'pending' }],
+      totalTokensUsed: 0,
+      errors: [],
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      cancelRequested: false,
+      estimatedTokens: 40,
+    });
+
+    await runTranslateJob({
+      jobId,
+      projectId: 'proj-1',
+      userId: TEST_USER_ID,
+      userRole: 'author',
+      estimatedTokens: 40,
+      chapterIds: ['ch-1'],
+      stages: 'all',
+      translateOnlyEmpty: false,
+      translateChapterTitles: false,
+    });
+
+    const job = await store.getJob(jobId);
+    expect(job?.status).toBe('error');
+    expect(job?.errors).toContain('No chapters with text to translate');
+    expect(performTranslation).not.toHaveBeenCalled();
+    expect(releaseTokens).toHaveBeenCalled();
   });
 });

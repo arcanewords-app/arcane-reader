@@ -135,7 +135,8 @@ describe('PATCH /api/publications/:id/read-progress (integration)', () => {
       'pub-1',
       3,
       'complete',
-      'tok'
+      'tok',
+      undefined
     );
   });
 });

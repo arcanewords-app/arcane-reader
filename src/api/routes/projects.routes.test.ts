@@ -11,6 +11,7 @@ vi.mock('./handlers/projectRouteHandlers.js', () => ({
   handleBulkUpdateParagraphs: vi.fn(),
   handleCloneProject: vi.fn(),
   handleCreateProject: vi.fn(),
+  handleCreateProjectEdition: vi.fn(),
   handleDeleteProject: vi.fn(),
   handleGetChaptersSummary: vi.fn(),
   handleGetProject: vi.fn(),
@@ -57,6 +58,7 @@ describe('registerProjectRoutes', () => {
 
     assert.ok(methods.includes('GET /api/projects'));
     assert.ok(methods.includes('POST /api/projects'));
+    assert.ok(methods.includes('POST /api/projects/:id/editions'));
     assert.ok(methods.includes('GET /api/projects/:id/search'));
     assert.ok(methods.includes('PUT /api/projects/:id/languages'));
     assert.ok(methods.includes('POST /api/projects/:id/search/ai-replace'));

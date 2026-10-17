@@ -116,7 +116,8 @@ describe('chapter mutations (integration)', () => {
         'ch-1',
         'p-1',
         expect.objectContaining({ translatedText: 'Привет', editedBy: 'user' }),
-        'tok'
+        'tok',
+        { editionLanguage: undefined }
       );
     });
   });
