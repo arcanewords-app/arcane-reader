@@ -123,9 +123,10 @@ describe('PublicationCard', () => {
     );
     const wrap = container.querySelector('.publication-card-description-wrap')!;
     fireEvent.mouseEnter(wrap);
-    const popup = wrap.querySelector('.card-content-popup--description')!;
+    const popup = screen.getByRole('tooltip');
     expect(popup.querySelector('.card-content-popup__preview-text')).toBeTruthy();
-    expect(wrap).toMatchSnapshot();
+    expect(popup.classList.contains('card-content-popup--fixed')).toBe(true);
+    expect(popup).toMatchSnapshot();
   });
 
   it('adds is-truncated when preview text overflows', () => {
@@ -138,6 +139,6 @@ describe('PublicationCard', () => {
     );
     const wrap = container.querySelector('.publication-card-description-wrap')!;
     fireEvent.mouseEnter(wrap);
-    expect(wrap.querySelector('.card-content-popup--description.is-truncated')).toBeTruthy();
+    expect(document.querySelector('.card-content-popup--description.is-truncated')).toBeTruthy();
   });
 });

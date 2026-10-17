@@ -2,13 +2,14 @@
 import { renderHook } from '@testing-library/preact';
 import { describe, expect, it } from 'vitest';
 import { createRef } from 'preact';
+import { DEFAULT_ANCHORED_PLACEMENT } from './anchoredPopupPlacement.js';
 import { useAnchoredPopup } from './useAnchoredPopup.js';
 
 describe('useAnchoredPopup', () => {
   it('defaults to above/start when closed', () => {
     const ref = createRef<HTMLElement>();
     const { result } = renderHook(() => useAnchoredPopup(ref, false));
-    expect(result.current).toEqual({ vertical: 'above', horizontal: 'start' });
+    expect(result.current).toEqual(DEFAULT_ANCHORED_PLACEMENT);
   });
 
   it('flips below when there is little space above', () => {

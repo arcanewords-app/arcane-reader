@@ -4,16 +4,17 @@ import type {
   Publication,
   PublicationListItem,
   PublicEntity,
-  TranslationStatus,
 } from '../../types';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
+import { AnchoredCardPopup } from './AnchoredCardPopup';
 import { EntityChip } from './EntityChip';
 import { PublicationStatusBadge } from './PublicationStatusBadge';
 import { PublicationRatingCoverBadge } from './PublicationRatingCoverBadge';
 import { trackEvent } from '../../utils/analytics';
-import { useAnchoredPopup } from '../../hooks/useAnchoredPopup';
-import { useIsTruncated } from '../../hooks/useIsTruncated';
-import { ESTIMATED_DESCRIPTION_POPUP_HEIGHT } from '../../hooks/anchoredPopupPlacement';
+import {
+  ESTIMATED_DESCRIPTION_POPUP_HEIGHT,
+  ESTIMATED_DESCRIPTION_POPUP_WIDTH,
+} from '../../hooks/anchoredPopupPlacement';
 import '../../styles/components/card-content-popup.css';
 import './PublicationCard.css';
 
@@ -42,19 +43,6 @@ export function PublicationCard({
   const [showDescTooltip, setShowDescTooltip] = useState(false);
   const descWrapRef = useRef<HTMLDivElement>(null);
   const previewTextRef = useRef<HTMLDivElement>(null);
-  const descPlacement = useAnchoredPopup(descWrapRef, showDescTooltip, {
-    estimatedHeight: ESTIMATED_DESCRIPTION_POPUP_HEIGHT,
-  });
-  const isDescTruncated = useIsTruncated(previewTextRef, showDescTooltip);
-  const descPopupClass = [
-    'card-content-popup',
-    'card-content-popup--description',
-    isDescTruncated ? 'is-truncated' : '',
-    `card-content-popup--${descPlacement.vertical}`,
-    `card-content-popup--align-${descPlacement.horizontal}`,
-  ]
-    .filter(Boolean)
-    .join(' ');
 
   const title = publication.title || t('publication.untitled');
   const coverImageUrl = publication.coverImageUrl;
@@ -155,7 +143,7 @@ export function PublicationCard({
               raw === 'complete' ||
               raw === 'abandoned' ||
               raw === 'experimental'
-                ? (raw)
+                ? raw
                 : null;
             return badgeStatus ? <PublicationStatusBadge status={badgeStatus} /> : null;
           })()}
@@ -208,11 +196,18 @@ export function PublicationCard({
               >
                 <p class="publication-card-description">{publication.description}</p>
                 {showDescTooltip && (
-                  <div class={descPopupClass} role="tooltip">
+                  <AnchoredCardPopup
+                    open
+                    anchorRef={descWrapRef}
+                    estimatedHeight={ESTIMATED_DESCRIPTION_POPUP_HEIGHT}
+                    estimatedWidth={ESTIMATED_DESCRIPTION_POPUP_WIDTH}
+                    className="card-content-popup--description"
+                    previewRef={previewTextRef}
+                  >
                     <div class="card-content-popup__preview-text" ref={previewTextRef}>
                       {publication.description}
                     </div>
-                  </div>
+                  </AnchoredCardPopup>
                 )}
               </div>
             )}

@@ -2,11 +2,12 @@ import { useState, useCallback, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
 import type { PublicEntity } from '../../types';
 import { api } from '../../api/client';
-import { ESTIMATED_ENTITY_POPUP_HEIGHT } from '../../hooks/anchoredPopupPlacement';
-import { useAnchoredPopup } from '../../hooks/useAnchoredPopup';
-import { useIsTruncated } from '../../hooks/useIsTruncated';
+import {
+  ESTIMATED_ENTITY_POPUP_HEIGHT,
+  ESTIMATED_ENTITY_POPUP_WIDTH,
+} from '../../hooks/anchoredPopupPlacement';
 import { buildCatalogEntityFilterUrl } from '../../utils/catalogRoutes';
-import '../../styles/components/card-content-popup.css';
+import { AnchoredCardPopup } from './AnchoredCardPopup';
 import './EntityChip.css';
 
 interface EntityChipProps {
@@ -33,10 +34,6 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
   const canShowPreview = entityHasPreview(entity);
   const popupOpen = showPopup && canShowPreview;
   const hasBio = Boolean(entity?.description?.trim());
-  const placement = useAnchoredPopup(wrapperRef, popupOpen, {
-    estimatedHeight: ESTIMATED_ENTITY_POPUP_HEIGHT,
-  });
-  const isBioTruncated = useIsTruncated(previewTextRef, popupOpen && hasBio);
 
   const ensureEntity = useCallback(() => {
     if (entityId && !entityProp && !entityFetched) {
@@ -87,10 +84,6 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
   if (entityId) {
     const previewName = entity?.name?.trim() || label;
     const initial = previewName.charAt(0).toUpperCase() || '?';
-    const placementClass = [
-      `card-content-popup--${placement.vertical}`,
-      `card-content-popup--align-${placement.horizontal}`,
-    ].join(' ');
 
     return (
       <div
@@ -111,10 +104,14 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
           {label}
         </button>
         {popupOpen && entity && (
-          <div
+          <AnchoredCardPopup
+            open
+            anchorRef={wrapperRef}
+            estimatedHeight={ESTIMATED_ENTITY_POPUP_HEIGHT}
+            estimatedWidth={ESTIMATED_ENTITY_POPUP_WIDTH}
+            className="card-content-popup--entity"
             id={`entity-chip-tip-${entityId}`}
-            class={`card-content-popup card-content-popup--entity${isBioTruncated ? ' is-truncated' : ''} ${placementClass}`}
-            role="tooltip"
+            previewRef={previewTextRef}
           >
             <div class="card-content-popup__avatar" aria-hidden="true">
               {entity.photoUrl?.trim() ? (
@@ -136,7 +133,7 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
                 </div>
               ) : null}
             </div>
-          </div>
+          </AnchoredCardPopup>
         )}
       </div>
     );

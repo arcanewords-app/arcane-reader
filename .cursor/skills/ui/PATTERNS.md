@@ -169,12 +169,16 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 **How:** Put the text in `.card-content-popup__preview-text`. Set `--card-content-popup-lines` on the popup modifier. When `useIsTruncated` is true, add `is-truncated` on `.card-content-popup` (bottom fade; no scrollbar).
 
+Catalog synopsis and entity bio use [`AnchoredCardPopup.tsx`](../../../src/client/components/Home/AnchoredCardPopup.tsx): a `document.body` portal with `position: fixed`. The bubble may paint outside the card. `max-height` and `max-width` are the free space in the visual viewport (sticky header included above), so the popup does not grow `scrollHeight` or add a horizontal scrollbar. It follows the anchor on scroll and unmounts when the anchor leaves the viewport. `pointer-events: none`. `z-index: 100` stays under `--z-header`.
+
+Header credits and `EntityCard` keep the in-flow absolute popup. Do not switch those to the portal.
+
 **Size scale:**
 
-| Kind                               | Modifier        | Lines | Width                            | Flip estimate                              |
-| ---------------------------------- | --------------- | ----- | -------------------------------- | ------------------------------------------ |
-| Publication synopsis               | `--description` | 16    | `min(320px, 100%)` (base popup)  | `ESTIMATED_DESCRIPTION_POPUP_HEIGHT` (490) |
-| Entity bio (author and translator) | `--entity`      | 12    | `min(360px, calc(100vw - 2rem))` | `ESTIMATED_ENTITY_POPUP_HEIGHT` (320)      |
+| Kind                               | Modifier        | Lines | Width                                   | Flip estimate                              |
+| ---------------------------------- | --------------- | ----- | --------------------------------------- | ------------------------------------------ |
+| Publication synopsis               | `--description` | 16    | up to 320px, pinned inside the viewport | `ESTIMATED_DESCRIPTION_POPUP_HEIGHT` (490) |
+| Entity bio (author and translator) | `--entity`      | 12    | up to 360px, pinned inside the viewport | `ESTIMATED_ENTITY_POPUP_HEIGHT` (320)      |
 
 Author and translator share one size: both use the same bio field.
 
@@ -195,7 +199,7 @@ Author and translator share one size: both use the same bio field.
 - [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts)
 - Prefetch: [`HomePage.tsx`](../../../src/client/pages/HomePage.tsx) via `api.getPublicEntitiesByIds`
 
-**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + bio. Bio uses [`card-content-popup`](#card-content-popup): 12 lines, ~360px, fade when truncated. Flip above/below with `ESTIMATED_ENTITY_POPUP_HEIGHT` and align start/end via viewport space. Open wrapper raises `z-index`.
+**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + bio, portaled with [`AnchoredCardPopup`](../../../src/client/components/Home/AnchoredCardPopup.tsx). Bio uses [`card-content-popup`](#card-content-popup): 12 lines, up to ~360px, fade when truncated, clamped to the viewport. May paint outside the card. Does not change page scroll size.
 
 **a11y:** `role="tooltip"` + `aria-describedby` while open; keyboard focus/blur same as hover.
 
@@ -216,7 +220,7 @@ Author and translator share one size: both use the same bio field.
 - [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts) with `ESTIMATED_DESCRIPTION_POPUP_HEIGHT`
 - [`useIsTruncated.ts`](../../../src/client/hooks/useIsTruncated.ts) for fade when preview overflows
 
-**Layout / behavior:** Card text stays 2-line clamp. Popup uses [`card-content-popup`](#card-content-popup): 16-line preview (max-height tied to `--card-max-publication`). When content overflows, add `is-truncated` + bottom fade (`useIsTruncated`). Flip above/below with `ESTIMATED_DESCRIPTION_POPUP_HEIGHT` and align start/end via viewport space.
+**Layout / behavior:** Card text stays 2-line clamp. Popup uses [`card-content-popup`](#card-content-popup) via [`AnchoredCardPopup`](../../../src/client/components/Home/AnchoredCardPopup.tsx): 16-line preview, fixed to the viewport, allowed to paint outside the card. When content overflows the line cap or the free viewport space, add `is-truncated` + bottom fade. Opening downward on the last card must not grow the page.
 
 **a11y:** `role="tooltip"` on the popup; hover-only (no keyboard path on the clamped paragraph — full text is on the publication page).
 

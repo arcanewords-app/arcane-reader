@@ -53,6 +53,27 @@
   right: 1rem;
 }
 
+/* Catalog previews: portaled so they can leave the card without growing the page. */
+.card-content-popup--fixed {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  overflow: hidden;
+}
+
+.card-content-popup--fixed.is-truncated {
+  mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
+}
+
+.card-content-popup--align-pin::after {
+  left: 1rem;
+  right: auto;
+}
+
 /* Multiline preview: line-clamp + bottom fade when `.is-truncated` (useIsTruncated). */
 .card-content-popup__preview-text {
   display: -webkit-box;
@@ -68,13 +89,12 @@
   mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
 }
 
-/* Publication description: 16-line preview, width from the base popup. */
+/* Publication description: 16-line preview. Width and height come from the fixed frame. */
 .card-content-popup--description {
   --card-content-popup-lines: 16;
 
   padding: 0;
   overflow: hidden;
-  max-height: min(calc(var(--card-max-publication) * 1.75), calc(100dvh - 2 * var(--space-lg)));
 }
 
 .card-content-popup--description .card-content-popup__preview-text {
