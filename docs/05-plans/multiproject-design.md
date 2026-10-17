@@ -9,7 +9,7 @@ updated: 2026-10-17
 
 # Multiproject: reader and translator design
 
-Design lock for one book with more than one translation. The primary language stays in the existing columns. A second language is stored in `project_editions`, `chapter_editions`, `paragraph_translations`, and `publication_editions` (`supabase/migrations/20261017120000_project_editions.sql`). That migration is local until it is applied on purpose.
+Design lock for one book with more than one translation. The primary language stays in the existing columns. A second language is stored in `project_editions`, `chapter_editions`, `paragraph_translations`, and `publication_editions` (`supabase/migrations/20261017120000_project_editions.sql`). That migration is applied on the `arcane` project.
 
 Shipped in code:
 

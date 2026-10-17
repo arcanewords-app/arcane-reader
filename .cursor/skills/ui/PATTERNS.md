@@ -32,6 +32,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 | `filter-segment-control`                | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`                                           |
 | `responsive-filter-bar`                 | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                                                       |
 | `entity-filter-chips`                   | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`                                 |
+| `card-content-popup`                    | Multiline hover text: clamp + fade, size scale    | `card-content-popup.css` / `useIsTruncated.ts`                       |
 | `entity-chip-hover-preview`             | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css`                          |
 | `publication-description-hover-preview` | Catalog card: full synopsis on description hover  | `PublicationCard.tsx` / `card-content-popup.css`                     |
 | `header-locale-control`                 | App language: icon + code + dropdown              | `Header.tsx`                                                         |
@@ -153,6 +154,34 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ---
 
+## `card-content-popup`
+
+**When:** A hover or focus popup shows multiline text (catalog synopsis, author/translator bio, the next preview of the same kind).
+
+**When not:** A one- or two-line hint (header credits). Use the short popup there, not this clamp.
+
+**Files:**
+
+- [`card-content-popup.css`](../../../src/client/styles/components/card-content-popup.css) — `.card-content-popup__preview-text`, `--card-content-popup-lines`, `.is-truncated`
+- [`useIsTruncated.ts`](../../../src/client/hooks/useIsTruncated.ts) — adds `is-truncated` when the preview overflows
+- [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts) — flip above/below; pass an estimated height that matches the size below
+- [`anchoredPopupPlacement.ts`](../../../src/client/hooks/anchoredPopupPlacement.ts) — `ESTIMATED_ENTITY_POPUP_HEIGHT`, `ESTIMATED_DESCRIPTION_POPUP_HEIGHT`
+
+**How:** Put the text in `.card-content-popup__preview-text`. Set `--card-content-popup-lines` on the popup modifier. When `useIsTruncated` is true, add `is-truncated` on `.card-content-popup` (bottom fade; no scrollbar).
+
+**Size scale:**
+
+| Kind                               | Modifier        | Lines | Width                            | Flip estimate                              |
+| ---------------------------------- | --------------- | ----- | -------------------------------- | ------------------------------------------ |
+| Publication synopsis               | `--description` | 16    | `min(320px, 100%)` (base popup)  | `ESTIMATED_DESCRIPTION_POPUP_HEIGHT` (490) |
+| Entity bio (author and translator) | `--entity`      | 12    | `min(360px, calc(100vw - 2rem))` | `ESTIMATED_ENTITY_POPUP_HEIGHT` (320)      |
+
+Author and translator share one size: both use the same bio field.
+
+**Anti-patterns:** Scroll inside a hover tooltip; a hard clip with no fade; a private `line-clamp` outside this scale; a new width or line count without a row in the table above.
+
+---
+
 ## `entity-chip-hover-preview`
 
 **When:** Catalog publication cards show author/translator as interactive chips; hover/focus should reinforce identity with avatar + bio.
@@ -166,7 +195,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 - [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts)
 - Prefetch: [`HomePage.tsx`](../../../src/client/pages/HomePage.tsx) via `api.getPublicEntitiesByIds`
 
-**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + clamped description. Flip above/below and align start/end via viewport space. Open wrapper raises `z-index`.
+**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + bio. Bio uses [`card-content-popup`](#card-content-popup): 12 lines, ~360px, fade when truncated. Flip above/below with `ESTIMATED_ENTITY_POPUP_HEIGHT` and align start/end via viewport space. Open wrapper raises `z-index`.
 
 **a11y:** `role="tooltip"` + `aria-describedby` while open; keyboard focus/blur same as hover.
 
@@ -187,7 +216,7 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 - [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts) with `ESTIMATED_DESCRIPTION_POPUP_HEIGHT`
 - [`useIsTruncated.ts`](../../../src/client/hooks/useIsTruncated.ts) for fade when preview overflows
 
-**Layout / behavior:** Card text stays 2-line clamp. Popup shows a ~16-line preview (max-height tied to `--card-max-publication`) with native ellipsis (`line-clamp`). When content overflows, add `is-truncated` + bottom fade mask (`useIsTruncated`). Flip above/below and align start/end via viewport space (`useAnchoredPopup`).
+**Layout / behavior:** Card text stays 2-line clamp. Popup uses [`card-content-popup`](#card-content-popup): 16-line preview (max-height tied to `--card-max-publication`). When content overflows, add `is-truncated` + bottom fade (`useIsTruncated`). Flip above/below with `ESTIMATED_DESCRIPTION_POPUP_HEIGHT` and align start/end via viewport space.
 
 **a11y:** `role="tooltip"` on the popup; hover-only (no keyboard path on the clamped paragraph — full text is on the publication page).
 

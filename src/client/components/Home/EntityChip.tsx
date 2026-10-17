@@ -2,7 +2,9 @@ import { useState, useCallback, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
 import type { PublicEntity } from '../../types';
 import { api } from '../../api/client';
+import { ESTIMATED_ENTITY_POPUP_HEIGHT } from '../../hooks/anchoredPopupPlacement';
 import { useAnchoredPopup } from '../../hooks/useAnchoredPopup';
+import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { buildCatalogEntityFilterUrl } from '../../utils/catalogRoutes';
 import '../../styles/components/card-content-popup.css';
 import './EntityChip.css';
@@ -24,12 +26,17 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
   const [entityFetched, setEntityFetched] = useState<PublicEntity | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const previewTextRef = useRef<HTMLDivElement>(null);
 
   const entity = entityProp ?? entityFetched;
   const label = display || '—';
   const canShowPreview = entityHasPreview(entity);
   const popupOpen = showPopup && canShowPreview;
-  const placement = useAnchoredPopup(wrapperRef, popupOpen);
+  const hasBio = Boolean(entity?.description?.trim());
+  const placement = useAnchoredPopup(wrapperRef, popupOpen, {
+    estimatedHeight: ESTIMATED_ENTITY_POPUP_HEIGHT,
+  });
+  const isBioTruncated = useIsTruncated(previewTextRef, popupOpen && hasBio);
 
   const ensureEntity = useCallback(() => {
     if (entityId && !entityProp && !entityFetched) {
@@ -106,7 +113,7 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
         {popupOpen && entity && (
           <div
             id={`entity-chip-tip-${entityId}`}
-            class={`card-content-popup card-content-popup--entity ${placementClass}`}
+            class={`card-content-popup card-content-popup--entity${isBioTruncated ? ' is-truncated' : ''} ${placementClass}`}
             role="tooltip"
           >
             <div class="card-content-popup__avatar" aria-hidden="true">
@@ -123,8 +130,10 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
             </div>
             <div class="card-content-popup__body">
               <div class="card-content-popup__name">{previewName}</div>
-              {entity.description?.trim() ? (
-                <div class="card-content-popup__description">{entity.description}</div>
+              {hasBio ? (
+                <div class="card-content-popup__preview-text" ref={previewTextRef}>
+                  {entity.description}
+                </div>
               ) : null}
             </div>
           </div>

@@ -18,7 +18,12 @@ vi.mock('preact-router', () => ({
   route: vi.fn(),
 }));
 
+vi.mock('../../hooks/useIsTruncated.js', () => ({
+  useIsTruncated: vi.fn(() => false),
+}));
+
 import { api } from '../../api/client.js';
+import { useIsTruncated } from '../../hooks/useIsTruncated.js';
 import { route } from 'preact-router';
 import { buildCatalogEntityFilterUrl } from '../../utils/catalogRoutes.js';
 import { EntityChip } from './EntityChip.js';
@@ -35,6 +40,7 @@ describe('EntityChip', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.mocked(useIsTruncated).mockReturnValue(false);
   });
 
   it('renders static span when entityId is missing', () => {
@@ -67,6 +73,10 @@ describe('EntityChip', () => {
     });
     expect(screen.getByRole('tooltip').textContent).toContain('Bio text');
     expect(screen.getByRole('tooltip').textContent).toContain('Author Name');
+    expect(document.querySelector('.card-content-popup__preview-text')?.textContent).toContain(
+      'Bio text'
+    );
+    expect(document.querySelector('.card-content-popup.is-truncated')).toBeNull();
   });
 
   it('does not fetch on hover when entity prop is provided', async () => {
@@ -126,6 +136,29 @@ describe('EntityChip', () => {
     await waitFor(() => {
       expect(document.querySelector('.card-content-popup__placeholder')?.textContent).toBe('A');
     });
+  });
+
+  it('adds is-truncated when bio overflows', async () => {
+    vi.mocked(useIsTruncated).mockReturnValue(true);
+    render(
+      <EntityChip
+        display="Author Name"
+        entityId="ent-1"
+        routeParam="translator"
+        entity={{ ...entityBase, description: 'A long translator bio that overflows the preview.' }}
+      />
+    );
+    const wrapper = screen
+      .getByRole('button', { name: 'Author Name' })
+      .closest('.entity-chip-wrapper')!;
+    fireEvent.mouseEnter(wrapper);
+
+    await waitFor(() => {
+      expect(document.querySelector('.card-content-popup--entity.is-truncated')).toBeTruthy();
+    });
+    expect(document.querySelector('.card-content-popup__preview-text')?.textContent).toContain(
+      'long translator bio'
+    );
   });
 
   it('does not show popup when entity has neither photo nor description', () => {
