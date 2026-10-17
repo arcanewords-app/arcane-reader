@@ -1,5 +1,5 @@
 import type { ComponentChildren, RefObject } from 'preact';
-import { useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import { useAnchoredPopup } from '../../hooks/useAnchoredPopup';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
@@ -43,12 +43,25 @@ export function AnchoredCardPopup({
   previewRef,
   children,
 }: AnchoredCardPopupProps) {
-  const placement = useAnchoredPopup(anchorRef, open, { estimatedHeight, estimatedWidth });
+  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+  const placement = useAnchoredPopup(anchorRef, open, {
+    estimatedHeight,
+    estimatedWidth,
+    contentHeight,
+  });
   const shown = open && placement.anchorVisible;
   const popupRef = useRef<HTMLDivElement>(null);
-  const textTruncated = useIsTruncated(previewRef, shown);
-  const frameTruncated = useIsTruncated(popupRef, shown);
-  const truncated = textTruncated || frameTruncated;
+  const truncated = useIsTruncated(previewRef, shown);
+
+  useLayoutEffect(() => {
+    if (!shown) {
+      setContentHeight(undefined);
+      return;
+    }
+    const height = popupRef.current?.offsetHeight ?? 0;
+    if (height <= 0) return;
+    setContentHeight((prev) => (prev == null ? height : prev));
+  }, [shown]);
 
   if (!shown || typeof document === 'undefined') return null;
 

@@ -167,9 +167,9 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 - [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts) — flip above/below; pass an estimated height that matches the size below
 - [`anchoredPopupPlacement.ts`](../../../src/client/hooks/anchoredPopupPlacement.ts) — `ESTIMATED_ENTITY_POPUP_HEIGHT`, `ESTIMATED_DESCRIPTION_POPUP_HEIGHT`
 
-**How:** Put the text in `.card-content-popup__preview-text`. Set `--card-content-popup-lines` on the popup modifier. When `useIsTruncated` is true, add `is-truncated` on `.card-content-popup` (bottom fade; no scrollbar).
+**How:** Put the text in `.card-content-popup__preview-text`. Set `--card-content-popup-lines` on the popup modifier. When `useIsTruncated` is true, add `is-truncated` on `.card-content-popup`. The fade is a one-line tail on the text only (`1.5rem`), not a mask on the whole bubble. A preview that fits has no fade. No scrollbar.
 
-Catalog synopsis and entity bio use [`AnchoredCardPopup.tsx`](../../../src/client/components/Home/AnchoredCardPopup.tsx): a `document.body` portal with `position: fixed`. The bubble may paint outside the card. `max-height` and `max-width` are the free space in the visual viewport (sticky header included above), so the popup does not grow `scrollHeight` or add a horizontal scrollbar. It follows the anchor on scroll and unmounts when the anchor leaves the viewport. `pointer-events: none`. `z-index: 100` stays under `--z-header`.
+Catalog synopsis and entity bio use [`AnchoredCardPopup.tsx`](../../../src/client/components/Home/AnchoredCardPopup.tsx): a `document.body` portal with `position: fixed`. The bubble may paint outside the card. Before measurement, flip uses the estimate; after one measurement, a shorter bubble picks the side where that height fits. `max-height` stays the free viewport space and is never set from the measurement. Fade only when the text overflows by at least one line. The popup does not grow `scrollHeight` or add a horizontal scrollbar. It follows the anchor on scroll and unmounts when the anchor leaves the viewport. `pointer-events: none`. `z-index: 100` stays under `--z-header`.
 
 Header credits and `EntityCard` keep the in-flow absolute popup. Do not switch those to the portal.
 

@@ -17,6 +17,8 @@ export type { AnchoredPopupPlacement } from './anchoredPopupPlacement.js';
 export type UseAnchoredPopupOptions = {
   estimatedHeight?: number;
   estimatedWidth?: number;
+  /** Measured popup height. Smaller than the estimate keeps a short bubble fully in view. */
+  contentHeight?: number;
 };
 
 function readViewport(): ViewportSize {
@@ -61,6 +63,7 @@ export function useAnchoredPopup(
           {
             estimatedHeight: options?.estimatedHeight,
             estimatedWidth: options?.estimatedWidth,
+            contentHeight: options?.contentHeight,
             headerInset: readHeaderInset(),
           }
         )
@@ -78,7 +81,7 @@ export function useAnchoredPopup(
       window.visualViewport?.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('scroll', update);
     };
-  }, [anchorRef, open, options?.estimatedHeight, options?.estimatedWidth]);
+  }, [anchorRef, open, options?.estimatedHeight, options?.estimatedWidth, options?.contentHeight]);
 
   return placement;
 }

@@ -62,11 +62,6 @@
   right: auto;
   bottom: auto;
   left: auto;
-  overflow: hidden;
-}
-
-.card-content-popup--fixed.is-truncated {
-  mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
 }
 
 .card-content-popup--align-pin::after {
@@ -86,7 +81,7 @@
 }
 
 .card-content-popup.is-truncated .card-content-popup__preview-text {
-  mask-image: linear-gradient(to bottom, #000 75%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.5rem), transparent 100%);
 }
 
 /* Publication description: 16-line preview. Width and height come from the fixed frame. */
@@ -94,7 +89,6 @@
   --card-content-popup-lines: 16;
 
   padding: 0;
-  overflow: hidden;
 }
 
 .card-content-popup--description .card-content-popup__preview-text {

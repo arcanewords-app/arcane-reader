@@ -89,7 +89,17 @@ describe('computeAnchoredPlacement', () => {
     expect(placement.maxHeight).toBe(600 - 72 - VIEWPORT_PADDING);
   });
 
-  it('opens below the last card when that side has more room', () => {
+  it('keeps a short popup above when the measured height fits', () => {
+    const placement = computeAnchoredPlacement(
+      { top: 200, bottom: 220, left: 40, right: 120 },
+      { width: 1200, height: 800 },
+      { estimatedHeight: ESTIMATED_DESCRIPTION_POPUP_HEIGHT, contentHeight: 80 }
+    );
+    expect(placement.vertical).toBe('above');
+    expect(placement.maxHeight).toBe(200 - VIEWPORT_PADDING);
+  });
+
+  it('still opens below when the estimate does not fit above', () => {
     const placement = computeAnchoredPlacement(
       { top: 80, bottom: 100, left: 16, right: 280 },
       { width: 390, height: 700 },

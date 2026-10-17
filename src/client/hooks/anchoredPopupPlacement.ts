@@ -85,6 +85,8 @@ export function computeAnchoredPlacement(
     padding?: number;
     estimatedHeight?: number;
     estimatedWidth?: number;
+    /** Measured popup height. Used instead of the estimate when it is smaller. */
+    contentHeight?: number;
     /** Bottom of a sticky header, in the same coordinate space as `rect`. */
     headerInset?: number;
   } = {}
@@ -92,6 +94,12 @@ export function computeAnchoredPlacement(
   const padding = options.padding ?? VIEWPORT_PADDING;
   const estimatedHeight = options.estimatedHeight ?? ESTIMATED_POPUP_HEIGHT;
   const estimatedWidth = options.estimatedWidth ?? ESTIMATED_POPUP_WIDTH;
+  const measuredHeight =
+    options.contentHeight != null &&
+    options.contentHeight > 0 &&
+    options.contentHeight < estimatedHeight
+      ? options.contentHeight
+      : null;
   const offsetLeft = viewport.offsetLeft ?? 0;
   const offsetTop = viewport.offsetTop ?? 0;
   const layoutHeight = viewport.layoutHeight ?? offsetTop + viewport.height;
@@ -101,9 +109,11 @@ export function computeAnchoredPlacement(
 
   const spaceAbove = rect.top - headerInset - padding;
   const spaceBelow = offsetTop + viewport.height - rect.bottom - padding;
+  const neededHeight = measuredHeight ?? estimatedHeight;
   const vertical: AnchoredPopupVertical =
-    spaceAbove < estimatedHeight && spaceBelow > spaceAbove ? 'below' : 'above';
-  const maxHeight = Math.max(0, vertical === 'above' ? spaceAbove : spaceBelow);
+    spaceAbove < neededHeight && spaceBelow > spaceAbove ? 'below' : 'above';
+  const room = Math.max(0, vertical === 'above' ? spaceAbove : spaceBelow);
+  const maxHeight = room;
 
   const maxBox = Math.min(estimatedWidth, Math.max(0, viewport.width - 2 * padding));
   const roomRight = offsetLeft + viewport.width - rect.left - padding;
