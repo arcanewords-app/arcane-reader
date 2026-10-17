@@ -11,6 +11,8 @@ export interface EditGlossaryModalProps {
   onClose: () => void;
   projectId: string;
   editionLanguage?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
   entry: GlossaryEntry;
   entries: GlossaryEntry[];
   chapters?: ChapterRef[];
@@ -32,6 +34,8 @@ export function EditGlossaryModal({
   onClose,
   projectId,
   editionLanguage,
+  sourceLanguage,
+  targetLanguage,
   entry,
   entries,
   chapters,
@@ -225,12 +229,14 @@ export function EditGlossaryModal({
           />
         )}
         <Input
-          label={t('glossary.originalLabel')}
+          label={t('glossary.originalLabel', { language: (sourceLanguage || 'EN').toUpperCase() })}
           value={original}
           onInput={(e) => setOriginal((e.target as HTMLInputElement).value)}
         />
         <Input
-          label={t('glossary.translatedLabel')}
+          label={t('glossary.translatedLabel', {
+            language: (targetLanguage || 'RU').toUpperCase(),
+          })}
           value={translated}
           onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}
         />

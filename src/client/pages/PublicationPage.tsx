@@ -987,6 +987,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         chapters={translatedChapters}
         preloadedEntries={preloadedGlossary ?? undefined}
         language={activeLang || undefined}
+        sourceLanguage={pub.sourceLanguage}
+        targetLanguage={pub.targetLanguage}
       />
       <ChapterTocModal
         isOpen={showToc}

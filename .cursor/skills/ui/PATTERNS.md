@@ -169,9 +169,9 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 **How:** Put the text in `.card-content-popup__preview-text`. Set `--card-content-popup-lines` on the popup modifier. When `useIsTruncated` is true, add `is-truncated` on `.card-content-popup`. The fade is a one-line tail on the text only (`1.5rem`), not a mask on the whole bubble. A preview that fits has no fade. No scrollbar.
 
-Catalog synopsis and entity bio use [`AnchoredCardPopup.tsx`](../../../src/client/components/Home/AnchoredCardPopup.tsx): a `document.body` portal with `position: fixed`. The bubble may paint outside the card. Before measurement, flip uses the estimate; after one measurement, a shorter bubble picks the side where that height fits. `max-height` stays the free viewport space and is never set from the measurement. Fade only when the text overflows by at least one line. The popup does not grow `scrollHeight` or add a horizontal scrollbar. It follows the anchor on scroll and unmounts when the anchor leaves the viewport. `pointer-events: none`. `z-index: 100` stays under `--z-header`.
+Catalog synopsis and entity bio (catalog chips and `EntityCard`) use [`AnchoredCardPopup.tsx`](../../../src/client/components/Home/AnchoredCardPopup.tsx): `position: fixed`. The host is `document.body`, or the surrounding `.modal-overlay` when the anchor sits in a dialog, so the bubble stays above that dialog without a new viewport z-index. The bubble may paint outside the card. Before measurement, flip uses the estimate; after one measurement, a shorter bubble picks the side where that height fits. `max-height` stays the free viewport space and is never set from the measurement. Fade only when the text overflows by at least one line. The popup does not grow `scrollHeight` or add a horizontal scrollbar. It follows the anchor on scroll and unmounts when the anchor leaves the viewport. `pointer-events: none`. On the page, `z-index: 100` stays under `--z-header`.
 
-Header credits and `EntityCard` keep the in-flow absolute popup. Do not switch those to the portal.
+Header credits keep the in-flow absolute popup: one short hint, not a bio.
 
 **Size scale:**
 
@@ -199,7 +199,7 @@ Author and translator share one size: both use the same bio field.
 - [`useAnchoredPopup.ts`](../../../src/client/hooks/useAnchoredPopup.ts)
 - Prefetch: [`HomePage.tsx`](../../../src/client/pages/HomePage.tsx) via `api.getPublicEntitiesByIds`
 
-**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + bio, portaled with [`AnchoredCardPopup`](../../../src/client/components/Home/AnchoredCardPopup.tsx). Bio uses [`card-content-popup`](#card-content-popup): 12 lines, up to ~360px, fade when truncated, clamped to the viewport. May paint outside the card. Does not change page scroll size.
+**Layout / behavior:** Chip stays text-only. Popup: 40px avatar (photo or letter) + name + bio, portaled with [`AnchoredCardPopup`](../../../src/client/components/Home/AnchoredCardPopup.tsx) and [`EntityPreviewBody`](../../../src/client/components/EntityPreviewBody.tsx). Bio uses [`card-content-popup`](#card-content-popup): 12 lines, up to ~360px, fade when truncated, clamped to the viewport. May paint outside the card. Does not change page scroll size. `EntityCard` (project, publication page, admin, entity picker, pseudonyms) uses the same preview when the entity has a bio. The card itself still shows the avatar and name.
 
 **a11y:** `role="tooltip"` + `aria-describedby` while open; keyboard focus/blur same as hover.
 

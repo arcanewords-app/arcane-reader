@@ -1,6 +1,11 @@
-import { useState, useCallback } from 'preact/hooks';
+import { useState, useCallback, useRef } from 'preact/hooks';
 import type { PublicEntity } from '../../types';
-import '../../styles/components/card-content-popup.css';
+import {
+  ESTIMATED_ENTITY_POPUP_HEIGHT,
+  ESTIMATED_ENTITY_POPUP_WIDTH,
+} from '../../hooks/anchoredPopupPlacement';
+import { EntityPreviewBody } from '../EntityPreviewBody';
+import { AnchoredCardPopup } from '../Home/AnchoredCardPopup';
 import './EntityCard.css';
 
 interface EntityCardProps {
@@ -23,6 +28,8 @@ export function EntityCard({
   caption,
 }: EntityCardProps) {
   const [showPopup, setShowPopup] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const previewTextRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = useCallback(() => setShowPopup(true), []);
   const handleMouseLeave = useCallback(() => setShowPopup(false), []);
@@ -31,6 +38,8 @@ export function EntityCard({
 
   const hasDescription = Boolean(entity.description?.trim());
   const isInteractive = Boolean(onClick);
+  const popupOpen = showPopup && hasDescription;
+  const tipId = `entity-card-tip-${entity.id}`;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -42,11 +51,13 @@ export function EntityCard({
     [isInteractive, onClick]
   );
 
-  const content = (
+  return (
     <div
+      ref={cardRef}
       class={`entity-card ${compact ? 'entity-card--compact' : ''} ${isInteractive ? 'entity-card--interactive' : ''} ${className}`.trim()}
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : undefined}
+      aria-describedby={popupOpen ? tipId : undefined}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={handleMouseEnter}
@@ -67,13 +78,24 @@ export function EntityCard({
         <span class="entity-card__name">{entity.name}</span>
         {caption ? <span class="entity-card__caption">{caption}</span> : null}
       </span>
-      {hasDescription && showPopup && (
-        <div class="card-content-popup" role="tooltip">
-          {entity.description}
-        </div>
+      {popupOpen && (
+        <AnchoredCardPopup
+          open
+          anchorRef={cardRef}
+          estimatedHeight={ESTIMATED_ENTITY_POPUP_HEIGHT}
+          estimatedWidth={ESTIMATED_ENTITY_POPUP_WIDTH}
+          className="card-content-popup--entity"
+          id={tipId}
+          previewRef={previewTextRef}
+        >
+          <EntityPreviewBody
+            name={entity.name}
+            photoUrl={entity.photoUrl}
+            description={entity.description}
+            previewRef={previewTextRef}
+          />
+        </AnchoredCardPopup>
       )}
     </div>
   );
-
-  return content;
 }

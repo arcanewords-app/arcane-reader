@@ -1,4 +1,4 @@
-/* Shared hover popup for publication card description and entity chips */
+/* Shared hover popup. Page previews portal with --fixed; header credits stay absolute. */
 
 .card-content-popup {
   position: absolute;
@@ -53,7 +53,7 @@
   right: 1rem;
 }
 
-/* Catalog previews: portaled so they can leave the card without growing the page. */
+/* Hover previews: portaled so they can leave the card without growing the page. */
 .card-content-popup--fixed {
   position: fixed;
   z-index: 100;

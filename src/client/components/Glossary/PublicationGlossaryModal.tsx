@@ -31,6 +31,8 @@ interface PublicationGlossaryModalProps {
   preloadedEntries?: GlossaryEntry[] | null;
   /** Selected publication language. Primary language omits the query. */
   language?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export function PublicationGlossaryModal({
@@ -40,8 +42,12 @@ export function PublicationGlossaryModal({
   chapters = [],
   preloadedEntries,
   language,
+  sourceLanguage,
+  targetLanguage,
 }: PublicationGlossaryModalProps) {
   const { t } = useTranslation();
+  const originalCode = (sourceLanguage || 'en').toUpperCase();
+  const translationCode = (language || targetLanguage || 'ru').toUpperCase();
   const [entries, setEntries] = useState<GlossaryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -298,11 +304,15 @@ export function PublicationGlossaryModal({
               </span>
             </div>
             <div class="form-group">
-              <label class="form-label">{t('glossary.originalLabel')}</label>
+              <label class="form-label">
+                {t('glossary.originalLabel', { language: originalCode })}
+              </label>
               <p style={{ margin: 0, color: 'var(--text-primary)' }}>{detailEntry.original}</p>
             </div>
             <div class="form-group">
-              <label class="form-label">{t('glossary.translatedLabel')}</label>
+              <label class="form-label">
+                {t('glossary.translatedLabel', { language: translationCode })}
+              </label>
               <p style={{ margin: 0, color: 'var(--text-primary)' }}>{detailEntry.translated}</p>
             </div>
             {detailEntry.description && (

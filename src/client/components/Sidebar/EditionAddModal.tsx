@@ -27,6 +27,9 @@ export function EditionAddModal({
   const candidate = primaryLanguage === 'ru' ? 'be' : 'ru';
   const allowed = isValidLanguagePair(sourceLanguage, candidate);
   const label = t(`language.${candidate}`) || candidate.toUpperCase();
+  const inKey = `languageIn.${candidate}`;
+  const translatedIn = t(inKey);
+  const languageIn = translatedIn === inKey ? label : translatedIn;
 
   const handleCreate = async () => {
     if (!allowed || saving) return;
@@ -59,7 +62,9 @@ export function EditionAddModal({
         </>
       }
     >
-      <p>{allowed ? t('edition.addBody', { language: label }) : t('edition.analysisLocked')}</p>
+      <p>
+        {allowed ? t('edition.addBody', { language: languageIn }) : t('edition.analysisLocked')}
+      </p>
     </Modal>
   );
 }

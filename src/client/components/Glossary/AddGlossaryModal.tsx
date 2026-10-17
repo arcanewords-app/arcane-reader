@@ -9,6 +9,8 @@ export interface AddGlossaryModalProps {
   onClose: () => void;
   projectId: string;
   editionLanguage?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
   onAdd: () => void;
 }
 
@@ -17,6 +19,8 @@ export function AddGlossaryModal({
   onClose,
   projectId,
   editionLanguage,
+  sourceLanguage,
+  targetLanguage,
   onAdd,
 }: AddGlossaryModalProps) {
   const { t } = useTranslation();
@@ -93,13 +97,15 @@ export function AddGlossaryModal({
         ]}
       />
       <Input
-        label={t('glossary.originalLabel')}
+        label={t('glossary.originalLabel', { language: (sourceLanguage || 'EN').toUpperCase() })}
         placeholder={t('glossary.originalPlaceholder')}
         value={original}
         onInput={(e) => setOriginal((e.target as HTMLInputElement).value)}
       />
       <Input
-        label={t('glossary.translatedLabel')}
+        label={t('glossary.translatedLabel', {
+          language: (targetLanguage || 'RU').toUpperCase(),
+        })}
         placeholder={t('glossary.translatedPlaceholder')}
         value={translated}
         onInput={(e) => setTranslated((e.target as HTMLInputElement).value)}

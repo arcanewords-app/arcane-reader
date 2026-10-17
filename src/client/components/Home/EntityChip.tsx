@@ -7,6 +7,7 @@ import {
   ESTIMATED_ENTITY_POPUP_WIDTH,
 } from '../../hooks/anchoredPopupPlacement';
 import { buildCatalogEntityFilterUrl } from '../../utils/catalogRoutes';
+import { EntityPreviewBody } from '../EntityPreviewBody';
 import { AnchoredCardPopup } from './AnchoredCardPopup';
 import './EntityChip.css';
 
@@ -83,7 +84,6 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
 
   if (entityId) {
     const previewName = entity?.name?.trim() || label;
-    const initial = previewName.charAt(0).toUpperCase() || '?';
 
     return (
       <div
@@ -114,26 +114,12 @@ export function EntityChip({ display, entityId, routeParam, entity: entityProp }
             id={`entity-chip-tip-${entityId}`}
             previewRef={previewTextRef}
           >
-            <div class="card-content-popup__avatar" aria-hidden="true">
-              {entity.photoUrl?.trim() ? (
-                <img
-                  src={entity.photoUrl}
-                  alt=""
-                  class="card-content-popup__photo"
-                  loading="lazy"
-                />
-              ) : (
-                <div class="card-content-popup__placeholder">{initial}</div>
-              )}
-            </div>
-            <div class="card-content-popup__body">
-              <div class="card-content-popup__name">{previewName}</div>
-              {hasBio ? (
-                <div class="card-content-popup__preview-text" ref={previewTextRef}>
-                  {entity.description}
-                </div>
-              ) : null}
-            </div>
+            <EntityPreviewBody
+              name={previewName}
+              photoUrl={entity.photoUrl}
+              description={hasBio ? entity.description : null}
+              previewRef={previewTextRef}
+            />
           </AnchoredCardPopup>
         )}
       </div>

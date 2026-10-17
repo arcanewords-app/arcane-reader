@@ -22,7 +22,7 @@ export const NEWS_LOCALE_COPY = {
     fellBack: false,
     fallbackLabel: 'Показано на русском',
     localeButton: 'Русский',
-    belarusianItem: 'BE — Беларусский',
+    belarusianItem: 'BE — Белорусский',
   },
   be: {
     title: 'Русская заметка',

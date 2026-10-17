@@ -270,6 +270,8 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
           onClose={() => setShowGlossary(false)}
           projectId={project.id}
           entries={project.glossary}
+          sourceLanguage={project.sourceLanguage}
+          targetLanguage={project.targetLanguage}
           editionLanguage={
             activeLanguage && activeLanguage !== project.targetLanguage ? activeLanguage : undefined
           }

@@ -402,6 +402,8 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           onClose={() => setShowGlossary(false)}
           projectId={project.id}
           entries={project.glossary}
+          sourceLanguage={project.sourceLanguage}
+          targetLanguage={project.targetLanguage}
           editionLanguage={
             activeLanguage && activeLanguage !== project.targetLanguage ? activeLanguage : undefined
           }

@@ -30,9 +30,16 @@ function frameStyle(placement: AnchoredPopupPlacement): Record<string, string> {
 }
 
 /**
- * Catalog hover preview portaled to `document.body`.
- * Fixed positioning lets it paint outside the card without growing scroll height.
+ * Hover preview with fixed coordinates.
+ * Portals to `document.body`, or to the surrounding `.modal-overlay` so a dialog
+ * (z-index above the page) still shows the bubble without a new viewport layer.
  */
+function popupHost(anchor: HTMLElement | null): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const overlay = anchor?.closest('.modal-overlay');
+  if (overlay instanceof HTMLElement) return overlay;
+  return document.body;
+}
 export function AnchoredCardPopup({
   open,
   anchorRef,
@@ -63,7 +70,8 @@ export function AnchoredCardPopup({
     setContentHeight((prev) => (prev == null ? height : prev));
   }, [shown]);
 
-  if (!shown || typeof document === 'undefined') return null;
+  const host = popupHost(anchorRef.current);
+  if (!shown || !host) return null;
 
   const alignClass =
     placement.horizontal === 'pin'
@@ -89,6 +97,6 @@ export function AnchoredCardPopup({
     >
       {children}
     </div>,
-    document.body
+    host
   );
 }

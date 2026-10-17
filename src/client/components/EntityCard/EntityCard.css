@@ -1,4 +1,4 @@
-/* EntityCard - compact card with avatar + name, hover popup */
+/* EntityCard — avatar + name. Bio uses the shared anchored entity preview. */
 
 .entity-card {
   display: flex;

@@ -29,6 +29,9 @@ interface GlossaryModalProps {
   onNavigateToChapter?: (chapterId: string, searchTerm?: string) => void;
   /** Second target language. Originals stay shared; translated forms belong to this language. */
   editionLanguage?: string;
+  sourceLanguage?: string;
+  /** Primary project target. The edition language replaces it in the translation field. */
+  targetLanguage?: string;
 }
 
 export function GlossaryModal({
@@ -40,8 +43,12 @@ export function GlossaryModal({
   chapters,
   onNavigateToChapter,
   editionLanguage,
+  sourceLanguage,
+  targetLanguage,
 }: GlossaryModalProps) {
   const { t } = useTranslation();
+  const originalCode = (sourceLanguage || 'en').toUpperCase();
+  const translationCode = (editionLanguage || targetLanguage || 'ru').toUpperCase();
 
   const handleChapterClick = (num: number, searchTerm?: string) => {
     if (!onNavigateToChapter || !chapters?.length) return;
@@ -1064,6 +1071,8 @@ export function GlossaryModal({
         onClose={() => setShowAddModal(false)}
         projectId={projectId}
         editionLanguage={editionLanguage}
+        sourceLanguage={originalCode}
+        targetLanguage={translationCode}
         onAdd={onUpdate}
       />
 
@@ -1089,6 +1098,8 @@ export function GlossaryModal({
           onClose={() => setEditingEntry(null)}
           projectId={projectId}
           editionLanguage={editionLanguage}
+          sourceLanguage={originalCode}
+          targetLanguage={translationCode}
           entry={editingEntry}
           entries={displayEntries}
           chapters={chapters}
