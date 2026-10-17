@@ -5,7 +5,7 @@
 
 import { createServiceRoleClient } from './supabaseClient.js';
 
-export type StorageBucket = 'images' | 'exports' | 'avatars';
+export type StorageBucket = 'images' | 'exports' | 'avatars' | 'imports';
 
 export interface UploadOptions {
   contentType?: string;
@@ -215,6 +215,31 @@ export async function copyFile(
           : 'image/jpeg';
 
   return uploadFile(bucket, toPath, data, { contentType, upsert: true });
+}
+
+export interface SignedUploadUrlResult {
+  signedUrl: string;
+  token: string;
+  path: string;
+}
+
+/**
+ * Signed URL so the browser can upload directly to Storage (bypasses the Vercel 4.5 MB body limit).
+ */
+export async function createSignedUploadUrl(
+  bucket: StorageBucket,
+  path: string
+): Promise<SignedUploadUrlResult> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(path);
+
+  if (error || !data?.signedUrl || !data.token) {
+    throw new Error(
+      `Failed to create signed upload URL for ${bucket}/${path}: ${error?.message || 'no url returned'}`
+    );
+  }
+
+  return { signedUrl: data.signedUrl, token: data.token, path: data.path || path };
 }
 
 /**

@@ -39,4 +39,23 @@ describe('apiErrorFromBody', () => {
     expect(err.message).toBe('HTTP 500');
     expect(err.status).toBe(500);
   });
+
+  it('reads Vercel nested 413 payload without stringifying the object', () => {
+    const err = apiErrorFromBody(
+      { error: { code: '413', message: 'Request Entity Too Large' } },
+      413,
+      'HTTP 413'
+    );
+    expect(err.message).toBe('Request Entity Too Large');
+    expect(err.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(err.message).not.toContain('[object Object]');
+  });
+
+  it('uses a string fallback when the nested error has no message', () => {
+    const err = apiErrorFromBody({ error: { code: 'FUNCTION_PAYLOAD_TOO_LARGE' } }, 413, {
+      unexpected: true,
+    });
+    expect(err.message).toBe('HTTP 413');
+    expect(err.code).toBe('PAYLOAD_TOO_LARGE');
+  });
 });

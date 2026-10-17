@@ -3,13 +3,19 @@ import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import { ApiError } from '../errors.js';
 import { resetInFlightRequests } from '../transport/fetchDeduped.js';
 
-const { mockFetchJson, mockFetchJsonDeduped, mockFetchFormData, mockFetchFormDataWithProgress } =
-  vi.hoisted(() => ({
-    mockFetchJson: vi.fn(),
-    mockFetchJsonDeduped: vi.fn(),
-    mockFetchFormData: vi.fn(),
-    mockFetchFormDataWithProgress: vi.fn(),
-  }));
+const {
+  mockFetchJson,
+  mockFetchJsonDeduped,
+  mockFetchFormData,
+  mockFetchFormDataWithProgress,
+  mockUploadToSignedUrl,
+} = vi.hoisted(() => ({
+  mockFetchJson: vi.fn(),
+  mockFetchJsonDeduped: vi.fn(),
+  mockFetchFormData: vi.fn(),
+  mockFetchFormDataWithProgress: vi.fn(),
+  mockUploadToSignedUrl: vi.fn(),
+}));
 
 vi.mock('../../services/authService.js', () => ({
   authService: {
@@ -41,7 +47,12 @@ vi.mock('../transport/fetchFormDataWithProgress.js', () => ({
   fetchFormDataWithProgress: (...args: unknown[]) => mockFetchFormDataWithProgress(...args),
 }));
 
+vi.mock('../transport/uploadToSignedUrl.js', () => ({
+  uploadToSignedUrl: (...args: unknown[]) => mockUploadToSignedUrl(...args),
+}));
+
 import { chaptersApi } from './chapters.js';
+import { VERCEL_SAFE_UPLOAD_BYTES } from '../../../shared/uploadLimits.js';
 
 describe('chaptersApi', () => {
   beforeEach(() => {
@@ -154,6 +165,39 @@ describe('chaptersApi', () => {
     assert.equal(
       mockFetchFormDataWithProgress.mock.calls[0]?.[0],
       '/api/projects/proj-1/chapters/import'
+    );
+  });
+
+  it('startImportJob sends files over the Vercel body limit through storage', async () => {
+    const file = new File(['x'], 'book.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'size', { value: VERCEL_SAFE_UPLOAD_BYTES + 1 });
+    mockFetchJson
+      .mockResolvedValueOnce({
+        signedUrl: 'https://storage.example/upload',
+        path: 'user/proj-1/up/book.csv',
+        filename: 'book.csv',
+      })
+      .mockResolvedValueOnce({ jobId: 'job-big', status: 'queued' });
+    mockUploadToSignedUrl.mockResolvedValue(undefined);
+
+    const result = await chaptersApi.startImportJob('proj-1', file, 'Book');
+
+    assert.equal(result.jobId, 'job-big');
+    assert.equal(mockFetchFormData.mock.calls.length, 0);
+    assert.equal(mockFetchFormDataWithProgress.mock.calls.length, 0);
+    const uploadCall = mockUploadToSignedUrl.mock.calls[0];
+    const importCall = mockFetchJson.mock.calls[1] as [string, RequestInit] | undefined;
+    assert.ok(uploadCall);
+    assert.equal(uploadCall[0], 'https://storage.example/upload');
+    assert.ok(importCall);
+    assert.equal(importCall[0], '/api/projects/proj-1/chapters/import');
+    assert.equal(
+      importCall[1].body,
+      JSON.stringify({
+        storagePath: 'user/proj-1/up/book.csv',
+        filename: 'book.csv',
+        title: 'Book',
+      })
     );
   });
 

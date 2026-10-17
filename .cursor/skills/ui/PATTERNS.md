@@ -25,30 +25,31 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 
 ## Pattern index
 
-| Id                           | Summary                                           | Reference                                       |
-| ---------------------------- | ------------------------------------------------- | ----------------------------------------------- |
-| `catalog-filter-toolbar`     | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`                      |
-| `filter-icon-chip`           | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`                      |
-| `filter-segment-control`     | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`                      |
-| `responsive-filter-bar`      | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                                  |
-| `entity-filter-chips`        | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`            |
-| `entity-chip-hover-preview`  | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css`     |
-| `publication-description-hover-preview` | Catalog card: full synopsis on description hover | `PublicationCard.tsx` / `card-content-popup.css` |
-| `header-locale-control`      | App language: icon + code + dropdown              | `Header.tsx`                                    |
-| `header-support-control`     | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                        |
-| `header-credits-tooltip`     | Compact remaining credits + hover popup           | `TokenUsageIndicator.tsx`                       |
-| `cover-status-badge`         | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`                    |
-| `publication-original-link`  | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                           |
-| `cover-rating-badge`         | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`               |
-| `publication-rating-summary` | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`                  |
-| `publication-rating-input`   | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`                      |
-| `catalog-sort-by-rating`     | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`                      |
-| `admin-section-layout`       | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                             |
-| `reading-history-card`       | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`                     |
-| `glossary-type-filter-bar`   | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`                     |
-| `page-header`                | Title + subtitle + CTA; stack CTA on phone        | `PageHeader.tsx`                                |
-| `card-grid`                  | `auto-fit` minmax grid for cards                  | `CardGrid.tsx`                                  |
-| `header-overflow`            | Nav wraps ≤1023; hide credits ≤767                | `Header.tsx` / [RESPONSIVE.md](./RESPONSIVE.md) |
+| Id                                      | Summary                                           | Reference                                                            |
+| --------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| `catalog-filter-toolbar`                | Icon chips: language, complete, sort segment      | `CatalogFilterToolbar.tsx`                                           |
+| `filter-icon-chip`                      | 44px square chip, icon or short code              | `CatalogFilterToolbar.css`                                           |
+| `filter-segment-control`                | Connected toggle pair (sort direction)            | `CatalogFilterToolbar.css`                                           |
+| `responsive-filter-bar`                 | Search + toolbar: 2 rows mobile, 1 row tablet+    | `HomePage.css`                                                       |
+| `entity-filter-chips`                   | Removable URL-driven filter tags                  | `HomePage.tsx` / `.home-entity-chip`                                 |
+| `entity-chip-hover-preview`             | Catalog author/translator hover: avatar + bio     | `EntityChip.tsx` / `card-content-popup.css`                          |
+| `publication-description-hover-preview` | Catalog card: full synopsis on description hover  | `PublicationCard.tsx` / `card-content-popup.css`                     |
+| `header-locale-control`                 | App language: icon + code + dropdown              | `Header.tsx`                                                         |
+| `header-support-control`                | Support via Boosty: icon + label, direct link     | `Header/SupportMenu.tsx`                                             |
+| `header-credits-tooltip`                | Compact remaining credits + hover popup           | `TokenUsageIndicator.tsx`                                            |
+| `cover-status-badge`                    | Absolute badge on publication cover               | `PublicationStatusBadge.tsx`                                         |
+| `publication-original-link`             | Compact external link to source on `/p/...`       | `PublicationPage.tsx`                                                |
+| `cover-rating-badge`                    | Compact ★ avg pill on cover top-right             | `PublicationRatingCoverBadge.tsx`                                    |
+| `publication-rating-summary`            | Full stars + CTA on `/p/:id`                      | `PublicationRatingSummary.tsx`                                       |
+| `publication-rating-input`              | Modal 1–5 star rating input                       | `RatePublicationModal.tsx`                                           |
+| `catalog-sort-by-rating`                | Icon chip: sort catalog by Bayesian rating        | `CatalogFilterToolbar.tsx`                                           |
+| `admin-section-layout`                  | Admin CRUD: intro, flash, sections, sub-tabs      | `components/Admin/`                                                  |
+| `reading-history-card`                  | Profile reading history: PublicationCard + meta   | `ReadingHistorySection.tsx`                                          |
+| `glossary-type-filter-bar`              | Type chips (all/character/location/term) + counts | `GlossaryTypeFilterBar.tsx`                                          |
+| `page-header`                           | Title + subtitle + CTA; stack CTA on phone        | `PageHeader.tsx`                                                     |
+| `card-grid`                             | `auto-fit` minmax grid for cards                  | `CardGrid.tsx`                                                       |
+| `header-overflow`                       | Nav wraps ≤1023; hide credits ≤767                | `Header.tsx` / [RESPONSIVE.md](./RESPONSIVE.md)                      |
+| `edition-language-switch`               | Planned: code chips for a second translation      | [multiproject design](../../../docs/05-plans/multiproject-design.md) |
 
 ---
 
@@ -538,6 +539,30 @@ Do **not** duplicate full token lists from `design-system.mdc` — link there in
 **Layout / behavior:** Logo → primary nav → actions. ≤1023px wrap; nav full-width second row. ≤767px hide credits; guest Log in is icon-only (`aria-label` retained). Desktop/tablet Log in is text only (no icon), matching prod.
 
 **Anti-patterns:** Squeezing author chrome into one tablet row; hiding Log out by shrinking type until it clips; a 1024–1200 “compact desktop” squeeze band.
+
+---
+
+## `edition-language-switch`
+
+**Status:** not in `src/`. Spec: [`docs/05-plans/multiproject-design.md`](../../../docs/05-plans/multiproject-design.md). Do not treat current cards, the reader, or the sidebar as already multi-language.
+
+**When:** A book or a translation project has more than one target language (`ru` and `be` in the current pairs).
+
+**When not:** A project or publication still has one target. Hide the control. Do not use a `<Select>` for two codes.
+
+**Files (hosts, behavior not shipped):**
+
+- [`PublicationCard.tsx`](../../../src/client/components/Home/PublicationCard.tsx) — code row instead of one language badge
+- [`PublicationPage.tsx`](../../../src/client/pages/PublicationPage.tsx) and [`ReadingMode/index.tsx`](../../../src/client/components/ReadingMode/index.tsx)
+- [`Sidebar/index.tsx`](../../../src/client/components/Sidebar/index.tsx) — same row plus `+`
+
+**Layout / behavior:** Short language codes in a chip row, same family as catalog language chips (`filter-icon-chip`). One active code. The active code is the query `lang`. It switches the reader edition, or — in the author workspace — the right column, chapter-list statuses, glossary translation column, and translate actions together. Analysis stays a shared quiet mark. The Analysis checkbox defaults off only when analysis already exists.
+
+**Responsive:** Touch target ≥ 44px. On a phone the author columns stay stacked; the switch does not add a third column.
+
+**a11y:** `aria-pressed` on the active code. The accessible name includes the language, not only `RU` / `BE`.
+
+**Anti-patterns:** A dropdown for two targets. Showing the other language's `completed` status on an empty edition. A third text column. Leaving the one-off language-pair override as the way to pick the edition.
 
 ---
 

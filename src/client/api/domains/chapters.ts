@@ -20,6 +20,32 @@ import {
   fetchFormDataWithProgress,
   type UploadProgressCallback,
 } from '../transport/fetchFormDataWithProgress.js';
+import { uploadToSignedUrl } from '../transport/uploadToSignedUrl.js';
+import { VERCEL_SAFE_UPLOAD_BYTES } from '../../../shared/uploadLimits.js';
+
+type ImportUploadTicket = {
+  signedUrl: string;
+  path: string;
+  filename: string;
+};
+
+async function stageLargeUpload(
+  projectId: string,
+  file: File,
+  signal?: AbortSignal,
+  onProgress?: UploadProgressCallback
+): Promise<ImportUploadTicket> {
+  const ticket = await fetchJson<ImportUploadTicket>(
+    `/api/projects/${projectId}/chapters/import/upload-url`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ filename: file.name, byteSize: file.size }),
+      signal,
+    }
+  );
+  await uploadToSignedUrl(ticket.signedUrl, file, { signal, onProgress });
+  return ticket;
+}
 
 export const chaptersApi = {
   async uploadChapter(
@@ -34,6 +60,22 @@ export const chaptersApi = {
     formData.append('title', title);
     // Send actual filename so server gets correct UTF-8 name (avoids multipart encoding issues with Cyrillic, etc.)
     formData.append('filename', file.name);
+
+    if (file.size > VERCEL_SAFE_UPLOAD_BYTES) {
+      const ticket = await stageLargeUpload(projectId, file, signal, onProgress);
+      return fetchJson<Chapter | { chapters: Chapter[]; count: number; warnings?: string[] }>(
+        `/api/projects/${projectId}/chapters`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            storagePath: ticket.path,
+            filename: ticket.filename,
+            title,
+          }),
+          signal,
+        }
+      );
+    }
 
     if (onProgress) {
       return fetchFormDataWithProgress<
@@ -62,6 +104,22 @@ export const chaptersApi = {
     formData.append('file', file);
     formData.append('title', title);
     formData.append('filename', file.name);
+
+    if (file.size > VERCEL_SAFE_UPLOAD_BYTES) {
+      const ticket = await stageLargeUpload(projectId, file, signal, onProgress);
+      return fetchJson<{ jobId: string; status: 'queued' }>(
+        `/api/projects/${projectId}/chapters/import`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            storagePath: ticket.path,
+            filename: ticket.filename,
+            title,
+          }),
+          signal,
+        }
+      );
+    }
 
     if (onProgress) {
       return fetchFormDataWithProgress<{ jobId: string; status: 'queued' }>(

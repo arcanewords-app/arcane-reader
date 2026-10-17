@@ -15,6 +15,7 @@ import {
   importJobSnapshot,
   isAbortUploadError,
   isSupportedUploadFilename,
+  uploadErrorParts,
   markItemRetryPending,
   markItemUploading,
   nextImportPollDelay,
@@ -299,10 +300,12 @@ export function useChapterUploadQueue({
       const errObj = err as {
         name?: string;
         message?: string;
+        status?: number;
+        code?: string;
         data?: {
-          details?: string;
-          parseErrors?: string[];
-          error?: string;
+          details?: unknown;
+          parseErrors?: unknown;
+          error?: unknown;
           warnings?: string[];
         };
       };
@@ -320,16 +323,15 @@ export function useChapterUploadQueue({
         return false;
       }
 
-      const errorDetails =
-        errObj.data?.details || errObj.data?.parseErrors?.join('; ') || errObj.data?.error;
-      const parseErrors = errObj.data?.parseErrors;
+      const parts = uploadErrorParts(errObj);
       const warnings = errObj.data?.warnings;
+      const message = parts.payloadTooLarge ? t('errors.payloadTooLarge') : parts.message;
 
       const detailsText = buildUploadErrorDetails({
         itemLabel,
-        message: errObj.message,
-        errorDetails,
-        parseErrors,
+        message,
+        errorDetails: parts.errorDetails,
+        parseErrors: parts.parseErrors,
       });
 
       setQueue((prev) => {

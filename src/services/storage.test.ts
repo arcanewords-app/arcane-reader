@@ -11,17 +11,26 @@ import {
   getPublicUrl,
   listFiles,
   uploadFile,
+  createSignedUploadUrl,
 } from './storage.js';
 
-const { mockUpload, mockGetPublicUrl, mockCreateSignedUrl, mockList, mockRemove, mockDownload } =
-  vi.hoisted(() => ({
-    mockUpload: vi.fn(),
-    mockGetPublicUrl: vi.fn(),
-    mockCreateSignedUrl: vi.fn(),
-    mockList: vi.fn(),
-    mockRemove: vi.fn(),
-    mockDownload: vi.fn(),
-  }));
+const {
+  mockUpload,
+  mockGetPublicUrl,
+  mockCreateSignedUrl,
+  mockCreateSignedUploadUrl,
+  mockList,
+  mockRemove,
+  mockDownload,
+} = vi.hoisted(() => ({
+  mockUpload: vi.fn(),
+  mockGetPublicUrl: vi.fn(),
+  mockCreateSignedUrl: vi.fn(),
+  mockCreateSignedUploadUrl: vi.fn(),
+  mockList: vi.fn(),
+  mockRemove: vi.fn(),
+  mockDownload: vi.fn(),
+}));
 
 vi.mock('./supabaseClient.js', () => ({
   createServiceRoleClient: vi.fn(() => ({
@@ -30,6 +39,7 @@ vi.mock('./supabaseClient.js', () => ({
         upload: mockUpload,
         getPublicUrl: mockGetPublicUrl,
         createSignedUrl: mockCreateSignedUrl,
+        createSignedUploadUrl: mockCreateSignedUploadUrl,
         list: mockList,
         remove: mockRemove,
         download: mockDownload,
@@ -72,6 +82,18 @@ describe('storage helpers', () => {
 
     const result = await createSignedUrl('exports', 'proj-1/book.epub', 900);
     assert.equal(result.signedUrl, 'https://signed.test/file');
+  });
+
+  it('createSignedUploadUrl returns the signed upload ticket', async () => {
+    mockCreateSignedUploadUrl.mockResolvedValue({
+      data: { signedUrl: 'https://signed.test/upload', token: 'tok', path: 'u/p/file.csv' },
+      error: null,
+    });
+
+    const result = await createSignedUploadUrl('imports', 'u/p/file.csv');
+    assert.equal(result.signedUrl, 'https://signed.test/upload');
+    assert.equal(result.token, 'tok');
+    assert.equal(result.path, 'u/p/file.csv');
   });
 
   it('createSignedUrl throws when signed URL is missing', async () => {

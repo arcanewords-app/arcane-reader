@@ -995,7 +995,8 @@
     "network": "Błąd sieci",
     "unknown": "Nieznany błąd",
     "error": "Błąd",
-    "startTranslation": "Nie udało się uruchomić tłumaczenia"
+    "startTranslation": "Nie udało się uruchomić tłumaczenia",
+    "payloadTooLarge": "Plik jest za duży, żeby wysłać go w jednym żądaniu. Spróbuj pliku do 4 MB albo podziel książkę na części."
   },
   "chapterView": {
     "selectOneParagraph": "Wybierz co najmniej jeden akapit do tłumaczenia.",

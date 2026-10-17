@@ -1,5 +1,5 @@
 import { authService, isReadingRoute, openAuthModal } from '../../services/authService.js';
-import { apiErrorFromBody, parseApiErrorFromResponse } from '../errors.js';
+import { apiErrorFromBody, coerceErrorText, parseApiErrorFromResponse } from '../errors.js';
 
 /**
  * Custom event name for authentication errors
@@ -59,11 +59,11 @@ export async function tryRefresh(): Promise<boolean> {
   }
 }
 
-function dispatchServiceDegraded(data: { error?: string; service?: string }): void {
+function dispatchServiceDegraded(data: { error?: unknown; service?: string }): void {
   window.dispatchEvent(
     new CustomEvent(SERVICE_DEGRADED_EVENT, {
       detail: {
-        message: data.error || 'Service temporarily unavailable',
+        message: coerceErrorText(data.error) || 'Service temporarily unavailable',
         service: data.service || 'supabase',
       },
     })

@@ -104,6 +104,60 @@ export function normalizeUploadTitle(fileName: string, fallbackTitle: string): s
   return cleaned || fallbackTitle;
 }
 
+export function coerceUploadErrorText(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => coerceUploadErrorText(item))
+      .filter((item): item is string => !!item);
+    return parts.length > 0 ? parts.join('; ') : undefined;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return coerceUploadErrorText(record.message) ?? coerceUploadErrorText(record.error);
+  }
+  return undefined;
+}
+
+export function uploadErrorParts(err: {
+  message?: unknown;
+  status?: number;
+  code?: string;
+  data?: {
+    details?: unknown;
+    parseErrors?: unknown;
+    error?: unknown;
+  };
+}): {
+  payloadTooLarge: boolean;
+  message?: string;
+  errorDetails?: string;
+  parseErrors?: string[];
+} {
+  const payloadTooLarge =
+    err.status === 413 ||
+    err.code === 'PAYLOAD_TOO_LARGE' ||
+    err.code === '413' ||
+    err.code === 'FUNCTION_PAYLOAD_TOO_LARGE';
+  const parseErrors = Array.isArray(err.data?.parseErrors)
+    ? err.data.parseErrors
+        .map((item) => coerceUploadErrorText(item))
+        .filter((item): item is string => !!item)
+    : undefined;
+  if (payloadTooLarge) {
+    return { payloadTooLarge: true, parseErrors };
+  }
+  const message = coerceUploadErrorText(err.message);
+  const fromDetails = coerceUploadErrorText(err.data?.details);
+  const fromError = coerceUploadErrorText(err.data?.error);
+  const errorDetails = fromDetails || (fromError && fromError !== message ? fromError : undefined);
+  return { payloadTooLarge: false, message, errorDetails, parseErrors };
+}
+
 export function buildUploadErrorDetails(params: {
   itemLabel: string;
   message?: string;

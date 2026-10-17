@@ -4,7 +4,7 @@ status: active
 domain: meta
 stale: false
 created: 2026-05-16
-updated: 2026-08-30
+updated: 2026-10-17
 canonical: docs/project-status.md
 ---
 
@@ -93,18 +93,19 @@ Details and tech debt: [[project-status]].
 
 ### P1 — UX and reach
 
-| ID     | Theme                | Plan                                   | Open work (summary)                                                    |
-| ------ | -------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
-| **U1** | Reader themes / a11y | [[05-plans/reader-theme-improvements]] | WCAG contrast for `data-reader-theme`; publication vs project defaults |
-| **U2** | i18n completeness    | [[05-plans/multilingual-ui-audit]]     | Grep hardcoded UI strings; parity across en/ru/pl                      |
-| **I1** | SEO operations       | [[05-plans/seo-search-console]]        | Google Search Console, sitemap submit (tech SEO already in code)       |
+| ID     | Theme                | Plan                                   | Open work (summary)                                                                         |
+| ------ | -------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **U1** | Reader themes / a11y | [[05-plans/reader-theme-improvements]] | WCAG contrast for `data-reader-theme`; publication vs project defaults                      |
+| **U2** | i18n completeness    | [[05-plans/multilingual-ui-audit]]     | Grep hardcoded UI strings; parity across en/ru/pl                                           |
+| **U3** | Second translation   | [[05-plans/multiproject-design]]       | Design locked (one card, sidebar language chips, analysis off when it exists). Not in code. |
+| **I1** | SEO operations       | [[05-plans/seo-search-console]]        | Google Search Console, sitemap submit (tech SEO already in code)                            |
 
 ### P2 — Ops and platform
 
-| ID     | Theme             | Plan                                 | Open work (summary)                                                      |
-| ------ | ----------------- | ------------------------------------ | ------------------------------------------------------------------------ |
-| **O1** | Token limits ops  | [[05-plans/tokenization-follow-ups]] | Daily reset cron/RPC; admin unlimited paths                              |
-| **O2** | Production worker | [[_canonical/rules/deployment]]      | Document/run BullMQ worker beside Vercel API                             |
+| ID     | Theme             | Plan                                                                   | Open work (summary)                                                                                    |
+| ------ | ----------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **O1** | Token limits ops  | [[05-plans/tokenization-follow-ups]]                                   | Daily reset cron/RPC; admin unlimited paths                                                            |
+| **O2** | Production worker | [[_canonical/rules/deployment]]                                        | Document/run BullMQ worker beside Vercel API                                                           |
 | **T1** | Testing coverage  | [[05-plans/testing-baseline]], [[05-plans/coverage-campaign-extracts]] | Waves 6–9 done; Wave 10 local E2E unblocked; extract campaign in progress; CI live stack still blocked |
 
 ### P3 — Backlog (archive review required)

@@ -86,5 +86,5 @@ If a note in `archive/` or an old plan disagrees with a rule or `src/`, **code +
 
 ## Active work
 
-- Plans: [[05-plans/]] — include [[05-plans/db-schema-cleanup]] (GIN drop done on prod; remaining RLS/btree/cache DDL not prod)
+- Plans: [[05-plans/]] — include [[05-plans/db-schema-cleanup]] (GIN drop done on prod; remaining RLS/btree/cache DDL not prod) and [[05-plans/multiproject-design]] (design only; one book, several translations)
 - Decisions: [[04-decisions/adr-0000-rules-first-documentation-ssot]], [[04-decisions/adr-observability-axiom]]

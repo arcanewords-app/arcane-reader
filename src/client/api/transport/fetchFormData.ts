@@ -1,5 +1,5 @@
 import { authService } from '../../services/authService.js';
-import { apiErrorFromBody, parseApiErrorFromResponse } from '../errors.js';
+import { apiErrorFromBody, coerceErrorText, parseApiErrorFromResponse } from '../errors.js';
 import { handleAuthError, REFRESH_URL, tryRefresh } from './fetchJson.js';
 
 const SERVICE_DEGRADED_EVENT = 'arcane:service-degraded';
@@ -48,7 +48,7 @@ export async function fetchFormData<T>(
       window.dispatchEvent(
         new CustomEvent(SERVICE_DEGRADED_EVENT, {
           detail: {
-            message: data.error || 'Service temporarily unavailable',
+            message: coerceErrorText(data.error) || 'Service temporarily unavailable',
             service: data.service || 'supabase',
           },
         })

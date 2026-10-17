@@ -1033,7 +1033,8 @@
     "network": "Network error",
     "unknown": "Unknown error",
     "error": "Error",
-    "startTranslation": "Failed to start translation"
+    "startTranslation": "Failed to start translation",
+    "payloadTooLarge": "This file is too large to send in one request. Try a file under 4 MB, or split the book into smaller files."
   },
   "chapterView": {
     "selectOneParagraph": "Select at least one paragraph to translate.",

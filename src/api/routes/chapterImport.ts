@@ -6,10 +6,18 @@ import {
   createHandleStartImportJob,
   createHandleGetImportJobStatus,
   createHandleCancelImportJob,
+  createHandleImportUploadUrl,
   handleSyncChapterImport,
 } from './handlers/chapterImportRouteHandlers.js';
 
 export function registerChapterImportRoutes(app: Application, deps: RouteDeps): void {
+  app.post(
+    '/api/projects/:id/chapters/import/upload-url',
+    requireAuth,
+    requireRole('author'),
+    createHandleImportUploadUrl(deps)
+  );
+
   app.post(
     '/api/projects/:id/chapters/import',
     requireAuth,

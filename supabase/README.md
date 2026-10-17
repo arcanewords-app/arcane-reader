@@ -74,6 +74,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20260829225000_drop_unused_paragraph_trgm_indexes.sql`          | Drop unused GIN `paragraphs_*_text_trgm_idx` (~237 MB, `idx_scan = 0`); search RPC unchanged (ILIKE seq scan)                                        |
 | `20261002112407_announcement_translations.sql` (remote)          | `announcement_alerts.translations` jsonb for en/be/pl banner message and CTA; Russian stays in columns. Applied via Supabase MCP to project `arcane` |
 | `20261006194200_publication_translation_status_experimental.sql` | Allow `experimental` in `publications_translation_status_check` (catalog badge «Тестовый»)                                                           |
+| `20261017102600_imports_storage_bucket.sql`                      | Private Storage bucket `imports` (50 MB) for chapter files uploaded past the Vercel body limit                                                       |
 
 ## Heavy RPC policy
 

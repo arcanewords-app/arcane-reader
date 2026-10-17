@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { loadConfig } from '../../../config.js';
 import { getProject, updateProject } from '../../../services/supabase/domains/projects.js';
 import { importChaptersBatch, getChapter } from '../../../services/supabase/domains/chapters.js';
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
@@ -12,11 +13,10 @@ import {
 } from '../../../services/import/index.js';
 import type { ParseResult } from '../../../services/import/index.js';
 import type { ImportJobState } from '../../../services/importJobStore.js';
-import { uploadFile } from '../../../services/storage.js';
+import { uploadFile, createSignedUploadUrl } from '../../../services/storage.js';
 import {
   generateImportJobId,
   toPublicImportJob,
-  decodeMultipartFilename,
   IMPORT_JOB_FORMATS,
   IMPORT_JOB_TTL_SECONDS,
   IMPORT_CHAPTER_BATCH_SIZE,
@@ -31,11 +31,89 @@ import {
 } from '../../chapters/helpers/importPipeline.js';
 import { buildImportCoverPath } from '../../chapters/helpers/importCoverPath.js';
 import { runAsyncImportJob } from '../../chapters/helpers/asyncImportJob.js';
+import { readUploadedChapter } from '../../chapters/helpers/readUploadedChapter.js';
 import {
   isJobOwnedByUser,
   setJobPollingNoStoreHeaders,
 } from '../../chapters/helpers/jobPolling.js';
 import type { RouteDeps } from '../deps.js';
+import {
+  ChapterUploadSourceError,
+  buildImportStoragePath,
+  sanitizeImportFilename,
+} from '../../../services/importUploadPath.js';
+import { importUploadUrlBodySchema } from '../../schemas/chapters.js';
+
+function respondUploadSourceError(error: unknown, res: Response): boolean {
+  if (!(error instanceof ChapterUploadSourceError)) return false;
+  res.status(error.status).json({
+    error: error.message,
+    ...(error.details !== undefined ? { details: error.details } : {}),
+  });
+  return true;
+}
+
+export function createHandleImportUploadUrl(deps: RouteDeps) {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const token = requireToken(req);
+      const projectId = requireRouteParam(req.params.id, 'id');
+      const project = await getProject(projectId, req.user.id, token);
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
+
+      const parsed = importUploadUrlBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.flatten().fieldErrors,
+        });
+        return;
+      }
+
+      const filename = sanitizeImportFilename(parsed.data.filename);
+      if (!isSupportedFormat(filename)) {
+        res.status(400).json({
+          error: 'Неподдерживаемый формат файла',
+          details: 'Поддерживаемые форматы: .txt, .epub, .fb2, .csv',
+        });
+        return;
+      }
+      if (parsed.data.byteSize > deps.config.upload.maxFileSizeBytes) {
+        res.status(400).json({ error: 'File is too large' });
+        return;
+      }
+
+      const storagePath = buildImportStoragePath(req.user.id, projectId, filename);
+      const signed = await createSignedUploadUrl('imports', storagePath);
+      res.json({
+        signedUrl: signed.signedUrl,
+        token: signed.token,
+        path: signed.path,
+        filename,
+      });
+    } catch (error) {
+      if (handleServiceError(error, req, res)) return;
+      const message = error instanceof Error ? error.message : 'Failed to create upload URL';
+      if (message.includes('Token is required') || message.includes('Invalid token')) {
+        res.status(401).json({ error: message });
+        return;
+      }
+      req.log?.error(
+        { err: error, projectId: req.params.id },
+        'Failed to create chapter import upload URL'
+      );
+      res.status(500).json({ error: 'Failed to create upload URL' });
+    }
+  };
+}
 
 export function createHandleStartImportJob(deps: RouteDeps) {
   return async (req: Request, res: Response): Promise<void> => {
@@ -52,15 +130,13 @@ export function createHandleStartImportJob(deps: RouteDeps) {
         return;
       }
 
-      if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-      }
-
-      const filename =
-        typeof req.body?.filename === 'string' && req.body.filename.trim()
-          ? req.body.filename.trim()
-          : decodeMultipartFilename(req.file.originalname);
+      const projectId = requireRouteParam(req.params.id, 'id');
+      const uploaded = await readUploadedChapter(req, {
+        userId: req.user.id,
+        projectId,
+        maxBytes: deps.config.upload.maxFileSizeBytes,
+      });
+      const filename = uploaded.filename;
       const extension = (filename.toLowerCase().split('.').pop() || '') as
         'epub' | 'fb2' | 'csv' | 'txt';
 
@@ -103,9 +179,8 @@ export function createHandleStartImportJob(deps: RouteDeps) {
 
       res.status(202).json({ jobId, status: 'queued' as const });
 
-      const projectId = requireRouteParam(req.params.id, 'id');
       const userId = req.user.id;
-      const buffer = req.file.buffer;
+      const buffer = uploaded.buffer;
 
       setImmediate(() => {
         void runAsyncImportJob({
@@ -122,6 +197,7 @@ export function createHandleStartImportJob(deps: RouteDeps) {
         });
       });
     } catch (error) {
+      if (respondUploadSourceError(error, res)) return;
       if (handleServiceError(error, req, res)) return;
       const message = error instanceof Error ? error.message : 'Failed to start import job';
       if (message.includes('Token is required') || message.includes('Invalid token')) {
@@ -199,15 +275,13 @@ export async function handleSyncChapterImport(req: Request, res: Response): Prom
       return;
     }
 
-    if (!req.file) {
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
-    }
-
-    const filename =
-      typeof req.body?.filename === 'string' && req.body.filename.trim()
-        ? req.body.filename.trim()
-        : decodeMultipartFilename(req.file.originalname);
+    const projectId = requireRouteParam(req.params.id, 'id');
+    const uploaded = await readUploadedChapter(req, {
+      userId: req.user.id,
+      projectId,
+      maxBytes: loadConfig().upload.maxFileSizeBytes,
+    });
+    const filename = uploaded.filename;
 
     if (!isSupportedFormat(filename)) {
       res.status(400).json({
@@ -222,7 +296,7 @@ export async function handleSyncChapterImport(req: Request, res: Response): Prom
     if (isEpub) {
       let lazyResult;
       try {
-        lazyResult = await parseEpubLazy(req.file.buffer);
+        lazyResult = await parseEpubLazy(uploaded.buffer);
       } catch (parseError) {
         const errorMessage = parseError instanceof Error ? parseError.message : 'File parse error';
         req.log?.error({ err: parseError }, 'Parse error');
@@ -344,7 +418,7 @@ export async function handleSyncChapterImport(req: Request, res: Response): Prom
 
     let parseResult: ParseResult;
     try {
-      parseResult = await parseFile(req.file.buffer, filename);
+      parseResult = await parseFile(uploaded.buffer, filename);
     } catch (parseError) {
       const errorMessage = parseError instanceof Error ? parseError.message : 'File parse error';
       req.log?.error({ err: parseError }, 'Parse error');
@@ -387,8 +461,6 @@ export async function handleSyncChapterImport(req: Request, res: Response): Prom
         `Project type set to ${detectedType}`
       );
     }
-
-    const projectId = requireRouteParam(req.params.id, 'id');
 
     if (isFirstChapter) {
       const metadataUpdate = await resolveImportMetadataUpdate(
@@ -473,6 +545,7 @@ export async function handleSyncChapterImport(req: Request, res: Response): Prom
       res.json(buildMultiChapterImportResponse(importedRows, chapterCountWarnings));
     }
   } catch (error) {
+    if (respondUploadSourceError(error, res)) return;
     if (handleServiceError(error, req, res)) return;
     const message = error instanceof Error ? error.message : 'Failed to add chapter';
     if (message.includes('Token is required') || message.includes('Invalid token')) {

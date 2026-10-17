@@ -1,5 +1,5 @@
 import { authService } from '../../services/authService.js';
-import { ApiError, apiErrorFromBody, parseApiErrorBody } from '../errors.js';
+import { ApiError, apiErrorFromBody, coerceErrorText, parseApiErrorBody } from '../errors.js';
 import { handleAuthError, tryRefresh } from './fetchJson.js';
 
 /** Progress callback for upload: loaded and total bytes */
@@ -53,7 +53,7 @@ export function fetchFormDataWithProgress<T>(
           window.dispatchEvent(
             new CustomEvent(SERVICE_DEGRADED_EVENT, {
               detail: {
-                message: data.error || 'Service temporarily unavailable',
+                message: coerceErrorText(data.error) || 'Service temporarily unavailable',
                 service: data.service || 'supabase',
               },
             })

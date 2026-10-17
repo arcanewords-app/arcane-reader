@@ -20,6 +20,7 @@ import {
   patchQueueItemById,
   pendingQueueItemIds,
   removeQueueItemById,
+  uploadErrorParts,
   uploadPhaseFromProgress,
 } from './chapterUploadQueueCore.js';
 
@@ -43,6 +44,7 @@ vi.mock('../../api/client.js', () => ({
 }));
 
 import { useChapterUploadQueue } from './useChapterUploadQueue.js';
+import { apiErrorFromBody } from '../../api/errors.js';
 
 describe('isJobBasedUploadFormat', () => {
   it('returns true for epub, fb2, and csv', () => {
@@ -89,6 +91,28 @@ describe('chapterUploadQueueCore', () => {
     expect(
       importJobSnapshot({ status: 'completed', phase: null, current: null, total: null })
     ).toBe('completed|null|null|null|');
+  });
+
+  it('uploadErrorParts stringifies nested API errors and flags 413', () => {
+    expect(
+      uploadErrorParts({
+        status: 413,
+        message: 'Request Entity Too Large',
+        code: 'PAYLOAD_TOO_LARGE',
+        data: { error: { code: '413', message: 'Request Entity Too Large' } },
+      }).payloadTooLarge
+    ).toBe(true);
+    expect(
+      uploadErrorParts({
+        message: 'Bad csv',
+        data: { error: { message: 'row 2' }, details: { message: 'missing column' } },
+      })
+    ).toEqual({
+      payloadTooLarge: false,
+      message: 'Bad csv',
+      errorDetails: 'missing column',
+      parseErrors: undefined,
+    });
   });
 
   it('patch/remove/cancel queue helpers', () => {
@@ -303,5 +327,34 @@ describe('useChapterUploadQueue', () => {
       expect(result.current.queue[0]?.status).toBe('error');
     });
     expect(result.current.queue[0]?.error).toContain('bad epub');
+  });
+
+  it('shows a readable message when the upload API returns a Vercel 413 object', async () => {
+    startImportJob.mockRejectedValue(
+      apiErrorFromBody(
+        { error: { code: '413', message: 'Request Entity Too Large' } },
+        413,
+        'HTTP 413'
+      )
+    );
+
+    const { result } = renderHook(() =>
+      useChapterUploadQueue({
+        projectId: 'p1',
+        chapterCount: 0,
+        maxFileSize: 50 * 1024 * 1024,
+        onUpload: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.addFiles([new File(['csv'], 'Result_252.csv')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.queue[0]?.status).toBe('error');
+    });
+    expect(result.current.queue[0]?.error).toContain('errors.payloadTooLarge');
+    expect(result.current.queue[0]?.error).not.toContain('[object Object]');
   });
 });

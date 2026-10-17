@@ -182,6 +182,7 @@ function makeDeps(store: ImportJobStore): RouteDeps {
   return {
     config: {
       openai: { apiKey: 'test-key', model: 'gpt-test', timeout: 60000 },
+      upload: { maxFileSizeBytes: 50 * 1024 * 1024 },
     } as RouteDeps['config'],
     configValidation: { valid: true, errors: [] },
     upload: {} as RouteDeps['upload'],
