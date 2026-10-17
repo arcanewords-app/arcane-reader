@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { isSupportedPair } from '../../engine/language.js';
 import { normalizeEditingFocus } from '../../shared/editing-focus.js';
-import type { Language } from '../../engine/types/common.js';
 
 /** MVP translation source languages (engine whitelist). */
 export const supportedSourceLanguageSchema = z.enum(['en', 'ko', 'zh', 'ru']);
