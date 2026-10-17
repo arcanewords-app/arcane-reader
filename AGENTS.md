@@ -20,6 +20,7 @@ Navigation map for AI agents. **Policies and architecture live in `.cursor/rules
 | Trello boards (MCP)                              | [`.cursor/skills/trello-mcp/SKILL.md`](.cursor/skills/trello-mcp/SKILL.md) — credentials in `~/.cursor/mcp.json`                                                 |
 | Prod/staging logs (MCP)                          | [`.cursor/skills/axiom-mcp/SKILL.md`](.cursor/skills/axiom-mcp/SKILL.md) — OAuth via official Axiom MCP                                                          |
 | Local dev debug (curl)                           | [`.cursor/skills/debug-local/SKILL.md`](.cursor/skills/debug-local/SKILL.md) — `/api/debug/query` on localhost:3000                                              |
+| Vercel function limits                           | [`.cursor/skills/vercel/SKILL.md`](.cursor/skills/vercel/SKILL.md) — 4.5 MB bodies, 300s, `waitUntil`, signed Storage URLs                                       |
 | npm audit, deps, Node                            | [`.cursor/skills/dependency-maintenance/SKILL.md`](.cursor/skills/dependency-maintenance/SKILL.md) — CVE triage, phased updates                                  |
 | Unit / component / integration / contract / gaps | [`.cursor/skills/testing/SKILL.md`](.cursor/skills/testing/SKILL.md) + [`.cursor/rules/testing.mdc`](.cursor/rules/testing.mdc)                                  |
 

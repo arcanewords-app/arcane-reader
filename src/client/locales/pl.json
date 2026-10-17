@@ -996,7 +996,8 @@
     "unknown": "Nieznany błąd",
     "error": "Błąd",
     "startTranslation": "Nie udało się uruchomić tłumaczenia",
-    "payloadTooLarge": "Plik jest za duży, żeby wysłać go w jednym żądaniu. Spróbuj pliku do 4 MB albo podziel książkę na części."
+    "payloadTooLarge": "Plik jest za duży, żeby wysłać go w jednym żądaniu. Spróbuj pliku do 4 MB albo podziel książkę na części.",
+    "responseTooLarge": "Odpowiedź jest za duża, żeby odesłać ją w całości."
   },
   "chapterView": {
     "selectOneParagraph": "Wybierz co najmniej jeden akapit do tłumaczenia.",

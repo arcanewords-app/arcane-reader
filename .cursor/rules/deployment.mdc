@@ -108,6 +108,7 @@ npm run start:worker # separate process for queues
 
 - Config: `@vercel.json` — SPA rewrites, `/api/*` → `api/index.ts`, robots/sitemap serverless routes. Public SEO pages `/`, `/catalog`, `/about`, `/contact`, `/privacy`, `/terms`, `/news`, `/news/:slug*`, `/account-tiers`, and `/p/*` route to `api/index` for SSR meta (see `routing.mdc` SEO section).
 - `api/index.ts` sets `maxDuration: 300` and `supportsCancellation: true` so a closed tab aborts in-flight OpenAI calls (AbortSignal via `src/shared/invocationAbort.ts`). Do **not** enable cancellation on `api/robots.ts` / `api/sitemap.ts`.
+- Function body is 4.5 MB each way and is not configurable. Files use Storage signed URLs; work after the response uses `waitUntil`. Details: `@.cursor/skills/vercel/SKILL.md`.
 - Axiom flush on Vercel uses `waitUntil(flushLogs())` from `@vercel/functions` (`requestLogging`). Local/tests still fire-and-forget `flushLogs()`.
 - Set all env vars in Vercel project settings (same names as `.env`).
 - **Worker:** BullMQ worker is **not** a Vercel serverless function — run `start:worker` on a long-lived host (Railway, Fly, second Vercel service, etc.) with same `REDIS_URL` and `KV_REST_*`.

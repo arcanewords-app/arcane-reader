@@ -68,13 +68,18 @@ export async function uploadFile(
 export async function createSignedUrl(
   bucket: StorageBucket,
   path: string,
-  expiresInSeconds: number = 60 * 15
+  expiresInSeconds: number = 60 * 15,
+  options?: { download?: string | boolean }
 ): Promise<SignedUrlResult> {
   const supabase = createServiceRoleClient();
 
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, expiresInSeconds);
+    .createSignedUrl(
+      path,
+      expiresInSeconds,
+      options?.download != null ? { download: options.download } : undefined
+    );
 
   if (error || !data?.signedUrl) {
     throw new Error(

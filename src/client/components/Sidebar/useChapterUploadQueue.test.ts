@@ -109,6 +109,7 @@ describe('chapterUploadQueueCore', () => {
       })
     ).toEqual({
       payloadTooLarge: false,
+      responsePayloadTooLarge: false,
       message: 'Bad csv',
       errorDetails: 'missing column',
       parseErrors: undefined,

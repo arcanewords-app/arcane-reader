@@ -12,6 +12,7 @@ description: Express API patterns for Arcane Reader — Zod, auth, 503, routing 
 - Zod schemas in `src/api/schemas/`
 - Updating the canonical route map
 - Security-sensitive routes (ownership, roles, admin) — also read `@.cursor/skills/security/SKILL.md`
+- Uploads, downloads, or work after the response on Vercel — `@.cursor/skills/vercel/SKILL.md`
 
 ## Domain Knowledge
 

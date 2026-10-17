@@ -15,6 +15,7 @@ export class ApiError extends Error {
 }
 
 export const PAYLOAD_TOO_LARGE_CODE = 'PAYLOAD_TOO_LARGE';
+export const RESPONSE_PAYLOAD_TOO_LARGE_CODE = 'RESPONSE_PAYLOAD_TOO_LARGE';
 
 export interface ApiErrorObject {
   message?: string;
@@ -63,6 +64,14 @@ export function isPayloadTooLarge(status: number, code?: string): boolean {
   );
 }
 
+export function isResponsePayloadTooLarge(code?: string, message?: string): boolean {
+  const haystack = `${code ?? ''} ${message ?? ''}`;
+  return (
+    code === RESPONSE_PAYLOAD_TOO_LARGE_CODE ||
+    haystack.includes('FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE')
+  );
+}
+
 export function messageFromApiBody(
   body: ApiErrorBody,
   status: number,
@@ -75,6 +84,12 @@ export function messageFromApiBody(
       ? nested.code
       : undefined;
   const code = body.code ?? nestedCode;
+  if (isResponsePayloadTooLarge(code, nestedMessage)) {
+    return {
+      message: nestedMessage || fallbackMessage,
+      code: RESPONSE_PAYLOAD_TOO_LARGE_CODE,
+    };
+  }
   if (isPayloadTooLarge(status, code)) {
     return { message: nestedMessage || fallbackMessage, code: PAYLOAD_TOO_LARGE_CODE };
   }

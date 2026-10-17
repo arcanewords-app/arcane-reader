@@ -51,6 +51,21 @@ describe('apiErrorFromBody', () => {
     expect(err.message).not.toContain('[object Object]');
   });
 
+  it('maps a response payload that is too large to its own code', () => {
+    const err = apiErrorFromBody(
+      {
+        error: {
+          code: 'FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE',
+          message: 'Response payload too large',
+        },
+      },
+      500,
+      'HTTP 500'
+    );
+    expect(err.code).toBe('RESPONSE_PAYLOAD_TOO_LARGE');
+    expect(err.message).toBe('Response payload too large');
+  });
+
   it('uses a string fallback when the nested error has no message', () => {
     const err = apiErrorFromBody({ error: { code: 'FUNCTION_PAYLOAD_TOO_LARGE' } }, 413, {
       unexpected: true,

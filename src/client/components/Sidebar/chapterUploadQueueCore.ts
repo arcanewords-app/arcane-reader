@@ -134,6 +134,7 @@ export function uploadErrorParts(err: {
   };
 }): {
   payloadTooLarge: boolean;
+  responsePayloadTooLarge: boolean;
   message?: string;
   errorDetails?: string;
   parseErrors?: string[];
@@ -143,19 +144,35 @@ export function uploadErrorParts(err: {
     err.code === 'PAYLOAD_TOO_LARGE' ||
     err.code === '413' ||
     err.code === 'FUNCTION_PAYLOAD_TOO_LARGE';
+  const messageText = coerceUploadErrorText(err.message);
+  const nestedError = coerceUploadErrorText(err.data?.error);
+  const responsePayloadTooLarge =
+    err.code === 'RESPONSE_PAYLOAD_TOO_LARGE' ||
+    `${err.code ?? ''} ${messageText ?? ''} ${nestedError ?? ''}`.includes(
+      'FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE'
+    );
   const parseErrors = Array.isArray(err.data?.parseErrors)
     ? err.data.parseErrors
         .map((item) => coerceUploadErrorText(item))
         .filter((item): item is string => !!item)
     : undefined;
   if (payloadTooLarge) {
-    return { payloadTooLarge: true, parseErrors };
+    return { payloadTooLarge: true, responsePayloadTooLarge: false, parseErrors };
   }
-  const message = coerceUploadErrorText(err.message);
+  if (responsePayloadTooLarge) {
+    return { payloadTooLarge: false, responsePayloadTooLarge: true, parseErrors };
+  }
+  const message = messageText;
   const fromDetails = coerceUploadErrorText(err.data?.details);
-  const fromError = coerceUploadErrorText(err.data?.error);
+  const fromError = nestedError;
   const errorDetails = fromDetails || (fromError && fromError !== message ? fromError : undefined);
-  return { payloadTooLarge: false, message, errorDetails, parseErrors };
+  return {
+    payloadTooLarge: false,
+    responsePayloadTooLarge: false,
+    message,
+    errorDetails,
+    parseErrors,
+  };
 }
 
 export function buildUploadErrorDetails(params: {

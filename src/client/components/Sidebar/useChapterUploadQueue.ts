@@ -325,7 +325,11 @@ export function useChapterUploadQueue({
 
       const parts = uploadErrorParts(errObj);
       const warnings = errObj.data?.warnings;
-      const message = parts.payloadTooLarge ? t('errors.payloadTooLarge') : parts.message;
+      const message = parts.payloadTooLarge
+        ? t('errors.payloadTooLarge')
+        : parts.responsePayloadTooLarge
+          ? t('errors.responseTooLarge')
+          : parts.message;
 
       const detailsText = buildUploadErrorDetails({
         itemLabel,

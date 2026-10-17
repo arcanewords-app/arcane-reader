@@ -32,6 +32,7 @@ import {
 import { buildImportCoverPath } from '../../chapters/helpers/importCoverPath.js';
 import { runAsyncImportJob } from '../../chapters/helpers/asyncImportJob.js';
 import { readUploadedChapter } from '../../chapters/helpers/readUploadedChapter.js';
+import { scheduleAfterResponse } from '../../../shared/scheduleAfterResponse.js';
 import {
   isJobOwnedByUser,
   setJobPollingNoStoreHeaders,
@@ -182,8 +183,8 @@ export function createHandleStartImportJob(deps: RouteDeps) {
       const userId = req.user.id;
       const buffer = uploaded.buffer;
 
-      setImmediate(() => {
-        void runAsyncImportJob({
+      scheduleAfterResponse(() =>
+        runAsyncImportJob({
           jobId,
           projectId,
           userId,
@@ -194,8 +195,8 @@ export function createHandleStartImportJob(deps: RouteDeps) {
           project,
           importJobStore: deps.importJobStore,
           log: req.log,
-        });
-      });
+        })
+      );
     } catch (error) {
       if (respondUploadSourceError(error, res)) return;
       if (handleServiceError(error, req, res)) return;

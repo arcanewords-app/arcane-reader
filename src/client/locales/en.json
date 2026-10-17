@@ -1034,7 +1034,8 @@
     "unknown": "Unknown error",
     "error": "Error",
     "startTranslation": "Failed to start translation",
-    "payloadTooLarge": "This file is too large to send in one request. Try a file under 4 MB, or split the book into smaller files."
+    "payloadTooLarge": "This file is too large to send in one request. Try a file under 4 MB, or split the book into smaller files.",
+    "responseTooLarge": "The response is too large to send back in one piece."
   },
   "chapterView": {
     "selectOneParagraph": "Select at least one paragraph to translate.",

@@ -19,6 +19,17 @@ export function triggerBrowserDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(objectUrl);
 }
 
+/** Open a Storage signed URL. Do not fetch it: the Storage host is cross-origin. */
+export function openSignedDownload(url: string, filename: string): void {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 /** Fetch authenticated blob and trigger browser download. */
 export async function downloadBlob(
   url: string,

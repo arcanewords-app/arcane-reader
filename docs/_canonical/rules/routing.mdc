@@ -325,10 +325,10 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/projects/:id/export` | author | Export project (EPUB/FB2) - deprecated, use build-exports for publications |
-| GET | `/api/projects/:id/export/download` | author | Download project export (query: path) |
+| GET | `/api/projects/:id/export/download` | author | Signed URL for a project export (query: `path`). JSON `{ url, filename }`, not the file bytes |
 | POST | `/api/publications/:id/build-exports` | author | Build EPUB/FB2 once, save to publication (body: `{ formats?: ['epub','fb2'] }`) |
 | PATCH | `/api/publications/:id` | author | Update display settings (body: `{ showGlossary?: boolean }`). Owner only. |
-| GET | `/api/publications/:id/download` | user | Download built publication export (query: format=epub\|fb2) |
+| GET | `/api/publications/:id/download` | user | Signed URL for a built publication export (query: format=epub\|fb2). JSON `{ url, filename }` |
 
 ### Publications (public)
 

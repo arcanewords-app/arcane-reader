@@ -20,7 +20,7 @@ import {
 } from '../cache/memoryCache.js';
 import { fetchJson } from '../transport/fetchJson.js';
 import { fetchJsonDeduped } from '../transport/fetchDeduped.js';
-import { downloadBlob } from '../transport/downloadBlob.js';
+import { openSignedDownload } from '../transport/downloadBlob.js';
 
 export const publicationsApi = {
   /** List published publications (public, no auth required) */
@@ -163,16 +163,16 @@ export const publicationsApi = {
     return result;
   },
 
-  /** Download built publication export (user+ required). Fetches with auth and triggers browser download. */
+  /** Download built publication export (user+ required). Opens a Storage signed URL. */
   async downloadPublicationExport(
     publicationId: string,
     format: 'epub' | 'fb2'
   ): Promise<{ filename: string }> {
-    return downloadBlob(`/api/publications/${publicationId}/download?format=${format}`, {
-      token: authService.getToken(),
-      fallbackFilename: `book.${format}`,
-      failureMessage: 'Download failed',
-    });
+    const ticket = await fetchJson<{ url: string; filename: string }>(
+      `/api/publications/${publicationId}/download?format=${format}`
+    );
+    openSignedDownload(ticket.url, ticket.filename || `book.${format}`);
+    return { filename: ticket.filename || `book.${format}` };
   },
 
   /** @deprecated Use updateReadProgress with mode complete */

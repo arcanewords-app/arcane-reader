@@ -659,16 +659,16 @@ describe('publicationRouteHandlers', () => {
       assert.equal(res.statusCode, 404);
     });
 
-    it('streams export file on success', async () => {
+    it('returns a signed URL on success', async () => {
       mockGetProject.mockResolvedValue({ id: 'proj-1' });
-      mockDownloadFile.mockResolvedValue(Buffer.from('epub'));
+      mockCreateSignedUrl.mockResolvedValue({ signedUrl: 'https://signed/book.epub' });
       const res = mockRes();
       await handleExportDownload(
         mockReq({ params: { id: 'proj-1' }, query: { path: 'proj-1/book.epub' } }) as never,
         res as never
       );
-      assert.equal(res.headers['Content-Type'], 'application/epub+zip');
-      assert.deepEqual(res.body, Buffer.from('epub'));
+      assert.deepEqual(res.body, { url: 'https://signed/book.epub', filename: 'book.epub' });
+      assert.equal(mockDownloadFile.mock.calls.length, 0);
     });
   });
 
@@ -846,20 +846,20 @@ describe('publicationRouteHandlers', () => {
       assert.equal((res.body as { error: string }).error, 'Export not built yet');
     });
 
-    it('downloads built epub on success', async () => {
+    it('returns a signed URL for a built epub', async () => {
       mockGetPublicationBySlugOrId.mockResolvedValue({
         id: 'pub-1',
         status: 'published',
         epubStoragePath: 'publication-pub-1/book.epub',
       });
-      mockDownloadFile.mockResolvedValue(Buffer.from('epub'));
+      mockCreateSignedUrl.mockResolvedValue({ signedUrl: 'https://signed/book.epub' });
       const res = mockRes();
       await handlePublicationDownload(
         mockReq({ query: { format: 'epub' } }) as never,
         res as never
       );
-      assert.equal(res.headers['Content-Type'], 'application/epub+zip');
-      assert.deepEqual(res.body, Buffer.from('epub'));
+      assert.deepEqual(res.body, { url: 'https://signed/book.epub', filename: 'book.epub' });
+      assert.equal(mockDownloadFile.mock.calls.length, 0);
     });
   });
 

@@ -76,7 +76,6 @@ import {
   deleteFiles,
   extractPathFromUrl,
   generateUniqueFilename,
-  downloadFile,
   createSignedUrl,
   listFiles,
 } from '../../../services/storage.js';
@@ -672,7 +671,9 @@ export async function handleExportProject(req: Request, res: Response): Promise<
       });
 
       // Prefer signed URL (works even if bucket is private)
-      const { signedUrl } = await createSignedUrl('exports', storagePath, 60 * 30);
+      const { signedUrl } = await createSignedUrl('exports', storagePath, 60 * 30, {
+        download: filename,
+      });
 
       // Clean up temporary file after upload
       try {
@@ -694,8 +695,8 @@ export async function handleExportProject(req: Request, res: Response): Promise<
         `Export completed: ${project.name} -> ${format.toUpperCase()} (${filename})`
       );
 
-      // downloadUrl: same-origin proxy so browser downloads instead of opening (Content-Disposition: attachment)
-      const downloadUrl = `/api/projects/${projectId}/export/download?path=${encodeURIComponent(storagePath)}`;
+      // Signed URL so the file bytes never pass through the Vercel function.
+      const downloadUrl = signedUrl;
 
       res.json({
         success: true,
@@ -757,15 +758,11 @@ export async function handleExportDownload(req: Request, res: Response): Promise
       return;
     }
 
-    const buffer = await downloadFile('exports', storagePath);
     const filename = storagePath.split('/').pop() || 'export';
-
-    const contentType = filename.endsWith('.epub') ? 'application/epub+zip' : 'application/xml';
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length.toString());
-    res.send(buffer);
+    const { signedUrl } = await createSignedUrl('exports', storagePath, 60 * 30, {
+      download: filename,
+    });
+    res.json({ url: signedUrl, filename });
   } catch (error: unknown) {
     if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Download failed';
@@ -995,15 +992,11 @@ export async function handlePublicationDownload(req: Request, res: Response): Pr
       return;
     }
 
-    const buffer = await downloadFile('exports', storagePath);
     const filename = storagePath.split('/').pop() || `book.${format}`;
-
-    const contentType = format === 'epub' ? 'application/epub+zip' : 'application/xml';
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length.toString());
-    res.send(buffer);
+    const { signedUrl } = await createSignedUrl('exports', storagePath, 60 * 30, {
+      download: filename,
+    });
+    res.json({ url: signedUrl, filename });
   } catch (error: unknown) {
     if (handleServiceError(error, req, res)) return;
     const msg = error instanceof Error ? error.message : 'Download failed';

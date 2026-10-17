@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 const {
   mockFetchJson,
   mockFetchJsonDeduped,
-  mockDownloadBlob,
+  mockOpenSignedDownload,
   mockEmitCacheInvalidation,
   mockGetCachedCatalogList,
   mockSetCachedCatalogList,
@@ -13,7 +13,7 @@ const {
 } = vi.hoisted(() => ({
   mockFetchJson: vi.fn(),
   mockFetchJsonDeduped: vi.fn(),
-  mockDownloadBlob: vi.fn(),
+  mockOpenSignedDownload: vi.fn(),
   mockEmitCacheInvalidation: vi.fn(),
   mockGetCachedCatalogList: vi.fn(),
   mockSetCachedCatalogList: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock('../transport/fetchDeduped.js', () => ({
 }));
 
 vi.mock('../transport/downloadBlob.js', () => ({
-  downloadBlob: (...args: unknown[]) => mockDownloadBlob(...args),
+  openSignedDownload: (...args: unknown[]) => mockOpenSignedDownload(...args),
 }));
 
 vi.mock('../cache/invalidation.js', () => ({
@@ -183,14 +183,18 @@ describe('publicationsApi', () => {
     assert.equal(mockFetchJson.mock.calls[0]?.[0], '/api/publications/pub-1/quotes');
   });
 
-  it('downloadPublicationExport delegates to downloadBlob', async () => {
-    mockDownloadBlob.mockResolvedValue({ filename: 'book.epub' });
+  it('downloadPublicationExport opens the signed url', async () => {
+    mockFetchJson.mockResolvedValue({
+      url: 'https://signed.example/book.epub',
+      filename: 'book.epub',
+    });
     const result = await publicationsApi.downloadPublicationExport('pub-1', 'epub');
     assert.deepEqual(result, { filename: 'book.epub' });
-    assert.equal(
-      mockDownloadBlob.mock.calls[0]?.[0],
-      '/api/publications/pub-1/download?format=epub'
-    );
+    assert.equal(mockFetchJson.mock.calls[0]?.[0], '/api/publications/pub-1/download?format=epub');
+    assert.deepEqual(mockOpenSignedDownload.mock.calls[0], [
+      'https://signed.example/book.epub',
+      'book.epub',
+    ]);
   });
 
   it('reportTranslation calls fetchJson with POST body', async () => {
