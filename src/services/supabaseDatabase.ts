@@ -12,6 +12,7 @@ export * from './supabase/loaders.js';
 export * from './supabase/domains/glossary.js';
 export * from './supabase/domains/chapters.js';
 export * from './supabase/domains/paragraphs.js';
+export * from './supabase/domains/editions.js';
 export * from './supabase/domains/publications.js';
 export * from './supabase/domains/readerProgress.js';
 export * from './supabase/domains/publicationRatings.js';

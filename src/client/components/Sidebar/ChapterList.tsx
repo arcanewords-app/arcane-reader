@@ -40,6 +40,8 @@ interface ChapterListProps {
   selectedId: string | null;
   projectId: string | null;
   originalReadingMode?: boolean;
+  /** Second language: hide the analysis-only filter. Analysis stays a quiet mark. */
+  editionMode?: boolean;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
   onUpload: (params: {
@@ -57,6 +59,7 @@ export function ChapterList({
   selectedId,
   projectId,
   originalReadingMode = false,
+  editionMode = false,
   onSelect,
   onDelete,
   onUpload,
@@ -711,7 +714,7 @@ export function ChapterList({
                   'completed',
                   'partial',
                   'draft',
-                  'analyzed',
+                  ...(editionMode ? [] : (['analyzed'] as FilterType[])),
                   'error',
                 ] as FilterType[])),
           ] as FilterType[]
@@ -972,6 +975,14 @@ export function ChapterList({
                                 {!originalReadingMode && (
                                   <span class={`chapter-status-icon is-${chapter.status}`}>
                                     {getStatusIcon(chapter.status)}
+                                  </span>
+                                )}
+                                {editionMode && chapter.translationMeta?.lastAnalysisAt && (
+                                  <span
+                                    class="chapter-analysis-ready"
+                                    title={t('edition.analysisReady')}
+                                  >
+                                    ·
                                   </span>
                                 )}
                                 {onDelete && (

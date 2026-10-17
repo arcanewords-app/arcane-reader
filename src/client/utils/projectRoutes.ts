@@ -27,23 +27,30 @@ export function parseChapterEditorQueryFromUrl(): { search: string; paragraph: s
   };
 }
 
-export function buildProjectPageUrl(projectId: string, search?: string): string {
-  const trimmed = search?.trim() ?? '';
-  if (!trimmed) return `/projects/${projectId}`;
+export function parseProjectLangFromUrl(): string {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('lang') ?? '';
+}
+
+export function buildProjectPageUrl(projectId: string, search?: string, lang?: string): string {
   const params = new URLSearchParams();
-  params.set('search', trimmed);
-  return `/projects/${projectId}?${params.toString()}`;
+  const trimmed = search?.trim() ?? '';
+  if (trimmed) params.set('search', trimmed);
+  if (lang) params.set('lang', lang);
+  const qs = params.toString();
+  return qs ? `/projects/${projectId}?${qs}` : `/projects/${projectId}`;
 }
 
 export function buildChapterEditorUrl(
   projectId: string,
   chapterId: string,
-  opts?: { search?: string; paragraph?: string }
+  opts?: { search?: string; paragraph?: string; lang?: string }
 ): string {
   const params = new URLSearchParams();
   const search = opts?.search?.trim() ?? '';
   if (search) params.set('search', search);
   if (opts?.paragraph) params.set('paragraph', opts.paragraph);
+  if (opts?.lang) params.set('lang', opts.lang);
   const qs = params.toString();
   return `/projects/${projectId}/chapters/${chapterId}${qs ? `?${qs}` : ''}`;
 }

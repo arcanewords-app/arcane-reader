@@ -155,22 +155,44 @@ export const chaptersApi = {
     return fetchJson(`/api/projects/${projectId}/import-jobs/${jobId}/cancel`, { method: 'POST' });
   },
 
-  async getChapter(projectId: string, chapterId: string, signal?: AbortSignal): Promise<Chapter> {
-    return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}`, { signal });
+  async getChapter(
+    projectId: string,
+    chapterId: string,
+    signal?: AbortSignal,
+    lang?: string
+  ): Promise<Chapter> {
+    const params = new URLSearchParams();
+    if (lang) params.set('lang', lang);
+    const qs = params.toString();
+    return fetchJsonDeduped(
+      `/api/projects/${projectId}/chapters/${chapterId}${qs ? `?${qs}` : ''}`,
+      {
+        signal,
+      }
+    );
   },
 
   /** Bypass in-flight GET dedupe — use after translation completes. */
-  async getChapterFresh(projectId: string, chapterId: string): Promise<Chapter> {
-    const url = `/api/projects/${projectId}/chapters/${chapterId}?_=${Date.now()}`;
+  async getChapterFresh(projectId: string, chapterId: string, lang?: string): Promise<Chapter> {
+    const params = new URLSearchParams();
+    params.set('_', String(Date.now()));
+    if (lang) params.set('lang', lang);
+    const url = `/api/projects/${projectId}/chapters/${chapterId}?${params.toString()}`;
     return fetchJson<Chapter>(url);
   },
 
   /** Lightweight: only chapter status (for polling during translation). When translating, may include chunksDone/totalChunks. */
   async getChapterStatus(
     projectId: string,
-    chapterId: string
+    chapterId: string,
+    lang?: string
   ): Promise<{ status: Chapter['status']; chunksDone?: number; totalChunks?: number }> {
-    return fetchJsonDeduped(`/api/projects/${projectId}/chapters/${chapterId}/status`);
+    const params = new URLSearchParams();
+    if (lang) params.set('lang', lang);
+    const qs = params.toString();
+    return fetchJsonDeduped(
+      `/api/projects/${projectId}/chapters/${chapterId}/status${qs ? `?${qs}` : ''}`
+    );
   },
 
   async deleteChapter(projectId: string, chapterId: string): Promise<{ success: boolean }> {
@@ -440,7 +462,9 @@ export const chaptersApi = {
     if (options?.languagePair) {
       body.languagePair = options.languagePair;
     }
-    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate`, {
+    const lang = options?.languagePair?.targetLanguage;
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/translate${qs}`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -461,11 +485,18 @@ export const chaptersApi = {
     projectId: string,
     chapterId: string,
     paragraphId: string,
-    updates: Partial<Pick<Paragraph, 'translatedText' | 'status'>>
+    updates: Partial<Pick<Paragraph, 'translatedText' | 'status'>>,
+    lang?: string
   ): Promise<Paragraph> {
-    return fetchJson(`/api/projects/${projectId}/chapters/${chapterId}/paragraphs/${paragraphId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
+    const params = new URLSearchParams();
+    if (lang && lang.length > 0) params.set('lang', lang);
+    const qs = params.toString();
+    return fetchJson(
+      `/api/projects/${projectId}/chapters/${chapterId}/paragraphs/${paragraphId}${qs ? `?${qs}` : ''}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      }
+    );
   },
 };

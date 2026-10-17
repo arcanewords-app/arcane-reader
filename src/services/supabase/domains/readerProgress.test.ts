@@ -96,10 +96,12 @@ describe('updateReadProgress', () => {
       error: null,
     });
     const upsertChain = chainable({ data: null, error: null });
+    const languageChain = chainable({ data: { target_language: 'ru' }, error: null });
     let calls = 0;
     mockFrom.mockImplementation(() => {
       calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
+      if (calls === 1) return languageChain;
+      return calls === 2 ? selectChain : upsertChain;
     });
 
     const result = await updateReadProgress('user-1', 'pub-1', 5, 'complete', 'token');
@@ -116,10 +118,12 @@ describe('updateReadProgress', () => {
       error: null,
     });
     const upsertChain = chainable({ data: null, error: null });
+    const languageChain = chainable({ data: { target_language: 'ru' }, error: null });
     let calls = 0;
     mockFrom.mockImplementation(() => {
       calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
+      if (calls === 1) return languageChain;
+      return calls === 2 ? selectChain : upsertChain;
     });
 
     const result = await updateReadProgress('user-1', 'pub-1', 3, 'complete', 'token');
@@ -132,10 +136,12 @@ describe('updateReadProgress', () => {
       error: null,
     });
     const upsertChain = chainable({ data: null, error: null });
+    const languageChain = chainable({ data: { target_language: 'ru' }, error: null });
     let calls = 0;
     mockFrom.mockImplementation(() => {
       calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
+      if (calls === 1) return languageChain;
+      return calls === 2 ? selectChain : upsertChain;
     });
 
     const result = await updateReadProgress('user-1', 'pub-1', 3, 'set', 'token');
@@ -148,10 +154,12 @@ describe('updateReadProgress', () => {
       data: null,
       error: { message: 'upsert failed' },
     });
+    const languageChain = chainable({ data: { target_language: 'ru' }, error: null });
     let calls = 0;
     mockFrom.mockImplementation(() => {
       calls += 1;
-      return calls === 1 ? selectChain : upsertChain;
+      if (calls === 1) return languageChain;
+      return calls === 2 ? selectChain : upsertChain;
     });
 
     await assert.rejects(
@@ -172,7 +180,7 @@ describe('resetReadProgress', () => {
 
     await resetReadProgress('user-1', 'pub-1', 'token');
     assert.equal(deleteChain.delete.mock.calls.length, 1);
-    assert.equal(deleteChain.select.mock.calls.length, 1);
+    assert.equal(deleteChain.select.mock.calls.length, 2);
     assert.equal(deleteChain.upsert.mock.calls.length, 0);
   });
 

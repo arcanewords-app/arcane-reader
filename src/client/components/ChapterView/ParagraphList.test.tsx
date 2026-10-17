@@ -18,7 +18,13 @@ vi.mock('../../utils/text-blocks', () => ({
 import { ParagraphList } from './ParagraphList.js';
 
 const paragraphs: Paragraph[] = [
-  { id: 'p1', index: 0, originalText: 'Once upon a time', translatedText: 'Жили-были', status: 'translated' },
+  {
+    id: 'p1',
+    index: 0,
+    originalText: 'Once upon a time',
+    translatedText: 'Жили-были',
+    status: 'translated',
+  },
   { id: 'p2', index: 1, originalText: 'The end', translatedText: '', status: 'pending' },
 ];
 
@@ -51,10 +57,22 @@ describe('ParagraphList', () => {
     expect(onToggleParagraphSelection).toHaveBeenCalledWith('p2');
   });
 
-  it('hides original column in translation-only display', () => {
+  it('shows an empty edition cell and keeps the selection checkbox', () => {
     render(
-      <ParagraphList paragraphs={paragraphs} onSave={vi.fn()} isTranslationOnlyDisplay />
+      <ParagraphList
+        paragraphs={paragraphs}
+        onSave={vi.fn()}
+        editionEmpty
+        emptyParagraphIds={['p2']}
+        selectedParagraphIds={[]}
+        onToggleParagraphSelection={vi.fn()}
+      />
     );
+    expect(screen.getByText('edition.emptyParagraph')).toBeTruthy();
+    expect(screen.getByLabelText('paragraphList.selectParagraph')).toBeTruthy();
+  });
+  it('hides original column in translation-only display', () => {
+    render(<ParagraphList paragraphs={paragraphs} onSave={vi.fn()} isTranslationOnlyDisplay />);
     expect(screen.queryByText('Once upon a time')).toBeNull();
     expect(screen.getByText('Жили-были')).toBeTruthy();
   });

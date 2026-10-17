@@ -11,11 +11,13 @@ import {
   getProjectIdFromOverviewPath,
   isProjectOverviewPath,
   parseProjectSearchFromUrl,
+  parseProjectLangFromUrl,
 } from '../utils/projectRoutes';
 import { useUrlSync } from '../hooks/useUrlSync';
 import { ProjectInfo } from '../components/ProjectInfo';
 import { Sidebar } from '../components/Sidebar';
-import { GlossaryModal } from '../components/Glossary';
+import { GlossaryModal, GlossaryEditionStub } from '../components/Glossary';
+import { EditionAddModal } from '../components/Sidebar/EditionAddModal';
 import { ReportsModal } from '../components/Reports';
 import { PageLoading } from '../components/ui';
 import { api } from '../api/client';
@@ -31,6 +33,9 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const refreshTrigger = useSignal(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [showAddEdition, setShowAddEdition] = useState(false);
+  const [activeLanguage, setActiveLanguage] = useState(() => parseProjectLangFromUrl());
+  const activeLanguageRef = useRef(activeLanguage);
   const [showReports, setShowReports] = useState(false);
   const [reportsCount, setReportsCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -38,7 +43,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const [projectSearchOpen, setProjectSearchOpen] = useState(() => initialSearch.trim().length > 0);
   const { state: projectSearchQuery, setState: setProjectSearchQuery } = useUrlSync({
     parse: parseProjectSearchFromUrl,
-    build: (q) => buildProjectPageUrl(projectId, q),
+    build: (q) => buildProjectPageUrl(projectId, q, activeLanguageRef.current || undefined),
     pathnameGuard: () =>
       isProjectOverviewPath(window.location.pathname) &&
       getProjectIdFromOverviewPath(window.location.pathname) === projectId,
@@ -50,6 +55,10 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   useEffect(() => {
     projectSearchQueryRef.current = projectSearchQuery;
   }, [projectSearchQuery]);
+
+  useEffect(() => {
+    activeLanguageRef.current = activeLanguage;
+  }, [activeLanguage]);
 
   useEffect(() => {
     if (projectSearchQuery.trim()) {
@@ -94,7 +103,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const loadProject = async () => {
     setLoading(true);
     try {
-      const loadedProject = await getProject(projectId);
+      const loadedProject = await getProject(projectId, activeLanguageRef.current || undefined);
       if (loadedProject) {
         trackEvent('view_item', { item_id: loadedProject.id });
         setProject(loadedProject);
@@ -125,7 +134,7 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
   const handleRefreshProject = useCallback(
     async () => {
       if (!project) return;
-      const updated = await getProject(project.id);
+      const updated = await getProject(project.id, activeLanguageRef.current || undefined);
       if (updated) {
         setProject(updated);
         refreshTrigger.value += 1;
@@ -180,8 +189,12 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
         project={project}
         selectedChapterId={null}
         onSelectChapter={(id) => {
-          handleSidebarClose(); // Close sidebar on mobile when selecting chapter
-          route(`/projects/${projectId}/chapters/${id}`);
+          handleSidebarClose();
+          route(
+            buildChapterEditorUrl(projectId, id, {
+              lang: activeLanguageRef.current || undefined,
+            })
+          );
         }}
         onUploadChapter={async ({ file, title, signal, onProgress }) => {
           const result = await api.uploadChapter(project.id, file, title, signal, onProgress);
@@ -225,6 +238,20 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
         onProjectSearchOpenChange={handleProjectSearchOpenChange}
         initialProjectSearchQuery={projectSearchQuery}
         onProjectSearchQueryChange={handleProjectSearchQueryChange}
+        activeLanguage={activeLanguage || project.targetLanguage}
+        onSelectLanguage={(language) => {
+          const lang = language === project.targetLanguage ? '' : language;
+          setActiveLanguage(lang);
+          activeLanguageRef.current = lang;
+          route(
+            buildProjectPageUrl(projectId, projectSearchQueryRef.current, lang || undefined),
+            true
+          );
+          void getProject(projectId, lang || undefined).then((updated) => {
+            if (updated) setProject(updated);
+          });
+        }}
+        onAddEdition={() => setShowAddEdition(true)}
       />
       <section class="content">
         <ProjectInfo
@@ -237,22 +264,50 @@ export function ProjectPage({ projectId }: ProjectPageProps) {
         />
       </section>
 
-      {showGlossary && project && (
-        <GlossaryModal
-          isOpen={showGlossary}
+      {showGlossary && project && activeLanguage && activeLanguage !== project.targetLanguage ? (
+        <GlossaryEditionStub
+          open={showGlossary}
+          language={activeLanguage}
           onClose={() => setShowGlossary(false)}
+        />
+      ) : null}
+      {showGlossary &&
+        project &&
+        (!activeLanguage || activeLanguage === project.targetLanguage) && (
+          <GlossaryModal
+            isOpen={showGlossary}
+            onClose={() => setShowGlossary(false)}
+            projectId={project.id}
+            entries={project.glossary}
+            chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
+            onNavigateToChapter={(chapterId, searchTerm) => {
+              setShowGlossary(false);
+              route(
+                buildChapterEditorUrl(project.id, chapterId, {
+                  search: searchTerm,
+                  lang: activeLanguageRef.current || undefined,
+                })
+              );
+            }}
+            onUpdate={handleRefreshProject}
+          />
+        )}
+      {showAddEdition && project && (
+        <EditionAddModal
+          isOpen={showAddEdition}
           projectId={project.id}
-          entries={project.glossary}
-          chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
-          onNavigateToChapter={(chapterId, searchTerm) => {
-            setShowGlossary(false);
-            route(
-              buildChapterEditorUrl(project.id, chapterId, {
-                search: searchTerm,
-              })
-            );
+          sourceLanguage={project.sourceLanguage}
+          primaryLanguage={project.targetLanguage}
+          onClose={() => setShowAddEdition(false)}
+          onCreated={(language) => {
+            setShowAddEdition(false);
+            setActiveLanguage(language);
+            activeLanguageRef.current = language;
+            route(buildProjectPageUrl(projectId, projectSearchQueryRef.current, language), true);
+            void getProject(projectId, language).then((updated) => {
+              if (updated) setProject(updated);
+            });
           }}
-          onUpdate={handleRefreshProject}
         />
       )}
 

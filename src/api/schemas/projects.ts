@@ -15,7 +15,7 @@ type LanguagePairInput = {
 };
 
 const languagePairRefine = (data: LanguagePairInput) =>
-  isSupportedPair(data.sourceLanguage as Language, data.targetLanguage as Language);
+  isSupportedPair(data.sourceLanguage, data.targetLanguage);
 
 const languagePairRefineMessage = {
   message: 'Unsupported translation language pair',
@@ -36,6 +36,10 @@ export const projectCreateBodySchema = z
     const target = data.targetLanguage ?? 'ru';
     return isSupportedPair(source, target);
   }, languagePairRefineMessage);
+
+export const createEditionBodySchema = z.object({
+  targetLanguage: supportedTargetLanguageSchema,
+});
 
 export const projectCloneBodySchema = z.object({
   name: z.string().trim().min(1).max(500).optional(),

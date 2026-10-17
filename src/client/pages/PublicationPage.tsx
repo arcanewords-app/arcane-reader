@@ -12,7 +12,7 @@ import { PublicationStatusBadge } from '../components/Home/PublicationStatusBadg
 import { PublicationRatingCoverBadge } from '../components/Home/PublicationRatingCoverBadge';
 import { EntityCard, TagChip } from '../components/EntityCard';
 import { LoadingSpinner, Modal, Button, Icon } from '../components/ui';
-import { PublicationGlossaryModal } from '../components/Glossary';
+import { EditionLanguageSwitch } from '../components/Sidebar/EditionLanguageSwitch';
 import { ChapterTocModal } from '../components/ChapterTocModal';
 import {
   PublicationRatingSummary,
@@ -24,6 +24,7 @@ import {
   getPublicationPathFromPathname,
   isPublicationCatalogPath,
   parsePublicationChapterQueryFromUrl,
+  parsePublicationLangFromUrl,
   sanitizePublicationChapterQueryForAuth,
   type PublicationChapterListQuery,
   type PublicationChapterOrder,
@@ -74,6 +75,8 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const [authorEntity, setAuthorEntity] = useState<PublicEntity | null>(null);
   const [translatorEntity, setTranslatorEntity] = useState<PublicEntity | null>(null);
   const [tagEntities, setTagEntities] = useState<PublicEntity[]>([]);
+  const [activeLang, setActiveLang] = useState(() => parsePublicationLangFromUrl());
+  const activeLangRef = useRef(activeLang);
 
   // Virtualization for chapter list (same pattern as ChapterList)
   const chapterListRef = useRef<HTMLDivElement | null>(null);
@@ -99,7 +102,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       const pubPath = getPublicationPath();
       if (!pubPath) return;
       const sanitized = sanitizePublicationChapterQueryForAuth(query, isAuthenticated);
-      const url = buildPublicationPageUrl(pubPath, sanitized);
+      const url = buildPublicationPageUrl(pubPath, sanitized, activeLangRef.current || undefined);
       const current = window.location.pathname + window.location.search;
       if (current !== url) {
         route(url, true);
@@ -169,7 +172,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
       return;
     }
     try {
-      const { lastReadChapterNumber: watermark } = await api.getReadProgress(publicationId);
+      const { lastReadChapterNumber: watermark } = await api.getReadProgress(
+        publicationId,
+        activeLangRef.current || undefined
+      );
       setLastReadChapterNumber(watermark ?? 0);
     } catch {
       // Ignore read progress errors on public page.
@@ -187,7 +193,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
   const handleResetProgress = useCallback(async () => {
     if (!publicationId || !isAuthenticated) return;
     try {
-      await api.resetReadProgress(publicationId);
+      await api.resetReadProgress(publicationId, activeLangRef.current || undefined);
       setLastReadChapterNumber(0);
       setShowResetProgressConfirm(false);
     } catch {
@@ -199,7 +205,7 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     if (!publicationId) return;
     let cancelled = false;
     api
-      .getPublicationWithChapters(publicationId)
+      .getPublicationWithChapters(publicationId, activeLangRef.current || undefined)
       .then((result) => {
         if (!cancelled) setData(result);
         // Load entities in parallel with same tick — no waterfall
@@ -467,7 +473,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
     try {
       const result = await api.buildPublicationExports(pub.id);
       if (result.epubReady || result.fb2Ready) {
-        const refreshed = await api.getPublicationWithChapters(publicationId);
+        const refreshed = await api.getPublicationWithChapters(
+          publicationId,
+          activeLangRef.current || undefined
+        );
         setData(refreshed);
       }
     } catch (err) {
@@ -498,6 +507,22 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         </div>
         <div class="publication-page-meta">
           <h1 class="publication-page-title">{title}</h1>
+          {(data.editions?.length ?? 0) > 0 && (
+            <EditionLanguageSwitch
+              primaryLanguage={data.targetLanguage}
+              editionLanguages={(data.editions ?? []).map((edition) => edition.language)}
+              activeLanguage={activeLang || data.targetLanguage}
+              onSelect={(language) => {
+                const lang = language === data.targetLanguage ? '' : language;
+                setActiveLang(lang);
+                activeLangRef.current = lang;
+                replaceChapterListUrl(chapterListQueryRef.current);
+                void api
+                  .getPublicationWithChapters(publicationId, lang || undefined)
+                  .then((result) => setData(result));
+              }}
+            />
+          )}
           {pub.description && <p class="publication-page-description">{pub.description}</p>}
           {authorEntity || translatorEntity || authorDisplay || translatorDisplay ? (
             <div class="publication-page-authors">
@@ -687,7 +712,15 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                     <button
                       type="button"
                       class="publication-page-continue-from"
-                      onClick={() => route(`/p/${pubPath}/chapters/${continueChapter.id}/reading`)}
+                      onClick={() =>
+                        route(
+                          `/p/${pubPath}/chapters/${continueChapter.id}/reading${
+                            activeLangRef.current
+                              ? `?lang=${encodeURIComponent(activeLangRef.current)}`
+                              : ''
+                          }`
+                        )
+                      }
                     >
                       <Icon name="menu_book" size="sm" />
                       <span class="publication-page-continue-from-label">
@@ -872,7 +905,13 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                       class="publication-page-read-chapter"
                                       data-testid="publication-read-chapter"
                                       onClick={() =>
-                                        route(`/p/${pubPath}/chapters/${ch.id}/reading`)
+                                        route(
+                                          `/p/${pubPath}/chapters/${ch.id}/reading${
+                                            activeLangRef.current
+                                              ? `?lang=${encodeURIComponent(activeLangRef.current)}`
+                                              : ''
+                                          }`
+                                        )
                                       }
                                     >
                                       {t('home.read')}
@@ -913,7 +952,15 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
                                 type="button"
                                 class="publication-page-read-chapter"
                                 data-testid="publication-read-chapter"
-                                onClick={() => route(`/p/${pubPath}/chapters/${ch.id}/reading`)}
+                                onClick={() =>
+                                  route(
+                                    `/p/${pubPath}/chapters/${ch.id}/reading${
+                                      activeLangRef.current
+                                        ? `?lang=${encodeURIComponent(activeLangRef.current)}`
+                                        : ''
+                                    }`
+                                  )
+                                }
                               >
                                 {t('home.read')}
                               </button>
@@ -947,7 +994,11 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
         lastReadChapterNumber={isAuthenticated ? lastReadChapterNumber : 0}
         onSelectChapter={(chapterId) => {
           setShowToc(false);
-          route(`/p/${pubPath}/chapters/${chapterId}/reading`);
+          route(
+            `/p/${pubPath}/chapters/${chapterId}/reading${
+              activeLangRef.current ? `?lang=${encodeURIComponent(activeLangRef.current)}` : ''
+            }`
+          );
         }}
       />
       {publicationId && (
@@ -959,7 +1010,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
             const result = await api.upsertPublicationRating(publicationId, score);
             setRatingUserScore(result.score);
             setRatingEligibility('eligible');
-            const refreshed = await api.getPublicationWithChapters(publicationId);
+            const refreshed = await api.getPublicationWithChapters(
+              publicationId,
+              activeLangRef.current || undefined
+            );
             setData(refreshed);
           }}
           onRemove={
@@ -967,7 +1021,10 @@ export function PublicationPage({ publicationId }: PublicationPageProps) {
               ? async () => {
                   await api.deletePublicationRating(publicationId);
                   setRatingUserScore(null);
-                  const refreshed = await api.getPublicationWithChapters(publicationId);
+                  const refreshed = await api.getPublicationWithChapters(
+                    publicationId,
+                    activeLangRef.current || undefined
+                  );
                   setData(refreshed);
                 }
               : undefined

@@ -57,9 +57,15 @@ export function sanitizePublicationChapterQueryForAuth(
   return { ...query, read: 'all' };
 }
 
+export function parsePublicationLangFromUrl(): string {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('lang') ?? '';
+}
+
 export function buildPublicationPageUrl(
   publicationPath: string,
-  query: PublicationChapterListQuery
+  query: PublicationChapterListQuery,
+  lang?: string
 ): string {
   const params = new URLSearchParams();
   const q = query.q.trim();
@@ -67,6 +73,7 @@ export function buildPublicationPageUrl(
   if (query.translation !== 'translated') params.set('translation', query.translation);
   if (query.read !== 'all') params.set('read', query.read);
   if (query.order !== 'asc') params.set('order', query.order);
+  if (lang) params.set('lang', lang);
   const qs = params.toString();
   return qs ? `/p/${publicationPath}?${qs}` : `/p/${publicationPath}`;
 }

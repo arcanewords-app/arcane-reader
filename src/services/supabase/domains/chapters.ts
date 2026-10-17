@@ -11,6 +11,14 @@ import { logger } from '../../../logger.js';
 import { transformChapterFromDB, transformChapterToDB } from '../../supabaseTransforms.js';
 import { autoSyncChunksToParagraphs } from '../pure/chapterSync.js';
 import { loadParagraphsForChapter } from '../loaders.js';
+import { currentEditionTarget } from '../../editions/editionContext.js';
+import { overlayChapterParagraphs } from '../../editions/editionLanguage.js';
+import {
+  loadChapterEditionRow,
+  loadParagraphTranslations,
+  upsertChapterEdition,
+  upsertParagraphTranslations,
+} from './editions.js';
 
 /**
  * Add a new chapter to a project
@@ -205,7 +213,7 @@ export async function importChaptersBatch(
 }
 
 /** Options for updateChapter when using service role (e.g. long-running translate where JWT may expire). */
-export type UpdateChapterOptions = { useServiceRole?: boolean };
+export type UpdateChapterOptions = { useServiceRole?: boolean; editionLanguage?: string };
 
 /**
  * Update a chapter.
@@ -225,6 +233,20 @@ export async function updateChapter(
   const client = useServiceRole
     ? (await import('../../supabaseClient.js')).createServiceRoleClient()
     : createClientWithToken(token);
+
+  const editionLanguage = options?.editionLanguage ?? currentEditionTarget();
+  if (editionLanguage) {
+    await upsertChapterEdition(client, chapterId, editionLanguage, {
+      status: updates.status,
+      translatedTitle: updates.translatedTitle,
+      translationMeta: updates.translationMeta,
+    });
+    if (updates.paragraphs && updates.paragraphs.length > 0) {
+      await upsertParagraphTranslations(client, editionLanguage, updates.paragraphs);
+    }
+    await client.from('projects').update({}).eq('id', projectId);
+    return getChapter(projectId, chapterId, token, { useServiceRole, editionLanguage });
+  }
 
   // Verify chapter belongs to project (RLS will check user ownership)
   const chapterData = transformChapterToDB(updates);
@@ -322,7 +344,7 @@ export async function updateChapter(
 }
 
 /** Options for getChapter when using service role (e.g. long-running translate where JWT may expire). */
-export type GetChapterOptions = { useServiceRole?: boolean };
+export type GetChapterOptions = { useServiceRole?: boolean; editionLanguage?: string };
 
 /**
  * Get a single chapter.
@@ -377,7 +399,10 @@ export async function getChapter(
     paragraphs.length > 0 &&
     !paragraphs.some((p) => p.translatedText && p.translatedText.trim().length > 0);
 
+  const editionLanguage = options?.editionLanguage ?? currentEditionTarget();
+
   if (
+    !editionLanguage &&
     hasTranslation &&
     hasEmptyParagraphs &&
     chapterData.translatedChunks &&
@@ -450,7 +475,12 @@ export async function getChapter(
   // Lazy backfill: completed status but incomplete paragraph coverage → partial
   let chapterRow = chapter;
   const coverage = getTranslationCoverage(paragraphs);
-  if (chapterData.status === 'completed' && !coverage.isComplete && coverage.translatedCount > 0) {
+  if (
+    !editionLanguage &&
+    chapterData.status === 'completed' &&
+    !coverage.isComplete &&
+    coverage.translatedCount > 0
+  ) {
     logger.info(
       {
         event: 'chapter.status.backfill_partial',
@@ -475,7 +505,18 @@ export async function getChapter(
     }
   }
 
-  return transformChapterFromDB(chapterRow, paragraphs);
+  const loaded = transformChapterFromDB(chapterRow, paragraphs);
+  if (!editionLanguage) return loaded;
+  const editionRow = await loadChapterEditionRow(client, chapterId, editionLanguage);
+  const translated = await loadParagraphTranslations(
+    client,
+    paragraphs.map((paragraph) => paragraph.id),
+    editionLanguage
+  );
+  return overlayChapterParagraphs(
+    loaded,
+    editionRow ? { ...editionRow, paragraphs: translated } : null
+  );
 }
 
 /**
@@ -778,7 +819,7 @@ export async function markChaptersAsTranslatedBatch(
     const statusRaw = String((row as Record<string, unknown>).status || '').toLowerCase();
     const status: MarkTranslatedBatchStatus =
       statusRaw === 'success' || statusRaw === 'failed' || statusRaw === 'skipped'
-        ? (statusRaw as MarkTranslatedBatchStatus)
+        ? (statusRaw)
         : 'failed';
     const chapterId = String((row as Record<string, unknown>).chapter_id || '');
     const reasonRaw = (row as Record<string, unknown>).reason;

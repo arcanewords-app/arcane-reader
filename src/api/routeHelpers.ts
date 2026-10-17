@@ -194,12 +194,20 @@ export function publicationCacheKey(id: string): string {
   return buildRedisKey(CACHE_PREFIX.publication, id);
 }
 
-export function publicationChaptersCacheKey(id: string): string {
-  return buildRedisKey(CACHE_PREFIX.publicationChapters, id);
+export function publicationChaptersCacheKey(id: string, lang?: string): string {
+  return buildRedisKey(CACHE_PREFIX.publicationChapters, lang ? `${id}:${lang}` : id);
 }
 
-export function publicationChapterCacheKey(publicationId: string, chapterId: string): string {
-  return buildRedisKey(CACHE_PREFIX.publicationChapter, publicationId, chapterId);
+export function publicationChapterCacheKey(
+  publicationId: string,
+  chapterId: string,
+  lang?: string
+): string {
+  return buildRedisKey(
+    CACHE_PREFIX.publicationChapter,
+    publicationId,
+    lang ? `${chapterId}:${lang}` : chapterId
+  );
 }
 
 export function publicationGlossaryCacheKey(id: string): string {

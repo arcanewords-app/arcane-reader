@@ -6,14 +6,17 @@ import { getProject, updateProjectCache } from '../store/projects';
 import { shouldRefetchOpenChapter } from '../../shared/chapterContentSync.js';
 import { ChapterView } from '../components/ChapterView';
 import { Sidebar } from '../components/Sidebar';
-import { GlossaryModal } from '../components/Glossary';
+import { GlossaryModal, GlossaryEditionStub } from '../components/Glossary';
+import { EditionAddModal } from '../components/Sidebar/EditionAddModal';
 import { ReportsModal } from '../components/Reports';
 import { LoadingSpinner } from '../components/ui';
 import { api } from '../api/client';
 import {
   buildChapterEditorUrl,
+  buildProjectPageUrl,
   isProjectChapterEditorPath,
   parseChapterEditorQueryFromUrl,
+  parseProjectLangFromUrl,
 } from '../utils/projectRoutes';
 
 interface ChapterPageProps {
@@ -28,6 +31,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [showAddEdition, setShowAddEdition] = useState(false);
+  const [activeLanguage, setActiveLanguage] = useState(() => parseProjectLangFromUrl());
+  const activeLanguageRef = useRef(activeLanguage);
   const [showReports, setShowReports] = useState(false);
   const [reportsCount, setReportsCount] = useState(0);
   const prevProjectIdRef = useRef<string | null>(null);
@@ -39,6 +45,10 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   useEffect(() => {
     editorSearchQueryRef.current = editorSearchQuery;
   }, [editorSearchQuery]);
+
+  useEffect(() => {
+    activeLanguageRef.current = activeLanguage;
+  }, [activeLanguage]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -87,7 +97,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     setLoading(true);
     if (chapterId) setChapter(null);
     try {
-      const loadedProject = await getProject(projectId);
+      const loadedProject = await getProject(projectId, activeLanguageRef.current || undefined);
       if (!loadedProject) {
         route('/');
         return;
@@ -100,7 +110,12 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
         .catch(() => {});
 
       if (chapterId) {
-        const loadedChapter = await api.getChapter(projectId, chapterId);
+        const loadedChapter = await api.getChapter(
+          projectId,
+          chapterId,
+          undefined,
+          activeLanguageRef.current || undefined
+        );
         setChapter(loadedChapter);
       }
     } catch (error) {
@@ -114,7 +129,12 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const loadChapterOnly = async (cid: string) => {
     setChapter(null);
     try {
-      const loadedChapter = await api.getChapter(projectId, cid);
+      const loadedChapter = await api.getChapter(
+        projectId,
+        cid,
+        undefined,
+        activeLanguageRef.current || undefined
+      );
       setChapter(loadedChapter);
     } catch (error) {
       console.error('Failed to load chapter:', error);
@@ -145,7 +165,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
       ),
     };
     setProject(nextProject);
-    updateProjectCache(nextProject);
+    if (!activeLanguageRef.current) updateProjectCache(nextProject);
   };
 
   const handleSettingsChange = (settings: ProjectSettings) => {
@@ -155,7 +175,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
 
   const handleRefreshProject = useCallback(async () => {
     if (!project) return;
-    const updated = await getProject(project.id);
+    const updated = await getProject(project.id, activeLanguageRef.current || undefined);
     if (!updated) return;
     setProject(updated);
 
@@ -163,7 +183,11 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
       const listItem = updated.chapters.find((c) => c.id === chapterId);
       if (listItem && shouldRefetchOpenChapter(chapter.status, listItem.status)) {
         try {
-          const fresh = await api.getChapterFresh(project.id, chapterId);
+          const fresh = await api.getChapterFresh(
+            project.id,
+            chapterId,
+            activeLanguageRef.current || undefined
+          );
           setChapter(fresh);
           const nextProject: ProjectWithChapterList = {
             ...updated,
@@ -186,7 +210,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
             ),
           };
           setProject(nextProject);
-          updateProjectCache(nextProject);
+          if (!activeLanguageRef.current) updateProjectCache(nextProject);
         } catch (error) {
           console.error('Failed to sync open chapter after project refresh:', error);
         }
@@ -208,7 +232,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
     let cancelled = false;
     const timer = setTimeout(() => {
       void api
-        .getChapterFresh(projectId, chapterId)
+        .getChapterFresh(projectId, chapterId, activeLanguageRef.current || undefined)
         .then((fresh) => {
           if (!cancelled) handleChapterUpdate(fresh);
         })
@@ -225,7 +249,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   }, [listItemStatus, chapter?.status, chapterId, projectId]);
 
   const handleEnterReadingMode = () => {
-    route(`/projects/${projectId}/chapters/${chapterId}/reading`);
+    const lang = activeLanguageRef.current;
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    route(`/projects/${projectId}/chapters/${chapterId}/reading${qs}`);
   };
 
   // Full-page loading only when loading project or project not yet loaded.
@@ -244,7 +270,7 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
   const chapterIndex = sortedChapters.findIndex((c) => c.id === chapterId);
 
   if (!chapterListItem) {
-    route(`/projects/${projectId}`);
+    route(buildProjectPageUrl(projectId, undefined, activeLanguageRef.current || undefined));
     return null;
   }
 
@@ -281,8 +307,13 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
         project={project}
         selectedChapterId={chapterId}
         onSelectChapter={(id) => {
-          handleSidebarClose(); // Close sidebar on mobile when selecting chapter
-          route(`/projects/${projectId}/chapters/${id}`);
+          handleSidebarClose();
+          route(
+            buildChapterEditorUrl(projectId, id, {
+              lang: activeLanguageRef.current || undefined,
+              search: editorSearchQueryRef.current || undefined,
+            })
+          );
         }}
         onUploadChapter={async ({ file, title, signal, onProgress }) => {
           const result = await api.uploadChapter(project.id, file, title, signal, onProgress);
@@ -296,7 +327,9 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
             await handleRefreshProject();
             // If deleted chapter is currently viewed, navigate to project page
             if (deletedChapterId === chapterId) {
-              route(`/projects/${projectId}`);
+              route(
+                buildProjectPageUrl(projectId, undefined, activeLanguageRef.current || undefined)
+              );
             }
           } catch (error) {
             console.error('Failed to delete chapter:', error);
@@ -320,6 +353,29 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
         onSettingsChange={handleSettingsChange}
         onRefreshProject={handleRefreshProject}
         isMobileOpen={sidebarOpen}
+        activeLanguage={activeLanguage || project.targetLanguage}
+        onSelectLanguage={(language) => {
+          const lang = language === project.targetLanguage ? '' : language;
+          setActiveLanguage(lang);
+          activeLanguageRef.current = lang;
+          route(
+            buildChapterEditorUrl(projectId, chapterId, {
+              lang: lang || undefined,
+              search: editorSearchQueryRef.current || undefined,
+              paragraph: editorParagraphId || undefined,
+            }),
+            true
+          );
+          void (async () => {
+            const [updatedProject, updatedChapter] = await Promise.all([
+              getProject(projectId, lang || undefined),
+              api.getChapter(projectId, chapterId, undefined, lang || undefined),
+            ]);
+            if (updatedProject) setProject(updatedProject);
+            setChapter(updatedChapter);
+          })();
+        }}
+        onAddEdition={() => setShowAddEdition(true)}
       />
       <section class="content">
         <ChapterView
@@ -336,25 +392,61 @@ export function ChapterPage({ projectId, chapterId }: ChapterPageProps) {
           initialSearchQuery={editorSearchQuery}
           initialParagraphId={editorParagraphId}
           onRefreshProject={handleRefreshProject}
+          activeLanguage={activeLanguage || undefined}
         />
       </section>
 
-      {showGlossary && project && (
-        <GlossaryModal
-          isOpen={showGlossary}
+      {showGlossary && project && activeLanguage && activeLanguage !== project.targetLanguage ? (
+        <GlossaryEditionStub
+          open={showGlossary}
+          language={activeLanguage}
           onClose={() => setShowGlossary(false)}
+        />
+      ) : null}
+      {showGlossary &&
+        project &&
+        (!activeLanguage || activeLanguage === project.targetLanguage) && (
+          <GlossaryModal
+            isOpen={showGlossary}
+            onClose={() => setShowGlossary(false)}
+            projectId={project.id}
+            entries={project.glossary}
+            chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
+            onNavigateToChapter={(navChapterId, searchTerm) => {
+              setShowGlossary(false);
+              route(
+                buildChapterEditorUrl(project.id, navChapterId, {
+                  search: searchTerm,
+                  lang: activeLanguageRef.current || undefined,
+                })
+              );
+            }}
+            onUpdate={handleRefreshProject}
+          />
+        )}
+      {showAddEdition && project && (
+        <EditionAddModal
+          isOpen={showAddEdition}
           projectId={project.id}
-          entries={project.glossary}
-          chapters={project.chapters.map((c) => ({ id: c.id, number: c.number, title: c.title }))}
-          onNavigateToChapter={(navChapterId, searchTerm) => {
-            setShowGlossary(false);
+          sourceLanguage={project.sourceLanguage}
+          primaryLanguage={project.targetLanguage}
+          onClose={() => setShowAddEdition(false)}
+          onCreated={(language) => {
+            setShowAddEdition(false);
+            setActiveLanguage(language);
+            activeLanguageRef.current = language;
             route(
-              buildChapterEditorUrl(project.id, navChapterId, {
-                search: searchTerm,
-              })
+              buildChapterEditorUrl(projectId, chapterId, {
+                lang: language,
+                search: editorSearchQueryRef.current || undefined,
+              }),
+              true
             );
+            void getProject(projectId, language).then((updated) => {
+              if (updated) setProject(updated);
+            });
+            void api.getChapter(projectId, chapterId, undefined, language).then(setChapter);
           }}
-          onUpdate={handleRefreshProject}
         />
       )}
 

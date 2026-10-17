@@ -11,6 +11,7 @@ import {
   normalizeGenderForDB,
 } from '../../supabaseTransforms.js';
 import { transformGlossaryEntryToDB } from '../transforms/glossary.js';
+import { currentEditionTarget } from '../../editions/editionContext.js';
 
 /**
  * Get a single glossary entry by id (for merging chapter appearance).
@@ -56,6 +57,9 @@ export async function addGlossaryEntry(
   token: string,
   options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | undefined> {
+  // TODO(glossary-edition): replace with a glossary stored per target language.
+  // Do not write analysis merges into glossary_entries for a non-primary target.
+  if (currentEditionTarget()) return undefined;
   const useServiceRole = options?.useServiceRole === true;
   if (!useServiceRole) {
     validateToken(token);
@@ -153,6 +157,9 @@ export async function updateGlossaryEntry(
   token: string,
   options?: { useServiceRole?: boolean }
 ): Promise<GlossaryEntry | undefined> {
+  // TODO(glossary-edition): replace with a glossary stored per target language.
+  // Do not write analysis merges into glossary_entries for a non-primary target.
+  if (currentEditionTarget()) return undefined;
   const useServiceRole = options?.useServiceRole === true;
   if (!useServiceRole) {
     validateToken(token);

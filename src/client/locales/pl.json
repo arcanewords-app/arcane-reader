@@ -1583,6 +1583,20 @@
   "news": {
     "shownInPrimary": "Pokazano po rosyjsku"
   },
+  "edition": {
+    "switchLabel": "Język tłumaczenia",
+    "add": "Dodaj język",
+    "addTitle": "Dodaj język tłumaczenia",
+    "addBody": "Rozdziały w języku {{language}} zostaną puste. Oryginał i analiza zostają wspólne.",
+    "addConfirm": "Dodaj {{language}}",
+    "glossaryStubTitle": "Glosariusz tego języka",
+    "glossaryStubBody": "Terminy dla {{language}} pojawią się w osobnym glosariuszu. Ten ekran nie zmienia głównej listy.",
+    "emptyParagraph": "Nie ma jeszcze tłumaczenia na ten język",
+    "analysisReady": "Analiza gotowa",
+    "analysisLocked": "Analiza tego języka jest wyłączona, dopóki nie ma jego glosariusza.",
+    "emptyChapter": "Ten rozdział nie ma tłumaczenia w wybranym języku.",
+    "backToContents": "Do spisu treści"
+  },
   "cookieBanner": {
     "title": "Używamy plików cookies",
     "description": "Aby ulepszyć serwis zbieramy anonimowe statystyki. Możesz zaakceptować lub odrzucić cookies analityczne.",

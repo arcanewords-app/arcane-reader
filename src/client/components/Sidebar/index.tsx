@@ -8,7 +8,9 @@ import { Button, Icon } from '../ui';
 import { route } from 'preact-router';
 import type { Chapter, Project, ProjectWithChapterList, ProjectSettings } from '../../types';
 import { SettingsModal } from './SettingsModal';
+import { EditionLanguageSwitch } from './EditionLanguageSwitch';
 import './Sidebar.css';
+import './EditionLanguageSwitch.css';
 
 interface SidebarProps {
   project: Project | ProjectWithChapterList | null;
@@ -41,6 +43,9 @@ interface SidebarProps {
   initialProjectSearchQuery?: string;
   /** Called when debounced search query changes (parent may sync URL). */
   onProjectSearchQueryChange?: (query: string) => void;
+  activeLanguage?: string;
+  onSelectLanguage?: (language: string) => void;
+  onAddEdition?: () => void;
 }
 
 export function Sidebar({
@@ -63,6 +68,9 @@ export function Sidebar({
   onProjectSearchOpenChange,
   initialProjectSearchQuery = '',
   onProjectSearchQueryChange,
+  activeLanguage,
+  onSelectLanguage,
+  onAddEdition,
 }: SidebarProps) {
   const { t } = useTranslation();
   const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
@@ -148,6 +156,16 @@ export function Sidebar({
           <h3 class="sidebar-project-name" title={project.name}>
             {project.name}
           </h3>
+          {onSelectLanguage && (
+            <EditionLanguageSwitch
+              primaryLanguage={project.targetLanguage}
+              editionLanguages={project.editionLanguages ?? []}
+              activeLanguage={activeLanguage || project.targetLanguage}
+              onSelect={onSelectLanguage}
+              onAdd={onAddEdition}
+              canAdd={(project.editionLanguages ?? []).length === 0}
+            />
+          )}
         </div>
 
         {/* Project Settings Button */}
@@ -206,6 +224,7 @@ export function Sidebar({
             />
             <ProcessChapters
               project={project}
+              activeLanguage={activeLanguage || project.targetLanguage}
               onRefreshProject={onRefreshProject}
               onSettingsChange={onSettingsChange}
               onOpenSettings={() => setShowSettings(true)}
@@ -220,6 +239,7 @@ export function Sidebar({
           selectedId={selectedChapterId}
           projectId={project.id}
           originalReadingMode={project.settings?.originalReadingMode ?? false}
+          editionMode={!!activeLanguage && activeLanguage !== project.targetLanguage}
           onSelect={onSelectChapter}
           onDelete={onDeleteChapter}
           onUpload={onUploadChapter}

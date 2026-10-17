@@ -5,8 +5,9 @@ import { api } from '../api/client';
 import { AUTH_CHANGED_EVENT, authService, type AuthChangedDetail } from '../services/authService';
 import type { GlossaryEntry } from '../types';
 import { usePageMeta } from '../hooks/usePageMeta';
-import { ReadingMode } from '../components/ReadingMode';
+import { parsePublicationLangFromUrl } from '../utils/publicationRoutes';
 import { LoadingSpinner } from '../components/ui';
+import { ReadingMode } from '../components/ReadingMode';
 import {
   buildReadingChapterUrl,
   getRawReadingParagraphFromUrl,
@@ -55,7 +56,10 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     }
     if (!publicationId) return;
     try {
-      const result = await api.getReadProgress(publicationId);
+      const result = await api.getReadProgress(
+        publicationId,
+        parsePublicationLangFromUrl() || undefined
+      );
       setLastReadChapterNumber(result.lastReadChapterNumber ?? 0);
     } catch {
       // Ignore progress sync errors on public reader page.
@@ -69,7 +73,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     }
     let cancelled = false;
     api
-      .getPublicationWithChapters(publicationId)
+      .getPublicationWithChapters(publicationId, parsePublicationLangFromUrl() || undefined)
       .then((result) => {
         if (!cancelled) {
           setData({
@@ -117,12 +121,14 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
 
   useEffect(() => {
     if (!publicationId || !data || !chapterId) return;
-    const hasTranslation = data.chapters.some((ch) => ch.id === chapterId && ch.hasTranslation);
-    if (!hasTranslation) return;
-
     let cancelled = false;
     api
-      .getPublicationChapter(publicationId, chapterId)
+      .getPublicationChapter(
+        publicationId,
+        chapterId,
+        undefined,
+        parsePublicationLangFromUrl() || undefined
+      )
       .then((result) => {
         if (!cancelled) {
           setInitialChapterContent((prev) => ({ ...prev, [result.id]: result.translatedText }));
@@ -176,7 +182,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       }
       if (!publicationId) return;
       api
-        .getReadProgress(publicationId)
+        .getReadProgress(publicationId, parsePublicationLangFromUrl() || undefined)
         .then((result) => {
           setLastReadChapterNumber(result.lastReadChapterNumber ?? 0);
         })
@@ -192,9 +198,16 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
     (chapterNumber: number) => {
       if (!publicationId) return;
       setLastReadChapterNumber((prev) => advanceWatermarkComplete(prev, chapterNumber));
-      api.updateReadProgress(publicationId, chapterNumber, 'complete').catch(() => {
-        syncAuthProgress().catch(() => {});
-      });
+      api
+        .updateReadProgress(
+          publicationId,
+          chapterNumber,
+          'complete',
+          parsePublicationLangFromUrl() || undefined
+        )
+        .catch(() => {
+          syncAuthProgress().catch(() => {});
+        });
     },
     [publicationId, syncAuthProgress]
   );
@@ -205,9 +218,16 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
       setLastReadChapterNumber((prev) =>
         mode === 'set' ? chapterNumber : advanceWatermarkComplete(prev, chapterNumber)
       );
-      api.updateReadProgress(publicationId, chapterNumber, mode).catch(() => {
-        syncAuthProgress().catch(() => {});
-      });
+      api
+        .updateReadProgress(
+          publicationId,
+          chapterNumber,
+          mode,
+          parsePublicationLangFromUrl() || undefined
+        )
+        .catch(() => {
+          syncAuthProgress().catch(() => {});
+        });
     },
     [publicationId, syncAuthProgress]
   );
@@ -266,7 +286,7 @@ export function PublicationReadingPage({ publicationId, chapterId }: Publication
   const publicationChapters = useMemo(
     () =>
       (data?.chapters ?? [])
-        .filter((ch) => ch.hasTranslation)
+        .filter((ch) => ch.hasTranslation || ch.id === chapterId)
         .map((ch) => ({ id: ch.id, number: ch.number, title: ch.title })),
     [data?.chapters]
   );

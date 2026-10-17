@@ -13,6 +13,21 @@ import {
   resolveContinueChapter,
   setWatermark,
 } from '../../../shared/reading-progress.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+async function resolveProgressLanguage(
+  client: SupabaseClient,
+  publicationId: string,
+  requested?: string
+): Promise<string> {
+  if (requested) return requested;
+  const { data } = await client
+    .from('publications')
+    .select('target_language')
+    .eq('id', publicationId)
+    .maybeSingle();
+  return (data?.target_language as string | undefined) || 'ru';
+}
 
 export type ReadProgressUpdateMode = 'complete' | 'set';
 
@@ -27,7 +42,8 @@ export interface ReadProgressResult {
 export async function getReadProgress(
   publicationId: string,
   userId: string | null,
-  token: string | null
+  token: string | null,
+  targetLanguage?: string
 ): Promise<ReadProgressResult> {
   if (!userId || !token) {
     return { lastReadChapterNumber: 0 };
@@ -35,12 +51,14 @@ export async function getReadProgress(
 
   validateToken(token);
   const client = createClientWithToken(token);
+  const language = await resolveProgressLanguage(client, publicationId, targetLanguage);
 
   const { data, error } = await client
     .from('user_publication_progress')
     .select('last_read_chapter_number')
     .eq('publication_id', publicationId)
     .eq('user_id', userId)
+    .eq('target_language', language)
     .maybeSingle();
 
   if (error) {
@@ -63,16 +81,19 @@ export async function updateReadProgress(
   publicationId: string,
   chapterNumber: number,
   mode: ReadProgressUpdateMode,
-  token: string
+  token: string,
+  targetLanguage?: string
 ): Promise<ReadProgressResult> {
   validateToken(token);
   const client = createClientWithToken(token);
+  const language = await resolveProgressLanguage(client, publicationId, targetLanguage);
 
   const { data: existing } = await client
     .from('user_publication_progress')
     .select('last_read_chapter_number')
     .eq('user_id', userId)
     .eq('publication_id', publicationId)
+    .eq('target_language', language)
     .maybeSingle();
 
   const current = (existing?.last_read_chapter_number as number | null) ?? 0;
@@ -83,11 +104,12 @@ export async function updateReadProgress(
     {
       user_id: userId,
       publication_id: publicationId,
+      target_language: language,
       last_read_chapter_number: next,
       last_read_at: new Date().toISOString(),
     },
     {
-      onConflict: 'user_id,publication_id',
+      onConflict: 'user_id,publication_id,target_language',
       ignoreDuplicates: false,
     }
   );
@@ -105,16 +127,19 @@ export async function updateReadProgress(
 export async function resetReadProgress(
   userId: string,
   publicationId: string,
-  token: string
+  token: string,
+  targetLanguage?: string
 ): Promise<void> {
   validateToken(token);
   const client = createClientWithToken(token);
+  const language = await resolveProgressLanguage(client, publicationId, targetLanguage);
 
   const { data: deleted, error } = await client
     .from('user_publication_progress')
     .delete()
     .eq('user_id', userId)
     .eq('publication_id', publicationId)
+    .eq('target_language', language)
     .select('publication_id');
 
   if (error) {
@@ -127,10 +152,11 @@ export async function resetReadProgress(
       {
         user_id: userId,
         publication_id: publicationId,
+        target_language: language,
         last_read_chapter_number: 0,
         last_read_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id,publication_id', ignoreDuplicates: false }
+      { onConflict: 'user_id,publication_id,target_language', ignoreDuplicates: false }
     );
     if (upsertError) {
       throw new Error(`Failed to reset read progress: ${upsertError.message}`);
@@ -314,7 +340,7 @@ export async function getUserReadingHistory(
     if (!chError && chapterRows) {
       for (const ch of chapterRows as Array<{ project_id: string; id: string; number: number }>) {
         if (!chaptersByProject[ch.project_id]) chaptersByProject[ch.project_id] = [];
-        chaptersByProject[ch.project_id]!.push({
+        chaptersByProject[ch.project_id].push({
           id: ch.id,
           number: ch.number,
           hasTranslation: translatedIds.has(ch.id),

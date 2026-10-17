@@ -72,6 +72,8 @@ import {
   setTranslationProgress,
   clearTranslationProgress,
 } from './routeHelpers.js';
+import { loadGlossaryForEdition } from '../services/editions/loadGlossaryForEdition.js';
+import { runWithEditionTarget } from '../services/editions/editionContext.js';
 
 const config = loadConfig();
 
@@ -134,33 +136,40 @@ export async function performTranslation(
     /** When true, skip per-chapter title translation (bulk job runs batch phase 2). */
     deferChapterTitleTranslation?: boolean;
     userRole?: UserRole;
+    /** When set and different from the project target, persist into edition tables. */
+    editionLanguage?: string;
   }
 ): Promise<void> {
   const traceId = options?.traceId ?? createTraceId();
-  return runWithDebugContextAsync(
-    {
-      traceId,
-      requestId: options?.requestId,
-      projectId,
-      chapterId,
-      jobId: options?.jobId,
-    },
-    async () =>
-      performTranslationInner(
+  const run = () =>
+    runWithDebugContextAsync(
+      {
+        traceId,
+        requestId: options?.requestId,
         projectId,
         chapterId,
-        chapter,
-        project,
-        startTime,
-        translateOnlyEmpty,
-        token,
-        userId,
-        paragraphIds,
-        stages,
-        options,
-        traceId
-      )
-  );
+        jobId: options?.jobId,
+      },
+      async () =>
+        performTranslationInner(
+          projectId,
+          chapterId,
+          chapter,
+          project,
+          startTime,
+          translateOnlyEmpty,
+          token,
+          userId,
+          paragraphIds,
+          stages,
+          options,
+          traceId
+        )
+    );
+  if (options?.editionLanguage && options.editionLanguage !== project.targetLanguage) {
+    return runWithEditionTarget(options.editionLanguage, run);
+  }
+  return run();
 }
 
 async function performTranslationInner(
@@ -183,10 +192,25 @@ async function performTranslationInner(
         translateChapterTitles?: boolean;
         deferChapterTitleTranslation?: boolean;
         userRole?: UserRole;
+        editionLanguage?: string;
       }
     | undefined,
   traceId: string
 ): Promise<void> {
+  if (options?.editionLanguage && options.editionLanguage !== project.targetLanguage) {
+    // TODO(glossary-edition): analysis stays off until the second glossary can store merges.
+    if (stages === 'all') stages = ['translation', 'editing'];
+    else stages = stages.filter((stage) => stage !== 'analysis');
+    if (stages.length === 0) stages = ['translation'];
+    const glossary = await loadGlossaryForEdition(
+      projectId,
+      options.editionLanguage,
+      token,
+      project.targetLanguage,
+      { useServiceRole: true }
+    );
+    project = { ...project, glossary };
+  }
   const cancelKey = translationCancelKey(projectId, chapterId);
   translationCancelRegistry.delete(cancelKey);
   const isCancelled = () =>

@@ -60,20 +60,24 @@ export const publicationsApi = {
   },
 
   /** Get publication with chapters list (public, for reading page). Cached 60s to avoid duplicates on navigation. */
-  async getPublicationWithChapters(id: string): Promise<PublicationWithChapters> {
-    const cached = getCached(publicationCache.withChapters, id);
+  async getPublicationWithChapters(id: string, lang?: string): Promise<PublicationWithChapters> {
+    const cacheKey = lang ? `${id}:${lang}` : id;
+    const cached = getCached(publicationCache.withChapters, cacheKey);
     if (cached) return cached;
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const result = await fetchJsonDeduped<{
       publication: Publication;
       chapters: PublicationWithChapters['chapters'];
       glossaryCount: number;
-    }>(`/api/publications/${id}/chapters`);
+      editions?: Publication['editions'];
+    }>(`/api/publications/${id}/chapters${qs}`);
     const data: PublicationWithChapters = {
       ...result.publication,
       chapters: result.chapters,
       glossaryCount: result.glossaryCount,
+      editions: result.editions ?? result.publication.editions,
     };
-    setCached(publicationCache.withChapters, id, data);
+    setCached(publicationCache.withChapters, cacheKey, data);
     return data;
   },
 
@@ -89,12 +93,16 @@ export const publicationsApi = {
   },
 
   /** Get read progress watermark for publication. Cached 60s. Returns 0 for guests. */
-  async getReadProgress(publicationId: string): Promise<{ lastReadChapterNumber: number }> {
-    const cacheKey = getReadProgressCacheKey(publicationId);
+  async getReadProgress(
+    publicationId: string,
+    lang?: string
+  ): Promise<{ lastReadChapterNumber: number }> {
+    const cacheKey = getReadProgressCacheKey(lang ? `${publicationId}:${lang}` : publicationId);
     const cached = getCached(publicationCache.readProgress, cacheKey);
     if (cached) return cached;
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const data = await fetchJsonDeduped<{ lastReadChapterNumber: number }>(
-      `/api/publications/${publicationId}/read-progress`
+      `/api/publications/${publicationId}/read-progress${qs}`
     );
     setCached(publicationCache.readProgress, cacheKey, data);
     return data;
@@ -104,11 +112,13 @@ export const publicationsApi = {
   async updateReadProgress(
     publicationId: string,
     chapterNumber: number,
-    mode: 'complete' | 'set'
+    mode: 'complete' | 'set',
+    lang?: string
   ): Promise<{ lastReadChapterNumber: number }> {
-    const cacheKey = getReadProgressCacheKey(publicationId);
+    const cacheKey = getReadProgressCacheKey(lang ? `${publicationId}:${lang}` : publicationId);
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const result = await fetchJson<{ lastReadChapterNumber: number }>(
-      `/api/publications/${publicationId}/read-progress`,
+      `/api/publications/${publicationId}/read-progress${qs}`,
       {
         method: 'PATCH',
         body: JSON.stringify({ chapterNumber, mode }),
@@ -121,10 +131,14 @@ export const publicationsApi = {
   },
 
   /** Reset read progress (auth required). */
-  async resetReadProgress(publicationId: string): Promise<{ lastReadChapterNumber: number }> {
-    const cacheKey = getReadProgressCacheKey(publicationId);
+  async resetReadProgress(
+    publicationId: string,
+    lang?: string
+  ): Promise<{ lastReadChapterNumber: number }> {
+    const cacheKey = getReadProgressCacheKey(lang ? `${publicationId}:${lang}` : publicationId);
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const result = await fetchJson<{ lastReadChapterNumber: number }>(
-      `/api/publications/${publicationId}/read-progress`,
+      `/api/publications/${publicationId}/read-progress${qs}`,
       { method: 'DELETE' }
     );
     publicationCache.readProgress.delete(cacheKey);
@@ -251,19 +265,23 @@ export const publicationsApi = {
   async getPublicationChapter(
     publicationId: string,
     chapterId: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    lang?: string
   ): Promise<{ id: string; number: number; title: string; translatedText: string }> {
-    const cacheKey = `${publicationId}:${chapterId}`;
+    const cacheKey = lang
+      ? `${publicationId}:${chapterId}:${lang}`
+      : `${publicationId}:${chapterId}`;
     if (!signal) {
       const cached = getCached(publicationCache.chapterContent, cacheKey);
       if (cached) return cached;
     }
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const data = await fetchJsonDeduped<{
       id: string;
       number: number;
       title: string;
       translatedText: string;
-    }>(`/api/publications/${publicationId}/chapters/${chapterId}`, { signal });
+    }>(`/api/publications/${publicationId}/chapters/${chapterId}${qs}`, { signal });
     if (!signal) setCached(publicationCache.chapterContent, cacheKey, data);
     return data;
   },

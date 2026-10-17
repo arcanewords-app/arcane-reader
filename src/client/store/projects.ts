@@ -60,11 +60,16 @@ export async function loadProjects(): Promise<void> {
   }
 }
 
-export async function getProject(id: string): Promise<ProjectWithChapterList | null> {
+export async function getProject(
+  id: string,
+  lang?: string
+): Promise<ProjectWithChapterList | null> {
   try {
-    const project = await api.getProject(id);
-    projectCache.set(id, project);
-    syncProjectListItem(project);
+    const project = await api.getProject(id, lang);
+    if (!lang) {
+      projectCache.set(id, project);
+      syncProjectListItem(project);
+    }
     return project;
   } catch (error) {
     console.error('Failed to load project:', error);

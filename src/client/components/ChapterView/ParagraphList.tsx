@@ -61,6 +61,8 @@ interface ParagraphListProps {
   isOriginalReadingMode?: boolean;
   /** Show only translation column (1 column) - for chapters with uploaded translation, no original */
   isTranslationOnlyDisplay?: boolean;
+  /** Empty right cell copy for a second language that has no text yet. */
+  editionEmpty?: boolean;
   /** IDs of paragraphs that are empty (no valid translation) - show checkbox for selection */
   emptyParagraphIds?: string[];
   /** Selected paragraph IDs for "translate selected" */
@@ -82,6 +84,7 @@ export function ParagraphList({
   onSave,
   isOriginalReadingMode = false,
   isTranslationOnlyDisplay = false,
+  editionEmpty = false,
   emptyParagraphIds = [],
   selectedParagraphIds = [],
   onToggleParagraphSelection,
@@ -371,7 +374,7 @@ export function ParagraphList({
         dangerouslySetInnerHTML={{
           __html: paragraph.translatedText
             ? renderTextWithBlocks(paragraph.translatedText, textBlockTypes)
-            : `<em>${t('paragraphList.clickToEdit')}</em>`,
+            : `<em>${t(editionEmpty ? 'edition.emptyParagraph' : 'paragraphList.clickToEdit')}</em>`,
         }}
       />
     );

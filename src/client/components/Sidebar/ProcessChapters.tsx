@@ -48,6 +48,8 @@ interface ProcessChaptersProps {
   onBatchStarted?: () => void;
   /** Called when async batch job is created on server (triggers JobsPanel to fetch when job exists) */
   onBatchJobCreated?: () => void;
+  /** Active target. When it is not the project primary, analysis stays off. */
+  activeLanguage?: string;
 }
 
 export function ProcessChapters({
@@ -57,8 +59,10 @@ export function ProcessChapters({
   onOpenSettings,
   onBatchStarted,
   onBatchJobCreated,
+  activeLanguage,
 }: ProcessChaptersProps) {
   const { t } = useTranslation();
+  const editionMode = !!activeLanguage && activeLanguage !== project.targetLanguage;
   const [showTranslateAllModal, setShowTranslateAllModal] = useState(false);
   const [translateSelectionIds, setTranslateSelectionIds] = useState<string[]>([]);
   const [batchSelectedStages, setBatchSelectedStages] = useState<TranslationStageKind[]>([
@@ -261,8 +265,15 @@ export function ProcessChapters({
     if (needsLanguageOverrideAck && !batchLanguageOverrideAck) return;
     setShowTranslateAllModal(false);
     batch.startBatch(selectedChaptersForTranslate, {
-      stages: batchSelectedStages,
-      languagePair: batchLanguagePairOverride,
+      stages: editionMode
+        ? batchSelectedStages.filter((stage) => stage !== 'analysis')
+        : batchSelectedStages,
+      languagePair: editionMode
+        ? {
+            sourceLanguage: project.sourceLanguage,
+            targetLanguage: activeLanguage,
+          }
+        : batchLanguagePairOverride,
       translateChapterTitles: batchTranslateChapterTitles,
     });
     onBatchStarted?.();
@@ -428,7 +439,7 @@ export function ProcessChapters({
           resetKey={pickerResetKey}
           initialStatusFilter={pickerInitialStatusFilter}
         />
-        <div class="process-chapters-language-pair-block">
+        <div class="process-chapters-language-pair-block" hidden>
           <div class="process-chapters-language-pair-header">
             <span class="process-chapters-language-pair-label">
               {t('processChapters.languagePairLabel')}
@@ -485,6 +496,7 @@ export function ProcessChapters({
         </div>
         <BatchStageOptions
           batchSelectedStages={batchSelectedStages}
+          analysisLocked={editionMode}
           onToggleStage={toggleBatchStage}
           batchTranslateChapterTitles={batchTranslateChapterTitles}
           onBatchTranslateChapterTitlesChange={setBatchTranslateChapterTitles}

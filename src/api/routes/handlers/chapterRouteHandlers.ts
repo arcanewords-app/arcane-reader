@@ -34,6 +34,11 @@ import {
   updateGlossaryEntry,
 } from '../../../services/supabase/domains/glossary.js';
 import { updateParagraph } from '../../../services/supabase/domains/paragraphs.js';
+import {
+  chapterHasTranslatingLock,
+  listProjectEditionLanguages,
+} from '../../../services/supabase/domains/editions.js';
+import { resolveRequestedEdition } from '../../../services/editions/editionLanguage.js';
 import { updateChapterStatus } from '../../../services/supabase/domains/readerProgress.js';
 import {
   getChapterStats,
@@ -42,6 +47,17 @@ import {
   type Paragraph,
 } from '../../../storage/database.js';
 import { handleServiceError } from '../../../middleware/serviceHealth.js';
+
+async function editionLanguageFromQuery(
+  projectId: string,
+  token: string,
+  lang: unknown
+): Promise<string | undefined> {
+  const queryLang = typeof lang === 'string' ? lang : undefined;
+  if (!queryLang) return undefined;
+  const editions = await listProjectEditionLanguages(projectId, token);
+  return editions.includes(queryLang) ? queryLang : undefined;
+}
 import { handleLlmAbort } from '../../../middleware/llmAbort.js';
 import { respondRouteError } from '../../../middleware/routeDebugError.js';
 import { resolveChapterStatusAfterTranslation } from '../../../shared/chapterTranslationCoverage.js';
@@ -123,6 +139,33 @@ export async function handleGetChapterStatus(req: Request, res: Response) {
       return res.status(404).json({ error: 'Project not found' });
     }
     const token = requireToken(req);
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const editionLanguage = resolveRequestedEdition(queryLang, project.targetLanguage);
+    if (editionLanguage) {
+      const editionChapter = await getChapter(
+        requireRouteParam(req.params.projectId, 'projectId'),
+        requireRouteParam(req.params.chapterId, 'chapterId'),
+        token,
+        { editionLanguage }
+      );
+      if (!editionChapter) {
+        return res.status(404).json({ error: 'Chapter not found' });
+      }
+      const payload: { status: string; chunksDone?: number; totalChunks?: number } = {
+        status: editionChapter.status,
+      };
+      if (editionChapter.status === 'translating') {
+        const progress = getTranslationProgress(
+          requireRouteParam(req.params.projectId, 'projectId'),
+          requireRouteParam(req.params.chapterId, 'chapterId')
+        );
+        if (progress) {
+          payload.chunksDone = progress.chunksDone;
+          payload.totalChunks = progress.totalChunks;
+        }
+      }
+      return res.json(payload);
+    }
     const statusRow = await getChapterStatusRow(
       requireRouteParam(req.params.projectId, 'projectId'),
       requireRouteParam(req.params.chapterId, 'chapterId'),
@@ -194,10 +237,20 @@ export async function handleGetChapter(req: Request, res: Response) {
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const editionLanguages = queryLang
+      ? await listProjectEditionLanguages(
+          requireRouteParam(req.params.projectId, 'projectId'),
+          token
+        )
+      : [];
+    const editionLanguage =
+      queryLang && editionLanguages.includes(queryLang) ? queryLang : undefined;
     const chapter = await getChapter(
       requireRouteParam(req.params.projectId, 'projectId'),
       requireRouteParam(req.params.chapterId, 'chapterId'),
-      token
+      token,
+      { editionLanguage }
     );
     if (!chapter) {
       return res.status(404).json({ error: 'Chapter not found' });
@@ -881,12 +934,7 @@ export function createHandleAnalyzeBatch(deps: RouteDeps) {
         })),
         { stages: ['analysis'], translateChapterTitles: false }
       );
-      const limitCheck = await checkTokenLimit(
-        req.user.id,
-        token,
-        estimatedTokens,
-        req.user.role
-      );
+      const limitCheck = await checkTokenLimit(req.user.id, token, estimatedTokens, req.user.role);
       if (!limitCheck.allowed) {
         return res.status(429).json(buildTokenLimit429Response(limitCheck, estimatedTokens));
       }
@@ -1414,17 +1462,28 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
         return res.status(404).json({ error: 'Project not found' });
       }
 
+      const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+      const editionLanguage = resolveRequestedEdition(queryLang, project.targetLanguage);
+      if (editionLanguage) {
+        const known = await listProjectEditionLanguages(project.id, token);
+        if (!known.includes(editionLanguage)) {
+          return res.status(400).json({ error: 'Edition not found' });
+        }
+      }
       const chapter = await getChapter(
         requireRouteParam(req.params.projectId, 'projectId'),
         requireRouteParam(req.params.chapterId, 'chapterId'),
-        token
+        token,
+        { editionLanguage }
       );
       if (!chapter) {
         return res.status(404).json({ error: 'Chapter not found' });
       }
 
-      // Idempotency: only one translation job per chapter (refactor TRANSLATION_CANCEL_REFACTOR)
-      if (chapter.status === 'translating') {
+      const alreadyRunning = await chapterHasTranslatingLock(chapter.id, token, {
+        chapterStatus: editionLanguage ? undefined : chapter.status,
+      });
+      if (alreadyRunning) {
         return res.status(409).json({
           error: 'Translation already in progress',
           code: 'ALREADY_RUNNING',
@@ -1524,7 +1583,8 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
           requireRouteParam(req.params.projectId, 'projectId'),
           requireRouteParam(req.params.chapterId, 'chapterId'),
           { status: 'pending' },
-          token
+          token,
+          { editionLanguage }
         );
         await invalidateProjectAndRelatedCaches(
           req.user.id,
@@ -1540,7 +1600,8 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
         requireRouteParam(req.params.projectId, 'projectId'),
         requireRouteParam(req.params.chapterId, 'chapterId'),
         { status: 'translating' },
-        token
+        token,
+        { editionLanguage }
       );
       await invalidateProjectAndRelatedCaches(
         req.user.id,
@@ -1587,6 +1648,7 @@ export function createHandleTranslateChapter(deps: RouteDeps) {
           languagePair: languagePairOverride,
           translateChapterTitles: translateTitles,
           userRole: req.user.role,
+          editionLanguage,
         }
       );
 
@@ -2007,7 +2069,14 @@ export async function handleUpdateParagraph(req: Request, res: Response) {
       requireRouteParam(req.params.chapterId, 'chapterId'),
       requireRouteParam(req.params.paragraphId, 'paragraphId'),
       updates,
-      token
+      token,
+      {
+        editionLanguage: await editionLanguageFromQuery(
+          requireRouteParam(req.params.projectId, 'projectId'),
+          token,
+          req.query.lang
+        ),
+      }
     );
 
     if (!paragraph) {

@@ -101,6 +101,10 @@ export function ReadingMode({
   lastReadChapterNumber = 0,
 }: ReadingModeProps) {
   const { t } = useTranslation();
+  const readingLang =
+    typeof window === 'undefined'
+      ? ''
+      : (new URLSearchParams(window.location.search).get('lang') ?? '');
   const [showSettings, setShowSettings] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
@@ -348,7 +352,7 @@ export function ReadingMode({
 
     setChapterContentLoading(true);
     api
-      .getPublicationChapter(publicationId, ch.id)
+      .getPublicationChapter(publicationId, ch.id, undefined, readingLang || undefined)
       .then((data) => {
         setChapterContentMap((prev) => ({ ...prev, [data.id]: data.translatedText }));
       })
@@ -426,7 +430,12 @@ export function ReadingMode({
 
         if (isPublicationMode && publicationId) {
           api
-            .getPublicationChapter(publicationId, ch.id, controller.signal)
+            .getPublicationChapter(
+              publicationId,
+              ch.id,
+              controller.signal,
+              readingLang || undefined
+            )
             .then((data) => {
               if (controller.signal.aborted) return;
               setChapterContentMap((prev) => ({ ...prev, [data.id]: data.translatedText }));
@@ -944,6 +953,13 @@ export function ReadingMode({
             </div>
           ) : displayText ? (
             paragraphElements
+          ) : readingLang ? (
+            <div class="reading-mode-empty-content">
+              <p class="reading-mode-empty-text">{t('edition.emptyChapter')}</p>
+              <button type="button" class="reading-mode-exit-btn" onClick={handleExit}>
+                {t('edition.backToContents')}
+              </button>
+            </div>
           ) : (
             <p class="reading-mode-empty-text">
               {isPublicationMode

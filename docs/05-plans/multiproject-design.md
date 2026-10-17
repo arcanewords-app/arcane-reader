@@ -9,7 +9,15 @@ updated: 2026-10-17
 
 # Multiproject: reader and translator design
 
-Design lock for one book with more than one translation. **No code, schema, or API changes in this note.** `src/` still has one project, one language pair, and one publication.
+Design lock for one book with more than one translation. The primary language stays in the existing columns. A second language is stored in `project_editions`, `chapter_editions`, `paragraph_translations`, and `publication_editions` (`supabase/migrations/20261017120000_project_editions.sql`). That migration is local until it is applied on purpose.
+
+Shipped in code:
+
+- Author chips, `?lang=` on the project and chapter, edition writes that do not change the primary chapter status, and a glossary stub (`loadGlossaryForEdition`) that clears `translated` and declensions for the second language. Analysis of the second language stays off.
+- Catalog and publication `?lang=`, chapter list and empty reading state for the selected language, and reading progress keyed by language.
+- Export of an author project accepts `targetLanguage` and uses edition text.
+
+Still design-only: a real second glossary (copy, editor, analysis writes), and a stored EPUB/FB2 file per language. Publication download still serves the primary built file.
 
 As-is, verified 2026-10-17:
 

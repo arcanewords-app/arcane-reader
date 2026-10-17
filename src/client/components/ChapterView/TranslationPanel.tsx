@@ -60,6 +60,8 @@ interface TranslationPanelProps {
   markingAsTranslated?: boolean;
   /** Called when project settings are updated (e.g. from inline editing block) */
   onSettingsChange?: (settings: ProjectSettings) => void;
+  /** When this is not the project primary target, analysis is locked off. */
+  activeLanguage?: string;
 }
 
 export function TranslationPanel({
@@ -77,8 +79,10 @@ export function TranslationPanel({
   onMarkAsTranslated,
   markingAsTranslated = false,
   onSettingsChange,
+  activeLanguage,
 }: TranslationPanelProps) {
   const { t } = useTranslation();
+  const editionMode = !!activeLanguage && activeLanguage !== project.targetLanguage;
 
   const [scope, setScope] = useState<Scope>(() => getTranslationPanelDefaults(chapter).scope);
   const [selectedStages, setSelectedStages] = useState<TranslationStageKind[]>(
@@ -95,9 +99,11 @@ export function TranslationPanel({
   useEffect(() => {
     const defaults = getTranslationPanelDefaults(chapter);
     setScope(defaults.scope);
-    setSelectedStages(defaults.stages);
+    setSelectedStages(
+      editionMode ? defaults.stages.filter((stage) => stage !== 'analysis') : defaults.stages
+    );
     setTranslateChapterTitles(defaults.translateChapterTitles);
-  }, [chapter.id]);
+  }, [chapter.id, editionMode]);
 
   useEffect(() => {
     setPanelLanguagePair(projectDefaultLanguagePair(project));
@@ -176,10 +182,7 @@ export function TranslationPanel({
   const handleEditingStylePresetChange = useCallback(
     async (e: Event) => {
       const value = (e.target as HTMLSelectElement).value as
-        | 'default'
-        | 'literary'
-        | 'minimal'
-        | 'ai_revivification';
+        'default' | 'literary' | 'minimal' | 'ai_revivification';
       const updated = await api.updateSettings(project.id, {
         editingStylePreset: value,
       });
@@ -201,14 +204,19 @@ export function TranslationPanel({
 
   const buildOptions = (): ChapterTranslationOptions => {
     const opts: ChapterTranslationOptions = {
-      stages: selectedStages,
+      stages: editionMode ? selectedStages.filter((stage) => stage !== 'analysis') : selectedStages,
       translateChapterTitles,
     };
     if (scope === 'empty') opts.translateOnlyEmpty = true;
     if (scope === 'selected' && selectedParagraphIds.length) {
       opts.paragraphIds = selectedParagraphIds;
     }
-    if (panelLanguagePairOverride) {
+    if (editionMode && activeLanguage) {
+      opts.languagePair = {
+        sourceLanguage: project.sourceLanguage,
+        targetLanguage: activeLanguage,
+      };
+    } else if (panelLanguagePairOverride) {
       opts.languagePair = panelLanguagePairOverride;
     }
     return opts;
@@ -306,8 +314,10 @@ export function TranslationPanel({
               ) : (
                 <Icon name="edit" size="sm" />
               );
-            const title =
-              stage === 'analysis'
+            const analysisLocked = editionMode && stage === 'analysis';
+            const title = analysisLocked
+              ? t('edition.analysisLocked')
+              : stage === 'analysis'
                 ? t('translationPanel.stageAnalysisHint', 'Анализ, обновление глоссария')
                 : stage === 'translation'
                   ? t('translationPanel.stageTranslationHint', 'Перевод')
@@ -321,9 +331,11 @@ export function TranslationPanel({
               >
                 <input
                   type="checkbox"
-                  checked={checked}
-                  disabled={translating}
-                  onChange={() => toggleStage(stage)}
+                  checked={analysisLocked ? false : checked}
+                  disabled={translating || analysisLocked}
+                  onChange={() => {
+                    if (!analysisLocked) toggleStage(stage);
+                  }}
                   style={{ marginRight: '0.35rem', accentColor: 'var(--accent)' }}
                 />
                 {icon} {label}
@@ -332,7 +344,9 @@ export function TranslationPanel({
           })}
         </div>
         <span class="translation-panel-hint">
-          {t('translationPanel.stagesMultiHint', 'Можно выбрать несколько стадий')}
+          {editionMode
+            ? t('edition.analysisLocked')
+            : t('translationPanel.stagesMultiHint', 'Можно выбрать несколько стадий')}
         </span>
         <label
           class="translation-panel-checkbox-row"
@@ -357,7 +371,7 @@ export function TranslationPanel({
         </label>
       </div>
 
-      <div class="translation-panel-section translation-panel-language-pair">
+      <div class="translation-panel-section translation-panel-language-pair" hidden>
         <div class="translation-panel-language-pair-header">
           <span class="translation-panel-label">{t('processChapters.languagePairLabel')}</span>
           {hasLanguageOverride && (

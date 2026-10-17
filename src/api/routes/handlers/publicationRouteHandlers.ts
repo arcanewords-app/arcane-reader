@@ -1,4 +1,8 @@
 import type { Request, Response } from 'express';
+import {
+  editionChapterTranslatedText,
+  listChapterEditionStates,
+} from '../../../services/supabase/domains/editions.js';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -541,7 +545,7 @@ export async function handleExportProject(req: Request, res: Response): Promise<
       });
       return;
     }
-    const { format, author } = parsed.data;
+    const { format, author, targetLanguage } = parsed.data;
     const projectId = requireRouteParam(req.params.id, 'id');
 
     const token = requireToken(req);
@@ -640,7 +644,32 @@ export async function handleExportProject(req: Request, res: Response): Promise<
 
       // Export project to temporary file
       req.log?.debug('Generating file...');
-      const exportedPath = await exportProject(project, {
+      let exportSource = project;
+      if (targetLanguage && targetLanguage !== project.targetLanguage) {
+        const states = await listChapterEditionStates(project.id, targetLanguage, token);
+        exportSource = {
+          ...project,
+          chapters: await Promise.all(
+            project.chapters.map(async (chapter) => {
+              const state = states.get(chapter.id);
+              const translatedText = state
+                ? await editionChapterTranslatedText(chapter.id, targetLanguage)
+                : '';
+              return {
+                ...chapter,
+                status: state?.status ?? 'pending',
+                translatedTitle: state?.translatedTitle,
+                translatedText,
+                paragraphs: chapter.paragraphs?.map((paragraph) => ({
+                  ...paragraph,
+                  translatedText: undefined,
+                })),
+              };
+            })
+          ),
+        };
+      }
+      const exportedPath = await exportProject(exportSource, {
         format,
         outputDir: tmpDir,
         filename,
@@ -1290,10 +1319,11 @@ export async function handleGetPublication(req: Request, res: Response): Promise
 
 export async function handleGetPublicationChapters(req: Request, res: Response): Promise<void> {
   try {
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
     const result = await withRedisCache(
-      publicationChaptersCacheKey(requireRouteParam(req.params.id, 'id')),
+      publicationChaptersCacheKey(requireRouteParam(req.params.id, 'id'), queryLang),
       CACHE_TTL.redisPublicationChaptersSec,
-      () => getPublicationWithChapters(requireRouteParam(req.params.id, 'id'))
+      () => getPublicationWithChapters(requireRouteParam(req.params.id, 'id'), queryLang)
     );
     if (!result) {
       res.status(404).json({ error: 'Publication not found' });
@@ -1318,11 +1348,20 @@ export async function handleGetPublicationChapter(req: Request, res: Response): 
       res.status(404).json({ error: 'Publication not found' });
       return;
     }
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
     const chapter = await withRedisCache(
-      publicationChapterCacheKey(pub.id, requireRouteParam(req.params.chapterId, 'chapterId')),
+      publicationChapterCacheKey(
+        pub.id,
+        requireRouteParam(req.params.chapterId, 'chapterId'),
+        queryLang
+      ),
       CACHE_TTL.redisPublicationChapterSec,
       () =>
-        getPublicationChapterContent(pub.id, requireRouteParam(req.params.chapterId, 'chapterId'))
+        getPublicationChapterContent(
+          pub.id,
+          requireRouteParam(req.params.chapterId, 'chapterId'),
+          queryLang
+        )
     );
     if (!chapter) {
       res.status(404).json({ error: 'Chapter not found' });
@@ -1374,7 +1413,9 @@ export async function handleGetReadProgress(req: Request, res: Response): Promis
     const publicationId = pub.id;
     const userId = req.user?.id ?? null;
     const token = req.token ?? null;
-    const progress = await getReadProgress(publicationId, userId, token);
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const progressLanguage = queryLang && queryLang !== pub.targetLanguage ? queryLang : undefined;
+    const progress = await getReadProgress(publicationId, userId, token, progressLanguage);
     res.json({
       lastReadChapterNumber: progress.lastReadChapterNumber,
     });
@@ -1496,7 +1537,16 @@ export async function handleUpsertReadProgress(req: Request, res: Response): Pro
       return;
     }
 
-    const progress = await updateReadProgress(userId, pub.id, chapterNumber, mode, token);
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const progressLanguage = queryLang && queryLang !== pub.targetLanguage ? queryLang : undefined;
+    const progress = await updateReadProgress(
+      userId,
+      pub.id,
+      chapterNumber,
+      mode,
+      token,
+      progressLanguage
+    );
     await invalidateReadingProgressCaches(userId, pub.id);
     res.json(progress);
   } catch (error) {
@@ -1554,12 +1604,15 @@ export async function handleMarkChapterRead(req: Request, res: Response): Promis
       return;
     }
 
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const progressLanguage = queryLang && queryLang !== pub.targetLanguage ? queryLang : undefined;
     const progress = await updateReadProgress(
       userId,
       pub.id,
       chapter.number as number,
       'complete',
-      token
+      token,
+      progressLanguage
     );
     await invalidateReadingProgressCaches(userId, pub.id);
     res.json(progress);

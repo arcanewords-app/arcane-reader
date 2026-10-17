@@ -77,6 +77,7 @@ export const paragraphUpdateBodySchema = z.object({
 export const exportBodySchema = z.object({
   format: z.enum(['epub', 'fb2']),
   author: z.string().trim().max(500).optional(),
+  targetLanguage: z.enum(['ru', 'be']).optional(),
 });
 
 export type LanguagePairBody = z.infer<typeof languagePairBodySchema>;

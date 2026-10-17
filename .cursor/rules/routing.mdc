@@ -50,11 +50,11 @@ Defined in [src/client/AppRouter.tsx](src/client/AppRouter.tsx).
 | `/admin/projects` | admin+ | AdminProjectsPage | All user projects: list, open card, unpublish, delete (AdminGate) |
 | `/admin/users` | admin+ | AdminUsersPage | User list and role management (AdminGate) |
 | `/admin` | admin+ | AdminRedirect | Redirect to `/admin/entities/tag` |
-| `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate). Query: `search` — pre-fill project-wide find modal (omit when empty) |
-| `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph UUID (e.g. from project search) |
+| `/projects/:projectId` | author+ | ProjectPage | Project overview (AuthorGate). Query: `search` — pre-fill project-wide find modal (omit when empty); `lang` — active translation language when it is not the project primary |
+| `/projects/:projectId/chapters/:chapterId` | author+ | ChapterPage | Chapter editing (AuthorGate). Query: `search` — pre-fill find-in-chapter; `paragraph` — scroll to paragraph UUID; `lang` — second translation language |
 | `/projects/:projectId/chapters/:chapterId/reading` | author+ | ReadingModePage | Reading mode (AuthorGate). `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push) without page reload |
 | `/projects/:projectId/reading` | author+ | ReadingModePage | Reading mode entry without chapter — replace-redirects to first available chapter URL |
-| `/p/:publicationId` | guest+ | PublicationPage | Public publication page. Query (chapter list): `q` (search), `translation=translated\|all\|untranslated` (default translated), `read=all\|unread\|read` (default all; auth only for unread/read filter UI), `order=asc\|desc` (default asc) |
+| `/p/:publicationId` | guest+ | PublicationPage | Public publication page. Query (chapter list): `q` (search), `translation=translated\|all\|untranslated` (default translated), `read=all\|unread\|read` (default all; auth only for unread/read filter UI), `order=asc\|desc` (default asc), `lang` — second published language |
 | `/p/:publicationId/chapters/:chapterId/reading` | guest+ | PublicationReadingPage | Reading mode for public publication. `:chapterId` in URL is canonical; prev/next/TOC update URL via `route()` (push). Query: `paragraph` — numeric 0-based segment index (omit when 0); guest share links restore scroll via URL only |
 
 ### Reading mode URL sync
@@ -210,7 +210,8 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | POST | `/api/projects` | Create project (409 `PROJECT_LIMIT` when cap reached) |
 | POST | `/api/projects/:id/clone` | Clone project snapshot (body: optional `name`; 409 `PROJECT_LIMIT`) |
 | POST | `/api/projects/:targetProjectId/transfer-from` | Copy chapters from another project (body: `sourceProjectId`, `chapterIds[]`, `includeGlossary?`; 409 `SAME_PROJECT`, `TARGET_LANGUAGE_MISMATCH`; 500 `TRANSFER_INCOMPLETE`) |
-| GET | `/api/projects/:id` | Get project |
+| GET | `/api/projects/:id` | Get project. Query `lang` overlays chapter status and titles for a second language. Response includes `editionLanguages`. |
+| POST | `/api/projects/:id/editions` | Add a second target language (body: `{ targetLanguage }`). Does not copy chapters or glossary. 201 `{ targetLanguage }`. |
 | PATCH | `/api/projects/:id` | Rename project (body: `name`) |
 | DELETE | `/api/projects/:id` | Delete project |
 | PUT | `/api/projects/:id/settings` | Update project settings |
@@ -226,7 +227,7 @@ Vite dev proxy: `/prompt-lab` → port 5175. See `@docs/02-how-to/prompt-lab.md`
 | GET | `/api/projects/:id/import-jobs/:jobId` | Get import job status/progress (polling, `compact` query supported) |
 | POST | `/api/projects/:id/import-jobs/:jobId/cancel` | Request import job cancellation |
 | GET | `/api/projects/:projectId/jobs` | List all chapter jobs (analysis + translate) for project |
-| GET | `/api/projects/:projectId/chapters/:chapterId` | Get chapter |
+| GET | `/api/projects/:projectId/chapters/:chapterId` | Get chapter. Query `lang` reads the edition text instead of `paragraphs.translated_text` when that language is a project edition |
 | GET | `/api/projects/:projectId/chapters/:chapterId/status` | Chapter status (when translating: includes `chunksDone`/`totalChunks` for progress) |
 | DELETE | `/api/projects/:projectId/chapters/:chapterId` | Delete chapter |
 | POST | `/api/projects/:projectId/chapters/duplicate` | Duplicate selected chapters at end of project (body: `chapterIds[]`) |

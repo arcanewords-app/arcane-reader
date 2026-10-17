@@ -9,6 +9,7 @@ import {
   projectAiReplaceBodySchema,
   projectSettingsBodySchema,
   paragraphBulkUpdateBodySchema,
+  createEditionBodySchema,
 } from '../../schemas/index.js';
 import {
   getAllProjectsLightweight,
@@ -38,6 +39,15 @@ import { clearAgentCache } from '../../../services/engine-integration.js';
 import { clampStageModelsForRole, clampStageModelForRole } from '../../../shared/modelAccess.js';
 import { normalizeQueryRecord, requireRouteParam } from '../../validateRoute.js';
 import { invalidateAnalysisForProject } from '../../../services/analysisCache.js';
+import {
+  createProjectEdition,
+  listChapterEditionStates,
+  listProjectEditionLanguages,
+} from '../../../services/supabase/domains/editions.js';
+import {
+  overlayChapterListItem,
+  resolveRequestedEdition,
+} from '../../../services/editions/editionLanguage.js';
 import { isProjectLanguagePairLocked } from '../../../services/projectLanguagePair.js';
 import { invalidateProjectAndRelatedCaches } from '../../../services/cacheInvalidation.js';
 import { invalidateUserProjectCaches } from '../../routeHelpers.js';
@@ -318,8 +328,17 @@ export async function handleGetProject(req: Request, res: Response): Promise<voi
       res.status(404).json({ error: 'Project not found' });
       return;
     }
-
-    res.json(project);
+    const queryLang = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const editionLanguages = await listProjectEditionLanguages(project.id, token);
+    const editionLanguage = resolveRequestedEdition(queryLang, project.targetLanguage);
+    let chapters = project.chapters;
+    if (editionLanguage && editionLanguages.includes(editionLanguage)) {
+      const states = await listChapterEditionStates(project.id, editionLanguage, token);
+      chapters = project.chapters.map((chapter) =>
+        overlayChapterListItem(chapter, states.get(chapter.id))
+      );
+    }
+    res.json({ ...project, chapters, editionLanguages });
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to get project' });
@@ -354,9 +373,7 @@ export async function handleSearchProject(req: Request, res: Response): Promise<
       return;
     }
     const projectId = requireRouteParam(req.params.id, 'id');
-    const queryResult = projectSearchQuerySchema.safeParse(
-      normalizeQueryRecord(req.query)
-    );
+    const queryResult = projectSearchQuerySchema.safeParse(normalizeQueryRecord(req.query));
     if (!queryResult.success) {
       res.status(400).json({
         error: 'Validation failed',
@@ -915,5 +932,44 @@ export async function handleUpdateReaderSettings(req: Request, res: Response): P
   } catch (error) {
     if (handleServiceError(error, req, res)) return;
     res.status(500).json({ error: 'Failed to update reader settings' });
+  }
+}
+
+export async function handleCreateProjectEdition(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const parsed = createEditionBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+    const token = requireToken(req);
+    const created = await createProjectEdition(
+      requireRouteParam(req.params.id, 'id'),
+      parsed.data.targetLanguage,
+      token
+    );
+    res.status(201).json(created);
+  } catch (error) {
+    if (handleServiceError(error, req, res)) return;
+    const message = error instanceof Error ? error.message : 'Failed to create edition';
+    if (message === 'Project not found') {
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (
+      message === 'Unsupported translation language pair' ||
+      message === 'Edition language matches the primary target'
+    ) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
   }
 }

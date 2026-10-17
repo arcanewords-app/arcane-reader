@@ -36,6 +36,8 @@ import { TokenLimitWarning } from '../TokenUsage';
 interface ChapterViewProps {
   project: Project | ProjectWithChapterList;
   chapter: Chapter | null;
+  /** Active target language. Primary when omitted. */
+  activeLanguage?: string;
   /** Used when chapter is null (loading) for header title and nav */
   chapterListItem?: ChapterListItem;
   chapterIndex: number;
@@ -69,6 +71,7 @@ const defaultReaderSettings: ReaderSettings = {
 export function ChapterView({
   project,
   chapter,
+  activeLanguage,
   chapterListItem,
   chapterIndex,
   totalChapters,
@@ -256,7 +259,7 @@ export function ChapterView({
       }
       attempt++;
       try {
-        const data = await api.getChapterStatus(project.id, chapter.id);
+        const data = await api.getChapterStatus(project.id, chapter.id, activeLanguage);
         consecutiveErrors = 0;
         const { status, chunksDone, totalChunks } = data;
         if (chunksDone !== undefined && totalChunks !== undefined) {
@@ -264,7 +267,7 @@ export function ChapterView({
         }
         if (status !== 'translating') {
           setChunkProgress(null);
-          const fullChapter = await api.getChapterFresh(project.id, chapter.id);
+          const fullChapter = await api.getChapterFresh(project.id, chapter.id, activeLanguage);
           onChapterUpdate(fullChapter);
           try {
             await onRefreshProject?.();
@@ -339,11 +342,17 @@ export function ChapterView({
 
   const handleSaveParagraph = async (paragraphId: string, text: string) => {
     if (!chapter) return;
-    await api.updateParagraph(project.id, chapter.id, paragraphId, {
-      translatedText: text,
-      status: 'edited',
-    });
-    const updated = await api.getChapter(project.id, chapter.id);
+    await api.updateParagraph(
+      project.id,
+      chapter.id,
+      paragraphId,
+      {
+        translatedText: text,
+        status: 'edited',
+      },
+      activeLanguage
+    );
+    const updated = await api.getChapter(project.id, chapter.id, undefined, activeLanguage);
     onChapterUpdate(updated);
   };
 
@@ -577,6 +586,7 @@ export function ChapterView({
             onMarkAsTranslated={handleMarkAsTranslated}
             markingAsTranslated={markingAsTranslated}
             onSettingsChange={onSettingsChange}
+            activeLanguage={activeLanguage}
           />
         )}
 
@@ -635,6 +645,7 @@ export function ChapterView({
           onSave={handleSaveParagraph}
           isOriginalReadingMode={isOriginalReadingMode}
           isTranslationOnlyDisplay={isTranslationOnlyDisplay}
+          editionEmpty={!!activeLanguage && activeLanguage !== project.targetLanguage}
           emptyParagraphIds={emptyParagraphIds}
           selectedParagraphIds={selectedParagraphIds}
           onToggleParagraphSelection={handleToggleParagraphSelection}

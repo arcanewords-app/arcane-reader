@@ -41,6 +41,7 @@ export function buildReadingChapterUrl(params: {
   projectId?: string;
   chapterId: string;
   paragraphIndex?: number;
+  lang?: string;
 }): string | null {
   const {
     isPublicationMode,
@@ -49,6 +50,7 @@ export function buildReadingChapterUrl(params: {
     projectId,
     chapterId,
     paragraphIndex,
+    lang,
   } = params;
 
   let base: string | null = null;
@@ -61,12 +63,15 @@ export function buildReadingChapterUrl(params: {
   }
   if (!base) return null;
 
-  if (paragraphIndex === undefined || paragraphIndex <= 0) {
+  if ((paragraphIndex === undefined || paragraphIndex <= 0) && !lang) {
     return base;
   }
 
   const qs = new URLSearchParams();
-  qs.set('paragraph', String(paragraphIndex));
+  if (lang) qs.set('lang', lang);
+  if (paragraphIndex !== undefined && paragraphIndex > 0) {
+    qs.set('paragraph', String(paragraphIndex));
+  }
   return `${base}?${qs.toString()}`;
 }
 

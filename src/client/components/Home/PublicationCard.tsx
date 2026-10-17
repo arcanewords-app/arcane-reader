@@ -1,6 +1,11 @@
 import { useState, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import type { Publication, PublicationListItem, PublicEntity } from '../../types';
+import type {
+  Publication,
+  PublicationListItem,
+  PublicEntity,
+  TranslationStatus,
+} from '../../types';
 import { BookPlaceholder } from '../Dashboard/BookPlaceholder';
 import { EntityChip } from './EntityChip';
 import { PublicationStatusBadge } from './PublicationStatusBadge';
@@ -15,12 +20,14 @@ import './PublicationCard.css';
 /** Card accepts both list item and full publication (e.g. from "My works" API). */
 interface PublicationCardProps {
   publication: PublicationListItem | Publication;
-  onRead: (path: string, chapterId?: string) => void;
+  onRead: (path: string, chapterId?: string, lang?: string) => void;
   /** Reading progress for "Continue" button (when user has read this publication). */
   readingProgress?: { lastReadChapterNumber: number; continueChapterId?: string | null };
   /** Prefetched entities for instant popup on hover. */
   authorEntity?: PublicEntity | null;
   translatorEntity?: PublicEntity | null;
+  /** Catalog language filter. Card click opens this language when the book has it. */
+  catalogLanguage?: string;
 }
 
 export function PublicationCard({
@@ -29,6 +36,7 @@ export function PublicationCard({
   readingProgress,
   authorEntity,
   translatorEntity,
+  catalogLanguage,
 }: PublicationCardProps) {
   const { t } = useTranslation();
   const [showDescTooltip, setShowDescTooltip] = useState(false);
@@ -85,13 +93,22 @@ export function PublicationCard({
     (readingProgress?.lastReadChapterNumber ?? 0) > 0 && !!readingProgress?.continueChapterId;
   const continueChapterId = readingProgress?.continueChapterId ?? undefined;
 
+  const editions = publication.editions ?? [];
+  const openLang =
+    catalogLanguage &&
+    catalogLanguage !== targetLanguage &&
+    editions.some((edition) => edition.language === catalogLanguage)
+      ? catalogLanguage
+      : undefined;
+
   const openPublication = useCallback(() => {
     trackEvent('select_content', {
       content_type: 'publication',
       item_id: publication.id,
     });
-    onRead(pubPath);
-  }, [publication.id, onRead, pubPath]);
+    if (openLang) onRead(pubPath, undefined, openLang);
+    else onRead(pubPath);
+  }, [publication.id, onRead, pubPath, openLang]);
 
   const handleCardAreaKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -127,7 +144,21 @@ export function PublicationCard({
         onKeyDown={handleCardAreaKeyDown}
       >
         <div class="publication-card-cover">
-          {translationStatus && <PublicationStatusBadge status={translationStatus} />}
+          {(() => {
+            const raw =
+              catalogLanguage && catalogLanguage !== targetLanguage
+                ? (editions.find((edition) => edition.language === catalogLanguage)
+                    ?.translationStatus ?? translationStatus)
+                : translationStatus;
+            const badgeStatus =
+              raw === 'in_progress' ||
+              raw === 'complete' ||
+              raw === 'abandoned' ||
+              raw === 'experimental'
+                ? (raw)
+                : null;
+            return badgeStatus ? <PublicationStatusBadge status={badgeStatus} /> : null;
+          })()}
           <PublicationRatingCoverBadge
             ratingAvg={publication.ratingAvg}
             ratingCount={publication.ratingCount}
@@ -209,19 +240,45 @@ export function PublicationCard({
             ) : (
               <p class="publication-card-meta-fallback">{t('publication.unknownAuthor')}</p>
             )}
-            {langLabel && (
+            {editions.length > 0 ? (
               <div class="publication-card-chip-row publication-card-chip-row--meta">
-                <span class="publication-card-lang-badge">{langLabel}</span>
-                {translatedChapterCount != null && translatedChapterCount > 0 && (
-                  <>
-                    <span class="publication-card-meta-sep" aria-hidden="true">
-                      ·
-                    </span>
-                    <span class="publication-card-chapters-badge">
-                      {translatedChapterCount} {declension(translatedChapterCount, chapterForms)}
-                    </span>
-                  </>
-                )}
+                {[targetLanguage, ...editions.map((edition) => edition.language)]
+                  .filter((code): code is string => !!code)
+                  .map((code) => {
+                    const edition = editions.find((item) => item.language === code);
+                    const complete =
+                      (edition?.translationStatus ?? translationStatus) === 'complete';
+                    const active = code === (openLang ?? targetLanguage);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        class="edition-language-switch-btn"
+                        aria-pressed={active}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          const lang = code === targetLanguage ? undefined : code;
+                          onRead(pubPath, undefined, lang);
+                        }}
+                      >
+                        {code.toUpperCase()}
+                        {code !== targetLanguage ? (complete ? '●' : '○') : ''}
+                      </button>
+                    );
+                  })}
+              </div>
+            ) : (
+              langLabel && (
+                <div class="publication-card-chip-row publication-card-chip-row--meta">
+                  <span class="publication-card-lang-badge">{langLabel}</span>
+                </div>
+              )
+            )}
+            {translatedChapterCount != null && translatedChapterCount > 0 && (
+              <div class="publication-card-chip-row publication-card-chip-row--meta">
+                <span class="publication-card-chapters-badge">
+                  {translatedChapterCount} {declension(translatedChapterCount, chapterForms)}
+                </span>
               </div>
             )}
           </div>

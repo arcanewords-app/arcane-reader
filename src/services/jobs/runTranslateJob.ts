@@ -22,6 +22,8 @@ import {
   applyChapterTitleTranslations,
   collectTitleTranslationCandidates,
 } from '../chapterTitleTranslate.js';
+import { chapterHasTranslatingLock } from '../supabase/domains/editions.js';
+import { runWithEditionTarget } from '../editions/editionContext.js';
 
 const translateJobStore = createTranslateJobStoreFromEnv();
 const TRANSLATE_JOB_TTL_SECONDS = parseInt(process.env.TRANSLATE_JOB_TTL_SECONDS ?? '3600', 10);
@@ -77,7 +79,8 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
 
     await resetStuckChaptersForRecovery(projectId, chapterIds);
 
-    const chaptersToTranslate: Array<Chapter & { originalText: string }> = [];
+    const chaptersToTranslate: Array<Chapter & { originalText: string; editionLanguage?: string }> =
+      [];
     for (const chapterId of chapterIds) {
       const chapter = project.chapters.find((c) => c.id === chapterId);
       if (!chapter) continue;
@@ -88,8 +91,20 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
             ? mergeParagraphsToText(chapter.paragraphs, 'originalText').trim()
             : '';
       if (!effectiveOriginalText) continue;
-      if (chapter.status === 'translating') continue;
-      chaptersToTranslate.push({ ...chapter, originalText: effectiveOriginalText });
+      const editionLanguage =
+        languagePair?.targetLanguage && languagePair.targetLanguage !== project.targetLanguage
+          ? languagePair.targetLanguage
+          : undefined;
+      const busy = await chapterHasTranslatingLock(chapter.id, token, {
+        useServiceRole: true,
+        chapterStatus: chapter.status,
+      });
+      if (busy) continue;
+      chaptersToTranslate.push({
+        ...chapter,
+        originalText: effectiveOriginalText,
+        editionLanguage,
+      });
     }
 
     if (chaptersToTranslate.length === 0) {
@@ -139,6 +154,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
 
         await updateChapter(projectId, chapter.id, { status: 'translating' }, token, {
           useServiceRole: true,
+          editionLanguage: chapter.editionLanguage,
         });
         await invalidateProjectAndRelatedCaches(userId, projectId, token, {
           useServiceRole: true,
@@ -164,6 +180,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
               translateChapterTitles: translateTitles,
               deferChapterTitleTranslation: true,
               userRole,
+              editionLanguage: chapter.editionLanguage,
               onProgress: (chunksDone, totalChunks) => {
                 translateJobStore
                   .updateJob(jobId, {
@@ -193,6 +210,7 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
 
         const updatedChapter = await getChapter(projectId, chapter.id, token, {
           useServiceRole: true,
+          editionLanguage: chapter.editionLanguage,
         });
         const chapterDbStatus = updatedChapter?.status;
         const hasBodyTranslation =
@@ -264,7 +282,10 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
           const chaptersForTitles = sortedChapters.filter((c) => succeededChapterIds.has(c.id));
           const refreshed = await Promise.all(
             chaptersForTitles.map((c) =>
-              getChapter(projectId, c.id, token, { useServiceRole: true })
+              getChapter(projectId, c.id, token, {
+                useServiceRole: true,
+                editionLanguage: c.editionLanguage,
+              })
             )
           );
           const validChapters = refreshed.filter((c): c is Chapter => c != null);
@@ -279,13 +300,17 @@ export async function runTranslateJob(payload: TranslateJobPayload): Promise<voi
               { jobId, count: candidates.length },
               'Batch chapter title translation phase started'
             );
-            await applyChapterTitleTranslations(loadConfig(), projectId, project, candidates, {
-              userId,
-              token,
-              languagePair,
-              isCancelled: () => cancelledFlag,
-              userRole,
-            });
+            const applyTitles = () =>
+              applyChapterTitleTranslations(loadConfig(), projectId, project, candidates, {
+                userId,
+                token,
+                languagePair,
+                isCancelled: () => cancelledFlag,
+                userRole,
+              });
+            const editionForTitles = sortedChapters.find((c) => c.editionLanguage)?.editionLanguage;
+            if (editionForTitles) await runWithEditionTarget(editionForTitles, applyTitles);
+            else await applyTitles();
           }
         }
       }

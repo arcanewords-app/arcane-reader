@@ -415,6 +415,8 @@ export interface Project {
   type?: 'text' | 'book';
   sourceLanguage: string;
   targetLanguage: string;
+  /** Extra target languages. Primary stays `targetLanguage`. */
+  editionLanguages?: string[];
   chapters: Chapter[];
   glossary: GlossaryEntry[];
   settings: ProjectSettings;
@@ -692,6 +694,7 @@ export interface Publication {
   tagEntityIds?: string[];
   sourceLanguage: string;
   targetLanguage: string;
+  editions?: Array<{ language: string; translationStatus: string | null }>;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -733,6 +736,7 @@ export interface PublicationListItem {
   tagEntityIds?: string[];
   sourceLanguage: string;
   targetLanguage: string;
+  editions?: Array<{ language: string; translationStatus: string | null }>;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;

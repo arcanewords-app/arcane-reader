@@ -17,11 +17,18 @@ import {
   handleUpdateProjectLanguages,
   handleUpdateProjectSettings,
   handleUpdateReaderSettings,
+  handleCreateProjectEdition,
 } from './handlers/projectRouteHandlers.js';
 
 export function registerProjectRoutes(app: Application, _deps: RouteDeps): void {
   app.get('/api/projects', requireAuth, requireRole('author'), handleListProjects);
   app.post('/api/projects', requireAuth, requireRole('author'), handleCreateProject);
+  app.post(
+    '/api/projects/:id/editions',
+    requireAuth,
+    requireRole('author'),
+    handleCreateProjectEdition
+  );
   app.post('/api/projects/:id/clone', requireAuth, requireRole('author'), handleCloneProject);
   app.post(
     '/api/projects/:targetProjectId/transfer-from',

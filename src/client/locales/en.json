@@ -1840,6 +1840,20 @@
     "contact": "Contact",
     "contactDesc": "Questions: {{contactEmail}}"
   },
+  "edition": {
+    "switchLabel": "Translation language",
+    "add": "Add a language",
+    "addTitle": "Add a translation language",
+    "addBody": "Chapters stay empty in {{language}}. The original and the analysis stay shared.",
+    "addConfirm": "Add {{language}}",
+    "glossaryStubTitle": "Glossary for this language",
+    "glossaryStubBody": "Terms for {{language}} will live in a separate glossary. This screen does not edit the primary glossary.",
+    "emptyParagraph": "No translation into this language yet",
+    "analysisReady": "Analysis is ready",
+    "analysisLocked": "Analysis stays off for this language until its glossary exists.",
+    "emptyChapter": "This chapter has no translation in the selected language.",
+    "backToContents": "Back to contents"
+  },
   "cookieBanner": {
     "title": "We use cookies",
     "description": "To improve the service we collect anonymous statistics. You can accept or reject analytics cookies.",

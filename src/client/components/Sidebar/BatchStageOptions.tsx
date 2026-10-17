@@ -8,6 +8,8 @@ export const BATCH_STAGE_ORDER: TranslationStageKind[] = ['analysis', 'translati
 
 export interface BatchStageOptionsProps {
   batchSelectedStages: TranslationStageKind[];
+  /** Second language: analysis stays off until the glossary edition exists. */
+  analysisLocked?: boolean;
   onToggleStage: (stage: TranslationStageKind) => void;
   batchTranslateChapterTitles: boolean;
   onBatchTranslateChapterTitlesChange: (checked: boolean) => void;
@@ -21,6 +23,7 @@ export interface BatchStageOptionsProps {
 
 export function BatchStageOptions({
   batchSelectedStages,
+  analysisLocked = false,
   onToggleStage,
   batchTranslateChapterTitles,
   onBatchTranslateChapterTitlesChange,
@@ -62,8 +65,10 @@ export function BatchStageOptions({
               ) : (
                 <Icon name="edit" size="sm" />
               );
-            const title =
-              stage === 'analysis'
+            const locked = analysisLocked && stage === 'analysis';
+            const title = locked
+              ? t('edition.analysisLocked')
+              : stage === 'analysis'
                 ? t('translationPanel.stageAnalysisHint', 'Анализ, обновление глоссария')
                 : stage === 'translation'
                   ? t('translationPanel.stageTranslationHint', 'Перевод')
@@ -89,8 +94,11 @@ export function BatchStageOptions({
               >
                 <input
                   type="checkbox"
-                  checked={checked}
-                  onChange={() => onToggleStage(stage)}
+                  checked={locked ? false : checked}
+                  disabled={locked}
+                  onChange={() => {
+                    if (!locked) onToggleStage(stage);
+                  }}
                   style={{ marginRight: 0, accentColor: 'var(--accent)' }}
                 />
                 {icon} {label}

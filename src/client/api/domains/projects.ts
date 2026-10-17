@@ -25,8 +25,22 @@ export const projectsApi = {
     return fetchJsonDeduped('/api/projects');
   },
 
-  async getProject(id: string): Promise<ProjectWithChapterList> {
-    return fetchJsonDeduped(`/api/projects/${id}`);
+  async getProject(id: string, lang?: string): Promise<ProjectWithChapterList> {
+    const params = new URLSearchParams();
+    if (lang) params.set('lang', lang);
+    const qs = params.toString();
+    return fetchJsonDeduped(`/api/projects/${id}${qs ? `?${qs}` : ''}`);
+  },
+
+  async createProjectEdition(
+    projectId: string,
+    targetLanguage: string
+  ): Promise<{ targetLanguage: string }> {
+    return fetchJson(`/api/projects/${projectId}/editions`, {
+      method: 'POST',
+      body: JSON.stringify({ targetLanguage }),
+      headers: { 'Content-Type': 'application/json' },
+    });
   },
 
   async getChaptersSummary(projectId: string): Promise<ChapterSummary[]> {
@@ -214,7 +228,8 @@ export const projectsApi = {
   async exportProject(
     projectId: string,
     format: 'epub' | 'fb2',
-    author?: string
+    author?: string,
+    targetLanguage?: string
   ): Promise<{
     success: boolean;
     format: string;
@@ -225,7 +240,7 @@ export const projectsApi = {
   }> {
     return fetchJson(`/api/projects/${projectId}/export`, {
       method: 'POST',
-      body: JSON.stringify({ format, author }),
+      body: JSON.stringify({ format, author, targetLanguage }),
     });
   },
 

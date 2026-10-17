@@ -8,6 +8,11 @@ import { validateToken } from '../../../utils/tokenValidation.js';
 import { titleToSlug } from '../../../utils/slug.js';
 import { chapterDisplayTitle } from '../../../shared/chapterTitle.js';
 import {
+  editionChapterTranslatedText,
+  listPublicationEditions,
+  type PublicationEditionRow,
+} from './editions.js';
+import {
   createInvalidTranslatorPseudonymError,
   createPseudonymLimitError,
   isOwnedActiveTranslatorPseudonym,
@@ -28,6 +33,11 @@ import {
   type PublicEntityRow,
 } from '../transforms/publication.js';
 import { getGlossaryCountForProject, loadGlossaryForProjectPublic } from '../loaders.js';
+
+async function attachPublicationEditions<T extends { id: string }>(items: T[]) {
+  const map = await listPublicationEditions(items.map((item) => item.id));
+  return items.map((item) => ({ ...item, editions: map.get(item.id) ?? [] }));
+}
 
 async function ensureUniqueSlug(
   client: SupabaseClient,
@@ -482,10 +492,11 @@ export async function listPublicationsPublic(options?: {
     throw new Error(`Failed to list publications: ${error.message}`);
   }
 
-  return (data || []).map((row: PublicationListRow) => ({
+  const items = (data || []).map((row: PublicationListRow) => ({
     ...transformPublicationFromDB(row),
     translatedChapterCount: row.translated_chapter_count ?? 0,
   }));
+  return attachPublicationEditions(items);
 }
 
 /** Fallback when publications_list_with_counts view is not yet created. */
@@ -552,10 +563,12 @@ async function listPublicationsPublicFallback(options: {
     // Service role or RPC unavailable
   }
 
-  return rows.map((row) => ({
-    ...transformPublicationFromDB(row),
-    translatedChapterCount: translatedCounts[row.project_id] ?? 0,
-  }));
+  return attachPublicationEditions(
+    rows.map((row) => ({
+      ...transformPublicationFromDB(row),
+      translatedChapterCount: translatedCounts[row.project_id] ?? 0,
+    }))
+  );
 }
 
 /**
@@ -614,10 +627,14 @@ export async function getPublicationById(
  * Get publication by slug or ID with chapters list (for reading page).
  * Returns only published; chapters are minimal (id, number, title, hasTranslation); glossaryCount for showing Glossary button.
  */
-export async function getPublicationWithChapters(slugOrId: string): Promise<{
+export async function getPublicationWithChapters(
+  slugOrId: string,
+  targetLanguage?: string
+): Promise<{
   publication: ReturnType<typeof transformPublicationFromDB>;
   chapters: Array<{ id: string; number: number; title: string; hasTranslation: boolean }>;
   glossaryCount: number;
+  editions: PublicationEditionRow[];
 } | null> {
   const pub = await getPublicationBySlugOrId(slugOrId);
   if (!pub) return null;
@@ -677,6 +694,23 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
       translatedOffset += POSTGREST_MAX_ROWS;
     }
 
+    if (targetLanguage && targetLanguage !== pub.targetLanguage && allChapters.length > 0) {
+      allTranslatedIds.clear();
+      const { data: editionRows } = await serviceClient
+        .from('chapter_editions')
+        .select('chapter_id, status')
+        .eq('target_language', targetLanguage)
+        .in(
+          'chapter_id',
+          allChapters.map((chapter) => chapter.id)
+        );
+      for (const row of editionRows ?? []) {
+        if (row.status === 'draft' || row.status === 'partial' || row.status === 'completed') {
+          allTranslatedIds.add(row.chapter_id as string);
+        }
+      }
+    }
+
     list = allChapters.map((c) => ({
       id: c.id,
       number: c.number,
@@ -700,7 +734,8 @@ export async function getPublicationWithChapters(slugOrId: string): Promise<{
     }
   }
 
-  return { publication: pub, chapters: list, glossaryCount };
+  const editions = (await listPublicationEditions([pub.id])).get(pub.id) ?? [];
+  return { publication: pub, chapters: list, glossaryCount, editions };
 }
 
 /**
@@ -718,7 +753,8 @@ export async function getGlossaryForPublication(publicationId: string): Promise<
  */
 export async function getPublicationChapterContent(
   publicationId: string,
-  chapterId: string
+  chapterId: string,
+  targetLanguage?: string
 ): Promise<{ id: string; number: number; title: string; translatedText: string } | null> {
   const pub = await getPublicationById(publicationId);
   if (!pub) return null;
@@ -745,7 +781,21 @@ export async function getPublicationChapterContent(
     return null;
   }
 
-  if (!chapter || !chapter.translated_text) return null;
+  if (!chapter) return null;
+  if (targetLanguage && targetLanguage !== pub.targetLanguage) {
+    const translatedText = await editionChapterTranslatedText(chapter.id, targetLanguage);
+    return {
+      id: chapter.id,
+      number: chapter.number,
+      title: chapterDisplayTitle({
+        title: chapter.title,
+        translatedTitle: chapter.translated_title,
+        number: chapter.number,
+      }),
+      translatedText,
+    };
+  }
+  if (!chapter.translated_text) return null;
   return {
     id: chapter.id,
     number: chapter.number,

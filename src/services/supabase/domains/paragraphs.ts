@@ -7,6 +7,7 @@ import { validateToken } from '../../../utils/tokenValidation.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { chapterDisplayTitle } from '../../../shared/chapterTitle.js';
 import { getChapter } from './chapters.js';
+import { upsertParagraphTranslations } from './editions.js';
 import type { Paragraph } from '../../../storage/database.js';
 import { mergeParagraphsToText } from '../../../storage/database.js';
 import { escapeIlike, transformParagraphFromDB } from '../../supabaseTransforms.js';
@@ -16,6 +17,37 @@ import {
   type ProjectSearchMatchBase,
 } from '../../../shared/projectSearch.js';
 
+async function refreshEditionChapterStatus(
+  client: SupabaseClient,
+  chapterId: string,
+  targetLanguage: string
+): Promise<void> {
+  const { data: paragraphs } = await client
+    .from('paragraphs')
+    .select('id')
+    .eq('chapter_id', chapterId);
+  const ids = (paragraphs ?? []).map((row) => row.id as string);
+  if (ids.length === 0) return;
+  const { data: translations } = await client
+    .from('paragraph_translations')
+    .select('translated_text')
+    .eq('target_language', targetLanguage)
+    .in('paragraph_id', ids);
+  const filled = (translations ?? []).filter((row) =>
+    String(row.translated_text ?? '').trim()
+  ).length;
+  const status = filled === 0 ? 'pending' : filled >= ids.length ? 'draft' : 'partial';
+  await client.from('chapter_editions').upsert(
+    {
+      chapter_id: chapterId,
+      target_language: targetLanguage,
+      status,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'chapter_id,target_language' }
+  );
+}
+
 /**
  * Update a single paragraph
  */
@@ -24,12 +56,12 @@ export async function updateParagraph(
   chapterId: string,
   paragraphId: string,
   updates: Partial<Paragraph>,
-  token: string
+  token: string,
+  options?: { editionLanguage?: string }
 ): Promise<Paragraph | undefined> {
   validateToken(token);
   const client = createClientWithToken(token);
 
-  // Verify chapter belongs to project (RLS will check access)
   const { data: chapter } = await client
     .from('chapters')
     .select('id')
@@ -39,6 +71,22 @@ export async function updateParagraph(
 
   if (!chapter) {
     return undefined;
+  }
+
+  if (options?.editionLanguage) {
+    const paragraph: Paragraph = {
+      id: paragraphId,
+      index: 0,
+      originalText: '',
+      translatedText: updates.translatedText,
+      status: updates.status ?? 'edited',
+      editedAt: updates.editedAt,
+      editedBy: updates.editedBy,
+    };
+    await upsertParagraphTranslations(client, options.editionLanguage, [paragraph]);
+    await refreshEditionChapterStatus(client, chapterId, options.editionLanguage);
+    await client.from('projects').update({}).eq('id', projectId);
+    return paragraph;
   }
 
   // Build update data

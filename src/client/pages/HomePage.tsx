@@ -283,11 +283,12 @@ export function HomePage() {
     [setCatalogUrlState]
   );
 
-  const handleRead = useCallback((path: string, chapterId?: string) => {
+  const handleRead = useCallback((path: string, chapterId?: string, lang?: string) => {
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     if (chapterId) {
-      route(`/p/${path}/chapters/${chapterId}/reading`);
+      route(`/p/${path}/chapters/${chapterId}/reading${qs}`);
     } else {
-      route(`/p/${path}`);
+      route(`/p/${path}${qs}`);
     }
   }, []);
 
@@ -543,7 +544,8 @@ export function HomePage() {
                 <PublicationCard
                   key={pub.id}
                   publication={pub}
-                  onRead={(path, chapterId) => handleRead(path, chapterId)}
+                  onRead={(path, chapterId, lang) => handleRead(path, chapterId, lang)}
+                  catalogLanguage={targetLanguage || undefined}
                   readingProgress={readingHistoryMap[pub.id]}
                   authorEntity={pub.authorEntityId ? entityMap[pub.authorEntityId] : undefined}
                   translatorEntity={
