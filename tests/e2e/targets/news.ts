@@ -1,5 +1,9 @@
 import type { Page } from '@playwright/test';
 
+export const newsListLink = (page: Page) => page.getByRole('list').getByRole('link');
+
+export const newsArticleHeading = (page: Page) => page.getByRole('heading', { level: 1 });
+
 export const newsHeadingNamed = (page: Page, name: string) =>
   page.getByRole('heading', { name, exact: true });
 

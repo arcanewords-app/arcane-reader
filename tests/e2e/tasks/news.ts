@@ -1,6 +1,13 @@
 import type { Task } from '../actors/types.js';
-import { localeButton, localeMenuItem } from '../targets/news.js';
+import { localeButton, localeMenuItem, newsListLink } from '../targets/news.js';
 import { NEWS_LOCALE_SLUG } from '../fixtures/newsLocale.js';
+
+export const openFirstNewsArticle: Task = async (actor) => {
+  const link = newsListLink(actor.page).first();
+  await link.waitFor({ state: 'visible' });
+  await link.click();
+  await actor.page.waitForURL(/\/news\/.+/);
+};
 
 export const openMockedNewsArticle: Task = async (actor) => {
   await actor.page.getByRole('link', { name: /English release note|Русская заметка/ }).click();

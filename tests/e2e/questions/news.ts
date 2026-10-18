@@ -1,6 +1,11 @@
 import { expect } from '@playwright/test';
 import type { Question } from '../actors/types.js';
-import { fallbackNote, newsBanner, newsHeadingNamed } from '../targets/news.js';
+import { fallbackNote, newsArticleHeading, newsBanner, newsHeadingNamed } from '../targets/news.js';
+
+export const newsArticleLoaded: Question = async (actor) => {
+  await expect(actor.page).toHaveURL(/\/news\/.+/);
+  await expect(newsArticleHeading(actor.page)).toBeVisible();
+};
 
 export function seesNewsHeading(title: string): Question {
   return async (actor) => {

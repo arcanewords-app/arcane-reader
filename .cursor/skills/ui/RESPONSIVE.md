@@ -69,7 +69,7 @@ Do **not** merge `PublicationCard` and `ProjectCard` (different density). Share 
 
 New or changed **reader** screens need a `*.visual.spec.ts` shell (`layoutMatches`). Logic E2E does not replace pixel shells. Coverage matrix: [testing PATTERNS.md](../testing/PATTERNS.md) § Visual coverage + [`tests/e2e/README.md`](../../../tests/e2e/README.md).
 
-Add `/news/:slug`, contact/legal, extra `/admin/*` shells **only when touching those screens**.
+`/news` and one `/news/:slug` article are already shelled (`guest-news`, `guest-news-article`). Add contact/legal and extra `/admin/*` shells **only when touching those screens**.
 
 ## Overlay stacking
 

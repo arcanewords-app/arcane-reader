@@ -7,6 +7,8 @@ import {
   openProjects,
 } from '../tasks/navigation.js';
 import { openFirstPublication, openFirstTranslatedChapter } from '../tasks/reading.js';
+import { openFirstNewsArticle } from '../tasks/news.js';
+import { newsArticleLoaded } from '../questions/news.js';
 import {
   aboutPageLoaded,
   accountTiersLoaded,
@@ -60,6 +62,12 @@ test.describe('Guest visual shells', { tag: '@visual' }, () => {
     await guest.attemptsTo(openNews);
     await guest.see(newsPageLoaded);
     await guest.see(layoutMatches('guest-news'));
+  });
+
+  test('news article', async ({ guest }) => {
+    await guest.attemptsTo(openNews, openFirstNewsArticle);
+    await guest.see(newsArticleLoaded);
+    await guest.see(layoutMatches('guest-news-article'));
   });
 
   test('about', async ({ guest }) => {

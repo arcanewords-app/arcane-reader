@@ -5,7 +5,7 @@ domain: client
 canonical: .cursor/skills/ui/RESPONSIVE.md
 stale: false
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-10-18
 ---
 
 # Adaptive UI contract and coverage
@@ -29,6 +29,6 @@ Pixel shells: `npm run test:e2e:visual` / `test:e2e:update-snapshots`. Not a mer
 
 ## Leftover (do not treat as “fully container-query”)
 
-- **Visual shells when those screens are touched:** `/news/:slug`, `/contact`, `/privacy`, `/terms`, `/admin/news|publications|projects|entities`. Do not add shells speculatively.
+- **Visual shells when those screens are touched:** `/contact`, `/privacy`, `/terms`, `/admin/news|publications|projects|entities`. Do not add shells speculatively. `/news/:slug` is `guest-news-article` (first stamp post).
 - **Migrate one surface at a time:** glossary / pseudonym / entity-picker grids still `auto-fill`; most `max-width: 767px` blocks still restyle layout (legacy). New restyle = `min-width` or `@container`.
 - Info/admin titles are not `PageHeader` (no primary CTA / own chrome).
