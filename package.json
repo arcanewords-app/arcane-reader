@@ -67,6 +67,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:deps": "tsx scripts/gen-dep-graph.ts",
+    "docs:app-map": "tsx scripts/app-map/generate.ts",
+    "docs:app-map:query": "tsx scripts/app-map/query.ts",
     "check:circular": "oxlint src -c .oxlintrc.circular.json",
     "check:graphviz": "tsx scripts/gen-dep-graph.ts --check-graphviz",
     "audit:all": "npm audit --no-workspaces",

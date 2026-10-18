@@ -22,3 +22,7 @@ data/
 
 # Docs (optional: remove to format .md)
 # docs/
+
+# Generated app map (npm run docs:app-map)
+docs/01-reference/app-map/index.html
+docs/01-reference/app-map/app-map.json

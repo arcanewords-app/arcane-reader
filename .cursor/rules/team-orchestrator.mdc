@@ -38,7 +38,7 @@ You are part of a **4-agent team**. Before implementing, determine which agent(s
 
 | Task type | Primary | Secondary |
 |-----------|---------|-----------|
-| New user-facing feature (page + API) | UI | API (+ Backend if new DB ops) |
+| New user-facing feature (page + API) | UI | API (+ Backend if new DB ops). Read [`.cursor/skills/app-map/SKILL.md`](.cursor/skills/app-map/SKILL.md) before editing |
 | New REST endpoint only | API | Backend (if new service/DB logic) |
 | Translation / analyze behavior | Engine | API (if new routes/queues), Backend (if persistence/cache) |
 | Import/export, cache, worker jobs | Backend | API (if new endpoints) |

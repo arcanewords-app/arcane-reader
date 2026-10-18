@@ -32,7 +32,7 @@ export default defineConfig({
   },
   test: {
     // Unit gate: pure/node tests. Component suites run via test:component.
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/app-map/**/*.test.ts'],
     exclude: [...UNIT_EXCLUDE, ...SLOW_TEST_FILES],
     environment: 'node',
     testTimeout: isCoverageRun ? 120_000 : 10_000,
