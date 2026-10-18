@@ -214,7 +214,7 @@ describe('edition domain queries', () => {
         index: 0,
         originalText: 'src',
         translatedText: 'tgt',
-        status: 'completed',
+        status: 'translated',
         editedAt: '2026-01-01',
         editedBy: 'user',
       },
@@ -355,7 +355,7 @@ describe('edition domain queries', () => {
     await upsertGlossaryTranslations('token', 'be', []);
     await upsertGlossaryTranslations('token', 'be', [
       { entryId: 'g1', translated: 'меч' },
-      { entryId: 'g2', translated: '', declensions: { nominative: '' } },
+      { entryId: 'g2', translated: '', declensions: null },
     ]);
 
     mockFrom.mockReturnValue(queryResult({ data: null, error: { message: 'save failed' } }));
