@@ -187,6 +187,8 @@ function featureButton(screen) {
   name.textContent = screen.title;
   const meta = document.createElement('small');
   meta.textContent = screen.path;
+  const shot = shotImage(screen.path, 'thumb');
+  if (shot) button.append(shot);
   button.append(name, meta);
   button.addEventListener('click', () => select(screen.path));
   return button;
@@ -227,6 +229,8 @@ function screenCard(screen) {
   name.textContent = screen.title;
   const meta = document.createElement('small');
   meta.textContent = screen.path === '__shell__' ? 'на каждом экране' : screen.path;
+  const shot = shotImage(screen.path, 'thumb');
+  if (shot) button.append(shot);
   button.append(name, meta);
   button.addEventListener('click', () => select(screen.path));
   return button;
@@ -265,7 +269,10 @@ function panel(path) {
     ? 'Шапка, вход и общие запросы'
     : `${screen?.path || ''} · ${screen?.component || ''} · ${screen?.file || ''}`;
 
-  aside.append(header, meta, sectionTitle('Куда можно уйти'));
+  aside.append(header, meta);
+  const shot = shotImage(path, 'panel');
+  if (shot) aside.append(shot);
+  aside.append(sectionTitle('Куда можно уйти'));
   if (links.length === 0) aside.append(note('Переходов с этого экрана не найдено'));
   for (const target of links) {
     const button = document.createElement('button');
@@ -334,6 +341,16 @@ function callBlock(call) {
     block.append(callers);
   }
   return block;
+}
+
+function shotImage(path, kind) {
+  const href = typeof VISUALS !== 'undefined' ? VISUALS[path] : null;
+  if (!href) return null;
+  const image = document.createElement('img');
+  image.className = kind === 'panel' ? 'shot shot-panel' : 'shot';
+  image.src = href;
+  image.alt = '';
+  return image;
 }
 
 function sectionTitle(text) {

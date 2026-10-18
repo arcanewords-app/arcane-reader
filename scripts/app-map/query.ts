@@ -6,6 +6,43 @@ import type { AppMap, Call, Endpoint, Screen } from './types.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
+const GUEST_SHOT = 'tests/e2e/specs/guest.visual.spec.ts-snapshots';
+const READER_SHOT = 'tests/e2e/specs/reader.visual.spec.ts-snapshots';
+const AUTHOR_SHOT = 'tests/e2e/specs/author.visual.spec.ts-snapshots';
+const ADMIN_SHOT = 'tests/e2e/specs/admin.visual.spec.ts-snapshots';
+
+/** One desktop shell per screen. Phone and tablet stay out of the query. */
+const SCREEN_VISUALS: Record<string, string> = {
+  '/': `${GUEST_SHOT}/guest-catalog-desktop.png`,
+  '/catalog': `${GUEST_SHOT}/guest-catalog-desktop.png`,
+  '/about': `${GUEST_SHOT}/guest-about-desktop.png`,
+  '/account-tiers': `${GUEST_SHOT}/guest-account-tiers-desktop.png`,
+  '/news': `${GUEST_SHOT}/guest-news-desktop.png`,
+  '/news/:slugOrId': `${GUEST_SHOT}/guest-news-article-desktop.png`,
+  '/p/:publicationId': `${GUEST_SHOT}/guest-publication-desktop.png`,
+  '/p/:publicationId/chapters/:chapterId/reading': `${GUEST_SHOT}/guest-reading-desktop.png`,
+  '/profile': `${READER_SHOT}/reader-profile-desktop.png`,
+  '/projects': `${AUTHOR_SHOT}/author-projects-desktop.png`,
+  '/projects/:projectId': `${AUTHOR_SHOT}/author-project-desktop.png`,
+  '/projects/:projectId/chapters/:chapterId': `${AUTHOR_SHOT}/author-chapter-desktop.png`,
+  '/projects/:projectId/chapters/:chapterId/reading': `${AUTHOR_SHOT}/author-reading-desktop.png`,
+  '/projects/:projectId/reading': `${AUTHOR_SHOT}/author-reading-desktop.png`,
+  '/translation-requests': `${AUTHOR_SHOT}/author-requests-desktop.png`,
+  '/admin/users': `${ADMIN_SHOT}/admin-users-desktop.png`,
+};
+
+/** Desktop PNG for this screen, or `none` when no shell is allowed yet. */
+export function visualForScreen(screenPath: string): string {
+  return SCREEN_VISUALS[screenPath] ?? 'none';
+}
+
+/** Path from `docs/01-reference/app-map/index.html` to the desktop PNG, or null. */
+export function visualHrefForHtml(screenPath: string): string | null {
+  const path = visualForScreen(screenPath);
+  if (path === 'none') return null;
+  return `../../../${path}`;
+}
+
 /** Same number of segments; a concrete piece matches a `:param`. */
 export function screenPathMatches(query: string, screenPath: string): boolean {
   const left = splitPath(query);
@@ -51,6 +88,7 @@ function renderScreen(map: AppMap, screen: Screen): string {
     `access: ${screen.access}`,
     `title: ${screen.title}`,
     `file: ${screen.file || '—'}`,
+    `visual: ${visualForScreen(screen.path)}`,
     '',
     'goes to:',
     neighbors.length > 0 ? neighbors.map((line) => `- ${line}`).join('\n') : '- (none)',

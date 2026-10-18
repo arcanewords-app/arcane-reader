@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { apiPathMatches, formatScreen, screenPathMatches } from './query.js';
+import {
+  apiPathMatches,
+  formatScreen,
+  screenPathMatches,
+  visualForScreen,
+  visualHrefForHtml,
+} from './query.js';
 import type { AppMap } from './types.js';
 
 const map: AppMap = {
@@ -70,6 +76,17 @@ describe('app map query', () => {
     expect(text).toContain('/p/:publicationId');
     expect(text).toContain('/ — Main catalog');
     expect(text).toContain('handleGetPublicationChapters');
+    expect(text).toContain('guest-publication-desktop.png');
     expect(text).not.toContain('CatalogPage');
+  });
+
+  it('points a news article at its desktop shell and leaves legal pages without one', () => {
+    expect(visualForScreen('/news/:slugOrId')).toContain('guest-news-article-desktop.png');
+    expect(visualHrefForHtml('/news/:slugOrId')).toBe(
+      '../../../tests/e2e/specs/guest.visual.spec.ts-snapshots/guest-news-article-desktop.png'
+    );
+    expect(visualForScreen('/contact')).toBe('none');
+    expect(visualForScreen('/privacy')).toBe('none');
+    expect(visualForScreen('/admin/projects')).toBe('none');
   });
 });

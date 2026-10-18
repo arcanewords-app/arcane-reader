@@ -202,6 +202,23 @@ h1 {
   padding: 10px 12px;
 }
 
+.shot {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: #0c0b10;
+}
+
+.shot-panel {
+  aspect-ratio: auto;
+  max-height: 360px;
+  object-fit: contain;
+}
+
 .feature b {
   display: block;
   font-weight: 600;

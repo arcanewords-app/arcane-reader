@@ -22,6 +22,8 @@ npm run docs:app-map:query -- --api /api/publications
 
 `--screen` accepts a pattern or a concrete path (`/p/abc` matches `/p/:publicationId`). It prints that screen, where it goes, and each call with handler, services, and `engine` / `queue` tags. Neighbors are one line each — query them separately if you need their calls.
 
+A `visual:` line is one desktop PNG of that screen (`tests/e2e/specs/*.visual.spec.ts-snapshots/*-desktop.png`). Read that image to see the page. Do not open the page component for layout, and do not open Vitest `__snapshots__` (those are HTML of buttons and cards, not the screen). Phone and tablet shots stay unused unless the question is specifically responsive. `visual: none` means there is no shell yet (contact, legal pages, most `/admin/*`). Add one only when that screen itself changes and visual coverage allows it. `/news/:slug` already has `guest-news-article-desktop.png`.
+
 `--api` prints matching endpoints and which screens call them. A short prefix matches longer paths (`/api/publications` includes `/api/publications/:id/chapters`).
 
 No arguments: a list of screens only (access, path, title).

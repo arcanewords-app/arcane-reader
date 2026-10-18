@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AppMap } from './types.js';
+import { visualHrefForHtml } from './query.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -9,6 +10,12 @@ export function renderHtml(map: AppMap): string {
   const css = readFileSync(join(here, 'viewer.css'), 'utf8');
   const js = readFileSync(join(here, 'viewer.js'), 'utf8');
   const data = JSON.stringify(map).replace(/</g, '\\u003c');
+  const visuals: Record<string, string> = {};
+  for (const screen of map.screens) {
+    const href = visualHrefForHtml(screen.path);
+    if (href) visuals[screen.path] = href;
+  }
+  const visualData = JSON.stringify(visuals).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -24,6 +31,7 @@ ${css}
   <div id="app"></div>
   <script>
     const DATA = ${data};
+    const VISUALS = ${visualData};
 ${js}
   </script>
 </body>
