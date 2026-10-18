@@ -11,7 +11,7 @@ alwaysApply: true
 - Functional components. Named exports.
 - 2 spaces, LF. See `.editorconfig`.
 - Lint: oxlint (`.oxlintrc.json`). Format: Prettier. CSS: Stylelint. Cursor/VS Code: recommend `oxc.oxc-vscode` (not ESLint).
-- Run `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` before pushing (pre-push enforces all five).
+- Run `npm run lint:all`, `npm run test:coverage`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` before pushing (pre-push enforces all five).
 
 ## Structure
 
@@ -37,7 +37,7 @@ On every meaningful change:
 
 PR checklist:
 
-- `npm run lint:all`, `npm run test`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` pass
+- `npm run lint:all`, `npm run test:coverage`, `npm run test:component`, `npm run test:integration`, and `npm run test:contract` pass
 - Choose test layer(s) with the feature (`@.cursor/rules/testing.mdc`):
   - Pure logic in `engine/` / `shared/` / utils → co-located `*.test.ts`
   - Preact UI / hooks / pages → `*.test.tsx` / `*.hook.test.ts` (component suite)

@@ -53,7 +53,7 @@ export default defineConfig({
         'src/debug/**',
         'src/prompt-lab/**',
       ],
-      // Floors from measured APP_SCOPE (unit suite). Not enforced in pre-push.
+      // Floors from measured APP_SCOPE (unit suite). Enforced on pre-push and in CI.
       // Raise deliberately with coverage gains; never silent lower.
       // Coverage campaign Phases A–C (2026-08-02); soft ceiling ~78% without binary parsers.
       thresholds: {

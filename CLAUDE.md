@@ -17,14 +17,14 @@ npm run test              # Vitest unit (pin 5.0.0)
 npm run test:component    # Testing Library + happy-dom
 npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures
-npm run test:coverage     # floors lines 77 / branches 65 (GitHub Actions; not pre-push)
+npm run test:coverage     # floors lines 77 / branches 65 (pre-push + GitHub Actions)
 npm run test:gaps         # component + contract blind spots (advisory)
 npm run test:e2e          # Playwright logic smoke (not pre-push / Actions)
 npm run test:e2e:visual   # pixel shells (restore stamp if dirty)
 npm run typecheck
 ```
 
-Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`.
+Pre-push: `lint:all` + `test:coverage` + `test:component` + `test:integration` + `test:contract`.
 GitHub Actions: same pyramid with `test:coverage` instead of `test` (no Playwright).
 
 Testing pyramid: `docs/05-plans/testing-strategy.md`.

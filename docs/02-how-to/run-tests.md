@@ -52,29 +52,17 @@ Advisory only (exit 0). See [[05-plans/testing-strategy]].
 
 ## Thresholds
 
-| Mechanism              | Policy                                                                                                                                                |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **77**, branches **65**. GitHub Actions merge gate (`npm run test:coverage`); **not** in pre-push. |
-| Layer gaps             | `npm run test:gaps` — advisory report; not a merge gate                                                                                               |
-| Stryker                | `high: 80`, `low: 60`, `break: null` — advisory bands; never fails the build                                                                          |
+| Mechanism              | Policy                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Vitest coverage floors | `coverage.thresholds` in `vitest.config.ts`: lines **77**, branches **65**. Pre-push and GitHub Actions (`npm run test:coverage`). |
+| Layer gaps             | `npm run test:gaps` — advisory report; not a merge gate                                                                            |
+| Stryker                | `high: 80`, `low: 60`, `break: null` — advisory bands; never fails the build                                                       |
 
 If coverage drops below floors, fix tests or lower floors **deliberately** in the same PR.
 
 ## Gates (pre-push vs CI vs local E2E)
 
-**Pre-push** (`.husky/pre-push`) — no coverage floors, no Playwright:
-
-```bash
-npm run lint:all
-npm run test
-npm run test:component
-npm run test:integration
-npm run test:contract
-```
-
-Emergency bypass: `HUSKY=0 git push` (document why).
-
-**GitHub Actions** (`.github/workflows/test.yml`) — same pyramid plus unit coverage floors:
+**Pre-push** (`.husky/pre-push`) — unit coverage floors, no Playwright. `test:coverage` replaces a separate `npm run test`:
 
 ```bash
 npm run lint:all
@@ -84,7 +72,19 @@ npm run test:integration
 npm run test:contract
 ```
 
-Job Node is **24** (`.nvmrc`). A “Node.js 20 is deprecated” annotation on old `actions/*@v4` is the **action** runtime, not the test Node — current workflow uses checkout/setup-node/upload-artifact **v6** (`node24`). Pre-push does **not** run `test:coverage`; moving a unit `*.test.ts` to `*.hook.test.ts` can pass husky and fail CI floors (77/65). See [[05-plans/coverage-campaign-extracts]].
+Emergency bypass: `HUSKY=0 git push` (document why).
+
+**GitHub Actions** (`.github/workflows/test.yml`) — the same commands:
+
+```bash
+npm run lint:all
+npm run test:coverage
+npm run test:component
+npm run test:integration
+npm run test:contract
+```
+
+Job Node is **24** (`.nvmrc`). A “Node.js 20 is deprecated” annotation on old `actions/*@v4` is the **action** runtime, not the test Node — current workflow uses checkout/setup-node/upload-artifact **v6** (`node24`). Moving a unit `*.test.ts` to `*.hook.test.ts` drops those lines out of `test:coverage` and can fail the 77/65 floors. See [[05-plans/coverage-campaign-extracts]].
 
 **Local E2E** — Docker stamp + `npm run dev`; never a merge gate: `test:e2e` / `test:e2e:visual` / `test:e2e:llm`.
 

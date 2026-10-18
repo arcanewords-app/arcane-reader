@@ -1,6 +1,6 @@
 . "$(dirname "$0")/load-node.sh"
 npm run lint:all
-npm run test
+npm run test:coverage
 npm run test:component
 npm run test:integration
 npm run test:contract

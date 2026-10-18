@@ -62,4 +62,25 @@ describe('newsApi', () => {
     assert.equal(mockFetchJson.mock.calls[0]?.[1]?.method, 'POST');
     assert.equal(mockFetchJson.mock.calls[0]?.[1]?.body, JSON.stringify({ contentVersion: 2 }));
   });
+
+  it('loads the active announcement for the saved locale', async () => {
+    stubLocale('pl');
+    mockFetchJsonDeduped.mockResolvedValue({ id: 'ann-1' });
+    const result = await newsApi.getActiveAnnouncement();
+    assert.deepEqual(result, { id: 'ann-1' });
+    assert.equal(mockFetchJsonDeduped.mock.calls[0]?.[0], '/api/announcements/active?locale=pl');
+  });
+
+  it('picks a supported navigator language and falls back to Russian', async () => {
+    vi.stubGlobal('localStorage', { getItem: () => null });
+    vi.stubGlobal('navigator', { languages: ['fr-FR', '', 'be-BY'], language: 'fr' });
+    mockFetchJsonDeduped.mockResolvedValue([]);
+    await newsApi.getNewsPosts();
+    assert.match(String(mockFetchJsonDeduped.mock.calls[0]?.[0]), /locale=be/);
+
+    vi.stubGlobal('navigator', { languages: [], language: 'de-DE' });
+    await newsApi.getNewsPosts();
+    assert.match(String(mockFetchJsonDeduped.mock.calls[1]?.[0]), /locale=ru/);
+    assert.equal(String(mockFetchJsonDeduped.mock.calls[1]?.[0]).includes('limit='), false);
+  });
 });

@@ -107,7 +107,7 @@ Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integ
 
 Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **5.0.0** exact. Windows wrappers stay until glob/dir + `setupFiles` + unbounded forks are re-validated on Windows + Node 24.
 
-**Next:** Wave 10 **local E2E done** (CI live stack still blocked). GitHub Actions runs the mock pyramid (`lint:all` + `test:coverage` + component + integration + contract). Coverage campaign Phases A–C **done** (~77.7% unit lines). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
+**Next:** Wave 10 **local E2E done** (CI live stack still blocked). Pre-push and GitHub Actions run the mock pyramid (`lint:all` + `test:coverage` + component + integration + contract). Coverage campaign Phases A–C **done** (~77.7% unit lines; remeasured **78.16% / 65.99%** on 2026-10-18). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
 
 ### Coverage campaign (post–Wave 9)
 
@@ -303,7 +303,7 @@ npm run test:all             # unit + slow + component + integration + contract
 npm run test:coverage        # unit coverage
 ```
 
-Pre-push: `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`. GitHub Actions: same pyramid with `test:coverage` instead of `test` (floors 77/65). `test:gaps` is manual/advisory. Local E2E is not a merge gate.
+Pre-push: `lint:all` + `test:coverage` + `test:component` + `test:integration` + `test:contract` (floors 77/65). GitHub Actions runs the same commands. `test:gaps` is manual/advisory. Local E2E is not a merge gate.
 
 ## Metrics (orientation, not gates)
 

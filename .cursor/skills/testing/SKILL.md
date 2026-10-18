@@ -62,7 +62,7 @@ Do **not** default to unit. Pick layer(s) from the change:
 | Inventory          | `node scripts/gen-test-inventory.mjs` (after `test:coverage`)                          |
 | Focused run        | `npm run test -- src/engine/glossary`                                                  |
 | Single file        | `npm run test -- src/shared/paragraphSync.test.ts`                                     |
-| Pre-push gate      | `lint:all` + `test` + `test:component` + `test:integration` + `test:contract`          |
+| Pre-push gate      | `lint:all` + `test:coverage` + `test:component` + `test:integration` + `test:contract` |
 | GitHub Actions     | `lint:all` + `test:coverage` + `test:component` + `test:integration` + `test:contract` |
 
 **Emergency bypass** (document reason): `HUSKY=0 git push`
@@ -156,16 +156,16 @@ Live Supabase / Redis / BullMQ in **unit/component** tests: **never**. Local E2E
 
 ## Gate table
 
-| Gate             | Command                    | When                                                                                       |
-| ---------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
-| Lint + types     | `npm run lint:all`         | pre-push + GitHub Actions                                                                  |
-| Unit             | `npm run test`             | pre-push                                                                                   |
-| Coverage floors  | `npm run test:coverage`    | GitHub Actions (lines 77 / branches 65); **not** pre-push                                  |
-| Component        | `npm run test:component`   | pre-push + GitHub Actions                                                                  |
-| Mock-integration | `npm run test:integration` | pre-push + GitHub Actions                                                                  |
-| Contract         | `npm run test:contract`    | pre-push + GitHub Actions                                                                  |
-| Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures                                      |
-| Local E2E        | `npm run test:e2e`         | after `stack:up` + `dev`; dirty reset = `stack:restore`; **not** pre-push / GitHub Actions |
+| Gate             | Command                    | When                                                                                                                                      |
+| ---------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Lint + types     | `npm run lint:all`         | pre-push + GitHub Actions                                                                                                                 |
+| Unit             | `npm run test`             | focused local run; pre-push uses `test:coverage` instead                                                                                  |
+| Coverage floors  | `npm run test:coverage`    | pre-push + GitHub Actions (lines 77 / branches 65)                                                                                        |
+| Component        | `npm run test:component`   | pre-push + GitHub Actions                                                                                                                 |
+| Mock-integration | `npm run test:integration` | pre-push + GitHub Actions                                                                                                                 |
+| Contract         | `npm run test:contract`    | pre-push + GitHub Actions                                                                                                                 |
+| Layer gaps       | `npm run test:gaps`        | manual — find untested UI / missing contract fixtures                                                                                     |
+| Local E2E        | `npm run test:e2e`         | after `stack:up` + `dev`; dirty reset = `stack:restore`; **not** pre-push / GitHub Actions                                                |
 | Stryker          | `npm run test:mutation`    | manual/nightly; `break: null`; `tsconfig.json` ignored until [stryker-js#6111](https://github.com/stryker-mutator/stryker-js/issues/6111) |
 
 ## Anti-patterns

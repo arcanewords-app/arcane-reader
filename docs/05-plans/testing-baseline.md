@@ -1,12 +1,12 @@
 ---
 status: active
 created: 2026-07-12
-updated: 2026-09-14
+updated: 2026-10-18
 ---
 
 # Testing coverage baseline
 
-Measured **2026-09-13** (`npm run test:coverage` + `npm run test:gaps`; Wave 0 after Vitest 5). Component suite re-checked **2026-09-14**. Campaign log: [[05-plans/coverage-campaign-extracts]]. Strategy SSOT: [[05-plans/testing-strategy]]. August wave tables below are historical.
+Measured **2026-10-18** (`npm run test:coverage`: lines **78.16%**, branches **65.99%**). Earlier Wave 0 numbers (2026-09-13 / 2026-09-14) stay in the table below. Component suite was last re-checked **2026-09-14**. Campaign log: [[05-plans/coverage-campaign-extracts]]. Strategy SSOT: [[05-plans/testing-strategy]]. August wave tables below are historical.
 
 ## APP_SCOPE (unified)
 
@@ -40,15 +40,15 @@ Until a dedicated test environment is provisioned, **CI live** work is paused. L
 
 ## Test suite (2026-08-03, post product shell wave)
 
-| Metric                      | Value                                                                             |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| Unit fast suite files       | covered by `npm run test` / `test:coverage`                                       |
+| Metric                      | Value                                                                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Unit fast suite files       | covered by `npm run test` / `test:coverage`                                                                                       |
 | Component suite             | **124** files / **344** tests (`npm run test:component`, 2026-09-14 evening; 128 / 368 earlier that day before unit hook restore) |
-| Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                          |
-| Contract suite              | **46** files / **75** tests (`npm run test:contract`)                             |
-| Co-located `*.test.tsx`     | **111**                                                                           |
-| Co-located `*.hook.test.ts` | **13**                                                                            |
-| Pre-push                    | `lint:all` + `test` + `test:component` + `test:integration` + **`test:contract`** |
+| Mock-integration suite      | **20** files / **95** tests (`npm run test:integration`)                                                                          |
+| Contract suite              | **46** files / **75** tests (`npm run test:contract`)                                                                             |
+| Co-located `*.test.tsx`     | **111**                                                                                                                           |
+| Co-located `*.hook.test.ts` | **13**                                                                                                                            |
+| Pre-push                    | `lint:all` + `test:coverage` + `test:component` + `test:integration` + **`test:contract`**                                        |
 
 Component suite: `happy-dom` + `@testing-library/preact`; `vitest.component.config.ts` uses `pool: 'forks'` (Vitest 5 default). Do **not** set `threads` — Node `fetch` in worker_threads can hang the run ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). Unit coverage command does **not** execute `*.test.tsx` (separate config). Integration suite is mock-first (no live Supabase/Redis/LLM).
 
@@ -77,16 +77,16 @@ Regenerate stats: `node scripts/gen-test-inventory.mjs` (after `npm run test:cov
 
 Command: `npm run test:coverage` → `coverage/coverage-summary.json`, `coverage/index.html`.
 
-| Metric     | 2026-08-16 | 2026-09-13 (pre-bump canvas) | Wave 0 Vitest 5 (2026-09-13) | After unit hook restore (2026-09-14) |
-| ---------- | ---------- | ---------------------------- | ---------------------------- | ------------------------------------ |
-| Lines      | 78.21%     | 78.21%                       | **78.24%**                   | **78.28%**                           |
-| Statements | 76.09%     | 76.10%                       | —                            | 76.11%                               |
-| Functions  | 80.42%     | 80.35%                       | —                            | —                                    |
-| Branches   | 65.67%     | 65.68%                       | **65.81%**                   | **65.89%**                           |
+| Metric     | 2026-08-16 | 2026-09-13 (pre-bump canvas) | Wave 0 Vitest 5 (2026-09-13) | After unit hook restore (2026-09-14) | After edition and import tests (2026-10-18) |
+| ---------- | ---------- | ---------------------------- | ---------------------------- | ------------------------------------ | ------------------------------------------- |
+| Lines      | 78.21%     | 78.21%                       | **78.24%**                   | **78.28%**                           | **78.16%**                                  |
+| Statements | 76.09%     | 76.10%                       | —                            | 76.11%                               | **76.02%**                                  |
+| Functions  | 80.42%     | 80.35%                       | —                            | —                                    | **80.71%**                                  |
+| Branches   | 65.67%     | 65.68%                       | **65.81%**                   | **65.89%**                           | **65.99%**                                  |
 
 ### Coverage floors (active)
 
-Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
+Enforced by `npm run test:coverage` on pre-push and in GitHub Actions, via `vitest.config.ts`:
 
 | Metric   | Floor  |
 | -------- | ------ |
@@ -97,28 +97,28 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 
 ## By area (folder rollup, lines %)
 
-| Area                      | Files | Lines % (2026-09-13) | Notes                                                     |
-| ------------------------- | ----- | -------------------- | --------------------------------------------------------- |
-| `src/shared/`             | 42    | **92.2%**            | near ceiling                                              |
-| `src/storage/`            | 3     | **100%**             | text-utils (types/database are 0-line)                    |
-| `src/middleware/`         | 5     | **91.3%**            | auth, tokenLimits, requestContext                         |
-| `src/api/`                | 60    | **84.4%**            | handlers + schemas                                        |
-| `src/services/`           | 65    | **78.0%**            | hugs floor; binary import/export still 0%                 |
-| `src/engine/`             | 69    | **77.6%**            | hugs floor; preview files live in `test:slow`             |
-| `src/client/`             | 108   | **67.8%**            | unit v8 only; UI/hooks via `test:component`               |
-| `server.ts` + `worker.ts` | 2     | **0%**               | entrypoints (deferred)                                    |
+| Area                      | Files | Lines % (2026-09-13) | Notes                                         |
+| ------------------------- | ----- | -------------------- | --------------------------------------------- |
+| `src/shared/`             | 42    | **92.2%**            | near ceiling                                  |
+| `src/storage/`            | 3     | **100%**             | text-utils (types/database are 0-line)        |
+| `src/middleware/`         | 5     | **91.3%**            | auth, tokenLimits, requestContext             |
+| `src/api/`                | 60    | **84.4%**            | handlers + schemas                            |
+| `src/services/`           | 65    | **78.0%**            | hugs floor; binary import/export still 0%     |
+| `src/engine/`             | 69    | **77.6%**            | hugs floor; preview files live in `test:slow` |
+| `src/client/`             | 108   | **67.8%**            | unit v8 only; UI/hooks via `test:component`   |
+| `server.ts` + `worker.ts` | 2     | **0%**               | entrypoints (deferred)                        |
 
 ### Top uncovered files (by remaining gap, unit v8)
 
-| File                                       | Lines | Notes                                  |
-| ------------------------------------------ | ----- | -------------------------------------- |
-| `SearchReplace/useProjectSearch.ts`        | 186   | Hook suite only — not a unit-floor gap |
-| `services/import/fb2.ts` / `export/fb2.ts` | 156+98 | binary parse/write (deferred)         |
-| `hooks/useReadingTextSelection.ts` etc.    | 19–67 | Hook suite only                        |
-| `createApp.ts`                             | 54    | mock-integration, not unit             |
-| `export/epub.ts`                           | 31    | binary (deferred)                      |
-| `*-execution-preview.ts`                   | 22–24 | `test:slow`                            |
-| `server.ts` / `worker.ts`                  | 21+16 | bootstrap                              |
+| File                                       | Lines  | Notes                                  |
+| ------------------------------------------ | ------ | -------------------------------------- |
+| `SearchReplace/useProjectSearch.ts`        | 186    | Hook suite only — not a unit-floor gap |
+| `services/import/fb2.ts` / `export/fb2.ts` | 156+98 | binary parse/write (deferred)          |
+| `hooks/useReadingTextSelection.ts` etc.    | 19–67  | Hook suite only                        |
+| `createApp.ts`                             | 54     | mock-integration, not unit             |
+| `export/epub.ts`                           | 31     | binary (deferred)                      |
+| `*-execution-preview.ts`                   | 22–24  | `test:slow`                            |
+| `server.ts` / `worker.ts`                  | 21+16  | bootstrap                              |
 
 ## Wave completion
 
@@ -126,7 +126,7 @@ Enforced only by `npm run test:coverage` (not pre-push), in `vitest.config.ts`:
 | ------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
 | 0–5                      | Done                            | Unit APP_SCOPE, 55%+ milestone, handler extracts, domain mocks                   |
 | **6 — Component**        | **Done**                        | Hooks P0, gates/SettingsModal, UI smoke, publication filters, page smokes        |
-| **7 — Mock integration** | **Done**                        | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest wrappers  |
+| **7 — Mock integration** | **Done**                        | `createApp` harness, ~9 files / ~44 tests, pre-push gate, Vitest wrappers        |
 | **8 — Snapshot**         | **Done**                        | Presentational `toMatchSnapshot` for ui/* + EntityCard/TagChip; 15 snaps         |
 | **9 — Contract Phase 1** | **Done**                        | Zod fixtures + enum sync; deepen → 22 files / 32 tests; pre-push `test:contract` |
 | 10 — Live + E2E          | **Local unblocked; CI blocked** | Playwright vs stamp; `tests/e2e/README.md`                                       |
@@ -176,13 +176,13 @@ npm run test:contract:coverage    # advisory Zod schema v8 only
 
 ### Refresh (`test:gaps`, 2026-09-13)
 
-| Layer     | Metric                                      | 2026-08-03 product shell | 2026-09-13              |
-| --------- | ------------------------------------------- | ------------------------ | ----------------------- |
-| Component | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 108 / 9 / 7        | **163 / 113 / 30 / 6**  |
-| Component | v8 lines / branches (advisory)              | ~36.92%                  | **37.69% / 33.04%**     |
-| Contract  | schemas with fixtures / total               | 39 / 72                  | **39 / 72**             |
-| Contract  | enum-sync covered / targets                 | 9 / 9                    | **9 / 9**               |
-| Unit      | lines / branches (floors 77/65)             | 78.21 / 65.67            | **78.21 / 65.68**       |
+| Layer     | Metric                                      | 2026-08-03 product shell | 2026-09-13             |
+| --------- | ------------------------------------------- | ------------------------ | ---------------------- |
+| Component | CLIENT_SCOPE / with suite / gaps / deferred | 130 / 108 / 9 / 7        | **163 / 113 / 30 / 6** |
+| Component | v8 lines / branches (advisory)              | ~36.92%                  | **37.69% / 33.04%**    |
+| Contract  | schemas with fixtures / total               | 39 / 72                  | **39 / 72**            |
+| Contract  | enum-sync covered / targets                 | 9 / 9                    | **9 / 9**              |
+| Unit      | lines / branches (floors 77/65)             | 78.21 / 65.67            | **78.21 / 65.68**      |
 
 CLIENT_SCOPE grew (extracts from ProjectInfo / Glossary / ReadingMode / Sidebar). Suites +5; gap count 30 is mostly new modules without their own suites, not lost tests. Top component gaps: `ProjectInfo.tsx`, `ChapterView/*`, admin pages, upload-queue hook. Contract still selective — remaining 33 are list/query and auth bodies. Map: canvas `coverage-gaps`.
 
@@ -264,7 +264,7 @@ Full shells of Glossary / ReadingMode / ChapterList / ProcessChapters remain def
 
 ## Policy
 
-- Coverage floors active on `test:coverage` (GitHub Actions merge gate); pre-push = lint + unit + component + integration + contract (no floors)
+- Coverage floors active on `test:coverage` (pre-push and GitHub Actions); pre-push = lint + coverage + component + integration + contract
 - Local E2E is not a merge gate
 - Layer gaps (`test:gaps`) are advisory — not a merge gate
 - Re-run baseline after major test additions; update this note (and floors if measured drift is intentional)

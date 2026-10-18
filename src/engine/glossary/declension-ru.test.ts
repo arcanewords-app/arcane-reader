@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { declineFirstName, declineNameRu } from './declension-ru.js';
+import {
+  declineFirstName,
+  declineNameRu,
+  detectGenderFromRussianName,
+  translateAndDeclineName,
+  transliterateEnToRu,
+} from './declension-ru.js';
 
 describe('declineNameRu', () => {
   it('declines Russian male first name to genitive', () => {
@@ -22,6 +28,35 @@ describe('declineNameRu', () => {
     assert.ok(d.nominative.includes('Иван'));
     assert.ok(d.nominative.includes('Петров'));
     assert.ok(d.genitive.length > d.nominative.length - 2);
+  });
+
+  it('treats an unknown gender as androgynous and keeps the original when declension throws', () => {
+    const declined = declineNameRu('???', 'unknown');
+    assert.ok(declined.nominative.length > 0);
+  });
+
+  it('detects gender from common Russian endings', () => {
+    assert.equal(detectGenderFromRussianName('Анна'), 'female');
+    assert.equal(detectGenderFromRussianName('Любовь'), 'female');
+    assert.equal(detectGenderFromRussianName('Игорь'), 'male');
+    assert.equal(detectGenderFromRussianName('Иван'), 'male');
+  });
+
+  it('uses a known translation, a digraph, and leaves unknown characters', () => {
+    assert.equal(transliterateEnToRu('John'), 'Джон');
+    assert.equal(transliterateEnToRu('Sh'), 'Ш');
+    assert.match(transliterateEnToRu('A1'), /а1/i);
+  });
+
+  it('translates a known name and declines an unknown one with an explicit gender', () => {
+    const known = translateAndDeclineName('Anna');
+    assert.equal(known.translatedName, 'Анна');
+    assert.equal(known.gender, 'female');
+    assert.ok(known.declensions.genitive.length > 0);
+
+    const unknown = translateAndDeclineName('Zed', 'male');
+    assert.equal(unknown.gender, 'male');
+    assert.ok(unknown.translatedName.length > 0);
   });
 
   it('returns all six cases', () => {
