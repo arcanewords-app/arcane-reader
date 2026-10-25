@@ -212,13 +212,6 @@
   background: var(--accent);
 }
 
-/* Desktop sidebar is itself the scroll region; the list must not nest another one. */
-@media (min-width: 1024px) {
-  .sidebar .chapter-list {
-    max-height: none;
-  }
-}
-
 /* Chapter filters */
 .chapter-filters {
   display: flex;
@@ -233,8 +226,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  flex: 0 1 auto;
-  max-width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
   padding: 0.4rem 0.5rem;
   background: var(--bg-secondary);
@@ -247,10 +239,6 @@
   white-space: nowrap;
 }
 
-.chapter-filter-btn .ui-icon {
-  flex-shrink: 0;
-}
-
 .chapter-filter-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -261,15 +249,19 @@
   display: none;
 }
 
-/* Content box of a 360px desktop sidebar is ~328px, so long labels stay.
-   Tablet (≤260px) and the phone drawer fall under this and use the short form. */
-@container sidebar (max-width: 320px) {
+/* Narrow viewport + tablet sidebar (320px): show short labels to fit */
+@media (max-width: 767px) {
   .chapter-filter-label-long {
     display: none;
   }
 
   .chapter-filter-label-short {
     display: inline;
+  }
+
+  .chapter-filter-btn {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.8rem;
   }
 }
 

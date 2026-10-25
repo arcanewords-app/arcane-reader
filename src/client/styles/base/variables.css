@@ -130,7 +130,7 @@
 
   /* Desktop (≥1024px) */
   --container-width-desktop: 1200px;
-  --sidebar-width-desktop: 360px;
+  --sidebar-width-desktop: 320px;
   --main-padding-desktop: 2rem;
   --header-padding-desktop: 2rem;
   --modal-width-desktop: 1100px;

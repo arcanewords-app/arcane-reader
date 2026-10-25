@@ -298,8 +298,7 @@
 
 @media (min-width: 1024px) {
   .paragraphs-unified {
-    max-height: none;
-    overflow-y: visible;
+    max-height: calc(100vh - 320px); /* Больше места на десктопе */
   }
 
   .text-panel-unified {
@@ -314,13 +313,6 @@
     padding: var(--paragraph-cell-padding-desktop);
     padding-left: calc(var(--paragraph-index-left-desktop) + 1.5rem + 0.5rem);
     width: auto !important; /* На десктопе (row) - автоматическая ширина */
-  }
-
-  .paragraph-cell-original,
-  .paragraph-cell-translation,
-  .panel-header-left,
-  .panel-header-right {
-    max-width: 75ch;
   }
 
   .paragraph-cell-original {

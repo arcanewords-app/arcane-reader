@@ -148,8 +148,7 @@ export function Sidebar({
           }}
           className="sidebar-action sidebar-dashboard-link"
         >
-          <Icon name="arrow_back" size="sm" />
-          <span class="sidebar-btn-label">{t('sidebar.allProjects')}</span>
+          <Icon name="arrow_back" size="sm" /> {t('sidebar.allProjects')}
         </Button>
 
         {/* Project name/header */}
@@ -182,8 +181,7 @@ export function Sidebar({
           }}
           className="sidebar-action"
         >
-          <Icon name="description" size="sm" />
-          <span class="sidebar-btn-label">{t('sidebar.aboutProject')}</span>
+          <Icon name="description" size="sm" /> {t('sidebar.aboutProject')}
         </Button>
 
         {/* Settings Button */}
@@ -192,8 +190,7 @@ export function Sidebar({
           onClick={() => setShowSettings(true)}
           className="sidebar-action"
         >
-          <Icon name="settings" size="sm" />
-          <span class="sidebar-btn-label">{t('sidebar.projectSettings')}</span>
+          <Icon name="settings" size="sm" /> {t('sidebar.projectSettings')}
         </Button>
 
         {/* Find in project */}
@@ -202,23 +199,18 @@ export function Sidebar({
           onClick={() => setProjectSearchIsOpen(true)}
           className="sidebar-action"
         >
-          <Icon name="search" size="sm" />
-          <span class="sidebar-btn-label">
-            {t('searchReplace.findInProject', 'Find in project')}
-          </span>
+          <Icon name="search" size="sm" /> {t('searchReplace.findInProject', 'Find in project')}
         </Button>
 
         {/* Glossary - near top for quick access without scrolling */}
         <Button variant="secondary" onClick={onOpenGlossary} className="sidebar-action">
-          <Icon name="menu_book" size="sm" />
-          <span class="sidebar-btn-label">{t('sidebar.glossary')}</span>
+          <Icon name="menu_book" size="sm" /> {t('sidebar.glossary')}{' '}
           <span class="glossary-count">{project.glossary.length}</span>
         </Button>
 
         {onOpenReports && (
           <Button variant="secondary" onClick={onOpenReports} className="sidebar-action">
-            <Icon name="flag" size="sm" />
-            <span class="sidebar-btn-label">{t('sidebar.reports')}</span>
+            <Icon name="flag" size="sm" /> {t('sidebar.reports')}{' '}
             {reportsCount > 0 && <span class="sidebar-reports-badge">{reportsCount}</span>}
           </Button>
         )}

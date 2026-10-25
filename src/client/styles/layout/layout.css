@@ -41,8 +41,6 @@ main {
   background: var(--bg-primary);
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   box-sizing: border-box;
-  container-type: inline-size;
-  container-name: sidebar;
 }
 
 /* Flex children must be able to shrink to avoid horizontal overflow */
@@ -150,22 +148,11 @@ main {
 
   main.main-with-sidebar {
     width: 100%;
-    max-width: none;
-    padding: 1.5rem;
-    /* clip does not create a scroll container, so the sidebar can stick to the window */
-    overflow-x: clip;
-    overflow-y: visible;
+    max-width: min(var(--container-width-desktop), 100vw);
   }
 
   .sidebar {
-    position: sticky;
-    top: var(--header-height-tablet);
-    height: calc(100dvh - var(--header-height-tablet));
-    max-height: calc(100dvh - var(--header-height-tablet));
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    align-self: start;
+    min-height: calc(100vh - 88px);
   }
 }
 
@@ -187,5 +174,15 @@ main {
 
   .sidebar-overlay.active {
     top: 0;
+  }
+}
+
+/* Защита для очень маленьких desktop экранов (1024px - 1200px) */
+@media (min-width: 1024px) and (max-width: 1200px) {
+  main {
+    /* На очень маленьких desktop используем меньший gap */
+    gap: 1.5rem;
+    /* Гарантируем, что grid не сломается */
+    grid-template-columns: minmax(min(260px, 100%), 280px) minmax(0, 1fr);
   }
 }

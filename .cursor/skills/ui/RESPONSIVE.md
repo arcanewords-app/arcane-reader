@@ -54,15 +54,6 @@ Priority, high → low: logo → primary nav → actions (info, locale, auth) �
 - **≤767px:** hide credits chip; guest Log in is icon-only (`aria-label` kept). Desktop/tablet Log in is text only (no icon).
 - Do not shrink type until controls clip. Desktop ≥1024 uses one density — not a squeezed 1024–1200 band.
 
-## Author workspace shell
-
-Project overview and the chapter editor (`main.main-with-sidebar`) are a split view, not the catalog measure.
-
-- **Catalog, publication, reading** stay in `--container-width-desktop` (1200px). One text column; a wider sheet hurts the line.
-- **Workspace** fills the viewport. Sidebar is `--sidebar-width-desktop` (360px, a permanent drawer). The project or chapter column takes the rest. Do not add a 1024–1200 squeeze band; 1024 is the short floor of this one desktop density, 1280 is the sample.
-- **Scroll:** two regions. The sidebar is `sticky`, viewport-tall, and scrolls itself (actions and the chapter list). The document scrolls with the window. Do not nest a third scroller (no `max-height` on the chapter list, no overflow scroll on the chapter column).
-- **Line length:** original and translation columns share the work area and stop at `75ch`. Tablet sidebar (220–260px) is unchanged; short filter labels belong to a narrow sidebar via `@container`, not the viewport.
-
 ## Shared primitives
 
 | Primitive    | When                                                 |

@@ -27,7 +27,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: clip;
+  overflow-x: hidden;
   box-sizing: border-box;
 }
 
@@ -36,8 +36,8 @@
   .project-page-container,
   .chapter-page-container {
     display: grid;
-    grid-template-columns: var(--sidebar-width-desktop) minmax(0, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+    gap: 2rem;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -63,6 +63,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto;
   }
 
   .chapter-page-container #chapterView {
@@ -73,7 +74,7 @@
 
   .chapter-page-container #chapterView > .card.chapter-toolbar-card {
     position: sticky;
-    top: var(--header-height-tablet);
+    top: 0;
     z-index: 1;
     background: var(--bg-card);
   }
