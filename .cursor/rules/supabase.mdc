@@ -41,7 +41,20 @@ supabase/migrations/YYYYMMDDHHMMSS_short_snake_description.sql
 2. **Apply** via Supabase MCP `apply_migration`, Dashboard SQL Editor, or `supabase db push` (if CLI linked).
 3. **Document** in `@supabase/README.md` — add a row to the migration history table (filename, date, one-line summary). This is the committed audit trail when `.sql` files are gitignored.
 4. **Align app code** — `@src/storage/types.ts`, `@src/services/supabaseDatabase.ts`, RLS-sensitive routes.
-5. **Security** — follow `@.cursor/rules/security.mdc` and `@.cursor/skills/security/SKILL.md` (RLS `WITH CHECK`, `REVOKE`, `search_path`, trigger grants).
+5. **Security** — follow `@.cursor/rules/security.mdc` and `@.cursor/skills/security/SKILL.md` (RLS `WITH CHECK`, `REVOKE`, `search_path`, trigger grants, Data API grants below).
+
+## Data API grants (MUST)
+
+From **2026-10-30**, new tables, views, sequences, and functions in `public` are not granted to `anon`, `authenticated`, or `service_role`. Existing objects keep their current grants. The app reaches Postgres only through the Data API (`supabase-js`, including `createServiceRoleClient()`). `service_role` bypasses RLS, not a missing `GRANT`. PostgREST returns **42501** before RLS runs.
+
+In the same migration that creates the object:
+
+- Grant only the privileges the caller needs, to `authenticated` and/or `service_role`. Grant `anon` only for a public read.
+- Identity or `serial`: `GRANT USAGE, SELECT` on the sequence to the same roles that `INSERT`.
+- RPC the app calls: `GRANT EXECUTE` to the calling role. Trigger-only functions stay revoked from `anon`, `authenticated`, and `PUBLIC`.
+- Do not restore the old default with `ALTER DEFAULT PRIVILEGES` or `GRANT ... ON ALL TABLES IN SCHEMA public`. That re-exposes every new table and can widen column grants (`profiles.role`).
+
+`auto_expose_new_tables` in `supabase/config.toml` is a temporary CLI flag (removed 2026-10-30). Do not rely on it. A later `supabase db reset` replays migrations under the new default; stamp restore keeps grants already in the dump.
 
 ## Heavy RPC (`statement_timeout`)
 
@@ -61,6 +74,7 @@ supabase/migrations/YYYYMMDDHHMMSS_short_snake_description.sql
 ## Agents (MUST)
 
 - Before creating migration SQL, read this rule.
+- New `public` tables, views, sequences, and functions need an explicit Data API `GRANT` in the same file.
 - Never commit migration `.sql` files — they stay in the gitignored folder.
 - If MCP or Dashboard already applied a migration, still add the matching `.sql` under `supabase/migrations/` for local reference and update `supabase/README.md`.
 - Do not duplicate the same migration under multiple paths.

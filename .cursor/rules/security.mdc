@@ -20,6 +20,7 @@ How-to and checklists: `@.cursor/skills/security/SKILL.md`. Auth roles: `@.curso
 - Views over RLS tables: `ALTER VIEW ... SET (security_invoker = on)`.
 - `SECURITY DEFINER` functions: `SET search_path = ''` **and** schema-qualified object names (`public.table_name`).
 - Least privilege: `REVOKE EXECUTE` / write grants from `anon` and `PUBLIC` unless explicitly required and documented in `supabase/README.md`.
+- New `public` tables, views, sequences, and functions need an explicit Data API `GRANT` (no default privileges after 2026-10-30). `service_role` does not bypass a missing grant. See `@.cursor/rules/supabase.mdc` **Data API grants**. Do not `GRANT ... ON ALL TABLES` or `ALTER DEFAULT PRIVILEGES` to restore auto-expose.
 - Trigger-only functions MUST NOT be invokable via PostgREST RPC (`REVOKE EXECUTE FROM anon, authenticated, PUBLIC`).
 - After `CREATE OR REPLACE FUNCTION`, verify grants were not widened unintentionally.
 
@@ -47,6 +48,7 @@ Before merging a security-related migration:
 2. No new grants on privileged columns to client roles
 3. `SECURITY DEFINER`: empty `search_path` + qualified names
 4. RPC/trigger exposure reviewed (`REVOKE` from `anon` where appropriate)
-5. Smoke-test as `authenticated` and `anon` for affected views/RPC
-6. Update `supabase/README.md` migration table
-7. Re-run Supabase Security Advisor
+5. New `public` object: explicit Data API `GRANT` for the calling role only (`@.cursor/rules/supabase.mdc`)
+6. Smoke-test as `authenticated` and `anon` for affected views/RPC
+7. Update `supabase/README.md` migration table
+8. Re-run Supabase Security Advisor

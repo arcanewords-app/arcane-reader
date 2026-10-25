@@ -60,6 +60,11 @@ $$;
 
 ### Grants (least privilege)
 
+From **2026-10-30** Supabase does not auto-grant Data API roles on new `public` objects. A missing `GRANT` is **42501** even for `service_role`. Add an explicit grant for the roles that call the object; do not bulk-grant `anon` / `authenticated` / `service_role` or turn default privileges back on. Policy: `@.cursor/rules/supabase.mdc` **Data API grants**.
+
+- [ ] New table, view, sequence, or function in `public`: explicit `GRANT` for the Data API roles that use it (`authenticated` and/or `service_role`; `anon` only if public)
+- [ ] Identity or `serial`: `USAGE, SELECT` on the sequence for roles that `INSERT`
+- [ ] New RPC: `GRANT EXECUTE` to the calling role
 - [ ] `REVOKE EXECUTE ON FUNCTION ... FROM anon, PUBLIC` for server-only RPC helpers
 - [ ] `REVOKE INSERT/UPDATE` on privileged columns from `anon`, `authenticated`
 - [ ] Trigger-only functions (`prevent_role_change`, `handle_new_user`) — not callable via PostgREST RPC

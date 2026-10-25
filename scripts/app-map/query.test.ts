@@ -5,6 +5,7 @@ import {
   screenPathMatches,
   visualForScreen,
   visualHrefForHtml,
+  visualHrefForViewport,
 } from './query.js';
 import type { AppMap } from './types.js';
 
@@ -85,6 +86,13 @@ describe('app map query', () => {
     expect(visualHrefForHtml('/news/:slugOrId')).toBe(
       '../../../tests/e2e/specs/guest.visual.spec.ts-snapshots/guest-news-article-desktop.png'
     );
+    expect(visualHrefForViewport('/news/:slugOrId', 'phone')).toBe(
+      '../../../tests/e2e/specs/guest.visual.spec.ts-snapshots/guest-news-article-phone.png'
+    );
+    expect(visualHrefForViewport('/news/:slugOrId', 'tablet')).toContain(
+      'guest-news-article-tablet.png'
+    );
+    expect(visualHrefForViewport('/contact', 'phone')).toBeNull();
     expect(visualForScreen('/contact')).toBe('none');
     expect(visualForScreen('/privacy')).toBe('none');
     expect(visualForScreen('/admin/projects')).toBe('none');

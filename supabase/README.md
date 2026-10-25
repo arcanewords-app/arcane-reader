@@ -77,6 +77,7 @@ After security migrations, enable **Leaked password protection** in Supabase Das
 | `20261017102600_imports_storage_bucket.sql`                      | Private Storage bucket `imports` (50 MB) for chapter files uploaded past the Vercel body limit                                                                                                                                         |
 | `20261017120000_project_editions.sql`                            | Second-language tables: `project_editions`, `chapter_editions`, `paragraph_translations`, `publication_editions`. Reading progress key includes `target_language`. Applied via Supabase MCP to project `arcane` as `project_editions`. |
 | `20261017140000_glossary_translations.sql`                       | `glossary_translations`: translated form and declensions per glossary entry and target language. Primary forms stay on `glossary_entries`. Applied via Supabase MCP to project `arcane` as `glossary_translations`.                    |
+| `20261025112708_delete_chapters_batch.sql` (remote)              | `delete_chapters_batch`: delete a chapter id batch under caller RLS (CASCADE). `statement_timeout` 120s. Applied via Supabase MCP to project `arcane`. Local copy: `20261025120000_delete_chapters_batch.sql`.                         |
 
 ## Heavy RPC policy
 
@@ -87,6 +88,7 @@ Batch or loop RPC that touch many `chapters` / `paragraphs` rows must use a **fu
 | Function                            | Tier  | Timeout | Notes                                                          |
 | ----------------------------------- | ----- | ------- | -------------------------------------------------------------- |
 | `mark_chapters_as_translated_batch` | write | 120s    | Set-based UPDATE paragraphs + chapters; stable reason codes    |
+| `delete_chapters_batch`             | write | 120s    | Delete chapter ids in one statement; CASCADE children          |
 | `import_chapters_batch`             | write | 120s    | Insert chapters + split paragraphs                             |
 | `reorder_chapters`                  | write | 120s    | Mass UPDATE `chapters.number`                                  |
 | `renumber_chapters_atomic`          | write | 120s    | Renumber all chapters in project                               |

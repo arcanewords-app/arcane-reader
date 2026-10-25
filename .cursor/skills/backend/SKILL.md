@@ -39,6 +39,9 @@ description: Services, Supabase, Redis cache, BullMQ worker, import/export. Use 
 - Logging secrets or full row dumps
 - `SECURITY DEFINER` without `search_path = ''` and schema-qualified names — see `@.cursor/skills/security/SKILL.md`
 - `await Promise.resolve(syncFn())` (or `await syncFn()`) to silence oxlint `await-thenable`. If the function returns a value, not a Promise (e.g. `getAgentForProject`), call it without `await`. Fix tests that used `mockResolvedValue` — they should `mockReturnValue`. See `@.cursor/skills/testing/SKILL.md` § Mocking.
+- `getProject()` when the caller only needs ownership. It loads every chapter list row, the glossary, and used to reset stuck chapters, all under the 8s `authenticated` statement timeout. Use `projectExistsForUser`.
+- `resetStuckChapters` on a read path (`getProject`, project list). Reset stuck chapters on translate-job start and recovery (`resetStuckChaptersForRecovery`).
+- `mark_chapters_as_translated_batch` chunks larger than the default 25 (`MARK_TRANSLATED_BATCH_CHUNK_SIZE` / `MARK_TRANSLATED_CLIENT_CHUNK_SIZE`) unless a measured reason says otherwise. A larger chunk holds chapter and paragraph row locks longer than a chapter-list read can wait.
 
 ## Database size and schema cleanup
 

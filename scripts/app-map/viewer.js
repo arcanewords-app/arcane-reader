@@ -1,7 +1,12 @@
 const app = document.getElementById('app');
-const state = { role: 'guest', view: 'pitch', selected: null };
+const state = { role: 'guest', view: 'pitch', selected: null, viewport: 'desktop' };
 
 const rank = { guest: 0, user: 1, author: 2, admin: 3 };
+const viewports = [
+  { id: 'desktop', label: 'Десктоп' },
+  { id: 'tablet', label: 'Планшет' },
+  { id: 'phone', label: 'Телефон' },
+];
 
 function visibleScreens() {
   const max = rank[state.role] ?? 0;
@@ -49,6 +54,7 @@ function topbar() {
   brand.textContent = 'Arcane Reader';
   const views = div('views');
   views.append(viewButton('pitch', 'Презентация'), viewButton('board', 'Как устроено'));
+  views.append(viewportSwitch());
   bar.append(brand, views);
   return bar;
 }
@@ -63,6 +69,22 @@ function viewButton(id, label) {
     render();
   });
   return button;
+}
+
+function viewportSwitch() {
+  const group = div('devices');
+  for (const item of viewports) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = item.label;
+    if (state.viewport === item.id) button.className = 'is-on';
+    button.addEventListener('click', () => {
+      state.viewport = item.id;
+      render();
+    });
+    group.append(button);
+  }
+  return group;
 }
 
 function pitch() {
@@ -344,13 +366,21 @@ function callBlock(call) {
 }
 
 function shotImage(path, kind) {
-  const href = typeof VISUALS !== 'undefined' ? VISUALS[path] : null;
+  const href = shotHref(path);
   if (!href) return null;
   const image = document.createElement('img');
   image.className = kind === 'panel' ? 'shot shot-panel' : 'shot';
+  if (state.viewport !== 'desktop') image.classList.add('shot-narrow');
   image.src = href;
   image.alt = '';
   return image;
+}
+
+function shotHref(path) {
+  const href = typeof VISUALS !== 'undefined' ? VISUALS[path] : null;
+  if (!href) return null;
+  if (state.viewport === 'desktop') return href;
+  return href.replace(/-desktop\.png$/, `-${state.viewport}.png`);
 }
 
 function sectionTitle(text) {

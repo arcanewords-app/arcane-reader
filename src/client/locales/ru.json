@@ -212,7 +212,8 @@
     "selectedCount": "Выбрано: {{count}}",
     "deleteButton": "Удалить ({{count}})",
     "deleteAllWarning": "Будут удалены все главы проекта.",
-    "inProgressWarning": "{{count}} выбранных глав сейчас обрабатываются — удаление остановит эти задачи."
+    "inProgressWarning": "{{count}} выбранных глав сейчас обрабатываются — удаление остановит эти задачи.",
+    "progress": "Удаляем {{done}} из {{total}}"
   },
   "uploadTranslation": {
     "title": "Загрузить готовый перевод",

@@ -212,7 +212,8 @@
     "selectedCount": "Selected: {{count}}",
     "deleteButton": "Delete ({{count}})",
     "deleteAllWarning": "All chapters in this project will be deleted.",
-    "inProgressWarning": "{{count}} selected chapter(s) are currently being processed — deletion will stop those tasks."
+    "inProgressWarning": "{{count}} selected chapter(s) are currently being processed — deletion will stop those tasks.",
+    "progress": "Deleting {{done}} of {{total}}"
   },
   "uploadTranslation": {
     "title": "Upload ready-made translation",

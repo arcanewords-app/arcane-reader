@@ -33,7 +33,7 @@ export interface BatchProgress {
 }
 
 /** Client HTTP chunk size — keeps each request under Vercel maxDuration (~300s). */
-export const MARK_TRANSLATED_CLIENT_CHUNK_SIZE = 100;
+export const MARK_TRANSLATED_CLIENT_CHUNK_SIZE = 25;
 
 export function normalizeMarkTranslatedBatchReasonCode(reason: string | undefined): string | null {
   if (!reason?.trim()) return null;

@@ -4,6 +4,7 @@ import type { RouteDeps } from '../deps.js';
 
 const {
   mockGetProject,
+  mockProjectExistsForUser,
   mockVerifyChapterAccess,
   mockGetChapterStatusRow,
   mockGetChapter,
@@ -84,6 +85,7 @@ const {
 
   return {
     mockGetProject: vi.fn(),
+    mockProjectExistsForUser: vi.fn(),
     mockVerifyChapterAccess: vi.fn().mockResolvedValue(true),
     mockGetChapterStatusRow: vi.fn(),
     mockGetChapter: vi.fn(),
@@ -181,6 +183,7 @@ vi.mock('../../../logger.js', () => ({
 
 vi.mock('../../../services/supabase/domains/projects.js', () => ({
   getProject: mockGetProject,
+  projectExistsForUser: mockProjectExistsForUser,
   verifyChapterAccess: mockVerifyChapterAccess,
   getChapterStatusRow: mockGetChapterStatusRow,
   duplicateChaptersInProject: mockDuplicateChaptersInProject,
@@ -462,6 +465,7 @@ function resetDefaults() {
     sourceLanguage: 'en',
     targetLanguage: 'ru',
   });
+  mockProjectExistsForUser.mockResolvedValue(true);
   mockChapterHasTranslatingLock.mockImplementation(async (...args: unknown[]) => {
     const options = args[2] as { chapterStatus?: string } | undefined;
     return options?.chapterStatus === 'translating';
@@ -956,6 +960,8 @@ describe('chapterRouteHandlers', () => {
         res as never
       );
       assert.equal((res.body as { summary: { success: number } }).summary.success, 1);
+      assert.equal(mockGetProject.mock.calls.length, 0);
+      assert.equal(mockProjectExistsForUser.mock.calls.length, 1);
     });
 
     it('returns 401 when user missing', async () => {
@@ -974,13 +980,15 @@ describe('chapterRouteHandlers', () => {
     });
 
     it('returns 404 when project missing', async () => {
-      mockGetProject.mockResolvedValue(null);
+      mockProjectExistsForUser.mockResolvedValue(false);
       const res = mockRes();
       await handleMarkAsTranslatedBatch(
         mockReq({ body: { chapterIds: ['ch-1'] } }) as never,
         res as never
       );
       assert.equal(res.statusCode, 404);
+      assert.equal(mockGetProject.mock.calls.length, 0);
+      assert.equal(mockMarkChaptersAsTranslatedBatch.mock.calls.length, 0);
     });
 
     it('returns 500 on unexpected error', async () => {
@@ -1120,6 +1128,8 @@ describe('chapterRouteHandlers', () => {
       assert.equal(body.jobs.length, 2);
       assert.equal(body.jobs[0]?.type, 'analysis');
       assert.equal(body.jobs[1]?.type, 'translate');
+      assert.equal(mockGetProject.mock.calls.length, 0);
+      assert.equal(mockProjectExistsForUser.mock.calls.length, 1);
     });
 
     it('returns 401 when user missing', async () => {
@@ -1130,11 +1140,12 @@ describe('chapterRouteHandlers', () => {
     });
 
     it('returns 404 when project missing', async () => {
-      mockGetProject.mockResolvedValue(null);
+      mockProjectExistsForUser.mockResolvedValue(false);
       const handler = createHandleListProjectJobs(makeDeps());
       const res = mockRes();
       await handler(mockReq() as never, res as never);
       assert.equal(res.statusCode, 404);
+      assert.equal(mockGetProject.mock.calls.length, 0);
     });
   });
 

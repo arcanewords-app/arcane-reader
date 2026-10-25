@@ -36,6 +36,15 @@ export function visualForScreen(screenPath: string): string {
   return SCREEN_VISUALS[screenPath] ?? 'none';
 }
 
+export type ShotViewport = 'desktop' | 'tablet' | 'phone';
+
+/** Path from the map HTML to a viewport PNG. The agent query keeps desktop. */
+export function visualHrefForViewport(screenPath: string, viewport: ShotViewport): string | null {
+  const desktop = visualHrefForHtml(screenPath);
+  if (!desktop || viewport === 'desktop') return desktop;
+  return desktop.replace(/-desktop\.png$/, `-${viewport}.png`);
+}
+
 /** Path from `docs/01-reference/app-map/index.html` to the desktop PNG, or null. */
 export function visualHrefForHtml(screenPath: string): string | null {
   const path = visualForScreen(screenPath);

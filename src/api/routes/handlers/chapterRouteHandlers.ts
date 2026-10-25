@@ -14,6 +14,7 @@ import {
 } from '../../schemas/index.js';
 import {
   getProject,
+  projectExistsForUser,
   duplicateChaptersInProject,
   bulkDeleteChapters,
   verifyChapterAccess,
@@ -811,12 +812,9 @@ export async function handleMarkAsTranslatedBatch(req: Request, res: Response) {
     }
 
     const token = requireToken(req);
-    const project = await getProject(
-      requireRouteParam(req.params.projectId, 'projectId'),
-      req.user.id,
-      token
-    );
-    if (!project) {
+    const projectId = requireRouteParam(req.params.projectId, 'projectId');
+    const projectExists = await projectExistsForUser(projectId, req.user.id, token);
+    if (!projectExists) {
       return res.status(404).json({ error: 'Project not found' });
     }
 
@@ -839,7 +837,7 @@ export async function handleMarkAsTranslatedBatch(req: Request, res: Response) {
     for (let i = 0; i < chapterIds.length; i += MARK_TRANSLATED_BATCH_CHUNK_SIZE) {
       const chunk = chapterIds.slice(i, i + MARK_TRANSLATED_BATCH_CHUNK_SIZE);
       const chunkResult: MarkTranslatedBatchResult = await markChaptersAsTranslatedBatch(
-        requireRouteParam(req.params.projectId, 'projectId'),
+        projectId,
         chunk,
         token,
         { continueOnError }
@@ -856,16 +854,12 @@ export async function handleMarkAsTranslatedBatch(req: Request, res: Response) {
     }
 
     if (!parsed.data.options?.skipCacheInvalidation) {
-      await invalidateProjectAndRelatedCaches(
-        req.user.id,
-        requireRouteParam(req.params.projectId, 'projectId'),
-        token
-      );
+      await invalidateProjectAndRelatedCaches(req.user.id, projectId, token);
     }
     req.log?.info(
       {
         event: 'chapters.mark_translated.batch_completed',
-        projectId: requireRouteParam(req.params.projectId, 'projectId'),
+        projectId,
         total: aggregate.summary.total,
         processed: aggregate.summary.processed,
         success: aggregate.summary.success,
@@ -1117,8 +1111,8 @@ export function createHandleListProjectJobs(deps: RouteDeps) {
   return async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const projectId = requireRouteParam(req.params.projectId, 'projectId');
-    const project = await getProject(projectId, req.user.id, requireToken(req));
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const projectExists = await projectExistsForUser(projectId, req.user.id, requireToken(req));
+    if (!projectExists) return res.status(404).json({ error: 'Project not found' });
 
     const [analysisJobs, translateJobs] = await Promise.all([
       deps.analysisJobStore.listByProject(projectId),

@@ -22,7 +22,6 @@ import {
   getChaptersSummary,
   updateReaderSettings,
   getReaderSettings,
-  resetStuckChapters,
 } from '../../../services/supabase/domains/projects.js';
 import { createProjectFromCatalogRequest } from '../../../services/supabase/domains/catalogBoard.js';
 import {
@@ -62,20 +61,6 @@ export async function handleListProjects(req: Request, res: Response): Promise<v
     const user = req.user;
 
     const token = requireToken(req);
-
-    let resetCount = 0;
-    try {
-      resetCount = await resetStuckChapters(token, undefined);
-      if (resetCount > 0) {
-        req.log?.info(
-          { event: 'stuck_chapters.reset', count: resetCount },
-          `Reset ${resetCount} stuck chapter(s)`
-        );
-      }
-    } catch (resetErr) {
-      req.log?.error({ err: resetErr, phase: 'resetStuckChapters' }, 'resetStuckChapters failed');
-      throw resetErr;
-    }
 
     let projectList;
     try {

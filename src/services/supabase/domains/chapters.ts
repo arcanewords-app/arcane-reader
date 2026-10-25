@@ -520,6 +520,35 @@ export async function getChapter(
 }
 
 /**
+ * Delete chapters by id via `delete_chapters_batch` (120s statement timeout, CASCADE).
+ * Does not renumber. Callers renumber once after the batches they need.
+ */
+export async function deleteChaptersBatch(
+  projectId: string,
+  chapterIds: string[],
+  token: string
+): Promise<number> {
+  validateToken(token);
+  if (chapterIds.length === 0) return 0;
+
+  const client = createClientWithToken(token);
+  const { data, error } = await client.rpc('delete_chapters_batch', {
+    p_project_id: projectId,
+    p_chapter_ids: chapterIds,
+  });
+
+  if (error) {
+    throw new Error(`Failed to delete chapters: ${error.message}`);
+  }
+
+  const count = typeof data === 'number' ? data : Number(data);
+  if (!Number.isFinite(count)) {
+    throw new Error('Failed to delete chapters: invalid delete count');
+  }
+  return count;
+}
+
+/**
  * Delete a chapter
  * Note: Token is required for RLS authentication
  * @throws {Error} If token is required but not provided
@@ -538,16 +567,8 @@ export async function deleteChapter(
     return false;
   }
 
-  // Delete chapter (paragraphs will be deleted automatically via CASCADE)
-  const { error } = await client
-    .from('chapters')
-    .delete()
-    .eq('id', chapterId)
-    .eq('project_id', projectId);
-
-  if (error) {
-    throw new Error(`Failed to delete chapter: ${error.message}`);
-  }
+  // Paragraphs, editions, and quotes cascade inside the RPC.
+  await deleteChaptersBatch(projectId, [chapterId], token);
 
   // Renumber remaining chapters
   await renumberChapters(projectId, token);
@@ -819,7 +840,7 @@ export async function markChaptersAsTranslatedBatch(
     const statusRaw = String((row as Record<string, unknown>).status || '').toLowerCase();
     const status: MarkTranslatedBatchStatus =
       statusRaw === 'success' || statusRaw === 'failed' || statusRaw === 'skipped'
-        ? (statusRaw)
+        ? statusRaw
         : 'failed';
     const chapterId = String((row as Record<string, unknown>).chapter_id || '');
     const reasonRaw = (row as Record<string, unknown>).reason;

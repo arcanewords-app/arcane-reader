@@ -6,6 +6,9 @@ import { ChapterPickerPanel } from './ChapterPickerPanel';
 import { api, ApiError } from '../../api/client';
 import './CopyChaptersModal.css';
 
+/** Matches server `DELETE_CHAPTER_BATCH_SIZE` so one request is one RPC. */
+export const BULK_DELETE_CHAPTER_BATCH = 25;
+
 interface BulkDeleteChaptersModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,6 +26,7 @@ export function BulkDeleteChaptersModal({
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [pickerResetKey, setPickerResetKey] = useState(0);
   const [successModal, setSuccessModal] = useState<{ title: string; message: string } | null>(null);
   const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
@@ -57,18 +61,28 @@ export function BulkDeleteChaptersModal({
 
   const handleDelete = useCallback(async () => {
     if (selectedChapterIds.length === 0) return;
+    const ids = selectedChapterIds;
     setDeleting(true);
+    setProgress({ done: 0, total: ids.length });
+    let deleted = 0;
     try {
-      const result = await api.bulkDeleteChapters(project.id, selectedChapterIds);
+      for (let offset = 0; offset < ids.length; offset += BULK_DELETE_CHAPTER_BATCH) {
+        const chunk = ids.slice(offset, offset + BULK_DELETE_CHAPTER_BATCH);
+        const result = await api.bulkDeleteChapters(project.id, chunk);
+        deleted += result.deleted;
+        setProgress({ done: Math.min(offset + chunk.length, ids.length), total: ids.length });
+      }
       setShowConfirm(false);
       onClose();
       await onSuccess();
       setSuccessModal({
         title: t('chapterActions.deleteSuccessTitle'),
-        message: t('chapterActions.deleteSuccessMessage', { count: result.deleted }),
+        message: t('chapterActions.deleteSuccessMessage', { count: deleted }),
       });
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'INVALID_CHAPTER_IDS') {
+      const refreshList =
+        deleted > 0 || (err instanceof ApiError && err.code === 'INVALID_CHAPTER_IDS');
+      if (refreshList) {
         await onSuccess();
       }
       setShowConfirm(false);
@@ -78,6 +92,7 @@ export function BulkDeleteChaptersModal({
       });
     } finally {
       setDeleting(false);
+      setProgress(null);
     }
   }, [selectedChapterIds, project.id, onClose, onSuccess, t]);
 
@@ -107,7 +122,11 @@ export function BulkDeleteChaptersModal({
           </div>
         }
       >
-        <p class="copy-chapters-hint">{t('bulkDeleteChapters.hint')}</p>
+        <p class="copy-chapters-hint">
+          {progress
+            ? t('bulkDeleteChapters.progress', { done: progress.done, total: progress.total })
+            : t('bulkDeleteChapters.hint')}
+        </p>
 
         <ChapterPickerPanel
           chapters={chaptersSorted}
@@ -123,7 +142,11 @@ export function BulkDeleteChaptersModal({
         onClose={() => !deleting && setShowConfirm(false)}
         onConfirm={handleDelete}
         title={t('chapterActions.deleteConfirmTitle')}
-        message={confirmMessage}
+        message={
+          deleting && progress
+            ? t('bulkDeleteChapters.progress', { done: progress.done, total: progress.total })
+            : confirmMessage
+        }
         confirmLabel={t('common.delete')}
         variant="danger"
         loading={deleting}

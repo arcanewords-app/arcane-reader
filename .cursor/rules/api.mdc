@@ -50,6 +50,7 @@ Any route that calls Supabase or other external services **must** use `handleSer
 
 - Supabase: `@src/services/supabaseDatabase.ts`. Types: `@src/storage/types.ts`.
 - snake_case for columns. Use existing DB functions.
+- A handler that only needs to know the caller owns the project MUST use `projectExistsForUser`, not `getProject()`. `getProject()` loads the chapter list under the 8s `authenticated` statement timeout.
 
 ## Middleware
 

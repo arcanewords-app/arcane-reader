@@ -77,6 +77,7 @@ Choose the layer per `@.cursor/skills/testing/SKILL.md` (“Choose the layer fir
 - Business logic bloating route handlers (move to services)
 - Logging tokens, API keys, or full PII bodies
 - Missing ownership checks on user-supplied object ids (BOLA) — see `@.cursor/skills/security/SKILL.md`
+- `getProject()` only to 404 when the handler does not use the chapter list or glossary. That read hits the 8s `authenticated` statement timeout on large projects. Use `projectExistsForUser` — see `@.cursor/skills/backend/SKILL.md`.
 
 ## Planned extensions
 

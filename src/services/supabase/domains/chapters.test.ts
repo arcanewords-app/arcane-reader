@@ -31,6 +31,7 @@ vi.mock('../loaders.js', () => ({
 import {
   addChapter,
   deleteChapter,
+  deleteChaptersBatch,
   getChapter,
   importChaptersBatch,
   markChaptersAsTranslatedBatch,
@@ -356,6 +357,38 @@ describe('updateChapter', () => {
   });
 });
 
+describe('deleteChaptersBatch', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 0 without calling RPC when ids are empty', async () => {
+    const count = await deleteChaptersBatch('proj-1', [], 'token');
+    assert.equal(count, 0);
+    assert.equal(mockRpc.mock.calls.length, 0);
+  });
+
+  it('calls delete_chapters_batch and returns the count', async () => {
+    mockRpc.mockResolvedValue({ data: 2, error: null });
+
+    const count = await deleteChaptersBatch('proj-1', ['ch-1', 'ch-2'], 'token');
+    assert.equal(count, 2);
+    assert.deepEqual(mockRpc.mock.calls[0], [
+      'delete_chapters_batch',
+      { p_project_id: 'proj-1', p_chapter_ids: ['ch-1', 'ch-2'] },
+    ]);
+  });
+
+  it('throws when RPC fails', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'delete fail' } });
+
+    await assert.rejects(
+      () => deleteChaptersBatch('proj-1', ['ch-1'], 'token'),
+      /Failed to delete chapters: delete fail/
+    );
+  });
+});
+
 describe('deleteChapter', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -374,43 +407,39 @@ describe('deleteChapter', () => {
     assert.equal(mockRpc.mock.calls.length, 0);
   });
 
-  it('deletes chapter, renumbers, and updates project', async () => {
+  it('deletes chapter via RPC, renumbers, and updates project', async () => {
     const getChain = chainable({ data: chapterRow, error: null });
-    const deleteChain = chainable({ data: null, error: null });
     const projectUpdateChain = chainable({ data: null, error: null });
     let fromCall = 0;
     mockFrom.mockImplementation(() => {
       fromCall += 1;
-      if (fromCall === 1) return getChain;
-      if (fromCall === 2) return deleteChain;
-      return projectUpdateChain;
+      return fromCall === 1 ? getChain : projectUpdateChain;
     });
     mockLoadParagraphsForChapter.mockResolvedValue([paragraphFixture]);
-    mockRpc.mockResolvedValue({ data: null, error: null });
+    mockRpc.mockResolvedValue({ data: 1, error: null });
 
     const deleted = await deleteChapter('proj-1', 'ch-1', 'token');
     assert.equal(deleted, true);
-    assert.equal(deleteChain.delete.mock.calls.length, 1);
-    assert.equal(mockRpc.mock.calls[0]?.[0], 'renumber_chapters_atomic');
+    assert.equal(mockRpc.mock.calls[0]?.[0], 'delete_chapters_batch');
+    assert.deepEqual(mockRpc.mock.calls[0]?.[1], {
+      p_project_id: 'proj-1',
+      p_chapter_ids: ['ch-1'],
+    });
+    assert.equal(mockRpc.mock.calls[1]?.[0], 'renumber_chapters_atomic');
+    assert.equal(projectUpdateChain.update.mock.calls.length, 1);
   });
 
-  it('throws when delete query fails', async () => {
+  it('throws when delete RPC fails', async () => {
     const getChain = chainable({ data: chapterRow, error: null });
-    const deleteChain = chainable({
-      data: null,
-      error: { message: 'delete fail' },
-    });
-    let fromCall = 0;
-    mockFrom.mockImplementation(() => {
-      fromCall += 1;
-      return fromCall === 1 ? getChain : deleteChain;
-    });
+    mockFrom.mockReturnValue(getChain);
     mockLoadParagraphsForChapter.mockResolvedValue([paragraphFixture]);
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'delete fail' } });
 
     await assert.rejects(
       () => deleteChapter('proj-1', 'ch-1', 'token'),
-      /Failed to delete chapter/
+      /Failed to delete chapters: delete fail/
     );
+    assert.equal(mockRpc.mock.calls.length, 1);
   });
 });
 

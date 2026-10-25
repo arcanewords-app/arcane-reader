@@ -257,7 +257,7 @@ describe('projectRouteHandlers', () => {
       const res = mockRes();
       await handleListProjects(mockReq() as never, res as never);
       assert.deepEqual(res.body, [{ id: 'proj-1', name: 'Test' }]);
-      assert.equal(mockResetStuckChapters.mock.calls[0]?.[0], 'bearer-token');
+      assert.equal(mockResetStuckChapters.mock.calls.length, 0);
       assert.equal(mockGetAllProjectsLightweight.mock.calls[0]?.[0], 'user-1');
     });
 
@@ -268,7 +268,6 @@ describe('projectRouteHandlers', () => {
     });
 
     it('returns 500 on unexpected error', async () => {
-      mockResetStuckChapters.mockResolvedValue(0);
       mockGetAllProjectsLightweight.mockRejectedValue(new Error('db down'));
       const res = mockRes();
       await handleListProjects(mockReq() as never, res as never);

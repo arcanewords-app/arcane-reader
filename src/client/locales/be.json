@@ -212,7 +212,8 @@
     "selectedCount": "Выбрана: {{count}}",
     "deleteButton": "Выдаліць ({{count}})",
     "deleteAllWarning": "Будуць выдалены ўсе раздзелы праекта.",
-    "inProgressWarning": "{{count}} выбраных раздзелаў зараз апрацоўваюцца — выдаленне спыніць гэтыя задачы."
+    "inProgressWarning": "{{count}} выбраных раздзелаў зараз апрацоўваюцца — выдаленне спыніць гэтыя задачы.",
+    "progress": "Выдаляем {{done}} з {{total}}"
   },
   "uploadTranslation": {
     "title": "Загрузіць гатовы пераклад",

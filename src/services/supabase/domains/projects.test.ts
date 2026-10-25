@@ -32,6 +32,7 @@ const {
   mockLoadGlossaryForProject,
   mockLoadParagraphsForChapterIds,
   mockRenumberChapters,
+  mockDeleteChaptersBatch,
   mockLoadGlossaryForProjectPublic,
 } = vi.hoisted(() => ({
   mockLoadChaptersForProject: vi.fn().mockResolvedValue([]),
@@ -39,6 +40,7 @@ const {
   mockLoadGlossaryForProject: vi.fn().mockResolvedValue([]),
   mockLoadParagraphsForChapterIds: vi.fn().mockResolvedValue(new Map()),
   mockRenumberChapters: vi.fn().mockResolvedValue(undefined),
+  mockDeleteChaptersBatch: vi.fn(async (_projectId: string, ids: string[]) => ids.length),
   mockLoadGlossaryForProjectPublic: vi.fn().mockResolvedValue([]),
 }));
 
@@ -60,6 +62,7 @@ vi.mock('../../storage.js', () => ({
 
 vi.mock('./chapters.js', () => ({
   renumberChapters: (...args: unknown[]) => mockRenumberChapters(...args),
+  deleteChaptersBatch: (...args: unknown[]) => mockDeleteChaptersBatch(...args),
 }));
 
 import {
@@ -75,6 +78,7 @@ import {
   getChapterStatusRow,
   getChaptersSummary,
   getProject,
+  projectExistsForUser,
   getProjectFull,
   getProjectFullForRecovery,
   getReaderSettings,
@@ -655,16 +659,11 @@ describe('getProject', () => {
     assert.equal(mockLoadChaptersForProjectLightweight.mock.calls.length, 0);
   });
 
-  it('loads project via loaders after resetStuckChapters', async () => {
+  it('loads project via lightweight chapter and glossary loaders', async () => {
     const projectRow = mockProjectRow();
-    const projectChain = chainable({ data: projectRow, error: null });
-    const stuckSelectChain = chainable({ data: [], error: null });
-    let fromCall = 0;
     mockFrom.mockImplementation((table: string) => {
-      fromCall += 1;
-      if (table === 'projects' && fromCall === 1) return projectChain;
-      if (table === 'chapters') return stuckSelectChain;
-      throw new Error(`unexpected table ${table} call ${fromCall}`);
+      if (table === 'projects') return chainable({ data: projectRow, error: null });
+      throw new Error(`unexpected table ${table}`);
     });
     mockLoadChaptersForProjectLightweight.mockResolvedValue([
       { id: 'ch-1', number: 1, title: 'Ch1', status: 'pending', paragraphs: [] },
@@ -697,6 +696,30 @@ describe('getProject', () => {
     );
     const project = await getProject('proj-1', 'user-1', 'token');
     assert.equal(project, undefined);
+  });
+});
+
+describe('projectExistsForUser', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns true when the project row belongs to the user', async () => {
+    mockFrom.mockReturnValue(chainable({ data: { id: 'proj-1' }, error: null }));
+    assert.equal(await projectExistsForUser('proj-1', 'user-1', 'token'), true);
+  });
+
+  it('returns false when no row matches', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: null }));
+    assert.equal(await projectExistsForUser('missing', 'user-1', 'token'), false);
+  });
+
+  it('throws when the query fails', async () => {
+    mockFrom.mockReturnValue(chainable({ data: null, error: { message: 'db fail' } }));
+    await assert.rejects(
+      () => projectExistsForUser('proj-1', 'user-1', 'token'),
+      /Failed to check project access/
+    );
   });
 });
 
@@ -1185,46 +1208,71 @@ describe('transferChaptersFromProject', () => {
 describe('bulkDeleteChapters', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    mockDeleteChaptersBatch.mockImplementation(
+      async (_projectId: string, ids: string[]) => ids.length
+    );
   });
 
-  it('returns 0 for empty chapter id list', async () => {
-    const selectChain = chainable({ data: [], error: null });
-    const deleteChain = chainable({ data: null, error: null });
-    const projectUpdateChain = chainable({ data: null, error: null });
-    let call = 0;
-    mockFrom.mockImplementation((table: string) => {
-      call += 1;
-      if (table === 'chapters' && call === 1) return selectChain;
-      if (table === 'chapters' && call === 2) return deleteChain;
-      if (table === 'projects') return projectUpdateChain;
-      throw new Error(`unexpected table ${table} call ${call}`);
-    });
-
+  it('returns 0 for empty chapter id list and still renumbers', async () => {
     const count = await bulkDeleteChapters('proj-1', [], 'token');
     assert.equal(count, 0);
+    assert.equal(mockDeleteChaptersBatch.mock.calls.length, 0);
     assert.equal(mockRenumberChapters.mock.calls.length, 1);
   });
 
-  it('deletes chapters, renumbers, and returns deleted count', async () => {
-    const selectChain = chainable({
-      data: [{ id: 'ch-1' }, { id: 'ch-2' }],
-      error: null,
-    });
-    const deleteChain = chainable({ data: null, error: null });
-    const projectUpdateChain = chainable({ data: null, error: null });
-    let call = 0;
-    mockFrom.mockImplementation((table: string) => {
-      call += 1;
-      if (table === 'chapters' && call === 1) return selectChain;
-      if (table === 'chapters' && call === 2) return deleteChain;
-      if (table === 'projects') return projectUpdateChain;
-      throw new Error(`unexpected table ${table} call ${call}`);
-    });
+  it('deletes chapters in one batch, renumbers, and returns deleted count', async () => {
+    mockFrom.mockReturnValue(
+      chainable({
+        data: [{ id: 'ch-1' }, { id: 'ch-2' }],
+        error: null,
+      })
+    );
 
     const count = await bulkDeleteChapters('proj-1', ['ch-1', 'ch-2'], 'token');
     assert.equal(count, 2);
-    assert.equal(deleteChain.delete.mock.calls.length, 1);
+    assert.equal(mockDeleteChaptersBatch.mock.calls.length, 1);
+    assert.deepEqual(mockDeleteChaptersBatch.mock.calls[0]?.[1], ['ch-1', 'ch-2']);
     assert.deepEqual(mockRenumberChapters.mock.calls[0], ['proj-1', 'token']);
+  });
+
+  it('splits ids into batches of 25', async () => {
+    const ids = Array.from({ length: 26 }, (_, index) => `ch-${index}`);
+    mockFrom.mockReturnValue(
+      chainable({
+        data: ids.map((id) => ({ id })),
+        error: null,
+      })
+    );
+
+    const count = await bulkDeleteChapters('proj-1', ids, 'token');
+    assert.equal(count, 26);
+    assert.equal(mockDeleteChaptersBatch.mock.calls.length, 2);
+    const firstBatch = mockDeleteChaptersBatch.mock.calls[0]?.[1];
+    const secondBatch = mockDeleteChaptersBatch.mock.calls[1]?.[1];
+    assert.ok(Array.isArray(firstBatch));
+    assert.ok(Array.isArray(secondBatch));
+    assert.equal(firstBatch.length, 25);
+    assert.equal(secondBatch.length, 1);
+    assert.equal(mockRenumberChapters.mock.calls.length, 1);
+  });
+
+  it('renumbers when a later batch fails', async () => {
+    const ids = Array.from({ length: 26 }, (_, index) => `ch-${index}`);
+    mockFrom.mockReturnValue(
+      chainable({
+        data: ids.map((id) => ({ id })),
+        error: null,
+      })
+    );
+    mockDeleteChaptersBatch
+      .mockResolvedValueOnce(25)
+      .mockRejectedValueOnce(
+        new Error('Failed to delete chapters: canceling statement due to statement timeout')
+      );
+
+    await assert.rejects(() => bulkDeleteChapters('proj-1', ids, 'token'), /statement timeout/);
+    assert.equal(mockDeleteChaptersBatch.mock.calls.length, 2);
+    assert.equal(mockRenumberChapters.mock.calls.length, 1);
   });
 
   it('throws when chapter verification query fails', async () => {
@@ -1238,6 +1286,7 @@ describe('bulkDeleteChapters', () => {
       () => bulkDeleteChapters('proj-1', ['ch-1'], 'token'),
       /Failed to verify chapters/
     );
+    assert.equal(mockRenumberChapters.mock.calls.length, 0);
   });
 
   it('throws INVALID_CHAPTER_IDS when not all ids belong to project', async () => {
@@ -1254,22 +1303,20 @@ describe('bulkDeleteChapters', () => {
         return true;
       }
     );
+    assert.equal(mockDeleteChaptersBatch.mock.calls.length, 0);
+    assert.equal(mockRenumberChapters.mock.calls.length, 0);
   });
 
   it('throws when delete query fails', async () => {
-    const selectChain = chainable({ data: [{ id: 'ch-1' }], error: null });
-    const deleteChain = chainable({ data: null, error: { message: 'delete fail' } });
-    let call = 0;
-    mockFrom.mockImplementation((table: string) => {
-      call += 1;
-      if (table === 'chapters' && call === 1) return selectChain;
-      if (table === 'chapters') return deleteChain;
-      throw new Error(`unexpected table ${table} call ${call}`);
-    });
+    mockFrom.mockReturnValue(chainable({ data: [{ id: 'ch-1' }], error: null }));
+    mockDeleteChaptersBatch.mockRejectedValueOnce(
+      new Error('Failed to delete chapters: delete fail')
+    );
     await assert.rejects(
       () => bulkDeleteChapters('proj-1', ['ch-1'], 'token'),
       /Failed to delete chapters/
     );
+    assert.equal(mockRenumberChapters.mock.calls.length, 1);
   });
 });
 
@@ -1552,14 +1599,12 @@ describe('updateReaderSettings', () => {
       settings: { reader: { fontSize: 16, lineHeight: 1.6 } },
     });
     const projectChain = chainable({ data: projectRow, error: null });
-    const stuckSelectChain = chainable({ data: [], error: null });
     const updateChain = chainable({ data: null, error: { message: 'update fail' } });
     let fromCall = 0;
     mockFrom.mockImplementation((table: string) => {
       fromCall += 1;
       if (table === 'projects' && fromCall === 1) return projectChain;
-      if (table === 'chapters') return stuckSelectChain;
-      if (table === 'projects' && fromCall === 3) return updateChain;
+      if (table === 'projects' && fromCall === 2) return updateChain;
       throw new Error(`unexpected table ${table} call ${fromCall}`);
     });
     mockLoadChaptersForProjectLightweight.mockResolvedValue([]);
@@ -1576,14 +1621,12 @@ describe('updateReaderSettings', () => {
       settings: { reader: { fontSize: 16, lineHeight: 1.6 } },
     });
     const projectChain = chainable({ data: projectRow, error: null });
-    const stuckSelectChain = chainable({ data: [], error: null });
     const updateChain = chainable({ data: null, error: null });
     let fromCall = 0;
     mockFrom.mockImplementation((table: string) => {
       fromCall += 1;
       if (table === 'projects' && fromCall === 1) return projectChain;
-      if (table === 'chapters') return stuckSelectChain;
-      if (table === 'projects' && fromCall === 3) return updateChain;
+      if (table === 'projects' && fromCall === 2) return updateChain;
       throw new Error(`unexpected table ${table} call ${fromCall}`);
     });
     mockLoadChaptersForProjectLightweight.mockResolvedValue([]);
@@ -1599,14 +1642,12 @@ describe('updateReaderSettings', () => {
       settings: { reader: { fontSize: 16, lineHeight: 1.6 } },
     });
     const projectChain = chainable({ data: projectRow, error: null });
-    const stuckSelectChain = chainable({ data: [], error: null });
     const updateChain = chainable({ data: null, error: null });
     let fromCall = 0;
     mockFrom.mockImplementation((table: string) => {
       fromCall += 1;
       if (table === 'projects' && fromCall === 1) return projectChain;
-      if (table === 'chapters') return stuckSelectChain;
-      if (table === 'projects' && fromCall === 3) return updateChain;
+      if (table === 'projects' && fromCall === 2) return updateChain;
       throw new Error(`unexpected table ${table} call ${fromCall}`);
     });
     mockLoadChaptersForProjectLightweight.mockResolvedValue([]);
@@ -1621,14 +1662,12 @@ describe('updateReaderSettings', () => {
       settings: { reader: { fontSize: 16, lineHeight: 1.6 } },
     });
     const projectChain = chainable({ data: projectRow, error: null });
-    const stuckSelectChain = chainable({ data: [], error: null });
     const updateChain = chainable({ data: null, error: null });
     let fromCall = 0;
     mockFrom.mockImplementation((table: string) => {
       fromCall += 1;
       if (table === 'projects' && fromCall === 1) return projectChain;
-      if (table === 'chapters') return stuckSelectChain;
-      if (table === 'projects' && fromCall === 3) return updateChain;
+      if (table === 'projects' && fromCall === 2) return updateChain;
       throw new Error(`unexpected table ${table} call ${fromCall}`);
     });
     mockLoadChaptersForProjectLightweight.mockResolvedValue([]);
@@ -1645,14 +1684,12 @@ describe('updateReaderSettings', () => {
       },
     });
     const projectChain = chainable({ data: projectRow, error: null });
-    const stuckSelectChain = chainable({ data: [], error: null });
     const updateChain = chainable({ data: null, error: null });
     let fromCall = 0;
     mockFrom.mockImplementation((table: string) => {
       fromCall += 1;
       if (table === 'projects' && fromCall === 1) return projectChain;
-      if (table === 'chapters') return stuckSelectChain;
-      if (table === 'projects' && fromCall === 3) return updateChain;
+      if (table === 'projects' && fromCall === 2) return updateChain;
       throw new Error(`unexpected table ${table} call ${fromCall}`);
     });
     mockLoadChaptersForProjectLightweight.mockResolvedValue([]);

@@ -70,7 +70,7 @@ import {
   loadParagraphsForChapterIds,
   loadGlossaryForProjectPublic,
 } from '../loaders.js';
-import { renumberChapters } from './chapters.js';
+import { deleteChaptersBatch, renumberChapters } from './chapters.js';
 
 /**
  * Get all projects for a user (lightweight - no chapters, paragraphs, or glossary).
@@ -198,6 +198,9 @@ export async function getAllProjects(userId: string, token: string): Promise<Pro
 }
 
 const CLONE_CHAPTER_BATCH_SIZE = 25;
+
+/** Chapter ids per `delete_chapters_batch` call. Keeps one CASCADE under the 120s RPC timeout. */
+const DELETE_CHAPTER_BATCH_SIZE = 25;
 
 async function insertCloneParagraphRows(
   client: SupabaseClient,
@@ -881,7 +884,8 @@ export async function duplicateChaptersInProject(
 }
 
 /**
- * Delete multiple chapters in one operation (renumber once at the end).
+ * Delete multiple chapters in batches, then renumber once.
+ * Renumber still runs when a later batch fails, so remaining numbers stay sequential.
  */
 export async function bulkDeleteChapters(
   projectId: string,
@@ -892,39 +896,67 @@ export async function bulkDeleteChapters(
   const client = createClientWithToken(token);
   const uniqueIds = [...new Set(chapterIds)];
 
-  const { data: chapters, error: loadError } = await client
-    .from('chapters')
-    .select('id')
-    .eq('project_id', projectId)
-    .in('id', uniqueIds);
+  if (uniqueIds.length > 0) {
+    const { data: chapters, error: loadError } = await client
+      .from('chapters')
+      .select('id')
+      .eq('project_id', projectId)
+      .in('id', uniqueIds);
 
-  if (loadError) {
-    throw new Error(`Failed to verify chapters: ${loadError.message}`);
+    if (loadError) {
+      throw new Error(`Failed to verify chapters: ${loadError.message}`);
+    }
+
+    if (!chapters || chapters.length !== uniqueIds.length) {
+      throw createInvalidChapterIdsError();
+    }
   }
 
-  if (!chapters || chapters.length !== uniqueIds.length) {
-    throw createInvalidChapterIdsError();
+  let deleted = 0;
+  try {
+    for (let offset = 0; offset < uniqueIds.length; offset += DELETE_CHAPTER_BATCH_SIZE) {
+      const chunk = uniqueIds.slice(offset, offset + DELETE_CHAPTER_BATCH_SIZE);
+      deleted += await deleteChaptersBatch(projectId, chunk, token);
+    }
+  } finally {
+    await renumberChapters(projectId, token);
+    if (deleted > 0) {
+      await client.from('projects').update({}).eq('id', projectId);
+    }
   }
-
-  const { error: deleteError } = await client
-    .from('chapters')
-    .delete()
-    .eq('project_id', projectId)
-    .in('id', uniqueIds);
-
-  if (deleteError) {
-    throw new Error(`Failed to delete chapters: ${deleteError.message}`);
-  }
-
-  await renumberChapters(projectId, token);
-  await client.from('projects').update({}).eq('id', projectId);
 
   logger.info(
-    { event: 'chapters.bulk_deleted', projectId, count: uniqueIds.length },
-    `Bulk deleted ${uniqueIds.length} chapter(s)`
+    { event: 'chapters.bulk_deleted', projectId, count: deleted },
+    `Bulk deleted ${deleted} chapter(s)`
   );
 
-  return uniqueIds.length;
+  return deleted;
+}
+
+/**
+ * Ownership check without loading chapters or glossary.
+ * Use this when a handler only needs 404 vs proceed. `getProject` loads the chapter list.
+ */
+export async function projectExistsForUser(
+  projectId: string,
+  userId: string,
+  token: string
+): Promise<boolean> {
+  validateToken(token);
+  const client = createClientWithToken(token);
+
+  const { data, error } = await client
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to check project access: ${error.message}`);
+  }
+
+  return data != null;
 }
 
 /**
@@ -956,9 +988,6 @@ export async function getProject(
   if (!project) {
     return undefined;
   }
-
-  // Reset stuck chapters
-  await resetStuckChapters(token, id);
 
   // Load lightweight chapters and glossary (no paragraphs, no text)
   const [chapters, glossary] = await Promise.all([
@@ -1299,7 +1328,7 @@ export async function updateReaderSettings(
  * Get reader settings from project (with defaults and legacy migration)
  */
 export function getReaderSettings(project: Project | ProjectWithChapterList): ReaderSettings {
-  return getReaderSettingsFromStorage(project as Project);
+  return getReaderSettingsFromStorage(project);
 }
 
 /**

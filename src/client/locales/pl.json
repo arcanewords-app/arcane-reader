@@ -202,7 +202,8 @@
     "selectedCount": "Wybrano: {{count}}",
     "deleteButton": "Usuń ({{count}})",
     "deleteAllWarning": "Wszystkie rozdziały w tym projekcie zostaną usunięte.",
-    "inProgressWarning": "{{count}} wybranych rozdziałów jest obecnie przetwarzanych — usunięcie zatrzyma te zadania."
+    "inProgressWarning": "{{count}} wybranych rozdziałów jest obecnie przetwarzanych — usunięcie zatrzyma te zadania.",
+    "progress": "Usuwanie {{done}} z {{total}}"
   },
   "uploadTranslation": {
     "title": "Prześlij gotowe tłumaczenie",
