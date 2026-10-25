@@ -2445,8 +2445,7 @@
       "handler": "handleListProjects",
       "handlerFile": "src/api/routes/handlers/projectRouteHandlers.ts",
       "services": [
-        "projects.getAllProjectsLightweight",
-        "projects.resetStuckChapters"
+        "projects.getAllProjectsLightweight"
       ],
       "tags": []
     },
@@ -2560,7 +2559,7 @@
       "handler": "createHandleListProjectJobs",
       "handlerFile": "src/api/routes/handlers/chapterRouteHandlers.ts",
       "services": [
-        "projects.getProject"
+        "projects.projectExistsForUser"
       ],
       "tags": []
     },
