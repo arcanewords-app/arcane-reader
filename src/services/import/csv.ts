@@ -9,31 +9,50 @@
  */
 
 import { parse } from 'csv-parse/sync';
+import {
+  importedTitleLooksLikeBody,
+  normalizeImportedChapterFields,
+} from '../../shared/chapterTitle.js';
 import type { ParseResult } from './types.js';
 
 const TEXT_COLUMN_ALIASES = ['text', 'content', 'body', 'chapter'];
+const TITLE_HELD_BODY_WARNING =
+  'Заголовок содержал текст главы. Название заменено, текст сохранён в теле.';
 
 function buildChaptersFromRecords(
   records: Record<string, string>[],
   getTitle: (record: Record<string, string>, index: number) => string,
   getContent: (record: Record<string, string>) => string
-): { chapters: ParseResult['chapters']; skipped: number } {
+): { chapters: ParseResult['chapters']; skipped: number; repaired: boolean } {
   const chapters: ParseResult['chapters'] = [];
   let skipped = 0;
+  let repaired = false;
   for (let i = 0; i < records.length; i++) {
     const record = records[i];
-    const content = getContent(record);
-    if (!content.trim()) {
+    const rawTitle = getTitle(record, i).trim();
+    const rawContent = getContent(record).trim();
+    if (!rawContent && !(rawTitle && importedTitleLooksLikeBody(rawTitle))) {
       skipped++;
       continue;
     }
+    const normalized = normalizeImportedChapterFields(rawTitle, rawContent, chapters.length + 1);
+    if (!normalized.content) {
+      skipped++;
+      continue;
+    }
+    if (normalized.repaired) repaired = true;
     chapters.push({
-      title: getTitle(record, i) || `Глава ${chapters.length + 1}`,
+      title: normalized.title,
       number: chapters.length + 1,
-      content: content.trim(),
+      content: normalized.content,
     });
   }
-  return { chapters, skipped };
+  return { chapters, skipped, repaired };
+}
+
+function appendTitleRepairWarning(warnings: string[], repaired: boolean): string[] | undefined {
+  if (repaired) warnings.push(TITLE_HELD_BODY_WARNING);
+  return warnings.length > 0 ? warnings : undefined;
 }
 
 /**
@@ -83,7 +102,7 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
 
   // 1. Standard format: title + text
   if (hasTitle && hasText) {
-    const { chapters, skipped } = buildChaptersFromRecords(
+    const { chapters, skipped, repaired } = buildChaptersFromRecords(
       records,
       (r) => String(r.title ?? r.Title ?? '').trim(),
       (r) => String(r.text ?? r.Text ?? '')
@@ -102,7 +121,7 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
       format: 'csv',
       metadata: {},
       chapters,
-      warnings: warnings.length > 0 ? warnings : undefined,
+      warnings: appendTitleRepairWarning(warnings, repaired),
     };
   }
 
@@ -110,7 +129,7 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
   const textColKey = firstKeys.find((k) => TEXT_COLUMN_ALIASES.includes(k.toLowerCase()));
   if (textColKey) {
     const useTitle = hasTitle;
-    const { chapters, skipped } = buildChaptersFromRecords(
+    const { chapters, skipped, repaired } = buildChaptersFromRecords(
       records,
       useTitle ? (r) => String(r.title ?? r.Title ?? '').trim() : () => '',
       (r) => String(r[textColKey] ?? '')
@@ -126,13 +145,18 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
       };
     }
     warnings.push(`Использован формат без колонки title (колонка: ${textColKey})`);
-    return { format: 'csv', metadata: {}, chapters, warnings };
+    return {
+      format: 'csv',
+      metadata: {},
+      chapters,
+      warnings: appendTitleRepairWarning(warnings, repaired),
+    };
   }
 
   // 3. Single column (any name)
   if (firstKeys.length === 1) {
     const colKey = firstKeys[0];
-    const { chapters, skipped } = buildChaptersFromRecords(
+    const { chapters, skipped, repaired } = buildChaptersFromRecords(
       records,
       () => '',
       (r) => String(r[colKey] ?? '')
@@ -148,7 +172,12 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
       };
     }
     warnings.push(`Использована одна колонка (${colKey})`);
-    return { format: 'csv', metadata: {}, chapters, warnings };
+    return {
+      format: 'csv',
+      metadata: {},
+      chapters,
+      warnings: appendTitleRepairWarning(warnings, repaired),
+    };
   }
 
   // 4. No header — first row may be data; try columns: false
@@ -159,7 +188,7 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
       relax_column_count: true,
       trim: true,
       bom: true,
-    }) as string[][];
+    });
 
     if (rows.length === 0) {
       return {
@@ -173,6 +202,7 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
 
     const chapters: ParseResult['chapters'] = [];
     let skipped = 0;
+    let repaired = false;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (!Array.isArray(row) || row.length === 0) {
@@ -180,16 +210,21 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
         continue;
       }
       const content = String(row[row.length - 1] ?? '').trim();
-      if (!content) {
+      const title = row.length >= 2 ? String(row[row.length - 2] ?? '').trim() : '';
+      if (!content && !(title && importedTitleLooksLikeBody(title))) {
         skipped++;
         continue;
       }
-      const title =
-        row.length >= 2 ? String(row[row.length - 2] ?? '').trim() : `Глава ${chapters.length + 1}`;
+      const normalized = normalizeImportedChapterFields(title, content, chapters.length + 1);
+      if (!normalized.content) {
+        skipped++;
+        continue;
+      }
+      if (normalized.repaired) repaired = true;
       chapters.push({
-        title: title || `Глава ${chapters.length + 1}`,
+        title: normalized.title,
         number: chapters.length + 1,
-        content,
+        content: normalized.content,
       });
     }
 
@@ -204,7 +239,12 @@ export async function parseCsv(fileBuffer: Buffer): Promise<ParseResult> {
       };
     }
     warnings.push('Использован формат без заголовка (последняя колонка = текст)');
-    return { format: 'csv', metadata: {}, chapters, warnings };
+    return {
+      format: 'csv',
+      metadata: {},
+      chapters,
+      warnings: appendTitleRepairWarning(warnings, repaired),
+    };
   } catch (noHeaderErr) {
     const msg = noHeaderErr instanceof Error ? noHeaderErr.message : 'Parse error';
     return {

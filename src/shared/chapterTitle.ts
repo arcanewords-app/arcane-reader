@@ -6,7 +6,12 @@
 import type { Language } from '../engine/types/common.js';
 
 export const CHAPTER_TITLE_BATCH_SIZE = 25;
+/** Cap used when sending titles to the translation prompt. */
 export const MAX_CHAPTER_TITLE_LENGTH = 200;
+/** Longest title stored from an import. Long Chinese chapter names fit; a whole chapter does not. */
+export const IMPORT_MAX_CHAPTER_TITLE_LENGTH = 500;
+/** A single-line title longer than this is chapter text that was placed in the title column. */
+export const IMPORT_TITLE_BODY_MIN_LENGTH = 2000;
 
 export interface ChapterTitleFields {
   title: string;
@@ -72,6 +77,53 @@ export function truncateChapterTitle(title: string, maxLen = MAX_CHAPTER_TITLE_L
   const t = title.trim();
   if (t.length <= maxLen) return t;
   return t.slice(0, maxLen);
+}
+
+/** Newline or a chapter-sized string. A long single-line Chinese title stays a title. */
+export function importedTitleLooksLikeBody(title: string): boolean {
+  return /[\r\n]/.test(title) || title.length > IMPORT_TITLE_BODY_MIN_LENGTH;
+}
+
+/**
+ * Pull chapter text out of a CSV title column.
+ * `repaired` means the title held chapter text and the body was kept.
+ */
+export function normalizeImportedChapterFields(
+  title: string,
+  content: string,
+  chapterNumber: number
+): { title: string; content: string; repaired: boolean } {
+  const rawTitle = title.trim();
+  const rawContent = content.trim();
+  const fallback = `Глава ${chapterNumber}`;
+  const titleIsBody = importedTitleLooksLikeBody(rawTitle);
+  const contentIsBody = importedTitleLooksLikeBody(rawContent);
+  const contentIsShortTitle =
+    rawContent.length > 0 &&
+    rawContent.length <= IMPORT_MAX_CHAPTER_TITLE_LENGTH &&
+    !/[\r\n]/.test(rawContent);
+
+  if (!rawContent && titleIsBody) {
+    return { title: fallback, content: rawTitle, repaired: true };
+  }
+
+  if (titleIsBody && contentIsShortTitle) {
+    return {
+      title: truncateChapterTitle(rawContent, IMPORT_MAX_CHAPTER_TITLE_LENGTH),
+      content: rawTitle,
+      repaired: true,
+    };
+  }
+
+  if (titleIsBody && contentIsBody) {
+    return { title: fallback, content: rawContent, repaired: true };
+  }
+
+  return {
+    title: truncateChapterTitle(rawTitle || fallback, IMPORT_MAX_CHAPTER_TITLE_LENGTH),
+    content: rawContent,
+    repaired: false,
+  };
 }
 
 /** Whether chapter has a body translation (for manual title edit target field). */

@@ -60,4 +60,33 @@ describe('parseCsv', () => {
     assert.match(result.chapters[0]?.content ?? '', /Line one/);
     assert.match(result.chapters[0]?.content ?? '', /Line two/);
   });
+
+  it('keeps a chapter when the body was placed in the title column', async () => {
+    const csv = 'title,text\n"Line one\nLine two",\n';
+    const result = await parseCsv(Buffer.from(csv, 'utf-8'));
+    assert.equal(result.chapters.length, 1);
+    assert.equal(result.chapters[0]?.title, 'Глава 1');
+    assert.equal(result.chapters[0]?.content, 'Line one\nLine two');
+    assert.ok(result.warnings?.some((w) => /содержал текст главы/.test(w)));
+  });
+
+  it('swaps a chapter-sized title with a short title sitting in text', async () => {
+    const body = '文'.repeat(2001);
+    const csv = `title,text\n${body},第三章 他终于明白了\n`;
+    const result = await parseCsv(Buffer.from(csv, 'utf-8'));
+    assert.equal(result.chapters.length, 1);
+    assert.equal(result.chapters[0]?.title, '第三章 他终于明白了');
+    assert.equal(result.chapters[0]?.content, body);
+    assert.ok(result.warnings?.some((w) => /содержал текст главы/.test(w)));
+  });
+
+  it('keeps a long single-line Chinese title', async () => {
+    const title = '名'.repeat(400);
+    const csv = `title,text\n${title},Short body\n`;
+    const result = await parseCsv(Buffer.from(csv, 'utf-8'));
+    assert.equal(result.chapters.length, 1);
+    assert.equal(result.chapters[0]?.title, title);
+    assert.equal(result.chapters[0]?.content, 'Short body');
+    assert.equal(result.warnings?.some((w) => /содержал текст главы/.test(w)) ?? false, false);
+  });
 });
