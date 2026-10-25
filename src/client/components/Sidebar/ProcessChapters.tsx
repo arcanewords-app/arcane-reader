@@ -339,8 +339,10 @@ export function ProcessChapters({
         onClick={() => setShowTranslateAllModal(true)}
         disabled={translationProgress !== null}
       >
-        <Icon name="auto_awesome" size="sm" />{' '}
-        {t('projectInfo.processChapters', 'Обработать главы')}
+        <Icon name="auto_awesome" size="sm" />
+        <span class="sidebar-btn-label">
+          {t('projectInfo.processChapters', 'Обработать главы')}
+        </span>
       </Button>
 
       <Modal

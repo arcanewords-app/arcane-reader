@@ -3,6 +3,33 @@
   width: 100%;
 }
 
+/* Narrow column: tighter padding, ellipsis instead of a hard clip on long labels. */
+.sidebar .btn {
+  min-width: 0;
+  max-width: 100%;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  overflow: hidden;
+}
+
+.sidebar .sidebar-action,
+.sidebar .sidebar-process-chapters {
+  justify-content: flex-start;
+}
+
+.sidebar .sidebar-btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar .btn .ui-icon,
+.sidebar .btn .glossary-count,
+.sidebar .btn .sidebar-reports-badge {
+  flex-shrink: 0;
+}
+
 .sidebar-dashboard-link {
   font-size: 0.9rem;
 }
