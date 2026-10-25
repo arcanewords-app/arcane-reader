@@ -354,26 +354,29 @@ describe('getPublicationWithChapters', () => {
   it('returns chapters and glossary count for published publication', async () => {
     const pubChain = chainable({ data: pubRow, error: null });
     const chaptersChain = chainable({
-      data: [{ id: 'ch-1', number: 1, title: 'One', translated_title: 'Один' }],
+      data: [
+        { id: 'ch-1', number: 1, title: 'One', translated_title: 'Один', status: 'completed' },
+        { id: 'ch-2', number: 2, title: 'Two', translated_title: null, status: 'pending' },
+      ],
       error: null,
     });
-    const translatedChain = chainable({ data: [{ id: 'ch-1' }], error: null });
     const glossaryCountChain = chainable({ data: null, error: null, count: 4 });
     let call = 0;
     mockFrom.mockImplementation(() => {
       call += 1;
       if (call === 1) return pubChain;
       if (call === 2) return chaptersChain;
-      if (call === 3) return translatedChain;
       return glossaryCountChain;
     });
 
     const result = await getPublicationWithChapters('novel-slug');
     assert.equal(result?.publication.id, 'pub-1');
-    assert.equal(result?.chapters.length, 1);
+    assert.equal(result?.chapters.length, 2);
     assert.equal(result?.chapters[0]?.hasTranslation, true);
+    assert.equal(result?.chapters[1]?.hasTranslation, false);
     assert.equal(result?.chapters[0]?.title, 'Один');
     assert.equal(result?.glossaryCount, 4);
+    assert.equal(chaptersChain.not.mock.calls.length, 0);
   });
 });
 

@@ -78,6 +78,7 @@ import {
   userProjectsCacheKey,
   warnLanguageOverrideWithGlossary,
   withRedisCache,
+  REDIS_CACHE_MAX_BYTES,
 } from './routeHelpers.js';
 import { serviceHealthManager } from '../services/serviceHealth.js';
 
@@ -330,6 +331,26 @@ describe('routeHelpers pure functions', () => {
     const loaded = await withRedisCache('k2', 10, async () => ({ fresh: 1 }));
     assert.deepEqual(loaded, { fresh: 1 });
     assert.equal(vi.mocked(redisSetJson).mock.calls.length, 1);
+  });
+
+  it('withRedisCache returns the loaded value when Redis read or write fails', async () => {
+    vi.mocked(redisSetJson).mockClear();
+    vi.mocked(redisGetJson).mockRejectedValueOnce(new Error('ERR max request size exceeded'));
+    vi.mocked(redisSetJson).mockResolvedValueOnce(undefined);
+    assert.deepEqual(await withRedisCache('k-read', 10, async () => ({ ok: 1 })), { ok: 1 });
+    assert.equal(vi.mocked(redisSetJson).mock.calls.length, 1);
+
+    vi.mocked(redisGetJson).mockResolvedValueOnce(null);
+    vi.mocked(redisSetJson).mockRejectedValueOnce(new Error('ERR max request size exceeded'));
+    assert.deepEqual(await withRedisCache('k-write', 10, async () => ({ ok: 2 })), { ok: 2 });
+  });
+
+  it('withRedisCache skips storing a value over the safe size', async () => {
+    vi.mocked(redisGetJson).mockResolvedValueOnce(null);
+    vi.mocked(redisSetJson).mockClear();
+    const huge = 'x'.repeat(REDIS_CACHE_MAX_BYTES + 1);
+    assert.equal(await withRedisCache('k-huge', 10, async () => huge), huge);
+    assert.equal(vi.mocked(redisSetJson).mock.calls.length, 0);
   });
 
   it('handleHealthCheck returns health payload status codes', async () => {

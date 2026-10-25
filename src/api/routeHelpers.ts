@@ -154,11 +154,35 @@ export async function withRedisCache<T>(
   ttlSeconds: number,
   loader: () => Promise<T>
 ): Promise<T> {
-  const cached = await redisGetJson<T>(key);
-  if (cached != null) return cached;
+  try {
+    const cached = await redisGetJson<T>(key);
+    if (cached != null) return cached;
+  } catch (error) {
+    logger.warn({ err: error, key }, 'Redis cache read failed');
+  }
   const value = await loader();
-  await redisSetJson(key, value, ttlSeconds);
+  try {
+    const bytes = jsonUtf8ByteLength(value);
+    if (bytes > REDIS_CACHE_MAX_BYTES) {
+      logger.warn({ key, bytes }, 'Skip Redis cache write: value exceeds size limit');
+      return value;
+    }
+    await redisSetJson(key, value, ttlSeconds);
+  } catch (error) {
+    logger.warn({ err: error, key }, 'Redis cache write failed');
+  }
   return value;
+}
+
+/** Stay under Upstash REST (10 MB) and the Vercel function response (4.5 MB). */
+export const REDIS_CACHE_MAX_BYTES = 4_000_000;
+
+function jsonUtf8ByteLength(value: unknown): number {
+  try {
+    return Buffer.byteLength(JSON.stringify(value), 'utf8');
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
 }
 
 export function userProjectsCacheKey(userId: string): string {

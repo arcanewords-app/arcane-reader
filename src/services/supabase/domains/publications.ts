@@ -623,6 +623,12 @@ export async function getPublicationById(
   return transformPublicationFromDB(data as PublicationRow);
 }
 
+const PUBLICATION_TRANSLATED_STATUSES = new Set(['completed', 'draft', 'partial']);
+
+function chapterStatusHasTranslation(status: unknown): boolean {
+  return typeof status === 'string' && PUBLICATION_TRANSLATED_STATUSES.has(status);
+}
+
 /**
  * Get publication by slug or ID with chapters list (for reading page).
  * Returns only published; chapters are minimal (id, number, title, hasTranslation); glossaryCount for showing Glossary button.
@@ -651,62 +657,54 @@ export async function getPublicationWithChapters(
       number: number;
       title: string;
       translated_title?: string | null;
+      status?: string | null;
     }> = [];
-    const allTranslatedIds = new Set<string>();
 
-    // Paginate chapters (ordered by number)
+    // Paginate chapter metadata only. Body text stays on the per-chapter read.
     let chapterOffset = 0;
     for (;;) {
       const chaptersResult = await serviceClient
         .from('chapters')
-        .select('id, number, title, translated_title')
+        .select('id, number, title, translated_title, status')
         .eq('project_id', pub.projectId)
         .order('number', { ascending: true })
         .range(chapterOffset, chapterOffset + POSTGREST_MAX_ROWS - 1);
       const chapters = chaptersResult.data || [];
       for (const c of chapters) {
+        const row = c as {
+          id: string;
+          number: number;
+          title: string;
+          translated_title?: string | null;
+          status?: string | null;
+        };
         allChapters.push({
-          id: c.id,
-          number: c.number,
-          title: c.title,
-          translated_title: (c as { translated_title?: string | null }).translated_title,
+          id: row.id,
+          number: row.number,
+          title: row.title,
+          translated_title: row.translated_title,
+          status: row.status,
         });
       }
       if (chapters.length < POSTGREST_MAX_ROWS) break;
       chapterOffset += POSTGREST_MAX_ROWS;
     }
 
-    // Paginate translated chapter IDs (need all to build hasTranslation map)
-    let translatedOffset = 0;
-    for (;;) {
-      const translatedResult = await serviceClient
-        .from('chapters')
-        .select('id')
-        .eq('project_id', pub.projectId)
-        .not('translated_text', 'is', null)
-        .order('id', { ascending: true })
-        .range(translatedOffset, translatedOffset + POSTGREST_MAX_ROWS - 1);
-      const translated = translatedResult.data || [];
-      for (const c of translated) {
-        allTranslatedIds.add(c.id);
-      }
-      if (translated.length < POSTGREST_MAX_ROWS) break;
-      translatedOffset += POSTGREST_MAX_ROWS;
-    }
-
-    if (targetLanguage && targetLanguage !== pub.targetLanguage && allChapters.length > 0) {
-      allTranslatedIds.clear();
+    const editionTranslatedIds = new Set<string>();
+    const editionLanguage =
+      targetLanguage && targetLanguage !== pub.targetLanguage ? targetLanguage : undefined;
+    if (editionLanguage && allChapters.length > 0) {
       const { data: editionRows } = await serviceClient
         .from('chapter_editions')
         .select('chapter_id, status')
-        .eq('target_language', targetLanguage)
+        .eq('target_language', editionLanguage)
         .in(
           'chapter_id',
           allChapters.map((chapter) => chapter.id)
         );
       for (const row of editionRows ?? []) {
-        if (row.status === 'draft' || row.status === 'partial' || row.status === 'completed') {
-          allTranslatedIds.add(row.chapter_id as string);
+        if (chapterStatusHasTranslation(row.status)) {
+          editionTranslatedIds.add(row.chapter_id as string);
         }
       }
     }
@@ -719,7 +717,9 @@ export async function getPublicationWithChapters(
         translatedTitle: c.translated_title,
         number: c.number,
       }),
-      hasTranslation: allTranslatedIds.has(c.id),
+      hasTranslation: editionLanguage
+        ? editionTranslatedIds.has(c.id)
+        : chapterStatusHasTranslation(c.status),
     }));
   } catch {
     // Service role not configured: return publication without chapters (client can still show metadata)
