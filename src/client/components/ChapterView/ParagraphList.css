@@ -3,8 +3,21 @@
    Improved readability, simplified styles
    ============================================================= */
 
+/* Typography from the chapter gear lands on this wrapper, not on <html>. */
+.chapter-editor-surface {
+  min-width: 0;
+}
+
 /* === Reader Panel === */
+/* Color follows the site theme. Reading mode keeps its own --reader-* presets. */
 .text-panel-unified {
+  --reader-bg: var(--bg-card);
+  --reader-text: var(--text-primary);
+  --reader-text-dim: var(--text-dim);
+  --reader-bg-alt: var(--accent-soft);
+  --reader-accent: var(--accent);
+  --reader-chrome-border: var(--border);
+
   background: var(--reader-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);

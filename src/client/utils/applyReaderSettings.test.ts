@@ -53,6 +53,40 @@ describe('applyReaderSettings', () => {
     assert.equal(document.documentElement.style.getPropertyValue('--reader-text'), '');
   });
 
+  it('applies typography without a color scheme when theme is omitted', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    applyReaderSettings(
+      root,
+      {
+        ...DEFAULT_READER_SETTINGS,
+        containerWidth: 80,
+        colorScheme: 'custom',
+        customBg: '#111111',
+        customText: '#eeeeee',
+        fontFamily: 'eb_garamond',
+        fontSize: 18,
+        lineHeight: 1.8,
+        paragraphSpacing: 1,
+        textIndent: false,
+        textAlign: 'left',
+      },
+      { includeTheme: false }
+    );
+
+    assert.equal(root.style.getPropertyValue('--reader-font-size'), '18px');
+    assert.equal(root.style.getPropertyValue('--reader-line-height'), '1.8');
+    assert.equal(root.style.getPropertyValue('--reader-paragraph-spacing'), '1em');
+    assert.equal(root.style.getPropertyValue('--reader-container-width'), '80%');
+    assert.equal(root.getAttribute('data-reader-font'), 'eb_garamond');
+    assert.equal(root.getAttribute('data-reader-indent'), 'false');
+    assert.equal(root.getAttribute('data-reader-align'), 'left');
+    assert.equal(root.getAttribute('data-reader-theme'), null);
+    assert.equal(root.style.getPropertyValue('--reader-bg'), '');
+    assert.equal(root.style.getPropertyValue('--reader-text'), '');
+    root.remove();
+  });
+
   it('clearReaderSettings removes vars and data attributes', () => {
     applyReaderSettings(document.documentElement, {
       ...DEFAULT_READER_SETTINGS,

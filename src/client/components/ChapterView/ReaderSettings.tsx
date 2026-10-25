@@ -5,6 +5,8 @@ import './ReaderSettings.css';
 interface ReaderSettingsProps {
   settings: ReaderSettingsType;
   onChange: (updates: Partial<ReaderSettingsType>) => void;
+  /** Color swatches. Off in the chapter editor; on in reading mode and profile. */
+  showTheme?: boolean;
 }
 
 const fonts: { key: FontFamily; label: string; style: string }[] = [
@@ -26,7 +28,7 @@ const fonts: { key: FontFamily; label: string; style: string }[] = [
   { key: 'helvetica', label: 'Helvetica', style: 'Helvetica, Arial, sans-serif' },
 ];
 
-export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps) {
+export function ReaderSettingsPanel({ settings, onChange, showTheme = true }: ReaderSettingsProps) {
   const { t } = useTranslation();
   const themes: {
     key: Exclude<ColorScheme, 'custom'>;
@@ -219,28 +221,29 @@ export function ReaderSettingsPanel({ settings, onChange }: ReaderSettingsProps)
         </div>
       </div>
 
-      {/* Theme - full width */}
-      <div class="settings-section settings-section-theme">
-        <label class="settings-label">{t('reader.theme')}</label>
-        <div class="theme-selector">
-          {themes.map((theme) => (
-            <button
-              key={theme.key}
-              type="button"
-              class={`theme-option ${settings.colorScheme === theme.key ? 'active' : ''}`}
-              onClick={() => onChange({ colorScheme: theme.key })}
-              title={t(theme.titleKey)}
-            >
-              <span
-                class="theme-preview theme-preview-colors"
-                style={{ backgroundColor: theme.bg, color: theme.text }}
+      {showTheme && (
+        <div class="settings-section settings-section-theme">
+          <label class="settings-label">{t('reader.theme')}</label>
+          <div class="theme-selector">
+            {themes.map((theme) => (
+              <button
+                key={theme.key}
+                type="button"
+                class={`theme-option ${settings.colorScheme === theme.key ? 'active' : ''}`}
+                onClick={() => onChange({ colorScheme: theme.key })}
+                title={t(theme.titleKey)}
               >
-                Aa
-              </span>
-            </button>
-          ))}
+                <span
+                  class="theme-preview theme-preview-colors"
+                  style={{ backgroundColor: theme.bg, color: theme.text }}
+                >
+                  Aa
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

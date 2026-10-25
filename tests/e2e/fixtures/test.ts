@@ -75,7 +75,8 @@ async function guestActor(page: Page, theme?: 'light'): Promise<Actor> {
 
 async function authedActor(
   browser: Browser,
-  persona: Persona
+  persona: Persona,
+  theme?: 'light'
 ): Promise<{ actor: Actor; page: Page }> {
   const { user, session } = await loginPersona(persona);
   const context = await browser.newContext({
@@ -89,6 +90,7 @@ async function authedActor(
     locale: 'en',
     consent: consentRecord(),
     dismissedAlerts: await loadDismissedAlertsSeed(),
+    ...(theme === 'light' ? { theme: 'light' as const } : {}),
     session: {
       access_token: session.access_token,
       refresh_token: session.refresh_token,
@@ -105,6 +107,7 @@ type ActorFixtures = {
   guestLight: Actor;
   reader: Actor;
   author: Actor;
+  authorLight: Actor;
   authorPlus: Actor;
   admin: Actor;
 };
@@ -123,6 +126,11 @@ export const test = base.extend<ActorFixtures>({
   },
   author: async ({ browser }, use) => {
     const { actor, page } = await authedActor(browser, PERSONAS.author);
+    await use(actor);
+    await page.context().close();
+  },
+  authorLight: async ({ browser }, use) => {
+    const { actor, page } = await authedActor(browser, PERSONAS.author, 'light');
     await use(actor);
     await page.context().close();
   },

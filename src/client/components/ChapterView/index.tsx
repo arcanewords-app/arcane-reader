@@ -20,7 +20,7 @@ import { useChapterTranslation } from '../../hooks/useChapterTranslation';
 import { useTokenLimitCheck } from '../../hooks/useTokenLimitCheck';
 import { useUserRole } from '../../hooks/useUserRole';
 import { computeCriticContentFingerprint } from '../../utils/criticFingerprint';
-import { applyReaderSettings } from '../../utils/applyReaderSettings';
+import { applyReaderSettings, clearReaderSettings } from '../../utils/applyReaderSettings';
 import { Card, AlertModal, Modal, Button } from '../ui';
 import { ChapterHeader } from './ChapterHeader';
 import { SearchReplaceBar, type SearchHighlight } from '../SearchReplace';
@@ -116,6 +116,7 @@ export function ChapterView({
   const [showSearch, setShowSearch] = useState(false);
   const [searchHighlight, setSearchHighlight] = useState<SearchHighlight | null>(null);
   const scrollToParagraphRef = useRef<((id: string) => void) | null>(null);
+  const editorSurfaceRef = useRef<HTMLDivElement>(null);
 
   // Auto-open search when navigating with ?search= (e.g. from ReportsModal or project search)
   useEffect(() => {
@@ -221,9 +222,18 @@ export function ChapterView({
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Apply reader settings as CSS variables
+  // Typography stays on the chapter surface. Color follows the site theme.
+  // Clear <html> so a previous visit cannot leave data-reader-theme on the document.
   useEffect(() => {
-    applyReaderSettings(document.documentElement, readerSettings);
+    const surface = editorSurfaceRef.current;
+    if (surface) {
+      applyReaderSettings(surface, readerSettings, { includeTheme: false });
+    }
+    clearReaderSettings(document.documentElement);
+    return () => {
+      if (surface) clearReaderSettings(surface);
+      clearReaderSettings(document.documentElement);
+    };
   }, [readerSettings]);
 
   // Poll while chapter is translating (local state or sidebar summary)
@@ -591,7 +601,11 @@ export function ChapterView({
         )}
 
         {showSettings && (
-          <ReaderSettingsPanel settings={readerSettings} onChange={handleReaderSettingsChange} />
+          <ReaderSettingsPanel
+            settings={readerSettings}
+            onChange={handleReaderSettingsChange}
+            showTheme={false}
+          />
         )}
 
         {tokenUsage && warningState.isOpen && (
@@ -637,37 +651,39 @@ export function ChapterView({
         )}
       </Card>
 
-      {isLoading ? (
-        <ParagraphListSkeleton />
-      ) : paragraphs.length > 0 ? (
-        <ParagraphList
-          paragraphs={paragraphs}
-          onSave={handleSaveParagraph}
-          isOriginalReadingMode={isOriginalReadingMode}
-          isTranslationOnlyDisplay={isTranslationOnlyDisplay}
-          editionEmpty={!!activeLanguage && activeLanguage !== project.targetLanguage}
-          emptyParagraphIds={emptyParagraphIds}
-          selectedParagraphIds={selectedParagraphIds}
-          onToggleParagraphSelection={handleToggleParagraphSelection}
-          textBlockTypes={
-            (project.settings?.textBlockTypes?.length ?? 0) > 0
-              ? (project.settings?.textBlockTypes ?? [])
-              : DEFAULT_TEXT_BLOCK_TYPES
-          }
-          searchHighlight={searchHighlight}
-          scrollToParagraphRef={scrollToParagraphRef}
-          isCriticMode={isCriticMode && canUseCritic}
-          criticIssuesByParagraph={criticIssuesByParagraph}
-          criticLoading={criticLoading}
-        />
-      ) : (
-        <Card>
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
-            <p>{t('chapter.noParagraphs')}</p>
-            <p style={{ marginTop: '0.5rem' }}>{t('chapter.clickTranslateToStart')}</p>
-          </div>
-        </Card>
-      )}
+      <div ref={editorSurfaceRef} class="chapter-editor-surface">
+        {isLoading ? (
+          <ParagraphListSkeleton />
+        ) : paragraphs.length > 0 ? (
+          <ParagraphList
+            paragraphs={paragraphs}
+            onSave={handleSaveParagraph}
+            isOriginalReadingMode={isOriginalReadingMode}
+            isTranslationOnlyDisplay={isTranslationOnlyDisplay}
+            editionEmpty={!!activeLanguage && activeLanguage !== project.targetLanguage}
+            emptyParagraphIds={emptyParagraphIds}
+            selectedParagraphIds={selectedParagraphIds}
+            onToggleParagraphSelection={handleToggleParagraphSelection}
+            textBlockTypes={
+              (project.settings?.textBlockTypes?.length ?? 0) > 0
+                ? (project.settings?.textBlockTypes ?? [])
+                : DEFAULT_TEXT_BLOCK_TYPES
+            }
+            searchHighlight={searchHighlight}
+            scrollToParagraphRef={scrollToParagraphRef}
+            isCriticMode={isCriticMode && canUseCritic}
+            criticIssuesByParagraph={criticIssuesByParagraph}
+            criticLoading={criticLoading}
+          />
+        ) : (
+          <Card>
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
+              <p>{t('chapter.noParagraphs')}</p>
+              <p style={{ marginTop: '0.5rem' }}>{t('chapter.clickTranslateToStart')}</p>
+            </div>
+          </Card>
+        )}
+      </div>
 
       <AlertModal
         isOpen={!!errorModal}

@@ -21,11 +21,11 @@
   width: 100%;
   min-height: 200px;
   padding: 1rem;
-  background: var(--reader-bg);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
-  color: var(--reader-text);
-  font-family: var(--reader-font);
+  color: var(--text-primary);
+  font-family: var(--reader-font, var(--font-display));
   font-size: 1rem;
   line-height: 1.6;
   resize: vertical;

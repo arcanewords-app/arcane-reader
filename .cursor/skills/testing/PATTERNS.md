@@ -336,7 +336,7 @@ Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await 
 **Visual coverage (reader first):** new/changed public reader screens need a shell. Logic specs do not replace pixels.
 
 - `guest-catalog` / `guest-sign-in` / `guest-account-tiers` / `guest-publication` / `guest-reading` / `guest-news` / `guest-news-article` / `guest-about` → `guest.visual.spec.ts`
-- `guest-catalog-light` / `guest-publication-light` → `lightTheme.visual.spec.ts` (`guestLight` fixture, `app.theme=light`)
+- `guest-catalog-light` / `guest-publication-light` / `author-project-light` / `author-chapter-light` → `lightTheme.visual.spec.ts` (`guestLight` / `authorLight`, `app.theme=light`)
 - `reader-upgrade` / `reader-profile` → `reader.visual.spec.ts`
 - `author-projects` / `author-project` / `author-chapter` / `author-reading` / `author-requests` → `author.visual.spec.ts`
 - `authorplus-empty` → `authorPlus.visual.spec.ts`
@@ -344,7 +344,7 @@ Pixel shells live in `*.visual.spec.ts` (`@visual`), not in logic specs: `await 
 
 `guest-news-article` covers one stamp post at `/news/:slug` (first list link). Do **not** add contact/legal or extra `/admin/*` shells unless those screens are being changed.
 
-- Fixtures: `guest` / `guestLight` / `reader` / `author` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
+- Fixtures: `guest` / `guestLight` / `reader` / `author` / `authorLight` / `authorPlus` / `admin` from `tests/e2e/fixtures/test.ts`
 - Tasks = verbs (`openCatalog`, `openFirstProject`); questions = assertions; targets = locators
 - Discover publications/projects at runtime — do not hardcode dump UUIDs
 - Isolation = `stack:restore` (re-apply `arcane-reader-stamp:latest`). Do **not** `stack:load` for a dirty-run reset when the stamp image exists (`load` is rebuild-only: dump JSON → then `stack:stamp`). Additive mutations only (Reader progress, AuthorPlus one project, `@llm` tiny chapter). `authorPlus.visual` / `seesEmptyAuthorWorkspace` fail if logic specs already created a project — restore before visual, or visual before logic.

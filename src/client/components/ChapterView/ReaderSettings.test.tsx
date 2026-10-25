@@ -92,6 +92,25 @@ describe('ReaderSettingsPanel', () => {
     expect(onChange).toHaveBeenCalledWith({ colorScheme: 'paper' });
   });
 
+  it('hides theme swatches in the chapter editor and still changes the font', () => {
+    const onChange = vi.fn();
+    render(
+      <ReaderSettingsPanel
+        settings={DEFAULT_READER_SETTINGS}
+        onChange={onChange}
+        showTheme={false}
+      />
+    );
+
+    expect(screen.queryByText('reader.theme')).toBeNull();
+    expect(screen.queryByTitle('reader.themeLight')).toBeNull();
+
+    const select = screen.getByLabelText('reader.font') as HTMLSelectElement;
+    select.value = 'eb_garamond';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onChange).toHaveBeenCalledWith({ fontFamily: 'eb_garamond' });
+  });
+
   it('calls onChange when font family is changed', () => {
     const onChange = vi.fn();
     render(<ReaderSettingsPanel settings={DEFAULT_READER_SETTINGS} onChange={onChange} />);
