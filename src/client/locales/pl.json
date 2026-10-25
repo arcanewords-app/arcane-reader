@@ -12,14 +12,14 @@
     "back": "Wstecz",
     "create": "Utwórz",
     "ok": "OK",
-    "continue": "Kontynuuj"
+    "continue": "Kontynuuj",
+    "error": "Błąd"
   },
   "project": {
     "projects": "Projekty",
     "newProject": "Nowy projekt",
     "noProjects": "Brak projektów",
     "welcome": "Witaj w Arcane",
-    "welcomeSubtitle": "Inteligentny tłumacz powieści z angielskiego na rosyjski z zachowaniem kontekstu i stylu.",
     "createFirstProject": "Utwórz pierwszy projekt",
     "loadingProject": "Ładowanie projektu...",
     "apiKeyTitle": "Klucz API nie skonfigurowany",
@@ -30,7 +30,16 @@
     "notFound": "Projekt nie znaleziony",
     "chapterOne": "rozdział",
     "chapterFew": "rozdziały",
-    "chapterMany": "rozdziałów"
+    "chapterMany": "rozdziałów",
+    "languagePair": "Para językowa",
+    "languagePairCreateHint": "Parę językową można później zmienić w ustawieniach projektu. Po rozpoczęciu analizy zmiana języka docelowego wymaga ręcznego sprawdzenia glosariusza.",
+    "languagePairEditInSettings": "Zmień w ustawieniach projektu",
+    "languagePairLocked": "Para językowa jest zablokowana po analizie lub po pojawieniu się wpisów w glosariuszu.",
+    "languagePairTargetHint": "Tłumaczenia w glosariuszu powinny być w języku {{targetLanguageLabel}}. Po zmianie języka docelowego sprawdź wpisy.",
+    "metadataFileLanguage": "Język oryginału (metadane pliku)",
+    "ruSourceHint": "Rosyjski jako źródło: oryginalny tekst rozdziałów powinien być po rosyjsku.",
+    "sourceLanguageLabel": "Język oryginału",
+    "targetLanguageLabel": "Język tłumaczenia"
   },
   "chapter": {
     "deleteConfirmTitle": "Usunąć rozdział?",
@@ -76,7 +85,9 @@
     "errorDeleteFailed": "Nie udało się usunąć rozdziału",
     "errorReorder": "Błąd zmiany kolejności",
     "pollingLostTitle": "Utracono połączenie",
-    "pollingLostMessage": "Połączenie utracone lub serwer został zrestartowany. Odśwież stronę lub spróbuj ponownie przetłumaczyć."
+    "pollingLostMessage": "Połączenie utracone lub serwer został zrestartowany. Odśwież stronę lub spróbuj ponownie przetłumaczyć.",
+    "changeStatus": "Zmień status",
+    "changeStatusTitle": "Zmień status rozdziału"
   },
   "critic": {
     "menuLabel": "Sprawdź tłumaczenie",
@@ -134,7 +145,9 @@
     "estimatedTokens": "~{{tokens}} kredytów",
     "chunkProgress": "Część {{done}} z {{total}}",
     "start": "Uruchom",
-    "toggle": "Panel tłumaczenia"
+    "toggle": "Panel tłumaczenia",
+    "translateChapterTitles": "Tłumacz tytuły rozdziałów",
+    "translateChapterTitlesHint": "Krótkie tłumaczenie nagłówka ze spisu treści (osobno od tekstu rozdziału)"
   },
   "markAsTranslated": {
     "title": "Oznacz jako przetłumaczone",
@@ -341,6 +354,11 @@
       "name_declension": "Imię we właściwym przypadku w kontekście. Formę kanoniczną wpisz w polu Zamień.",
       "term_unify": "Jednolite pisownia terminu we wszystkich wybranych miejscach.",
       "minimal_fix": "Drobna poprawka wokół znalezionego fragmentu bez przepisywania akapitu."
+    },
+    "upgrade": {
+      "mailSubject": "Prośba o poziom Autor+ (inteligentna zamiana AI w wyszukiwaniu projektu)",
+      "message": "AI poprawia imiona i terminy z uwzględnieniem kontekstu — odmianę i pisownię — z podglądem przed zastosowaniem w całym projekcie.",
+      "title": "Inteligentna zamiana AI — poziom Autor+"
     }
   },
   "jobsPanel": {
@@ -356,7 +374,8 @@
     "cancelRequested": "Anulowanie w toku…",
     "startedAgoMinutes": "Uruchomiono {{count}} min temu",
     "startedAgoHours": "Uruchomiono {{count}} h temu",
-    "goToChapter": "Przejdź do rozdziału"
+    "goToChapter": "Przejdź do rozdziału",
+    "languagePair": "{{source}} → {{target}}"
   },
   "sidebar": {
     "projects": "Projekty",
@@ -491,7 +510,14 @@
     "customInstructionsTranslation": "Dodatkowe reguły dla tłumacza",
     "customInstructionsTranslationPlaceholder": "Np.: owijaj komunikaty systemowe w {{block:system-message}}...",
     "customInstructionsEditing": "Dodatkowe reguły dla redaktora",
-    "customInstructionsEditingPlaceholder": "Np.: zachowaj wszystkie markery {{block:...}} bez zmian."
+    "customInstructionsEditingPlaceholder": "Np.: zachowaj wszystkie markery {{block:...}} bez zmian.",
+    "languagePairSection": "Para językowa",
+    "modelLockedBadge": "Autor+",
+    "modelUpgradeHint": "Inne modele AI są dostępne od poziomu Autor+ wzwyż.",
+    "modelUpgradeLink": "Porównaj poziomy",
+    "saveLanguagePair": "Zapisz parę językową",
+    "stageModelsTitle": "Modele według etapów",
+    "stageModelsHint": "Etapy tłumaczenia wybiera się przy uruchomieniu (panel „Tłumaczenie” przy rozdziale)."
   },
   "header": {
     "logoSubtitle": "Tłumacz powieści AI",
@@ -614,7 +640,18 @@
     "contextDelete": "Usuń",
     "contextMarkReviewed": "Oznacz jako sprawdzone",
     "viewCards": "Karty",
-    "viewList": "Lista"
+    "viewList": "Lista",
+    "exportCsv": "Eksport CSV",
+    "exportError": "Nie udało się wyeksportować glosariusza",
+    "exportJson": "Eksport JSON",
+    "fileActions": "Import i eksport",
+    "import": "Import",
+    "importConfirmButton": "Importuj",
+    "importConfirmMessage": "Plik ma {{total}} wpisów. Zostanie dodane: {{newCount}}. Pominięte (duplikaty): {{skipped}}.",
+    "importConfirmTitle": "Import glosariusza",
+    "importError": "Nie udało się zaimportować glosariusza",
+    "importResultMessage": "Dodano: {{added}}. Pominięto: {{skipped}}. Błędy walidacji: {{errorCount}}.",
+    "importResultTitle": "Import zakończony"
   },
   "reader": {
     "font": "Czcionka",
@@ -691,12 +728,12 @@
     "upgradeGoToCatalog": "Przejdź do katalogu",
     "upgradeGoToProfile": "Przejdź do profilu",
     "requestUpgrade": "Poproś o podwyższenie",
-    "upgradeMailSubject": "Prośba o subskrypcję autora"
+    "upgradeMailSubject": "Prośba o subskrypcję autora",
+    "upgradeLearnMore": "Pełne porównanie"
   },
   "projectInfo": {
     "delete": "Usuń",
     "originalReading": "Czytanie oryginału",
-    "enToRu": "EN → RU",
     "chaptersLabel": "Rozdziałów",
     "translatedLabel": "Przetłumaczono",
     "errorsLabel": "Błędów",
@@ -883,7 +920,13 @@
     "selectDisplayed": "Zaznacz wyświetlane ({{count}})",
     "markEntireProject": "Oznacz cały projekt jako przetłumaczony",
     "searchPlaceholder": "Szukaj po numerze lub tytule",
-    "uploadedTranslationHint": "Wgrałeś gotowe tłumaczenie?"
+    "uploadedTranslationHint": "Wgrałeś gotowe tłumaczenie?",
+    "languageOverrideAck": "Rozumiem ryzyko użycia innej pary językowej dla tego przetwarzania",
+    "languageOverrideGlossaryWarning": "Glosariusz powstał dla innej pary. Sprawdź, czy tłumaczenia odpowiadają językowi {{targetLanguageLabel}}; nowa analiza może dodać niezgodne wpisy.",
+    "languageOverrideTranslationWarning": "Istniejące tłumaczenie może nie odpowiadać wybranemu językowi docelowemu ({{targetLanguageLabel}}).",
+    "languagePairDefaultHint": "Używane jest ustawienie projektu. Można je zmienić tylko dla tego przetwarzania.",
+    "languagePairLabel": "Para językowa",
+    "useProjectLanguagePair": "Użyj ustawień projektu"
   },
   "tokenUsage": {
     "loading": "Ładowanie...",
@@ -1054,7 +1097,8 @@
     "noCompleteWorksHint": "Wyłącz filtr lub wybierz inny język",
     "suggestTranslation": "Zaproponuj tłumaczenie",
     "suggestTranslationLoginTitle": "Zaloguj się, aby zaproponować tłumaczenie",
-    "suggestTranslationLoginMessage": "Załóż konto lub zaloguj się — dzięki temu będziemy mogli odpowiedzieć na Twoją prośbę."
+    "suggestTranslationLoginMessage": "Załóż konto lub zaloguj się — dzięki temu będziemy mogli odpowiedzieć na Twoją prośbę.",
+    "orderByRating": "Według oceny"
   },
   "translationRequests": {
     "title": "Zaproponuj tłumaczenie",
@@ -1331,6 +1375,67 @@
         "draft": "Szkic",
         "published": "Opublikowane",
         "archived": "Zarchiwizowane"
+      },
+      "activate": "Włącz",
+      "alertActive": "Aktywne",
+      "alertCreateFailed": "Nie udało się utworzyć ogłoszenia.",
+      "alertCreated": "Ogłoszenie zostało utworzone.",
+      "alertDeleteFailed": "Nie udało się usunąć ogłoszenia.",
+      "alertInactive": "Nieaktywne",
+      "alertMessage": "Krótki tekst banera",
+      "alertMinRole": "Minimalna rola",
+      "alertModalTitle": "Ogłoszenie z aktualności",
+      "alertPriority": "Priorytet",
+      "alertUpdateFailed": "Nie udało się zaktualizować ogłoszenia.",
+      "alertUsesSummary": "Używane jest podsumowanie aktualności",
+      "alertVariant": "Styl",
+      "alertVersion": "Wersja {{version}}",
+      "alertVersionBumped": "Wersja ogłoszenia została zwiększona.",
+      "alertsEmpty": "Nie ma jeszcze ogłoszeń.",
+      "alertsTitle": "Aktywne ogłoszenia",
+      "bumpVersion": "Pokaż ponownie",
+      "bumpVersionMessage": "Zwiększyć wersję ogłoszenia? Użytkownicy, którzy zamknęli baner, zobaczą go ponownie.",
+      "bumpVersionTitle": "Ponowny pokaz",
+      "createAlert": "Utwórz ogłoszenie",
+      "createFailed": "Nie udało się utworzyć aktualności.",
+      "createTitle": "Nowy wpis",
+      "created": "Aktualność została utworzona.",
+      "deactivate": "Wyłącz",
+      "deleteBlocked": "Najpierw wyłącz ogłoszenia powiązane z tą aktualnością.",
+      "deleteFailed": "Nie udało się usunąć aktualności.",
+      "deleteMessage": "Usunąć „{{title}}”?",
+      "deleteTitle": "Usuń aktualność",
+      "deleted": "Aktualność została usunięta.",
+      "editTitle": "Edytuj aktualność",
+      "empty": "Nie ma jeszcze wpisów.",
+      "form": {
+        "body": "Treść (Markdown)",
+        "category": "Kategoria",
+        "create": "Utwórz aktualność",
+        "slug": "Slug (URL)",
+        "slugPlaceholder": "np. nowa-funkcja",
+        "summary": "Krótki opis",
+        "title": "Tytuł"
+      },
+      "listTitle": "Kanał aktualności",
+      "minRole": {
+        "admin": "Administratorzy",
+        "author": "Autorzy",
+        "author_plus": "Autor+",
+        "guest": "Wszyscy (w tym goście)",
+        "super_author": "Super autor",
+        "user": "Czytelnicy"
+      },
+      "publish": "Opublikuj",
+      "publishFailed": "Nie udało się opublikować aktualności.",
+      "published": "Aktualność została opublikowana.",
+      "subtitle": "Kanał aktualności i krótkie banery dla użytkowników.",
+      "updateFailed": "Nie udało się zaktualizować aktualności.",
+      "updated": "Aktualność została zaktualizowana.",
+      "variant": {
+        "info": "Info",
+        "neutral": "Neutralny",
+        "promo": "Promo"
       }
     },
     "translationRequests": {
@@ -1355,6 +1460,70 @@
       "deleted": "Prośba usunięta.",
       "deleteFailed": "Nie udało się usunąć prośby.",
       "deleteForbidden": "Usunąć można tylko odrzucone lub zrealizowane prośby."
+    },
+    "entities": {
+      "createTitle": {
+        "author": "Utwórz autora",
+        "tag": "Utwórz tag",
+        "translator": "Utwórz tłumacza"
+      },
+      "intro": {
+        "author": "Autorzy na stronach publikacji. Można dodać zdjęcie i opis.",
+        "tag": "Tagi do filtrów katalogu. Wystarczy nazwa.",
+        "translator": "Tłumacze na stronach publikacji. Można dodać zdjęcie i opis."
+      },
+      "kindTabsAria": "Typ encji",
+      "submit": {
+        "author": "Utwórz autora",
+        "tag": "Utwórz tag",
+        "translator": "Utwórz tłumacza"
+      }
+    },
+    "publications": {
+      "chapters": "{{count}} przetłumaczonych rozdziałów",
+      "empty": "Nie znaleziono publikacji.",
+      "listTitle": "Publikacje",
+      "loadFailed": "Nie udało się załadować publikacji.",
+      "notFound": "Nie znaleziono publikacji.",
+      "open": "Otwórz stronę",
+      "publishedAt": "Opublikowano {{date}}",
+      "searchPlaceholder": "Szukaj po tytule",
+      "status": {
+        "draft": "Szkic",
+        "published": "Opublikowano",
+        "unpublished": "Zdjęto"
+      },
+      "statusFilter": "Status",
+      "subtitle": "Przegląd i moderacja wszystkich publikacji katalogu.",
+      "unpublish": "Zdejmij z publikacji",
+      "unpublishFailed": "Nie udało się zdjąć publikacji.",
+      "unpublishMessage": "Usunąć „{{title}}” z publicznego katalogu?",
+      "unpublishTitle": "Zdejmij z publikacji",
+      "unpublished": "Publikacja została zdjęta z katalogu."
+    },
+    "users": {
+      "cannotDemoteSelf": "Nie możesz zdjąć z siebie roli administratora.",
+      "changeRole": "Zmień rolę",
+      "changeRoleMessage": "Nowa rola dla {{email}}.",
+      "changeRoleTitle": "Zmiana roli",
+      "empty": "Nie znaleziono użytkowników.",
+      "joined": "Rejestracja {{date}}",
+      "lastAdmin": "Nie można usunąć ostatniego administratora.",
+      "listTitle": "Użytkownicy",
+      "loadFailed": "Nie udało się załadować użytkowników.",
+      "roleLabel": "Rola",
+      "roleUpdated": "Rola została zaktualizowana.",
+      "roles": {
+        "admin": "Administrator",
+        "author": "Autor",
+        "author_plus": "Autor+",
+        "guest": "Gość",
+        "super_author": "Super autor",
+        "user": "Użytkownik"
+      },
+      "searchPlaceholder": "Szukaj po emailu lub roli",
+      "subtitle": "Konta i zmiana ról.",
+      "updateFailed": "Nie udało się zaktualizować roli."
     }
   },
   "cabinet": {
@@ -1479,7 +1648,9 @@
     "es": "Hiszpański",
     "it": "Włoski",
     "ja": "Japoński",
-    "zh": "Chiński"
+    "zh": "Chiński",
+    "be": "Białoruski",
+    "ko": "Koreański"
   },
   "status": {
     "pending": "Oczekuje",
@@ -1507,7 +1678,9 @@
     "about": "O projekcie",
     "contact": "Kontakt",
     "privacy": "Polityka prywatności",
-    "terms": "Regulamin"
+    "terms": "Regulamin",
+    "accountTiers": "Poziomy konta",
+    "news": "Aktualności"
   },
   "about": {
     "title": "O projekcie Arcane",
@@ -1525,7 +1698,12 @@
     "author": "Autor",
     "authorDesc": "Ilya Murashka. Pomysły, pomoc, współpraca — napisz na LinkedIn.",
     "license": "Licencja",
-    "licenseDesc": "Projekt tworzony z Cursor AI. Licencja MIT."
+    "licenseDesc": "Projekt tworzony z Cursor AI. Licencja MIT.",
+    "accountTiersLink": "Porównanie poziomów konta i limitów kredytów →",
+    "feature7": "Sprawdzenie tłumaczenia AI (Krytyk) na poziomie Autor+ — uwagi do problematycznych akapitów z uwzględnieniem glosariusza",
+    "feature8": "Inteligentna zamiana AI na Autor+ — poprawki imion i terminów z odmianą w całym projekcie",
+    "languagePairs": "Obsługiwane pary językowe",
+    "languagePairsDesc": "Angielski, koreański lub chiński → rosyjski; angielski, koreański, chiński lub rosyjski → białoruski. Para domyślna: angielski → rosyjski. Jeden glosariusz na projekt — kanoniczne formy tłumaczenia dla wybranego języka docelowego."
   },
   "contact": {
     "title": "Kontakt",
@@ -1563,7 +1741,9 @@
     "cookieStatusAccepted": "Zaakceptowano",
     "cookieStatusRejected": "Odrzucono (baner ukryty przez 30 dni)",
     "cookieStatusUnset": "Jeszcze nie wybrano",
-    "cookieReset": "Resetuj preferencje cookies"
+    "cookieReset": "Resetuj preferencje cookies",
+    "operationalLogs": "Logi operacyjne",
+    "operationalLogsDesc": "W produkcji przechowujemy ustrukturyzowane logi serwera dla niezawodności i bezpieczeństwa (błędy, metadane żądań, identyfikatory korelacji: requestId, traceId, jobId, projectId, userId — bez adresu e-mail). Tekst rozdziałów oraz pełne prompty i odpowiedzi LLM nie są logowane. Logi mogą być przechowywane w Axiom (około 30 dni) oraz w stdout hostingu Vercel. Przy konfiguracji EU Central edge ingest, przechowywanie i zapytania o zdarzenia pozostają w tym regionie; zarządzanie kontem Axiom (uwierzytelnianie, rozliczenia, ustawienia organizacji) może nadal korzystać z infrastruktury w USA — zob. https://axiom.co/docs/reference/edge-deployments. Podstawa prawna: prawnie uzasadniony interes w działaniu i zabezpieczeniu serwisu."
   },
   "terms": {
     "title": "Regulamin",
@@ -1582,7 +1762,19 @@
     "contactDesc": "Pytania: {{contactEmail}}"
   },
   "news": {
-    "shownInPrimary": "Pokazano po rosyjsku"
+    "shownInPrimary": "Pokazano po rosyjsku",
+    "backToList": "Do listy aktualności",
+    "category": {
+      "discount": "Zniżka",
+      "feature": "Funkcja",
+      "other": "Inne",
+      "update": "Aktualizacja"
+    },
+    "empty": "Nie ma jeszcze opublikowanych aktualności.",
+    "intro": "Co nowego w Arcane: funkcje, aktualizacje i ogłoszenia.",
+    "loadError": "Nie udało się załadować aktualności.",
+    "notFound": "Nie znaleziono aktualności.",
+    "title": "Aktualności"
   },
   "edition": {
     "switchLabel": "Język tłumaczenia",
@@ -1605,5 +1797,91 @@
     "privacyLink": "Polityka prywatności",
     "accept": "Akceptuję",
     "reject": "Odrzuć"
+  },
+  "announcement": {
+    "ctaDefault": "Szczegóły",
+    "dismiss": "Zamknij ogłoszenie",
+    "openNews": "Czytaj aktualność"
+  },
+  "languageIn": {
+    "be": "białoruskim",
+    "de": "niemieckim",
+    "en": "angielskim",
+    "es": "hiszpańskim",
+    "fr": "francuskim",
+    "it": "włoskim",
+    "ja": "japońskim",
+    "ko": "koreańskim",
+    "pl": "polskim",
+    "ru": "rosyjskim",
+    "uk": "ukraińskim",
+    "zh": "chińskim"
+  },
+  "rating": {
+    "avgAria": "{{avg}} z 5, {{count}} ocen",
+    "change": "Zmień ocenę",
+    "count": "{{count}} ocen",
+    "ownWork": "Nie można ocenić własnej publikacji",
+    "rate": "Oceń",
+    "rateTitle": "Oceń tłumaczenie",
+    "readFirst": "Przeczytaj co najmniej jeden rozdział, aby ocenić",
+    "remove": "Usuń ocenę",
+    "save": "Zapisz",
+    "scoreLabel1": "Słabo",
+    "scoreLabel2": "Tak sobie",
+    "scoreLabel3": "W porządku",
+    "scoreLabel4": "Dobrze",
+    "scoreLabel5": "Świetnie",
+    "summary": "Ocena czytelników",
+    "yourScore": "Twoja ocena: {{score}}"
+  },
+  "support": {
+    "menu": "Wesprzyj",
+    "menuAria": "Wesprzyj projekt"
+  },
+  "tiers": {
+    "columns": {
+      "author": "Autor",
+      "author_plus": "Autor+",
+      "super_author": "Super autor",
+      "user": "Czytelnik"
+    },
+    "currentTier": "Twój poziom",
+    "featureColumn": "Możliwość",
+    "features": {
+      "aiModelChoice": "Wybór modelu AI",
+      "catalogReading": "Katalog i czytanie",
+      "dailyTokens": "Dzienne kredyty AI",
+      "glossaryPublishExport": "Glosariusz, publikacja, eksport EPUB/FB2",
+      "maxProjects": "Maksimum projektów tłumaczenia",
+      "parallelJobs": "Równoległe zadania w tle",
+      "profileHistory": "Profil i historia czytania",
+      "projectAiReplace": "Inteligentna zamiana AI w wyszukiwaniu projektu",
+      "translationProjects": "Projekty tłumaczenia, kilka par językowych, potok AI",
+      "translationReview": "Sprawdzenie tłumaczenia (Krytyk)"
+    },
+    "goToProfile": "Profil",
+    "goToProjects": "Moje projekty",
+    "intro": "Arcane ma poziomy dla czytelników i tłumaczy. Wyższe poziomy zwiększają dzienny limit kredytów AI oraz otwierają wybór modeli, sprawdzenie tłumaczenia (Krytyk) i inteligentną zamianę AI w wyszukiwaniu projektu; część możliwości jest zaplanowana na przyszłe wydania.",
+    "modelAccess": {
+      "basic": "GPT-4.1 Mini",
+      "full": "Wszystkie modele"
+    },
+    "pageTitle": "Poziomy konta",
+    "requestUpgrade": "Poproś o podwyższenie",
+    "soonBadge": "Wkrótce",
+    "soonTooltip": "W przygotowaniu",
+    "tableAria": "Porównanie poziomów konta",
+    "tokenResetNote": "Dzienne kredyty odnawiają się o 00:00 UTC.",
+    "viewFullComparison": "Pełne porównanie"
+  },
+  "upgrade": {
+    "compareTiers": "Porównaj poziomy",
+    "contactPageLink": "Strona kontaktu",
+    "copyEmail": "Skopiuj adres",
+    "copyEmailDone": "Skopiowano",
+    "mailBodyWithEmail": "Moje konto: {{email}}",
+    "mailFallbackHint": "Jeśli poczta się nie otworzyła, skopiuj adres i napisz ręcznie:",
+    "requestUpgrade": "Poproś o podwyższenie"
   }
 }

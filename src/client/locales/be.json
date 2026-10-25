@@ -12,7 +12,8 @@
     "back": "Назад",
     "create": "Стварыць",
     "ok": "Зразумела",
-    "continue": "Працягнуць"
+    "continue": "Працягнуць",
+    "error": "Памылка"
   },
   "project": {
     "projects": "Праекты",
@@ -84,7 +85,9 @@
     "errorDeleteFailed": "Не ўдалося выдаліць раздзел",
     "errorReorder": "Памылка змены парадку",
     "pollingLostTitle": "Злучэнне страчана",
-    "pollingLostMessage": "Злучэнне страчана або сервер перазапушчаны. Абнавіце старонку або паўтарыце пераклад."
+    "pollingLostMessage": "Злучэнне страчана або сервер перазапушчаны. Абнавіце старонку або паўтарыце пераклад.",
+    "changeStatus": "Змяніць статус",
+    "changeStatusTitle": "Змяніць статус раздзела"
   },
   "critic": {
     "menuLabel": "Праверыць пераклад",
@@ -512,7 +515,9 @@
     "customInstructionsTranslation": "Дадатковыя правілы для перакладчыка",
     "customInstructionsTranslationPlaceholder": "Напр.: абгортвайце сістэмныя паведамленні ў {{block:system-message}}...",
     "customInstructionsEditing": "Дадатковыя правілы для рэдактара",
-    "customInstructionsEditingPlaceholder": "Напр.: захоўвайце ўсе маркеры {{block:...}} без змен."
+    "customInstructionsEditingPlaceholder": "Напр.: захоўвайце ўсе маркеры {{block:...}} без змен.",
+    "stageModelsTitle": "Мадэлі па стадыях",
+    "stageModelsHint": "Этапы перакладу выбіраюцца пры запуску (панэль «Пераклад» на раздзеле)."
   },
   "header": {
     "logoSubtitle": "AI Перакладчык навэл",
@@ -681,7 +686,8 @@
     "themeContrast": "Кантраст",
     "customTheme": "Свая",
     "backgroundColor": "Колер фону",
-    "textColor": "Колер тэксту"
+    "textColor": "Колер тэксту",
+    "displaySettings": "Налады адлюстравання"
   },
   "auth": {
     "login": "Уваход",
@@ -1863,5 +1869,19 @@
     "privacyLink": "Палітыка канфідэнцыяльнасці",
     "accept": "Прыняць",
     "reject": "Адхіліць"
+  },
+  "languageIn": {
+    "en": "англійскай",
+    "ru": "рускай",
+    "be": "беларускай",
+    "pl": "польскай",
+    "uk": "украінскай",
+    "de": "нямецкай",
+    "fr": "французскай",
+    "es": "іспанскай",
+    "it": "італьянскай",
+    "ja": "японскай",
+    "ko": "карэйскай",
+    "zh": "кітайскай"
   }
 }

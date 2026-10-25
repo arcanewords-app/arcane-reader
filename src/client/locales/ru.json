@@ -12,7 +12,8 @@
     "back": "Назад",
     "create": "Создать",
     "ok": "Понятно",
-    "continue": "Продолжить"
+    "continue": "Продолжить",
+    "error": "Ошибка"
   },
   "project": {
     "projects": "Проекты",
@@ -84,7 +85,9 @@
     "errorDeleteFailed": "Не удалось удалить главу",
     "errorReorder": "Ошибка изменения порядка",
     "pollingLostTitle": "Соединение потеряно",
-    "pollingLostMessage": "Соединение потеряно или сервер перезапущен. Обновите страницу или повторите перевод."
+    "pollingLostMessage": "Соединение потеряно или сервер перезапущен. Обновите страницу или повторите перевод.",
+    "changeStatus": "Сменить статус",
+    "changeStatusTitle": "Сменить статус главы"
   },
   "critic": {
     "menuLabel": "Проверить перевод",
@@ -512,7 +515,9 @@
     "customInstructionsTranslation": "Дополнительные правила для переводчика",
     "customInstructionsTranslationPlaceholder": "Напр.: оборачивайте системные сообщения в {{block:system-message}}...",
     "customInstructionsEditing": "Дополнительные правила для редактора",
-    "customInstructionsEditingPlaceholder": "Напр.: сохраняйте все маркеры {{block:...}} без изменений."
+    "customInstructionsEditingPlaceholder": "Напр.: сохраняйте все маркеры {{block:...}} без изменений.",
+    "stageModelsTitle": "Модели по стадиям",
+    "stageModelsHint": "Стадии перевода выбираются при запуске (панель «Перевод» на главе)."
   },
   "header": {
     "logoSubtitle": "AI Переводчик новелл",
@@ -681,7 +686,8 @@
     "themeContrast": "Контраст",
     "customTheme": "Свой",
     "backgroundColor": "Цвет фона",
-    "textColor": "Цвет текста"
+    "textColor": "Цвет текста",
+    "displaySettings": "Настройки отображения"
   },
   "auth": {
     "login": "Вход",

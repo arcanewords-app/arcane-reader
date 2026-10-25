@@ -12,7 +12,8 @@
     "back": "Back",
     "create": "Create",
     "ok": "OK",
-    "continue": "Continue"
+    "continue": "Continue",
+    "error": "Error"
   },
   "project": {
     "projects": "Projects",
@@ -84,7 +85,9 @@
     "errorDeleteFailed": "Failed to delete chapter",
     "errorReorder": "Reorder error",
     "pollingLostTitle": "Connection lost",
-    "pollingLostMessage": "Connection lost or server restarted. Refresh the page or try translating again."
+    "pollingLostMessage": "Connection lost or server restarted. Refresh the page or try translating again.",
+    "changeStatus": "Change status",
+    "changeStatusTitle": "Change chapter status"
   },
   "critic": {
     "menuLabel": "Review translation",
@@ -397,8 +400,6 @@
     "canceled": "Canceled",
     "analysis": "Analysis",
     "translation": "Translation",
-    "editing": "Editing",
-    "phaseProgress": "{{phase}}: {{current}}/{{total}}",
     "cancel": "Cancel",
     "cancelRequested": "Cancel requested…",
     "startedAgoMinutes": "Started {{count}} min ago",
@@ -514,7 +515,9 @@
     "customInstructionsTranslation": "Extra rules for translator",
     "customInstructionsTranslationPlaceholder": "e.g. Wrap system messages in {{block:system-message}}...",
     "customInstructionsEditing": "Extra rules for editor",
-    "customInstructionsEditingPlaceholder": "e.g. Preserve all {{block:...}} markers exactly."
+    "customInstructionsEditingPlaceholder": "e.g. Preserve all {{block:...}} markers exactly.",
+    "stageModelsTitle": "Models by stage",
+    "stageModelsHint": "Translation stages are chosen when you start (the Translate panel on a chapter)."
   },
   "header": {
     "logoSubtitle": "AI Novel Translator",
@@ -683,7 +686,8 @@
     "themeContrast": "Contrast",
     "customTheme": "Custom",
     "backgroundColor": "Background color",
-    "textColor": "Text color"
+    "textColor": "Text color",
+    "displaySettings": "Display settings"
   },
   "auth": {
     "login": "Login",
@@ -1011,7 +1015,8 @@
     "filterBooks": "Books",
     "filterText": "Text",
     "projectLimitReached": "Project limit reached ({{current}}/{{limit}})",
-    "projectLimitHint": "Projects: {{current}} of {{limit}}"
+    "projectLimitHint": "Projects: {{current}} of {{limit}}",
+    "filterAllWithCount": "All ({{count}})"
   },
   "projectLimit": {
     "title": "Project limit",
@@ -1647,7 +1652,9 @@
       "complete": "Complete work",
       "abandoned": "Abandoned work",
       "experimental": "Experimental work"
-    }
+    },
+    "filterAllWithCount": "All ({{count}})",
+    "filterUntranslated": "Untranslated"
   },
   "language": {
     "en": "English",
@@ -1862,5 +1869,19 @@
     "privacyLink": "Privacy Policy",
     "accept": "Accept",
     "reject": "Reject"
+  },
+  "languageIn": {
+    "en": "English",
+    "ru": "Russian",
+    "be": "Belarusian",
+    "pl": "Polish",
+    "uk": "Ukrainian",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese"
   }
 }

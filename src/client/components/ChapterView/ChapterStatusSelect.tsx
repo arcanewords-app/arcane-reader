@@ -53,8 +53,8 @@ export function ChapterStatusSelect({
         type="button"
         class="chapter-status-select-trigger"
         onClick={() => setIsOpen(true)}
-        title={t('chapter.changeStatus', 'Change status')}
-        aria-label={t('chapter.changeStatus', 'Change status')}
+        title={t('chapter.changeStatus')}
+        aria-label={t('chapter.changeStatus')}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
@@ -65,7 +65,7 @@ export function ChapterStatusSelect({
       <Modal
         isOpen={isOpen}
         onClose={() => !saving && setIsOpen(false)}
-        title={t('chapter.changeStatusTitle', 'Change chapter status')}
+        title={t('chapter.changeStatusTitle')}
       >
         <div class="chapter-status-select-list">
           {MANUAL_STATUSES.map((status) => {

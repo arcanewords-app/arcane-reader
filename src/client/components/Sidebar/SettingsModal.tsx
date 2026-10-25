@@ -948,7 +948,7 @@ export function SettingsModal({
         {/* Stages summary: which models are used per stage (read-only reminder) */}
         {!isOriginalReadingMode && (
           <div class="stages-panel">
-            <div class="stages-title">{t('settings.stageModelsTitle', 'Модели по стадиям')}</div>
+            <div class="stages-title">{t('settings.stageModelsTitle')}</div>
             <div class="stages-grid" style={{ pointerEvents: 'none', opacity: 0.9 }}>
               <div class="stage-toggle active">
                 <span class="stage-icon">
@@ -985,10 +985,7 @@ export function SettingsModal({
               </div>
             </div>
             <span class="setting-hint" style={{ display: 'block', marginTop: '0.5rem' }}>
-              {t(
-                'settings.stageModelsHint',
-                'Стадии перевода выбираются при запуске (панель «Перевод» на главе).'
-              )}
+              {t('settings.stageModelsHint')}
             </span>
           </div>
         )}
