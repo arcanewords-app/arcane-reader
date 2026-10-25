@@ -62,7 +62,8 @@ vi.mock('../../storage.js', () => ({
 
 vi.mock('./chapters.js', () => ({
   renumberChapters: (...args: unknown[]) => mockRenumberChapters(...args),
-  deleteChaptersBatch: (...args: unknown[]) => mockDeleteChaptersBatch(...args),
+  deleteChaptersBatch: (...args: unknown[]) =>
+    mockDeleteChaptersBatch(args[0] as string, args[1] as string[]),
 }));
 
 import {
