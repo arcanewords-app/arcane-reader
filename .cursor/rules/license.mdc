@@ -1,0 +1,41 @@
+---
+description: AGPL-3.0-or-later for Arcane Reader. Applies when adding source files, dependencies, or a hosted build.
+alwaysApply: true
+---
+
+# License
+
+Arcane Reader versions published after the MIT → AGPL change are free software under **AGPL-3.0-or-later**. Copyright (C) 2026 Ilya Murashka. SPDX and the grant statement live in `package.json` and `LICENSE`.
+
+This is not legal advice. The rule tells agents what to do in the repo.
+
+## What the change does not do
+
+- Revisions already published under MIT stay under MIT. Do not rewrite history, retag old commits, or say the MIT grant was revoked.
+- Do not relicense third-party files (`node_modules/`, vendored trees). Their notices stay intact.
+- Do not claim the project is proprietary or "closed". AGPL is a copyleft free-software license.
+
+## New project files
+
+Add this header to new source files you create under `src/`, `tests/`, and `scripts/` (`.ts`, `.tsx`, `.js`, `.mjs`, `.css`). Skip generated files, snapshots, and vendored code.
+
+```
+Copyright (C) 2026 Ilya Murashka
+SPDX-License-Identifier: AGPL-3.0-or-later
+```
+
+Use `//` in JS/TS and `/* */` in CSS. Do not mass-edit existing files only to add the header.
+
+## Dependencies
+
+A new dependency may be included in this AGPL tree when its license is MIT, BSD-2-Clause, BSD-3-Clause, ISC, Apache-2.0, or LGPL used as a library. Keep that package's own license.
+
+Stop and ask before adding GPL-2.0-only, Commons Clause, BUSL, SSPL, a proprietary license, or a non-commercial license (CC-BY-NC and similar). Do not pick a different package to skip the question.
+
+## Sharing and hosted builds
+
+- Do not remove or weaken license notices.
+- Do not copy project source into another repository under MIT or a proprietary license.
+- A modified version that users reach over the network must offer the corresponding source of that version at no charge (AGPL §13). Keep the public source link in the header info menu and on `/about`: `https://github.com/arcanewords-app/arcane-reader`.
+- That link is the corresponding source only when the public tree matches the deployed commit, with no private patches. Secrets and `.env` are not part of corresponding source.
+- Do not suggest a private fork as a way around §13.

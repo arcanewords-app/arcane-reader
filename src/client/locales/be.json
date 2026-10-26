@@ -1699,6 +1699,7 @@
     "accountTiers": "Узроўні акаўнта",
     "legal": "Прававая інфармацыя",
     "about": "Пра праект",
+    "source": "Зыходны код",
     "contact": "Кантакты",
     "privacy": "Палітыка канфідэнцыяльнасці",
     "terms": "Умовы выкарыстання",
@@ -1790,7 +1791,8 @@
     "author": "Аўтар",
     "authorDesc": "Ilya Murashka. Ідэі, дапамога, супрацоўніцтва — пішыце ў LinkedIn.",
     "license": "Ліцэнзія",
-    "licenseDesc": "Праект распрацаваны з выкарыстаннем Cursor AI. MIT License."
+    "licenseDesc": "Новыя версіі Arcane Reader — свабоднае ПЗ па GNU Affero General Public License версіі 3 або любой пазнейшай. Раней апублікаваныя рэвізіі застаюцца пад ліцэнзіяй MIT.",
+    "sourceLink": "Зыходны код"
   },
   "contact": {
     "title": "Кантакты",

@@ -106,6 +106,14 @@ describe('Header', () => {
     expect(credits.compareDocumentPosition(profile) & following).toBeTruthy();
   });
 
+  it('offers the public source repository from the info menu', () => {
+    render(<Header />);
+
+    fireEvent.click(screen.getByLabelText('info.menu'));
+    const source = screen.getByRole('menuitem', { name: 'info.source' });
+    expect(source.getAttribute('href')).toBe('https://github.com/arcanewords-app/arcane-reader');
+  });
+
   it('toggles the site theme between dark and light', () => {
     render(<Header />);
 

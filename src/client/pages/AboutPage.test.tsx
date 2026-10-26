@@ -25,4 +25,10 @@ describe('AboutPage', () => {
     render(<AboutPage />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveProperty('textContent', 'about.title');
   });
+
+  it('links to the public source repository', () => {
+    render(<AboutPage />);
+    const source = screen.getByRole('link', { name: 'about.sourceLink' });
+    expect(source.getAttribute('href')).toBe('https://github.com/arcanewords-app/arcane-reader');
+  });
 });

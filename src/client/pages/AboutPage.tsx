@@ -78,6 +78,15 @@ export function AboutPage() {
         <section class="info-section">
           <h2>{t('about.license')}</h2>
           <p>{t('about.licenseDesc')}</p>
+          <p>
+            <a
+              href="https://github.com/arcanewords-app/arcane-reader"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('about.sourceLink')}
+            </a>
+          </p>
         </section>
       </div>
     </div>

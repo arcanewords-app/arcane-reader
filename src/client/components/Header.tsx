@@ -207,6 +207,15 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                       {t('info.about')}
                     </a>
                     <a
+                      href="https://github.com/arcanewords-app/arcane-reader"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      role="menuitem"
+                      onClick={() => setInfoOpen(false)}
+                    >
+                      {t('info.source')}
+                    </a>
+                    <a
                       href="/news"
                       onClick={(e) => {
                         e.preventDefault();

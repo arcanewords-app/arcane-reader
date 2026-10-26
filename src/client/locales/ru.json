@@ -1713,6 +1713,7 @@
     "accountTiers": "Уровни аккаунта",
     "legal": "Правовая информация",
     "about": "О проекте",
+    "source": "Исходный код",
     "contact": "Контакты",
     "privacy": "Политика конфиденциальности",
     "terms": "Условия использования",
@@ -1804,7 +1805,8 @@
     "author": "Автор",
     "authorDesc": "Ilya Murashka. Идеи, помощь, сотрудничество — пишите в LinkedIn.",
     "license": "Лицензия",
-    "licenseDesc": "Проект разработан с использованием Cursor AI. MIT License."
+    "licenseDesc": "Новые версии Arcane Reader — свободное ПО по GNU Affero General Public License версии 3 или любой более поздней. Ранее опубликованные ревизии остаются под лицензией MIT.",
+    "sourceLink": "Исходный код"
   },
   "contact": {
     "title": "Контакты",

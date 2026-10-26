@@ -82,9 +82,9 @@ Also sync: `@docs/02-how-to/run-locally.md`, `@.cursor/skills/local-dev/SKILL.md
 
 Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 
-| Package           | Latest (2026-09) | Notes                                              |
-| ----------------- | ---------------- | -------------------------------------------------- |
-| `@types/node`     | 26.x             | P4 — only with Node 26 LTS + SSOT trio             |
+| Package       | Latest (2026-09) | Notes                                  |
+| ------------- | ---------------- | -------------------------------------- |
+| `@types/node` | 26.x             | P4 — only with Node 26 LTS + SSOT trio |
 
 ## Mitigations (temporary — document as tech debt)
 
@@ -126,6 +126,16 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 
 **Lint:** `npm run lint` → `oxlint src` with type-aware (`oxlint-tsgolint`). Typecheck remains `tsc --noEmit` on three tsconfigs. Prettier + Stylelint unchanged. Cursor: `oxc.oxc-vscode`.
+
+## License compatibility (AGPL-3.0-or-later)
+
+Before adding a package, read its SPDX `license` in the lockfile (`packages["node_modules/<name>"].license`). Policy: `@.cursor/rules/license.mdc` and `@.cursor/skills/license/SKILL.md`.
+
+Allowed inside the AGPL tree: MIT, BSD-2-Clause, BSD-3-Clause, ISC, Apache-2.0, and LGPL when used as a library. Leave the dependency under its own license.
+
+Stop and ask before adding GPL-2.0-only, Commons Clause, BUSL, SSPL, a proprietary license, or a non-commercial license (CC-BY-NC and similar). Do not swap in a different package to avoid that question.
+
+Dev-only tools that are not conveyed with the app are not part of the AGPL work. Prefer the same compatible set anyway.
 
 ## References
 

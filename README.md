@@ -1,5 +1,7 @@
 # Arcane Reader
 
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 Web UI for Arcane novel translator. AI-powered translation pipeline for fiction (EN → RU focus) with glossary, style analysis, and special text block formatting.
 
 ## Features
@@ -69,4 +71,8 @@ npm run dev
 
 ## License
 
-MIT
+Releases from this change onward are free software under the [GNU Affero General Public License v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
+
+Revisions published before this change stay under the MIT License. That grant is not revoked.
+
+If you run a modified version as a network service, section 13 of the AGPL requires you to offer users who interact with it remotely the corresponding source of that version. The public git repository is the source for the published tree: <https://github.com/arcanewords-app/arcane-reader>.

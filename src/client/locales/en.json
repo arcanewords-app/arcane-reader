@@ -1699,6 +1699,7 @@
     "accountTiers": "Account levels",
     "legal": "Legal",
     "about": "About",
+    "source": "Source code",
     "contact": "Contact",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
@@ -1790,7 +1791,8 @@
     "author": "Author",
     "authorDesc": "Ilya Murashka. Ideas, help, collaboration — reach out on LinkedIn.",
     "license": "License",
-    "licenseDesc": "Project developed with Cursor AI. MIT License."
+    "licenseDesc": "New versions of Arcane Reader are free software under the GNU Affero General Public License, version 3 or any later version. Earlier published revisions stay under the MIT License.",
+    "sourceLink": "Source code"
   },
   "contact": {
     "title": "Contact",
