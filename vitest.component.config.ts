@@ -14,6 +14,7 @@ export default defineConfig({
       '**/dist/**',
       '**/coverage/**',
       '**/coverage-component/**',
+      '**/coverage-contract/**',
       'tests/e2e/**',
     ],
     environment: 'happy-dom',

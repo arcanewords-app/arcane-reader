@@ -36,8 +36,27 @@ export default defineConfig({
   server: {
     port: 5173,
     // Git Bash / MSYS crash dumps in repo root can lock on Windows and crash Vite's watcher (EBUSY).
+    // The watcher does not read .gitignore. Ignore generated output only — not sources
+    // such as supabase/migrations. HTML under these dirs otherwise triggers a full page reload.
     watch: {
-      ignored: ['**/*.stackdump', '**/*.stackdump.*'],
+      ignored: [
+        '**/*.stackdump',
+        '**/*.stackdump.*',
+        '**/coverage/**',
+        '**/coverage-component/**',
+        '**/coverage-contract/**',
+        '**/reports/**',
+        '**/.stryker-tmp/**',
+        '**/playwright-report/**',
+        '**/test-results/**',
+        '**/blob-report/**',
+        '**/.vitest/**',
+        '**/.cache/**',
+        '**/.debug/**',
+        '**/dist/**',
+        '**/logs/**',
+        '**/docs/01-reference/app-map/**',
+      ],
     },
     // Proxy API requests to Express server
     proxy: {
