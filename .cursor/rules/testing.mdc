@@ -30,7 +30,7 @@ Domain agents own layer-appropriate tests with the feature. Do **not** default t
 
 ## Runner and layout
 
-- **Pin:** Vitest + `@vitest/coverage-v8` exact **`5.0.0`** (no `^`). Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) stay until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
+- **Pin:** Vitest + `@vitest/coverage-v8` exact **`5.0.5`** (no `^`). Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) stay until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
 - **Vitest 5 `exclude`:** v5 `defaultExclude` is only `node_modules` + `.git` (no `dist/**`). Custom `test.exclude` **replaces** defaults — spread `configDefaults.exclude`, then add `**/dist/**`, `tests/e2e/**`, and layer splits. Unit must keep `src/**/*.hook.test.ts` out (`*.hook.test.ts` matches `*.test.ts`).
 - **Component pool:** `forks` (Vitest 5 default). Do not set `pool: 'threads'` — Node `fetch` in worker_threads can hang the suite ([vitest#3077](https://github.com/vitest-dev/vitest/issues/3077)). Hang log: `@docs/05-plans/coverage-campaign-extracts.md`.
 - **Runner:** Vitest via wrappers where needed:
@@ -39,7 +39,7 @@ Domain agents own layer-appropriate tests with the feature. Do **not** default t
   - `npm run test:integration` → `scripts/test-integration.mjs` (explicit file list)
   - Also: `test:slow`, `test:contract`, `test:all`, `test:coverage`, `test:component:coverage`, `test:contract:coverage`, `test:gaps`
   - Local E2E (not pre-push): `test:e2e` (Playwright Chromium, invert `@llm` and `@visual`), `test:e2e:visual` (pixel shells), `test:e2e:llm` (includes live OpenAI)
-- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX, CLIENT_SCOPE coverage), `@vitest.contract.config.ts` (Zod fixtures + advisory schema coverage), `@vitest.integration.config.ts` (forks, **no** `setupFiles`), `@playwright.config.ts` (local E2E; pin `@playwright/test` **1.63.0**)
+- **Configs:** `@vitest.config.ts` (unit + coverage floors), `@vitest.slow.config.ts`, `@vitest.component.config.ts` (happy-dom, Preact JSX, CLIENT_SCOPE coverage), `@vitest.contract.config.ts` (Zod fixtures + advisory schema coverage), `@vitest.integration.config.ts` (forks, **no** `setupFiles`), `@playwright.config.ts` (local E2E; pin `@playwright/test` **1.64.1**)
 - **File naming:** co-located `foo.test.ts` / `foo.test.tsx` next to source (not `.spec.ts`). Hook Testing Library suites may use `*.hook.test.ts`. Integration/contract live under `tests/`. Local E2E specs use `*.spec.ts` under `tests/e2e/specs/`; locators only via `tests/e2e/targets/` (Persona/Actor; see `@.cursor/skills/testing/PATTERNS.md`). Pixel shells only in `*.visual.spec.ts` via `layoutMatches` (`fullPage`; phone 390 / tablet **834** / desktop 1280 CSS viewports — tablet is inside 768–1023, not on the 768 boundary); fixture seeds dismissed alerts so the banner is out of the shot.
 - **Imports:** NodeNext — use `.js` extensions in test imports (same as production code).
 - **Wrappers allowed:** `scripts/test-*.mjs` / `scripts/resolve-vitest.mjs` for runner workarounds only — not for test cases. Put tests under `src/**/*.test.ts(x)` or `tests/`. Inventory helpers `scripts/gen-test-inventory.mjs` and `scripts/gen-layer-gaps.mjs` are allowed.

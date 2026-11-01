@@ -94,34 +94,35 @@ Index: `@docs/05-plans/dependency-major-backlog.md` (one major per PR).
 
 ## Completed waves (2026-06-28)
 
-| Wave                          | Status | Notes                                                                     |
-| ----------------------------- | ------ | ------------------------------------------------------------------------- |
-| 1 Node 24 + patches           | Done   | `.nvmrc`, engines, audit scripts                                          |
-| 2 ESLint 9 + `@vercel/node` 5 | Done   | flat `eslint.config.js`                                                   |
-| 3 OpenAI SDK 6                | Done   | prod audit clean                                                          |
-| 4 Express 5 + multer 2        | Done   | types-first; routers in `src/api/routes/`                                 |
-| 5 Post-Express hygiene        | Done   | baseline, stylelint v16 fix, smoke checklist, migration artifact cleanup  |
-| 6 Low-risk majors             | Done   | `dotenv` 17, `csv-parse` 7, `pino` 10, `pino-pretty` 13                   |
-| 7 Zod 4                       | Done   | schemas + `validateRoute.ts`                                              |
-| 8 Vite 8                      | Done   | client + debug + prompt-lab builds                                        |
-| 9 i18next 26                  | Done   | `react-i18next` 17                                                        |
-| 10 Dev lint                   | Done   | `stylelint` 17, `eslint` 10, `globals` 17, `eslint-plugin-unused-imports` |
-| SEO router                    | Done   | `src/api/routes/seo.ts`                                                   |
-| 11 Dev scripts                | Done   | `wait-on` 9, `concurrently` 10                                            |
-| 12 TypeScript 6               | Done   | tsconfig: `types: ["node"]`, removed `baseUrl`; `vite-env.d.ts` for CSS   |
-| 13 TypeScript 7 side-by-side  | Done   | `@typescript/native` (tsc 7) + `typescript` shim (ESLint API 6)           |
-| 14 Oxlint + TypeScript 7      | Done   | Drop ESLint / typescript-eslint; single `typescript@^7`; `.oxlintrc.json` |
-| 15 Oxlint type-aware          | Done   | `oxlint-tsgolint@7`; `typeAware` on; `typeCheck` off; noisy rules warn    |
-| Skill + agent                 | Done   | this file                                                                 |
-| 16 Monthly P0+P3 (2026-09)    | Done   | prod audit 0; `adm-zip` 0.6 + multer/csv/fxml/qs patches; Vite 8.3        |
-| 17 Stryker 10                 | Done   | core + vitest-runner 10; keep `tsconfig.json` ignorePatterns              |
-| 18 OpenAI SDK 7               | Done   | `openai@^7.15.0`; typed Chat Completions params; no `as unknown as`       |
-| 19 Axiom 2 + web-vitals 6     | Done   | same PR; ingest/flush + `onCLS`/`onINP`/`onLCP`; no `reportSoftNavs`      |
-| 20 BullMQ 6                   | Done   | `bullmq@^6.3.4`; no repeat/scheduler migration                            |
-| 21 ioredis 6                  | Done   | `ioredis@^6.0.0`; debug bridge only; RESP3 + legacy replies               |
-| 22 `@vercel/node` 13          | Done   | `^13.0.0` + `@vercel/functions`; waitUntil flush; API cancellation        |
-| 23 Vitest 5                   | Done   | exact `5.0.0`; mocker GHSA gone; Windows wrappers kept                    |
-| 24 P3 pins                    | Done   | `@playwright/test` 1.63.0; `supabase` CLI 2.117.0                         |
+| Wave                          | Status | Notes                                                                                |
+| ----------------------------- | ------ | ------------------------------------------------------------------------------------ |
+| 1 Node 24 + patches           | Done   | `.nvmrc`, engines, audit scripts                                                     |
+| 2 ESLint 9 + `@vercel/node` 5 | Done   | flat `eslint.config.js`                                                              |
+| 3 OpenAI SDK 6                | Done   | prod audit clean                                                                     |
+| 4 Express 5 + multer 2        | Done   | types-first; routers in `src/api/routes/`                                            |
+| 5 Post-Express hygiene        | Done   | baseline, stylelint v16 fix, smoke checklist, migration artifact cleanup             |
+| 6 Low-risk majors             | Done   | `dotenv` 17, `csv-parse` 7, `pino` 10, `pino-pretty` 13                              |
+| 7 Zod 4                       | Done   | schemas + `validateRoute.ts`                                                         |
+| 8 Vite 8                      | Done   | client + debug + prompt-lab builds                                                   |
+| 9 i18next 26                  | Done   | `react-i18next` 17                                                                   |
+| 10 Dev lint                   | Done   | `stylelint` 17, `eslint` 10, `globals` 17, `eslint-plugin-unused-imports`            |
+| SEO router                    | Done   | `src/api/routes/seo.ts`                                                              |
+| 11 Dev scripts                | Done   | `wait-on` 9, `concurrently` 10                                                       |
+| 12 TypeScript 6               | Done   | tsconfig: `types: ["node"]`, removed `baseUrl`; `vite-env.d.ts` for CSS              |
+| 13 TypeScript 7 side-by-side  | Done   | `@typescript/native` (tsc 7) + `typescript` shim (ESLint API 6)                      |
+| 14 Oxlint + TypeScript 7      | Done   | Drop ESLint / typescript-eslint; single `typescript@^7`; `.oxlintrc.json`            |
+| 15 Oxlint type-aware          | Done   | `oxlint-tsgolint@7`; `typeAware` on; `typeCheck` off; noisy rules warn               |
+| Skill + agent                 | Done   | this file                                                                            |
+| 16 Monthly P0+P3 (2026-09)    | Done   | prod audit 0; `adm-zip` 0.6 + multer/csv/fxml/qs patches; Vite 8.3                   |
+| 17 Stryker 10                 | Done   | core + vitest-runner 10; keep `tsconfig.json` ignorePatterns                         |
+| 18 OpenAI SDK 7               | Done   | `openai@^7.15.0`; typed Chat Completions params; no `as unknown as`                  |
+| 19 Axiom 2 + web-vitals 6     | Done   | same PR; ingest/flush + `onCLS`/`onINP`/`onLCP`; no `reportSoftNavs`                 |
+| 20 BullMQ 6                   | Done   | `bullmq@^6.3.4`; no repeat/scheduler migration                                       |
+| 21 ioredis 6                  | Done   | `ioredis@^6.0.0`; debug bridge only; RESP3 + legacy replies                          |
+| 22 `@vercel/node` 13          | Done   | `^13.0.0` + `@vercel/functions`; waitUntil flush; API cancellation                   |
+| 23 Vitest 5                   | Done   | exact `5.0.0`; mocker GHSA gone; Windows wrappers kept                               |
+| 24 P3 pins                    | Done   | `@playwright/test` 1.63.0; `supabase` CLI 2.117.0                                    |
+| 25 P3 pin bump (2026-11)      | Done   | exact `vitest` + coverage `5.0.5`; `@playwright/test` 1.64.1; `supabase` CLI 2.122.0 |
 
 **Current target:** `npm run audit:prod` → 0 vulnerabilities.
 

@@ -1,6 +1,6 @@
 # Run tests
 
-Unit tests use **Vitest 5.0.0** (exact pin). Policy: [[_canonical/rules/testing]]. Strategy (pyramid): [[05-plans/testing-strategy]].
+Unit tests use **Vitest 5.0.5** (exact pin). Policy: [[_canonical/rules/testing]]. Strategy (pyramid): [[05-plans/testing-strategy]].
 
 Tests never require prod/staging `.env` credentials. Pre-push and GitHub Actions use mocks at all external boundaries. Local E2E uses the Docker stamp (`stack:up` restores `arcane-reader-stamp:latest`; dirty reset = `stack:restore`) + `npm run dev` — not a merge gate. First bake only: `stack:load` then `stack:stamp`. Dedicated CI live stack (Playwright-as-gate, `tests/integration/supabase/`) is still blocked. See [[05-plans/testing-baseline]].
 
@@ -100,7 +100,7 @@ Job Node is **24** (`.nvmrc`). A “Node.js 20 is deprecated” annotation on ol
 
 ## Windows / Vitest notes
 
-- Pin is exact **`5.0.0`**. Windows wrappers stay until glob/dir entry, `setupFiles`, and unbounded forks are re-validated on Windows + Node 24.
+- Pin is exact **`5.0.5`**. Windows wrappers stay until glob/dir entry, `setupFiles`, and unbounded forks are re-validated on Windows + Node 24.
 - Wrappers fix drive-letter casing (`f:` vs `F:`) and resolve hoisted workspace `vitest`.
 - Component/integration use explicit file lists (glob/dir entry historically flaky on Windows).
 - Vitest 5 `defaultExclude` is only `node_modules` + `.git`. Custom `exclude` replaces defaults — spread `configDefaults.exclude`, then `**/dist/**`, `tests/e2e/**`, and unit layer splits (`*.test.tsx`, `*.hook.test.ts`).

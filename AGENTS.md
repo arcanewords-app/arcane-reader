@@ -59,7 +59,7 @@ npm run dev          # API + client (local Docker Postgres)
 npm run dev:full     # + BullMQ worker (local DB)
 npm run dev:full:prod  # same processes, live prod DB (`.env.prod.local`)
 npm run lint:all     # lint + typecheck
-npm run test              # Vitest unit (scripts/test-unit.mjs; pin 5.0.0)
+npm run test              # Vitest unit (scripts/test-unit.mjs; pin 5.0.5)
 npm run test:component    # Testing Library + happy-dom
 npm run test:integration  # mock-integration (createApp + supertest)
 npm run test:contract     # Zod contract fixtures

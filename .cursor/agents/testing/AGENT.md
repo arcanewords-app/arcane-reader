@@ -61,9 +61,9 @@ Read and follow:
 
 ## Pin
 
-Vitest **5.0.0** exact. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
+Vitest **5.0.5** exact. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x.
 
-Playwright `@playwright/test` **1.63.0** exact. Chromium only (`npm run playwright:install`).
+Playwright `@playwright/test` **1.64.1** exact. Chromium only (`npm run playwright:install`).
 
 ## Routing after test work
 

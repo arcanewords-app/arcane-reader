@@ -16,17 +16,17 @@ Do **not** run `npm audit fix --force` (it may downgrade `@vercel/node`).
 
 ## Rule
 
-| Rule | Why |
-| ---- | --- |
-| One major per PR | Isolates rollback |
-| Domain smoke after P2 | Engine / API / Backend / UI / Deploy table in the skill |
-| Node SSOT trio | `.nvmrc` + `engines.node` + `@types/node` stay the same major |
+| Rule                  | Why                                                           |
+| --------------------- | ------------------------------------------------------------- |
+| One major per PR      | Isolates rollback                                             |
+| Domain smoke after P2 | Engine / API / Backend / UI / Deploy table in the skill       |
+| Node SSOT trio        | `.nvmrc` + `engines.node` + `@types/node` stay the same major |
 
 ## Deferred majors
 
-| Plan | Current → target | Domain | Priority |
-| ---- | ---------------- | ------ | -------- |
-| [[05-plans/types-node-26-upgrade]] | `@types/node` 24 → 26 | infra | **P4 blocked** until Node 26 LTS |
+| Plan                               | Current → target      | Domain | Priority                         |
+| ---------------------------------- | --------------------- | ------ | -------------------------------- |
+| [[05-plans/types-node-26-upgrade]] | `@types/node` 24 → 26 | infra  | **P4 blocked** until Node 26 LTS |
 
 Not majors (leave in monthly outdated triage): none — `@playwright/test` 1.63.0 and `supabase` CLI 2.117.0 shipped 2026-09-13.
 
@@ -44,7 +44,7 @@ Stryker 9 → 10 shipped 2026-09-13 (`@stryker-mutator/core` + `vitest-runner` 1
 
 `vitest` 4.0.8 → 5 shipped 2026-09-13 (`vitest@5.0.0` + `@vitest/coverage-v8@5.0.0`; Windows wrappers kept). Archived: [[05-plans/vitest-5-upgrade]].
 
-P3 exact pins 2026-09-13: `@playwright/test@1.63.0`, `supabase` CLI `2.117.0`.
+P3 exact pins 2026-09-13: `@playwright/test@1.63.0`, `supabase` CLI `2.117.0`. Bumped 2026-11-01: `@playwright/test@1.64.1`, `vitest` + `@vitest/coverage-v8` `5.0.5`, `supabase` CLI `2.122.0`.
 
 ## References
 

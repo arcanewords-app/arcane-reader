@@ -50,7 +50,7 @@ Coverage and mutation share one scope — see `vitest.config.ts` / `stryker.conf
 | **Integration (live)** | Vitest + real stack                   | `tests/integration/supabase/**` | **Blocked** — see README there               |
 | **Snapshot**           | Vitest `toMatchSnapshot`              | co-located `__snapshots__/`     | Stable presentational UI only                |
 | **Contract**           | Zod fixture round-trips               | `tests/contracts/**`            | API/shared shapes; OpenAPI later             |
-| **E2E**                | Playwright `@playwright/test` 1.63.0  | `tests/e2e/specs/*.spec.ts`     | Local stamp smoke; `@llm` opt-in             |
+| **E2E**                | Playwright `@playwright/test` 1.64.1  | `tests/e2e/specs/*.spec.ts`     | Local stamp smoke; `@llm` opt-in             |
 | **Mutation**           | Stryker                               | APP_SCOPE                       | Manual/nightly — not CI gate                 |
 
 ### Anti-patterns
@@ -105,7 +105,7 @@ Infra: `createApp()`, `vitest.integration.config.ts`, harness under `tests/integ
 | Worker jobs      | `tests/integration/worker/*.test.ts`        | `runTranslateJob` + `runAnalysisJob` smoke           |
 | Live Supabase    | `tests/integration/supabase/` — **blocked** | —                                                    |
 
-Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **5.0.0** exact. Windows wrappers stay until glob/dir + `setupFiles` + unbounded forks are re-validated on Windows + Node 24.
+Harness: `setup.ts` (Redis env strip), `mockAuth` / `mockSupabase` / `createTestApp` / `appFetch`. Pin Vitest **5.0.5** exact. Windows wrappers stay until glob/dir + `setupFiles` + unbounded forks are re-validated on Windows + Node 24.
 
 **Next:** Wave 10 **local E2E done** (CI live stack still blocked). Pre-push and GitHub Actions run the mock pyramid (`lint:all` + `test:coverage` + component + integration + contract). Coverage campaign Phases A–C **done** (~77.7% unit lines; remeasured **78.16% / 65.99%** on 2026-10-18). Contract Phase 2 (OpenAPI / Pact) deferred until service split.
 

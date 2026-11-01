@@ -150,7 +150,7 @@ Smoke (2026-09-13, Stryker **10**): `glossary-filter.ts` **58.27%** (81 killed /
 
 ## Vitest pin
 
-Exact **`vitest@5.0.0`** + `@vitest/coverage-v8@5.0.0`. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x. Vitest 5 `defaultExclude` is only `node_modules` + `.git` — configs spread `configDefaults.exclude` and add `**/dist/**`, `tests/e2e/**`. Extract campaign + ReportsModal hang log: [[05-plans/coverage-campaign-extracts]].
+Exact **`vitest@5.0.5`** + `@vitest/coverage-v8@5.0.5`. Keep Windows wrappers (`scripts/test-*.mjs`, explicit file lists, `maxWorkers: 2`, no integration `setupFiles`) until Windows + Node 24 proof that glob/dir entry and `setupFiles` work on 5.x. Vitest 5 `defaultExclude` is only `node_modules` + `.git` — configs spread `configDefaults.exclude` and add `**/dist/**`, `tests/e2e/**`. Extract campaign + ReportsModal hang log: [[05-plans/coverage-campaign-extracts]].
 
 ## Coverage campaign (post–Wave 9)
 
