@@ -342,8 +342,16 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                   <Icon name="login" size="sm" />
                   <span class="header-login-label">{t('header.login')}</span>
                 </Button>
-                <Button variant="primary" size="sm" onClick={onOpenRegister ?? onOpenLogin}>
-                  {t('header.register')}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="header-register-btn"
+                  onClick={onOpenRegister ?? onOpenLogin}
+                  aria-label={t('header.register')}
+                  title={t('header.register')}
+                >
+                  <Icon name="person_add" size="sm" />
+                  <span class="header-register-label">{t('header.register')}</span>
                 </Button>
               </div>
             )}
@@ -372,8 +380,11 @@ export function Header({ user, onLogout, onMenuToggle, onOpenLogin, onOpenRegist
                   className="header-logout-btn"
                   onClick={onLogout}
                   size="sm"
+                  aria-label={t('header.logout')}
+                  title={t('header.logout')}
                 >
-                  {t('header.logout')}
+                  <Icon name="logout" size="sm" />
+                  <span class="header-logout-label">{t('header.logout')}</span>
                 </Button>
               </div>
             </div>

@@ -53,6 +53,8 @@ describe('Header', () => {
 
     expect(screen.getByText('header.login')).toBeTruthy();
     expect(screen.getByText('header.register')).toBeTruthy();
+    const register = screen.getByRole('button', { name: 'header.register' });
+    expect(register.querySelector('.material-symbols-outlined')?.textContent).toBe('person_add');
     expect(screen.queryByText('nav.projects')).toBeNull();
     expect(screen.getByTestId('support-menu')).toBeTruthy();
   });
@@ -66,6 +68,8 @@ describe('Header', () => {
     expect(screen.getByText('nav.projects')).toBeTruthy();
     expect(screen.getByText('nav.requests')).toBeTruthy();
     expect(screen.getByText('header.logout')).toBeTruthy();
+    const logout = screen.getByRole('button', { name: 'header.logout' });
+    expect(logout.querySelector('.material-symbols-outlined')?.textContent).toBe('logout');
     expect(screen.queryByText('header.login')).toBeNull();
   });
 

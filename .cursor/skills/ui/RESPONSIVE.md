@@ -51,8 +51,9 @@ repeat(auto-fit, minmax(var(--card-grid-min), var(--card-grid-max)));
 Priority, high → low: logo → primary nav → actions (info, locale, auth) → overflow/wrap.
 
 - **≤1023px:** wrap; primary nav goes to a full-width second row (do not squeeze tablet into one desktop row).
-- **≤767px:** hide credits chip; guest Log in is icon-only (`aria-label` kept). Desktop/tablet Log in is text only (no icon).
-- Do not shrink type until controls clip. Desktop ≥1024 uses one density — not a squeezed 1024–1200 band.
+- **≤1023px:** Log in, Sign up, and Log out are icon-only (`aria-label` kept), same 44px squares as Info and Support. Desktop ≥1024 keeps those labels as text (no icon).
+- **≤767px:** hide credits chip.
+- Do not shrink type until controls clip. Desktop ≥1024 uses one density — not a squeezed 1024–1200 band. If the action cluster (credits, profile) does not fit that row, it wraps onto the next line instead of overlapping.
 
 ## Shared primitives
 
