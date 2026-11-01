@@ -2,14 +2,13 @@ import { route } from 'preact-router';
 import { useTranslation } from 'react-i18next';
 import { useUserRole } from '../../hooks/useUserRole';
 import { Button, LoadingSpinner } from '../ui';
+import { renderRoutedPage, type RoutedGateProps } from './routedComponent';
 
-export interface AdminGateProps {
-  path: string;
-  component: preact.ComponentType<Record<string, unknown>>;
-  [key: string]: unknown;
-}
-
-export function AdminGate({ path, component: Component, ...rest }: AdminGateProps) {
+export function AdminGate<C extends (props: never) => preact.ComponentChildren>({
+  path,
+  component: Component,
+  ...rest
+}: RoutedGateProps<C>) {
   const { t } = useTranslation();
   const { user, isAtLeast } = useUserRole();
 
@@ -50,5 +49,5 @@ export function AdminGate({ path, component: Component, ...rest }: AdminGateProp
     );
   }
 
-  return <Component path={path} {...rest} />;
+  return renderRoutedPage(Component, { ...rest, path });
 }

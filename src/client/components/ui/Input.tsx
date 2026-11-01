@@ -1,9 +1,9 @@
-import type { JSX } from 'preact';
+import type { HTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes } from 'preact';
 import './Input.css';
 
-interface InputProps extends JSX.HTMLAttributes<HTMLInputElement> {
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
-}
+};
 
 export function Input({ label, id, className = '', ...props }: InputProps) {
   return (
@@ -18,10 +18,10 @@ export function Input({ label, id, className = '', ...props }: InputProps) {
   );
 }
 
-interface SelectProps extends JSX.HTMLAttributes<HTMLSelectElement> {
+type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string;
   options: { value: string; label: string }[];
-}
+};
 
 export function Select({ label, id, options, className = '', ...props }: SelectProps) {
   return (
@@ -42,11 +42,11 @@ export function Select({ label, id, options, className = '', ...props }: SelectP
   );
 }
 
-interface SliderProps extends Omit<JSX.HTMLAttributes<HTMLInputElement>, 'type'> {
+type SliderProps = Omit<HTMLAttributes<HTMLInputElement>, 'type' | 'role'> & {
   label?: string;
   displayValue?: string;
   hint?: string;
-}
+};
 
 export function Slider({ label, displayValue, hint, className = '', ...props }: SliderProps) {
   return (

@@ -8,6 +8,7 @@ alwaysApply: true
 ## Code style
 
 - TypeScript strict. Preact (use `preact`, not `react`).
+- No `any`. This includes `as any`, `ComponentType<any>`, and generic defaults. Use a concrete type, a generic, or `unknown` with a narrowing check. oxlint enforces this: `typescript/no-explicit-any` is an error. Do not disable that rule for a file.
 - Functional components. Named exports.
 - 2 spaces, LF. See `.editorconfig`.
 - Lint: oxlint (`.oxlintrc.json`). Format: Prettier. CSS: Stylelint. Cursor/VS Code: recommend `oxc.oxc-vscode` (not ESLint).

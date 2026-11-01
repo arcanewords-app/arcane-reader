@@ -11,7 +11,7 @@ interface AdminEntityFormFieldsProps {
   description: string;
   onDescriptionChange: (value: string) => void;
   photoInputId: string;
-  photoInputRef?: RefObject<HTMLInputElement>;
+  photoInputRef?: RefObject<HTMLInputElement | null>;
   photoPreviewUrl: string | null;
   onPhotoChange: (e: Event) => void;
   onPhotoRemove: () => void;

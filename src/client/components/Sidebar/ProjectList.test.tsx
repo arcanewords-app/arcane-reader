@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ComponentChildren } from 'preact';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectListItem } from '../../types';
@@ -29,12 +30,12 @@ vi.mock('../Project/ProjectLanguagePairFields', () => ({
 }));
 
 vi.mock('../ui', () => ({
-  Button: ({ children, ...props }: { children?: unknown }) => (
+  Button: ({ children, ...props }: { children?: ComponentChildren }) => (
     <button type="button" {...props}>
       {children}
     </button>
   ),
-  Card: ({ title, children }: { title?: string; children?: unknown }) => (
+  Card: ({ title, children }: { title?: string; children?: ComponentChildren }) => (
     <div data-testid="card">
       {title ? <h2>{title}</h2> : null}
       {children}

@@ -13,3 +13,14 @@ declare module '*.json' {
   const value: Record<string, unknown>;
   export default value;
 }
+
+declare module 'preact' {
+  namespace JSX {
+    interface IntrinsicAttributes {
+      /** preact-router injects the matched route path onto page components. */
+      path?: string;
+    }
+  }
+}
+
+export {};

@@ -1,4 +1,4 @@
-import type { JSX, ComponentChildren } from 'preact';
+import type { ComponentChildren, TargetedMouseEvent } from 'preact';
 import { useEffect, useCallback } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import './Modal.css';
@@ -85,7 +85,7 @@ export function Modal({
   const canCloseOnBackdrop = closeOnBackdropClick && !preventClose;
 
   // Handle overlay click
-  const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
+  const handleOverlayClick = (e: TargetedMouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget && canCloseOnBackdrop) {
       onClose();
     }

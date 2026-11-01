@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ComponentChildren } from 'preact';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,7 +16,14 @@ vi.mock('../../utils/analytics.js', () => ({
 }));
 
 vi.mock('../ui', () => ({
-  Button: ({ children, onClick, ...props }: { children?: unknown; onClick?: () => void }) => (
+  Button: ({
+    children,
+    onClick,
+    ...props
+  }: {
+    children?: ComponentChildren;
+    onClick?: () => void;
+  }) => (
     <button type="button" onClick={onClick} {...props}>
       {children}
     </button>

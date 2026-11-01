@@ -1,4 +1,9 @@
-import type { ComponentChildren } from 'preact';
+import type {
+  ComponentChildren,
+  TargetedEvent,
+  TargetedKeyboardEvent,
+  TargetedMouseEvent,
+} from 'preact';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'preact/hooks';
 // dnd-kit imports for modern drag & drop
 import {
@@ -652,7 +657,7 @@ export function ChapterList({
                   </small>
                   <button
                     class="small"
-                    onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+                    onClick={(e: TargetedMouseEvent<HTMLButtonElement>) => {
                       e.stopPropagation();
                       handleUndo();
                     }}
@@ -667,7 +672,7 @@ export function ChapterList({
           <button
             type="button"
             class={`chapter-reorder-toggle ${reorderMode ? 'active' : ''}`}
-            onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+            onClick={(e: TargetedMouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               toggleReorderMode();
             }}
@@ -697,7 +702,7 @@ export function ChapterList({
           placeholder={t('chapterList.searchPlaceholder')}
           value={search}
           disabled={reorderMode}
-          onInput={(e: JSX.TargetedEvent<HTMLInputElement>) =>
+          onInput={(e: TargetedEvent<HTMLInputElement>) =>
             setSearch((e.target as HTMLInputElement).value)
           }
         />
@@ -858,7 +863,7 @@ export function ChapterList({
                                   aria-label={t('chapterList.dragHandleTitle')}
                                   {...attributes}
                                   {...listeners}
-                                  onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) =>
+                                  onClick={(e: TargetedMouseEvent<HTMLButtonElement>) =>
                                     e.stopPropagation()
                                   }
                                   style={isDragging ? { cursor: 'grabbing' } : undefined}
@@ -871,10 +876,10 @@ export function ChapterList({
                                   <div
                                     class="chapter-number-edit"
                                     role="presentation"
-                                    onClick={(e: JSX.TargetedMouseEvent<HTMLDivElement>) =>
+                                    onClick={(e: TargetedMouseEvent<HTMLDivElement>) =>
                                       e.stopPropagation()
                                     }
-                                    onPointerDown={(e: JSX.TargetedEvent<HTMLDivElement>) =>
+                                    onPointerDown={(e: TargetedEvent<HTMLDivElement>) =>
                                       e.stopPropagation()
                                     }
                                   >
@@ -886,7 +891,7 @@ export function ChapterList({
                                       min="1"
                                       max={chapters.length}
                                       value={editedNumber}
-                                      onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => {
+                                      onInput={(e: TargetedEvent<HTMLInputElement>) => {
                                         const value = parseInt(
                                           (e.target as HTMLInputElement).value,
                                           10
@@ -897,7 +902,7 @@ export function ChapterList({
                                           );
                                         }
                                       }}
-                                      onKeyDown={(e: JSX.TargetedKeyboardEvent<HTMLInputElement>) =>
+                                      onKeyDown={(e: TargetedKeyboardEvent<HTMLInputElement>) =>
                                         handleNumberKeyDown(e, chapter.id)
                                       }
                                       onBlur={() => handleSaveNumber(chapter.id)}
@@ -908,7 +913,7 @@ export function ChapterList({
                                     <div class="chapter-number-edit-actions">
                                       <button
                                         class="chapter-number-save-btn"
-                                        onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+                                        onClick={(e: TargetedMouseEvent<HTMLButtonElement>) => {
                                           e.stopPropagation();
                                           handleSaveNumber(chapter.id);
                                         }}
@@ -919,7 +924,7 @@ export function ChapterList({
                                       </button>
                                       <button
                                         class="chapter-number-cancel-btn"
-                                        onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+                                        onClick={(e: TargetedMouseEvent<HTMLButtonElement>) => {
                                           e.stopPropagation();
                                           handleCancelEditNumber(chapter);
                                         }}
@@ -934,7 +939,7 @@ export function ChapterList({
                                   <button
                                     type="button"
                                     class="chapter-number"
-                                    onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) =>
+                                    onClick={(e: TargetedMouseEvent<HTMLButtonElement>) =>
                                       handleStartEditNumber(chapter, e)
                                     }
                                     title={t('chapterList.editNumberTitle')}
@@ -960,10 +965,10 @@ export function ChapterList({
                                 class="chapter-item-actions"
                                 role="group"
                                 aria-label={t('chapterList.deleteTitle')}
-                                onClick={(e: JSX.TargetedMouseEvent<HTMLDivElement>) =>
+                                onClick={(e: TargetedMouseEvent<HTMLDivElement>) =>
                                   e.stopPropagation()
                                 }
-                                onPointerDown={(e: JSX.TargetedEvent<HTMLDivElement>) =>
+                                onPointerDown={(e: TargetedEvent<HTMLDivElement>) =>
                                   e.stopPropagation()
                                 }
                                 onKeyDown={(e) =>
@@ -989,12 +994,12 @@ export function ChapterList({
                                   <button
                                     type="button"
                                     class="chapter-delete-btn"
-                                    onClick={(e: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
+                                    onClick={(e: TargetedMouseEvent<HTMLButtonElement>) => {
                                       e.stopPropagation();
                                       e.preventDefault();
                                       setDeleteConfirmId(chapter.id);
                                     }}
-                                    onPointerDown={(e: JSX.TargetedEvent<HTMLButtonElement>) =>
+                                    onPointerDown={(e: TargetedEvent<HTMLButtonElement>) =>
                                       e.stopPropagation()
                                     }
                                     title={t('chapterList.deleteTitle')}

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ComponentChildren } from 'preact';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,8 +16,8 @@ vi.mock('./ui', () => ({
   }: {
     isOpen: boolean;
     title?: string;
-    children?: unknown;
-    footer?: unknown;
+    children?: ComponentChildren;
+    footer?: ComponentChildren;
   }) =>
     isOpen ? (
       <div data-testid="toc-modal">
@@ -25,7 +26,7 @@ vi.mock('./ui', () => ({
         {footer}
       </div>
     ) : null,
-  Button: ({ children, onClick }: { children?: unknown; onClick?: () => void }) => (
+  Button: ({ children, onClick }: { children?: ComponentChildren; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {children}
     </button>

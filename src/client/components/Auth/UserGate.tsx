@@ -5,14 +5,13 @@
 
 import { useUserRole } from '../../hooks/useUserRole';
 import { LoadingSpinner } from '../ui';
+import { renderRoutedPage, type RoutedGateProps } from './routedComponent';
 
-export interface UserGateProps {
-  path: string;
-  component: preact.ComponentType<Record<string, unknown>>;
-  [key: string]: unknown;
-}
-
-export function UserGate({ path, component: Component, ...rest }: UserGateProps) {
+export function UserGate<C extends (props: never) => preact.ComponentChildren>({
+  path,
+  component: Component,
+  ...rest
+}: RoutedGateProps<C>) {
   const { user } = useUserRole();
 
   if (!user) {
@@ -31,5 +30,5 @@ export function UserGate({ path, component: Component, ...rest }: UserGateProps)
     );
   }
 
-  return <Component path={path} {...rest} />;
+  return renderRoutedPage(Component, { ...rest, path });
 }

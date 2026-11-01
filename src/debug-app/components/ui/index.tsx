@@ -1,23 +1,18 @@
-import type { JSX } from 'preact';
+import type { InputHTMLAttributes, SelectHTMLAttributes } from 'preact';
 import './ui.css';
 
-interface DbgInputProps extends JSX.HTMLAttributes<HTMLInputElement> {
+type DbgInputProps = InputHTMLAttributes<HTMLInputElement> & {
   width?: 'xs' | 'sm' | 'md' | 'lg';
-  placeholder?: string;
-  value?: string;
-  onInput?: JSX.GenericEventHandler<HTMLInputElement>;
-}
+};
 
 export function DbgInput({ width, class: className = '', ...props }: DbgInputProps) {
   const widthClass = width ? `dbg-input-${width}` : '';
   return <input class={`dbg-input ${widthClass} ${className}`.trim()} {...props} />;
 }
 
-interface DbgSelectProps extends JSX.HTMLAttributes<HTMLSelectElement> {
+type DbgSelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   options: Array<{ value: string; label: string }>;
-  value?: string;
-  onChange?: JSX.GenericEventHandler<HTMLSelectElement>;
-}
+};
 
 export function DbgSelect({ options, class: className = '', ...props }: DbgSelectProps) {
   return (

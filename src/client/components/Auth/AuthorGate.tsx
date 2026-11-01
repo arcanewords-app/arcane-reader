@@ -7,14 +7,13 @@
 import { useUserRole } from '../../hooks/useUserRole';
 import { UpgradeScreen } from './UpgradeScreen';
 import { LoadingSpinner } from '../ui';
+import { renderRoutedPage, type RoutedGateProps } from './routedComponent';
 
-export interface AuthorGateProps {
-  path: string;
-  component: preact.ComponentType<Record<string, unknown>>;
-  [key: string]: unknown;
-}
-
-export function AuthorGate({ path, component: Component, ...rest }: AuthorGateProps) {
+export function AuthorGate<C extends (props: never) => preact.ComponentChildren>({
+  path,
+  component: Component,
+  ...rest
+}: RoutedGateProps<C>) {
   const { user, isAtLeast } = useUserRole();
 
   if (!user) {
@@ -37,5 +36,5 @@ export function AuthorGate({ path, component: Component, ...rest }: AuthorGatePr
     return <UpgradeScreen />;
   }
 
-  return <Component path={path} {...rest} />;
+  return renderRoutedPage(Component, { ...rest, path });
 }

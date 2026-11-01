@@ -62,6 +62,7 @@ Policies (tokens, a11y, 44px touch) stay in [`design-system.mdc`](../../rules/de
 - Mixed control types in one toolbar (Select + text buttons + icon chips)
 - Calling Supabase or Redis from the browser with service role
 - `className` (React-ism) in new code
+- `any` (`ComponentType<any>`, `as any`). Route gates use `RoutedGateProps` from `src/client/components/Auth/routedComponent.tsx`
 - Extra production `data-testid` outside the E2E list in `tests/e2e/README.md` — new E2E anchor = README row + `tests/e2e/targets/` helper in the same change
 
 ## Testing

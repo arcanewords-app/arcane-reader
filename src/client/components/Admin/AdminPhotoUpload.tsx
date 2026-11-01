@@ -6,7 +6,7 @@ import './AdminPhotoUpload.css';
 
 interface AdminPhotoUploadProps {
   inputId: string;
-  inputRef?: RefObject<HTMLInputElement>;
+  inputRef?: RefObject<HTMLInputElement | null>;
   previewUrl: string | null;
   onFileChange: (e: Event) => void;
   onRemove: () => void;

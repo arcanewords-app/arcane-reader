@@ -1,8 +1,8 @@
-import type { ComponentChildren, JSX } from 'preact';
+import type { ButtonHTMLAttributes, ComponentChildren } from 'preact';
 
 type DbgButtonVariant = 'default' | 'primary' | 'ghost';
 
-interface DbgButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
+interface DbgButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: DbgButtonVariant;
   children: ComponentChildren;
   disabled?: boolean;

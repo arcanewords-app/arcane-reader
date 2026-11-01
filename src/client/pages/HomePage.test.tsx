@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ComponentChildren } from 'preact';
 import { cleanup, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PublicationListItem } from '../types.js';
@@ -66,7 +67,7 @@ vi.mock('../components/ui', () => ({
   LoadingSpinner: ({ text }: { text?: string }) => <div data-testid="page-loading">{text}</div>,
   Input: (props: Record<string, unknown>) => <input {...props} />,
   Icon: () => null,
-  Button: ({ children, ...props }: { children?: unknown }) => (
+  Button: ({ children, ...props }: { children?: ComponentChildren }) => (
     <button type="button" {...props}>
       {children}
     </button>
@@ -79,9 +80,9 @@ vi.mock('../components/ui', () => ({
     children,
   }: {
     title: string;
-    subtitle?: unknown;
-    actions?: unknown;
-    children?: unknown;
+    subtitle?: ComponentChildren;
+    actions?: ComponentChildren;
+    children?: ComponentChildren;
   }) => (
     <div>
       <h1>{title}</h1>
@@ -90,7 +91,7 @@ vi.mock('../components/ui', () => ({
       {children}
     </div>
   ),
-  CardGrid: ({ children }: { children?: unknown }) => <div>{children}</div>,
+  CardGrid: ({ children }: { children?: ComponentChildren }) => <div>{children}</div>,
 }));
 
 vi.mock('../api/client.js', () => ({

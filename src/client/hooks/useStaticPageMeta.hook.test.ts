@@ -1,5 +1,5 @@
 /** @vitest-environment happy-dom */
-import { renderHook } from '@testing-library/preact';
+import { act, renderHook } from '@testing-library/preact';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -53,7 +53,9 @@ describe('useStaticPageMeta', () => {
     const { unmount } = renderHook(() => useStaticPageMeta('/about', { title: 'Temporary About' }));
 
     expect(document.title).toContain('Temporary About');
-    unmount();
+    act(() => {
+      unmount();
+    });
 
     expect(document.title).toBe(DEFAULT_PAGE_TITLE);
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(

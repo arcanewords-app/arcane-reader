@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ComponentChildren } from 'preact';
 import { cleanup, render, screen } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -51,7 +52,7 @@ vi.mock('../api/client.js', () => ({
 }));
 
 vi.mock('../components/ui', () => ({
-  Button: ({ children, ...props }: { children?: unknown }) => (
+  Button: ({ children, ...props }: { children?: ComponentChildren }) => (
     <button type="button" {...props}>
       {children}
     </button>
@@ -67,9 +68,9 @@ vi.mock('../components/ui', () => ({
     children,
   }: {
     title: string;
-    subtitle?: unknown;
-    actions?: unknown;
-    children?: unknown;
+    subtitle?: ComponentChildren;
+    actions?: ComponentChildren;
+    children?: ComponentChildren;
   }) => (
     <div>
       <h1>{title}</h1>

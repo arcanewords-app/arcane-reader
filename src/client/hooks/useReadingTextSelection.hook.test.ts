@@ -15,7 +15,7 @@ import { useReadingTextSelection } from './useReadingTextSelection.js';
 function mountHook(
   enabled = true,
   resetKey?: string
-): { container: HTMLDivElement; containerRef: RefObject<HTMLDivElement> } {
+): { container: HTMLDivElement; containerRef: RefObject<HTMLDivElement | null> } {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const containerRef = createRef<HTMLDivElement>();

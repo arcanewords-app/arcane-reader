@@ -1,10 +1,10 @@
-import type { JSX } from 'preact';
+import type { ButtonHTMLAttributes } from 'preact';
 import './Button.css';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'full';
 
-interface ButtonProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, 'size'> {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;

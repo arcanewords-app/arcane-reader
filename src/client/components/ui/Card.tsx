@@ -1,7 +1,7 @@
-import type { JSX } from 'preact';
+import type { HTMLAttributes } from 'preact';
 import './Card.css';
 
-interface CardProps extends JSX.HTMLAttributes<HTMLDivElement> {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
   children: preact.ComponentChildren;
 }
